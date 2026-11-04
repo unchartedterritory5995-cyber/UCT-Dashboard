@@ -246,6 +246,7 @@ all resolve against the same bars.
 | CG-34 | workflow | After "open a chart for AMD", "add rsi to it" asks "Which chart do you mean?": a chart the conversation just CREATED is not "it". | agent-core |
 | CG-35 | a | "what's on the calendar this week" matches no group and falls back to every group. On /charts the earnings week is a screen (the calendar.* capabilities exist only on the Calendar page). | nlfix |
 | CG-36 | a | "averages for the S&P" matches no group, so it falls back to every group. "how are the moving averages looking for the market" is caught by the indicators words. Canonical: breadth.show, where "averages" means % above moving averages. | nlfix |
+| CG-37 | c | **Wrong target (still open after train 4):** a reference in the same request to a chart that request CREATES lands on the EXISTING chart instead. "open TSLA on a new chart and switch it to the weekly" makes NVDA weekly; "add a chart for META and make it a line chart" turns NVDA into a line chart; "add a chart for AMD and put the 50 SMA on it" puts the 50 SMA on NVDA. Found by the NLM-1 held-out acceptance (P02 / P15). | agent-core (train-4 fixes branch) |
 
 Observations that are not marked as gaps because they need an owner ruling:
 

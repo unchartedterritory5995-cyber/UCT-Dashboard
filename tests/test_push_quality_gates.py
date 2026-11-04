@@ -124,7 +124,7 @@ def _dir_alert(**kw):
 # Live-path thresholds (no timestamp on the alert => _side_confirms uses the live
 # consolidated NBBO). Fill-path thresholds carry a timestamp on the alert.
 FILL_THR = {"side_confirm_enabled": True, "side_confirm_use_fill_nbbo": True,
-            "side_confirm_fill_lookback_ms": 30000, "side_confirm_ask_tol": 0.005}
+            "side_confirm_fill_lookback_ms": 2500, "side_confirm_ask_tol": 0.005}
 
 
 def _fill_alert(**kw):
@@ -160,28 +160,112 @@ def test_side_confirms_no_quote_abstains(monkeypatch):
 
 # ── FILL-TIME path: the CBRS case and its siblings
 def test_side_confirms_fill_at_ask(monkeypatch):
-    # clean at-ask lift against a thin, 7.3s-stale LEAP book => CONFIRM
-    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 7350.0))
+    # clean at-ask lift against a FRESH book (<2.5s) => CONFIRM
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 800.0))
     assert lmr._side_confirms(_fill_alert(averageFillPrice=32.30), FILL_THR) is True
 
 
 def test_side_confirms_fill_inside_spread_suppresses(monkeypatch):
     # the real CBRS print: $32.20 inside $31.10/$32.30 (10c under ask) => SUPPRESS
-    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 7350.0))
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 800.0))
     assert lmr._side_confirms(_fill_alert(averageFillPrice=32.20), FILL_THR) is False
 
 
-def test_side_confirms_fill_quote_too_old_abstains(monkeypatch):
-    # last quote before the fill is older than the lookback => can't trust it
-    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 45000.0))
+def test_side_confirms_fill_stale_book_abstains(monkeypatch):
+    # DASH 2026-11-04: a clean at-ask fill that WOULD have confirmed under the old
+    # 30s window now abstains because the book is 6.8s stale (> 2.5s trust window).
+    # A stale book on a thin LEAP is unreliable even for a clean-looking print.
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 6800.0))
     assert lmr._side_confirms(_fill_alert(averageFillPrice=32.30), FILL_THR) is False
 
 
+def test_side_confirms_fill_stale_below_bid_not_bear(monkeypatch):
+    # THE DASH regression: 500 @ 29.50 printed below a 29.70/30.00 book that was
+    # 25s stale. Under the old 30s window this confirmed a BEAR off a dead quote;
+    # with the 2.5s fresh guard it abstains (-> suppress), not a false bear card.
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (29.70, 30.00, 25000.0))
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=29.50), FILL_THR) is False
+    # same below-bid print on a FRESH book still confirms bear (we only dropped the
+    # stale-quote guesses, not genuine at/through-bid sells)
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (29.70, 30.00, 400.0))
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=29.50), FILL_THR) is True
+
+
 def test_side_confirms_fill_bid_side(monkeypatch):
-    # BB (sold into the bid): confirm only at/through the bid
+    # BB (sold into the bid): confirm only at/through the bid, on a FRESH book
     monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 100.0))
     assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.08), FILL_THR) is True
     assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.70), FILL_THR) is False
+
+
+# ── Dark-pool-paired BLOCK = hedge, not a directional bet (PINS 2026-11-04) ──
+DP_THR = {"block_darkpool_hedge_enabled": True, "block_dp_window_ms": 3000,
+          "block_dp_min_shares": 50000, "block_darkpool_hedge_suppress": False}
+
+
+def _block_alert(**kw):
+    # a PUT BLOCK with a fill timestamp -> dark-pool pairing path
+    base = {"ticker": "PINS", "cp": "P", "strike": 21, "exp": "02-19-2027",
+            "averageFillPrice": 2.11, "_direction": "Bear", "_side": "A",
+            "_type": "BLOCK", "timestamp": 1_700_000_000.0}
+    base.update(kw)
+    return base
+
+
+def test_darkpool_paired_block_true(monkeypatch):
+    # a 246k-share dark-pool (TRF exchange 9) print in the window => hedge
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 246000, "exchange": 9}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
+
+
+def test_darkpool_paired_block_small_print_false(monkeypatch):
+    # a dark-pool print, but below the share floor => not a block => no pairing
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 500, "exchange": 9}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_darkpool_paired_block_lit_only_false(monkeypatch):
+    # a large print but on a LIT exchange (not TRF 4/9, no trf_id) => not dark pool
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 246000, "exchange": 12}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_darkpool_paired_block_trf_id_true(monkeypatch):
+    # dark pool can also be marked by a trf_id rather than the exchange code
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 80000, "exchange": 11, "trf_id": 2}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
+
+
+def test_darkpool_paired_block_rest_outage_fails_closed(monkeypatch):
+    # REST returns nothing (outage) => False, so the normal directional path runs
+    monkeypatch.setattr(lmr, "_massive_rest", lambda path, params, **kw: None)
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_relabel_dp_hedge_neutralizes():
+    out = lmr._relabel_dp_hedge(_block_alert())
+    assert out["_direction"] is None
+    assert out["_dpHedge"] is True
+    assert "Hedge Block" in out["alertName"]
+    # original untouched
+    assert _block_alert()["_direction"] == "Bear"
+
+
+def test_block_darkpool_hedge_defaults_and_allowlisted():
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("block_darkpool_hedge_enabled") is True
+    assert d.get("block_dp_window_ms") == 3000
+    assert d.get("block_dp_min_shares") == 50000
+    assert d.get("block_darkpool_hedge_suppress") is False
+    src = inspect.getsource(lmr)
+    for k in ("block_darkpool_hedge_enabled", "block_dp_window_ms",
+              "block_dp_min_shares", "block_darkpool_hedge_suppress"):
+        assert src.count(f'"{k}"') >= 2, k
 
 
 def test_side_unconfirmed_suppress_default_on_and_allowlisted():
@@ -193,7 +277,7 @@ def test_side_unconfirmed_suppress_default_on_and_allowlisted():
     d = lmr.DEFAULT_THRESHOLDS
     assert d.get("side_unconfirmed_suppress") is True
     assert d.get("side_confirm_use_fill_nbbo") is True
-    assert d.get("side_confirm_fill_lookback_ms") == 30000
+    assert d.get("side_confirm_fill_lookback_ms") == 2500
     assert d.get("side_confirm_ask_tol") == 0.005
     # each key present in BOTH defaults and the /thresholds allow-list (module literals)
     src = inspect.getsource(lmr)

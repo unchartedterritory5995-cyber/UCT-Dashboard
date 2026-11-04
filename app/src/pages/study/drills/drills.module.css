@@ -20,38 +20,51 @@
   list-style: none;
 }
 
+/* the workbench's answer cards: a numbered key chip, a thick bottom edge, gold when picked, green / red after the verdict */
 .choice {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 12px;
   width: 100%;
-  min-height: 52px;
+  min-height: 56px;
   min-width: var(--tap-min);
-  padding: 0 var(--space-md);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  color: var(--text);
+  padding: 14px 18px;
+  border: 1px solid #262626;
+  border-bottom-width: 4px;
+  border-radius: 14px;
+  background: #141414;
+  color: var(--text-bright);
   font: inherit;
-  font-size: var(--text-lg);
-  line-height: var(--lh-snug);
+  font-size: 17px;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  transition: transform .08s, border-color .12s, background .12s;
 }
-.choice:hover { background: var(--bg-hover); }
+.choice:hover:not(:disabled) { transform: translateY(-2px); border-color: #3a3a3a; }
+.choice:active:not(:disabled) { border-bottom-width: 1px; transform: translateY(3px); }
 .choice:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
 .choice[aria-checked="true"] {
   border-color: var(--ut-gold);
-  background: var(--ut-gold-dim);
-  color: var(--text-bright);
+  background: #1a1708;
+  color: var(--ut-gold-bright);
+  box-shadow: 0 0 0 1px var(--ut-gold) inset;
 }
-.choice:disabled { cursor: default; opacity: 0.85; }
+.choice[aria-checked="true"] .choiceKey { border-color: var(--ut-gold); color: var(--ut-gold-bright); }
+.choice:disabled { cursor: default; }
+.choiceRight.choiceRight { border-color: #2faf68; background: #0f2a18; color: #8fe3b1; box-shadow: none; }
+.choiceWrong.choiceWrong { border-color: #df4646; background: #2a1113; color: #ff9d9d; box-shadow: none; }
 .choiceKey {
   flex: 0 0 auto;
-  width: 20px;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #333;
+  border-radius: 7px;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: 12px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .choiceLabel { flex: 1 1 auto; }
@@ -320,3 +333,6 @@
 .walkNext:hover { background: var(--bg-hover); }
 .walkNext:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
 .walkNext:disabled { opacity: 0.45; cursor: default; }
+
+/* the workbench lays four cards out two by two on a wide screen */
+@media (min-width: 641px) { .choices { display: grid; grid-template-columns: 1fr 1fr; } }

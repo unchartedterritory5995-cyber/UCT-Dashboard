@@ -43,6 +43,11 @@ import EndCard from './EndCard'
 import ScreenFeedback from './ScreenFeedback'
 import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
+import StudyMark from '../../components/study/StudyMark'
+import { Stamp } from '../../lab/bits'
+import { spot, rayAt } from '../../lab/pointers'
+import { setupName } from './challenges/challengeBank'
+import d5 from '../../lab/duo.module.css'
 import styles from './DrillPlayer.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
 
@@ -51,6 +56,18 @@ export const CHART_SLOW_MS = 2000
 export const CHART_SKIP_MS = 6000
 export const CHART_HEIGHT = 240
 export const SET_SIZE = 10
+
+/** The chip over the chart: the skill in the member's words (the workbench's question chip). */
+export function skillChip(skillId) {
+  const id = String(skillId || '')
+  if (!id) return ''
+  if (id.startsWith('setup.')) return setupName(id)
+  if (id === 'vocab.candle') return 'Candle name'
+  if (id === 'vocab.chart') return 'Chart word'
+  if (id.startsWith('size.')) return 'Sizing'
+  if (id.startsWith('regime.')) return 'Regime'
+  return id.split('.').pop().replace(/_/g, ' ')
+}
 
 // The chart look lives in ./studyChartLook (the house look + the study gates);
 // re-exported so older importers keep working.
@@ -152,14 +169,37 @@ export default function DrillPlayer({
   const locked = phase !== 'answer'
   const answerable = !!item && !locked && mod.isAnswerable(state, item)
   const reveal = result?.reveal || null
+  // THE WORKBENCH LOOK (owner, 2026-11-04: "it looks nothing like the work we did in the local host"): the forward
+  // bars run on one at a time after the verdict instead of appearing at once, and a chart item carries the pointer
+  // at the candle in question, then the verdict colour and the low-of-day ray on the reveal.
+  const forwardCount = phase === 'reveal' && Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
+  const baseLen = Math.max(0, (chartBars?.length || 0) - forwardCount)
+  const [run, setRun] = useState({ id: null, k: 0 })
+  useEffect(() => {
+    if (phase !== 'reveal' || !forwardCount || !item) return undefined
+    let k = 0
+    const t = setInterval(() => { k += 1; setRun({ id: item.id, k }); if (k >= forwardCount) clearInterval(t) }, 160)
+    return () => clearInterval(t)
+  }, [phase, forwardCount, item])
+  const runK = run.id === item?.id ? run.k : 0
+  const shownBars = useMemo(() => (forwardCount && chartBars ? chartBars.slice(0, baseLen + runK) : chartBars), [chartBars, forwardCount, baseLen, runK])
+  const pointer = useMemo(() => {
+    if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
+    const i = baseLen - 1
+    if (phase === 'reveal' && result) {
+      return [...spot(chartBars, i, { label: result.correct ? 'you were right' : 'the answer', id: 'pt', color: result.correct ? '#2faf68' : '#df4646', halo: false }), ...rayAt(chartBars[i], 'l', { id: 'ptl', label: '' })]
+    }
+    return spot(chartBars, i, { label: 'this candle', id: 'pt', halo: false })
+  }, [chartVisible, chartBars, item?.type, baseLen, phase, result])
 
   // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
   // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
   const openMarkers = useMemo(() => (chartVisible ? studyOpenMarkers(item, chartBars) : null), [chartVisible, item, chartBars])
-  const annotations = useMemo(
+  const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
   )
+  const annotations = useMemo(() => (modAnnotations || pointer ? [...(modAnnotations || []), ...(pointer || [])] : null), [modAnnotations, pointer])
 
   const onCrosshairMove = useCallback((payload) => { crosshair.current = payload }, [])
 
@@ -292,8 +332,13 @@ export default function DrillPlayer({
   } else if (item) {
     body = (
       <>
-        <h2 className={styles.question} id="study-question">{questionOf(item)}</h2>
-        {framing && <p className={styles.framing}>{framing}</p>}
+        <div className={d5.ask}>
+          <StudyMark mood={phase === 'reveal' && result ? (result.correct ? 'happy' : 'oops') : state ? 'think' : 'idle'} size={60} />
+          <div className={d5.bubble}><h2 className={styles.question} id="study-question">{questionOf(item)}</h2></div>
+        </div>
+        {needsChart && skillChip(item.skill_id) ? (
+          <div className={d5.qLine}><span className={d5.qSetup}>{skillChip(item.skill_id)}</span>{framing && <span className={d5.qText}>{framing}</span>}</div>
+        ) : (framing && <p className={styles.framing}>{framing}</p>)}
         <div
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
           aria-hidden={!needsChart}
@@ -307,7 +352,7 @@ export default function DrillPlayer({
               tf={chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'}
               height={CHART_HEIGHT}
               studyMode
-              barsOverride={chartBars}
+              barsOverride={shownBars}
               frozen
               hideWatermark
               showBrandMark={false}
@@ -342,6 +387,7 @@ export default function DrillPlayer({
           {chartVisible && Overlay && (
             <Overlay item={item} state={state} setState={setState} locked={locked} reveal={reveal} bars={chartBars} />
           )}
+          {chartVisible && phase === 'reveal' && result && !unscored && <Stamp ok={!!result.correct} />}
         </div>
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />
@@ -383,10 +429,10 @@ export default function DrillPlayer({
         )}
       </div>
 
-      <div className={styles.scroll}>{body}</div>
+      <div className={styles.scroll}><div className={`${d5.lesson} ${styles.lessonIn}`}>{body}</div></div>
 
       {!s.finished && s.status === 'ready' && item && (
-        <div className={styles.bottom}>
+        <div className={`${styles.bottom} ${phase === 'reveal' && result ? (result.correct ? styles.good : styles.bad) : ''}`}>
           {phase === 'reveal' && result && (
             <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}
               attemptId={result.attempt_id ?? null} reviewer={reviewer} />
