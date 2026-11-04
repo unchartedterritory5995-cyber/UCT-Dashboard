@@ -20,7 +20,8 @@ import fs from 'node:fs'
 import { registerCatalog } from './qa/capabilityRegression/testing/registry'
 import { corpus, phrasingsOf, failureMode, gapIt } from './qa/capabilityRegression/testing/corpus'
 import { mountCase, resolveOps, boardState, receiptsNow, refusals, panelHost } from './qa/capabilityRegression/testing/harness'
-import { pinClock } from './qa/capabilityRegression/testing/clock'
+import { pinClock, CLOCK } from './qa/capabilityRegression/testing/clock'
+import clockExpectations from './qa/capabilityRegression/baseline/clockExpectations.json'
 
 pinClock()                   // the corpus's pinned instant (#783 testing/clock.js): the market clock never depends on when CI runs
 import { replay, checkExpect } from './qa/capabilityRegression/testing/run'
@@ -41,6 +42,25 @@ const rows = []
 const V2_GAPS = {
   // V2-G1 ("Put four charts on my screen") is FIXED by V2-G2 plan groups (agent/w2/v2-nl-equivalence): the adds and the
   // re-tile come in one response and run as ONE plan, as v1 runs them. No v2-only gap is open.
+}
+
+/** The CORPUS's own known gap (ph.gaps.c), honoured as the v1 capreg final-state test honours it (corpus.js gapIt): the
+ *  case passes only when it fails in the RECORDED mode — any other failure (a harness crash, a different assertion) still
+ *  fails loudly. One difference, on purpose: if v2 PASSES where v1's gap is recorded, that is reported (a console warning
+ *  naming the gap) and NOT failed — a v1 gap v2 does not have is information for the gap's owner, not a v2 regression.
+ *  The marker itself is owned by the corpus (v1); this rail never edits it. */
+function corpusGapIt(gap) {
+  if (!gap?.id || !gap.mode) throw new Error(`a corpus gap needs {id, mode}: ${JSON.stringify(gap)}`)
+  const run = (title, fn, timeout) => it(title, async () => {
+    let err = null
+    try { await fn() } catch (e) { err = e }
+    if (!err) {
+      console.warn(`[v2 parity] corpus KNOWN GAP ${gap.id} does not reproduce on v2 (v2 reaches the expected state): ${title}`)
+      return
+    }
+    if (!failureMode(err).includes(gap.mode)) throw new Error(`corpus KNOWN GAP ${gap.id} failed on v2 for an UNRELATED reason — expected the mode "${gap.mode}", got: ${String(err?.message ?? err).split('\n')[0]}`)
+  }, timeout)
+  return { run, tag: ` [corpus KNOWN GAP ${gap.id}]` }
 }
 
 /** turn_v2's mode for one step, from the manifest entry the v2 request carried (STEP-1 + v2-readiness-2 agent.undo). */
@@ -129,8 +149,13 @@ async function replayV2({ board: boardName = 'ONE', steps, seed = {} }, label) {
   return { modelTurns: srv.bodies.length, steps: srv.results.map(r => r.status) }
 }
 
-const stepsOf = (intent, ph) => [...(intent.before || []), ...(ph.prelude || []).map(say => ({ say })),
-  { say: ph.text, model: intent.model, expect: intent.expect, approve: intent.approve, afterApprove: intent.afterApprove }]
+// baseline/clockExpectations.json: where the product legitimately answers differently at the pinned instant
+// (testing/clock.js CAPREG_CLOCK), the same per-clock expectation the v1 final-state test uses (testing/finalState.jsx)
+const stepsOf = (intent, ph) => {
+  const byClock = clockExpectations.intents[intent.id]?.[CLOCK]?.expect
+  return [...(intent.before || []), ...(ph.prelude || []).map(say => ({ say })),
+    { say: ph.text, model: intent.model, expect: byClock || intent.expect, approve: byClock ? undefined : intent.approve, afterApprove: byClock ? undefined : intent.afterApprove }]
+}
 
 async function outcome(fn) {
   try { const r = await fn(); return { ok: true, ...(r || {}) } } catch (e) { return { ok: false, mode: failureMode(e).slice(0, 160) } }
@@ -150,10 +175,21 @@ describe('planner v2 parity — capability-regression corpus', () => {
     // the RAIL: the first phrasing of every intent reaches the same final state under v2
     for (const intent of corpus.intents) {
       const ph = phrasingsOf(intent)[0]
-      const { run, tag } = gapIt(V2_GAPS[intent.id])
-      run(`v2 · ${intent.id} · "${ph.text}"${tag}`, async () => {
+      const body = async () => {
         await replayV2({ board: intent.board, seed: intent.seed, steps: stepsOf(intent, ph) }, `v2 ${intent.id}`)
-      }, 60000)
+      }
+      // a v2-only gap first; else the CORPUS's own recorded final-state gap (ph.gaps.c — what the v1 capreg final-state
+      // test honours through gapIt): v2 replays the same canonical plan, so it is expected to fail in the SAME recorded way
+      const v2gap = V2_GAPS[intent.id]
+      if (v2gap) {
+        const { run, tag } = gapIt(v2gap)
+        run(`v2 · ${intent.id} · "${ph.text}"${tag}`, body, 60000)
+      } else if (ph.gaps?.c) {
+        const { run, tag } = corpusGapIt(ph.gaps.c)
+        run(`v2 · ${intent.id} · "${ph.text}"${tag}`, body, 60000)
+      } else {
+        it(`v2 · ${intent.id} · "${ph.text}"`, body, 60000)
+      }
     }
     return
   }
