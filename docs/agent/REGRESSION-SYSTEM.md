@@ -109,20 +109,46 @@ production's kinds):
 
 | protection | covered / applicable | meaning |
 |---|---|---|
-| nl | 63 / 154 | a phrasing reaches it with no gap at (b) or (c) |
-| routing | 63 / 154 | the production routed request carries it, and it is not cut by the budget |
-| args | 63 / 154 | a canonical op passes shapeError |
-| execution | 62 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 53 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| nl | 83 / 154 | a phrasing reaches it with no gap at (b) or (c) |
+| routing | 83 / 154 | the production routed request carries it, and it is not cut by the budget |
+| args | 83 / 154 | a canonical op passes shapeError |
+| execution | 82 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 58 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
 | refusal | 8 / 154 | a refusal / must-not-change case |
-| permission | 135 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
-| undo | 32 / 95 | undo-exact capabilities with a restore assertion |
-| multiStep | 16 / 154 | inside a multi-op plan or a multi-step workflow |
-| phrasings | 61 / 154 | ≥ 3 gap-free phrasings |
+| permission | 146 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
+| undo | 34 / 95 | undo-exact capabilities with a restore assertion |
+| multiStep | 18 / 154 | inside a multi-op plan or a multi-step workflow |
+| phrasings | 81 / 154 | ≥ 3 gap-free phrasings |
 
-64 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow; D7 and D8 added app settings and chart templates through the preference writer). The other 90 are in the backlog. Their contract is
+83 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow; D7 and D8 added app settings and chart templates through the preference writer; E1 to E6 added saved screens, watchlist and layout management, breadth variants, volume / indicator listing / drawing visibility / widget links, and the multi-step golden workflows GW-19 to GW-21). The other 71 are in the backlog: see §2a. Their contract is
 pinned, but nothing tests their language or execution yet. That backlog is the honest size of the "silent loss"
 exposure.
+
+## 2a. What is still uncovered, and why (71 capabilities, 2026-11-04)
+
+The backlog (`baseline/regressionEntries.json`) is listed here by reason, highest member value first. Every entry has
+its approval / undo contract pinned (rail 2), so none can lose its approval or Undo silently. What it lacks is a
+language and execution case.
+
+| Group | Capabilities | Why not yet | Value / next step |
+|---|---|---|---|
+| Time-anchored drawings | drawing.addTrendline, addRay, addHorizontalRay, addRectangle, addFib, addText, addAvwap | Anchors resolve against the chart's loaded bar history. The fixture board has none, and adding it means a bars fixture with dates. | **High.** Live LT-2, LT-5 and LT-6 were in this family. The next batch should add a bars-history fixture. |
+| Promoted chart settings and replay | chart.setSetting, chart.replay, chart.goToDate, chart.addCustomTimeframe, chart.resetDefaults, chart.applyThemeAll | `setSetting` arguments come from the promoted-rows registry. Replay and goToDate need bar history (as above). | **High** for setSetting and replay: live LT-3 and LT-7. Same bars fixture. |
+| Chart-setup extras | chartSetup.copyLook, compareDisplay, favoriteTimeframe, removeTimeframe; chart.selectTab, chart.linkTab | Cheap with the current fixture (two charts / chart tabs); not reached yet. | Medium. Next batch, no new fixture needed. |
+| Widget internals | widget.addTab, closeTab, renameTab, selectTab, move, resize, setOption, showList, showScan | Tabs and options of NON-chart widgets (watchlist / news / themes widgets). The fixture board has no such widget state yet. | Medium: setOption and resize are member-facing. Needs widget-option fixtures. |
+| Indicator setup | indicatorCopy.copyTo, indicatorCopy.duplicate, indicatorStyle.placeIn, pane.move, pane.resize | Covered by the Indicators P2 suites (agentIndicatorsP2), not yet by owner-language intents. | Medium. Cheap: the current fixture carries indicator instances. |
+| Indicator draft sub-steps | indicator.previewDraft, saveDraft, undoDraft, discardDraft, openCreate | The END-TO-END draft flow is covered (D6: build → save → on the chart → Undo). The individual draft verbs are a multi-turn conversation. | Low-medium. |
+| Navigation and "open" | app.open, watchlist.open, watchlist.show, screener.openSaved, layout.saveCurrent | They open a page or a widget (host navigation), which the fixture records nowhere. | Low-medium. Needs a navigation spy. |
+| Definitions management | definition.describe, definition.delete, definition.duplicate | The definitions server fixture exists (D6). Not reached yet. | Low-medium. |
+| Market-data extras | stock.themes | Served in production. Needs a `themes` kind fixture. | Medium. |
+| Read-only meta and guidance | agent.capabilities, guide.explain, guide.show, settings.show, layout.current, screener.state | They change nothing and answer from the registry or the page. A regression shows as wrong words, which this suite deliberately never asserts. | **Low.** Covered by agentGuide* / discovery tests. |
+| Rare admin | settings.setWatchlistDigest | One switch, a rarely used setting. | Low. |
+| Dark or other surfaces (not on /charts in production) | coach.consent, coach.explain, journal.createNote, journal.listNotes, journal.proposeNote, journal.reviewTrades, playbook.explain, playbook.setup, playbook.record, research.ask, history.afterEvent, breadth.page, screener.page, calendar.day, calendar.nextReport | Registered only while their server flag serves them (coach, knowledge, research, event studies), or only on another page's surface. The corpus runs the production /charts configuration. | Cover each when its flag is activated. The new-capability rail already forces an entry the day one ships. |
+
+Two protections remain thin across the catalog:
+- **refusal (8):** most "must not happen" cases are product-specific refusals (hidden fields, protected layouts, tab
+  stand-ins, approval holds). A refusal case per confirm-risk capability is the obvious next protection.
+- **multiStep (18):** the golden combos GW-19 to GW-21 are the start.
 
 ## 3. Corpus levels
 
@@ -167,6 +193,7 @@ exposure.
 | CG-25 | a | "use the light theme": "theme" alone is a charts word, so settings.setAppTheme is not sent. | nlfix |
 | CG-26 | a | "new charts should open on the weekly" names no settings word, so it is routed as a chart timeframe change. | nlfix |
 | CG-27 | a | "turn off alert sounds": the settings word is `sound`, and the plural "sounds" does not match, so it routes to alerts only. | nlfix |
+| CG-28 | a | "which studies do I have on here": "studies" is not an indicators word, so indicator.list is not sent. | nlfix |
 
 Observations that are not marked as gaps because they need an owner ruling:
 
