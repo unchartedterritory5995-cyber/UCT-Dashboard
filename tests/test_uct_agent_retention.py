@@ -27,6 +27,7 @@ def db(monkeypatch, tmp_path):
     retention._reset_for_test()
     for k in (retention.KN_FLAG, retention.DAYS_ENV):
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setattr(retention, "SPAWN", lambda fn: fn())     # the background prune runs inline in tests
     yield
     store._reset_for_tests()
 
@@ -54,7 +55,7 @@ def test_only_explicit_on_values_switch_it_on(monkeypatch, v):
     assert retention.kn_retention_on() is False
 
 
-@pytest.mark.parametrize("v", ["", "0", "-3", "abc", "99999"])
+@pytest.mark.parametrize("v", ["", "0", "-3", "abc", "99999", "1", "7", "29"])          # review #794 B2: floor 30
 def test_transcript_days_needs_a_sane_number(monkeypatch, v):
     monkeypatch.setenv(retention.DAYS_ENV, v)
     assert retention.transcript_days() is None
@@ -150,7 +151,7 @@ def test_prune_deletes_old_rows_and_empty_old_conversations_only(db, monkeypatch
 def test_prune_runs_at_most_once_an_hour(db, monkeypatch):
     monkeypatch.setenv(retention.DAYS_ENV, "30")
     calls = []
-    monkeypatch.setattr(retention, "prune", lambda c, d, now=None: calls.append(d) or {})
+    monkeypatch.setattr(retention, "prune", lambda c, d, now=None, lock=None: calls.append(d) or {})
     cid = store.create_conversation("u1", "x")
     for _ in range(5):
         store.add_turn("u1", cid, "member", "x")
@@ -175,3 +176,101 @@ def test_no_passage_text_reaches_a_log_record(db, monkeypatch, caplog):
         store.add_turn("u1", cid, "outcome", ANSWER, DATA)
         turn.history_messages([{"role": "outcome", "text": ANSWER, "data": DATA}])
     assert not any("ZQXSENTINEL" in r.getMessage() for r in caplog.records)
+
+
+# ── review #794: batches, floor, pinned chats, fixed clock, no connection when off, no orphans ─────────────────────
+NOW = 1_800_000_000.0
+
+
+def _turn_at(cid, created_at, text="x"):
+    import contextlib
+    store.add_turn("u1", cid, "member", text)
+    with contextlib.closing(store._connect()) as c:
+        c.execute("UPDATE agent_turns SET created_at = ? WHERE id = (SELECT MAX(id) FROM agent_turns)", (int(created_at),))
+        c.execute("UPDATE agent_conversations SET updated_at = ? WHERE id = ?", (int(created_at), cid))
+        c.commit()
+
+
+def test_review794_fixed_clock_boundary_exactly_n_days_is_kept_one_second_more_is_deleted(db):
+    kept, gone = store.create_conversation("u1", "kept"), store.create_conversation("u1", "gone")
+    _turn_at(kept, NOW - 30 * 86400, "exactly 30 days")
+    _turn_at(gone, NOW - 30 * 86400 - 1, "30 days + 1 s")
+    res = retention.prune(store._connect, 30, now=NOW)
+    assert [r["text"] for r in _rows(kept)] == ["exactly 30 days"] and _rows(gone) == []
+    assert res["turns"] == 1
+
+
+def test_review794_deletes_in_batches_and_checkpoints(db):
+    cid = store.create_conversation("u1", "big")
+    for i in range(7):
+        _turn_at(cid, NOW - 40 * 86400, f"old {i}")
+    seen = []
+
+    class Lock:
+        def __enter__(self):
+            seen.append("lock")
+
+        def __exit__(self, *a):
+            return False
+    res = retention.prune(store._connect, 30, now=NOW, lock=Lock(), batch=3)
+    assert res["turns"] == 7 and seen.count("lock") >= 4          # 3 + 3 + 1 (+ the conversation sweep)
+    import contextlib
+    with contextlib.closing(store._connect()) as c:
+        idx = {r[1] for r in c.execute("PRAGMA index_list(agent_turns)")}
+    assert "ix_agent_turns_created" in idx
+
+
+def test_review794_pinned_chats_are_exempt_by_default(db):
+    pinned = store.create_conversation("u1", "pinned")
+    _turn_at(pinned, NOW - 400 * 86400, "kept forever while pinned")
+    store.set_pinned("u1", pinned, True)
+    import contextlib
+    with contextlib.closing(store._connect()) as c:
+        c.execute("UPDATE agent_conversations SET updated_at = ? WHERE id = ?", (int(NOW - 400 * 86400), pinned))
+        c.commit()
+    retention.prune(store._connect, 30, now=NOW)
+    assert [r["text"] for r in _rows(pinned)] == ["kept forever while pinned"] and store.owns("u1", pinned)
+
+
+def test_review794_no_orphan_turns_after_a_prune(db):
+    for k in range(3):
+        cid = store.create_conversation("u1", f"c{k}")
+        _turn_at(cid, NOW - (10 + 20 * k) * 86400)
+        _turn_at(cid, NOW - (40 + 20 * k) * 86400)
+    retention.prune(store._connect, 30, now=NOW)
+    import contextlib
+    with contextlib.closing(store._connect()) as c:
+        orphans = c.execute("SELECT COUNT(*) FROM agent_turns t WHERE NOT EXISTS "
+                            "(SELECT 1 FROM agent_conversations c WHERE c.id = t.conversation_id)").fetchone()[0]
+        empties = c.execute("SELECT COUNT(*) FROM agent_conversations c WHERE pinned_at IS NULL AND updated_at < ? AND "
+                            "NOT EXISTS (SELECT 1 FROM agent_turns t WHERE t.conversation_id = c.id)",
+                            (int(NOW - 30 * 86400),)).fetchone()[0]
+    assert orphans == 0 and empties == 0
+
+
+def test_review794_the_off_path_opens_no_connection():
+    def boom():
+        raise AssertionError("no connection may be opened while the switch is off")
+    assert retention.maybe_prune(boom) is False
+
+
+def test_review794_a_value_below_the_floor_is_refused_and_logged_once(monkeypatch, caplog):
+    retention._reset_for_test()
+    monkeypatch.setenv(retention.DAYS_ENV, "7")
+    caplog.set_level(logging.WARNING)
+    assert retention.transcript_days() is None and retention.transcript_days() is None
+    assert sum("refused" in r.getMessage() for r in caplog.records) == 1
+    def boom():
+        raise AssertionError("refused value: no prune")
+    assert retention.maybe_prune(boom) is False
+
+
+def test_review794_the_prune_runs_off_the_request_path(db, monkeypatch):
+    monkeypatch.setenv(retention.DAYS_ENV, "30")
+    spawned = []
+    monkeypatch.setattr(retention, "SPAWN", lambda fn: spawned.append(fn))
+    monkeypatch.setattr(retention, "prune", lambda *a, **k: (_ for _ in ()).throw(AssertionError("not inline")))
+    cid = store.create_conversation("u1", "x")
+    store.add_turn("u1", cid, "member", "x")                     # returns without running the prune
+    assert len(spawned) == 1
+

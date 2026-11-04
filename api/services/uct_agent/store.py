@@ -207,7 +207,7 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
                   (now, conversation_id, _uid(user_id)))
         c.commit()
         row_id = int(cur.lastrowid)
-    retention.maybe_prune(_connect)
+    retention.maybe_prune(_connect, lock=_WRITE_LOCK)     # background thread, batched under the write lock
     return row_id
 
 

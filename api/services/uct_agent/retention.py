@@ -8,9 +8,17 @@ CODE READY FOR THE OWNER'S DECISION; BOTH SWITCHES DEFAULT OFF, so nothing chang
                               setup, plus {kind, actions, kn: {kb_ids, templates, setups, policy_version}}. The answer
                               text, its saved views and lines, and any figures are never written to agent_turns,
                               so they are not kept, searched (/api/agent/search) or re-sent.
-  UCT_AGENT_TRANSCRIPT_DAYS=N (P7) every Agent transcript row older than N days (1..3650) is deleted, at most once an
-                              hour, on the next write; empty conversations older than N days and their state go too.
-                              The prune runs with secure_delete on. Unset (the default): nothing is ever pruned.
+  UCT_AGENT_TRANSCRIPT_DAYS=N (P7) every Agent transcript row older than N days (MIN_DAYS=30 .. 3650) is deleted:
+                              at most once an hour, started by a write but run on a BACKGROUND thread, in batches of
+                              BATCH rows (each batch under the store's write lock, committed on its own), with
+                              secure_delete on, an index on created_at, and a WAL checkpoint(TRUNCATE) afterwards so
+                              deleted text does not linger in the -wal file. PINNED chats are exempt (owner decision
+                              B3 pending; the default keeps them). Empty unpinned conversations older than N days and
+                              their state go too. A value below MIN_DAYS is refused (the switch stays off, logged).
+                              Unset (the default): nothing is pruned and no connection is opened.
+
+Not retroactive: UCT_AGENT_KN_RETENTION changes only rows written after it is switched on; rows written before keep
+their text until the age limit (or a one-shot scrub, #748 P8c) removes them.
 
 Already true without a flag: history replay never re-sends knowledge text (turn.KNOWLEDGE_REPLAY / frame.REPLAY_STUB).
 Not done here (owner decisions, PR #748 Q5 / P8b): telemetry and spend retention, and purging the Agent store on
@@ -32,6 +40,8 @@ KN_FLAG = "UCT_AGENT_KN_RETENTION"
 DAYS_ENV = "UCT_AGENT_TRANSCRIPT_DAYS"
 CITATION_MAX = 200
 PRUNE_EVERY_S = 3600
+MIN_DAYS = 30                     # review #794 B2: no transcript age limit below 30 days
+BATCH = 500
 _ON = ("1", "true", "on", "yes")
 _KEEP = ("kind", "actions", "local", "voice")
 _KB = re.compile(r"UCT KB #(\d{1,9})")
@@ -44,12 +54,24 @@ def kn_retention_on() -> bool:
     return str(os.environ.get(KN_FLAG) or "").strip().lower() in _ON
 
 
+_WARNED = {"value": None}
+
+
 def transcript_days() -> Optional[int]:
-    try:
-        n = int(str(os.environ.get(DAYS_ENV) or "").strip())
-    except ValueError:
+    raw = str(os.environ.get(DAYS_ENV) or "").strip()
+    if not raw:
         return None
-    return n if 1 <= n <= 3650 else None
+    try:
+        n = int(raw)
+    except ValueError:
+        n = -1
+    if MIN_DAYS <= n <= 3650:
+        return n
+    if _WARNED["value"] != raw:                      # once per distinct bad value
+        _WARNED["value"] = raw
+        log.warning("[uct-agent retention] %s=%r refused (allowed %d..3650 days): transcript pruning stays OFF",
+                    DAYS_ENV, raw[:20], MIN_DAYS)
+    return None
 
 
 def _is_knowledge_row(role: str, data: Any) -> bool:
@@ -93,43 +115,72 @@ _LAST = {"at": 0.0}
 _LOCK = threading.Lock()
 
 
-def prune(conn: sqlite3.Connection, days: int, now: Optional[float] = None) -> dict:
-    """Delete transcript rows older than `days`, then empty conversations older than `days` and their state rows.
-    Counts only in the result and the log."""
+def prune(connect: Callable[[], sqlite3.Connection], days: int, now: Optional[float] = None,
+          lock: Optional[threading.Lock] = None, batch: int = BATCH) -> dict:
+    """Delete UNPINNED transcript rows older than `days` in batches (each under `lock`, committed on its own), then
+    empty unpinned conversations older than `days` and their state rows, then checkpoint the WAL. Counts only."""
+    import contextlib
     cutoff = int((now if now is not None else time.time()) - days * 86400)
-    conn.execute("PRAGMA secure_delete=ON")
-    turns = conn.execute("DELETE FROM agent_turns WHERE created_at < ?", (cutoff,)).rowcount
-    empty = [r[0] for r in conn.execute(
-        "SELECT id FROM agent_conversations c WHERE updated_at < ? AND NOT EXISTS "
-        "(SELECT 1 FROM agent_turns t WHERE t.conversation_id = c.id)", (cutoff,)).fetchall()]
-    for i in range(0, len(empty), 500):
-        chunk = empty[i:i + 500]
-        q = ",".join("?" * len(chunk))
-        conn.execute(f"DELETE FROM agent_conversation_state WHERE conversation_id IN ({q})", chunk)
-        conn.execute(f"DELETE FROM agent_conversations WHERE id IN ({q})", chunk)
-    conn.commit()
+    guard = lock or contextlib.nullcontext()
+    turns = 0
+    with contextlib.closing(connect()) as c:
+        c.execute("PRAGMA secure_delete=ON")
+        c.execute("CREATE INDEX IF NOT EXISTS ix_agent_turns_created ON agent_turns(created_at)")
+        c.commit()
+        while True:
+            with guard:
+                n = c.execute(
+                    "DELETE FROM agent_turns WHERE id IN (SELECT t.id FROM agent_turns t WHERE t.created_at < ? AND "
+                    "NOT EXISTS (SELECT 1 FROM agent_conversations p WHERE p.id = t.conversation_id "
+                    "AND p.pinned_at IS NOT NULL) LIMIT ?)", (cutoff, int(batch))).rowcount
+                c.commit()
+            turns += n
+            if n < batch:
+                break
+        with guard:
+            empty = [r[0] for r in c.execute(
+                "SELECT id FROM agent_conversations c WHERE updated_at < ? AND pinned_at IS NULL AND NOT EXISTS "
+                "(SELECT 1 FROM agent_turns t WHERE t.conversation_id = c.id)", (cutoff,)).fetchall()]
+            for i in range(0, len(empty), batch):
+                chunk = empty[i:i + batch]
+                q = ",".join("?" * len(chunk))
+                c.execute(f"DELETE FROM agent_conversation_state WHERE conversation_id IN ({q})", chunk)
+                c.execute(f"DELETE FROM agent_conversations WHERE id IN ({q})", chunk)
+            c.commit()
+        c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     log.info("[uct-agent retention] pruned %d turns and %d empty conversations older than %d days", turns, len(empty), days)
     return {"turns": turns, "conversations": len(empty), "days": days}
 
 
-def maybe_prune(connect: Callable[[], sqlite3.Connection], now: Optional[float] = None) -> Optional[dict]:
-    """The opportunistic daily-ish prune: only while UCT_AGENT_TRANSCRIPT_DAYS is set, at most once per hour."""
+def _spawn(fn: Callable[[], Any]) -> None:
+    threading.Thread(target=fn, name="uct-agent-retention", daemon=True).start()
+
+
+SPAWN: Callable[[Callable[[], Any]], None] = _spawn     # tests run it inline
+
+
+def maybe_prune(connect: Callable[[], sqlite3.Connection], now: Optional[float] = None,
+                lock: Optional[threading.Lock] = None) -> bool:
+    """Start the prune OFF the request path (a background thread), at most once per hour, only while
+    UCT_AGENT_TRANSCRIPT_DAYS holds an allowed value. With the switch off it returns at once: no connection opened."""
     days = transcript_days()
     if days is None:
-        return None
+        return False
     t = now if now is not None else time.time()
     with _LOCK:
         if t - _LAST["at"] < PRUNE_EVERY_S:
-            return None
+            return False
         _LAST["at"] = t
-    try:
-        import contextlib
-        with contextlib.closing(connect()) as c:
-            return prune(c, days, now=t)
-    except Exception:  # noqa: BLE001 — a failed prune never fails the write that triggered it
-        log.exception("[uct-agent retention] prune failed")
-        return None
+
+    def run():
+        try:
+            prune(connect, days, now=t, lock=lock)
+        except Exception:  # noqa: BLE001 — a failed prune never affects a member request
+            log.exception("[uct-agent retention] prune failed")
+    SPAWN(run)
+    return True
 
 
 def _reset_for_test() -> None:
     _LAST["at"] = 0.0
+    _WARNED["value"] = None
