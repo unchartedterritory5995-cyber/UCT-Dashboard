@@ -12,13 +12,13 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | args | 94 / 154 |
 | execution | 93 / 154 |
 | receipt | 68 / 154 |
-| refusal | 8 / 154 |
+| refusal | 27 / 154 |
 | permission | 146 / 154 |
 | undo | 43 / 95 |
 | multiStep | 19 / 154 |
 | phrasings | 92 / 154 |
 
-## Known gaps (62)
+## Known gaps (63)
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
@@ -75,6 +75,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | CG-33 | a | chart.replay | "replay the chart from march 2 2026" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
 | CG-33 | a | chart.replay | "go back to march 2 2026 and hide what came after" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
 | CG-33 | a | chart.replay | "start replay mode on 2026-03-02" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
+| CG-34 | workflow | GW-22.new-chart-then-rsi-on-it | — | agent-core builder (useAgent.js subjectTarget / memory) | after 'open a chart for AMD' (widget.addCharts), 'add rsi to it' asks 'Which chart do you mean?' — the chart this conversation just CREATED is not 'it' (subjectTarget remembers changed charts, not created ones); nothing is added |
 | CG-12 | collision | routing data | "tell me about TSM the company" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
 | CG-12 | collision | routing data | "tell me about AAPL" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' — and nothing else names data, so the owner group is never sent (SUBTRACTIVE) |
@@ -94,7 +95,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | agent.capabilities | agent | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | agent.undo | undo | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✓ | ✓ |
 | alert.create | alerts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
-| alert.delete | alerts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
+| alert.delete | alerts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
 | alert.list | alerts | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | app.open | settings | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | board.duplicateChart | boardEdit | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
@@ -106,7 +107,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | calendar.nextReport | — | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | chart.addCustomTimeframe | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chart.addTab | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
-| chart.applyTemplate | charts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| chart.applyTemplate | charts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | chart.applyTheme | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chart.applyThemeAll | charts | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chart.closeTab | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
@@ -129,7 +130,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | chartGrid.set | chartGrid | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | chartSetup.compareDisplay | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chartSetup.copyLook | chartSetup | confirm | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| chartSetup.deleteTemplate | chartSetup | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| chartSetup.deleteTemplate | chartSetup | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | chartSetup.favoriteTimeframe | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chartSetup.removeTimeframe | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chartSetup.saveTemplate | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
@@ -147,7 +148,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | drawing.addRectangle | drawingTools | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | drawing.addText | drawingTools | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | drawing.addTrendline | drawingTools | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| drawing.clear | drawings | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
+| drawing.clear | drawings | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | ✓ |
 | drawing.list | drawings | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✓ | ✓ |
 | drawing.lock | drawings | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | drawing.remove | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
@@ -165,13 +166,13 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | indicator.list | indicators | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | indicator.openCreate | indicators | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | indicator.previewDraft | indicators | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| indicator.remove | indicators | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| indicator.remove | indicators | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | indicator.saveDraft | indicators | confirm | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | · | ✗ | ✗ |
 | indicator.show | indicators | local | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
 | indicator.undoDraft | indicators | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | indicator.update | indicators | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| indicatorAlert.create | indicatorAlerts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
-| indicatorAlert.delete | indicatorAlerts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
+| indicatorAlert.create | indicatorAlerts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
+| indicatorAlert.delete | indicatorAlerts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
 | indicatorAlert.toggle | indicatorAlerts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | indicatorCopy.copyTo | indicatorSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | indicatorCopy.duplicate | indicatorSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
@@ -181,14 +182,14 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | journal.listNotes | coach | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | journal.proposeNote | coach | confirm | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | · | ✗ | ✗ |
 | journal.reviewTrades | coach | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| layout.create | layouts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| layout.create | layouts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | layout.current | layouts | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| layout.delete | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
-| layout.duplicate | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
+| layout.delete | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
+| layout.duplicate | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
 | layout.list | layouts | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | layout.open | layouts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | layout.rename | layouts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
-| layout.saveAs | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
+| layout.saveAs | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
 | layout.saveCurrent | layouts | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | news.catalysts | data | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | news.latest | data | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
@@ -198,15 +199,15 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | playbook.record | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | playbook.setup | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | research.ask | data | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| screener.deleteSaved | screener | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
-| screener.duplicateSaved | screener | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| screener.deleteSaved | screener | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
+| screener.duplicateSaved | screener | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | screener.listSaved | screener | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | screener.openSaved | screener | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | screener.page | screener | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| screener.renameSaved | screener | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| screener.renameSaved | screener | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | screener.run | screener | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | ✓ | ✓ |
 | screener.runSaved | screener | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
-| screener.saveAs | screener | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
+| screener.saveAs | screener | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | ✓ |
 | screener.state | screener | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | settings.setAlertSound | settings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | settings.setAppTheme | settings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
@@ -221,13 +222,13 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | stock.themes | data | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | volume.setState | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | watchlist.add | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| watchlist.clear | lists | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
-| watchlist.create | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
-| watchlist.delete | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
+| watchlist.clear | lists | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
+| watchlist.create | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
+| watchlist.delete | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
 | watchlist.list | lists | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | watchlist.open | lists | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | watchlist.remove | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| watchlist.rename | lists | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| watchlist.rename | lists | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | watchlist.reorder | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | watchlist.setNote | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | watchlist.show | lists | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |

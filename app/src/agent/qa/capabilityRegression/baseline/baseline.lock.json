@@ -3147,6 +3147,131 @@
    "digest": "85988acc9878d7d4",
    "gap": false,
    "mode": null
+  },
+  "refuse.alert.price-above.dismissed": {
+   "digest": "1ed1c9d5a6ac2187",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicator.remove-sma200.dismissed": {
+   "digest": "d9c618fcbedadbf6",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.alert.delete.dismissed": {
+   "digest": "dcc3f777223bab9b",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.saveAs.dismissed": {
+   "digest": "ed28eb52f4a81e1f",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.create.dismissed": {
+   "digest": "fb41e5c488b53022",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicatorAlert.threshold.dismissed": {
+   "digest": "0a42b5c6fc9123c4",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicatorAlert.ma-cross.dismissed": {
+   "digest": "13158b6ba2852b3c",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicatorAlert.delete.dismissed": {
+   "digest": "a3eb66893181d946",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.drawing.clear.dismissed": {
+   "digest": "bff569bed5f27069",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.chart.applyTemplate.dismissed": {
+   "digest": "3428afa1ff39edb3",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.chartSetup.deleteTemplate.dismissed": {
+   "digest": "04ccb9c3e7f8384a",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.saveAs.dismissed": {
+   "digest": "c39231b985711400",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.renameSaved.dismissed": {
+   "digest": "9fe1e25a5e4c75a6",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.deleteSaved.dismissed": {
+   "digest": "174907f291446123",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.duplicateSaved.dismissed": {
+   "digest": "b3beafe1d0c5acf6",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.rename.dismissed": {
+   "digest": "5ec84184ab3e61c5",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.clear.dismissed": {
+   "digest": "87720631b02a56b3",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.delete.dismissed": {
+   "digest": "92ec19a373735eea",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.rename.dismissed": {
+   "digest": "89960d4b3e1c9026",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.delete.dismissed": {
+   "digest": "e11340882282f539",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.duplicate.dismissed": {
+   "digest": "9c061039763e31ee",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.create.dismissed": {
+   "digest": "0adbc4a8159aa5ac",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.trading-unsupported": {
+   "digest": "b17079783f75d3ac",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.missing-target": {
+   "digest": "0403216486674095",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.empty-board-timeframe": {
+   "digest": "65ca9b19e3eafe27",
+   "gap": false,
+   "mode": null
   }
  },
  "workflows": {
@@ -3252,6 +3377,21 @@
   },
   "GW-21.two-charts-side-by-side": {
    "digest": "9d8d6ac2826f761a",
+   "gap": false,
+   "mode": null
+  },
+  "GW-22.new-chart-then-rsi-on-it": {
+   "digest": "d3c4362169decb7c",
+   "gap": true,
+   "mode": "an indicator matching"
+  },
+  "GW-23.weekly-and-ema-then-undo-all": {
+   "digest": "13334bfd5fea50d4",
+   "gap": false,
+   "mode": null
+  },
+  "GW-24.grid-then-all-weekly": {
+   "digest": "abfe3827a04acb8c",
    "gap": false,
    "mode": null
   }

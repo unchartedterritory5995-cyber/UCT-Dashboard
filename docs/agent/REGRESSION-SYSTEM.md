@@ -109,22 +109,22 @@ production's kinds):
 
 | protection | covered / applicable | meaning |
 |---|---|---|
-| nl | 83 / 154 | a phrasing reaches it with no gap at (b) or (c) |
-| routing | 83 / 154 | the production routed request carries it, and it is not cut by the budget |
-| args | 83 / 154 | a canonical op passes shapeError |
-| execution | 82 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 58 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
-| refusal | 8 / 154 | a refusal / must-not-change case |
+| nl | 94 / 154 | a phrasing reaches it with no gap at (b) or (c) |
+| routing | 94 / 154 | the production routed request carries it, and it is not cut by the budget |
+| args | 94 / 154 | a canonical op passes shapeError |
+| execution | 93 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 68 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| refusal | 27 / 154 | a refusal / must-not-change case |
 | permission | 146 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
-| undo | 34 / 95 | undo-exact capabilities with a restore assertion |
-| multiStep | 18 / 154 | inside a multi-op plan or a multi-step workflow |
-| phrasings | 81 / 154 | ≥ 3 gap-free phrasings |
+| undo | 43 / 95 | undo-exact capabilities with a restore assertion |
+| multiStep | 19 / 154 | inside a multi-op plan or a multi-step workflow |
+| phrasings | 92 / 154 | ≥ 3 gap-free phrasings |
 
-83 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow; D7 and D8 added app settings and chart templates through the preference writer; E1 to E6 added saved screens, watchlist and layout management, breadth variants, volume / indicator listing / drawing visibility / widget links, and the multi-step golden workflows GW-19 to GW-21). The other 71 are in the backlog: see §2a. Their contract is
+94 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow; D7 and D8 added app settings and chart templates through the preference writer; E1 to E6 added saved screens, watchlist and layout management, breadth variants, volume / indicator listing / drawing visibility / widget links, and the multi-step golden workflows GW-19 to GW-21; F1 and F2 added the time-anchored drawings, promoted settings, Replay Mode, go-to-date and custom timeframes over a synthetic bar-history fixture; F3 added an approval-and-Dismiss refusal case for every approval-gated intent plus the forbidden families; F4 added cross-turn combos GW-22 to GW-24). The other 60 are in the backlog: see §2a. Their contract is
 pinned, but nothing tests their language or execution yet. That backlog is the honest size of the "silent loss"
 exposure.
 
-## 2a. What is still uncovered, and why (71 capabilities, 2026-11-04)
+## 2a. What is still uncovered, and why (60 capabilities, 2026-11-04)
 
 The backlog (`baseline/regressionEntries.json`) is listed here by reason, highest member value first. Every entry has
 its approval / undo contract pinned (rail 2), so none can lose its approval or Undo silently. What it lacks is a
@@ -132,8 +132,6 @@ language and execution case.
 
 | Group | Capabilities | Why not yet | Value / next step |
 |---|---|---|---|
-| Time-anchored drawings | drawing.addTrendline, addRay, addHorizontalRay, addRectangle, addFib, addText, addAvwap | Anchors resolve against the chart's loaded bar history. The fixture board has none, and adding it means a bars fixture with dates. | **High.** Live LT-2, LT-5 and LT-6 were in this family. The next batch should add a bars-history fixture. |
-| Promoted chart settings and replay | chart.setSetting, chart.replay, chart.goToDate, chart.addCustomTimeframe, chart.resetDefaults, chart.applyThemeAll | `setSetting` arguments come from the promoted-rows registry. Replay and goToDate need bar history (as above). | **High** for setSetting and replay: live LT-3 and LT-7. Same bars fixture. |
 | Chart-setup extras | chartSetup.copyLook, compareDisplay, favoriteTimeframe, removeTimeframe; chart.selectTab, chart.linkTab | Cheap with the current fixture (two charts / chart tabs); not reached yet. | Medium. Next batch, no new fixture needed. |
 | Widget internals | widget.addTab, closeTab, renameTab, selectTab, move, resize, setOption, showList, showScan | Tabs and options of NON-chart widgets (watchlist / news / themes widgets). The fixture board has no such widget state yet. | Medium: setOption and resize are member-facing. Needs widget-option fixtures. |
 | Indicator setup | indicatorCopy.copyTo, indicatorCopy.duplicate, indicatorStyle.placeIn, pane.move, pane.resize | Covered by the Indicators P2 suites (agentIndicatorsP2), not yet by owner-language intents. | Medium. Cheap: the current fixture carries indicator instances. |
@@ -145,10 +143,23 @@ language and execution case.
 | Rare admin | settings.setWatchlistDigest | One switch, a rarely used setting. | Low. |
 | Dark or other surfaces (not on /charts in production) | coach.consent, coach.explain, journal.createNote, journal.listNotes, journal.proposeNote, journal.reviewTrades, playbook.explain, playbook.setup, playbook.record, research.ask, history.afterEvent, breadth.page, screener.page, calendar.day, calendar.nextReport | Registered only while their server flag serves them (coach, knowledge, research, event studies), or only on another page's surface. The corpus runs the production /charts configuration. | Cover each when its flag is activated. The new-capability rail already forces an entry the day one ships. |
 
-Two protections remain thin across the catalog:
-- **refusal (8):** most "must not happen" cases are product-specific refusals (hidden fields, protected layouts, tab
-  stand-ins, approval holds). A refusal case per confirm-risk capability is the obvious next protection.
-- **multiStep (18):** the golden combos GW-19 to GW-21 are the start.
+Two protections were thin and were raised in batch F3 / F4:
+- **refusal (8 → 27):** every approval-gated intent now has a refusal case (`refuse.<intent>.dismissed`). Even when
+  the model plans the action as `apply`, the case asserts that it waits on a card, that nothing is written before
+  Apply, and that Dismiss leaves the state exactly as it was. Added alongside: trading requests (unsupported), a plan
+  aimed at a chart that is not on the board, and a chart change on an empty board.
+- **multiStep (18 → 19):** cross-turn combos GW-22 to GW-24:
+  - a new chart then an indicator on "it" (CG-34, a known gap);
+  - weekly + an EMA then one "undo all of that";
+  - a grid, then every chart weekly.
+  Multi-step credit stays strict: a capability counts only from a step whose own plan runs it.
+
+The bar-history fixture (`testing/harness.jsx`: `BAR_DAYS`, `SYNTH_BARS`) is synthetic and deterministic:
+- a weekday calendar from 2025-01-02 to 2026-10-30;
+- a smooth made-up price path, never a market value.
+
+It serves the chart's Time Navigator read-out and the `bars.daily` kind, so time anchors, go-to-date and Replay Mode
+all resolve against the same bars.
 
 ## 3. Corpus levels
 
@@ -194,6 +205,12 @@ Two protections remain thin across the catalog:
 | CG-26 | a | "new charts should open on the weekly" names no settings word, so it is routed as a chart timeframe change. | nlfix |
 | CG-27 | a | "turn off alert sounds": the settings word is `sound`, and the plural "sounds" does not match, so it routes to alerts only. | nlfix |
 | CG-28 | a | "which studies do I have on here": "studies" is not an indicators word, so indicator.list is not sent. | nlfix |
+| CG-29 | a | "connect … with a trend line" and "draw a line from <date> … to <date>" do not route drawing.addTrendline: the drawingTools words need a draw verb plus a tool name. | nlfix |
+| CG-30 | a | "fib retracement sep 2 100 to oct 28 180" has no draw verb and no from/between word, so drawing.addFib is not sent. | nlfix |
+| CG-31 | a | "write breakout on the chart at …": "write" is not a drawingTools verb, so drawing.addText is not sent. | nlfix |
+| CG-32 | a | "anchor a vwap to oct 1" matches neither "anchored vwap" nor "avwap". | nlfix |
+| CG-33 | a | **Replay is never routed.** chart.replay sits in the chartSetup group by action name, and that group has no replay words ("replay", "as of", "hide what came after"). This is the live LT-7 cause and it is still open; all four replay phrasings fail. | nlfix |
+| CG-34 | workflow | After "open a chart for AMD", "add rsi to it" asks "Which chart do you mean?": a chart the conversation just CREATED is not "it". | agent-core |
 
 Observations that are not marked as gaps because they need an owner ruling:
 

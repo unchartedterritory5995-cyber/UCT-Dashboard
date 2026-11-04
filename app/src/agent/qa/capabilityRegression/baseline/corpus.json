@@ -6764,6 +6764,1018 @@
           }
         }
       ]
+    },
+    {
+      "id": "refuse.alert.price-above.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (alert.create) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "alert.create"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "alert me if nvda goes above 150",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "alert.create",
+                "target": "$alertLibrary",
+                "args": {
+                  "symbol": "NVDA",
+                  "price": 150,
+                  "direction": "above"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "noCalls": [
+              "^POST /api/watchlist-alerts"
+            ],
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "unchanged": true,
+            "noCalls": [
+              "^POST /api/watchlist-alerts"
+            ],
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.indicator.remove-sma200.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (indicator.remove) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "indicator.remove"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "steps": [
+        {
+          "say": "remove the 200 sma",
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.remove",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "instance": "ovl:3"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "unchanged": true,
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "unchanged": true,
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.alert.delete.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (alert.delete) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "alert.delete"
+      ],
+      "board": "ONE",
+      "seed": {
+        "alerts": [
+          {
+            "id": "a1",
+            "sym": "NVDA",
+            "target_price": 150,
+            "direction": "above"
+          },
+          {
+            "id": "a2",
+            "sym": "AMD",
+            "target_price": 90,
+            "direction": "below"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "say": "delete my NVDA alert",
+          "model": {
+            "ops": [
+              {
+                "action": "alert.delete",
+                "target": "$alerts[0]",
+                "args": {}
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "noCalls": [
+              "^DELETE /api/watchlist-alerts"
+            ],
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "noCalls": [
+              "^DELETE /api/watchlist-alerts"
+            ],
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.layout.saveAs.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (layout.saveAs) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "layout.saveAs"
+      ],
+      "board": "LAYOUTS",
+      "steps": [
+        {
+          "say": "save this layout as Swing 2",
+          "model": {
+            "ops": [
+              {
+                "action": "layout.saveAs",
+                "target": "$layouts",
+                "args": {
+                  "name": "Swing 2"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.watchlist.create.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (watchlist.create) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "watchlist.create"
+      ],
+      "board": "WATCH",
+      "steps": [
+        {
+          "say": "create a new watchlist called Semis",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.create",
+                "target": "$watchlistLibrary",
+                "args": {
+                  "name": "Semis",
+                  "as": null
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.indicatorAlert.threshold.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (indicatorAlert.create) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "IALERTS",
+      "steps": [
+        {
+          "say": "alert me when RSI goes above 70",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicatorAlert.create",
+                "target": "$indicatorAlertLibrary",
+                "args": {
+                  "instance": "inst:rsi:1",
+                  "plot": null,
+                  "condition": "above",
+                  "threshold": 70,
+                  "crossWith": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "indicatorAlerts": {
+              "count": 0
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "indicatorAlerts": {
+              "count": 0
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.indicatorAlert.ma-cross.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (indicatorAlert.create) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "ONE_DEFAULT_IA",
+      "steps": [
+        {
+          "say": "mark when the 9 ema crosses above the 20 on this chart",
+          "model": {
+            "ops": [
+              {
+                "action": "indicatorAlert.create",
+                "target": "$indicatorAlertLibrary",
+                "args": {
+                  "instance": "ovl:0",
+                  "plot": null,
+                  "condition": "cross_above",
+                  "threshold": null,
+                  "crossWith": "ovl:1"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "indicatorAlerts": {
+              "count": 0
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "indicatorAlerts": {
+              "count": 0
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.indicatorAlert.delete.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (indicatorAlert.delete) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "indicatorAlert.delete"
+      ],
+      "board": "IALERTS",
+      "seed": {
+        "indicatorAlerts": [
+          {
+            "id": 7,
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D",
+            "params_json": {
+              "period": 14
+            },
+            "instance_id": "inst:rsi:1"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "say": "delete my RSI alert",
+          "model": {
+            "ops": [
+              {
+                "action": "indicatorAlert.delete",
+                "target": "$indicatorAlerts[0]",
+                "args": {}
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "indicatorAlerts": {
+              "count": 1
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "indicatorAlerts": {
+              "count": 1
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.drawing.clear.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (drawing.clear) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "drawing.clear"
+      ],
+      "board": "DRAW",
+      "steps": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        },
+        {
+          "say": "clear all my drawings",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.clear",
+                "target": "$drawings[0]",
+                "args": {}
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "drawings": {
+              "count": 1
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.chart.applyTemplate.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (chart.applyTemplate) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "chart.applyTemplate"
+      ],
+      "board": "PREFS",
+      "steps": [
+        {
+          "say": "apply my Clean template",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.applyTemplate",
+                "target": "$charts[0]",
+                "args": {
+                  "template": "Clean"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "unchanged": true,
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "unchanged": true,
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.chartSetup.deleteTemplate.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (chartSetup.deleteTemplate) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "chartSetup.deleteTemplate"
+      ],
+      "board": "PREFS",
+      "steps": [
+        {
+          "say": "delete my Clean template",
+          "model": {
+            "ops": [
+              {
+                "action": "chartSetup.deleteTemplate",
+                "target": "$chartTemplateLibrary",
+                "args": {
+                  "name": "Clean"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "templates": {
+              "include": [
+                "Clean"
+              ]
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "templates": {
+              "include": [
+                "Clean"
+              ]
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.screener.saveAs.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (screener.saveAs) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "screener.saveAs"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "find stocks with ADR above 5%",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "adr_pct",
+                      "op": "gt",
+                      "value": 5,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/screener/scan|^POST /api/agent/data .*screen\\.run"
+            ]
+          }
+        },
+        {
+          "say": "save this screen as ADR Leaders",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.saveAs",
+                "target": "$savedScreenLibrary",
+                "args": {
+                  "name": "ADR Leaders"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "screens": {
+              "exclude": [
+                "ADR Leaders"
+              ]
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "screens": {
+              "exclude": [
+                "ADR Leaders"
+              ]
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.screener.renameSaved.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (screener.renameSaved) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "screener.renameSaved"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "rename my Momentum Screen to Momentum Leaders",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.renameSaved",
+                "target": "$savedScreenLibrary",
+                "args": {
+                  "screen": "7",
+                  "name": "Momentum Leaders"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.screener.deleteSaved.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (screener.deleteSaved) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "screener.deleteSaved"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "delete my Momentum Screen",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.deleteSaved",
+                "target": "$savedScreenLibrary",
+                "args": {
+                  "screen": "7"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "screens": {
+              "include": [
+                "Momentum Screen"
+              ]
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "screens": {
+              "include": [
+                "Momentum Screen"
+              ]
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.screener.duplicateSaved.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (screener.duplicateSaved) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "screener.duplicateSaved"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "make a copy of my Momentum Screen called Momentum Copy",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.duplicateSaved",
+                "target": "$savedScreenLibrary",
+                "args": {
+                  "screen": "7",
+                  "name": "Momentum Copy"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.watchlist.rename.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (watchlist.rename) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "watchlist.rename"
+      ],
+      "board": "WATCH",
+      "steps": [
+        {
+          "say": "rename my Momentum list to Leaders",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.rename",
+                "target": "$watchlists[0]",
+                "args": {
+                  "name": "Leaders"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.watchlist.clear.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (watchlist.clear) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "watchlist.clear"
+      ],
+      "board": "WATCH",
+      "steps": [
+        {
+          "say": "clear my Momentum list",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.clear",
+                "target": "$watchlists[0]",
+                "args": {}
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "watchlistOrder": {
+              "name": "Momentum",
+              "symbols": [
+                "NVDA",
+                "TSLA"
+              ]
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "watchlistOrder": {
+              "name": "Momentum",
+              "symbols": [
+                "NVDA",
+                "TSLA"
+              ]
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.watchlist.delete.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (watchlist.delete) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "watchlist.delete"
+      ],
+      "board": "WATCH",
+      "steps": [
+        {
+          "say": "delete my Earnings watchlist",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.delete",
+                "target": "$watchlists[1]",
+                "args": {}
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "watchlistNames": {
+              "include": [
+                "Earnings"
+              ]
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "watchlistNames": {
+              "include": [
+                "Earnings"
+              ]
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.layout.rename.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (layout.rename) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "layout.rename"
+      ],
+      "board": "LAYOUTS",
+      "steps": [
+        {
+          "say": "rename my Momentum layout to Momentum Trades",
+          "model": {
+            "ops": [
+              {
+                "action": "layout.rename",
+                "target": "$layouts",
+                "args": {
+                  "layout": "2",
+                  "name": "Momentum Trades"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.layout.delete.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (layout.delete) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "layout.delete"
+      ],
+      "board": "LAYOUTS",
+      "steps": [
+        {
+          "say": "delete my Momentum layout",
+          "model": {
+            "ops": [
+              {
+                "action": "layout.delete",
+                "target": "$layouts",
+                "args": {
+                  "layout": "2"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "layout": {
+              "names": [
+                "Momentum"
+              ]
+            },
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "layout": {
+              "names": [
+                "Momentum"
+              ]
+            },
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.layout.duplicate.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (layout.duplicate) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "layout.duplicate"
+      ],
+      "board": "LAYOUTS",
+      "steps": [
+        {
+          "say": "make a copy of my Swing layout called Swing Copy",
+          "model": {
+            "ops": [
+              {
+                "action": "layout.duplicate",
+                "target": "$layouts",
+                "args": {
+                  "layout": "1",
+                  "name": "Swing Copy"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.layout.create.dismissed",
+      "source": "Batch F3 (11-04): an approval-gated action (layout.create) never runs without Apply — even when the model plans it as apply — and a Dismiss leaves nothing behind",
+      "capabilities": [
+        "layout.create"
+      ],
+      "board": "LAYOUTS",
+      "steps": [
+        {
+          "say": "create a new empty layout called Scalps",
+          "model": {
+            "ops": [
+              {
+                "action": "layout.create",
+                "target": "$layouts",
+                "args": {
+                  "name": "Scalps"
+                }
+              }
+            ],
+            "disposition": "apply"
+          },
+          "expect": {
+            "proposal": true,
+            "receipt": false
+          },
+          "dismiss": true,
+          "afterDismiss": {
+            "proposal": false,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.trading-unsupported",
+      "source": "Batch F3: live F-08 'sell 100 nvda' (R): order execution is not an Agent capability — said plainly, nothing changes",
+      "capabilities": [],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "sell 100 nvda",
+          "model": {
+            "disposition": "unsupported",
+            "ops": []
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "proposal": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.missing-target",
+      "source": "Batch F3: a plan aimed at a chart that is not on the board (live LT-1 shape) is refused, nothing runs",
+      "capabilities": [
+        "chart.setTimeframe"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "make the other chart weekly please, thanks friend",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.setTimeframe",
+                "target": "zz-missing-chart",
+                "args": {
+                  "timeframe": "W"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.empty-board-timeframe",
+      "source": "Batch F3: live E-01′ — a chart change on an empty board is refused honestly (0 model calls)",
+      "capabilities": [
+        "chart.setTimeframe"
+      ],
+      "board": "EMPTY",
+      "steps": [
+        {
+          "say": "switch to weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        }
+      ]
     }
   ]
 }

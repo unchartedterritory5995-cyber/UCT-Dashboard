@@ -30,7 +30,7 @@
     "applicable": 154
    },
    "refusal": {
-    "covered": 8,
+    "covered": 27,
     "applicable": 154
    },
    "permission": {
@@ -530,6 +530,15 @@
    "phrasing": "start replay mode on 2026-03-02"
   },
   {
+   "id": "CG-34",
+   "reason": "after 'open a chart for AMD' (widget.addCharts), 'add rsi to it' asks 'Which chart do you mean?' — the chart this conversation just CREATED is not 'it' (subjectTarget remembers changed charts, not created ones); nothing is added",
+   "owner": "agent-core builder (useAgent.js subjectTarget / memory)",
+   "mode": "an indicator matching",
+   "level": "workflow",
+   "intent": "GW-22.new-chart-then-rsi-on-it",
+   "phrasing": null
+  },
+  {
    "id": "CG-12",
    "reason": "the alerts words /\\b(notify|ping|tell) me\\b/ select 'tell me about …'",
    "owner": "nlfix builder (routing.js)",
@@ -774,7 +783,8 @@
     "args": [
      "corpus alert.price-above",
      "GW-14.price-alert-needs-approval",
-     "refuse.alert-needs-approval"
+     "refuse.alert-needs-approval",
+     "refuse.alert.price-above.dismissed"
     ],
     "execution": [
      "alert.price-above (c)",
@@ -785,7 +795,8 @@
      "GW-14.price-alert-needs-approval"
     ],
     "refusal": [
-     "refuse.alert-needs-approval"
+     "refuse.alert-needs-approval",
+     "refuse.alert.price-above.dismissed"
     ],
     "permission": [
      "alert.price-above: waits for Apply",
@@ -814,7 +825,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -835,13 +846,16 @@
      "alert.delete: \"get rid of the NVDA price alert\""
     ],
     "args": [
-     "corpus alert.delete"
+     "corpus alert.delete",
+     "refuse.alert.delete.dismissed"
     ],
     "execution": [
      "alert.delete (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.alert.delete.dismissed"
+    ],
     "permission": [
      "alert.delete: waits for Apply"
     ],
@@ -1430,7 +1444,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -1451,7 +1465,8 @@
      "chart.applyTemplate: \"load the Clean chart template\""
     ],
     "args": [
-     "corpus chart.applyTemplate"
+     "corpus chart.applyTemplate",
+     "refuse.chart.applyTemplate.dismissed"
     ],
     "execution": [
      "chart.applyTemplate (c)"
@@ -1459,7 +1474,9 @@
     "receipt": [
      "chart.applyTemplate (c)"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.chart.applyTemplate.dismissed"
+    ],
     "permission": [
      "chart.applyTemplate: waits for Apply"
     ],
@@ -2431,7 +2448,9 @@
      "corpus compound.change-then-undo",
      "corpus timeframe.weekly",
      "corpus timeframe.5m",
-     "GW-09.two-new-charts"
+     "GW-09.two-new-charts",
+     "GW-24.grid-then-all-weekly",
+     "refuse.missing-target"
     ],
     "execution": [
      "compound.change-then-undo (c)",
@@ -2445,9 +2464,12 @@
      "timeframe.weekly (c)",
      "timeframe.5m (c)",
      "GW-01.symbol-weekly-emas-log-undo",
-     "GW-09.two-new-charts"
+     "GW-09.two-new-charts",
+     "GW-24.grid-then-all-weekly"
     ],
     "refusal": [
+     "refuse.missing-target",
+     "refuse.empty-board-timeframe",
      "GW-02.empty-board-honest"
     ],
     "permission": [],
@@ -2602,7 +2624,8 @@
      "undo.named-after-grid: after an earlier turn",
      "GW-10.grid-then-undo-by-kind",
      "GW-19.daily-charts-each-with-50sma",
-     "GW-21.two-charts-side-by-side"
+     "GW-21.two-charts-side-by-side",
+     "GW-24.grid-then-all-weekly"
     ],
     "phrasings": []
    }
@@ -2701,7 +2724,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -2722,7 +2745,8 @@
      "chartSetup.deleteTemplate: \"delete the chart template called Clean\""
     ],
     "args": [
-     "corpus chartSetup.deleteTemplate"
+     "corpus chartSetup.deleteTemplate",
+     "refuse.chartSetup.deleteTemplate.dismissed"
     ],
     "execution": [
      "chartSetup.deleteTemplate (c)"
@@ -2730,7 +2754,9 @@
     "receipt": [
      "chartSetup.deleteTemplate (c)"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.chartSetup.deleteTemplate.dismissed"
+    ],
     "permission": [
      "chartSetup.deleteTemplate: waits for Apply"
     ],
@@ -3319,7 +3345,8 @@
      "drawing.addLevel: \"mark the 200 level with a line\""
     ],
     "args": [
-     "corpus drawing.addLevel"
+     "corpus drawing.addLevel",
+     "refuse.drawing.clear.dismissed"
     ],
     "execution": [
      "drawing.addLevel (c)"
@@ -3575,7 +3602,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": true,
@@ -3596,13 +3623,16 @@
      "drawing.clear: \"remove all drawings\""
     ],
     "args": [
-     "corpus drawing.clear"
+     "corpus drawing.clear",
+     "refuse.drawing.clear.dismissed"
     ],
     "execution": [
      "drawing.clear (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.drawing.clear.dismissed"
+    ],
     "permission": [
      "drawing.clear: waits for Apply"
     ],
@@ -4128,7 +4158,8 @@
     ],
     "args": [
      "corpus indicator.ema-9-20",
-     "corpus indicator.rsi"
+     "corpus indicator.rsi",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "execution": [
      "indicator.ema-9-20 (c)",
@@ -4151,13 +4182,15 @@
     "undo": [
      "indicator.ema-9-20: undo restores",
      "GW-01.symbol-weekly-emas-log-undo",
-     "GW-12.emas-coloured-exact-undo"
+     "GW-12.emas-coloured-exact-undo",
+     "GW-23.weekly-and-ema-then-undo-all"
     ],
     "multiStep": [
      "indicator.ema-9-20: 2-op plan",
      "GW-01.symbol-weekly-emas-log-undo",
      "GW-02.empty-board-honest",
-     "GW-12.emas-coloured-exact-undo"
+     "GW-12.emas-coloured-exact-undo",
+     "GW-23.weekly-and-ema-then-undo-all"
     ],
     "phrasings": []
    }
@@ -4457,7 +4490,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -4480,7 +4513,8 @@
      "indicator.remove-sma200: \"remove the 200 day\""
     ],
     "args": [
-     "corpus indicator.remove-sma200"
+     "corpus indicator.remove-sma200",
+     "refuse.indicator.remove-sma200.dismissed"
     ],
     "execution": [
      "indicator.remove-sma200 (c)"
@@ -4488,7 +4522,9 @@
     "receipt": [
      "indicator.remove-sma200 (c)"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.indicator.remove-sma200.dismissed"
+    ],
     "permission": [
      "indicator.remove-sma200: waits for Apply"
     ],
@@ -4702,7 +4738,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -4729,7 +4765,9 @@
     "args": [
      "corpus indicatorAlert.threshold",
      "corpus indicatorAlert.ma-cross",
-     "corpus indicatorAlert.ma-cross-multichart"
+     "corpus indicatorAlert.ma-cross-multichart",
+     "refuse.indicatorAlert.threshold.dismissed",
+     "refuse.indicatorAlert.ma-cross.dismissed"
     ],
     "execution": [
      "indicatorAlert.threshold (c)",
@@ -4739,7 +4777,10 @@
      "indicatorAlert.threshold (c)",
      "indicatorAlert.ma-cross (c)"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.indicatorAlert.threshold.dismissed",
+     "refuse.indicatorAlert.ma-cross.dismissed"
+    ],
     "permission": [
      "indicatorAlert.threshold: waits for Apply",
      "indicatorAlert.ma-cross: waits for Apply"
@@ -4767,7 +4808,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -4788,13 +4829,16 @@
      "indicatorAlert.delete: \"cancel the RSI alert\""
     ],
     "args": [
-     "corpus indicatorAlert.delete"
+     "corpus indicatorAlert.delete",
+     "refuse.indicatorAlert.delete.dismissed"
     ],
     "execution": [
      "indicatorAlert.delete (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.indicatorAlert.delete.dismissed"
+    ],
     "permission": [
      "indicatorAlert.delete: waits for Apply"
     ],
@@ -5201,7 +5245,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -5222,13 +5266,16 @@
      "layout.create: \"new layout: Scalps\""
     ],
     "args": [
-     "corpus layout.create"
+     "corpus layout.create",
+     "refuse.layout.create.dismissed"
     ],
     "execution": [
      "layout.create (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.layout.create.dismissed"
+    ],
     "permission": [
      "layout.create: waits for Apply"
     ],
@@ -5293,7 +5340,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -5314,13 +5361,16 @@
      "layout.delete: \"delete the layout called Momentum\""
     ],
     "args": [
-     "corpus layout.delete"
+     "corpus layout.delete",
+     "refuse.layout.delete.dismissed"
     ],
     "execution": [
      "layout.delete (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.layout.delete.dismissed"
+    ],
     "permission": [
      "layout.delete: waits for Apply"
     ],
@@ -5347,7 +5397,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -5368,13 +5418,16 @@
      "layout.duplicate: \"clone my Swing layout as Swing Copy\""
     ],
     "args": [
-     "corpus layout.duplicate"
+     "corpus layout.duplicate",
+     "refuse.layout.duplicate.dismissed"
     ],
     "execution": [
      "layout.duplicate (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.layout.duplicate.dismissed"
+    ],
     "permission": [
      "layout.duplicate: waits for Apply"
     ],
@@ -5530,13 +5583,15 @@
      "layout.rename: \"rename layout Momentum to Momentum Trades\""
     ],
     "args": [
-     "corpus layout.rename"
+     "corpus layout.rename",
+     "refuse.layout.rename.dismissed"
     ],
     "execution": [
      "layout.rename (c)"
     ],
     "receipt": [],
     "refusal": [
+     "refuse.layout.rename.dismissed",
      "GW-07.protected-layout-rename: refused by name"
     ],
     "permission": [
@@ -5565,7 +5620,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -5586,13 +5641,16 @@
      "layout.saveAs: \"save a copy of this layout named Swing 2\""
     ],
     "args": [
-     "corpus layout.saveAs"
+     "corpus layout.saveAs",
+     "refuse.layout.saveAs.dismissed"
     ],
     "execution": [
      "layout.saveAs (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.layout.saveAs.dismissed"
+    ],
     "permission": [
      "layout.saveAs: waits for Apply"
     ],
@@ -5996,7 +6054,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -6017,13 +6075,16 @@
      "screener.deleteSaved: \"delete the Momentum Screen scan\""
     ],
     "args": [
-     "corpus screener.deleteSaved"
+     "corpus screener.deleteSaved",
+     "refuse.screener.deleteSaved.dismissed"
     ],
     "execution": [
      "screener.deleteSaved (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.screener.deleteSaved.dismissed"
+    ],
     "permission": [
      "screener.deleteSaved: waits for Apply"
     ],
@@ -6051,7 +6112,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -6072,13 +6133,16 @@
      "screener.duplicateSaved: \"clone the Momentum Screen into Momentum Copy\""
     ],
     "args": [
-     "corpus screener.duplicateSaved"
+     "corpus screener.duplicateSaved",
+     "refuse.screener.duplicateSaved.dismissed"
     ],
     "execution": [
      "screener.duplicateSaved (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.screener.duplicateSaved.dismissed"
+    ],
     "permission": [
      "screener.duplicateSaved: waits for Apply"
     ],
@@ -6234,7 +6298,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -6255,13 +6319,16 @@
      "screener.renameSaved: \"rename the saved screen Momentum Screen to Momentum Leaders\""
     ],
     "args": [
-     "corpus screener.renameSaved"
+     "corpus screener.renameSaved",
+     "refuse.screener.renameSaved.dismissed"
     ],
     "execution": [
      "screener.renameSaved (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.screener.renameSaved.dismissed"
+    ],
     "permission": [
      "screener.renameSaved: waits for Apply"
     ],
@@ -6313,7 +6380,8 @@
     ],
     "args": [
      "corpus screener.adr",
-     "GW-05.screen-price-rvol"
+     "GW-05.screen-price-rvol",
+     "refuse.screener.saveAs.dismissed"
     ],
     "execution": [
      "screener.adr (c)",
@@ -6408,7 +6476,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": true,
@@ -6429,13 +6497,16 @@
      "screener.saveAs: \"keep this screen, call it ADR Leaders\""
     ],
     "args": [
-     "corpus screener.saveAs"
+     "corpus screener.saveAs",
+     "refuse.screener.saveAs.dismissed"
     ],
     "execution": [
      "screener.saveAs (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.screener.saveAs.dismissed"
+    ],
     "permission": [
      "screener.saveAs: waits for Apply"
     ],
@@ -7177,7 +7248,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -7198,13 +7269,16 @@
      "watchlist.clear: \"wipe the Momentum list\""
     ],
     "args": [
-     "corpus watchlist.clear"
+     "corpus watchlist.clear",
+     "refuse.watchlist.clear.dismissed"
     ],
     "execution": [
      "watchlist.clear (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.watchlist.clear.dismissed"
+    ],
     "permission": [
      "watchlist.clear: waits for Apply"
     ],
@@ -7231,7 +7305,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -7252,13 +7326,16 @@
      "watchlist.create: \"new watchlist: Semis\""
     ],
     "args": [
-     "corpus watchlist.create"
+     "corpus watchlist.create",
+     "refuse.watchlist.create.dismissed"
     ],
     "execution": [
      "watchlist.create (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.watchlist.create.dismissed"
+    ],
     "permission": [
      "watchlist.create: waits for Apply"
     ],
@@ -7285,7 +7362,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -7306,13 +7383,16 @@
      "watchlist.delete: \"delete the watchlist called Earnings\""
     ],
     "args": [
-     "corpus watchlist.delete"
+     "corpus watchlist.delete",
+     "refuse.watchlist.delete.dismissed"
     ],
     "execution": [
      "watchlist.delete (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.watchlist.delete.dismissed"
+    ],
     "permission": [
      "watchlist.delete: waits for Apply"
     ],
@@ -7485,7 +7565,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -7506,13 +7586,16 @@
      "watchlist.rename: \"rename the Momentum watchlist Leaders\""
     ],
     "args": [
-     "corpus watchlist.rename"
+     "corpus watchlist.rename",
+     "refuse.watchlist.rename.dismissed"
     ],
     "execution": [
      "watchlist.rename (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.watchlist.rename.dismissed"
+    ],
     "permission": [
      "watchlist.rename: waits for Apply"
     ],
@@ -7774,7 +7857,8 @@
      "widget.addCharts: \"open AAPL and MSFT in new charts\""
     ],
     "args": [
-     "corpus widget.addCharts"
+     "corpus widget.addCharts",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "execution": [
      "widget.addCharts (c)"
