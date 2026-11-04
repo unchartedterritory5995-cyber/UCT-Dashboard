@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 12:24 CT
+updated: 2026-11-04 12:45 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -286,11 +286,15 @@ branch: feat/pine-w5-t2-host-neutral   base: W5-T1 27e95ca34c (STACK: merge T1 f
 locks: mut heavy-mut · mp _resume-2026-11-01/dsk/heavy-mp3.lock (pine-dsk-mpbase3) if engine behaviour changes · final _resume-2026-11-01/dsk/heavy-final3.lock
 
 ## W5-T9 observability + canary + smoke (needs T4 + T7, both READY)
-state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
-branch: feat/pine-w5-t9-canary   base: W5-T7 5e6c63e24e + local merge of W5-T4 eb922686fe (STACK: T1 -> T6 -> T7, T3 -> T4)   model: Sonnet
-locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final2.lock
-no Railway: capacity numbers on a LOCAL container/process only.
-
+state: READY            round: r0            updated: 2026-11-04 12:45 CT
+branch: feat/pine-w5-t9-canary   tip: c169b1ce16 (docs-only EVIDENCE + capacity JSONs over code tip becd0756be, which final-tip ran on)   base: merge f526d609e4 = W5-T7 5e6c63e24e + W5-T4 eb922686fe (STACK: T1 -> T6 -> T7 and T3 -> T4; merge those first)   tested on master: 5d95103c8a   worktree: pine-dsk-w5t9   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t9/EVIDENCE.md
+built: services/pine_runtime/canary.mjs (10 host-parity cases through the service's own pool at boot and every 15 min vs expected-digests.json; gates /ready; logs CANARY DIVERGED); metrics.mjs + signed GET /v1/metrics (instructions and cache are null, not 0: the wire carries no instruction count and T8's cache is not in this stack); tools/pine_runtime_service_smoke.py + fixture (exit 0/1/2); tools/pine_runtime_capacity.mjs; server.mjs (T6's file) minimum wiring only, diff named in EVIDENCE.md.
+checks: red on base (ERR_MODULE_NOT_FOUND / ImportError); tip node 86/86, smoke pytest 23; canary red on T4's perturbed bundle; smoke exits 0, 1 (8 fixtures), 2 (6 fixtures) each produced; real local service: smoke 0 on the good bundle, 1 on the perturbed one. Mutations 41/41 killed, none equivalent. final-tip (heavy-final2, 52.5 min): gate pytest 46, rails pytest 29, hygiene clean, vitest Tests 1 failed | 22536 passed | 118 skipped = pollingSites.rail (DESKTOP-VERIFIED in js.log).
+capacity (LOCAL only, affinity-pinned process, no Docker, not Railway): 11-23 ms CPU per symbol on 5,000 D bars = 0.7-1.4 CPU-min per document over 3,742 symbols (design estimate 3; worst case on 2 sibling-thread CPUs 2.9); 2 CPUs: 0.3-1.6 min wall per document (25 documents ~8-40 min); request overhead ~4.5 ms per 5,000-bar job.
+desktop check: PASS (local == origin, clean, base parents verified, only docs after the code tip, no leftover node service processes).
+open: the image (T10) must also ship tools/pine_runtime_host_parity.mjs, runtime/columnDigest.js and runtime/__fixtures__/hostParity/** for the canary (T10 builder told); at an engine bump re-record the smoke fixture and host-parity digests together; a signed 401 on the smoke is INCONCLUSIVE by design choice.
 ## W5-T10 image (needs T6 + T7, both READY)
 state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
 branch: feat/pine-w5-t10-image   base: W5-T7 5e6c63e24e (STACK: T1 -> T6 -> T7)   model: Sonnet
