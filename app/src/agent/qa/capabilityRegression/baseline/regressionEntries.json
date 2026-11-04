@@ -12,16 +12,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "board.duplicateChart": {
-   "owner": "agent-qa (capreg) — group boardEdit",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "board.swap": {
-   "owner": "agent-qa (capreg) — group boardEdit",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "breadth.page": {
    "owner": "agent-qa (capreg) — group breadth",
    "since": "2026-11-04",
@@ -482,11 +472,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "watchlist.create": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "watchlist.delete": {
    "owner": "agent-qa (capreg) — group lists",
    "since": "2026-11-04",
@@ -498,11 +483,6 @@
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "watchlist.open": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "watchlist.remove": {
    "owner": "agent-qa (capreg) — group lists",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -524,11 +504,6 @@
   },
   "watchlist.show": {
    "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "widget.addCharts": {
-   "owner": "agent-qa (capreg) — group workspace",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },

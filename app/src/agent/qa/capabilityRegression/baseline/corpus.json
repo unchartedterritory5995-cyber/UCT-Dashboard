@@ -2583,6 +2583,307 @@
         "add AMD to Momentum",
         "throw AMD on my Momentum watchlist"
       ]
+    },
+    {
+      "id": "widget.addCharts",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "AAPL",
+                "MSFT"
+              ],
+              "timeframe": null,
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 3,
+          "symbolSet": [
+            "NVDA",
+            "AAPL",
+            "MSFT"
+          ],
+          "keepsIds": [
+            "c1"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "open charts for AAPL and MSFT",
+        "add charts for AAPL and MSFT",
+        "open AAPL and MSFT in new charts",
+        {
+          "text": "give me new charts for AAPL and MSFT",
+          "gaps": {
+            "a": {
+              "id": "CG-16",
+              "reason": "routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical",
+              "owner": "nlfix builder (routing.js)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "board.swap",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "board.swap"
+      ],
+      "board": "TWO",
+      "needs": [
+        "board.swap"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "board.swap",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "board.swap",
+            "target": "$board",
+            "args": {
+              "a": "c1",
+              "b": "c2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "AMD",
+            "NVDA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "swap the two charts",
+        "switch places between the NVDA and AMD charts",
+        "swap NVDA and AMD",
+        {
+          "text": "trade places with the left and right charts",
+          "gaps": {
+            "b": {
+              "id": "CG-15",
+              "reason": "WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)"
+            },
+            "c": {
+              "id": "CG-15",
+              "reason": "through the panel the swap phrasing becomes a quote read; the board is unchanged",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "board.duplicateChart",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "board.duplicateChart"
+      ],
+      "board": "HALF",
+      "needs": [
+        "board.duplicateChart"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "board.duplicateChart",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "board.duplicateChart",
+            "target": "$board",
+            "args": {
+              "widget": "c1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbolSet": [
+            "NVDA",
+            "NVDA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "duplicate this chart",
+        "make a copy of the NVDA chart",
+        "clone this chart",
+        "duplicate the NVDA chart"
+      ]
+    },
+    {
+      "id": "watchlist.remove",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "watchlist.remove"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.remove",
+            "args": {
+              "symbols": [
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.remove",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "NVDA"
+          ],
+          "exclude": [
+            "TSLA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "watchlist": {
+            "name": "Momentum",
+            "include": [
+              "NVDA",
+              "TSLA"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "remove TSLA from my Momentum list",
+        "take TSLA off the Momentum watchlist",
+        "drop TSLA from Momentum",
+        "delete TSLA from my Momentum list"
+      ]
+    },
+    {
+      "id": "watchlist.create",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create (live C-05b)",
+      "capabilities": [
+        "watchlist.create"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.create",
+            "args": {
+              "name": "Semis"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.create",
+            "target": "$watchlistLibrary",
+            "args": {
+              "name": "Semis",
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlist": {
+          "name": "Semis"
+        }
+      },
+      "phrasings": [
+        "create a new watchlist called Semis",
+        "make a list named Semis",
+        "start a new watchlist Semis",
+        "new watchlist: Semis"
+      ]
     }
   ],
   "refusals": [

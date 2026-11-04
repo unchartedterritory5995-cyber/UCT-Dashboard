@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 38,
+  "withAnyRegressionCase": 43,
   "perProtection": {
    "nl": {
-    "covered": 36,
+    "covered": 41,
     "applicable": 154
    },
    "routing": {
-    "covered": 36,
+    "covered": 41,
     "applicable": 154
    },
    "args": {
-    "covered": 36,
+    "covered": 41,
     "applicable": 154
    },
    "execution": {
-    "covered": 35,
+    "covered": 40,
     "applicable": 154
    },
    "receipt": {
-    "covered": 31,
+    "covered": 35,
     "applicable": 154
    },
    "refusal": {
@@ -34,11 +34,11 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 129,
+    "covered": 130,
     "applicable": 154
    },
    "undo": {
-    "covered": 13,
+    "covered": 17,
     "applicable": 95
    },
    "multiStep": {
@@ -46,7 +46,7 @@
     "applicable": 154
    },
    "phrasings": {
-    "covered": 34,
+    "covered": 39,
     "applicable": 154
    }
   }
@@ -267,6 +267,30 @@
    "level": "a",
    "intent": "widget.remove",
    "phrasing": "get rid of the AMD chart"
+  },
+  {
+   "id": "CG-16",
+   "reason": "routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical",
+   "owner": "nlfix builder (routing.js)",
+   "level": "a",
+   "intent": "widget.addCharts",
+   "phrasing": "give me new charts for AAPL and MSFT"
+  },
+  {
+   "id": "CG-15",
+   "reason": "WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "level": "b",
+   "intent": "board.swap",
+   "phrasing": "trade places with the left and right charts"
+  },
+  {
+   "id": "CG-15",
+   "reason": "through the panel the swap phrasing becomes a quote read; the board is unchanged",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "level": "c",
+   "intent": "board.swap",
+   "phrasing": "trade places with the left and right charts"
   }
  ],
  "capabilities": {
@@ -620,27 +644,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "board.duplicateChart: \"duplicate this chart\"",
+     "board.duplicateChart: \"make a copy of the NVDA chart\"",
+     "board.duplicateChart: \"clone this chart\"",
+     "board.duplicateChart: \"duplicate the NVDA chart\""
+    ],
+    "routing": [
+     "board.duplicateChart: \"duplicate this chart\"",
+     "board.duplicateChart: \"make a copy of the NVDA chart\"",
+     "board.duplicateChart: \"clone this chart\"",
+     "board.duplicateChart: \"duplicate the NVDA chart\""
+    ],
+    "args": [
+     "corpus board.duplicateChart"
+    ],
+    "execution": [
+     "board.duplicateChart (c)"
+    ],
+    "receipt": [
+     "board.duplicateChart (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "board.duplicateChart: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -658,27 +700,44 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 3,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "board.swap: \"swap the two charts\"",
+     "board.swap: \"switch places between the NVDA and AMD charts\"",
+     "board.swap: \"swap NVDA and AMD\""
+    ],
+    "routing": [
+     "board.swap: \"swap the two charts\"",
+     "board.swap: \"switch places between the NVDA and AMD charts\"",
+     "board.swap: \"swap NVDA and AMD\"",
+     "board.swap: \"trade places with the left and right charts\""
+    ],
+    "args": [
+     "corpus board.swap"
+    ],
+    "execution": [
+     "board.swap (c)"
+    ],
+    "receipt": [
+     "board.swap (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "board.swap: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -6003,26 +6062,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.create: \"create a new watchlist called Semis\"",
+     "watchlist.create: \"make a list named Semis\"",
+     "watchlist.create: \"start a new watchlist Semis\"",
+     "watchlist.create: \"new watchlist: Semis\""
+    ],
+    "routing": [
+     "watchlist.create: \"create a new watchlist called Semis\"",
+     "watchlist.create: \"make a list named Semis\"",
+     "watchlist.create: \"start a new watchlist Semis\"",
+     "watchlist.create: \"new watchlist: Semis\""
+    ],
+    "args": [
+     "corpus watchlist.create"
+    ],
+    "execution": [
+     "watchlist.create (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "watchlist.create: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -6155,27 +6230,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "watchlist.remove: \"remove TSLA from my Momentum list\"",
+     "watchlist.remove: \"take TSLA off the Momentum watchlist\"",
+     "watchlist.remove: \"drop TSLA from Momentum\"",
+     "watchlist.remove: \"delete TSLA from my Momentum list\""
+    ],
+    "routing": [
+     "watchlist.remove: \"remove TSLA from my Momentum list\"",
+     "watchlist.remove: \"take TSLA off the Momentum watchlist\"",
+     "watchlist.remove: \"drop TSLA from Momentum\"",
+     "watchlist.remove: \"delete TSLA from my Momentum list\""
+    ],
+    "args": [
+     "corpus watchlist.remove"
+    ],
+    "execution": [
+     "watchlist.remove (c)"
+    ],
+    "receipt": [
+     "watchlist.remove (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "watchlist.remove: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -6412,27 +6505,44 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "widget.addCharts: \"open charts for AAPL and MSFT\"",
+     "widget.addCharts: \"add charts for AAPL and MSFT\"",
+     "widget.addCharts: \"open AAPL and MSFT in new charts\"",
+     "widget.addCharts: \"give me new charts for AAPL and MSFT\""
+    ],
+    "routing": [
+     "widget.addCharts: \"open charts for AAPL and MSFT\"",
+     "widget.addCharts: \"add charts for AAPL and MSFT\"",
+     "widget.addCharts: \"open AAPL and MSFT in new charts\""
+    ],
+    "args": [
+     "corpus widget.addCharts"
+    ],
+    "execution": [
+     "widget.addCharts (c)"
+    ],
+    "receipt": [
+     "widget.addCharts (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "widget.addCharts: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

@@ -1106,6 +1106,116 @@
      "gaps": []
     }
    }
+  },
+  "widget.addCharts": {
+   "digest": "0dd8b5dbc76536b9",
+   "phrasings": {
+    "open charts for AAPL and MSFT": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "add charts for AAPL and MSFT": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "open AAPL and MSFT in new charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "give me new charts for AAPL and MSFT": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ]
+    }
+   }
+  },
+  "board.swap": {
+   "digest": "b389bace02f03ed4",
+   "phrasings": {
+    "swap the two charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "switch places between the NVDA and AMD charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "swap NVDA and AMD": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "trade places with the left and right charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "b",
+      "c"
+     ]
+    }
+   }
+  },
+  "board.duplicateChart": {
+   "digest": "10dff86b360678fb",
+   "phrasings": {
+    "duplicate this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "make a copy of the NVDA chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "clone this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "duplicate the NVDA chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "watchlist.remove": {
+   "digest": "41bae2c08be7162e",
+   "phrasings": {
+    "remove TSLA from my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "take TSLA off the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "drop TSLA from Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "delete TSLA from my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "watchlist.create": {
+   "digest": "35e1c1f2bbf098f8",
+   "phrasings": {
+    "create a new watchlist called Semis": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "make a list named Semis": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "start a new watchlist Semis": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "new watchlist: Semis": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
   }
  },
  "refusals": {
