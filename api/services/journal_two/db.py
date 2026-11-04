@@ -726,6 +726,8 @@ CREATE TABLE IF NOT EXISTS j2_note_sources (
     last_sync_error   TEXT,
     warming_until     TEXT,
     last_full_sync_at TEXT,
+    removal_skips     INTEGER NOT NULL DEFAULT 0,
+    sync_state        TEXT,
     created_at        TEXT NOT NULL,
     UNIQUE(user_id, provider, remote_id)
 );
@@ -746,7 +748,8 @@ CREATE TABLE IF NOT EXISTS j2_note_sync_log (
     media_uploaded  INTEGER,
     conflicts       INTEGER,
     source_deleted  INTEGER,
-    failures_json   TEXT
+    failures_json   TEXT,
+    adopted         INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS j2_note_remote_index (
@@ -822,6 +825,38 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
     vault_path  TEXT NOT NULL,
     recorded_at TEXT NOT NULL,
     PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
+-- L2 (live Obsidian probe 2026-11-03): a rename the last final push showed. Written by
+-- `obsidian_staging.ingest_batch` when ONE push drops `old_path` from the manifest and adds
+-- `new_path` whose staged body is byte-identical (sha256 `body_sha`), the pairing unique both
+-- ways; consumed by the sync engine, which re-keys the existing note onto `new_path`
+-- (`engine._apply_source_renames`) instead of importing a duplicate. Member data: purged with
+-- the account (account_purge) and with the vault (obsidian_link disconnect). Declared once,
+-- here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing database gets it on boot.
+CREATE TABLE IF NOT EXISTS j2_obsidian_renames (
+    user_id     TEXT NOT NULL,
+    vault_id    TEXT NOT NULL,
+    new_path    TEXT NOT NULL,
+    old_path    TEXT NOT NULL,
+    body_sha    TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, new_path)
+);
+
+-- L4 (live Obsidian probe 2026-11-03): what a synced note's content-named media ref (an
+-- Obsidian blob ref carries its sha256) is stored as, so an update reuses the stored file (same
+-- URL, no fetch, no copy) instead of copying every attachment again on every edit. One row per
+-- (note, ref); `stored_json` is a media_policy.StoredMedia. Written and read only by the sync
+-- engine (`_record_stored_media` / `_reusable_stored_media`); a reuse also checks the file is
+-- still on disk. Member data: purged with the account (account_purge).
+CREATE TABLE IF NOT EXISTS j2_note_import_media (
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    ref         TEXT NOT NULL,
+    stored_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, note_id, ref)
 );
 
 -- 2026-09-02 adversarial audit, "single-process assumptions" #1:
@@ -2728,7 +2763,15 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         # Plan D (Sync now): when the last FULL pass finished (NULL = never),
         # and the per-note failures of a pass (JSON array, written by plan A).
         "ALTER TABLE j2_note_sources ADD COLUMN last_full_sync_at TEXT",
+        # Plan E Task 6 review R2: consecutive full passes whose removal check was SKIPPED
+        # (the complete listing failed). 3+ keeps the source in a visible warning.
+        "ALTER TABLE j2_note_sources ADD COLUMN removal_skips INTEGER NOT NULL DEFAULT 0",
+        # Evernote rate-limit fix round 1: the engine's small JSON state per source (the learned
+        # pacing interval and an import's progress record). NULL = none.
+        "ALTER TABLE j2_note_sources ADD COLUMN sync_state TEXT",
         "ALTER TABLE j2_note_sync_log ADD COLUMN failures_json TEXT",
+        # Plan E Task 8: file-imported notes adopted into live sync this pass (NULL in older rows = 0).
+        "ALTER TABLE j2_note_sync_log ADD COLUMN adopted INTEGER",
         # Chart-parity round: capture-time drawings ride the inbox row.
         "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
         # Wave 3 (Thesis-Trade Link): j2_trades.id and j2_option_strategies.id
@@ -3111,6 +3154,8 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             last_sync_error   TEXT,
             warming_until     TEXT,
             last_full_sync_at TEXT,
+            removal_skips     INTEGER NOT NULL DEFAULT 0,
+            sync_state        TEXT,
             created_at        TEXT NOT NULL,
             UNIQUE(user_id, provider, remote_id)
         )
@@ -3130,7 +3175,8 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             media_uploaded  INTEGER,
             conflicts       INTEGER,
             source_deleted  INTEGER,
-            failures_json   TEXT
+            failures_json   TEXT,
+            adopted         INTEGER
         )
     """,
     "j2_note_remote_index": """

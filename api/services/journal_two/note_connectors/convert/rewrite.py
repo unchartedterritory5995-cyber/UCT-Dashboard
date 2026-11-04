@@ -82,6 +82,24 @@ def _rewrite_marks(
     return out
 
 
+def chips_to_images(doc: dict[str, Any], refs: set[str]) -> dict[str, Any]:
+    """A copy of `doc` in which every `attachmentChip` placeholder for one of `refs` is an image
+    placeholder for the same ref; nothing else changes. Plan E Task 9 fix round 1 (concern 5): the
+    engine's media stage calls it for a file whose downloaded bytes are a raster (content wins),
+    and the ENML parity generator applies the same decision from a fixture's bytes."""
+    def walk(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+        if node.get("type") == "attachmentChip":
+            ref = _ref_from_placeholder((node.get("attrs") or {}).get("href"))
+            if ref is not None and ref in refs:
+                return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
+        if isinstance(node.get("content"), list):
+            return {**node, "content": [walk(c) for c in node["content"]]}
+        return node
+    return walk(doc)
+
+
 def rewrite_body(
     body_json: dict[str, Any],
     media_urls: dict[str, str] | None = None,

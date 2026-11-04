@@ -87,7 +87,17 @@ export function errorText(error) {
   return 'Chart IQ could not read this chart'
 }
 
-export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose, notDaily = false, onShowDaily = null }) {
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-10-30" -> "Oct 30 close": every read is built from a completed session, so during market hours it says plainly
+ * that it is not today's price action. Pure string work: no Date, no time zone. */
+export function closeLabel(asof) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(asof || '')
+  if (!m) return ''
+  return `${MONTHS[Number(m[2]) - 1] || m[2]} ${Number(m[3])} close`
+}
+
+export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose, notDaily = false, onShowDaily = null, weekly = false }) {
   const [open, setOpen] = useState(false)
   if (notDaily) {
     return (
@@ -114,6 +124,10 @@ export default function ChartIqPanel({ data, loading, error, layers, onLayer, on
       <div style={head} onClick={() => setOpen((v) => !v)} role="button" aria-expanded={open} tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v) } }}>
         <span style={tag}>Chart IQ</span>
+        {data?.asof ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-asof"
+          title={`This read uses prices through the ${data.asof} close`}>{closeLabel(data.asof)}</span> : null}
+        {weekly ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-weekly"
+          title="The daily read's price levels on the weekly chart. Trendlines and day markers are on the daily chart.">weekly: levels</span> : null}
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>
           {status || (open ? '' : firstSentence(data?.thesis))}
         </span>
@@ -155,6 +169,12 @@ export default function ChartIqPanel({ data, loading, error, layers, onLayer, on
               </label>
             ))}
           </div>
+          {weekly ? (
+            <p style={{ ...sub, margin: '6px 0 0' }} data-testid="chart-iq-weekly-note">Weekly chart: the daily read's price levels are drawn.
+              Trendlines, key candles and buy days are on the daily chart.{onShowDaily ? <> <button type="button" onClick={onShowDaily}
+              style={{ background: 'none', border: 0, color: 'var(--gold, #e3b341)', cursor: 'pointer', fontSize: 'inherit', padding: 0,
+                textDecoration: 'underline' }}>Show daily</button></> : null}</p>
+          ) : null}
           <ChartIqFeedback data={data} />
           <p style={{ ...sub, margin: '6px 0 0' }}>Engine read as of {data.asof}. Automated pattern recognition for education only: not
             investment advice and not a recommendation to buy or sell.</p>

@@ -3,6 +3,8 @@ import { obsidianAdapter } from './adapters/obsidian'
 import { htmlToNote } from './convert'
 import { extractPlainText } from '../tiptap'
 import { parseImport } from './postParse'
+import { rewriteBody, storeMediaItem } from './commit'
+import { importNoticeText } from '../importNoticeText'
 
 const vf = (path, text) => ({ path, size: text.length, lastModified: null,
                               bytes: async () => new TextEncoder().encode(text) })
@@ -156,12 +158,50 @@ describe('obsidian adapter — inline code spans protect wiki-syntax too', () =>
 })
 
 describe('obsidian adapter — unresolvable embed fallback', () => {
-  it('renders an unresolvable embed target as plain text, not an <img> or media entry', async () => {
-    const { docs } = await obsidianAdapter.parse([vf('n.md', 'before ![[missing.png]] after')])
+  // Live audit 2026-11-03, F3: a missing FILE embed is the live lane's visible notice, "<name>
+  // wasn't found in the vault." (the plugin sends it as a `missing` ref, the server writes
+  // reason `not-found`). ⚰️ It was plain text, "ov-gone.png", with no notice and nothing in
+  // the wizard's Needs attention. A missing NOTE embed keeps D2 item 8's reading: its name.
+  const notesOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('n.md', body)])
     const d = docs[0]
-    expect(d.media).toHaveLength(0)
-    expect(d.html).not.toContain('<img')
-    expect(d.html).toContain('missing.png')
+    const results = {}
+    for (const item of d.media) results[item.ref] = await storeMediaItem('n1', d.importKey, item)
+    const { body: out, notices, droppedMedia } = rewriteBody(htmlToNote(d.html).bodyJson, { mediaResults: results })
+    return { d, out, notices, droppedMedia }
+  }
+
+  it("a missing file embed is a not-found notice with the live lane's words, never a vault path", async () => {
+    const { d, out, notices, droppedMedia } = await notesOf('before ![[ov-gone.png]] after')
+    expect(d.media).toEqual([{ ref: 'obsidian-missing:ov-gone.png', kind: 'image', name: 'ov-gone.png',
+      failed: { reason: 'not_found', sourceUrl: null } }])
+    expect(out.content.map((n) => n.type)).toEqual(['paragraph', 'importNotice', 'paragraph'])
+    const [notice] = out.content.filter((n) => n.type === 'importNotice')
+    expect(importNoticeText(notice.attrs)).toBe("ov-gone.png wasn't found in the vault.")
+    // The server lane's notice for the same embed (`not-found`) reads the same sentence.
+    expect(importNoticeText({ reason: 'not-found', name: 'ov-gone.png', attempts: 0 }))
+      .toBe(importNoticeText(notice.attrs))
+    expect(notices.map((n) => [n.reason, n.name])).toEqual([['not_found', 'ov-gone.png']])
+    expect(droppedMedia).toEqual(['obsidian-missing:ov-gone.png'])
+    expect(extractPlainText(out)).not.toContain('ov-gone.png')
+  })
+
+  it('names the file the member wrote: a #-name in full, an anchor, a width and a folder off', async () => {
+    for (const [body, name] of [['![[my chart #1 (v2).png]]', 'my chart #1 (v2).png'],
+      ['![[x.png#anchor]]', 'x.png'], ['![[gone.png|300]]', 'gone.png'], ['![[att/deck.pdf]]', 'deck.pdf']]) {
+      const { notices } = await notesOf(body)
+      expect(notices.map((n) => [n.reason, n.name]), body).toEqual([['not_found', name]])
+    }
+  })
+
+  it("a missing NOTE embed keeps D2 item 8: the note's name as text, no notice, no media", async () => {
+    for (const [body, text] of [['![[Some Note]]', 'Some Note'], ['![[Ghost#Risk]]', 'Ghost'],
+      ['![[Ghost.md]]', 'Ghost'], ['![[Dr.Smith]]', 'Dr.Smith']]) {
+      const { d, out, notices } = await notesOf(body)
+      expect(d.media, body).toEqual([])
+      expect(notices, body).toEqual([])
+      expect(extractPlainText(out), body).toBe(text)
+    }
   })
 })
 
@@ -251,10 +291,11 @@ describe('obsidian adapter — Obsidian resolution (Plan B Task 8)', () => {
     expect(d.links).toEqual([{ targetKey: 'obsidian:Other note.md' }])
   })
 
-  it('never shows the table escape in the text of an unresolved embed', async () => {
+  it('never shows the table escape in the name of an unresolved embed', async () => {
+    // Live audit F3: a missing file embed is a not-found notice; its NAME is what reads.
     const d = await docOf([vf('a.md', '| col |\n| --- |\n| ![[missing.png\\|100]] |\n')], 'a.md')
-    expect(d.html).toMatch(/<td>missing\.png<\/td>/)
-    expect(d.media).toEqual([])
+    expect(d.media.map((m) => [m.name, m.failed?.reason])).toEqual([['missing.png', 'not_found']])
+    expect(d.html).not.toContain('\\|')
   })
 
   it('makes ![[Other note]] a note link, not a file chip', async () => {
@@ -796,8 +837,8 @@ describe('obsidian adapter — D2 item 8: heading-link display text', () => {
     ['[[q3 #4.xlsx|the sheet]]', 'the sheet'],
     ['![[Ghost#Risk]]', 'Ghost'],
     ['![[Ghost.md]]', 'Ghost'],
-    ['![[missing.png]]', 'missing.png'],
-    ['![[my chart #1 (v2).png]]', 'my chart #1 (v2).png'],
+    // A missing FILE embed (`![[missing.png]]`, `![[my chart #1 (v2).png]]`) is a not-found
+    // notice now (live audit F3): the unresolvable embed fallback block pins it.
   ]
   for (const [body, expected] of ROWS) {
     it(`${body} reads "${expected}"`, async () => {
@@ -991,6 +1032,53 @@ describe('obsidian adapter — D2 fix round 1 (e): an embed as a wikilink alias'
   it('a missing note still reads as Obsidian names it, after the image', async () => {
     const { d, doc } = await parseOne('[[Ghost#Risk|![[img.png]]]]')
     expect(shape(doc)).toBe('doc(image, paragraph("Ghost > Risk"))')
+    expect(d.links).toEqual([])
+  })
+})
+
+// Plugin issue #3: a markdown image as the WHOLE alias, `[[q.pdf|![](img.png)]]`, is the
+// image and then the link as `[[q.pdf]]` reads (a chip for a file, a link for a note), as
+// the server's `_ALIAS_EMBED_RE` reads it. The parity rail cannot see image-before-chip
+// order (its images and files are separate lists), so these pin it in the HTML and the doc.
+// ⚰️ WIKILINK_RE's alias stopped at the image's `]`: the link was raw `[[q.pdf| ]]` text.
+describe('obsidian adapter — issue #3: a markdown image as a wikilink alias', () => {
+  const shape = (n) => (n.type === 'text'
+    ? JSON.stringify(n.text) + ((n.marks || []).some((m) => m.type === 'link') ? '[link]' : '')
+      + ((n.marks || []).some((m) => m.type === 'code') ? '[code]' : '')
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/img.png', 'i'), vf('V/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return { d, doc: htmlToNote(d.html).bodyJson }
+  }
+  const before = (html, first, second) => {
+    const a = html.indexOf(first)
+    const b = html.indexOf(second)
+    expect(a, first).toBeGreaterThanOrEqual(0)
+    expect(b, second).toBeGreaterThanOrEqual(0)
+    expect(a).toBeLessThan(b)
+  }
+
+  it('a file target: the image, then the chip', async () => {
+    const { d, doc } = await parseOne('x [[q.pdf|![](img.png)]] y')
+    before(d.html, '<img', 'data-type="attachmentChip"')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, attachmentChip, paragraph(" y"))')
+    // listed in the order the passes made them (the chip's held piece first), not shown
+    expect(d.media.map((m) => [m.ref, m.kind]).sort()).toEqual([['V/img.png', 'image'], ['V/q.pdf', 'file']])
+  })
+
+  it('a note target: the image, then the link', async () => {
+    const { d, doc } = await parseOne('x [[Plan|![](img.png)]] y')
+    before(d.html, '<img', 'data-import-link="obsidian:V/Plan.md"')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, paragraph("Plan"[link], " y"))')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+
+  it('inside a code span it stays code: no image, no link', async () => {
+    const { d, doc } = await parseOne('x `[[Plan|![](img.png)]]` y')
+    expect(shape(doc)).toBe('doc(paragraph("x ", "[[Plan|![](img.png)]]"[code], " y"))')
+    expect(d.media).toEqual([])
     expect(d.links).toEqual([])
   })
 })

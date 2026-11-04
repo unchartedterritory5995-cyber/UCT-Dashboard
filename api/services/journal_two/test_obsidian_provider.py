@@ -615,6 +615,80 @@ async def test_fetch_media_refuses_a_non_https_reference(db):
         await provider.fetch_media({}, "Notes/attachments/file.pdf")
 
 
+#: What the provider said before plugin 0.2.0 sent files; true then, false since (audit F2).
+_STALE_COPY = ("does not transfer", "only note text", "not synced by the obsidian push transport",
+               "public https link")
+
+
+def _says_nothing_stale(exc):
+    for text in (str(exc), getattr(exc, "reason", "")):
+        assert not any(s in text.lower() for s in _STALE_COPY), text
+
+
+def _set_version(version):
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_obsidian_devices SET plugin_version = ?", (version,))
+    conn.commit()
+    conn.close()
+
+
+async def test_a_local_file_the_plugin_did_not_send_says_why_for_each_case(db, monkeypatch):
+    """Live audit 2026-11-03, F2: a vault path reaching `fetch_media` is a file the plugin did
+    not send. What the member and the log read says WHICH case it is, and never that the
+    plugin sends no files (0.2.0 does). The notice reason rides the error's TYPE
+    (`NoteConnAttachmentNotSent.notice_reason`), never its wording."""
+    from api.services.journal_two import import_notice
+    from api.services.journal_two.note_connectors import engine
+
+    _device("user-a", "vault-1")
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+
+    # Plugin 0.2.0+: the file was not in the list it sent with the note.
+    _set_version("0.2.0")
+    with pytest.raises(errors.NoteConnAttachmentNotSent) as exc:
+        await provider.fetch_media({}, "att/img.png")
+    # Fix round 1 (I-1/I-2/M-5): no update brings it, so the notice names no remedy.
+    assert exc.value.notice_reason == "not-sent"
+    assert engine.media_failure_reason(exc.value) == "not-sent"
+    assert import_notice.marker_text("not-sent", "img.png") == (
+        "img.png wasn't sent from Obsidian, so it isn't shown here.")
+    assert str(exc.value) == ("'att/img.png' was not in the list of files UCT Notebook Sync "
+                              "0.2.0 sent with this note, so its bytes never reached the server")
+    _says_nothing_stale(exc.value)
+
+    # Older than 0.2.0, or no version reported: that plugin sends no files at all.
+    for version in ("0.1.4", None):
+        _set_version(version)
+        with pytest.raises(errors.NoteConnAttachmentNotSent) as exc:
+            await provider.fetch_media({}, "att/img.png")
+        # The one case an update fixes: 0.2.0 sends files.
+        assert engine.media_failure_reason(exc.value) == "obsidian-plugin-outdated"
+        assert str(exc.value) == ("'att/img.png' was not sent: this vault's UCT Notebook Sync "
+                                  "plugin is older than 0.2.0, which sends no images or files")
+        _says_nothing_stale(exc.value)
+
+    # The attachment layer off for this member: the server told the plugin to send no files.
+    # Fix round 1: `not-sent` too, never "can't be shown here" and never "update".
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "0")
+    with pytest.raises(errors.NoteConnAttachmentNotSent) as exc:
+        await provider.fetch_media({}, "att/img.png")
+    assert engine.media_failure_reason(exc.value) == "not-sent"
+    assert str(exc.value) == ("'att/img.png' was not sent: this server takes no Obsidian images "
+                              "or files from this account, so the plugin sent the note's text only")
+    assert "turned on" not in str(exc.value)
+    _says_nothing_stale(exc.value)
+
+
+async def test_a_listed_file_whose_upload_has_not_arrived_says_so(db):
+    """F2, the fourth case: the plugin listed the file but its blob is not staged (yet)."""
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media({}, "obsidian-att:" + "d" * 64 + "/chart.png")
+    assert str(exc.value) == ("the plugin listed this file but its upload has not reached the "
+                              "server yet; it is tried again on the next sync")
+    assert exc.value.status == 404
+
+
 # ---------------------------------------------------------------------------
 # ⛔⛔ session-audit.md A1 — the honest markdown-side boundary. Nothing
 # anywhere previously synced/imported a note bigger than a few KB; note
@@ -1422,9 +1496,10 @@ def test_every_reason_this_provider_writes_has_its_own_sentence():
     from api.services.journal_two import import_notice
     from api.services.journal_two.note_connectors.providers import obsidian as obs
 
-    written = {obs.OUTDATED_REASON, obs.UNAVAILABLE_REASON, *obs._STATUS_REASONS.values()}
+    written = {obs.OUTDATED_REASON, obs.UNAVAILABLE_REASON, obs.NOT_SENT_REASON,
+               *obs._STATUS_REASONS.values()}
     assert written == {"obsidian-plugin-outdated", "obsidian-attachments-unavailable", "not-found",
-                       "too-large", "sync-off", "storage-limit"}
+                       "too-large", "sync-off", "storage-limit", "not-sent"}
     for reason in written:
         assert import_notice._reason(reason) != "unsupported", reason
     assert import_notice.marker_text("obsidian-plugin-outdated", "x.png") == (
@@ -2045,6 +2120,185 @@ def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
         assert [m["kind"] for m in conv["media"]] == ["image", "file"]
         assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
         assert "]]" not in _plain(conv["doc"])
+
+
+def test_a_markdown_image_as_the_alias_of_a_file_link_keeps_the_image_and_the_chip():
+    """Issue #3 (plugin repo): real Obsidian caches `[[q.pdf|![](att/img.png)]]` as ONE link
+    and no embed. Sent as one ref (plugin 0.2.0) or beside the image's own embed ref
+    (0.2.1), it reads as the image, then the chip, as the wiki-embed alias does. The whole
+    link used to claim the text, so the image the member wrote was gone."""
+    original = "[[q.pdf|![](att/img.png)]]"
+    pdf = REF(original=original, embed=False, path="att/q.pdf", sha256="b" * 64)
+    img = REF(original="![](att/img.png)", path="att/img.png")
+    chip = {"href": "import-ref://obsidian-file:" + "b" * 64 + "/q.pdf", "name": "q.pdf"}
+    for refs in ([pdf, img], [img, pdf]):
+        conv = _convert(f"x {original} y", refs=refs)
+        kinds = [n["type"] for n in conv["doc"]["content"]]
+        assert kinds == ["paragraph", "image", "attachmentChip", "paragraph"], kinds
+        assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
+        assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/img.png"
+        assert [m["kind"] for m in conv["media"]] == ["image", "file"]
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
+    # The whole link only (an older plugin): the image as an unsent markdown image reads,
+    # the same image `x ![](att/img.png) y` makes with no ref of its own, then the chip.
+    conv = _convert(f"x {original} y", refs=[pdf])
+    alone = _convert("x ![](att/img.png) y", refs=[])
+    assert _only(conv["doc"], "image") == _only(alone["doc"], "image")
+    assert [n["type"] for n in conv["doc"]["content"]] == [
+        "paragraph", "image", "attachmentChip", "paragraph"]
+    # A missing file: the image, then the notice; the member's text is never dropped.
+    gone = REF(original=original, embed=False, path="att/q.pdf", status="missing")
+    conv = _convert(f"x {original} y", refs=[gone, img])
+    assert [n["type"] for n in conv["doc"]["content"]] == [
+        "paragraph", "image", "importNotice", "paragraph"]
+    # Only the exact shape splits: an alias with text beside the image, a markdown LINK as
+    # the alias, a target no wikilink can hold (across a blank line), or a code span holding
+    # the link keeps today's reading (the chip alone).
+    for other in ("[[q.pdf|see ![](att/img.png)]]", "[[q.pdf|[see](att/img.png)]]",
+                  "[[q\n\nr.pdf|![](att/img.png)]]", "((q.pdf|![](att/img.png)))"):
+        conv = _convert(f"x {other} y", refs=[REF(original=other, embed=False, path="att/q.pdf")])
+        assert [n["type"] for n in conv["doc"]["content"]] == [
+            "paragraph", "attachmentChip", "paragraph"], other
+        assert _all(conv["doc"], "image") == [] and _link_marks(conv["doc"]) == [], other
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y", other
+    conv = _convert(f"x `{original}` y", refs=[pdf, img])
+    assert _all(conv["doc"], "image") == [] and _all(conv["doc"], "attachmentChip") == []
+    assert original in _plain(conv["doc"])
+
+
+def test_a_markdown_image_as_the_alias_splits_with_no_ref_for_the_link():
+    """Issue #3 fix round 1, I1: the split never depends on refs. A NOTE target, a target
+    not in the vault and a web image get no ref for the link (the plugin skips a note link
+    and a scheme), so the wikilink pass splits them: the image, then the link (or the
+    pending link), never raw `[[Plan|` brackets around the image. As on the client."""
+    paths = ["Notes/Plan.md"]
+    for body, image_src in (("x [[Plan|![](att/img.png)]] y", "import-ref://att/img.png"),
+                            ("x [[Plan|![](https://e.com/a.png)]] y", "import-ref://https://e.com/a.png")):
+        conv = _convert(body, paths, refs=[])
+        para = conv["doc"]["content"]
+        assert [n["type"] for n in para] == ["paragraph", "image", "paragraph"], body
+        assert para[1]["attrs"]["src"] == image_src
+        assert _link_marks(conv["doc"]) == [("Plan", _key("Notes/Plan.md"))]
+        assert "[[" not in _plain(conv["doc"]) and "]]" not in _plain(conv["doc"])
+    conv = _convert("x [[Nope|![](att/img.png)]] y", paths, refs=[])
+    assert [n["type"] for n in conv["doc"]["content"]] == ["paragraph", "image", "paragraph"]
+    assert [t for t, _ in _link_marks(conv["doc"])] == ["Nope"]
+    assert "[[" not in _plain(conv["doc"])
+    # The image comes BEFORE the link: the link's paragraph follows the image.
+    conv = _convert("[[Plan|![](att/img.png)]] y", paths, refs=[])
+    assert [n["type"] for n in conv["doc"]["content"]] == ["image", "paragraph"]
+
+
+def _att(sha, name):
+    return f"import-ref://obsidian-att:{sha}/{name}"
+
+
+def test_a_markdown_image_with_no_ref_uses_the_blob_another_ref_resolved_to_its_path():
+    """Live audit 2026-11-03, F1. Plugin 0.2.0 sends `![[img.png]]` (resolved to att/img.png,
+    blob uploaded) and the link `[[q.pdf|![](att/img.png)]]`, and no ref for the markdown
+    image inside the alias. That image names the SAME vault path the embed's ref resolved,
+    in the same note, so it shows that blob. ⚰️ It stayed `att/img.png`, which `fetch_media`
+    refused: the member read "img.png can't be shown here" under a note that holds the
+    image."""
+    pdf_sha = "b" * 64
+    refs = [REF(original="![[img.png]]", path="att/img.png"),
+            REF(original="[[q.pdf|![](att/img.png)]]", embed=False, path="att/q.pdf",
+                sha256=pdf_sha)]
+    body = "x [[q.pdf|![[img.png]]]] y\n\nmd [[q.pdf|![](att/img.png)]] img\n"
+    conv = _convert(body, refs=refs, self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att(_SHA, "img.png"), _att(_SHA, "img.png")]
+    # The audit's refs name the second line's link only, so only it is a chip.
+    assert [c["attrs"]["name"] for c in _all(conv["doc"], "attachmentChip")] == ["q.pdf"]
+    assert all(m["ref"].startswith(("obsidian-att:", "obsidian-file:")) for m in conv["media"])
+    assert _all(conv["doc"], "importNotice") == []
+    # A bare markdown image elsewhere in the note, the same file: the same blob.
+    conv = _convert("![[img.png]]\n\nagain ![](att/img.png) here\n", refs=refs[:1], self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [_att(_SHA, "img.png")] * 2
+    # Percent-encoded, in angle brackets, with a title, a query or an anchor: the plugin's
+    # `markdownTarget` (cut at ?/#, decoded once) names the same path.
+    # Fix round 1, I-1(e): a `\` reads as `/`, as `markdownTarget` reads it.
+    spaced = [REF(original="![[my img.png]]", path="att/my img.png")]
+    for dest in ("att/my%20img.png", "<att/my img.png>", 'att/my%20img.png "t"',
+                 "att/my%20img.png?w=1", "att/my%20img.png#x", "att\\my%20img.png",
+                 "att%5Cmy%20img.png"):
+        conv = _convert(f"![[my img.png]]\n\n![]({dest})\n", refs=spaced, self_path="a.md")
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+            _att(_SHA, "my%20img.png")] * 2, dest
+
+
+def test_the_same_note_fallback_matches_the_exact_path_only():
+    """F1: same vault, same note, exact path, and only where the path names ONE file (fix
+    round 1, M-1): a note at the vault root, or a destination written `./` / `../`, read beside
+    the note. Never by name, never by case, never through a ref whose file did not come over."""
+    root = REF(original="![[root.png]]", path="att/img.png")
+    # A root note: beside it IS the root, and `./` and a leading `/` name the same path.
+    for dest in ("att/img.png", "./att/img.png", "/att/img.png"):
+        conv = _convert(f"![[root.png]]\n\n![]({dest})\n", refs=[root], self_path="a.md")
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+            _att(_SHA, "img.png")] * 2, dest
+    # Not the same path: a bare name, another case, another folder, above the root.
+    for dest in ("img.png", "Att/img.png", "att/IMG.png", "other/img.png", "../att/img.png"):
+        conv = _convert(f"![[root.png]]\n\n![]({dest})\n", refs=[root], self_path="a.md")
+        srcs = [n["attrs"]["src"] for n in _all(conv["doc"], "image")]
+        assert srcs[0] == _att(_SHA, "img.png") and not srcs[1].startswith(
+            "import-ref://obsidian-att:"), dest
+    # A note in a folder: only an explicitly relative destination, read beside the note.
+    here = REF(original="![[img.png]]", path="Notes/att/img.png", sha256="c" * 64)
+    body = "![[img.png]]\n\n![[root.png]]\n\n![](./att/img.png)\n\n![](../att/img.png)\n"
+    conv = _convert(body, refs=[here, root], self_path="Notes/Src.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att("c" * 64, "img.png"), _att(_SHA, "img.png"),
+        _att("c" * 64, "img.png"),   # `./` beside the note
+        _att(_SHA, "img.png")]       # `../` from Notes/ is the root's
+
+
+def test_a_folder_note_never_guesses_which_file_a_bare_destination_names():
+    """Fix round 1, M-1 (the reviewer's probe, case 1). The vault holds Notes/att/img.png AND
+    att/img.png; the note Notes/Src.md embeds `![[att/img.png]]` (its ref: the ROOT file) and
+    writes `[[q.pdf|![](att/img.png)]]`, which Obsidian reads beside the note first. The
+    server cannot see the vault's files, so it cannot know which one that is. ⚰️ The fallback
+    read it from the root and showed the wrong picture. It stays as written (the member then
+    reads `not_sent`, and plugin 0.2.1 sends its real ref)."""
+    root = REF(original="![[att/img.png]]", path="att/img.png")
+    conv = _convert("![[att/img.png]]\n\n[[q.pdf|![](att/img.png)]]\n", refs=[root],
+                    self_path="Notes/Src.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att(_SHA, "img.png"), "import-ref://att/img.png"]
+    # Nor a bare name or a leading `/` from a folder note.
+    for dest in ("att/img.png", "/att/img.png", "img.png"):
+        conv = _convert(f"![[att/img.png]]\n\n![]({dest})\n", refs=[root], self_path="Notes/Src.md")
+        assert not _all(conv["doc"], "image")[1]["attrs"]["src"].startswith(
+            "import-ref://obsidian-att:"), dest
+
+
+def test_the_same_note_fallback_lends_only_a_file_that_came_over():
+    root = REF(original="![[root.png]]", path="att/img.png")
+    # A ref for that path whose file did not come over lends nothing.
+    for bad in (REF(original="![[root.png]]", path="att/img.png", status="missing", sha256=None),
+                REF(original="![[root.png]]", path="att/img.png", sha256=None),
+                REF(original="![[root.png]]", path="att/img.png", status="off")):
+        conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[bad], self_path="a.md")
+        # The markdown image is left exactly as written; only the embed's own ref speaks.
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")
+                if "att/img.png" in n["attrs"]["src"]] == ["import-ref://att/img.png"], bad
+        assert len(_all(conv["doc"], "importNotice")) <= 1, bad
+    # ... and never hides one that did: the first ref for a path may have no file, a later one does.
+    hollow = REF(original="![[gone.png]]", path="att/img.png", sha256=None)
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[hollow, root], self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [_att(_SHA, "img.png")] * 2
+    # A web image, an anchor and code are never a vault path.
+    conv = _convert("![[root.png]]\n\n`![](att/img.png)`\n", refs=[root], self_path="a.md")
+    assert len(_all(conv["doc"], "image")) == 1 and "![](att/img.png)" in _plain(conv["doc"])
+    # A ref of its own still wins: a markdown image the plugin listed as missing is the notice.
+    own = REF(original="![](att/img.png)", path="att/img.png", status="missing", sha256=None)
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[root, own], self_path="a.md")
+    assert _only(conv["doc"], "importNotice")["attrs"]["reason"] == "not-found"
+    # ... even one this pass cannot write (an unknown status): the image is left as written.
+    own = REF(original="![](att/img.png)", path="att/img.png", status="later")
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[root, own], self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att(_SHA, "img.png"), "import-ref://att/img.png"]
 
 
 def test_the_attachment_pass_is_near_linear_in_overlapping_originals():

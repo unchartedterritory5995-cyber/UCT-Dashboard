@@ -48,6 +48,8 @@ import JournalMobileNav from './JournalMobileNav'
 import JournalLogFab from './JournalLogFab'
 import TrialBanner from './components/TrialBanner'
 import styles from './JournalLayout.module.css'
+import { AgentDockButton } from '../../agent/AgentProvider'
+import { useJournalAgentHost } from '../../agent/hosts/usePageAgentHosts'
 
 // Wave 14 perf lane (docs/notebook/wave14-perf.md): the header's three on-demand dialogs load
 // when first opened, not with the shell. Each is mounted only while its flag below is true, so
@@ -130,6 +132,8 @@ export default function JournalLayout() {
   // Header overflow: Community + Accounts are NOT primary nav items (A5) — they
   // live here so the primary rail stays exactly 5. The routes still exist (A2).
   const [showMore, setShowMore] = useState(false)
+  // ⭐ W2-C1: what UCT Agent may read and write here (recent notes; create a note through the Notebook's own path)
+  useJournalAgentHost()
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
@@ -260,6 +264,7 @@ export default function JournalLayout() {
           })}
         </nav>
         <div className={styles.headerRight}>
+          <AgentDockButton />
           {/* Persistent "+ Log Trade" — the primary write affordance, on every
               surface (A5). Owns its own add-position / add-trade modals. */}
           <LogTradeButton />

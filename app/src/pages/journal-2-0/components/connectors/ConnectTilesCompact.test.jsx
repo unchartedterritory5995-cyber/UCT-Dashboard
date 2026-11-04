@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import ConnectTilesCompact from './ConnectTilesCompact'
+import { EVERNOTE_CONNECT_NOTES } from './evernoteCopy'
 
 function mockFetch(routes) {
   global.fetch = vi.fn(async (url, opts) => {
@@ -190,5 +191,33 @@ describe('ConnectTilesCompact', () => {
       expect(JSON.parse(call[1].body)).toEqual({ consent: true })
     })
     expect(await screen.findByTestId('obsidian-connect-code')).toHaveTextContent('ABCDE-12345')
+  })
+
+  // Plan E Task 10: the wizard strip reads the SAME roster, so Evernote arrives here with no
+  // second list, under the same status-field gate as the Settings card.
+  const evernoteStatus = (configured) => ({
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      notion: { configured: true, connected: false, sources: [] },
+      evernote: { configured, connected: false, sources: [] },
+    },
+  })
+
+  it('an evernote tile appears only when /status says configured (flag off or not allowed => none)', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: evernoteStatus(false) }]])
+    render(<ConnectTilesCompact />)
+    expect(await screen.findByTestId('connect-tile-notion')).toBeInTheDocument()   // control
+    expect(screen.queryByTestId('connect-tile-evernote')).toBeNull()
+  })
+
+  it('a configured evernote tile opens the consent panel with the paid-plan, beta and adoption notes', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: evernoteStatus(true) }]])
+    render(<ConnectTilesCompact />)
+    const tile = await screen.findByTestId('connect-tile-evernote')
+    expect(tile).toHaveTextContent('Connect Evernote')
+    fireEvent.click(tile)
+    const panel = await screen.findByRole('group', { name: 'Consent to connect Evernote' })
+    const items = within(within(panel).getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
+    expect(items).toEqual(EVERNOTE_CONNECT_NOTES)
   })
 })
