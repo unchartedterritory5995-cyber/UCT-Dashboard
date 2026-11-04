@@ -194,8 +194,10 @@ function Item({ it, agent, member, at, cont }) {
     case 'question':
       return (
         <AgentSays testId="agent-question" at={at} cont={cont}>
-          <div className={styles.bubble}><Paragraphs text={it.text} /></div>
-          {it.choices?.length > 0 && (
+          <div className={styles.bubble} data-status={it.status || undefined}><Paragraphs text={it.text} /></div>
+          {/* #766 nit 2: a question withdrawn with the change it was about keeps no live choices */}
+          {it.status === 'withdrawn' && <div className={styles.cardMeta}>Withdrawn — nothing was changed</div>}
+          {it.choices?.length > 0 && it.status !== 'withdrawn' && (
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice} disabled={agent.busy}

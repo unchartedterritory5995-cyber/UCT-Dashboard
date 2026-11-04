@@ -27,7 +27,8 @@ import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
-import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
+import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
+import { receiptView } from './receiptView'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
@@ -130,10 +131,24 @@ const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['
 // ⭐ PHASE 3: "undo just the colour change" — a DESCRIPTION of the newest change, checked against what its receipt says
 const UNDO_SAYS = { colour: /\bcolou?r|\bcolou?red\b/i, style: /\bstyle|dashed|dotted|solid|thick|thin|width/i, timeframe: /\btimeframe\b/i, symbol: /\bsymbol\b|\bticker\b/i,
   pane: /\bpane\b/i, layout: /\blayout\b/i, theme: /\btheme\b/i, resize: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, size: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, move: /\bmov(?:e|ed)\b/i, rename: /\brenam/i, link: /\blink/i }
+// review F2 + #766 nit 1: a board / workspace write is a CHART change when what it STRUCTURALLY touched is a chart widget —
+// a chart grid, charts added, a chart widget moved / resized / removed / restored — read from the entry's own patch and the
+// board as it was before (never from the receipt's wording: "moved News next to the Chart" is a News change)
+const typeOfIn = (raw, id) => (raw || []).find(w => String(w.id) === String(id))?.type || null
+export function touchesCharts(it) {
+  if (!it) return false
+  if (it.kind === 'chart') return true
+  const p = it.patch || {}
+  if (it.kind === 'workspace') return (p.add || []).some(a => a?.type === 'chart')
+  if (it.kind !== 'board') return false
+  if (p.grid) return true
+  if ((p.add || []).some(a => a?.type === 'chart')) return true
+  const raw = it.before?.raw || []
+  if ((p.restore || []).some(w => w?.type === 'chart')) return true
+  return [...(p.remove || []), ...Object.keys(p.set || {})].some(id => typeOfIn(raw, id) === 'chart')
+}
 const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
-  // review F2: "undo the change you made to my charts" after a CHART GRID / charts added (board / workspace writes whose
-  // receipt is about charts) is a chart change in the member's words
-  || (about === 'chart' && entry.items.some(it => it.kind === 'board' || it.kind === 'workspace') && /\bcharts?\b/i.test((entry.lines || []).join(' ')))
+  || (about === 'chart' && entry.items.some(touchesCharts))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
@@ -418,8 +433,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
         && !item.present && !item.table && !item.link) return
     if (item?.role && item.role !== 'member') turnOutput(item.role)
-    if (item?.role === 'question') lastQuestionRef.current = item
-    setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
+    const id = item?.id || nid()
+    if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
+    setItems(xs => [...xs, { at: Date.now(), ...item, id }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
   // ⛔ APPROVAL BINDING: a change that RAN (any write, or an Undo) withdraws a proposal still waiting —
@@ -558,6 +574,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // Checked NOW against the board as it is (a new list's alias stands in for it). One that
     // cannot run is dropped and said up front — the rest of the request still runs.
     let deferredLines = []
+    // ⭐ MISSION 3: this request CREATES widgets and its deferred steps change widgets that already exist ("add a chart for
+    // AAPL and put the RSI on my NVDA chart") — its Undo entries are one group (execute)
+    let mixedDeferred = false
     if (deferred.length) {
       // each one on its own (they run one at a time, so they are checked one at a time)
       const okd = []
@@ -568,6 +587,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⭐ W1-B B-07: a step aimed at a target this request CREATES (a widget.add alias — "open two charts … with the 9 and
       // 20 ema on both") cannot be checked yet either: it is checked at its own turn, re-aimed at the real target (landDeferred)
       const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
+      mixedDeferred = creates.size > 0 && deferred.some(d => !creates.has(String(d.target)))
       for (const d of deferred) {
         const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
@@ -779,6 +799,37 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     mark('planned')
     const actions = ops.map(o => o.action)
     if (!plan.ok) {
+      // ⭐ MISSION 3: refused ONLY as add + change-existing → two executions of this same runtime, in the member's order,
+      // ONE grouped Undo (execute runs them). Every part is planned, protection-checked and policy-checked HERE, before
+      // anything is written; any part that would not run at once keeps the request refused, with the two-step wording.
+      const mixedOnly = plan.refusals.length > 0 && plan.refusals.every(r => r.code === 'mixed')
+      if (mixedOnly) {
+        const why = await (async () => {
+          if (suggested !== 'apply' || composing || deferred.length || binding) return 'needs-approval'
+          const sp = splitMixedOps(ops)
+          if (!sp) return 'unsafe'
+          const pre = []
+          for (const part of sp.parts) {
+            const pp = planOps(collectTargets(host, kindsOf(part.ops)), part.ops, env, capCtx)
+            if (!pp.ok) return { text: refusalText(pp.refusals) }
+            const g = protectionRefusal(host, pp, pp.normalizedOps || part.ops)
+            if (g) return { text: `I didn't change anything: ${g}` }
+            if (decideMode('apply', pp) !== 'apply') return 'needs-approval'
+            pre.push({ ...part, lines: pp.lines.length ? pp.lines : pp.noops })
+          }
+          return { parts: pre }
+        })()
+        if (why?.parts) {
+          mark('split', why.parts.map(p => p.side).join('+'))
+          return { split: why.parts }
+        }
+        const text = why?.text || `I didn't change anything: ${why === 'needs-approval'
+          ? 'adding new widgets and changing existing ones in one request only works when both parts can run straight away, and part of this one needs your approval first. Ask in two steps: the new widgets first, then the change to the ones you already have.'
+          : plan.refusals[0].reason}`
+        refusalPush(text)
+        record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
+        return
+      }
       const text = refusalText(plan.refusals)
       refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
@@ -905,7 +956,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // with ITS Undo entry (pushed above only when the save was confirmed): a correction reverses
       // exactly this change or nothing (nl1/interpreter.correctionPlan)
       rememberChange(memoryRef.current, host, ops, res.undo?.id || null)
-      if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
+      if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}), ...(mixedDeferred ? { mixed: true } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
       const text = res.failed.every(f => f.say) ? res.failed.map(f => f.say).join(' ')
@@ -1000,12 +1051,52 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     turnPath(path)
     traceStart(`${path}:${suggested || 'apply'}`)
+    const idsBefore = undoRef.current.map(e => e.id)
     let out
     try {
       out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset })
     } finally { traceEnd('done') }
+    // ⭐ MISSION 3: an add + change-existing request, run as its parts in the member's order — each part the SAME
+    // executeInner (planning, protection, policy, board check, commit, persistence, receipt and its own Undo entry). A part
+    // that does not land stops the rest; the member is told exactly which part was made and which wasn't — never a
+    // success claim. The parts' Undo entries become ONE group: "undo" takes back the whole request (doUndo).
+    if (out?.split) {
+      const parts = out.split
+      const said = (p) => receiptView(p.lines).summary.replace(/^Done — /, '').replace(/[.]+$/, '').replace(/^[A-Z](?=[a-z])/, c => c.toLowerCase()) || 'that part'
+      const outer = tapRef.current
+      let done = 0
+      for (let i = 0; i < parts.length; i++) {
+        const kinds = []
+        tapRef.current = kinds
+        try {
+          traceStart(`${path}:part${i + 1}`)
+          let o
+          try { o = await executeInner(parts[i].ops, { path, mode: 'apply', member: i ? null : member, voice, onTarget: i ? null : onTarget }) } finally { traceEnd('done') }
+          await runFollowUps(o)
+        } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        const landed = kinds.includes('applied') || kinds.includes('noop')
+        if (!landed || kinds.some(k => k !== 'applied' && k !== 'noop')) {
+          const notDone = parts.slice(i).map(said)
+          const q = (xs) => xs.map(s => `“${s}”`).join(' and ')
+          const text = done
+            ? `I made the first part of your request (above), then stopped: ${q(notDone)} didn’t go through (see above), so ${notDone.length === 1 ? 'it isn’t' : 'they aren’t'} on your board. Say “undo” to take back the part I made.`
+            : `I stopped there: ${q(notDone.slice(0, 1))} didn’t go through (see above)${notDone.length > 1 ? `, so I didn’t start ${q(notDone.slice(1))}` : ''}. Nothing else was changed.`
+          push({ role: 'agent', text })
+          record({ member: null, outcome: text, outcomeData: { kind: 'split-stopped', step: i, of: parts.length }, telemetry: { path, refused: true, voice } })
+          break
+        }
+        done += 1
+      }
+      if (done === parts.length && groupFresh(idsBefore) > 1) push({ role: 'outcome', text: `Done in ${parts.length} steps (above) — say “undo” to take back the whole request.` })
+      return undefined
+    }
+    await runFollowUps(out)
+    if (out?.mixed) groupFresh(idsBefore)
+    return undefined
+
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
+    async function runFollowUps(out) {
     const held = out?.held || null                    // a Save's receipt waiting to lead its chart add
     for (const { awaitDefinition, ...op } of out?.followUps || []) {
       if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
@@ -1024,10 +1115,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // a held Save receipt is ALWAYS said — on its own if no step used it (never a silent save)
     if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
-    return undefined
+    }
   }, [executeInner, definitionListed, host, push, record])
 
-  const doUndo = useCallback(async (undoId, { member, voice, about = null } = {}) => {
+  // ⭐ MISSION 3: the Undo entries ONE request committed on a mix of new and existing widgets become one GROUP (doUndo
+  // takes it back as a whole, newest first). → how many entries were grouped.
+  function groupFresh(idsBefore) {
+    const fresh = undoRef.current.filter(e => !idsBefore.includes(e.id)).map(e => e.id)
+    if (fresh.length < 2) return fresh.length
+    const gid = `g${fresh[0]}`
+    undoRef.current = undoRef.current.map(e => (fresh.includes(e.id) ? { ...e, group: gid } : e))
+    return fresh.length
+  }
+
+  // ONE Undo entry, exactly as before (the receipt's Undo). `doUndo` (below) is the entry point: it adds the turn-level
+  // GROUP (mission 3) on top of this, never a different check.
+  const doUndoOne = useCallback(async (undoId, { member, voice, about = null } = {}) => {
     lastUndoRef.current = 'refused'
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
@@ -1093,11 +1196,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   // review F4: a planned "…, then undo it" whose change is now WAITING (an approval card, a which-chart question) never
   // leaves that card or question behind — approving it later would commit the change with no Undo after it
+  // #766 nit 2: a QUESTION this plan raised (which chart? — with or without a pending pick) is WITHDRAWN too: its choices
+  // are taken away (status 'withdrawn'), so no click can later run something the member never asked for on its own
   const dropHeldForUndo = (before) => {
     const q = pendingRef.current
-    if (!q || q === before) return false
-    pendingRef.current = null
-    if (q.kind === 'proposal' && q.id) patchItem(q.id, { status: 'replaced' })
+    const asked = lastQuestionRef.current && lastQuestionRef.current !== before?.question ? lastQuestionRef.current : null
+    const heldNow = q && q !== before?.pending ? q : null
+    if (!heldNow && !asked) return false
+    if (heldNow) {
+      pendingRef.current = null
+      if (heldNow.kind === 'proposal' && heldNow.id) patchItem(heldNow.id, { status: 'replaced' })
+    }
+    if (asked?.id) { patchItem(asked.id, { status: 'withdrawn' }); lastQuestionRef.current = null }
     push({ role: 'refusal', text: UNDO_HELD })
     return true
   }
@@ -1105,21 +1215,45 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // ⭐ PHASE 3: "undo all of that" — every change the LAST request committed (memory.lastTurn's Undo entries), newest first,
   // each through doUndo (its own refusals: protected, another board, changed since). The first that can't be undone
   // stops it there, and the member is told exactly how many were taken back — never a partial Undo said as a whole one.
-  const undoTurn = useCallback(async ({ member, voice } = {}) => {
-    const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
-    if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
+  // newest first, each through doUndo (its refusals and receipt); stops at the first that can't be undone, said exactly.
+  // `rest` (#766 nit 3): the Undo was planned FIRST in a request with more to do — a partial Undo then says, in the SAME
+  // message, that the rest was not made (never "Took back 1 of 2" followed by a second "that Undo didn't go through")
+  const undoIds = useCallback(async (ids, { member, voice, rest = false, what = 'from your last request' } = {}) => {
     let done = 0
     for (const id of [...ids].reverse()) {
-      const ok = await doUndo(id, { member: done ? null : member, voice })
+      const ok = await doUndoOne(id, { member: done ? null : member, voice })
       if (!ok) break
       done += 1
     }
-    const text = done === ids.length ? `Took back all ${done} changes from your last request.`
-      : `Took back ${done} of the ${ids.length} changes from your last request, then stopped (above) — the other ${ids.length - done} ${ids.length - done === 1 ? 'is' : 'are'} still in place.`
+    if (done === 0) return false                    // doUndo's own refusal (above) says it — nothing was taken back
+    const left = ids.length - done
+    const text = !left ? `Took back all ${done} changes ${what}.`
+      : `Took back ${done} of the ${ids.length} changes ${what}, then stopped (above) — the other ${left} ${left === 1 ? 'is' : 'are'} still in place${rest ? ', so I didn’t make the rest of your request' : ''}.`
+    if (left) lastUndoRef.current = 'partial'
     push({ role: 'agent', text })
     record({ member: null, outcome: text, outcomeData: { kind: 'undo-turn', done, of: ids.length }, telemetry: { path: 'fast', undo: true, voice } })
-    return done === ids.length
-  }, [host, doUndo, push, record])
+    return !left
+  }, [doUndoOne, push, record])
+  // ⭐ MISSION 3 (turn-level Undo group): the steps of ONE grouped request (add + change existing, run in order) each keep
+  // their own Undo entry, tagged with the same `group`. A bare Undo (the words, or the receipt's Undo) of the newest of them
+  // takes back the WHOLE request, newest first, each entry through doUndoOne (every refusal unchanged); the first that can't
+  // be undone stops it there, said exactly. A described Undo ("undo the timeframe change") takes back only the steps of
+  // the group it describes. `single`: exactly the one entry (the group runner itself).
+  const doUndo = useCallback(async (undoId, { member, voice, about = null, rest = false, single = false } = {}) => {
+    const stack = undoRef.current
+    const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
+    const group = !single && entry?.group ? stack.filter(e => e.group === entry.group) : null
+    if (!group || group.length < 2) return await doUndoOne(undoId, { member, voice, about })
+    const ids = about ? group.filter(e => undoMatches(about, e)).map(e => e.id) : group.map(e => e.id)
+    if (!ids.length) return await doUndoOne(undoId, { member, voice, about })   // the mismatch refusal, as before
+    if (ids.length === 1) return await doUndoOne(ids[0], { member, voice })
+    return await undoIds(ids, { member, voice, rest, what: 'from that request' })
+  }, [doUndoOne, undoIds])
+  const undoTurn = useCallback(async ({ member, voice, rest = false } = {}) => {
+    const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
+    if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
+    return await undoIds(ids, { member, voice, rest })
+  }, [host, doUndo, undoIds])
 
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
     const p = pendingRef.current
@@ -1876,8 +2010,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
         if (at === 0) {
-          const ok = u.scope === 'all' ? await undoTurn({ member: null, voice }) : await doUndo(null, { member: null, voice, about })
+          const ok = u.scope === 'all' ? await undoTurn({ member: null, voice, rest: true }) : await doUndo(null, { member: null, voice, about, rest: true })
           if (ok) undoneFirstRef.current = true
+          if (!ok && lastUndoRef.current === 'partial') {
+            // #766 nit 3: the partial Undo's own message already said what was taken back and that the rest wasn't made
+            undoneFirstRef.current = true
+            return
+          }
           if (!ok) {
             // review F5: an Undo that put things back but could not be saved says exactly that (its receipt is above)
             const t = lastUndoRef.current === 'unsaved' ? 'That Undo put things back but couldn’t be saved (see above), so I didn’t make the rest of the change.'
@@ -1887,7 +2026,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             return
           }
         } else {
-          undoAfterRef.current = { about, before: undoRef.current.map(e => e.id), held: pendingRef.current }
+          undoAfterRef.current = { about, before: undoRef.current.map(e => e.id), held: { pending: pendingRef.current, question: lastQuestionRef.current } }
         }
         env = { ...env, ops: rest, reply: '' }
       }
