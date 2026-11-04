@@ -187,8 +187,14 @@ export function entityTokens(raw) {
   if (COLORISH.test(s)) out.push('color')
   if (TFISH.test(s)) out.push('timeframe')
   if (tickerWordsOf(s).length) out.push('symbol')
+  if (PCTMOVE.test(s)) out.push('pctmove')
   return out
 }
+// D1.2: a PERCENT MOVE ("up 5% today", "gained over 3 percent", "movers up 10%", "8%+ gainers") — the shape of a screen
+// over today's change (vocabulary.json `entities.pctmove`); never a chart's percent SCALE ("percent scale" has no number)
+const MOVE_VERB = '(?:up|down|gain(?:ed|ing|s)?|mov(?:ed|ing|es|ers)?|higher|lower|rall(?:y|ied|ying)|drop(?:ped|ping|s)?|fell|fall(?:ing|en|s)?|jump(?:ed|ing|s)?|surg(?:ed|ing|es)|rip(?:ped|ping|s)?|gainers|losers|runners|decliners|advancers)'
+const PCTMOVE = new RegExp(`\\b${MOVE_VERB}\\s+(?:by\\s+|over\\s+|more than\\s+|at least\\s+|above\\s+|>\\s*)?\\d+(?:\\.\\d+)?\\s?(?:%|percent|pct)|\\b\\d+(?:\\.\\d+)?\\s?(?:%|percent|pct)\\+?\\s+(?:or more\\s+)?${MOVE_VERB}`, 'i')
+export const ENTITY_GROUPS = vocabulary.entities || {}
 /** Ticker-shaped words (upper-case, 1–5 letters, not an indicator / market acronym) — none in a SHOUTED message. */
 export function tickerWordsOf(raw) {
   const s = String(raw || '')

@@ -912,6 +912,54 @@
    "needs": [
     "indicator.add"
    ]
+  },
+  {
+   "text": "find movers up 8% today",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "which names gained more than 5 percent today",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "show me 10%+ gainers",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "stocks down 7% today on volume",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "add a news panel",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "add a heatmap panel to my board",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "open a watchlist widget",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "put AAPL on percent scale",
+   "needs": [
+    "chart.setScale"
+   ]
   }
  ]
 }

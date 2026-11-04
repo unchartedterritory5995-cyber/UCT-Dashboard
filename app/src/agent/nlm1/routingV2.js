@@ -28,7 +28,7 @@
 
 import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect } from '../routing'
 import { manifestFor } from '../capabilities'
-import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, RELATED } from './capabilityIndex'
+import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
 
 export const ROUTING_V2_VERSION = 1
 // tuned on the capreg corpus + nlm1 dev paraphrases (never on the held-out set); a frozen object — tests read it
@@ -36,12 +36,19 @@ export const TUNING = Object.freeze({
   STRONG: 6.0,          // a score that names a group on its own, whatever the top score (sweep: 3→6 cut avg selected groups 4.2→3.4)
   REL_STRONG: 0.6,      // …or this fraction of the best score, when at least STRONG_FLOOR
   STRONG_FLOOR: 1.8,
-  WEAK: 2.5,            // the least evidence that earns a fill slot when the message was recognised (sweep: 0.9→2.5 cut avg caps 42→29, recall unchanged)
+  WEAK: 99,             // the weak tier is OFF (D1.2 sweep: 2.5→off cut corpus avg actions 35.4→26.8 with availability unchanged)
   VOCAB_W: 3.2,         // a vocabulary weight of 1 ≈ one strong group on its own
   CORRECTED_W: 0.5,     // a word only a typo correction produced
   SHORT_WORDS: 6,       // a follow-up this short carries the last change's related groups
   CONTEXT_W: 1.5,       // what being RELATED to the last change adds to a short follow-up's group
   TICKER_WORDS: 3,      // D1.1: a ticker plus at most this many other content words, nothing else named → charts
+  // D1.2 (routed size, AUDIT 11-04): when v1's fill / the critical tier apply, how far evidence must go for a group to ride
+  FILL_WHEN: 'uncertain',       // 'v1fill': whenever v1 did not recognise the message | 'uncertain': only when v2 is not decisive
+  CRITICAL_WHEN: 'uncertain',   // same choice for the critical tier
+  // D1.2: alerts / data ride with their entities (a ticker, a price) through the LIKELY tier; these three have none
+  CRITICAL: ['charts', 'undo', 'chartGrid'],
+  EVID_FLOOR: 0.0001,   // the least score that makes a group "evidenced" (packed smallest-first under uncertainty)
+  LIKELY_FLOOR: 1,      // the least own score an entity-expanded group needs to be packed (charts exempt)
 })
 // dev sweeps only (nlm1 tuning script): an override object; production never sets it
 const T = () => (globalThis.__NLM1_TUNING__ ? { ...TUNING, ...globalThis.__NLM1_TUNING__ } : TUNING)
@@ -71,6 +78,8 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
     v.terms.forEach(x => terms.add(x))
     for (const [g, w] of Object.entries(v.groups)) vocab[g] = Math.max(vocab[g] || 0, w * f)
   }
+  // D1.2: an entity SHAPE that points at a group (vocabulary.json `entities`: a percent move → a screen)
+  for (const e of entityTokens(raw)) for (const [g, w] of Object.entries(ENTITY_GROUPS[e] || {})) vocab[g] = Math.max(vocab[g] || 0, w)
   const scores = {}
   for (const g of index.groups) {
     const s = (lex[g] || 0) + k.VOCAB_W * (vocab[g] || 0)
@@ -151,8 +160,13 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   //    evidence — charts first (as v1's fallback), then EVERY group with any v2 evidence, smallest first (v1's own packing
   //    principle: the most distinct candidates that fit), then v1's fill (D1.1: weak evidence never buys a big group the
   //    room v1's fallback gave several)
-  const evidenced = sel.ranked.filter(([, s]) => s > 0).map(([g]) => g).sort(bySize)
-  const own = !sel.matched ? [] : sel.uncertain ? ['charts']
+  //    D1.2: …except the single BEST-scoring group when its evidence reaches the floor ("add a news panel": workspace) — it
+  //    leads the evidenced ones, so a big group the message plainly points at is never squeezed out by smaller guesses
+  const scoreOf = new Map(sel.ranked)
+  const evidenced = sel.ranked.filter(([, s]) => s >= k.EVID_FLOOR).map(([g]) => g).sort(bySize)
+  const best = sel.ranked.find(([g]) => g !== 'charts')
+  const lead = sel.uncertain && best && best[1] >= k.STRONG_FLOOR ? [best[0]] : []
+  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead]
     : [...(sel.v1 || []).filter(id => !pinned.includes(id)).sort(bySize), ...sel.strong]
   // 4. weak
   const weak = sel.ranked.filter(([, s]) => s >= k.WEAK).map(([g]) => g)
@@ -165,22 +179,30 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const LAST = new Set(GROUPS.filter(g => g.fillLast).map(g => g.id))
   const fillOrder = (a, b) => (LAST.has(a) - LAST.has(b)) || bySize(a, b)
   const v1Fill = sel.v1Matched === false || !sel.matched
-  const fill = v1Fill ? [...(sel.v1Soft || sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)] : []
+  // D1.2 (routed size): v1's fill and the critical tier only when v2's evidence is NOT decisive — a message v2 reads
+  // decisively (best ≥ STRONG) is routed on that evidence plus its entities, as v1 routes a message its words recognise
+  const doubt = sel.uncertain || !sel.matched
+  const fillOn = k.FILL_WHEN === 'uncertain' ? doubt : v1Fill
+  const fill = fillOn ? [...(sel.v1Soft || sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)] : []
 
   // 3b. LIKELY (D1.1, context-aware candidate expansion — never an all-tool fallback): what the message's ENTITIES make
   //     likely, packed right after its own groups — a ticker: its chart, its data, an alert on it; a price: an alert or a
   //     level; a date: the chart's time controls. Only when v1 did not recognise the message or v2 is uncertain.
   const ents = new Set(entityTokens(message))
+  //     D1.2: an expanded group (charts aside) is packed only when the message gave it some evidence of its own (≥ LIKELY_FLOOR)
   const likely = (sel.uncertain || sel.v1Matched === false)
-    ? [...(ents.has('symbol') ? ['charts', 'data', 'alerts'] : []), ...(ents.has('price') ? ['alerts', 'drawings'] : []), ...(ents.has('date') ? ['charts', 'chartSetup'] : [])].filter(g => known.has(g))
+    ? [...(ents.has('symbol') ? ['charts', 'data', 'alerts'] : []), ...(ents.has('price') ? ['alerts', 'drawings'] : []), ...(ents.has('date') ? ['charts', 'chartSetup'] : []),
+      ...(ents.has('pctmove') ? ['screener'] : [])]
+      .filter(g => known.has(g) && (g === 'charts' || (scoreOf.get(g) || 0) >= k.LIKELY_FLOOR))
     : []
   // 3c. CRITICAL (D1.1): whenever v1 would have fallen back, the groups that fallback always carried for the critical
-  //     capabilities — symbol switching (charts), Undo, price alerts, N-chart grids, news / data — stay in the request,
-  //     right after v2's own groups (34 of the 55-action budget): weak evidence can add, never take these away
-  const critical = v1Fill ? ['charts', 'undo', 'alerts', 'chartGrid', 'data'].filter(g => known.has(g)) : []
+  //     capabilities with no entity of their own — symbol switching (charts), Undo, N-chart grids — stay in the request,
+  //     right after v2's own groups (23 of the 55-action budget); alerts / data ride with tickers and prices (LIKELY).
+  //     D1.2: only while v2's evidence is NOT decisive (CRITICAL_WHEN)
+  const critical = (k.CRITICAL_WHEN === 'uncertain' ? doubt : v1Fill) ? k.CRITICAL.filter(g => known.has(g)) : []
   const needed = [...new Set([...pinned, ...own, ...critical, ...likely, ...after])]
   // v1's fill goes BEFORE v2's weak / context tiers: on an unrecognised-by-v1 message v1's order is the safer one
-  const order = v1Fill ? [...new Set([...needed, ...(sel.uncertain || !sel.matched ? evidenced : []), ...fill, ...weak, ...context])]
+  const order = fillOn ? [...new Set([...needed, ...(doubt ? evidenced : []), ...fill, ...weak, ...context])]
     : [...new Set([...needed, ...weak, ...context])]
   const want = new Set()
   let used = counts.get(null) || 0

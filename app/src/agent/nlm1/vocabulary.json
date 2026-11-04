@@ -1,6 +1,6 @@
 {
  "version": 1,
- "about": "NLM-1 D1 curated TRADER VOCABULARY for registry-derived routing (routingV2). Each term: a lower-case phrase matched on word boundaries (a trailing * matches any word ending; an inner * matches one word) -> the routing groups it points at (weight 0..1; 1 = the phrase on its own names that group). DATA, reviewed by hand: a term only ADDS candidate groups the model may SEE; every op is still re-validated against the full registry, the approval policy and the protected-layout checks. Every group named must exist in routing.js GROUPS (nlm1Vocabulary.test.js). `related`: the groups a follow-up to the last capability's group plausibly needs next (conversation context).",
+ "about": "NLM-1 D1 curated TRADER VOCABULARY for registry-derived routing (routingV2). Each term: a lower-case phrase matched on word boundaries (a trailing * matches any word ending; an inner * matches one word) -> the routing groups it points at (weight 0..1; 1 = the phrase on its own names that group). DATA, reviewed by hand: a term only ADDS candidate groups the model may SEE; every op is still re-validated against the full registry, the approval policy and the protected-layout checks. Every group named must exist in routing.js GROUPS (nlm1Vocabulary.test.js). `related`: the groups a follow-up to the last capability's group plausibly needs next (conversation context). `entities`: what an entity shape (capabilityIndex.entityTokens) adds to a group's vocabulary weight.",
  "reviewed": {
   "by": "nlm1 track B",
   "date": "2026-11-04",
@@ -1424,6 +1424,45 @@
   },
   "ideas": {
    "screener": 0.6
+  },
+  "gainers": {
+   "screener": 1
+  },
+  "losers": {
+   "screener": 1
+  },
+  "runners": {
+   "screener": 0.9
+  },
+  "biggest movers": {
+   "screener": 1
+  },
+  "up the most": {
+   "screener": 1
+  },
+  "down the most": {
+   "screener": 1
+  },
+  "add a * panel": {
+   "workspace": 1
+  },
+  "add a * widget": {
+   "workspace": 1
+  },
+  "add the * panel": {
+   "workspace": 1
+  },
+  "add the * widget": {
+   "workspace": 1
+  },
+  "add a * module": {
+   "workspace": 0.9
+  },
+  "open a * panel": {
+   "workspace": 0.9
+  },
+  "* panel to": {
+   "workspace": 0.6
   }
  },
  "related": {
@@ -1484,5 +1523,10 @@
   "definitions": [
    "indicators"
   ]
+ },
+ "entities": {
+  "pctmove": {
+   "screener": 0.9
+  }
  }
 }
