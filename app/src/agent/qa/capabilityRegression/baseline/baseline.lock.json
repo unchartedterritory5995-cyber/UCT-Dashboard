@@ -3001,6 +3001,271 @@
      "modes": {}
     }
    }
+  },
+  "scan.owner-momentum": {
+   "digest": "77d6b8720fda2901",
+   "phrasings": {
+    "find stocks up 20% this month near 52-week highs with volume above average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scan for names up 20%+ over the last month, near their 52 week highs, with above average volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me stocks that are up 20% in a month, close to 52-week highs, volume above average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are up 20% this month and near their 52-week high with above-average volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.refine.sector": {
+   "digest": "26fba68f9127b373",
+   "phrasings": {
+    "only tech": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "now just technology stocks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep only the tech names": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "narrow it down to technology": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.refine.price": {
+   "digest": "beddbea75239a8fe",
+   "phrasings": {
+    "drop anything under $10": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "exclude stocks below $10": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of anything under 10 dollars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no stocks under $10": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.refine.sort": {
+   "digest": "1dc7ff75c10bcb51",
+   "phrasings": {
+    "sort them by 3-month performance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rank those by three month change": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "order the results by 3 month performance, best first": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.to-watchlist": {
+   "digest": "ab99dfe283a6129e",
+   "phrasings": {
+    "add those to my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put all of them on the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the results to Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.chart-top": {
+   "digest": "79e16d84a93131c7",
+   "phrasings": {
+    "chart the top 3": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open charts for the top three": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the first 3 on new charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.breakout": {
+   "digest": "d15f33781be224ac",
+   "phrasings": {
+    "how does SPY do after new 50-day highs": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "what happens to SPY after a 50-day breakout": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how has SPY performed after making a new 50-day high": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did SPY do after 50 day breakouts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.gap": {
+   "digest": "9085cbe124b81df9",
+   "phrasings": {
+    "how has NVDA behaved after 5%+ gaps": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "what happens to NVDA after a 5% gap up": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did NVDA react after 5% earnings gaps": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how has NVDA traded after gaps": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.ma-cross": {
+   "digest": "6a4e6d40d1930fb8",
+   "phrasings": {
+    "what happens to AMD after it crosses above its 50-day": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how has AMD done after crossing above the 50 day moving average": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did AMD trade after it closed above its 50-day sma": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.rsi": {
+   "digest": "77e841b6cb3a6d34",
+   "phrasings": {
+    "how has NVDA done after RSI drops below 30": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "what happens to NVDA after its RSI falls under 30": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did NVDA do after rsi goes below 30": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.model-planned": {
+   "digest": "3c55313335b46c4b",
+   "phrasings": {
+    "what has NVDA historically done in the weeks after gapping up 8% or more": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA after 8%+ gap ups: how did it do over the next 1, 2 and 4 weeks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "historically, after NVDA gaps up 8% or more, what happened over the following weeks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "asset.commodity-decline": {
+   "digest": "41c03f688c2d12d3",
+   "phrasings": {
+    "what's the price of gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "gold price": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how much is gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -3148,6 +3413,11 @@
    "digest": "65ca9b19e3eafe27",
    "gap": false,
    "mode": null
+  },
+  "refuse.history.breadth-thrust": {
+   "digest": "0e87da9de073a809",
+   "gap": false,
+   "mode": null
   }
  },
  "workflows": {
@@ -3268,6 +3538,16 @@
   },
   "GW-24.grid-then-all-weekly": {
    "digest": "abfe3827a04acb8c",
+   "gap": false,
+   "mode": null
+  },
+  "GW-25.scan-conversation": {
+   "digest": "33877c2ab1a22bf4",
+   "gap": false,
+   "mode": null
+  },
+  "GW-26.history-questions": {
+   "digest": "59120172a53f60a1",
    "gap": false,
    "mode": null
   }

@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 94,
+  "withAnyRegressionCase": 95,
   "perProtection": {
    "nl": {
-    "covered": 94,
+    "covered": 95,
     "applicable": 154
    },
    "routing": {
-    "covered": 94,
+    "covered": 95,
     "applicable": 154
    },
    "args": {
-    "covered": 94,
+    "covered": 95,
     "applicable": 154
    },
    "execution": {
-    "covered": 94,
+    "covered": 95,
     "applicable": 154
    },
    "receipt": {
-    "covered": 69,
+    "covered": 70,
     "applicable": 154
    },
    "refusal": {
@@ -42,11 +42,11 @@
     "applicable": 95
    },
    "multiStep": {
-    "covered": 21,
+    "covered": 23,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 94,
+    "covered": 95,
     "applicable": 154
    }
   }
@@ -3556,28 +3556,64 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": null,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 17,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "history.breakout: \"how does SPY do after new 50-day highs\"",
+     "history.breakout: \"what happens to SPY after a 50-day breakout\"",
+     "history.breakout: \"how has SPY performed after making a new 50-day high\"",
+     "history.breakout: \"how did SPY do after 50 day breakouts\"",
+     "history.gap: \"how has NVDA behaved after 5%+ gaps\"",
+     "history.gap: \"what happens to NVDA after a 5% gap up\""
+    ],
+    "routing": [
+     "history.breakout: \"how does SPY do after new 50-day highs\"",
+     "history.breakout: \"what happens to SPY after a 50-day breakout\"",
+     "history.breakout: \"how has SPY performed after making a new 50-day high\"",
+     "history.breakout: \"how did SPY do after 50 day breakouts\"",
+     "history.gap: \"how has NVDA behaved after 5%+ gaps\"",
+     "history.gap: \"what happens to NVDA after a 5% gap up\""
+    ],
+    "args": [
+     "corpus history.breakout",
+     "corpus history.gap",
+     "corpus history.ma-cross",
+     "corpus history.rsi",
+     "corpus history.model-planned"
+    ],
+    "execution": [
+     "history.breakout (c)",
+     "history.gap (c)",
+     "history.ma-cross (c)",
+     "history.rsi (c)",
+     "history.model-planned (c)",
+     "GW-26.history-questions"
+    ],
+    "receipt": [
+     "history.breakout (c)",
+     "history.gap (c)",
+     "history.ma-cross (c)",
+     "history.rsi (c)",
+     "history.model-planned (c)",
+     "GW-26.history-questions"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "GW-26.history-questions"
+    ],
     "phrasings": []
    }
   },
@@ -5834,7 +5870,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 8,
+   "phrasings": 23,
    "evidence": {
     "nl": [
      "screener.adr: \"find stocks with ADR above 5%\"",
@@ -5855,27 +5891,40 @@
     "args": [
      "corpus screener.adr",
      "corpus earnings.this-week",
-     "GW-05.screen-price-rvol",
-     "refuse.screener.saveAs.dismissed"
+     "corpus scan.owner-momentum",
+     "corpus scan.refine.sector",
+     "corpus scan.refine.price",
+     "corpus scan.refine.sort"
     ],
     "execution": [
      "screener.adr (c)",
      "earnings.this-week (c)",
-     "GW-05.screen-price-rvol",
-     "GW-06.hidden-field-refused"
+     "scan.owner-momentum (c)",
+     "scan.refine.sector (c)",
+     "scan.refine.price (c)",
+     "scan.refine.sort (c)"
     ],
     "receipt": [
      "screener.adr (c)",
      "earnings.this-week (c)",
-     "GW-05.screen-price-rvol"
+     "scan.owner-momentum (c)",
+     "scan.refine.sector (c)",
+     "scan.refine.price (c)",
+     "scan.refine.sort (c)"
     ],
     "refusal": [
      "refuse.rs-rank-hidden"
     ],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "GW-25.scan-conversation"
+    ],
     "multiStep": [
-     "GW-06.hidden-field-refused"
+     "scan.refine.sector: after an earlier turn",
+     "scan.refine.price: after an earlier turn",
+     "scan.refine.sort: after an earlier turn",
+     "GW-06.hidden-field-refused",
+     "GW-25.scan-conversation"
     ],
     "phrasings": []
    }
@@ -6535,30 +6584,35 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "stock.quote: \"whats nvda at\"",
      "stock.quote: \"what's NVDA trading at\"",
      "stock.quote: \"NVDA price\"",
      "stock.quote: \"how much is NVDA right now\"",
-     "stock.quote: \"quote NVDA\""
+     "stock.quote: \"quote NVDA\"",
+     "asset.commodity-decline: \"what's the price of gold\""
     ],
     "routing": [
      "stock.quote: \"whats nvda at\"",
      "stock.quote: \"what's NVDA trading at\"",
      "stock.quote: \"NVDA price\"",
      "stock.quote: \"how much is NVDA right now\"",
-     "stock.quote: \"quote NVDA\""
+     "stock.quote: \"quote NVDA\"",
+     "asset.commodity-decline: \"what's the price of gold\""
     ],
     "args": [
-     "corpus stock.quote"
+     "corpus stock.quote",
+     "corpus asset.commodity-decline"
     ],
     "execution": [
-     "stock.quote (c)"
+     "stock.quote (c)",
+     "asset.commodity-decline (c)"
     ],
     "receipt": [
-     "stock.quote (c)"
+     "stock.quote (c)",
+     "asset.commodity-decline (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -6682,38 +6736,52 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 7,
    "evidence": {
     "nl": [
      "watchlist.add: \"add AMD to my Momentum list\"",
      "watchlist.add: \"put AMD on the Momentum watchlist\"",
      "watchlist.add: \"add AMD to Momentum\"",
-     "watchlist.add: \"throw AMD on my Momentum watchlist\""
+     "watchlist.add: \"throw AMD on my Momentum watchlist\"",
+     "scan.to-watchlist: \"add those to my Momentum list\"",
+     "scan.to-watchlist: \"put all of them on the Momentum watchlist\""
     ],
     "routing": [
      "watchlist.add: \"add AMD to my Momentum list\"",
      "watchlist.add: \"put AMD on the Momentum watchlist\"",
      "watchlist.add: \"add AMD to Momentum\"",
-     "watchlist.add: \"throw AMD on my Momentum watchlist\""
+     "watchlist.add: \"throw AMD on my Momentum watchlist\"",
+     "scan.to-watchlist: \"add those to my Momentum list\"",
+     "scan.to-watchlist: \"put all of them on the Momentum watchlist\""
     ],
     "args": [
-     "corpus watchlist.add"
+     "corpus watchlist.add",
+     "corpus scan.to-watchlist",
+     "GW-25.scan-conversation"
     ],
     "execution": [
-     "watchlist.add (c)"
+     "watchlist.add (c)",
+     "scan.to-watchlist (c)",
+     "GW-25.scan-conversation"
     ],
     "receipt": [
-     "watchlist.add (c)"
+     "watchlist.add (c)",
+     "scan.to-watchlist (c)",
+     "GW-25.scan-conversation"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "watchlist.add: undo restores"
+     "watchlist.add: undo restores",
+     "GW-25.scan-conversation"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "scan.to-watchlist: after an earlier turn",
+     "GW-25.scan-conversation"
+    ],
     "phrasings": []
    }
   },
@@ -7333,7 +7401,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 7,
+   "phrasings": 10,
    "evidence": {
     "nl": [
      "widget.addCharts: \"open charts for AAPL and MSFT\"",
@@ -7356,6 +7424,7 @@
      "corpus wrongtarget.new-chart-weekly",
      "corpus wrongtarget.new-chart-line",
      "corpus wrongtarget.new-chart-50sma",
+     "corpus scan.chart-top",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "execution": [
@@ -7363,6 +7432,7 @@
      "wrongtarget.new-chart-weekly (c)",
      "wrongtarget.new-chart-line (c)",
      "wrongtarget.new-chart-50sma (c)",
+     "scan.chart-top (c)",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "receipt": [
@@ -7370,15 +7440,19 @@
      "wrongtarget.new-chart-weekly (c)",
      "wrongtarget.new-chart-line (c)",
      "wrongtarget.new-chart-50sma (c)",
+     "scan.chart-top (c)",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "widget.addCharts: undo restores"
+     "widget.addCharts: undo restores",
+     "GW-25.scan-conversation"
     ],
     "multiStep": [
-     "GW-22.new-chart-then-rsi-on-it"
+     "scan.chart-top: after an earlier turn",
+     "GW-22.new-chart-then-rsi-on-it",
+     "GW-25.scan-conversation"
     ],
     "phrasings": []
    }

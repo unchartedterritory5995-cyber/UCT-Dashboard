@@ -3,7 +3,7 @@
 // plan (a wrong deterministic reading runs with no model to catch it); `det: "required"` phrasings must be claimed.
 // An unclaimed optional phrasing is the model's (levels a and c cover it).
 import { describe, expect } from 'vitest'
-import { registerCatalog } from './testing/registry'
+import { registerCatalog, isDark } from './testing/registry'
 import { corpus, phrasingsOf, gapIt, deterministicReading, equivalent } from './testing/corpus'
 import { panelHost } from './testing/harness'
 import { pinClock } from './testing/clock'
@@ -12,7 +12,8 @@ pinClock()                   // one fixed instant (testing/clock.js): the market
 
 await registerCatalog()
 
-for (const intent of corpus.intents) {
+// (a DARK intent — `"kinds": "ALL"` — runs in corpus.dark.test.jsx, with every gated kind on)
+for (const intent of corpus.intents.filter(i => !isDark(i))) {
   describe(`(b) deterministic · ${intent.id}`, () => {
     for (const ph of phrasingsOf(intent)) {
       if (ph.prelude) continue                       // a reading that depends on the conversation is the model's
