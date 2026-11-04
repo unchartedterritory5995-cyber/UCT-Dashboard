@@ -81,3 +81,10 @@ final-tip run 2 on the final tree (b67c3c4dc7): NOT COMPLETED. The job was queue
 lock in ~7 h (other builders' jobs kept winning it); it was cancelled by its owner, not run. The delta since run 1 is
 the 2-line re-export plus this document, and the bundle built from it is byte-identical to run 1's. Coordinator: rerun
 `final-tip.sh` on the tip before merge; expected totals 1 failed (pollingSites.rail baseline).
+
+## final-tip run 2 (COMPLETED, desktop heavy lane 2)
+Tip caa9d246f4 (code identical to b67c3c4dc7; only EVIDENCE.md differs), tested on master 5d95103c8a, label
+w5t1-final3, logs `_resume-2026-11-01/runs/w5t1-final3/`. Ran on desktop lane 2 (heavy-final2.lock).
+- gate pytest: 46 passed; `tests/test_script_engine_version_gate.py`: 6 passed; hygiene: clean (34669 files)
+- full chart+hooks vitest:      Tests  1 failed | 22366 passed | 118 skipped (22485); Test Files 1 failed | 1334 passed | 27 skipped. The only failure is the known
+  baseline `pollingSites.rail`. `pineRuntimeFrontendGate` is green. Run 2 above supersedes the "NOT COMPLETED" note.

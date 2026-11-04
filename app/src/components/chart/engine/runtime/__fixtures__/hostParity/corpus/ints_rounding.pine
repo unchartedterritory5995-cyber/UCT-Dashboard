@@ -1,0 +1,8 @@
+//@version=5
+indicator("hp rounding", overlay=false)
+plot(math.round(close * 3.7), "round")
+plot(math.floor(close / 3), "floor")
+plot(math.ceil(close / 3), "ceil")
+plot(math.round(close, 2), "round2")
+plot(close % 7.3, "mod")
+plot(int(close) / 3, "intdiv")
