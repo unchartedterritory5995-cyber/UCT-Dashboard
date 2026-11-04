@@ -7670,7 +7670,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!h.length || (last.sub && last.sub.length)) return false
     if (h[0].kind !== 'ident' && h[0].kind !== 'number' && !isPunct(h[0], '(')) return false
     if (h[0].kind === 'ident' && isPunct(h[1], '(')) return false
-    if (h[0].kind === 'ident' && (lw === 'if' || lw === 'else' || lw === 'switch')) return false
     return true
   }
   /** the sink the NEXT `for`/`while` statement lowered writes its body's value into */

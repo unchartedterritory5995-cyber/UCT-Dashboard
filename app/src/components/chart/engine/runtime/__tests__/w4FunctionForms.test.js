@@ -104,6 +104,11 @@ describe('W4-T15 a function ending in a loop returns the loop\'s last value', ()
     expect(r.guard).toBe('runtime:function')
     expect(r.message).toMatch(/ends in a loop/)
   })
+  it('an inner loop ending in a void call keeps the whole function valueless and runnable for effect', () => {
+    const src = 'var a = array.new<float>()\nload(n) =>\n    for i = 1 to n\n        for j = 1 to 2\n            array.push(a, j)\n'
+      + 'load(2)\nplot(array.size(a))\n'
+    expect(out0(src)).toEqual([4, 8, 12, 16, 20, 24, 28, 32])
+  })
   it('a loop body ending in an if chain keeps the by-name refusal (not given a value here)', () => {
     const r = refusalOf('f(n) =>\n    s = 0.0\n    for i = 1 to n\n        if i > 1\n            s += i\nplot(f(3))\n')
     expect(r.guard).toBe('runtime:function')
