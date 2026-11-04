@@ -10,13 +10,13 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 |---|---|---|
 | Canonical registry | `testing/registry.js` | The catalog is built by the REAL register functions (`registerBuiltins` + `registerServerGatedBuiltins`), under production's data kinds (corpus) and with every gated kind on (inventory, so a dark capability is inventoried the day it ships). No hand list. |
 | Capability inventory + coverage | `inventory.test.js`, `testing/inventory.js`, `coverage/coverage.json`, `coverage/COVERAGE.md` | Per capability: which of the ten protections exist (§2). The report is generated and the test fails when it is stale. |
-| New-capability rail | `inventory.test.js` rail 1, `data/regressionEntries.json` | A capability with no corpus intent / golden workflow and no backlog entry fails the build. A backlog entry added after the initial inventory needs `### BACKLOG:<name>` in `COMPATIBILITY-DECISIONS.md`. A covered capability must leave the backlog. |
+| New-capability rail | `inventory.test.js` rail 1, `baseline/regressionEntries.json` | A capability with no corpus intent / golden workflow and no backlog entry fails the build. A backlog entry added after the initial inventory needs `### BACKLOG:<name>` in `COMPATIBILITY-DECISIONS.md`. A covered capability must leave the backlog. |
 | Contract rail | rail 2, `coverage/contract.json` | Removing a capability, `risk` confirm → local, `undo` exact → none, irreversible → reversible, or a query becoming a change needs `### CAP:<name>`. |
 | Arg validity | rail 3 | Every canonical op in the data passes the registry's own `shapeError`. |
 | Stale descriptions | rail 6 | No summary / hint / shape names an action that is not registered. |
-| NL equivalence corpus | `data/corpus.json` (24 intent groups, 138 phrasings, 4 refusal cases) | Each phrasing is checked at three levels (§3). The owner's own sentences are pinned by a Python test so they can't be paraphrased away. |
-| Golden workflows | `data/goldenWorkflows.json` (18) | Previously verified workflows: live production acceptance 11-03 (E-01, E-01′, P-07, A-10a, A-13, C-08, P-09, B-07), hotfix #766 T1–T3, owner acceptance (exact Undo), and the AUDIT live passes of 11-04. Each is replayed through the real panel. |
-| Baseline lock | `data/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs `### BASELINE:<id>`. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
+| NL equivalence corpus | `baseline/corpus.json` (24 intent groups, 138 phrasings, 4 refusal cases) | Each phrasing is checked at three levels (§3). The owner's own sentences are pinned by a Python test so they can't be paraphrased away. |
+| Golden workflows | `baseline/goldenWorkflows.json` (18) | Previously verified workflows: live production acceptance 11-03 (E-01, E-01′, P-07, A-10a, A-13, C-08, P-09, B-07), hotfix #766 T1–T3, owner acceptance (exact Undo), and the AUDIT live passes of 11-04. Each is replayed through the real panel. |
+| Baseline lock | `baseline/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs `### BASELINE:<id>`. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
 | CI | `.github/workflows/agent-ci.yml` job `capability-regression` | A named, separately requirable check: pytest baseline + `vitest run src/agent/qa/capabilityRegression`, about 2 minutes, no model or key. The same files also run in the four shards (union rail) and in the master deploy gate's `npx vitest run src/agent`. Paid live-model evals (`tools/agent_eval_*`) stay separate and are never run here. |
 
 ### The faithful scripted model
@@ -159,7 +159,7 @@ Implemented here (test-side):
 Proposed (product-side, for the routing / NL owners; not done here because those files are owned by another
 builder):
 1. Every routing group owns a phrase list. Each new capability adds three or more owner-style phrasings to
-   `data/corpus.json` in the same PR, and the new-capability rail enforces this by refusing the backlog route
+   `baseline/corpus.json` in the same PR, and the new-capability rail enforces this by refusing the backlog route
    without a decision.
 2. Normalise input before routing: unicode × → x, curly quotes, a dropped apostrophe → `'s`.
 3. Narrow the mixed-request refusal to the cases that need rollback; allow "add N charts + re-tile".

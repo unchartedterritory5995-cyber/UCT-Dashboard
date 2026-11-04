@@ -1,7 +1,7 @@
 """UCT Agent capability regression (Mission 2) — the BASELINE rail.
 
-The NL equivalence corpus (data/corpus.json) and the golden workflows (data/goldenWorkflows.json) are a baseline of
-previously working behaviour. This test holds them to data/baseline.lock.json: an entry may be ADDED freely (re-lock),
+The NL equivalence corpus (baseline/corpus.json) and the golden workflows (baseline/goldenWorkflows.json) are a baseline of
+previously working behaviour. This test holds them to baseline/baseline.lock.json: an entry may be ADDED freely (re-lock),
 and a known gap may be REMOVED freely (the fix landed), but removing an entry, removing a phrasing, adding a known gap
 or changing an entry's assertions needs a recorded decision — `### BASELINE:<id>` in docs/agent/COMPATIBILITY-DECISIONS.md.
 
@@ -19,9 +19,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CAPREG = ROOT / "app" / "src" / "agent" / "qa" / "capabilityRegression"
-CORPUS = CAPREG / "data" / "corpus.json"
-GOLDEN = CAPREG / "data" / "goldenWorkflows.json"
-LOCK = CAPREG / "data" / "baseline.lock.json"
+CORPUS = CAPREG / "baseline" / "corpus.json"
+GOLDEN = CAPREG / "baseline" / "goldenWorkflows.json"
+LOCK = CAPREG / "baseline" / "baseline.lock.json"
 DECISIONS = ROOT / "docs" / "agent" / "COMPATIBILITY-DECISIONS.md"
 AGENT_CI = ROOT / ".github" / "workflows" / "agent-ci.yml"
 
