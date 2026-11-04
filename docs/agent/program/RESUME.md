@@ -1,6 +1,13 @@
 # RESUME.md — exact state to resume from (written 2026-11-03 ≈07:00Z, owner's usage limit approaching)
 
 ## STOP 3 / OVERNIGHT 2026-11-04 — read this section first
+### STOP 3 update (~10:30Z)
+- Production = master = `88cca06313` (#769 capability regression system merged + deployed 09:48Z; tests/CI/docs only; gate skip-master path verified).
+- **Next RC: #771 @ `0497f2fae8`** — APPROVED (3 review rounds + gaps-2 PASS): #766 nits, sequenced add+change with group Undo, receipts naming charts, "the new one" binding, partly-possible "Not done" lines, chart-scoped indicator alerts (fixes live multi-chart defect), clarify carry (question groups only, short answers), unhide/trade-places/quote-word fixes, routing gaps CG-1..24, capreg gap markers CG-1..16 flipped. Full suites vitest 4253 / pytest 2890, 0 failed. NEEDS OWNER RELEASE APPROVAL. After merge: #774 must re-merge master and drop CG-17..24 markers.
+- #774 capability coverage batch 2 (agent/qa/capability-regression-2): 58/154 capabilities, CI green; settings/template fixture hosts in progress.
+- Planner v2 readiness refresh: builder on agent/w2/v2-readiness-2 (C:/w/v2r) — parity table v1 vs v2 + deterministic cost; no flags.
+- Owner decision pending: strict lowercase-ticker rule (only after price words) vs word list (would shift agent-qa held-out quote counts).
+
 
 **Production:** master = production = `6990d63b02` (train 3, web SUCCESS 08:06Z). Flags unchanged: STREAM/DATA(11 kinds)/NEWS/NL1/SCAN/AGENT_BREADTH_CURRENT=1, DAILY_CAP 3000; PLANNER/KNOWLEDGE/COACH/COST_CAP/SENTRY_DSN/ANTHROPIC_BASE_URL unset.
 - Live today: #766 hotfix (agent.undo planner action, undo/multi-chart/equal-size routing, honest receipts; `edd353fc06`, 6/6 owner checks PASS live), train 3 #770 (#765 rail fix, #758, #757 coach gates DARK, #763 LT-15 describe-symbol, #762 MA-cross alerts — member-facing via chart alert popover; created/armed/deleted live OK).
