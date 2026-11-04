@@ -139,3 +139,19 @@ describe('W4-T7 a block VALUE inside a function body is a nested list (H9)', () 
     expect(r.guard).toBe('runtime:history-expression')
   })
 })
+
+describe('W4-T7 the LIVE object door keeps master\'s answer for a function-body hoist', () => {
+  const src = head + 'f(v) =>\n    ta.sma(v * 2, 5)\nplot(f(close))\n'
+  it('door (objectDoor: true) refuses runtime:history-expression, as master does', () => {
+    const b = buildRuntimeIr(src, { bars: BARS, inputs: {}, objectDoor: true })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:history-expression')
+  })
+  it('CONTROL: the runtime pane (no objectDoor) builds the same source', () => {
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {} }).ok).toBe(true)
+  })
+  it('CONTROL: the door still serves the root-list hoist master served', () => {
+    const root = head + 'var x = 0.0\nx := close\nplot(ta.sma(x + 1, 5))\n'
+    expect(buildRuntimeIr(root, { bars: BARS, inputs: {}, objectDoor: true }).ok).toBe(true)
+  })
+})

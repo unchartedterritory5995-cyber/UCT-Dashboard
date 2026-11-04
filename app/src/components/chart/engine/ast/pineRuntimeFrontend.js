@@ -5177,6 +5177,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     ? fnHistorySlotFor(owner, slot, back, at) : historySlotFor(slot, back, at))
   const hoistCommittedSeries = (srcNode, scope, label) => {
     if (!stmtHoistSink) return null
+    // ⛔⛔ W4-T7 AT THE OBJECT DOOR A FRAME KEEPS MASTER'S ANSWER (`runtime:history-expression`).
+    // The C18 door is LIVE for members; serving a function-body hoist there turned
+    // `reverse-stochastic-momentum-index-on-chart` from refused into "builds, emits one
+    // label, the renderer keeps none" - and TradingView draws that label. Not provable
+    // exact, so the door is gated until a capture settles it (`atObjectDoor`).
+    if (atObjectDoor && owner !== null) return null
     if (!srcNode || typeof srcNode !== 'object') return null
     // ⭐⭐ W4-T7 — INSIDE A FRAME THE HOIST IS A FRAME-LOCAL SLOT (`newSlot` owns
     // it by `owner`), and its ring is `fnHistorySlotFor`'s: allocated per
