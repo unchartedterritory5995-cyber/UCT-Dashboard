@@ -1046,3 +1046,37 @@ describe('live train 4 · a workspace conflict at save: the receipt says on scre
     expect(receipts()[0].getAttribute('data-undoable')).toBeNull()
   }, 30000)
 })
+
+describe('live train 4 · NO receipt claims a change the save did not confirm (owner rule)', () => {
+  it('a single change whose save fails: "On your screen but NOT saved", no Undo offered', async () => {
+    const { h, say } = mount(...HALF(), { epoch: () => 1, persist: async () => ({ ok: false, reason: 'not-saved' }) })
+    await say('weekly')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+    await waitFor(() => expect(summaries()[0]).toMatch(/^On your screen but NOT saved: switched timeframe to Weekly/))
+    expect(receipts()[0].getAttribute('data-undoable')).toBeNull()
+  }, 30000)
+  it('an Undo whose save fails: said as on screen, NOT saved — never "undone" as if final', async () => {
+    let fail = false
+    const { h, say } = mount(...HALF(), { epoch: () => 1, persist: async () => (fail ? { ok: false, reason: 'not-saved' } : { ok: true }) })
+    await say('weekly')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+    fail = true
+    await say('undo')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('D'))
+    await waitFor(() => expect(summaries().slice(-1)[0]).toMatch(/^On your screen but NOT saved: undid/))
+  }, 30000)
+  it('stale state (the board changed in another window before the write): nothing is written, said plainly', async () => {
+    const { h, say } = mount(...HALF(), { epoch: () => 1, boardInSync: async () => ({ ok: false, reason: 'your workspace was changed in another window or device' }) })
+    await say('weekly')
+    await waitFor(() => expect(transcript()).toMatch(/I didn't change anything: your workspace was changed in another window or device/))
+    expect(h.charts.read('c1').tf).toBe('D')
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+  it('a grouped add + change whose SECOND part is not saved: the first part is said, the second "on your screen but wasn’t saved", never "Done in 2 steps"', async () => {
+    let n = 0
+    const { say } = mount(...HALF(), { epoch: () => 1, persist: async () => (++n === 2 ? { ok: false, reason: 'conflict' } : { ok: true }) })
+    await say('add a QQQ chart and change the SPY chart to weekly')
+    await waitFor(() => expect(transcript()).toMatch(/is on your screen but wasn’t saved/), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/Done in 2 steps/)
+  }, 30000)
+})
