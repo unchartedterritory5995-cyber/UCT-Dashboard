@@ -17882,9 +17882,12 @@ export default function StockChart({
     const handler = (param) => {
       const fn = onChartTapRef.current
       if (typeof fn !== 'function' || !param) return
-      let price = null
+      let price = null, logical = null
       try { if (candleSeriesRef.current && param.point) { const v = candleSeriesRef.current.coordinateToPrice(param.point.y); price = Number.isFinite(v) ? v : null } } catch { /* series mid-swap */ }
-      fn({ time: param.time ?? null, price, point: param.point || null })
+      // the logical index under the cursor: a tap in the blank space right of the newest candle has no `time`, but it
+      // still has a position, and a lesson wants the nearest bar, not silence (owner's click, 2026-11-04)
+      try { if (param.point) { const l = chart.timeScale().coordinateToLogical(param.point.x); logical = Number.isFinite(l) ? l : null } } catch { /* no scale yet */ }
+      fn({ time: param.time ?? null, price, point: param.point || null, logical })
     }
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch { /* gone */ } }

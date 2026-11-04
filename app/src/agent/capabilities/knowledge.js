@@ -61,7 +61,9 @@ export function answerFromSearch(env) {
   if (!ps.length) return `${NO_SOURCE} (${asOf(env)}).`
   const lines = ps.map(p => {
     const who = [Number.isInteger(p.kb_id) ? `UCT KB #${p.kb_id}` : null, p.source, p.trader && p.trader !== 'UCT Team' ? p.trader : null, p.dated && day(p.as_of_post) ? `posted ${day(p.as_of_post)}` : null].filter(Boolean).join(' · ')
-    return `• ${p.title}: ${p.excerpt} (${who})`
+    const note = Array.isArray(p.mentions_excluded_setup) && p.mentions_excluded_setup.length
+      ? ` [team commentary that mentions ${p.mentions_excluded_setup.join(', ')}; not UCT's definition of it]` : ''
+    return `• ${p.title}: ${p.excerpt} (${who})${note}`
   })
   return {
     text: `From UCT's knowledge base (${asOf(env)}):${staleLine(env)}\n${lines.join('\n')}\n${[versionLine(env), FOOTER].filter(Boolean).join(' ')}`,

@@ -11,8 +11,14 @@
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
+import { buildDrawingSource, buildIndicatorAlertSource } from '../../../host'
+import * as drawingsStore from '../../../../components/chart/drawingsStore'
+import { setAuthoringSources } from '../../../capabilities/indicatorAuthoring'
+import { storeConversation } from '../../../../components/chart/builder/conversationSave'
+import { CREATE_INDICATOR_FLAG_KEY } from '../../../../components/chart/builder/studio/createIndicatorFlag'
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
+import { installStepServer } from '../../../testing/stepServer'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -29,15 +35,64 @@ export const BOARDS = {
     boards: { 1: [chart('c1', 0, 0, 24, 20)], 2: [chart('m1', 0, 0, 12, 20), chart('m2', 12, 0, 12, 20)] }, active: 1 } }],
   // saved watchlists behind the real routes' semantics (__fixtures__/board.js)
   WATCH: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
+  // + the chart's drawings (the real drawings store through host.buildDrawingSource) and the indicator-alert library
+  //   (the real hook writers through host.buildIndicatorAlertSource over the fixture /api/indicator-alerts below)
+  DRAW: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { drawings: true }],
+  IALERTS: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: { settings: { indicatorInstances: [
+    { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
+  // + the TIME NAVIGATOR over the synthetic history (view, go-to-date, Replay Mode) and the chart's drawings
+  TIMED: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { timeNav: true, drawings: true }],
+  // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
+  GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
+  // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
+  // + the Indicators AUTHORING interface (the real engine, draft store and canonical Save) with the builder's model and the
+  //   definitions server as stand-ins (agentIndicatorCreate.test.jsx's construction)
+  AUTHOR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'QQQ' }, { authoring: true }],
+  // AUTHOR on a board of TWO charts (a new draft with no chart must ask which one: agentPlannerV2Screens.test.jsx)
+  AUTHOR_TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'QQQ', 'N:c2': 'SPY' }, { authoring: true }],
+  // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
+  //   settings, and a saved chart template "Clean" (black background) in chart_templates
+  PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
+  ONE_DEFAULT_IA: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
+  // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
+  FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
+    { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }, { indicatorAlerts: true }],
   FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }],
 }
 
 // Synthetic screener catalog / universe (never real values)
 const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
-  { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }]
+  { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }, { key: 'days_to_earnings', label: 'Days to earnings', type: 'range', unit: 'd' }]
+// the indicator-alert catalog as the evaluator serves it (indicator_alert_evaluator.alert_catalog), RSI + the MA cross (train 3)
+const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true },
+  { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
+const XC = [{ value: 'cross_above', label: 'Fast MA crosses above slow MA', needs_threshold: false }, { value: 'cross_below', label: 'Fast MA crosses below slow MA', needs_threshold: false }]
+const IA_CATALOG = [
+  { indicator: 'rsi', label: 'RSI', conditions: OSC, default_threshold: 70, plots: [{ value: 'rsi', label: 'RSI', conditions: OSC, default_threshold: 70, inputs: { period: 14 }, instance_label: 'RSI (14)' }] },
+  { indicator: 'ma_cross', label: 'MA Cross', conditions: XC, default_threshold: null, plots: [{ value: 'ma_cross', label: 'MA Cross', conditions: XC, default_threshold: null,
+    inputs: { ma_type: 'ema', fast: 9, slow: 20 }, instance_defs: ['movingAverage'], instance_label: 'EMA(9) vs EMA(20)' }] },
+]
+// ── the indicator BUILDER's model (/converse), as agentIndicatorCreate.test.jsx: the EMA 9/20 % request → its formula ──
+const PATCH = 'uct.authoring.patch/1'
+const CLOSE = { type: 'series', name: 'close' }
+const ema = (n) => ({ type: 'call', name: 'ema', args: [CLOSE, { type: 'num', value: n }] })
+const opn = (name, ...args) => ({ type: 'op', name, args })
+const PCT = opn('*', opn('/', opn('-', ema(9), ema(20)), ema(20)), { type: 'num', value: 100 })
+// ── SYNTHETIC BAR HISTORY (deterministic; never a market value): a weekday calendar from 2025-01-02 to 2026-10-30 and a
+// smooth made-up price path. The chart's Time Navigator read-out (view.firstMs / lastMs / rightMs) and the `bars.daily`
+// gateway kind are both served from it, so time anchors, go-to-date and replay resolve against the same bars.
+const DAY = 86400000
+export const BAR_DAYS = (() => {
+  const out = []
+  for (let t = Date.UTC(2025, 0, 2); t <= Date.UTC(2026, 9, 30); t += DAY) { const d = new Date(t).getUTCDay(); if (d !== 0 && d !== 6) out.push(t) }
+  return out
+})()
+const synthBar = (t, i) => { const c = 100 + 20 * Math.sin(i / 17) + i * 0.05; return { t: new Date(t).toISOString().slice(0, 10), o: c - 0.5, h: c + 1.5, l: c - 1.5, c, v: 1000000 + (i % 7) * 50000 } }
+export const SYNTH_BARS = BAR_DAYS.map((t, i) => synthBar(t, i))
+const lastOnOrBefore = (ms) => { let r = BAR_DAYS[0]; for (const t of BAR_DAYS) { if (t <= ms) r = t; else break } return r }
 const LOWER_OK = new Set(['NVDA', 'TSLA', 'AMD', 'AAPL', 'QQQ'])
-const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25 }))
+const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i }))
 
 /** The board's EFFECTIVE state — every widget's cell, and each chart's symbol, timeframe and merged settings (what the
  *  member sees): equality = nothing changed for the member. (A stored `tf: 'D'` written back where nothing was stored
@@ -51,24 +106,58 @@ export const chartsOf = (board) => board.state.widgets.filter(w => w.type === 'c
 
 /** Resolve a canonical op's symbolic target ("$charts[0]", "$workspace", "$board", "$indicatorEdits[0]", "new1") from the request context. */
 export function resolveTarget(t, body) {
+  const f = /^\$([A-Za-z]+)\{([A-Za-z]+)\}$/.exec(String(t || ''))           // "$indicatorDrafts{new}": the entry flagged `new`
+  if (f) return (body?.context?.[f[1]] || []).find(e => e[f[2]])?.ref || `missing:${t}`
   const m = /^\$([A-Za-z]+)(?:\[(\d+)\])?$/.exec(String(t || ''))
   if (!m) return t
   const list = body?.context?.[m[1]]
   return Array.isArray(list) && list[Number(m[2] || 0)] ? list[Number(m[2] || 0)].ref : `missing:${t}`
 }
-export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: o.args }))
+// an ARG may name a live value from the request context: "$ctx:drawings.0.drawings.0.id" (ids minted at run time)
+const resolveArg = (v, body) => (typeof v === 'string' && v.startsWith('$ctx:')
+  ? v.slice(5).split('.').reduce((a, k) => a?.[k], body?.context) ?? `missing:${v}`
+  : Array.isArray(v) ? v.map(x => resolveArg(x, body)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveArg(x, body)])) : v)
+export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: resolveArg(o.args, body) }))
 
-export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
+// v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
+// scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
+// Absent (every capability-regression suite), mountCase is exactly as before.
+export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   const p = setupPanel()
-  const st = { log: [], alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
+  const srv = stepScript ? installStepServer(p, stepScript, { planner: 'v2' }) : null
+  const st = { log: [], replay: null, views: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
     const body = init.body ? JSON.parse(init.body) : null
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
-    if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search') || u.startsWith('/api/user-definitions')) return base(url, init)
+    if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
     p.st.calls.push([method, u, body])
-    if (u === '/api/agent/config') return json(configFor(kinds))
+    if (u === '/api/agent/config') return json(srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds))
+    if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
+    // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
+    // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
+    if (u === '/api/auth/preferences' && method === 'GET') {
+      const id = drawingsStore.getActiveTracingId?.() ?? 'default'
+      const syms = [...new Set((mounted?.h?.charts?.list?.() || []).map(c => c.symbol))]
+      return json({ tracings_doc: { updatedAt: 1, doc: { activeId: id, byTracing: { [id]: Object.fromEntries(syms.map(sy => [sy, drawingsStore.peekDrawings(sy)])) } } } })
+    }
+    if (u.startsWith('/api/indicator-alerts')) {
+      // the router's own shapes (indicator_alerts.py), as agentIndicatorAlerts.test.jsx's fixture
+      if (u === '/api/indicator-alerts/catalog') return json({ catalog: IA_CATALOG, refusals: [] })
+      if (u === '/api/indicator-alerts' && method === 'GET') return json({ alerts: st.ialerts })
+      if (u === '/api/indicator-alerts' && method === 'POST') {
+        const row = { id: 100 + st.ialerts.length + 1, user_id: 1, sym: body.sym, indicator: body.indicator, condition: body.condition ?? null, threshold: body.threshold ?? null, tf: body.tf,
+          params_json: body.params ?? null, active: true, instance_id: body.instance_id ?? null, scope: body.scope ?? null, state: 'armed', created_at: 1 }
+        st.ialerts = [...st.ialerts, row]
+        return json({ id: row.id })
+      }
+      const tg = /^\/api\/indicator-alerts\/(\d+)\/toggle$/.exec(u)
+      if (tg && method === 'POST') { const r = st.ialerts.find(x => x.id === Number(tg[1])); if (!r) return json({ detail: 'not found' }, 404); r.active = !r.active; return json(r) }
+      const dl = /^\/api\/indicator-alerts\/(\d+)$/.exec(u)
+      if (dl && method === 'DELETE') { st.ialerts = st.ialerts.filter(x => x.id !== Number(dl[1])); return json({ ok: true }) }
+      return json({}, 404)
+    }
     if (u.startsWith('/api/watchlist-alerts')) {
       // the real routes' behaviour (agentAlerts.test.jsx): owner-scoped rows, a POST returns the row, a DELETE removes it
       if (method === 'POST') {
@@ -80,7 +169,12 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
       return json(st.alerts)
     }
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
-    if (u === '/api/screener/saved-screens') return json({ saved: [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], starters: [] })
+    // the saved screens behind the real routes' semantics (screener saved-screens: GET list, POST create, PUT rename, DELETE)
+    if (u === '/api/screener/saved-screens' && method === 'GET') return json({ saved: st.screens, starters: [] })
+    if (u === '/api/screener/saved-screens' && method === 'POST') { const row = { id: 100 + st.screens.length, name: body.name, spec: body.spec }; st.screens = [...st.screens, row]; return json(row) }
+    const ssm = /^\/api\/screener\/saved-screens\/([^/]+)$/.exec(u)
+    if (ssm && method === 'PUT') { st.screens = st.screens.map(x => (String(x.id) === ssm[1] ? { ...x, ...(body.name ? { name: body.name } : {}), ...(body.spec ? { spec: body.spec } : {}) } : x)); return json(st.screens.find(x => String(x.id) === ssm[1]) || {}) }
+    if (ssm && method === 'DELETE') { st.screens = st.screens.filter(x => String(x.id) !== ssm[1]); return json({ ok: true }) }
     if (u === '/api/screener/scan') {
       const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : true)
       const rows = UNIVERSE.filter(r => (body.filters || []).every(f => ok(r, f)))
@@ -93,11 +187,63 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
       const results = (body.params?.symbols || []).map(c => { const t = String(c?.text ?? c).replace(/^\$/, ''); return (t === t.toUpperCase() || LOWER_OK.has(t.toUpperCase())) ? { input: c?.text ?? c, class: 'symbol', symbol: t } : { input: c?.text ?? c, class: 'symbol_typed_lowercase', symbol: t.toUpperCase() } })
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', notes: [], data: { results } })
     }
+    // the SC-1 gateway's screen kinds (served in production): synthetic rows from the fixture universe — the corpus
+    // asserts WHICH read ran and what the Agent did with a screen, never a figure
+    if (u === '/api/agent/data' && (body?.kind === 'screen.run' || body?.kind === 'screen.count')) {
+      const rows = UNIVERSE.map(r => ({ ...r, symbol: r.ticker, company: r.ticker, chg_pct_1d: r.chg_pct }))
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'eod', as_of: '2026-11-03', stale: false, notes: [], coverage: null,
+        data: { rows: rows.slice(0, body.params?.limit || 25), total_matches: rows.length, count: rows.length } })
+    }
+    if (u === '/api/agent/data' && body?.kind === 'bars.daily') {
+      const n = Math.min(Number(body.params?.bars) || 252, SYNTH_BARS.length)
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'historical', as_of: SYNTH_BARS.at(-1).t, stale: false, notes: [], coverage: null,
+        data: { symbol: String(body.params?.symbol || '').toUpperCase(), bars: SYNTH_BARS.slice(-n) } })
+    }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)
   }
-  const mounted = p.mount(...BOARDS[boardName]())
-  return { p, st, ...mounted }
+  const spec = BOARDS[boardName]()
+  let mounted = null
+  mounted = p.mount(...spec)
+  const extra = spec[2] || {}
+  if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  if (extra.prefs) {
+    if (!('chart_templates' in st.prefs)) st.prefs.chart_templates = JSON.stringify([{ name: 'Clean', settings: { ...bareSettings(), background: '#000000' } }])
+    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true } }
+  }
+  if (extra.authoring) {
+    try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
+    const converse = ({ message, state }) => {
+      st.builderCalls.push(message)
+      return { ok: true, disposition: 'change', turn: 'patch', reply: '', envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
+        ops: [{ op: 'create', name: 'EMA 9/20 % Diff', placement: 'pane', outputs: [{ key: 'diff', label: 'EMA 9/20 % Diff', tree: PCT }] }] } }
+    }
+    const fakeSave = async (doc, defId, _x, opts) => {
+      const id = defId || `u_aaaaaaaaae${String(st.defs.size + 10).padStart(2, '0')}`
+      const version = defId ? (opts?.baseVersion || 0) + 1 : 1
+      st.defs.set(id, { def_id: id, version, rev: 1, definition: { ...doc, id, version } })
+      return { ok: true, row: { def_id: id, version, rev: 1 } }
+    }
+    setAuthoringSources({ extra: { converse, readBack: async (id) => st.defs.get(id) || null, store: (sv, o) => storeConversation(sv, { ...o, save: fakeSave }) } })
+  }
+  if (extra.timeNav) {
+    // ChartsWorkspace's Time Navigator + Replay Mode, as host.buildChartSource exposes them: a per-chart VIEW read-out,
+    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff
+    const views = {}
+    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true })
+    st.replay = null
+    const charts = mounted.h.charts
+    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
+    mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
+      goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
+      setReplay: (iso) => { st.replay = iso ?? null; return true } }
+    st.views = views
+  }
+  if (extra.drawings) {
+    for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
+    mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
+  }
+  return { p, st, srv, ...mounted }
 }
 
 /** The faithful scripted model for one turn's canonical plan (see the header). */

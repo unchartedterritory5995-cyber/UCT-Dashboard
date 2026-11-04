@@ -158,6 +158,9 @@ class TurnIn(BaseModel):
     # NL-1: stable catalogs (indicator catalog, Screener fields) sent apart from the context so the server
     # can cache them; turn.reference_block accepts only its known keys, as DATA, under a size limit.
     reference: Optional[dict] = None
+    # V2-G2 (review #782): the browser runs a v2 PLAN GROUP as one plan (steps.js runGroup). Absent/false = an older
+    # browser: the server sends one step at a time, as before.
+    stepGroups: bool = False
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -584,6 +587,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         turn_context = agent_coach.with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))
     if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
+        v2["step_groups"] = body.stepGroups is True
     try:
         out = agent.run_turn(message=body.message, context=turn_context, history=history,
                              capabilities=body.capabilities,

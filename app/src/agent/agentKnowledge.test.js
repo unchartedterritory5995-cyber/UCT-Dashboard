@@ -170,6 +170,18 @@ describe('review #735 B1: the sign of a controlled edge is always shown', () => 
   })
 })
 
+describe('owner source-policy 2026-11-03: commentary on an excluded setup is labelled in the text the model reads', () => {
+  it('a flagged passage carries the commentary note; an unflagged one does not', () => {
+    const e = env('knowledge.search', { method: 'fts', passages: [
+      { kb_id: 61, title: 'TSDR t61: watching a cup and handle', category: 'SETUP', trader: 'TSDR', source: "the UCT team's own posts (dated)", licence: 'team_owned', excerpt: 'Watching NVDA.', mentions_excluded_setup: ['Cup with Handle'], commentary_only: true },
+      { kb_id: 62, title: 'TSDR t62: kicker note', category: 'SETUP', trader: 'TSDR', source: "the UCT team's own posts (dated)", licence: 'team_owned', excerpt: 'Kicker note.' },
+    ] })
+    const a = answerFromSearch(e)
+    expect(a.text).toContain("[team commentary that mentions Cup with Handle; not UCT's definition of it]")
+    expect(a.text.split('\n').find(l => l.includes('t62'))).not.toContain('team commentary')
+  })
+})
+
 describe('owner 2026-11-03: grounded, cited knowledge answers (the v1 answer itself)', () => {
   const COV = { coverage: { pack_ts: 1761962400, policy_version: 3 } }
   it('search and template carry the pack and source-policy version', () => {

@@ -6,6 +6,9 @@ import { cleanup } from '@testing-library/react'
 import { registerCatalog } from './testing/registry'
 import { corpus, golden, gapIt } from './testing/corpus'
 import { replay } from './testing/run'
+import { pinClock } from './testing/clock'
+
+pinClock()                   // one fixed instant (testing/clock.js): the market clock never depends on when CI runs
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 await registerCatalog()
