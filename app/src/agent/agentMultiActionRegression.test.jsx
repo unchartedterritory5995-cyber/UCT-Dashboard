@@ -157,7 +157,7 @@ describe('T1 · "a new chart for NVDA on the daily timeframe, then a second char
     expect(symbolsOf(board, h).slice(1).sort()).toEqual(['NVDA', 'QQQ'])
     await waitFor(() => expect(receipts()).toHaveLength(1))
     const t = receipts()[0].textContent
-    expect(screen.getByTestId('agent-receipt-summary').textContent).toBe('Done — added 2 charts for NVDA and QQQ.')
+    expect(screen.getByTestId('agent-receipt-summary').textContent).toBe('Done — added 2 daily charts for NVDA and QQQ.')   // W2: with each new chart's timeframe
     expect(t).not.toMatch(/Already Daily/)
     expect(t).toMatch(/NVDA/)
     expect(t).toMatch(/QQQ/)

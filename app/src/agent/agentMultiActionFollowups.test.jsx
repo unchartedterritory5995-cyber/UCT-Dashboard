@@ -16,6 +16,7 @@ import { touchesCharts, arrangesBoard, asSubjectWords } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
 import { selectGroups, routeManifest } from './routing'
 import { notDoneLines } from './notDone'
+import { receiptView } from './receiptView'
 import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
 const FULLM = manifestFor({ surface: 'charts', createIndicator: true })
 const LIM = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
@@ -404,4 +405,55 @@ describe('C · "change it to weekly" / "add the RSI to that one" right after cre
     expect(asSubjectWords('make the new one weekly', made)).toBe('make it weekly')
     expect(asSubjectWords('make that one weekly', mem)).toBe('make it weekly')
   })
+})
+
+// ═══ R · receipts name every chart (symbol + timeframe) and every setting ═══════════════════════════════
+describe('R · multi-op receipts name each chart and setting; no "already" for new charts', () => {
+  it('pure: a few changes are each said, each named chart with its timeframe; more than four point at Details (which list them all)', () => {
+    const charts = [{ label: 'Left chart (NVDA)', symbol: 'NVDA', tf: 'W' }, { label: 'Right chart (AMD)', symbol: 'AMD', tf: 'D' }]
+    const v = receiptView(['Left chart (NVDA): Switched timeframe to Weekly', 'Right chart (AMD): Added RSI (14)'], { charts })
+    expect(v.summary).toBe('Left chart (NVDA · Weekly): Switched timeframe to Weekly; right chart (AMD · Daily): Added RSI (14).')
+    expect(v.details).toBe('Left chart (NVDA): Switched timeframe to Weekly · Right chart (AMD): Added RSI (14)')
+    const many = receiptView(['a', 'b', 'c', 'd', 'e'])
+    expect(many.summary).toMatch(/\(and 4 more changes — see Details\)/)
+    expect(many.details).toBe('a · b · c · d · e')
+    // new charts: their timeframe too
+    expect(receiptView(['Added 2 Charts', 'New chart 1: Changed symbol to NVDA', 'New chart 2: Changed symbol to QQQ'],
+      { charts: [{ symbol: 'NVDA', tf: 'D', isNew: true }, { symbol: 'QQQ', tf: 'W', isNew: true }] }).summary).toBe('Done — added 2 charts for NVDA (Daily) and QQQ (Weekly).')
+    expect(receiptView(['Added a Chart', 'New chart 1: Changed symbol to QQQ'], { charts: [{ symbol: 'QQQ', tf: '5', isNew: true }] }).summary).toMatch(/^Done — added a 5-minute chart for QQQ\.$|^Done — added a 5 min/)
+  })
+  it('panel: two charts changed in one request → one receipt naming both charts with their timeframes', async () => {
+    const { h, say } = mount(...TWO())
+    envelopes.push(b => env('apply', [
+      { action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } },
+      { action: 'chart.setTimeframe', target: b.context.charts[1].ref, args: { timeframe: 'M' } },
+    ]))
+    await say('switch NVDA over to weekly and AMD over to monthly please')
+    await waitFor(() => expect(h.charts.read('c2').tf).toBe('M'))
+    const s = summaries().join(' | ')
+    expect(s).toMatch(/NVDA · Weekly/)
+    expect(s).toMatch(/AMD · Monthly/)
+    expect(s).not.toMatch(/more change/)
+  }, 30000)
+  it('panel: an add + change request names the existing chart it changed (symbol + timeframe) and the new chart\'s ticker and timeframe; no "already" line', async () => {
+    const { say } = mount(...HALF())
+    await say('add a QQQ chart and change the SPY chart to weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(2), { timeout: 8000 })
+    const s = summaries().join(' | ')
+    expect(s).toMatch(/added a daily chart for QQQ/)
+    expect(s).toMatch(/SPY · Weekly/)
+    expect(transcript()).not.toMatch(/[Aa]lready/)
+  }, 30000)
+  it('panel: new charts created on a timeframe never report "already <timeframe>"', async () => {
+    const { say } = mount(...HALF())
+    envelopes.push(b => env('apply', [
+      { action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'NVDA' } },
+      { action: 'chart.setTimeframe', target: 'new1', args: { timeframe: 'D' } },
+    ]))
+    await say('open a new daily chart for NVDA')
+    await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/[Aa]lready/)
+    expect(summaries()[0]).toMatch(/daily chart(?: for|:) NVDA/)
+  }, 30000)
 })

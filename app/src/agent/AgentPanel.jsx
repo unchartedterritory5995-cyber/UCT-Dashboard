@@ -226,7 +226,7 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'receipt': {
       // live test 2026-10-28: ONE short line; the exact record (every line, word for word) one click away
-      const view = receiptView(it.lines, { isUndo: !!it.isUndo })
+      const view = receiptView(it.lines, { isUndo: !!it.isUndo, charts: it.charts || null, name: !!it.namePart })
       return (
         <AgentSays at={at} cont={cont}>
         {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card

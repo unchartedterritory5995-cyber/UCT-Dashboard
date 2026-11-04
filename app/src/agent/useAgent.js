@@ -180,6 +180,24 @@ export function asSubjectWords(text, memory, epoch = null) {
   NEW_ONE.lastIndex = 0
   return out
 }
+// ⭐ W2 (receipts): every chart a committed plan touched, read AFTER the commit — { label, symbol, tf, isNew } — so the
+// receipt's one-liner names each chart with its symbol and timeframe (receiptView). Display only; never throws.
+function receiptCharts(host, plan, res) {
+  try {
+    const out = []
+    const seen = new Set()
+    for (const p of plan?.plans || []) {
+      const kind = getTargetKind(p.kind)
+      const ref = p.virtual ? res?.created?.[p.ref] : (p.kind === 'chart' ? p.ref : (kind?.groupOf ? kind.groupOf(p.ref) : null))
+      if (!ref || seen.has(ref) || (!p.virtual && p.kind !== 'chart' && !kind?.groupOf)) continue
+      const c = host?.charts?.read?.(String(ref))
+      if (!c?.symbol) continue
+      seen.add(ref)
+      out.push({ label: p.virtual ? null : (c.label || p.snap?.label || null), symbol: c.symbol, tf: c.tf || null, isNew: !!p.virtual })
+    }
+    return out.length ? out : null
+  } catch { return null }
+}
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
@@ -588,7 +606,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
@@ -997,7 +1015,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, charts: receiptCharts(host, plan, res), ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
@@ -1119,7 +1137,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         try {
           traceStart(`${path}:part${i + 1}`)
           let o
-          try { o = await executeInner(parts[i].ops, { path, mode: 'apply', member: i ? null : member, voice, onTarget: i ? null : onTarget }) } finally { traceEnd('done') }
+          try { o = await executeInner(parts[i].ops, { path, mode: 'apply', member: i ? null : member, voice, onTarget: i ? null : onTarget, namePart: true }) } finally { traceEnd('done') }
           await runFollowUps(o)
         } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
         const landed = kinds.includes('applied') || kinds.includes('noop')
