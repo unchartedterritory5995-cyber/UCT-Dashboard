@@ -1070,6 +1070,7 @@ def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Op
     """
     from api.services import alert_user_series as aus
     from api.services import indicator_alert_evaluator as ev
+    from api.services import runtime_server_lane as rsl
 
     raw = str(alert.get("indicator") or "")
     if not aus.is_user_address(raw):
@@ -1092,13 +1093,17 @@ def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Op
                 return False, (f"no bar of this timeframe has closed yet in the "
                                f"{len(bars)} stored — the closed-bar lane has "
                                f"nothing to judge")
-        column = (fn.column(bars, params, tf=tf) if getattr(fn, "reads_symbols", None)
-                  else fn.column(bars, params))
+        column = aus.call_series(fn.column, bars, params, tf=tf, sym=alert.get("sym"))
     except aus.AdmissionRefused as exc:
         # ⭐ L1 — the gates withholding the plot read in an armed alert's words; any other
         # door's sentence is quoted verbatim (it carries its `[gate:…]` attribution)
         why = getattr(exc, "block_runs_why", None)
         return True, (aus.withheld_alert_detail(why) if why else str(exc))
+    except rsl.ServerLaneWithheld as exc:
+        # W5-T13 -- a runtime plot the server lane withholds (killed, staged off, the
+        # service down, a run refusal): the guard and its own sentence, as an armed
+        # alert says it (design 3.7 rule 4).
+        return True, aus.withheld_alert_detail(f"{exc.guard} — {str(exc.sentence).rstrip('.')}")
     except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
         return True, f"{type(exc).__name__}: {exc}"
     # the bar each lane judges: the closed bar, or (forming) the newest number
