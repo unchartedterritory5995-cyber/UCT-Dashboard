@@ -2585,6 +2585,185 @@
      "modes": {}
     }
    }
+  },
+  "breadth.measure-now": {
+   "digest": "92e1eebfaddf68ef",
+   "phrasings": {
+    "what percent of stocks are above the 50 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how many stocks are above their 50 day moving average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "% of stocks above the 50dma": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what share of stocks are over the 50 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.measure-nasdaq": {
+   "digest": "4907ad5a52c270b5",
+   "phrasings": {
+    "what percent of nasdaq stocks are above the 200 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "nasdaq breadth above the 200 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how many nasdaq names are over their 200 day moving average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "% of nasdaq stocks above the 200dma": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.history.count": {
+   "digest": "ce0807d99ef81f3f",
+   "phrasings": {
+    "how many times has the percent above the 50 day gone below 20%": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how often has breadth above the 50 day been under 20%": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "count the times the % of stocks above the 50dma fell below 20%": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how many episodes below 20% above the 50 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volume.hide": {
+   "digest": "1e5892eaa7c4fac8",
+   "phrasings": {
+    "hide the volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off volume on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the volume pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no volume please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.list": {
+   "digest": "0c3365f4f63776d9",
+   "phrasings": {
+    "what indicators are on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what's on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list the indicators on my chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which studies do I have on here": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "→ indicator.list"
+     }
+    }
+   }
+  },
+  "drawing.hideAll": {
+   "digest": "401084b66bf09fc1",
+   "phrasings": {
+    "hide all my drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide every drawing on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off all drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "widget.unlink": {
+   "digest": "45fc728841a12ebf",
+   "phrasings": {
+    "link the right chart to group B": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the AMD chart in link group B": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the right chart's link color to B": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the right chart to the B link group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -2697,6 +2876,21 @@
   },
   "GW-18.live-emas-already-present": {
    "digest": "33316af250b39fe2",
+   "gap": false,
+   "mode": null
+  },
+  "GW-19.daily-charts-each-with-50sma": {
+   "digest": "4f95da5faaa1a67a",
+   "gap": false,
+   "mode": null
+  },
+  "GW-20.weekly-then-20ema": {
+   "digest": "d208f88b913f2fa4",
+   "gap": false,
+   "mode": null
+  },
+  "GW-21.two-charts-side-by-side": {
+   "digest": "9d8d6ac2826f761a",
    "gap": false,
    "mode": null
   }

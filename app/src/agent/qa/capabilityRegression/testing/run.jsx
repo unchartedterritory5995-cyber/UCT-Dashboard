@@ -132,6 +132,13 @@ export function checkExpect(ctx, e, label) {
     for (const n of e.watchlistNames.include || []) expect(names, `${label}: a watchlist ${n}`).toContain(n)
     for (const n of e.watchlistNames.exclude || []) expect(names, `${label}: no watchlist ${n}`).not.toContain(n)
   }
+  if (e.indicatorsEach) {
+    // EVERY chart on the board (or every chart but the listed ones) carries these indicators
+    for (const w of chartsOf(board).filter(x => !(e.indicatorsEach.except || []).includes(x.id))) {
+      const got = p.brief(board, w.id)
+      for (const want of e.indicatorsEach.include || []) expect(got, `${label}: ${want} on chart ${w.id}`).toContain(want)
+    }
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)

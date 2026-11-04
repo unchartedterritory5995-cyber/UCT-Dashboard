@@ -5447,6 +5447,392 @@
         "show me my saved layouts",
         "which layouts have I saved"
       ]
+    },
+    {
+      "id": "breadth.measure-now",
+      "source": "Batch E4 (11-04): breadth variants (one measure now, a measure by universe, compare to a date, history count)",
+      "capabilities": [
+        "breadth.show"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.show"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.show",
+            "args": {
+              "mode": "value",
+              "metrics": [
+                "pct_above_50sma"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.show",
+            "target": "$breadth",
+            "args": {
+              "mode": "value",
+              "universe": "us",
+              "metrics": [
+                "pct_above_50sma"
+              ],
+              "date": null,
+              "compare_date": null,
+              "start": null,
+              "end": null,
+              "basis": null,
+              "side": null,
+              "sessions": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "what percent of stocks are above the 50 day",
+        "how many stocks are above their 50 day moving average",
+        "% of stocks above the 50dma",
+        "what share of stocks are over the 50 day"
+      ]
+    },
+    {
+      "id": "breadth.measure-nasdaq",
+      "source": "Batch E4 (11-04): breadth variants (one measure now, a measure by universe, compare to a date, history count)",
+      "capabilities": [
+        "breadth.show"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.show"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.show",
+            "args": {
+              "mode": "value",
+              "universe": "nasdaq",
+              "metrics": [
+                "pct_above_200sma"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.show",
+            "target": "$breadth",
+            "args": {
+              "mode": "value",
+              "universe": "nasdaq",
+              "metrics": [
+                "pct_above_200sma"
+              ],
+              "date": null,
+              "compare_date": null,
+              "start": null,
+              "end": null,
+              "basis": null,
+              "side": null,
+              "sessions": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "what percent of nasdaq stocks are above the 200 day",
+        "nasdaq breadth above the 200 day",
+        "how many nasdaq names are over their 200 day moving average",
+        "% of nasdaq stocks above the 200dma"
+      ]
+    },
+    {
+      "id": "breadth.history.count",
+      "source": "Batch E4 (11-04): breadth variants (one measure now, a measure by universe, compare to a date, history count)",
+      "capabilities": [
+        "breadth.history"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.history"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.history",
+            "args": {
+              "metric": "pct_above_50sma",
+              "find": "count"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.history",
+            "target": "$breadth",
+            "args": {
+              "universe": "us",
+              "metric": "pct_above_50sma",
+              "op": "below",
+              "level": 20,
+              "find": "count",
+              "start": null,
+              "end": null,
+              "aggregation": "daily"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "how many times has the percent above the 50 day gone below 20%",
+        "how often has breadth above the 50 day been under 20%",
+        "count the times the % of stocks above the 50dma fell below 20%",
+        "how many episodes below 20% above the 50 day"
+      ]
+    },
+    {
+      "id": "volume.hide",
+      "source": "Batch E5 (11-04): chart volume pane, indicator listing, drawings visibility, widget link",
+      "capabilities": [
+        "volume.setState"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volume.setState"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "volume.setState",
+            "args": {
+              "state": "hidden"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "volume.setState",
+            "target": "$charts[0]",
+            "args": {
+              "state": "hidden"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "volume.visible",
+          "value": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "hide the volume",
+        "turn off volume on this chart",
+        "hide the volume pane",
+        "no volume please"
+      ]
+    },
+    {
+      "id": "indicator.list",
+      "source": "Batch E5 (11-04): chart volume pane, indicator listing, drawings visibility, widget link",
+      "capabilities": [
+        "indicator.list"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicator.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.list",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.list",
+            "target": "$indicators[0]",
+            "args": {
+              "filter": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what indicators are on this chart",
+        "what's on this chart",
+        "list the indicators on my chart",
+        {
+          "text": "which studies do I have on here",
+          "gaps": {
+            "a": {
+              "id": "CG-28",
+              "reason": "routing: 'studies' is not an indicators word (only 'indicator(s)', the indicator names and 'what's on this chart'), so 'which studies do I have on here' does not send indicator.list",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ indicator.list"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "drawing.hideAll",
+      "source": "Batch E5 (11-04): chart volume pane, indicator listing, drawings visibility, widget link",
+      "capabilities": [
+        "drawing.setAllVisible"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "drawing.addLevel"
+      ],
+      "needs": [
+        "drawing.setAllVisible"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.setAllVisible",
+            "args": {
+              "visible": false
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setAllVisible",
+            "target": "$drawings[0]",
+            "args": {
+              "visible": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "hidden": true
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "hide all my drawings",
+        "hide every drawing on this chart",
+        "turn off all drawings",
+        "hide the drawings"
+      ]
+    },
+    {
+      "id": "widget.unlink",
+      "source": "Batch E5 (11-04): chart volume pane, indicator listing, drawings visibility, widget link",
+      "capabilities": [
+        "widget.setLink"
+      ],
+      "board": "TWO",
+      "needs": [
+        "widget.setLink"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "widget.setLink",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "widget.setLink",
+            "target": "$board",
+            "args": {
+              "widget": "c2",
+              "color": "B"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "link the right chart to group B",
+        "put the AMD chart in link group B",
+        "set the right chart's link color to B",
+        "move the right chart to the B link group"
+      ]
     }
   ],
   "refusals": [

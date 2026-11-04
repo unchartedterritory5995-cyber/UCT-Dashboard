@@ -152,11 +152,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "drawing.setAllVisible": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "drawing.setVisible": {
    "owner": "agent-qa (capreg) — group drawings",
    "since": "2026-11-04",
@@ -178,11 +173,6 @@
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "indicator.discardDraft": {
-   "owner": "agent-qa (capreg) — group indicators",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "indicator.list": {
    "owner": "agent-qa (capreg) — group indicators",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -312,11 +302,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "volume.setState": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "watchlist.open": {
    "owner": "agent-qa (capreg) — group lists",
    "since": "2026-11-04",
@@ -353,11 +338,6 @@
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "widget.selectTab": {
-   "owner": "agent-qa (capreg) — group workspace",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "widget.setLink": {
    "owner": "agent-qa (capreg) — group workspace",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"

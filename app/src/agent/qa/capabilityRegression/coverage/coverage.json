@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 79,
+  "withAnyRegressionCase": 83,
   "perProtection": {
    "nl": {
-    "covered": 79,
+    "covered": 83,
     "applicable": 154
    },
    "routing": {
-    "covered": 79,
+    "covered": 83,
     "applicable": 154
    },
    "args": {
-    "covered": 79,
+    "covered": 83,
     "applicable": 154
    },
    "execution": {
-    "covered": 78,
+    "covered": 82,
     "applicable": 154
    },
    "receipt": {
-    "covered": 55,
+    "covered": 58,
     "applicable": 154
    },
    "refusal": {
@@ -38,15 +38,15 @@
     "applicable": 154
    },
    "undo": {
-    "covered": 33,
+    "covered": 34,
     "applicable": 95
    },
    "multiStep": {
-    "covered": 17,
+    "covered": 18,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 77,
+    "covered": 81,
     "applicable": 154
    }
   }
@@ -438,6 +438,15 @@
    "level": "a",
    "intent": "settings.alertSound",
    "phrasing": "turn off alert sounds"
+  },
+  {
+   "id": "CG-28",
+   "reason": "routing: 'studies' is not an indicators word (only 'indicator(s)', the indicator names and 'what's on this chart'), so 'which studies do I have on here' does not send indicator.list",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ indicator.list",
+   "level": "a",
+   "intent": "indicator.list",
+   "phrasing": "which studies do I have on here"
   },
   {
    "id": "CG-12",
@@ -989,28 +998,35 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "breadth.history.nhnl: \"when did nh/nl last go negative\"",
      "breadth.history.nhnl: \"when was net new highs last below zero\"",
      "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
-     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+     "breadth.history.nhnl: \"when did net new highs last turn negative\"",
+     "breadth.history.count: \"how many times has the percent above the 50 day gone below 20%\"",
+     "breadth.history.count: \"how often has breadth above the 50 day been under 20%\""
     ],
     "routing": [
      "breadth.history.nhnl: \"when did nh/nl last go negative\"",
      "breadth.history.nhnl: \"when was net new highs last below zero\"",
      "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
-     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+     "breadth.history.nhnl: \"when did net new highs last turn negative\"",
+     "breadth.history.count: \"how many times has the percent above the 50 day gone below 20%\"",
+     "breadth.history.count: \"how often has breadth above the 50 day been under 20%\""
     ],
     "args": [
-     "corpus breadth.history.nhnl"
+     "corpus breadth.history.nhnl",
+     "corpus breadth.history.count"
     ],
     "execution": [
-     "breadth.history.nhnl (c)"
+     "breadth.history.nhnl (c)",
+     "breadth.history.count (c)"
     ],
     "receipt": [
-     "breadth.history.nhnl (c)"
+     "breadth.history.nhnl (c)",
+     "breadth.history.count (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -1081,7 +1097,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 7,
+   "phrasings": 15,
    "evidence": {
     "nl": [
      "breadth.now: \"what's the breadth like\"",
@@ -1101,14 +1117,20 @@
     ],
     "args": [
      "corpus breadth.now",
+     "corpus breadth.measure-now",
+     "corpus breadth.measure-nasdaq",
      "GW-03.breadth-member-side"
     ],
     "execution": [
      "breadth.now (c)",
+     "breadth.measure-now (c)",
+     "breadth.measure-nasdaq (c)",
      "GW-03.breadth-member-side"
     ],
     "receipt": [
      "breadth.now (c)",
+     "breadth.measure-now (c)",
+     "breadth.measure-nasdaq (c)",
      "GW-03.breadth-member-side"
     ],
     "refusal": [],
@@ -2387,31 +2409,38 @@
     "args": [
      "corpus grid.four.named",
      "corpus grid.four.named.daily",
-     "GW-16.live-grid-2x2-daily"
+     "GW-16.live-grid-2x2-daily",
+     "GW-21.two-charts-side-by-side"
     ],
     "execution": [
      "grid.four.named (c)",
      "grid.four.named.daily (c)",
      "undo.named-after-grid (c)",
      "GW-10.grid-then-undo-by-kind",
-     "GW-16.live-grid-2x2-daily"
+     "GW-16.live-grid-2x2-daily",
+     "GW-19.daily-charts-each-with-50sma"
     ],
     "receipt": [
      "grid.four.named (c)",
      "grid.four.named.daily (c)",
      "GW-10.grid-then-undo-by-kind",
-     "GW-16.live-grid-2x2-daily"
+     "GW-16.live-grid-2x2-daily",
+     "GW-21.two-charts-side-by-side"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "grid.four.named: undo restores",
      "undo.named-after-grid: undo restores",
-     "GW-10.grid-then-undo-by-kind"
+     "GW-10.grid-then-undo-by-kind",
+     "GW-19.daily-charts-each-with-50sma",
+     "GW-21.two-charts-side-by-side"
     ],
     "multiStep": [
      "undo.named-after-grid: after an earlier turn",
-     "GW-10.grid-then-undo-by-kind"
+     "GW-10.grid-then-undo-by-kind",
+     "GW-19.daily-charts-each-with-50sma",
+     "GW-21.two-charts-side-by-side"
     ],
     "phrasings": []
    }
@@ -3464,28 +3493,46 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.hideAll: \"hide all my drawings\"",
+     "drawing.hideAll: \"hide every drawing on this chart\"",
+     "drawing.hideAll: \"turn off all drawings\"",
+     "drawing.hideAll: \"hide the drawings\""
+    ],
+    "routing": [
+     "drawing.hideAll: \"hide all my drawings\"",
+     "drawing.hideAll: \"hide every drawing on this chart\"",
+     "drawing.hideAll: \"turn off all drawings\"",
+     "drawing.hideAll: \"hide the drawings\""
+    ],
+    "args": [
+     "corpus drawing.hideAll"
+    ],
+    "execution": [
+     "drawing.hideAll (c)"
+    ],
+    "receipt": [
+     "drawing.hideAll (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.hideAll: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3995,23 +4042,36 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "indicator.list: \"what indicators are on this chart\"",
+     "indicator.list: \"what's on this chart\"",
+     "indicator.list: \"list the indicators on my chart\"",
+     "indicator.list: \"which studies do I have on here\""
+    ],
+    "routing": [
+     "indicator.list: \"what indicators are on this chart\"",
+     "indicator.list: \"what's on this chart\"",
+     "indicator.list: \"list the indicators on my chart\""
+    ],
+    "args": [
+     "corpus indicator.list"
+    ],
+    "execution": [
+     "indicator.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -6717,27 +6777,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "volume.hide: \"hide the volume\"",
+     "volume.hide: \"turn off volume on this chart\"",
+     "volume.hide: \"hide the volume pane\"",
+     "volume.hide: \"no volume please\""
+    ],
+    "routing": [
+     "volume.hide: \"hide the volume\"",
+     "volume.hide: \"turn off volume on this chart\"",
+     "volume.hide: \"hide the volume pane\"",
+     "volume.hide: \"no volume please\""
+    ],
+    "args": [
+     "corpus volume.hide"
+    ],
+    "execution": [
+     "volume.hide (c)"
+    ],
+    "receipt": [
+     "volume.hide (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "volume.hide: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -7779,24 +7857,40 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "widget.unlink: \"link the right chart to group B\"",
+     "widget.unlink: \"put the AMD chart in link group B\"",
+     "widget.unlink: \"set the right chart's link color to B\"",
+     "widget.unlink: \"move the right chart to the B link group\""
+    ],
+    "routing": [
+     "widget.unlink: \"link the right chart to group B\"",
+     "widget.unlink: \"put the AMD chart in link group B\"",
+     "widget.unlink: \"set the right chart's link color to B\"",
+     "widget.unlink: \"move the right chart to the B link group\""
+    ],
+    "args": [
+     "corpus widget.unlink"
+    ],
+    "execution": [
+     "widget.unlink (c)"
+    ],
+    "receipt": [
+     "widget.unlink (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

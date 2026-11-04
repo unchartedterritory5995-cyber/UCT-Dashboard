@@ -736,6 +736,124 @@
           }
         }
       ]
+    },
+    {
+      "id": "GW-19.daily-charts-each-with-50sma",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — the owner's acceptance phrasing (agentFlagshipOperator: CYPH kept, three new daily charts, SMA 50 on each) (the SMA adds are asserted on the state; the static reading of this sentence names only chartGrid.set, so only that is credited)",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "open daily charts for AAPL, MSFT and NVDA, each with a 50 SMA",
+          "expect": {
+            "charts": {
+              "count": 4,
+              "symbolSet": [
+                "NVDA",
+                "AAPL",
+                "MSFT",
+                "NVDA"
+              ],
+              "sameSize": true,
+              "keepsIds": [
+                "c1"
+              ]
+            },
+            "indicatorsEach": {
+              "include": [
+                "movingAverage(50 sma)"
+              ],
+              "except": [
+                "c1"
+              ]
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-20.weekly-then-20ema",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — a compound: the timeframe, then the indicator, each its own receipt",
+      "capabilities": [
+        "chart.setTimeframe",
+        "indicator.add"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "switch to weekly and add the 20 ema",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(20 ema)"
+              ]
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-21.two-charts-side-by-side",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — two charts + grid (agentMultiActionRegression routing set)",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "put NVDA and AMD side by side",
+          "model": {
+            "ops": [
+              {
+                "action": "chartGrid.set",
+                "target": "$board",
+                "args": {
+                  "symbols": [
+                    "NVDA",
+                    "AMD"
+                  ],
+                  "timeframe": null,
+                  "layout": "columns",
+                  "new_charts": null,
+                  "watchlist": null,
+                  "replace": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 2,
+              "symbols": [
+                "NVDA",
+                "AMD"
+              ],
+              "sameSize": true
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
     }
   ]
 }
