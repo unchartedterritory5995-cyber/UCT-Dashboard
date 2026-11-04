@@ -29,6 +29,7 @@ import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, c
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { receiptView } from './receiptView'
+import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
@@ -426,6 +427,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
   const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
   const undoneFirstRef = useRef(false)      // review F3: a planned Undo ran FIRST this turn — a later "didn't change anything" isn't true
+  const notDoneRef = useRef(null)           // W2 audit: this turn's fixed "Not done: …" sentences (notDone.js)
   const lastUndoRef = useRef(null)          // review F5: how the last doUndo ended — 'ok' | 'unsaved' | 'refused' | 'none'
   const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
   // PLANNER v2 (Wave 1 A-05, agent/steps.js): null unless /api/agent/config says planner 'v2' — then every model
@@ -2060,6 +2062,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
         env = { ...env, ops: rest, reply: '' }
       }
+      // ⭐ W2 audit (live 2026-11-04: "…to weekly and email me a screenshot of it" said only the weekly receipt): the parts
+      // of THIS request no planned action covers are said after whatever runs — fixed sentences (notDone.js), never prose
+      notDoneRef.current = (env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { category: env.unsupported_category, actions: env.ops.map(o => o?.action) }) : []
       // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
@@ -2192,6 +2197,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (!dropHeldForUndo(held)) push({ role: 'agent', text: UNDO_AFTER_NOTHING })
       }
       undoneFirstRef.current = false
+      // W2 audit: a partly-possible request never reads as complete — what wasn't done is said last, in UCT's own words
+      for (const t of notDoneRef.current || []) push({ role: 'refusal', text: t })
+      if (notDoneRef.current?.length) record({ member: null, outcome: notDoneRef.current.join(' '), outcomeData: { kind: 'not-done' }, telemetry: { path: 'model', voice } })
+      notDoneRef.current = null
       lockRef.current = false
       setBusy(false)
       setActivity(null)

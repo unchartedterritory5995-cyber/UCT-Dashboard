@@ -15,6 +15,7 @@ import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { touchesCharts, arrangesBoard } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
 import { selectGroups, routeManifest } from './routing'
+import { notDoneLines } from './notDone'
 import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
 const FULLM = manifestFor({ surface: 'charts', createIndicator: true })
 const LIM = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
@@ -317,5 +318,43 @@ describe('AUDIT · "Show me NVDA\'s recent pullbacks." routes `data` (stock.dail
   })
   it('a possessive ticker after a show verb is a chart symbol too', () => {
     expect(selectGroups('show NVDA\'s chart').selected).toContain('charts')
+  })
+})
+
+// ═══ AUDIT · a partly-possible request does the possible part AND says what wasn't done ═════════════════
+describe('AUDIT · "…to weekly and email me a screenshot of it" — the change runs, the rest is said as NOT DONE (fixed sentences)', () => {
+  const CASES = [
+    ['Change the SPY chart to weekly and email me a screenshot of it.', /Not done: I can’t send email/],
+    ['switch SPY to the weekly and set an alert that texts me by SMS when it crosses 600', /Not done: I can’t send text messages \(SMS\)/],
+    ['put my SPY chart on the weekly and then place a trade to buy 100 shares', /Not done: I can’t place trades or orders/],
+    ['make the SPY chart weekly and print it out for me', /Not done: I can’t print/],
+    ['change SPY to weekly and export the chart data to Excel', /Not done: I can’t export to Excel/],
+  ]
+  for (const [said, line] of CASES) {
+    it(said, async () => {
+      const { h, say } = mount(...HALF())
+      envelopes.push(b => env('apply', [{ action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } }]))
+      await say(said)
+      await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+      expect(receipts()).toHaveLength(1)
+      await waitFor(() => expect(transcript()).toMatch(line))
+      // said AFTER the receipt — the request never reads as complete
+      const t = transcript()
+      expect(t.indexOf('Not done:')).toBeGreaterThan(t.indexOf('Switched timeframe to Weekly'))
+    }, 30000)
+  }
+  it('the server\'s category alone (words UCT does not recognise) → its fixed sentence, or the generic one — never the model\'s prose', async () => {
+    const { h, say } = mount(...HALF())
+    envelopes.push(b => ({ ...env('apply', [{ action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } }]), unsupported_category: 'fax' }))
+    await say('weekly on spy and fax the thing over to my office')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+    await waitFor(() => expect(transcript()).toMatch(/Not done: part of your request isn’t something UCT Agent can do/))
+  }, 30000)
+  it('a fully supported request says nothing extra; a part a planned action covers (the email digest) is never "not done"', () => {
+    expect(notDoneLines('change SPY to weekly')).toEqual([])
+    expect(notDoneLines('email me my Momentum watchlist every morning', { actions: ['settings.setWatchlistDigest'] })).toEqual([])
+    expect(notDoneLines('dark pool prints over $10M')).toEqual([])
+    expect(notDoneLines('is NVDA near a buy point')).toEqual([])
+    expect(notDoneLines('show me the sell-off')).toEqual([])
   })
 })
