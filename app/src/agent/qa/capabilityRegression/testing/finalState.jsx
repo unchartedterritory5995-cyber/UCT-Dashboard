@@ -14,14 +14,14 @@ export function finalStateSuite(slice) {
       for (const ph of phrasingsOf(intent)) {
         const { run, tag } = gapIt(ph.gaps?.c)
         run(`"${ph.text}"${tag}`, async () => {
-          await replay({ board: intent.board, steps: [...(intent.before || []), ...(ph.prelude || []).map(say => ({ say })),
+          await replay({ board: intent.board, seed: intent.seed, steps: [...(intent.before || []), ...(ph.prelude || []).map(say => ({ say })),
             { say: ph.text, model: intent.model, expect: intent.expect, approve: intent.approve, afterApprove: intent.afterApprove }] }, `${intent.id} "${ph.text}"`)
         }, 40000)
       }
       if (intent.undo) {
         const first = phrasingsOf(intent)[0]
         it(`undo: "${first.text}" then "${intent.undo.say}" puts it back`, async () => {
-          await replay({ board: intent.board, steps: [...(intent.before || []), { say: first.text, model: intent.model, expect: intent.expect }, intent.undo] }, `${intent.id} undo`)
+          await replay({ board: intent.board, seed: intent.seed, steps: [...(intent.before || []), { say: first.text, model: intent.model, expect: intent.expect }, intent.undo] }, `${intent.id} undo`)
         }, 40000)
       }
     })

@@ -81,8 +81,8 @@ export function checkExpect(ctx, e, label) {
  * Replay steps on a fresh panel. step = { say, model?: { ops, disposition }, expect, approve?: true, afterApprove? }.
  * Each step's expectations are retried until they hold (UI work settles asynchronously) and then asserted.
  */
-export async function replay({ board: boardName = 'ONE', steps }, label) {
-  const m = mountCase(boardName)
+export async function replay({ board: boardName = 'ONE', steps, seed = {} }, label) {
+  const m = mountCase(boardName, { seed })
   const { p, board, say } = m
   const start = boardState(board)
   for (const [i, s] of steps.entries()) {

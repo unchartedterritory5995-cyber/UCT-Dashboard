@@ -53,9 +53,9 @@ export function resolveTarget(t, body) {
 }
 export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: o.args }))
 
-export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS } = {}) {
+export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   const p = setupPanel()
-  const st = { log: [], alerts: [] }
+  const st = { log: [], alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
