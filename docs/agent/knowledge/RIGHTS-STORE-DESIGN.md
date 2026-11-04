@@ -1,6 +1,6 @@
 # Rights clearances: one authoritative server store (design note, QA #793 round 3)
 
-Status: PROPOSAL for review, 2026-11-04. No code yet. Brain stays OFF; nothing is cleared anywhere.
+Status: PROPOSAL, 2026-11-04 (owner: write the redesign only; no implementation yet). No code yet. Brain stays OFF; nothing is cleared anywhere.
 
 ## Problem
 Clearances live in `policy.json` and an audit log that ship through the repository, but the anchor that protects
@@ -27,6 +27,31 @@ anchor row with plain SQLite. Layering MACs over editable files keeps producing 
   server table (accounts, alerts, transcripts). The store adds no cryptography against that access. The key stops
   anyone without production shell access, and any repository edit, from clearing anything. The events table is the
   audit trail. **The tool cannot verify that a human review happened; that is process, and the owner signs.**
+
+## Authorization, tamper detection, recovery
+- **Authorization:**
+  - A write needs all three: a production shell (a trusted operator), `UCT_KN_RIGHTS_KEY` present on that service
+    (the CLI refuses without it), and `--by NAME`. The name is recorded, not verified: it is an attribution, not an
+    identity check.
+  - No HTTP route writes the store, so the web surface gains nothing.
+  - The runtime only reads the store.
+  - Usage limits are enforced inside the same transaction as the write, from the events table, which is the record of
+    usage: 10 per run, 20 per UTC day, 25 in total, or a bulk approval's `max_rows` up to 200.
+- **Tamper detection (detection, not prevention):**
+  - Each event row stores `prev_hash` and `hash = sha256(prev_hash + canonical row)`.
+  - Every CLI write and a daily health check walk the chain and recompute the cleared set from the events.
+  - A mismatch (an edited, deleted or reordered event, or a `kn_cleared_rows` row with no event behind it) does three
+    things: the runtime serves NO cleared rows, the CLI refuses further writes, and the existing Agent health alert
+    fires.
+  - Someone with database access can still rewrite the whole chain consistently. That is the stated trust boundary,
+    the same as for every other server table.
+- **Recovery:**
+  - A failed write rolls back as one transaction, leaving no half-written state.
+  - A broken chain is resolved by the owner with `verify` (it names the first bad event) and then
+    `rebuild --by NAME --reason TEXT`. `rebuild` re-derives `kn_cleared_rows` from the verified events up to the
+    first break, records a `rebuilt` event, and never accepts state from the repository export.
+  - The store is covered by the platform's volume backups like `/data`; a restore is a rollback the owner chooses
+    knowingly.
 
 ## How it deploys
 - The tables are created on the first write, and production starts empty: nothing is cleared, exactly as today.
