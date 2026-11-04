@@ -735,7 +735,7 @@ def _diff_addresses() -> list:
 def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     from tools import alert_soak_matrix as soak
     expected = {s["address"] for s in soak.catalog_addresses()}
-    # ⚠️ 31 SINCE PHASE C TASK 10, AND SINCE TASK 15 THE DIFF DRIVES ALL 31.
+    # ⚠️ 32 SINCE 2026-11-04 (`ma_cross`); 31 SINCE PHASE C TASK 10, AND SINCE TASK 15 THE DIFF DRIVES THEM ALL.
     # The soak reads `alert_catalog()` at runtime, so it grew with it; the
     # frozen replay GRID still enumerates `INDICATOR_FUNCS` alone and always
     # will (`--check`'s 691,195 fires are recorded against exactly that grid,
@@ -743,10 +743,15 @@ def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     # of a 29th key). What changed is the DIFF, which adds the event and price
     # addresses on top of the grid — so this difference is now EMPTY, and it is
     # asserted as an equality rather than loosened to `>= 30`.
-    assert len(expected) == 31, (
-        f"the catalog has {len(expected)} addresses, not 31 — the matrix and "
+    assert len(expected) == 32, (
+        f"the catalog has {len(expected)} addresses, not 32 — the matrix and "
         "the catalog have drifted apart")
-    assert expected - set(_diff_addresses()) == set(), (
+    # ⭐ 2026-11-04 — EXCEPT the CLOSED-ONLY addresses, BY DECISION: `ma_cross` is
+    # judged on the closed bar under either lane (`ev.CLOSED_ONLY_ADDRESSES`), so
+    # a forming-vs-closed diff of it would compare the closed lane with itself.
+    # Its exclusion is declared there, not omitted here.
+    assert set(ev.CLOSED_ONLY_ADDRESSES) == {"ma_cross"}
+    assert expected - set(_diff_addresses()) == set(ev.CLOSED_ONLY_ADDRESSES), (
         "the soak arms an address the --diff instrument does not drive: "
         f"{sorted(expected - set(_diff_addresses()))}. An address nobody drove "
         "is an address whose cutover behaviour is undeclared by omission "
@@ -759,11 +764,11 @@ def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     assert sorted(first["created"]) == sorted(expected)
     again = soak.arm("owner-1", "SPY", "5", 30)
     assert again["created"] == [], "re-arming duplicated the matrix"
-    assert len(soak.soak_rows()) == 31
+    assert len(soak.soak_rows()) == 32
 
     out = soak.verify()
-    assert out["armed"] == 31
-    assert out["visible_to_shadow"] == 31, (
+    assert out["armed"] == 32
+    assert out["visible_to_shadow"] == 32, (
         "the shadow lane cannot see the matrix — the soak would observe nothing "
         "and Task 8's three-session gate would pass VACUOUSLY")
     assert out["deliverable_now"] == 0
@@ -799,7 +804,7 @@ def test_the_soak_matrix_CANNOT_deliver_even_when_every_alert_triggers(
         "owner")
     assert fl.count_fires() == 0, "a snoozed alert consumed its episode key"
     # and the lane the soak exists to feed still sees every one of them
-    assert len({a["id"] for a in ias.list_active()}) == 31
+    assert len({a["id"] for a in ias.list_active()}) == 32
 
 
 def test_route_latency_states_the_worst_case_per_timeframe(client):

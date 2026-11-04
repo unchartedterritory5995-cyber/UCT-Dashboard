@@ -316,3 +316,63 @@ describe('Brain-led coach answers store a citation-only marker, never passage or
     expect(JSON.stringify(p.lastTurnBody())).not.toContain('close back inside the base')
   })
 })
+
+// ── #751 review B-1: a passage the Brain flags as COMMENTARY is never presented as UCT's playbook ────────────────────
+describe('#751 B-1 — commentary_only / mentions_excluded_setup passages are labelled team commentary on every path', () => {
+  const FLAGGED = { ...PASSAGE, kb_id: 61, title: 'Watching a cup and handle', excerpt: 'Watching this one into the pivot; it may or may not work.',
+    source: "the UCT team's own posts", mentions_excluded_setup: ['Cup with Handle'], commentary_only: true }
+  const LABEL = `UCT team commentary that mentions Cup with Handle (not UCT's definition of it) — ${FLAGGED.title}: ${FLAGGED.excerpt} (${FLAGGED.source})`
+  it('setup path (playbook refuses the template): the commentary follows the no-definition statement, labelled, never "closest approved passage"', async () => {
+    await bootBoth({ kinds: ['bars.daily', BRAIN_KIND], search: searchEnv([FLAGGED]) })
+    const out = await explainConcept('Cup with Handle', host())
+    expect(out.text).toBe(`UCT can't currently retrieve an approved playbook definition for Cup with Handle, so I won't give one here. Related UCT team commentary:\n${LABEL}\n\n${FOOTER}`)
+    expect(out.text).not.toContain("From UCT's playbook")
+    expect(out.text).not.toContain('closest approved passage')
+    expect(out.storedAs).toContain('team commentary knowledge base entry #61')
+  })
+  it('no-concept path: the passage is labelled commentary, never "From UCT\'s playbook"', async () => {
+    await bootBoth({ kinds: ['bars.daily', BRAIN_KIND], search: searchEnv([FLAGGED]) })
+    const out = await explainConcept('the team on patience', host())
+    expect(out.text).toBe(`${LABEL}\n\n${FOOTER}`)
+    expect(out.text).not.toContain("From UCT's playbook")
+  })
+  it('concept path: the coach note leads and the commentary follows it, labelled', async () => {
+    await bootBoth({ kinds: ['bars.daily', BRAIN_KIND], search: searchEnv([FLAGGED]) })
+    const out = await explainConcept('failed breakout', host())
+    expect(out.text).toBe(`${CONCEPTS[0].text}\n\n${LABEL}\n\n${FOOTER}`)
+    expect(out.text).not.toContain("From UCT's playbook")
+  })
+  it('absent flags (master today): byte-identical to before', async () => {
+    await bootBoth({ kinds: ['bars.daily', BRAIN_KIND] })
+    expect((await explainConcept('failed breakout', host())).text).toBe(`${LEAD}\n\n${CURATED}`)
+  })
+})
+
+// ── pre-activation: under planner v2 a coach message takes the v1 path, so the coach's ACTIONS are shown ────────────
+import { isCoachMessage } from './capabilities/coach'
+
+describe('planner v2 browser: coach messages are served on the v1 path (their actions shown, not only the reply)', () => {
+  it('🔴 PANEL: a model-planned coach.explain under a v2 server shows the coach answer (the v1 request, the action run)', async () => {
+    reset()
+    const p = setupPanel()
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url)
+      if (u === '/api/agent/config') return json({ stream: false, data: false, data_kinds: [], coach: true, planner: 'v2' })
+      if (u === '/api/agent/coach/concepts') return json({ concepts: CONCEPTS, footer: FOOTER })
+      return base(url, init)
+    })
+    const { say } = p.mount(...ONE('NVDA'))
+    await loadConcepts()
+    expect(isCoachMessage('coach, I keep cutting my winners early')).toBe(true)
+    expect(isCoachMessage('switch to weekly')).toBe(false)
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'coach.explain', target: body.context.coach[0].ref, args: { topic: 'failed breakout' } }]))
+    await say('coach, I keep cutting my winners early')
+    expect(p.st.calls.some(c => c[1] === '/api/agent/turn')).toBe(true)          // the v1 request, not the v2 step loop
+    expect(p.transcript()).toContain('A move through a level.')                     // the coach's action ran and is shown
+  })
+  it('isCoachMessage is false while the coach is not registered (dark)', () => {
+    reset()
+    expect(isCoachMessage('coach me on failed breakouts')).toBe(false)
+  })
+})

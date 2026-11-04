@@ -34,8 +34,14 @@ function slim(r) {
     id: String(r.id), sym: String(r.sym || '').toUpperCase(), indicator: String(r.indicator || ''), condition: r.condition || null,
     threshold: r.threshold == null ? null : Number(r.threshold), tf: String(r.tf || 'D'), active: !!r.active,
     instanceId: r.instance_id ? String(r.instance_id) : null, scope: r.scope || null, state: r.state || null,
-    params: r.params_json && typeof r.params_json === 'object' ? r.params_json : null,
+    params: paramsOf(r.params_json),
   }
+}
+/** `params_json` as served (an object, or the stored JSON string) → an object, or null. */
+function paramsOf(raw) {
+  if (raw && typeof raw === 'object') return raw
+  if (typeof raw === 'string' && raw.trim()) { try { const o = JSON.parse(raw); return o && typeof o === 'object' ? o : null } catch { return null } }
+  return null
 }
 const rowSig = (a) => JSON.stringify([a.id, a.sym, a.indicator, a.condition, a.threshold, a.tf, a.active])
 
@@ -74,25 +80,73 @@ const plotsOf = (entry) => (Array.isArray(entry?.plots) && entry.plots.length ? 
 function plotsForInstance(catalog, inst) {
   const out = []
   for (const e of catalog || []) for (const p of plotsOf(e)) {
-    if (instancesForAddress([{ instanceId: inst.instanceId, defId: inst.defId }], p.value).length) out.push({ ...p, entryLabel: e.label })
+    const declared = Array.isArray(p.instance_defs) && p.instance_defs.includes(inst.defId)
+    if (declared || instancesForAddress([{ instanceId: inst.instanceId, defId: inst.defId }], p.value).length) out.push({ ...p, entryLabel: e.label })
   }
   return out
 }
 const plotLabel = (p) => p.label || p.value
 const condLabel = (p, c) => (p.conditions || []).find(x => x.value === c)?.label || c
 
-/** The instance named by `instance` across the board's charts: { inst, chart } (the first chart), or null. */
+// ── LT-13 (live 2026-11-03): a HUMAN reference to an indicator on the chart ─────────────────────────────
+// "mark when the 9 ema crosses above the 20" → the model sent instance "EMA 9" (the name the indicators entry shows)
+// instead of its id, and create refused although EMA 9 was on the chart. An `instance` that is no id on any chart is
+// read as a reference to the chart's OWN instances, deterministically: its words and its first number against each
+// instance's name ("EMA 9", "RSI (7)") — "EMA 9", "9 ema", "ema9", "the 20". Exactly ONE instance must match;
+// several is an explicit question, none is the existing refusal. Nothing else about the alert changes: the id it
+// resolves to is the instance's own, so the payload is the one the id would have produced.
+const REF_STOP = new Set(['the', 'a', 'an', 'my', 'line', 'indicator', 'on', 'this', 'chart', 'period'])
+function refParts(text) {
+  const toks = String(text || '').toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?/g) || []
+  const words = toks.filter(t => /^[a-z]/.test(t) && !REF_STOP.has(t))
+  const num = toks.find(t => /^\d/.test(t))
+  return { words, num: num == null ? null : Number(num) }
+}
+function refMatches(ref, inst) {
+  if (inst.setting) return false                        // Volume is a chart setting, never an alertable instance
+  const own = refParts(inst.name)
+  const num = inst.defId === 'movingAverage' && Number.isFinite(Number(inst.inputs?.period)) ? Number(inst.inputs.period) : own.num
+  if (!ref.words.length && ref.num == null) return false
+  if (ref.num != null && num !== ref.num) return false
+  // every word of the reference, in order, starts the instance's own words ("bollinger" → "Bollinger Bands")
+  return ref.words.every((w, i) => own.words[i] === w)
+}
+/** The single instance a human reference names across the board's charts: hits [{ inst, chart }], [] when none. */
+function resolveInstanceRef(charts, text) {
+  const ref = refParts(text)
+  const exact = String(text || '').trim().toLowerCase()
+  const hits = [], named = []
+  for (const c of charts) {
+    const insts = indicatorsOn(c.cs).filter(i => !i.setting)
+    // an exact (case-insensitive) name wins over the word/number reading on that chart
+    const byName = insts.filter(i => String(i.name || '').toLowerCase() === exact)
+    for (const inst of (byName.length ? byName : insts.filter(i => refMatches(ref, i)))) hits.push({ inst, chart: c })
+  }
+  for (const h of hits) if (!named.includes(h.inst.name)) named.push(h.inst.name)
+  return { hits, named }
+}
+
+/** The instance named by `instance` (its id, or LT-13 a human reference to it) across the board's charts:
+ * { inst, chart } (the first chart), { ambiguous } (several charts), { ambiguousRef } (several instances), or null. */
 function findInstance(host, instanceId) {
   const id = String(instanceId || '')
   if (!id) return null
   let charts = []
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
-  const hits = []
+  let hits = []
   for (const c of charts) {
     const inst = indicatorsOn(c.cs).find(i => i.instanceId === id)
     if (inst) hits.push({ inst, chart: c })
   }
-  if (!hits.length) return null
+  if (!hits.length) {
+    const r = resolveInstanceRef(charts, id)
+    if (!r.hits.length) return null
+    // two different instances on ONE chart (EMA 20 and SMA 20 for "the 20"), or two differently named ones: ask
+    const perChart = new Map()
+    for (const h of r.hits) perChart.set(h.chart, (perChart.get(h.chart) || 0) + 1)
+    if (r.named.length > 1 || [...perChart.values()].some(n => n > 1)) return { ambiguousRef: r.named }
+    hits = r.hits
+  }
   // the same instance id on two charts with different symbols is two different alerts: ask
   if (new Set(hits.map(h => `${h.chart.symbol}|${h.chart.tf}`)).size > 1) return { ambiguous: hits }
   return hits[0]
@@ -101,6 +155,10 @@ const money = (n) => (Number.isFinite(n) ? (Math.abs(n) >= 1000 ? `$${n.toLocale
 /** "NVDA RSI (14) above 70 (D)" */
 export const indicatorAlertPhrase = (a, label = null) => `${a.sym} ${label || a.indicator} ${a.condition ? a.condition.replace(/_/g, ' ') : ''}${a.threshold != null ? ` ${money(a.threshold)}` : ''} (${a.tf})`.replace(/\s+/g, ' ')
 const labelFor = (a) => {
+  if (a.params && isCrossAddress(a.indicator) && a.params.fast != null && a.params.slow != null) {
+    const t = String(a.params.ma_type || 'ema').toUpperCase()
+    return `${t} ${a.params.fast} / ${t} ${a.params.slow}`
+  }
   for (const e of cache.catalog || []) for (const p of plotsOf(e)) if (p.value === a.indicator) return p.label || e.label || a.indicator
   return a.indicator
 }
@@ -166,7 +224,9 @@ export const indicatorAlertLibraryKind = {
     try { await loadIndicatorAlerts(host, { force: true }); return { ok: true } } catch { return { ok: false, what: 'your indicator alerts' } }
   },
 }
+const crossKey = (params) => (params ? JSON.stringify([String(params.ma_type || '').toLowerCase(), Number(params.fast), Number(params.slow)]) : '')
 const sameAlert = (a, c) => a.sym === c.sym && a.indicator === c.indicator && a.condition === c.condition && (a.threshold ?? null) === (c.threshold ?? null) && a.tf === c.tf
+  && (!isCrossAddress(a.indicator) || crossKey(a.params) === crossKey(c.params))
 
 export const indicatorAlertKind = {
   name: 'indicatorAlert',
@@ -245,15 +305,19 @@ export function registerIndicatorAlertCapabilities() {
     target: 'indicatorAlertLibrary',
     risk: 'confirm',
     createsResource: true,
-    summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band…), exactly as the chart\'s Indicator Alerts popover does: the alert watches that chart\'s symbol and timeframe with the instance\'s own settings. Undo deletes it.',
+    summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), exactly as the chart\'s Indicator Alerts popover does: the alert watches that chart\'s symbol and timeframe with the instance\'s own settings. Undo deletes it.',
     hints: 'target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); '
       + 'plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; '
       + 'condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: "crosses above 70" = cross_above 70; "is over 70" = above 70); '
       + 'threshold = the level as a number when the condition has one, else null. A PRICE level alert ("when NVDA hits 150") is alert.create, not this. '
+      + 'MA cross ("the 9 ema crosses above the 20"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. '
       + 'Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.',
     args: { type: 'object', properties: {
       instance: { type: 'string' }, plot: { type: ['string', 'null'] }, condition: { type: 'string' }, threshold: { type: ['number', 'null'] },
-    }, required: ['instance', 'plot', 'condition', 'threshold'], additionalProperties: false },
+      crossWith: { type: ['string', 'null'] },
+    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith'], additionalProperties: false },
+    // 2026-11-04 — `crossWith` was ADDED; an arg shape from before it (key left out) reads as null.
+    absentAsNull: ['crossWith'],
     async prepare() {
       const host = hostRef
       let catalog = null, fresh = false
@@ -261,9 +325,10 @@ export function registerIndicatorAlertCapabilities() {
       try { await loadIndicatorAlerts(host, { force: true }); fresh = true } catch { fresh = false }
       return { iaCatalog: catalog, iaBookFresh: fresh }
     },
-    check(st, { instance, plot, condition, threshold }, env) {
+    check(st, { instance, plot, condition, threshold, crossWith = null }, env) {
       const found = findInstance(hostRef, instance)
       if (!found) return `There's no indicator “${instance}” on your charts — use an id from the indicators entry, or add the indicator to a chart first.`
+      if (found.ambiguousRef) return `“${instance}” could be ${found.ambiguousRef.length > 1 ? found.ambiguousRef.join(' or ') : `more than one ${found.ambiguousRef[0]}`} on your chart — say which indicator the alert is for.`
       if (found.ambiguous) return `That indicator is on ${found.ambiguous.length} charts with different symbols — say which chart the alert is for.`
       if (!env?.iaCatalog) return 'I couldn\'t read which indicator alerts UCT offers right now, so nothing was created — try again in a moment.'
       if (!env?.iaBookFresh) return 'I couldn\'t read your indicator alerts just now, so nothing was created — try again in a moment.'
@@ -277,17 +342,25 @@ export function registerIndicatorAlertCapabilities() {
       const cond = (p.conditions || []).find(c => c.value === condition)
       if (!cond) return `${plotLabel(p)} can alert on ${(p.conditions || []).map(c => `${c.value} (${c.label})`).join(', ')} — not “${condition}”.`
       if (cond.needs_threshold && !Number.isFinite(threshold)) return `Say the level for “${cond.label}” on ${plotLabel(p)} (a number).`
+      let cross = null
+      if (isCrossPlot(p)) {
+        cross = resolveCross(found, crossWith, condition)
+        if (typeof cross === 'string') return cross
+      } else if (crossWith != null && String(crossWith).trim()) {
+        return `${plotLabel(p)} alerts on one line — “crossWith” is only for a moving-average cross.`
+      }
       if (st.creates.length >= MAX_CREATES) return `That's more than ${MAX_CREATES} alerts in one request — ask for them in smaller groups.`
-      const c = toCreate(found, p, condition, cond.needs_threshold ? threshold : null)
+      const c = toCreate(found, p, condition, cond.needs_threshold ? threshold : null, cross)
       if (st.alerts.find(a => a.active && sameAlert(a, c)) || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(c)}.`
       return null
     },
-    apply(st, { instance, plot, condition, threshold }, env) {
+    apply(st, { instance, plot, condition, threshold, crossWith = null }, env) {
       const found = findInstance(hostRef, instance)
       const plots = plotsForInstance(env.iaCatalog, found.inst)
       const p = plot != null ? plots.find(x => x.value === String(plot)) : plots[0]
       const cond = (p.conditions || []).find(c => c.value === condition)
-      return { ...st, creates: [...st.creates, toCreate(found, p, condition, cond.needs_threshold ? threshold : null)] }
+      const cross = isCrossPlot(p) ? resolveCross(found, crossWith, condition) : null
+      return { ...st, creates: [...st.creates, toCreate(found, p, condition, cond.needs_threshold ? threshold : null, cross)] }
     },
     describe(b, a) {
       if (a.creates.length <= b.creates.length) return null
@@ -327,8 +400,66 @@ export function registerIndicatorAlertCapabilities() {
   })
 }
 
+// ── 2026-11-04: MOVING-AVERAGE CROSS (`ma_cross`, the canonical engine's address) ─────────────────────────
+// Two chart averages → ONE alert body: {ma_type, fast, slow, direction, confirm: 'close'}. The catalog decides
+// that an address is a cross (it reads `instance_defs` — `movingAverage` — and declares fast/slow knobs); nothing
+// here enumerates indicators. The stored alert always reads FAST vs SLOW: "the 50 crosses above the 20" is the
+// 20 crossing BELOW the 50, so the pair is swapped and the rule inverted rather than refused.
+const CROSS_TYPES = new Set(['ema', 'sma'])
+const isCrossPlot = (p) => !!p && Array.isArray(p.instance_defs) && p.inputs && 'fast' in p.inputs && 'slow' in p.inputs && 'ma_type' in p.inputs
+function isCrossAddress(address) {
+  for (const e of cache.catalog || []) for (const p of plotsOf(e)) if (p.value === address) return isCrossPlot(p)
+  return address === 'ma_cross'
+}
+const INVERT = { cross_above: 'cross_below', cross_below: 'cross_above' }
+const maOf = (inst) => {
+  const i = inst?.inputs || {}
+  const period = Number(i.period)
+  const off = Number(inst?.presentation?.offset ?? i.offset ?? 0)
+  return { type: String(i.maType || 'sma').toLowerCase(), period, source: i.source == null ? 'close' : String(i.source), offset: Number.isFinite(off) ? off : 0 }
+}
+/** The cross the two instances describe, or the sentence that says why they can't. */
+function resolveCross(found, crossWith, condition) {
+  const a = found.inst
+  if (!crossWith || !String(crossWith).trim()) return `Which average should ${a.name || 'it'} cross — say the other moving average on the chart (e.g. the 20).`
+  const other = findInstance(hostRef, crossWith)
+  if (!other) return `There's no indicator “${crossWith}” on your charts — use an id from the indicators entry, or add that moving average first.`
+  if (other.ambiguousRef) return `“${crossWith}” could be ${other.ambiguousRef.length > 1 ? other.ambiguousRef.join(' or ') : `more than one ${other.ambiguousRef[0]}`} on your chart — say which average.`
+  if (other.ambiguous) return `That average is on ${other.ambiguous.length} charts with different symbols — say which chart the alert is for.`
+  const b = other.inst
+  if (a.instanceId === b.instanceId) return 'A crossover needs two different moving averages — name the second one.'
+  if (String(found.chart.symbol || '').toUpperCase() !== String(other.chart.symbol || '').toUpperCase() || String(found.chart.tf || 'D') !== String(other.chart.tf || 'D')) {
+    return 'Both averages must be on the same chart (symbol and timeframe) for a crossover alert.'
+  }
+  if (b.defId !== a.defId) return `${b.name || crossWith} isn't a moving average — a crossover alert compares two moving averages.`
+  const ma = maOf(a), mb = maOf(b)
+  if (ma.source !== 'close' || mb.source !== 'close') return 'Crossover alerts watch averages of the close — one of these averages another series.'
+  // a line drawn SHIFTED (offset ≠ 0) crosses on a different bar than the alert would judge
+  if (ma.offset !== 0 || mb.offset !== 0) return `${ma.offset !== 0 ? a.name : b.name} is drawn with an offset, so its line crosses on a different bar than the alert would judge — set its offset to 0 first.`
+  if (!CROSS_TYPES.has(ma.type) || !CROSS_TYPES.has(mb.type)) return 'Crossover alerts support EMA and SMA averages only.'
+  if (ma.type !== mb.type) return `${a.name} and ${b.name} are different kinds of average — a crossover alert compares two EMAs or two SMAs.`
+  if (!Number.isFinite(ma.period) || !Number.isFinite(mb.period)) return 'I couldn\'t read the periods of those averages — try again in a moment.'
+  if (ma.period === mb.period) return `${a.name} and ${b.name} have the same period, so they can't cross.`
+  const swapped = ma.period > mb.period
+  const rule = swapped ? INVERT[condition] || condition : condition
+  const fast = swapped ? b : a
+  const slow = swapped ? a : b
+  return {
+    rule, fastInst: fast, slowInst: slow,
+    params: { ma_type: ma.type, fast: Math.min(ma.period, mb.period), slow: Math.max(ma.period, mb.period), direction: rule === 'cross_below' ? 'below' : 'above', confirm: 'close' },
+  }
+}
+
 /** The alert to create, from the chart the instance is on and the catalog's plot — the popover's own fields. */
-function toCreate(found, p, condition, threshold) {
+function toCreate(found, p, condition, threshold, cross = null) {
+  if (cross) {
+    const t = cross.params.ma_type.toUpperCase()
+    return {
+      sym: String(found.chart.symbol || '').toUpperCase(), tf: String(found.chart.tf || 'D'), indicator: p.value, condition: cross.rule,
+      threshold: null, params: cross.params, instanceId: cross.fastInst.instanceId,
+      label: `${t} ${cross.params.fast} / ${t} ${cross.params.slow}`, condLabel: condLabel(p, cross.rule), base: addressBase(p.value),
+    }
+  }
   const keys = Object.keys(p.inputs || {})
   // the instance's own settings for the knobs the plot declares (the popover: the catalog's shape, the instance's values)
   const params = keys.length ? Object.fromEntries(keys.map(k => [k, found.inst.inputs && found.inst.inputs[k] !== undefined ? found.inst.inputs[k] : p.inputs[k]])) : null

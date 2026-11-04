@@ -9685,8 +9685,8 @@
     "name": "indicatorAlert.create",
     "domain": "indicatorAlert",
     "target": "indicatorAlertLibrary",
-    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band…), exactly as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
-    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), exactly as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
+    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. MA cross (\"the 9 ema crosses above the 20\"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
     "args": {
      "type": "object",
      "properties": {
@@ -9707,13 +9707,20 @@
         "number",
         "null"
        ]
+      },
+      "crossWith": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
       "instance",
       "plot",
       "condition",
-      "threshold"
+      "threshold",
+      "crossWith"
      ],
      "additionalProperties": false
     },

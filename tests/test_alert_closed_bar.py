@@ -486,7 +486,7 @@ def test_the_series_table_covers_every_address_and_nothing_else():
     side that is still hand-written.
     """
     assert set(alert_series.SERIES_FUNCS) == set(ev.all_addresses())
-    assert len(alert_series.SERIES_FUNCS) == 31  # 28 levels + 2 events + close
+    assert len(alert_series.SERIES_FUNCS) == 32  # 28 levels + 2 events + close + ma_cross
 
 
 def test_series_for_asserts_its_length_rather_than_trusting_it(wick):
@@ -881,7 +881,7 @@ def test_the_measured_closed_lane_dead_set_is_exactly_chikou_today():
     # the non-vacuity floor: the measurement EXCLUDED things, it did not pass
     # everything through.
     assert ias.closed_lane_pad("rsi", instant, {}) == 0
-    assert len(ev.all_addresses()) == 31
+    assert len(ev.all_addresses()) == 32  # 2026-11-04: +1 `ma_cross` (CROSS partition)
 
 def test_the_docstring_cannot_contradict_the_constant():
     """⛔⛔ PROSE ABOUT A SAFETY SWITCH, RAILED AGAINST THE SWITCH ITSELF.

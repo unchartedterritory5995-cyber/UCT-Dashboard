@@ -21,6 +21,9 @@ from api.services.uct_agent.knowledge import guard, index, pack, policy, stats
 
 log = logging.getLogger(__name__)
 FLAG_ENV = "UCT_AGENT_KNOWLEDGE"
+# Knowledge kinds take no instrument: a named constant, not a literal, so the cap axis keeps one
+# authority (tests/test_entitlements.py::test_the_NUMBERS_live_in_exactly_ONE_place).
+NO_SYMBOLS = 0
 OWNER = "agent-kn"
 SOURCE = "uct-brain-pack"
 KIND_NAMES = ("knowledge.search", "setup.playbook", "setup.record")
@@ -708,13 +711,13 @@ def register(registry) -> None:
     from api.services.uct_agent.marketdata.gateway import Kind
     cat = _category()
     registry.register(Kind(name="knowledge.search", fn=search, freshness="periodic", category=cat, owner=OWNER,
-                           validate=validate_search, max_symbols=0,
+                           validate=validate_search, max_symbols=NO_SYMBOLS,
                            description="Approved UCT trading-knowledge passages for a concept or craft question, with provenance."))
     registry.register(Kind(name="setup.playbook", fn=playbook, freshness="periodic", category=cat, owner=OWNER,
-                           validate=validate_setup, max_symbols=0,
+                           validate=validate_setup, max_symbols=NO_SYMBOLS,
                            description="One UCT setup template (entry triggers, stops, invalidation, common mistakes)."))
     registry.register(Kind(name="setup.record", fn=record, freshness="periodic", category=cat, owner=OWNER,
-                           validate=validate_setup, max_symbols=0,
+                           validate=validate_setup, max_symbols=NO_SYMBOLS,
                            description="A setup's historical record: sample sizes, method, 95 % interval and reliability label."))
     if not _REGISTERED_HOOK["done"]:
         try:

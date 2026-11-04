@@ -128,6 +128,53 @@ ORDER = [
     ("take-trade", re.compile(r"\b(?:take|make) (?:the|this|that) trade\b|\bpull the trigger\b|\bget in (?:now|here|today)\b|\bget out (?:now|here|today)\b", re.I)),
 ]
 
+# ── pre-activation (held-out eval, 2026-11-03): advice / promise / hype BY CLASS, not by phrase ─────────────────────
+# A trade verb or object near an advisory stance, a timing phrase, a confident prediction, a certainty, or a hype noun.
+# Measured against app/src/agent/__fixtures__/coachGuardHeldout.json (never tuned on it; sibling phrasings live in
+# coachGuardCases.json). The browser mirror (coach/guard.js CLASS_PATTERNS) carries the IDENTICAL pattern strings
+# (tests/test_uct_agent_coach_guard.py checks them).
+_TRADE = (r"(?:buy(?:ing|er|ers|s)?|sell(?:ing|er|s)?|short(?:ing)?|add(?:ing)? (?:to|some|more|exposure)|adding|accumulat\w*|"
+          r"trim(?:ming)?|lighten(?:ing)?(?: up)?|take (?:profits?|gains|some off)|taking (?:profits?|gains)|"
+          r"get(?:ting)? (?:in|out|long|short|positioned)|positioned|own(?:ing)? (?:some|it|this|them|shares)|own some|"
+          r"exit(?:ing)?|enter(?:ing)?|load(?:ing)? (?:up|the boat)|pick(?:ing)? (?:some |it |them |a few )?up|grab(?:bing)?|"
+          r"scoop(?:ing)?|dump(?:ing)?|ditch(?:ing)?|cut(?:ting)? (?:it|this|the|your|losses|loser)|bail(?:ing)?(?: out)?|jump(?:ing)? in|"
+          r"pile (?:in|into)|go(?:ing)? (?:long|short|all in)|exposure|(?:a |an )?(?:small |starter |full |initial )?position|be in this|"
+          r"(?:this|the|that) entry)")
+CLASS_PATTERNS = [
+    # order: an advisory stance (first person / "you should" / "it might be smart") with a trade verb close by
+    ("order", "advisory-stance", r"\b(?:i'?d|i would|i'm|i am|i will|i'll|personally|if i were you|in your (?:shoes|position)|"
+                                 r"my (?:move|play|pick|call|advice|suggestion|recommendation)|you (?:should|ought to|need to|must)(?: really)?|"
+                                 r"you'd (?:want|be wise|be smart|do well)|it (?:might|would|could|may) be (?:smart|wise|worth it|a good idea|prudent)|"
+                                 r"(?:might|could|would|it) make[s]? sense|go ahead and|time to|don't miss|you'd be (?:crazy|foolish|silly|mad) not to|"
+                                 r"many traders would|now'?s (?:a |the )?(?:good|great|perfect|ideal) (?:time|moment|spot))\b[^.!?\n]{0,40}?\b" + _TRADE + r"\b"),
+    # order: a trade phrase followed by an endorsement ("adding exposure here could make sense", "buying here is the move")
+    ("order", "endorsed-trade", r"\b" + _TRADE + r"\b[^.!?\n]{0,30}?\b(?:(?:could|might|would|may|should|does|do|will) )?"
+                                r"(?:makes? sense|be (?:smart|wise|the move|the play|a good idea)|is (?:smart|wise|the move|the play|a good idea))\b"),
+    # order: a sentence that STARTS with a trade imperative
+    ("order", "imperative", r"(?:^|[.!?]\s+|\n)(?:buy|sell|short|grab|scoop|ditch|dump|bail|load|cut|add|trim|pile|go long|go short|"
+                            r"get long|get short|get in|get out|back up the truck|take profits)\b"),
+    # order: a trade verb with a timing / price-zone phrase ("on the dip", "at these levels", "before the open")
+    ("order", "trade-timing", r"\b" + _TRADE + r"\b[^.!?\n]{0,30}?\b(?:at (?:this|these|current) (?:level|levels|price|prices)|"
+                              r"on (?:any |the )?(?:dip|dips|pullback|weakness)|while it'?s (?:cheap|low|down)|"
+                              r"before (?:the open|the move|it runs|everyone|earnings)|this week|right away)\b"),
+    # unsupported: a confident prediction (no may / might / could)
+    ("unsupported", "prediction", r"(?:\b(?:should|will|is going to|are going to|gonna|is set to|is about to|is ready to|is due to|"
+                                  r"is headed|are headed|is heading|are heading|heads?|headed|heading)|[a-z]'ll)\s+(?:\w+\s+){0,2}?"
+                                  r"(?:outperform\w*|much higher|much lower|a lot higher|way higher|new highs|explode|take off|soar|skyrocket|"
+                                  r"keep (?:going|climbing|running|rising|working))\b|(?:\bwill|[a-z]'ll) be (?:much |a lot |way )?(?:higher|lower)\b|"
+                                  r"\bthe (?:bottom|top) is in\b"),
+    # unsupported: a certainty claim
+    ("unsupported", "certainty", r"\bnothing (?:can|will|is going to) stop\b|\brest assured\b|\bthere(?:'s| is) no (?:question|doubt)\b|"
+                                 r"\bwon't regret\b|\bno[- ]lose\b|\bcan(?:'t|not)[- ]lose\b|\bhigh[- ]probability (?:winner|trade|setup|win)\b|"
+                                 r"\bodds (?:look|are|seem) (?:excellent|great|very good|overwhelming)\b"),
+    # unsupported: hype nouns
+    ("unsupported", "hype-noun", r"\b(?:screaming buy|easy money|free money|rocket ?ship|printing money|money printer|"
+                                 r"stock of the (?:year|decade|century)|monster in the making|load the boat|back up the truck|"
+                                 r"to the moon|moonshot|home run|sure winner|lay-?up trade|can't[- ]miss)\b"),
+]
+for _code, _name, _pat in CLASS_PATTERNS:
+    (ORDER if _code == "order" else UNSUPPORTED).append((_name, re.compile(_pat, re.I)))
+
 OUTCOME = re.compile(r"\b(?:will|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|"
                      r"play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|"
                      r"forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b", re.I)
@@ -163,14 +210,36 @@ def _input_text(inputs: Iterable[str] | str | None) -> str:
     return "\n".join(str(x) for x in inputs if x)
 
 
+# a NEGATED universal ("neither approach works every time", "no setup always works") is a hedge, not a claim
+_NEGATED_UNIVERSAL = re.compile(r"\b(?:no|neither|not|nothing|none|never)\b[^.!?\n]{0,30}?\b(?:works? every time|always works?|always wins?)\b", re.I)
+
+
 def unsupported(text: str) -> list[str]:
-    t = _NEGATED.sub(" ", normalize(text))
+    t = _NEGATED_UNIVERSAL.sub(" ", _NEGATED.sub(" ", normalize(text)))
     return [name for name, rx in UNSUPPORTED if rx.search(t)]
+
+
+# a DESCRIPTION of what other people do ("traders often buy on the pullback") is not advice: a trade-timing match whose
+# sentence starts with a third-person subject is skipped (the advisory-stance rule still catches "many traders WOULD")
+_DESCRIPTIVE = re.compile(r"^\s*(?:some|many|most|other|few|these|those)?\s*(?:traders|investors|people|buyers|sellers|"
+                          r"institutions|funds|others|bulls|bears)\b", re.I)
+
+
+def _described(rx: re.Pattern, t: str) -> bool:
+    """Every match of rx sits in a sentence that describes other people."""
+    hits = [m.start() for m in rx.finditer(t)]
+    if not hits:
+        return False
+    for start in hits:
+        sent_start = max(t.rfind(".", 0, start), t.rfind("!", 0, start), t.rfind("?", 0, start), t.rfind("\n", 0, start)) + 1
+        if not _DESCRIPTIVE.search(t[sent_start:start + 1]):
+            return False
+    return True
 
 
 def order_language(text: str) -> list[str]:
     t = normalize(text)
-    return [name for name, rx in ORDER if rx.search(t)]
+    return [name for name, rx in ORDER if rx.search(t) and not (name == "trade-timing" and _described(rx, t))]
 
 
 def untraceable_figures(text: str, inputs: Iterable[str] | str | None) -> list[str]:
@@ -184,7 +253,8 @@ def about_outcomes(text: str) -> bool:
 
 def has_hedge(text: str) -> bool:
     """A real hedge -- the mandated footer is stripped first, so it can never stand in for one (W3 review C2)."""
-    return bool(HEDGE.search(_FOOTER_RX.sub(" ", normalize(text))))
+    t = _FOOTER_RX.sub(" ", normalize(text))
+    return bool(HEDGE.search(t) or _NEGATED_UNIVERSAL.search(t))     # "neither approach works every time" hedges too
 
 
 def check(reply: str, inputs: Iterable[str] | str | None = None) -> list[str]:
