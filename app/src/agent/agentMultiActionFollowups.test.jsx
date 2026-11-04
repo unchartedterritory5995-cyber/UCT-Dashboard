@@ -1131,3 +1131,38 @@ describe('review t4 · the replace-or-add question on EVERY path (model, NL-1) �
     expect(transcript()).toMatch(/replacing your charts: removed the NVDA chart \(Daily\) and the QQQ chart \(Daily\)/)
   }, 40000)
 })
+
+describe('review t4 M5 · "…charts, each with an RSI" — the per-chart steps survive the replace-or-add question', () => {
+  const SIX = () => [[0, 1, 2, 3, 4, 5].map(i => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'ABCDEF'[i], opts: settings() })),
+    { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA', E: 'NVDA', F: 'QQQ' }]
+  const plan = (b) => [
+    ...[1, 2, 3, 4].map(n => ({ action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: `n${n}` } })),
+    ...['SPY', 'QQQ', 'NVDA', 'TSLA'].map((s, i) => ({ action: 'chart.setSymbol', target: `n${i + 1}`, args: { symbol: s } })),
+    ...[1, 2, 3, 4].map(n => ({ action: 'indicator.add', target: `n${n}`, args: { defId: 'rsi', inputs: null } })),
+  ]
+  const rsiOn = (w) => (w.opts?.settings?.indicatorInstances || []).some(i => i.defId === 'rsi' && !i.deleted)
+  it('"Add 4 more charts" → 10 charts, the 4 new ones each with its RSI', async () => {
+    const { board, h, say } = mount(...SIX())
+    envelopes.push(b => env('apply', plan(b)))
+    await say('I would like SPY, QQQ, NVDA and TSLA on equal charts, each with an RSI, thanks')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    await idle()
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 10000 })
+    const fresh = chartsOf(board).filter(w => !/^c\d$/.test(w.id))
+    await waitFor(() => expect(fresh.map(w => board.state.widgets.find(x => x.id === w.id)).every(rsiOn)).toBe(true), { timeout: 10000 })
+    expect(chartsOf(board).filter(w => /^c\d$/.test(w.id)).some(rsiOn)).toBe(false)               // the existing charts untouched
+    expect(fresh.map(w => h.charts.read(w.id).symbol).sort()).toEqual(['NVDA', 'QQQ', 'SPY', 'TSLA'])
+  }, 45000)
+  it('"Replace my 6 charts with these 4" → the card; approved → 4 charts, each with its RSI', async () => {
+    const { board, say } = mount(...SIX())
+    envelopes.push(b => env('apply', plan(b)))
+    await say('I would like SPY, QQQ, NVDA and TSLA on equal charts, each with an RSI, thanks')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my 6 charts with these 4' }))
+    await idle()
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0))
+    await say('do it')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 10000 })
+    await waitFor(() => expect(chartsOf(board).every(rsiOn)).toBe(true), { timeout: 10000 })
+  }, 45000)
+})

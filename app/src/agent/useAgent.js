@@ -1571,6 +1571,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
       if (!ops) return
       lastActionsRef.current = ops.map(o => o.action)
+      if (p.gridThen?.length) {
+        // review t4 M5: the grid, then the per-chart changes — one request (runCompound; a card holds the rest until approved)
+        const grid = ops[0]?.args?.symbols || []
+        return await runCompoundRef.current?.([
+          { text: `set up the ${grid.join(', ')} charts`, kind: 'planned', ops, grid, resume: true, fresh: ref === 'grid:add' },
+          { text: 'the rest on those charts', kind: 'planned', each: p.gridThen },
+        ], { member: `${p.member || ''} → ${label}`, voice: p.voice })
+      }
       return await execute(ops, { path: 'fast', mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
     }
     if (p.workspace) {
@@ -1641,6 +1649,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         continue
       }
       const idsBefore = undoRef.current.map(e => e.id)
+      const chartRefsBefore = (() => { try { return (host?.charts?.list?.() || []).map(c => c.ref) } catch { return [] } })()
       const r = resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
       if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
@@ -1672,7 +1681,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       done += 1
       prevIds = undoRef.current.map(e => e.id).filter(id => !idsBefore.includes(id))
-      if (r.grid) working = chartsShowing(host, r.grid)
+      // review t4 M5: a grid that ADDED the charts beside others showing the same tickers ("Add 4 more") — the rest goes on the
+      // NEW charts only (the charts that were already there are never the target)
+      if (r.grid) {
+        const showing = chartsShowing(host, r.grid)
+        const added = showing.filter(ref => !(chartRefsBefore || []).includes(ref))
+        working = step.fresh && added.length ? added : showing
+      }
     }
     // one step ("put rsi underneath"): its own receipt says it all
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
@@ -2418,7 +2433,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
       })() ? gridAsk0 : null
       if (gridAsk) {
-        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: gridAsk.options }
+        // review t4 M5: "…charts, each with a 50 SMA" — the per-chart steps ride with BOTH choices (they run on the charts the
+        // picked grid leaves showing those tickers; behind the replace card, once it is approved)
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: gridAsk.options,
+          ...(gridded.then?.length && !env.correction ? { gridThen: gridded.then } : {}) }
         push({ role: 'question', text: gridAsk.text, choices: [...gridAsk.choices, { label: 'Cancel', cancel: true }], local: true })
         record({ member: null, outcome: gridAsk.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
