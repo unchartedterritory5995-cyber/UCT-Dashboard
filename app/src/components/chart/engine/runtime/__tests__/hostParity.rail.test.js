@@ -222,3 +222,68 @@ describe('the corpus', () => {
     expect(() => hp.withCalcBars('plot(close)', 400)).toThrow(/no one-line indicator/)
   })
 })
+
+describe('report-only cases (the V8 sin/cos 1-ulp finding): named, pinned, measured', () => {
+  const corpus = JSON.parse(readFileSync(join(hp.FIXTURE_DIR, 'corpus.json'), 'utf8'))
+  const cols = (arr) => hp.encodeColumnsB64({ p0: Float64Array.from(arr) }).columns
+  const withCols = (digest, arr) => ({ status: 'ok', digest, guards: [], warmup: null, cols: cols(arr) })
+  const next = (x) => { const f = new Float64Array([x]); const i = new BigUint64Array(f.buffer); i[0] += 1n; return f[0] }
+  const A = { 'x@s': withCols('d1', [1, 2, 3]), 'y@s': withCols('d1', [1, 2, 3]) }
+  const B = { 'x@s': withCols('d2', [1, next(2), 3]), 'y@s': withCols('d2', [1, next(2), 3]) }
+
+  it('the list is the two trig cases and nothing else (pinned), each a real corpus case', () => {
+    expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(['transcendental@forming', 'transcendental@listing'])
+    expect(corpus.reportOnly.reason).toMatch(/Math\.sin/)
+    expect(() => hp.reportOnlyOf({ ...corpus, reportOnly: { reason: 'r', cases: ['no_such@case'] } })).toThrow(/not a corpus case/)
+  })
+
+  it('rail 1: a case that is NOT listed and differs is RED and fails HP-3', () => {
+    const c = hp.classifyDiffs(hp.compareRecords(A, B), A, B, new Map())
+    expect(c.red.map((d) => d.case).sort()).toEqual(['x@s', 'y@s'])
+    expect(c.reported).toEqual([])
+    const only = hp.classifyDiffs(hp.compareRecords(A, B), A, B, new Map([['x@s', 'why']]))
+    expect(only.red.map((d) => d.case)).toEqual(['y@s'])
+  })
+
+  it('rail 2: a listed case that differs is REPORTED with its row count and max ulp, and is not red', () => {
+    const c = hp.classifyDiffs(hp.compareRecords(A, B), A, B, new Map([['x@s', 'why'], ['y@s', 'why']]))
+    expect(c.red).toEqual([])
+    expect(c.reported.map((r) => r.text)).toEqual([
+      'REPORTED x@s: digest differs; 1/3 values differ, max 1 ulp; why',
+      'REPORTED y@s: digest differs; 1/3 values differ, max 1 ulp; why',
+    ])
+  })
+
+  it('a listed case is still RED when anything but its digest differs (status, guards, warm-up)', () => {
+    const G = { 'x@s': { ...B['x@s'], guards: ['runtime:limit'] } }
+    const c = hp.classifyDiffs(hp.compareRecords({ 'x@s': A['x@s'] }, G), { 'x@s': A['x@s'] }, G, new Map([['x@s', 'why']]))
+    expect(c.red.map((d) => d.field).sort()).toEqual(['digest', 'guards'])
+    expect(c.reported).toEqual([])
+  })
+
+  it('ulp distance counts adjacent doubles across zero and ignores matching NaN', () => {
+    expect(hp.ulpStats(withCols('a', [0, NaN, -1]), withCols('b', [-0, NaN, -1]))).toMatchObject({ rows: 1, maxUlp: 0 })
+    expect(hp.ulpStats(withCols('a', [5e-324]), withCols('b', [-5e-324]))).toMatchObject({ rows: 1, maxUlp: 2 })
+    expect(hp.ulpStats({ cols: null }, B['x@s'])).toBeNull()
+  })
+
+  it('--compare end to end: exit 0 with REPORTED lines for the two named cases, exit 1 for any other', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hp-rep-'))
+    try {
+      const names = ['transcendental@listing', 'transcendental@forming', 'switch_ternary@listing']
+      const mk = (arr, nm) => Object.fromEntries(nm.map((n) => [n, withCols('d' + arr.join(',') + n, arr)]))
+      const a = { records: mk([1, 2, 3], names) }
+      const wr = (f, o) => { writeFileSync(join(dir, f), JSON.stringify(o)); return join(dir, f) }
+      const b1 = { records: { ...mk([1, 2, 3], names), ...mk([1, next(2), 3], names.slice(0, 2)) } }
+      const ok = spawnSync(process.execPath, [TOOL, '--compare', wr('a.json', a), wr('b1.json', b1)], { cwd: REPO, encoding: 'utf8' })
+      expect(ok.stdout).toMatch(/REPORTED transcendental@listing: digest differs; 1\/3 values differ, max 1 ulp/)
+      expect(ok.stdout).toMatch(/2 REPORTED, not gated/)
+      expect(ok.stdout).toMatch(/max 1 ulp; V8 Math\.sin\/Math\.cos differ by 1 ulp/)
+      expect(ok.status).toBe(0)
+      const b2 = { records: { ...b1.records, ...mk([1, next(2), 3], ['switch_ternary@listing']) } }
+      const bad = spawnSync(process.execPath, [TOOL, '--compare', wr('a.json', a), wr('b2.json', b2)], { cwd: REPO, encoding: 'utf8' })
+      expect(bad.stdout).toMatch(/RED switch_ternary@listing: digest/)
+      expect(bad.status).toBe(1)
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+})

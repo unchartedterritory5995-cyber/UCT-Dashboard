@@ -1,5 +1,12 @@
 {
  "about": "W5-T4 host-parity corpus (docs/pine/SERVER-RUNTIME-DESIGN.md 2.3). Original first-party Pine only; bars generated from these seeds by tools/pine_runtime_host_parity.mjs makeBars().",
+ "reportOnly": {
+  "reason": "V8 Math.sin/Math.cos differ by 1 ulp between V8 13.6 (Node 24) and V8 14.5 (Chrome 145); measured 2026-11-04, see docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md",
+  "cases": [
+   "transcendental@forming",
+   "transcendental@listing"
+  ]
+ },
  "barSets": {
   "d5000": {
    "tf": "D",

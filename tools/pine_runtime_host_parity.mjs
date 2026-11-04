@@ -248,7 +248,7 @@ export function recordOf(raw, identity) {
     const columns = {}
     for (const k of Object.keys(enc.columns)) columns[k] = b64ToF64(enc.columns[k])
     const digest = codec.columnDigest({ engine: identity, columns, refusals: [] })
-    return { status: 'ok', digest, guards: [], warmup: raw.warmup || null, keys: Object.keys(columns).sort() }
+    return { status: 'ok', digest, guards: [], warmup: raw.warmup || null, keys: Object.keys(columns).sort(), cols: enc.columns }
   }
   const e = raw.error || {}
   const guard = e.guard || `unnamed:${e.name || 'Error'}`
@@ -332,6 +332,75 @@ export function compareRecords(a, b) {
     }
   }
   return out
+}
+
+// ─── report-only cases (the V8 sin/cos finding) ───────────────────────────────
+
+/** The NAMED report-only list: `corpus.reportOnly = { reason, cases: [case names] }`. Never a
+ *  pattern. -> Map(case -> reason). A name that is not a real case is an error. */
+export function reportOnlyOf(corpus) {
+  const r = corpus.reportOnly
+  const out = new Map()
+  if (!r) return out
+  if (!r.reason || !Array.isArray(r.cases)) throw new Error('corpus.reportOnly needs { reason, cases: [...] }')
+  const real = new Set(caseList(corpus).map((c) => c.case))
+  for (const name of r.cases) {
+    if (!real.has(name)) throw new Error(`reportOnly names "${name}", which is not a corpus case`)
+    out.set(name, r.reason)
+  }
+  return out
+}
+
+const _f64 = new Float64Array(1)
+const _i64 = new BigInt64Array(_f64.buffer)
+/** A double's position on the ordered number line (so adjacent doubles differ by 1). */
+function orderedBits(x) {
+  _f64[0] = x
+  const b = _i64[0]
+  return b < 0n ? -(b & 0x7fffffffffffffffn) : b
+}
+
+/** Rows that differ bit for bit, and the largest ulp distance, over every column. NaN equals NaN.
+ *  -> { rows, total, maxUlp } or null when either side carries no columns. */
+export function ulpStats(a, b) {
+  if (!a || !b || !a.cols || !b.cols) return null
+  let rows = 0, total = 0, maxUlp = 0n
+  for (const k of new Set([...Object.keys(a.cols), ...Object.keys(b.cols)])) {
+    if (!a.cols[k] || !b.cols[k]) return null
+    const x = b64ToF64(a.cols[k]), y = b64ToF64(b.cols[k])
+    total += Math.max(x.length, y.length)
+    for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
+      const u = x[i], v = y[i]
+      if (Number.isNaN(u) && Number.isNaN(v)) continue
+      if (Object.is(u, v)) continue
+      rows += 1
+      if (Number.isNaN(u) || Number.isNaN(v) || !Number.isFinite(u) || !Number.isFinite(v)) { maxUlp = -1n; continue }
+      const d = orderedBits(u) - orderedBits(v)
+      const ad = d < 0n ? -d : d
+      if (maxUlp >= 0n && ad > maxUlp) maxUlp = ad
+    }
+  }
+  return { rows, total, maxUlp: maxUlp < 0n ? 'inf/nan' : Number(maxUlp) }
+}
+
+/** Split diffs into gated RED, REPORTED (a listed case whose ONLY difference is the digest) and
+ *  INCONCLUSIVE. -> { red, reported: [{case, text}], inconclusive } */
+export function classifyDiffs(diffs, ra, rb, reportOnly = new Map()) {
+  const inc = new Set(Object.entries({ ...ra, ...rb }).filter(([, r]) => r.status === 'inconclusive').map(([n]) => n))
+  const byCase = new Map()
+  for (const d of diffs) byCase.set(d.case, [...(byCase.get(d.case) || []), d])
+  const red = [], reported = [], inconclusive = []
+  for (const [name, ds] of byCase) {
+    if (inc.has(name)) { inconclusive.push(...ds); continue }
+    if (reportOnly.has(name) && ds.every((d) => d.field === 'digest')) {
+      const st = ulpStats(ra[name], rb[name])
+      const where = st ? `${st.rows}/${st.total} values differ, max ${st.maxUlp} ulp` : 'ulp not measurable (a side carries no columns)'
+      reported.push({ case: name, text: `REPORTED ${name}: digest differs; ${where}; ${reportOnly.get(name)}` })
+      continue
+    }
+    red.push(...ds)
+  }
+  return { red, reported, inconclusive }
 }
 
 /** "A fixture that cannot distinguish is not a rail": every ok case has its OWN digest, and the
@@ -523,11 +592,14 @@ async function main(argv) {
     const a = JSON.parse(readFileSync(argv[i + 1], 'utf8')), b = JSON.parse(readFileSync(argv[i + 2], 'utf8'))
     const ra = a.records || a.cases, rb = b.records || b.cases
     const diffs = compareRecords(ra, rb)
-    const inc = Object.entries({ ...ra, ...rb }).filter(([, r]) => r.status === 'inconclusive').map(([n]) => n)
-    for (const d of diffs) console.log(`${inc.includes(d.case) ? 'INCONCLUSIVE' : 'RED'} ${d.case}: ${d.field} ${JSON.stringify(d.a)} != ${JSON.stringify(d.b)}`)
-    const red = diffs.filter((d) => !inc.includes(d.case)).length
+    const cls = classifyDiffs(diffs, ra, rb, reportOnlyOf(loadCorpus()))
+    for (const d of cls.inconclusive) console.log(`INCONCLUSIVE ${d.case}: ${d.field} ${JSON.stringify(d.a)} != ${JSON.stringify(d.b)}`)
+    for (const d of cls.red) console.log(`RED ${d.case}: ${d.field} ${JSON.stringify(d.a)} != ${JSON.stringify(d.b)}`)
+    for (const r of cls.reported) console.log(r.text)
+    const red = new Set(cls.red.map((d) => d.case)).size
+    const inc = [...new Set(cls.inconclusive.map((d) => d.case))]
     const n = Object.keys(ra).length
-    console.log(`HP-3 ${red ? 'RED' : inc.length ? 'INCONCLUSIVE' : 'GREEN'}: ${n - red - inc.length}/${n} cases equal (digest, guards, status, warmup)`)
+    console.log(`HP-3 ${red ? 'RED' : inc.length ? 'INCONCLUSIVE' : 'GREEN'}: ${n - red - inc.length - cls.reported.length}/${n} cases equal (digest, guards, status, warmup)${cls.reported.length ? `; ${cls.reported.length} REPORTED, not gated` : ''}`)
     return red ? 1 : inc.length ? 2 : 0
   }
   const corpus = loadCorpus()

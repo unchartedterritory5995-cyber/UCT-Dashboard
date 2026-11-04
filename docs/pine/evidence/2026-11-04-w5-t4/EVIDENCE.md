@@ -182,3 +182,68 @@ Lock `dsk/heavy-final3.lock`, tip `56279a879e`, tested on master `5d95103c8a`. L
   engines" to "other V8 builds".
 - HP-7 compares `job.mjs` automatically once W5-T7 adds it.
 - `app/dist` (the vite build) and `app/dist-server` were created only for these runs and deleted after.
+
+## Round r1: trig cases are REPORTED by HP-3, not gated (option b)
+
+Decision (owner delegated, desktop chose the reversible option b). Code tip is the commit after
+`eb922686fe` that carries this section; lock `dsk/heavy-final3.lock` (HP runs), `dsk/heavy-mut.lock`
+(mutations). Engine bump: NO (tools, fixture and tests only).
+
+What changed:
+- `corpus.json` gains a NAMED list, `reportOnly: { reason, cases: [...] }`: exactly
+  `transcendental@forming` and `transcendental@listing`, with the V8 sin/cos 1-ulp reason. No pattern.
+  `reportOnlyOf` refuses a name that is not a corpus case.
+- HP-3 (`--compare`, used by the Chromium half) classifies each differing case. A listed case whose
+  ONLY difference is the digest is `REPORTED` (row count, max ulp distance, reason) and does not fail.
+  A listed case that also differs in status, guards or warm-up is still RED. Every unlisted case is
+  gated exactly as before. The final line reads `HP-3 GREEN: 164/166 cases equal ...; 2 REPORTED, not
+  gated`. Node records now carry their encoded columns (`cols`) so the ulp figures can be measured;
+  `expected-digests.json` is unchanged (`--write` still picks only status/digest/guards/warmup).
+- HP-1 (Node vs the committed digests) is NOT changed; see the Node 20 result below.
+- `tools/pine_runtime_host_parity.py` prints the REPORTED lines and stores them in `verdict.json`.
+
+Real Chromium run (vite build, Playwright Chromium 145.0.7632.6, Node v24.13.1):
+`runs/w5t4r1/hp.log`: python codec 135/135; node vs chromium and committed vs chromium both
+`HP-3 GREEN: 164/166 ...; 2 REPORTED`; `HP-2/HP-3 GREEN`.
+- `transcendental@forming`: 78/10000 values differ, max 512 ulp.
+- `transcendental@listing`: 72/7500 values differ, max 128 ulp.
+The input functions differ by 1 ulp (above); the output distance is larger because plot p3 sums sin*cos
+with atan, so a cancellation amplifies the 1-ulp input difference. Still the V8 sin/cos finding, not
+a new one. (Committed-vs-Chromium has no columns on the committed side, so it prints "ulp not
+measurable".) No browser process was left (tasklist check), `app/dist` and `app/dist-server` removed.
+
+Node 20 (V8 11.3, the gate's `node-version: '20'` line), portable `node-v20.18.0-win-x64.zip` unzipped
+into a scratch dir, no install, no PATH change: `node tools/pine_runtime_host_parity.mjs --host node
+--check` gives **HP-1 RED on exactly the same two cases**, `transcendental@forming` and
+`transcendental@listing`; the other 164 cases equal the digests recorded on Node 24. So V8 11.3 also
+differs from V8 13.6 on sin/cos. **Open: wiring HP-1 into `master-deploy-gate.yml` (T19) on Node 20
+would be red on those two cases.** Options for the owner: treat the listed cases as reported in HP-1
+too when the V8 differs from `recordedOn` (small, same list), or record per-V8 digests, or do (a).
+
+Rails (in `hostParity.rail.test.js`, 25 tests, was 19):
+1. an unlisted case that differs is RED and fails HP-3 (also end to end via `--compare`, exit 1);
+2. a listed case that differs is REPORTED with row count and max ulp and does not fail (exit 0);
+3. the list is pinned to the two trig names and each must be a real case (a widened list fails);
+plus: a listed case still RED when status/guards/warm-up differ; ulp distance across zero and NaN.
+
+Mutations (`muts-r3.json`, `muts-r3b.json`; logs `runs/w5t4r1/mut.log`, `mut2.log`):
+| mutation | killed by |
+|---|---|
+| control:noop-comment | SURVIVED (control) |
+| rep:all-report-only (every case report-only) | rail 1, and the end-to-end exit-1 test |
+| rep:any-field-ok (listed case reported on any field) | "a listed case is still RED when anything but its digest differs" |
+| rep:drop-ulp-print | rail 2 and the end-to-end test |
+| rep:ulp-max-inverted, rep:rows-miscounted | rail 2, the ulp test, the end-to-end test |
+| rep:reported-fails-exit (REPORTED counted as red) | the end-to-end exit-0 test |
+| rep:unknown-name-ok | the pinned-list test |
+| rep:list-widened (corpus.json gains a third name) | the pinned-list test and the end-to-end test |
+| rep:list-lost-reason | SURVIVED in round 1; an end-to-end assertion on the reason text was added; killed in round 2 |
+
+9 of 9 real mutations killed (the one survivor of round 1 was a real gap, closed). No equivalent survivors.
+
+### Open candidate: option (a)
+A JS-implemented `sin`/`cos` inside the runtime (an engine change, output-changing, so an engine bump
+and a measure-pair on both lanes, with its own accuracy risk against TradingView). It would make HP-1
+and HP-3 bit-identical across every V8 build with no report-only list, and would end the dependence on
+V8's libm. Not taken: engine-wide and irreversible compared with b. Recorded here as an open
+candidate; the report-only list is the reversible stopgap and is deleted when (a) lands.

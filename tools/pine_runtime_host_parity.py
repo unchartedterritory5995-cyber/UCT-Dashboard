@@ -169,19 +169,20 @@ def main(argv=None) -> int:
 
     code_n, text_n = compare(node_file, chromium_file)
     print("node vs chromium:", text_n.splitlines()[-1] if text_n else "")
-    if code_n:
+    if code_n or "REPORTED" in text_n:
         print(text_n)
     if args.only:
         code_e, text_e = 0, "expected: skipped (--only)"
     else:
         code_e, text_e = compare(EXPECTED, chromium_file)
         print("committed vs chromium:", text_e.splitlines()[-1] if text_e else "")
-        if code_e:
+        if code_e or "REPORTED" in text_e:
             print(text_e)
     codes = [code_n, code_e, 1 if py_bad else 0]
     verdict = 1 if 1 in codes else 2 if 2 in codes else 0
     (out / "verdict.json").write_text(json.dumps({"browser": browser_version, "node_vs_chromium": text_n.splitlines()[-1] if text_n else "",
                                                   "committed_vs_chromium": text_e.splitlines()[-1] if text_e else "",
+                                                  "reported": [l for l in (text_n + chr(10) + text_e).splitlines() if l.startswith("REPORTED")],
                                                   "python_codec_red": py_bad, "exit": verdict}, indent=1), encoding="utf-8")
     print({0: "HP-2/HP-3 GREEN", 1: "HP-2/HP-3 RED", 2: "HP-2/HP-3 INCONCLUSIVE"}[verdict])
     return verdict
