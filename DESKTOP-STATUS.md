@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 06:06 CT
+updated: 2026-11-04 06:07 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -37,7 +37,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14, pine-dsk-w5t7, pine-dsk-w5t8, pine-dsk-w4t15, pine-dsk-w4t9, pine-dsk-w5t4, pine-dsk-w4t10 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14, pine-dsk-w5t7, pine-dsk-w5t8, pine-dsk-w4t15, pine-dsk-w4t9, pine-dsk-w5t4, pine-dsk-w4t10, pine-dsk-w5t5 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
@@ -229,3 +229,8 @@ state: BUILDING   round: r0   updated: 2026-11-04 04:45 CT
 branch: feat/pine-w4-t10-state-kernels   base: origin/feat/pine-w4-t1-wall-report f9b85fb442 (merge W4-T1 first)   worktree: pine-dsk-w4t10   model: Sonnet
 region: ast/interpret.js tables + api/services/ast_interpret.py; RT/vm.js OP.CARRIED ~:1080-1110; FE builtinStateFamily ~:4886-4933
 next: state kernels (ta.cum, running totals, ta.vwap, pivots, ta.stoch over runtime values); measure-pair against the T1 tip on mp2; object door keeps master's answer unless proved
+
+## W5-T5 cross-engine report (picked per 063fe2ba8e: needs T4, READY; stacked on T4)
+state: BUILDING   round: r0   updated: 2026-11-04 06:07 CT
+branch: feat/pine-w5-t5-cross-engine   base: W5-T4 tip eb922686fe   worktree: pine-dsk-w5t5   model: Sonnet
+next: report only (no gating): HP-8 on Playwright WebKit and Firefox; H7 tz/DST fixture in every host; direct Math probe across Node 24 / Chromium 145 / WebKit / Firefox (+ Node 20 if installed) to inform the HP-3 trig decision. Data only; the decision stays with the coordinator.
