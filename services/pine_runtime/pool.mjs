@@ -90,9 +90,9 @@ export async function createPool({
   const queued = () => { let n = 0; for (const q of queues.values()) n += q.length; return n }
   const ownerKey = (e) => `${e.profile}|${e.owner}`
 
+  // Every caller first takes the job out of where it was (the queue, or `s.busy`), so a job reaches
+  // here exactly once; no second guard restates that.
   function finish(e, result) {
-    if (e.done) return
-    e.done = true
     clearTimeout(e.killTimer)
     clearTimeout(e.deadlineTimer)
     if (e.dispatched) inflight.set(ownerKey(e), inflight.get(ownerKey(e)) - 1)
@@ -218,7 +218,7 @@ export async function createPool({
     const { profile, owner } = request
     const doc = request.definition.doc
     const answers = request.jobs.map((job) => new Promise((resolve) => {
-      const e = { id: (nextId += 1), profile, owner, doc, job, resolve, done: false, dispatched: false }
+      const e = { id: (nextId += 1), profile, owner, doc, job, resolve, dispatched: false }
       e.deadlineTimer = setTimeout(() => {
         // ONE guard: only a job still QUEUED is answered here; a dispatched one answers by its run
         const q = queues.get(profile)

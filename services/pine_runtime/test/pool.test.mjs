@@ -148,8 +148,9 @@ test('recycle: a worker retires after recycleJobs jobs, or once it is recycleMs 
     assert.deepEqual(pool.threadIds(), [first])
     await runOne(pool, {})
     assert.equal(pool.stats().recycles, 1)
-    await runOne(pool, {})
+    assert.equal((await runOne(pool, {})).status, 'ok', 'a fresh worker took the retired one\'s place')
     assert.ok(!pool.threadIds().includes(first))
+    assert.equal(pool.threadIds().length, 1)
   })
   let clock = 0
   await withPool({ recycleMs: 1000, now: () => clock }, async (pool) => {

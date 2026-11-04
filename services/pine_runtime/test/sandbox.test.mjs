@@ -47,6 +47,9 @@ test('L1 can fail: every token is caught, an allowlisted line passes only verbat
   assert.deepEqual(scanBundle(`    ${entry.line}`, [entry]), { hits: [], stale: [] })
   assert.equal(scanBundle(`${entry.line} // and more`, [entry]).hits.length, 1, 'only the exact line is excused')
   assert.deepEqual(scanBundle('nothing here', [entry]).stale, [entry])
+  const both = 'fetch(process.env.X)'
+  const hits = scanBundle(both, [{ token: 'network', line: both, why: 'test' }]).hits
+  assert.deepEqual(hits.map((h) => h.token), ['process'], 'an entry excuses its own token only')
 })
 
 test('L1: the pool refuses to start on a bundle with a capability token, and starts no worker', async () => {
