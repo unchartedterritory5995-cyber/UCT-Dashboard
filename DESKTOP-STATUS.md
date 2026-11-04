@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 03:10 CT
+updated: 2026-11-04 03:30 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -69,10 +69,13 @@ desktop check of the definition of done: PASS (scope, rail 6/6, 8/8 mutations, f
 open: the bundle still carries the fetch-bearing modules and two build gates (T2's job); old esbuild duplicate-case warning at ir.js:518 (pre-existing).
 
 ## W4-T7
-state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
-branch: feat/pine-w4-t7-fn-series   worktree: pine-dsk-w4t7   model: Sonnet
-engine bump needed: expected yes (engine change), confirmed at READY
-next: builder implementing W4-BREAKDOWN T7; T8 merges after this
+state: BUILDING   round: r0   updated: 2026-11-04 03:30 CT
+branch: feat/pine-w4-t7-fn-series   tip: e39b8c0ef6 (EVIDENCE over engine/test tip 066b312f11)   tested on master: 5d95103c8a   worktree: pine-dsk-w4t7   model: Sonnet
+engine bump needed: YES (refusals become served values)
+built: pineRuntimeFrontend.js only: hoistCommittedSeries no longer refuses inside a frame; a UDF body's own statement list and its result are hoist sinks; the hoisted slot is frame-local with its ring from fnHistorySlotFor (per call site). Still refused by name: nested lists incl. block values (x = if..., switch; lowerBlockValue withdraws the sink in a frame) and a global's history through a UDF (function-global-state). 7 superseded pins updated in 6 test files + one census bucket list.
+checks: rail w4FrameHoist (12 tests, 5,000-bar differential vs a hand-bound root) red on master 7 failed / 5 passed, green on tip (29 with historyExpression). Mutations 7 killed (M1-M5, M7, M9); M6 (cosmetic slot name) and M8 (redundant sink-null at defineFunction) survive as equivalent. measure-pair rt0+rt1: harness identical (336 captures each, MATCH 93 / 111); C18 probes identical; audit: 2 scripts move to their next wall (logistic-regression-v3, volume-surge-radar); census 3 rows (rt0) / 16 rows (rt1) differ, none attach-flip. final-tip: gate pytest 46, version-gate 6, hygiene clean, vitest 22372 passed / 1 failed = pollingSites.rail baseline.
+HOLD before READY: one script on the LIVE object door moved BUILD-REFUSED -> DREW-NOTHING-KEPT (now builds and draws nothing), unnamed in the log. The desktop asked the builder to name it and prove the blank correct, or else keep master's answer at the object door (as T2/T12 do), rail it and re-measure.
+open (later lanes): pre-existing root leak, an if-expression arm hoists above the if at root (T5); ta.pivot* in a UDF now stops at call-windowed-state (T10's wall); n/2 window lengths from a simple parameter still refuse (T8/T17).
 
 ## W4-T11
 state: READY            round: r0            updated: 2026-11-03 23:40 CT
