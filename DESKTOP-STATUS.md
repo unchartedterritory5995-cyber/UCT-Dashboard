@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 01:45 CT
+updated: 2026-11-04 02:45 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -123,10 +123,12 @@ for the delta reviewer: (1) the r2 review file is not on origin/ops/pine-coord (
 desktop check: PASS for what was assigned (scope matches, cd61d6741d..409456ee36 is EVIDENCE.md only, local == origin, worktree clean)
 
 ## W3 S1 round 2 (re-homed)
-state: BUILDING   round: r2   updated: 2026-11-04 00:05 CT
-branch: feat/pine-w3-drawings   start tip: 7eaca7777f   worktree: pine-dsk-w3   model: Opus
-engine bump needed: yes (engine 8 at merge, per ASSIGNMENTS)
-next: apply the r2 items per ASSIGNMENTS/reviews, measure-pair both lanes + final-tip, EVIDENCE.md, READY
+state: BUILDING   round: r2   updated: 2026-11-04 02:45 CT
+branch: feat/pine-w3-drawings   tip: 665499a65e (EVIDENCE over 58dd37a20c, the laptop's empty wip-handoff commit on 7eaca7777f)   tested on master: 52f76f9b4f (merge-base)   worktree: pine-dsk-w3 (local branch dsk/pine-w3-drawings; stale pine-w3 holds the name, untouched)   model: Opus
+engine bump needed: YES (8 at merge; SCRIPT_ENGINE_VERSION still 5)
+done: measure-pair on heavy-mp2 / pine-dsk-mpbase2 at the merge-base, all rc 0. rt0: C18 audit 0 diffs, probes 0 diffs, harness 93/103/140 both sides byte-identical, census 967 rows 3 diffs all noise (halftrend-bigbeluga, market-structure-luxalgo pine:timeout message jitter; volatility-coil-edge pine:timeout step 141->142 drops, was 137 at an earlier master), 0 unintended. rt1: 0 diffs on every instrument, harness 111/107/118. final-tip on heavy-final3 (on 58dd37a20c): gate pytest 46, hygiene clean, version-gate 6, vitest 1 failed | 1335 passed | 28 skipped = pollingSites.rail baseline (extra skip = env-gated w3ObjectWhy.measure); W3 rails green: textRefusalNames 23, w3CapturedCells 8, strFormat.vendor 11, formatVendorRules 10. Evidence docs/pine/evidence/2026-11-04-w3-s1r2/EVIDENCE.md.
+missing for READY (from handoff 58dd37a20c; job2.sh and muts2.json exist only on the laptop): pin-on-master red/green for the round-2 rails (incl. the -0 and NBSP rails, which were never run), ~13 mutations, why-census base/tip.
+next: builder rebuilds these on the desktop (muts2.json under the evidence dir, mutation lane), updates EVIDENCE.md, pushes, READY.
 
 ## W5-T6
 state: READY            round: r0            updated: 2026-11-04 01:45 CT
