@@ -2185,6 +2185,406 @@
      "modes": {}
     }
    }
+  },
+  "screener.saveAs": {
+   "digest": "4c87ebb8a6ccefd1",
+   "phrasings": {
+    "save this screen as ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save that scan as ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save these results as a screen called ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep this screen, call it ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.renameSaved": {
+   "digest": "228a1f32667e0255",
+   "phrasings": {
+    "rename my Momentum Screen to Momentum Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Momentum Screen Momentum Leaders instead": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the name of my Momentum Screen to Momentum Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename the saved screen Momentum Screen to Momentum Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.deleteSaved": {
+   "digest": "768a33af85379c24",
+   "phrasings": {
+    "delete my Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the saved screen Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the Momentum Screen scan": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.duplicateSaved": {
+   "digest": "d76e2a1155d2ea99",
+   "phrasings": {
+    "make a copy of my Momentum Screen called Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate the Momentum Screen as Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "copy my Momentum Screen and name it Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clone the Momentum Screen into Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.listSaved": {
+   "digest": "c8efc703110d9491",
+   "phrasings": {
+    "what screens have I saved": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my saved screens": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me my saved scans": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which screens do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.reorder": {
+   "digest": "b13a556047bbcef6",
+   "phrasings": {
+    "put TSLA at the top of my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move TSLA to the top of Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "TSLA first on my Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bump TSLA to the top of the Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.rename": {
+   "digest": "89a52c7af225c5e5",
+   "phrasings": {
+    "rename my Momentum list to Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Momentum watchlist Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the name of my Momentum list to Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename the Momentum watchlist Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.clear": {
+   "digest": "857ddb480e177749",
+   "phrasings": {
+    "clear my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "empty the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove everything from my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "wipe the Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.delete": {
+   "digest": "35909d02f991abe8",
+   "phrasings": {
+    "delete my Earnings watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Earnings list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Earnings watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the watchlist called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setNote": {
+   "digest": "51d6f764c040545d",
+   "phrasings": {
+    "add a note to NVDA on my Momentum list: earnings next week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "note on NVDA in Momentum: earnings next week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the note earnings next week on NVDA in my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the NVDA note in Momentum to earnings next week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.list": {
+   "digest": "f4cd05c73eed8222",
+   "phrasings": {
+    "what watchlists do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my watchlists": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me all my lists": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which watchlists have I made": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.rename": {
+   "digest": "77d04097a502f477",
+   "phrasings": {
+    "rename my Momentum layout to Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Momentum layout Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the Momentum layout name to Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename layout Momentum to Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.delete": {
+   "digest": "673ea835b74a20ba",
+   "phrasings": {
+    "delete my Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the layout called Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.duplicate": {
+   "digest": "b57cbb8ad820e8c1",
+   "phrasings": {
+    "make a copy of my Swing layout called Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate the Swing layout as Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "copy Swing into a new layout named Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clone my Swing layout as Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.create": {
+   "digest": "bbc5fe615971a9f2",
+   "phrasings": {
+    "create a new empty layout called Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new layout named Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start a fresh layout called Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "new layout: Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.list": {
+   "digest": "b275e45727d024f9",
+   "phrasings": {
+    "what layouts do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my layouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me my saved layouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which layouts have I saved": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

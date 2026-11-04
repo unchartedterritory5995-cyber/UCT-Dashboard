@@ -102,7 +102,7 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   const p = setupPanel()
-  const st = { log: [], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
+  const st = { log: [], screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
@@ -146,7 +146,12 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
       return json(st.alerts)
     }
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
-    if (u === '/api/screener/saved-screens') return json({ saved: [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], starters: [] })
+    // the saved screens behind the real routes' semantics (screener saved-screens: GET list, POST create, PUT rename, DELETE)
+    if (u === '/api/screener/saved-screens' && method === 'GET') return json({ saved: st.screens, starters: [] })
+    if (u === '/api/screener/saved-screens' && method === 'POST') { const row = { id: 100 + st.screens.length, name: body.name, spec: body.spec }; st.screens = [...st.screens, row]; return json(row) }
+    const ssm = /^\/api\/screener\/saved-screens\/([^/]+)$/.exec(u)
+    if (ssm && method === 'PUT') { st.screens = st.screens.map(x => (String(x.id) === ssm[1] ? { ...x, ...(body.name ? { name: body.name } : {}), ...(body.spec ? { spec: body.spec } : {}) } : x)); return json(st.screens.find(x => String(x.id) === ssm[1]) || {}) }
+    if (ssm && method === 'DELETE') { st.screens = st.screens.filter(x => String(x.id) !== ssm[1]); return json({ ok: true }) }
     if (u === '/api/screener/scan') {
       const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : true)
       const rows = UNIVERSE.filter(r => (body.filters || []).every(f => ok(r, f)))
@@ -158,6 +163,13 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     if (u === '/api/agent/data' && body?.kind === 'instrument.resolve') {
       const results = (body.params?.symbols || []).map(c => { const t = String(c?.text ?? c).replace(/^\$/, ''); return (t === t.toUpperCase() || LOWER_OK.has(t.toUpperCase())) ? { input: c?.text ?? c, class: 'symbol', symbol: t } : { input: c?.text ?? c, class: 'symbol_typed_lowercase', symbol: t.toUpperCase() } })
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', notes: [], data: { results } })
+    }
+    // the SC-1 gateway's screen kinds (served in production): synthetic rows from the fixture universe — the corpus
+    // asserts WHICH read ran and what the Agent did with a screen, never a figure
+    if (u === '/api/agent/data' && (body?.kind === 'screen.run' || body?.kind === 'screen.count')) {
+      const rows = UNIVERSE.map(r => ({ ...r, symbol: r.ticker, company: r.ticker, chg_pct_1d: r.chg_pct }))
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'eod', as_of: '2026-11-03', stale: false, notes: [], coverage: null,
+        data: { rows: rows.slice(0, body.params?.limit || 25), total_matches: rows.length, count: rows.length } })
     }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)

@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 64,
+  "withAnyRegressionCase": 79,
   "perProtection": {
    "nl": {
-    "covered": 63,
+    "covered": 79,
     "applicable": 154
    },
    "routing": {
-    "covered": 63,
+    "covered": 79,
     "applicable": 154
    },
    "args": {
-    "covered": 63,
+    "covered": 79,
     "applicable": 154
    },
    "execution": {
-    "covered": 62,
+    "covered": 78,
     "applicable": 154
    },
    "receipt": {
-    "covered": 53,
+    "covered": 55,
     "applicable": 154
    },
    "refusal": {
@@ -34,19 +34,19 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 135,
+    "covered": 146,
     "applicable": 154
    },
    "undo": {
-    "covered": 32,
+    "covered": 33,
     "applicable": 95
    },
    "multiStep": {
-    "covered": 16,
+    "covered": 17,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 61,
+    "covered": 77,
     "applicable": 154
    }
   }
@@ -4853,26 +4853,42 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.create: \"create a new empty layout called Scalps\"",
+     "layout.create: \"make a new layout named Scalps\"",
+     "layout.create: \"start a fresh layout called Scalps\"",
+     "layout.create: \"new layout: Scalps\""
+    ],
+    "routing": [
+     "layout.create: \"create a new empty layout called Scalps\"",
+     "layout.create: \"make a new layout named Scalps\"",
+     "layout.create: \"start a fresh layout called Scalps\"",
+     "layout.create: \"new layout: Scalps\""
+    ],
+    "args": [
+     "corpus layout.create"
+    ],
+    "execution": [
+     "layout.create (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "layout.create: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4929,26 +4945,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.delete: \"delete my Momentum layout\"",
+     "layout.delete: \"remove the Momentum layout\"",
+     "layout.delete: \"get rid of the Momentum layout\"",
+     "layout.delete: \"delete the layout called Momentum\""
+    ],
+    "routing": [
+     "layout.delete: \"delete my Momentum layout\"",
+     "layout.delete: \"remove the Momentum layout\"",
+     "layout.delete: \"get rid of the Momentum layout\"",
+     "layout.delete: \"delete the layout called Momentum\""
+    ],
+    "args": [
+     "corpus layout.delete"
+    ],
+    "execution": [
+     "layout.delete (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "layout.delete: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4967,26 +4999,42 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.duplicate: \"make a copy of my Swing layout called Swing Copy\"",
+     "layout.duplicate: \"duplicate the Swing layout as Swing Copy\"",
+     "layout.duplicate: \"copy Swing into a new layout named Swing Copy\"",
+     "layout.duplicate: \"clone my Swing layout as Swing Copy\""
+    ],
+    "routing": [
+     "layout.duplicate: \"make a copy of my Swing layout called Swing Copy\"",
+     "layout.duplicate: \"duplicate the Swing layout as Swing Copy\"",
+     "layout.duplicate: \"copy Swing into a new layout named Swing Copy\"",
+     "layout.duplicate: \"clone my Swing layout as Swing Copy\""
+    ],
+    "args": [
+     "corpus layout.duplicate"
+    ],
+    "execution": [
+     "layout.duplicate (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "layout.duplicate: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5005,23 +5053,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.list: \"what layouts do I have\"",
+     "layout.list: \"list my layouts\"",
+     "layout.list: \"show me my saved layouts\"",
+     "layout.list: \"which layouts have I saved\""
+    ],
+    "routing": [
+     "layout.list: \"what layouts do I have\"",
+     "layout.list: \"list my layouts\"",
+     "layout.list: \"show me my saved layouts\"",
+     "layout.list: \"which layouts have I saved\""
+    ],
+    "args": [
+     "corpus layout.list"
+    ],
+    "execution": [
+     "layout.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -5099,28 +5161,44 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": true,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.rename: \"rename my Momentum layout to Momentum Trades\"",
+     "layout.rename: \"call the Momentum layout Momentum Trades\"",
+     "layout.rename: \"change the Momentum layout name to Momentum Trades\"",
+     "layout.rename: \"rename layout Momentum to Momentum Trades\""
+    ],
+    "routing": [
+     "layout.rename: \"rename my Momentum layout to Momentum Trades\"",
+     "layout.rename: \"call the Momentum layout Momentum Trades\"",
+     "layout.rename: \"change the Momentum layout name to Momentum Trades\"",
+     "layout.rename: \"rename layout Momentum to Momentum Trades\""
+    ],
+    "args": [
+     "corpus layout.rename"
+    ],
+    "execution": [
+     "layout.rename (c)"
+    ],
     "receipt": [],
     "refusal": [
      "GW-07.protected-layout-rename: refused by name"
     ],
-    "permission": [],
+    "permission": [
+     "layout.rename: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5570,26 +5648,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.deleteSaved: \"delete my Momentum Screen\"",
+     "screener.deleteSaved: \"remove the saved screen Momentum Screen\"",
+     "screener.deleteSaved: \"get rid of my Momentum Screen\"",
+     "screener.deleteSaved: \"delete the Momentum Screen scan\""
+    ],
+    "routing": [
+     "screener.deleteSaved: \"delete my Momentum Screen\"",
+     "screener.deleteSaved: \"remove the saved screen Momentum Screen\"",
+     "screener.deleteSaved: \"get rid of my Momentum Screen\"",
+     "screener.deleteSaved: \"delete the Momentum Screen scan\""
+    ],
+    "args": [
+     "corpus screener.deleteSaved"
+    ],
+    "execution": [
+     "screener.deleteSaved (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "screener.deleteSaved: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5609,26 +5703,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.duplicateSaved: \"make a copy of my Momentum Screen called Momentum Copy\"",
+     "screener.duplicateSaved: \"duplicate the Momentum Screen as Momentum Copy\"",
+     "screener.duplicateSaved: \"copy my Momentum Screen and name it Momentum Copy\"",
+     "screener.duplicateSaved: \"clone the Momentum Screen into Momentum Copy\""
+    ],
+    "routing": [
+     "screener.duplicateSaved: \"make a copy of my Momentum Screen called Momentum Copy\"",
+     "screener.duplicateSaved: \"duplicate the Momentum Screen as Momentum Copy\"",
+     "screener.duplicateSaved: \"copy my Momentum Screen and name it Momentum Copy\"",
+     "screener.duplicateSaved: \"clone the Momentum Screen into Momentum Copy\""
+    ],
+    "args": [
+     "corpus screener.duplicateSaved"
+    ],
+    "execution": [
+     "screener.duplicateSaved (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "screener.duplicateSaved: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5647,23 +5757,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.listSaved: \"what screens have I saved\"",
+     "screener.listSaved: \"list my saved screens\"",
+     "screener.listSaved: \"show me my saved scans\"",
+     "screener.listSaved: \"which screens do I have\""
+    ],
+    "routing": [
+     "screener.listSaved: \"what screens have I saved\"",
+     "screener.listSaved: \"list my saved screens\"",
+     "screener.listSaved: \"show me my saved scans\"",
+     "screener.listSaved: \"which screens do I have\""
+    ],
+    "args": [
+     "corpus screener.listSaved"
+    ],
+    "execution": [
+     "screener.listSaved (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -5762,26 +5886,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.renameSaved: \"rename my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"call the Momentum Screen Momentum Leaders instead\"",
+     "screener.renameSaved: \"change the name of my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"rename the saved screen Momentum Screen to Momentum Leaders\""
+    ],
+    "routing": [
+     "screener.renameSaved: \"rename my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"call the Momentum Screen Momentum Leaders instead\"",
+     "screener.renameSaved: \"change the name of my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"rename the saved screen Momentum Screen to Momentum Leaders\""
+    ],
+    "args": [
+     "corpus screener.renameSaved"
+    ],
+    "execution": [
+     "screener.renameSaved (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "screener.renameSaved: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5920,28 +6060,46 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.saveAs: \"save this screen as ADR Leaders\"",
+     "screener.saveAs: \"save that scan as ADR Leaders\"",
+     "screener.saveAs: \"save these results as a screen called ADR Leaders\"",
+     "screener.saveAs: \"keep this screen, call it ADR Leaders\""
+    ],
+    "routing": [
+     "screener.saveAs: \"save this screen as ADR Leaders\"",
+     "screener.saveAs: \"save that scan as ADR Leaders\"",
+     "screener.saveAs: \"save these results as a screen called ADR Leaders\"",
+     "screener.saveAs: \"keep this screen, call it ADR Leaders\""
+    ],
+    "args": [
+     "corpus screener.saveAs"
+    ],
+    "execution": [
+     "screener.saveAs (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "screener.saveAs: waits for Apply"
+    ],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "screener.saveAs: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -6653,26 +6811,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.clear: \"clear my Momentum list\"",
+     "watchlist.clear: \"empty the Momentum watchlist\"",
+     "watchlist.clear: \"remove everything from my Momentum list\"",
+     "watchlist.clear: \"wipe the Momentum list\""
+    ],
+    "routing": [
+     "watchlist.clear: \"clear my Momentum list\"",
+     "watchlist.clear: \"empty the Momentum watchlist\"",
+     "watchlist.clear: \"remove everything from my Momentum list\"",
+     "watchlist.clear: \"wipe the Momentum list\""
+    ],
+    "args": [
+     "corpus watchlist.clear"
+    ],
+    "execution": [
+     "watchlist.clear (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "watchlist.clear: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -6745,26 +6919,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.delete: \"delete my Earnings watchlist\"",
+     "watchlist.delete: \"remove the Earnings list\"",
+     "watchlist.delete: \"get rid of my Earnings watchlist\"",
+     "watchlist.delete: \"delete the watchlist called Earnings\""
+    ],
+    "routing": [
+     "watchlist.delete: \"delete my Earnings watchlist\"",
+     "watchlist.delete: \"remove the Earnings list\"",
+     "watchlist.delete: \"get rid of my Earnings watchlist\"",
+     "watchlist.delete: \"delete the watchlist called Earnings\""
+    ],
+    "args": [
+     "corpus watchlist.delete"
+    ],
+    "execution": [
+     "watchlist.delete (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "watchlist.delete: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -6783,23 +6973,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.list: \"what watchlists do I have\"",
+     "watchlist.list: \"list my watchlists\"",
+     "watchlist.list: \"show me all my lists\"",
+     "watchlist.list: \"which watchlists have I made\""
+    ],
+    "routing": [
+     "watchlist.list: \"what watchlists do I have\"",
+     "watchlist.list: \"list my watchlists\"",
+     "watchlist.list: \"show me all my lists\"",
+     "watchlist.list: \"which watchlists have I made\""
+    ],
+    "args": [
+     "corpus watchlist.list"
+    ],
+    "execution": [
+     "watchlist.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -6915,26 +7119,42 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.rename: \"rename my Momentum list to Leaders\"",
+     "watchlist.rename: \"call the Momentum watchlist Leaders\"",
+     "watchlist.rename: \"change the name of my Momentum list to Leaders\"",
+     "watchlist.rename: \"rename the Momentum watchlist Leaders\""
+    ],
+    "routing": [
+     "watchlist.rename: \"rename my Momentum list to Leaders\"",
+     "watchlist.rename: \"call the Momentum watchlist Leaders\"",
+     "watchlist.rename: \"change the name of my Momentum list to Leaders\"",
+     "watchlist.rename: \"rename the Momentum watchlist Leaders\""
+    ],
+    "args": [
+     "corpus watchlist.rename"
+    ],
+    "execution": [
+     "watchlist.rename (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "watchlist.rename: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -6953,27 +7173,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "watchlist.reorder: \"put TSLA at the top of my Momentum list\"",
+     "watchlist.reorder: \"move TSLA to the top of Momentum\"",
+     "watchlist.reorder: \"TSLA first on my Momentum watchlist\"",
+     "watchlist.reorder: \"bump TSLA to the top of the Momentum list\""
+    ],
+    "routing": [
+     "watchlist.reorder: \"put TSLA at the top of my Momentum list\"",
+     "watchlist.reorder: \"move TSLA to the top of Momentum\"",
+     "watchlist.reorder: \"TSLA first on my Momentum watchlist\"",
+     "watchlist.reorder: \"bump TSLA to the top of the Momentum list\""
+    ],
+    "args": [
+     "corpus watchlist.reorder"
+    ],
+    "execution": [
+     "watchlist.reorder (c)"
+    ],
+    "receipt": [
+     "watchlist.reorder (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "watchlist.reorder: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -6991,24 +7229,40 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "watchlist.setNote: \"add a note to NVDA on my Momentum list: earnings next week\"",
+     "watchlist.setNote: \"note on NVDA in Momentum: earnings next week\"",
+     "watchlist.setNote: \"put the note earnings next week on NVDA in my Momentum list\"",
+     "watchlist.setNote: \"set the NVDA note in Momentum to earnings next week\""
+    ],
+    "routing": [
+     "watchlist.setNote: \"add a note to NVDA on my Momentum list: earnings next week\"",
+     "watchlist.setNote: \"note on NVDA in Momentum: earnings next week\"",
+     "watchlist.setNote: \"put the note earnings next week on NVDA in my Momentum list\"",
+     "watchlist.setNote: \"set the NVDA note in Momentum to earnings next week\""
+    ],
+    "args": [
+     "corpus watchlist.setNote"
+    ],
+    "execution": [
+     "watchlist.setNote (c)"
+    ],
+    "receipt": [
+     "watchlist.setNote (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

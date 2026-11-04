@@ -4618,6 +4618,835 @@
         "get rid of my Clean template",
         "delete the chart template called Clean"
       ]
+    },
+    {
+      "id": "screener.saveAs",
+      "source": "Batch E1 (11-04): saved screens (save / rename / copy / delete / list) behind the saved-screens routes (live E-06 family)",
+      "capabilities": [
+        "screener.saveAs"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.saveAs"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.saveAs",
+            "args": {
+              "name": "ADR Leaders"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.saveAs",
+            "target": "$savedScreenLibrary",
+            "args": {
+              "name": "ADR Leaders"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "screens": {
+          "exclude": [
+            "ADR Leaders"
+          ]
+        }
+      },
+      "phrasings": [
+        "save this screen as ADR Leaders",
+        "save that scan as ADR Leaders",
+        "save these results as a screen called ADR Leaders",
+        "keep this screen, call it ADR Leaders"
+      ],
+      "before": [
+        {
+          "say": "find stocks with ADR above 5%",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "adr_pct",
+                      "op": "gt",
+                      "value": 5,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/screener/scan|^POST /api/agent/data .*screen\\.run"
+            ]
+          }
+        }
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "screens": {
+          "include": [
+            "ADR Leaders",
+            "Momentum Screen"
+          ]
+        }
+      }
+    },
+    {
+      "id": "screener.renameSaved",
+      "source": "Batch E1 (11-04): saved screens (save / rename / copy / delete / list) behind the saved-screens routes",
+      "capabilities": [
+        "screener.renameSaved"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.renameSaved"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.renameSaved",
+            "args": {
+              "name": "Momentum Leaders"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.renameSaved",
+            "target": "$savedScreenLibrary",
+            "args": {
+              "screen": "7",
+              "name": "Momentum Leaders"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "phrasings": [
+        "rename my Momentum Screen to Momentum Leaders",
+        "call the Momentum Screen Momentum Leaders instead",
+        "change the name of my Momentum Screen to Momentum Leaders",
+        "rename the saved screen Momentum Screen to Momentum Leaders"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "screens": {
+          "include": [
+            "Momentum Leaders"
+          ],
+          "exclude": [
+            "Momentum Screen"
+          ]
+        }
+      }
+    },
+    {
+      "id": "screener.deleteSaved",
+      "source": "Batch E1 (11-04): saved screens (save / rename / copy / delete / list) behind the saved-screens routes",
+      "capabilities": [
+        "screener.deleteSaved"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.deleteSaved"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.deleteSaved",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.deleteSaved",
+            "target": "$savedScreenLibrary",
+            "args": {
+              "screen": "7"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "screens": {
+          "include": [
+            "Momentum Screen"
+          ]
+        }
+      },
+      "phrasings": [
+        "delete my Momentum Screen",
+        "remove the saved screen Momentum Screen",
+        "get rid of my Momentum Screen",
+        "delete the Momentum Screen scan"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "screens": {
+          "exclude": [
+            "Momentum Screen"
+          ]
+        }
+      }
+    },
+    {
+      "id": "screener.duplicateSaved",
+      "source": "Batch E1 (11-04): saved screens (save / rename / copy / delete / list) behind the saved-screens routes",
+      "capabilities": [
+        "screener.duplicateSaved"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.duplicateSaved"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.duplicateSaved",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.duplicateSaved",
+            "target": "$savedScreenLibrary",
+            "args": {
+              "screen": "7",
+              "name": "Momentum Copy"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "phrasings": [
+        "make a copy of my Momentum Screen called Momentum Copy",
+        "duplicate the Momentum Screen as Momentum Copy",
+        "copy my Momentum Screen and name it Momentum Copy",
+        "clone the Momentum Screen into Momentum Copy"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "screens": {
+          "include": [
+            "Momentum Copy",
+            "Momentum Screen"
+          ]
+        }
+      }
+    },
+    {
+      "id": "screener.listSaved",
+      "source": "Batch E1 (11-04): saved screens (save / rename / copy / delete / list) behind the saved-screens routes",
+      "capabilities": [
+        "screener.listSaved"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.listSaved"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.listSaved",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.listSaved",
+            "target": "$screener",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what screens have I saved",
+        "list my saved screens",
+        "show me my saved scans",
+        "which screens do I have"
+      ]
+    },
+    {
+      "id": "watchlist.reorder",
+      "source": "Batch E2 (11-04): watchlist management on the real-routes fixture (reorder, rename, clear, delete, note, list)",
+      "capabilities": [
+        "watchlist.reorder"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.reorder"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.reorder",
+            "args": {
+              "top": [
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.reorder",
+            "target": "$watchlists[0]",
+            "args": {
+              "sort": null,
+              "top": [
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlistOrder": {
+          "name": "Momentum",
+          "symbols": [
+            "TSLA",
+            "NVDA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "put TSLA at the top of my Momentum list",
+        "move TSLA to the top of Momentum",
+        "TSLA first on my Momentum watchlist",
+        "bump TSLA to the top of the Momentum list"
+      ],
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "watchlistOrder": {
+            "name": "Momentum",
+            "symbols": [
+              "NVDA",
+              "TSLA"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "watchlist.rename",
+      "source": "Batch E2 (11-04): watchlist management on the real-routes fixture (reorder, rename, clear, delete, note, list)",
+      "capabilities": [
+        "watchlist.rename"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.rename"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.rename",
+            "args": {
+              "name": "Leaders"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.rename",
+            "target": "$watchlists[0]",
+            "args": {
+              "name": "Leaders"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "phrasings": [
+        "rename my Momentum list to Leaders",
+        "call the Momentum watchlist Leaders",
+        "change the name of my Momentum list to Leaders",
+        "rename the Momentum watchlist Leaders"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "watchlistNames": {
+          "include": [
+            "Leaders"
+          ],
+          "exclude": [
+            "Momentum"
+          ]
+        }
+      }
+    },
+    {
+      "id": "watchlist.clear",
+      "source": "Batch E2 (11-04): watchlist management on the real-routes fixture (reorder, rename, clear, delete, note, list)",
+      "capabilities": [
+        "watchlist.clear"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.clear"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.clear",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.clear",
+            "target": "$watchlists[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "watchlistOrder": {
+          "name": "Momentum",
+          "symbols": [
+            "NVDA",
+            "TSLA"
+          ]
+        }
+      },
+      "phrasings": [
+        "clear my Momentum list",
+        "empty the Momentum watchlist",
+        "remove everything from my Momentum list",
+        "wipe the Momentum list"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "watchlistOrder": {
+          "name": "Momentum",
+          "symbols": []
+        }
+      }
+    },
+    {
+      "id": "watchlist.delete",
+      "source": "Batch E2 (11-04): watchlist management on the real-routes fixture (reorder, rename, clear, delete, note, list)",
+      "capabilities": [
+        "watchlist.delete"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.delete"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.delete",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.delete",
+            "target": "$watchlists[1]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "watchlistNames": {
+          "include": [
+            "Earnings"
+          ]
+        }
+      },
+      "phrasings": [
+        "delete my Earnings watchlist",
+        "remove the Earnings list",
+        "get rid of my Earnings watchlist",
+        "delete the watchlist called Earnings"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "watchlistNames": {
+          "exclude": [
+            "Earnings"
+          ],
+          "include": [
+            "Momentum"
+          ]
+        }
+      }
+    },
+    {
+      "id": "watchlist.setNote",
+      "source": "Batch E2 (11-04): watchlist management on the real-routes fixture (reorder, rename, clear, delete, note, list)",
+      "capabilities": [
+        "watchlist.setNote"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.setNote"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.setNote",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.setNote",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbol": "NVDA",
+              "note": "earnings next week"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlistNote": {
+          "name": "Momentum",
+          "symbol": "NVDA",
+          "note": "earnings next week"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "add a note to NVDA on my Momentum list: earnings next week",
+        "note on NVDA in Momentum: earnings next week",
+        "put the note earnings next week on NVDA in my Momentum list",
+        "set the NVDA note in Momentum to earnings next week"
+      ]
+    },
+    {
+      "id": "watchlist.list",
+      "source": "Batch E2 (11-04): watchlist management on the real-routes fixture (reorder, rename, clear, delete, note, list)",
+      "capabilities": [
+        "watchlist.list"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.list",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.list",
+            "target": "$watchlistLibrary",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what watchlists do I have",
+        "list my watchlists",
+        "show me all my lists",
+        "which watchlists have I made"
+      ]
+    },
+    {
+      "id": "layout.rename",
+      "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture (approval; a protected layout is refused: GW-07)",
+      "capabilities": [
+        "layout.rename"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.rename"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.rename",
+            "args": {
+              "name": "Momentum Trades"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.rename",
+            "target": "$layouts",
+            "args": {
+              "layout": "2",
+              "name": "Momentum Trades"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "phrasings": [
+        "rename my Momentum layout to Momentum Trades",
+        "call the Momentum layout Momentum Trades",
+        "change the Momentum layout name to Momentum Trades",
+        "rename layout Momentum to Momentum Trades"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "layout": {
+          "names": [
+            "Momentum Trades"
+          ]
+        }
+      }
+    },
+    {
+      "id": "layout.delete",
+      "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture",
+      "capabilities": [
+        "layout.delete"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.delete"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.delete",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.delete",
+            "target": "$layouts",
+            "args": {
+              "layout": "2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "layout": {
+          "names": [
+            "Momentum"
+          ]
+        }
+      },
+      "phrasings": [
+        "delete my Momentum layout",
+        "remove the Momentum layout",
+        "get rid of the Momentum layout",
+        "delete the layout called Momentum"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "layout": {
+          "active": "Swing"
+        }
+      }
+    },
+    {
+      "id": "layout.duplicate",
+      "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture",
+      "capabilities": [
+        "layout.duplicate"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.duplicate"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.duplicate",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.duplicate",
+            "target": "$layouts",
+            "args": {
+              "layout": "1",
+              "name": "Swing Copy"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "phrasings": [
+        "make a copy of my Swing layout called Swing Copy",
+        "duplicate the Swing layout as Swing Copy",
+        "copy Swing into a new layout named Swing Copy",
+        "clone my Swing layout as Swing Copy"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "layout": {
+          "names": [
+            "Swing Copy",
+            "Swing"
+          ]
+        }
+      }
+    },
+    {
+      "id": "layout.create",
+      "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture",
+      "capabilities": [
+        "layout.create"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.create",
+            "args": {
+              "name": "Scalps"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.create",
+            "target": "$layouts",
+            "args": {
+              "name": "Scalps"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "phrasings": [
+        "create a new empty layout called Scalps",
+        "make a new layout named Scalps",
+        "start a fresh layout called Scalps",
+        "new layout: Scalps"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "layout": {
+          "names": [
+            "Scalps"
+          ]
+        }
+      }
+    },
+    {
+      "id": "layout.list",
+      "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture",
+      "capabilities": [
+        "layout.list"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.list",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.list",
+            "target": "$layouts",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what layouts do I have",
+        "list my layouts",
+        "show me my saved layouts",
+        "which layouts have I saved"
+      ]
     }
   ],
   "refusals": [

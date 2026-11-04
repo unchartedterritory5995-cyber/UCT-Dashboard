@@ -7,6 +7,7 @@ import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, propo
 import { routedNames } from './route'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
+import { _resetScreenerCache } from '../../../capabilities/screener'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -113,6 +114,24 @@ export function checkExpect(ctx, e, label) {
     for (const n of e.templates.include || []) expect(names, `${label}: a chart template ${n}`).toContain(n)
     for (const n of e.templates.exclude || []) expect(names, `${label}: no chart template ${n}`).not.toContain(n)
   }
+  if (e.screens) {
+    const names = ctx.st.screens.map(x => x.name)
+    for (const n of e.screens.include || []) expect(names, `${label}: a saved screen ${n}`).toContain(n)
+    for (const n of e.screens.exclude || []) expect(names, `${label}: no saved screen ${n}`).not.toContain(n)
+  }
+  if (e.watchlistOrder) {
+    const wl = (board.state.server?.lists || []).find(l => l.name === e.watchlistOrder.name)
+    expect(wl?.items.map(i => i.sym), `${label}: ${e.watchlistOrder.name} order`).toEqual(e.watchlistOrder.symbols)
+  }
+  if (e.watchlistNote) {
+    const wl = (board.state.server?.lists || []).find(l => l.name === e.watchlistNote.name)
+    expect(wl?.items.find(i => i.sym === e.watchlistNote.symbol)?.notes, `${label}: the note on ${e.watchlistNote.symbol}`).toBe(e.watchlistNote.note)
+  }
+  if (e.watchlistNames) {
+    const names = (board.state.server?.lists || []).map(l => l.name)
+    for (const n of e.watchlistNames.include || []) expect(names, `${label}: a watchlist ${n}`).toContain(n)
+    for (const n of e.watchlistNames.exclude || []) expect(names, `${label}: no watchlist ${n}`).not.toContain(n)
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
@@ -139,8 +158,10 @@ export function checkExpect(ctx, e, label) {
  * Each step's expectations are retried until they hold (UI work settles asynchronously) and then asserted.
  */
 export async function replay({ board: boardName = 'ONE', steps, seed = {} }, label) {
+  _resetScreenerCache()                               // before the panel mounts (it reads the saved screens on open)
   const m = mountCase(boardName, { seed })
   const { p, board, say } = m
+  _resetScreenerCache()                               // module-level: each case reads its own saved screens
   // a member's panel has read their indicator alerts long before they ask (the cache is module-level: start clean)
   if (m.h.indicatorAlerts) { _resetIndicatorAlertCache(); await loadIndicatorAlerts(m.h, { force: true }) }
   const start = boardState(board)

@@ -242,27 +242,7 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "layout.create": {
-   "owner": "agent-qa (capreg) — group layouts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "layout.current": {
-   "owner": "agent-qa (capreg) — group layouts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "layout.delete": {
-   "owner": "agent-qa (capreg) — group layouts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "layout.duplicate": {
-   "owner": "agent-qa (capreg) — group layouts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "layout.list": {
    "owner": "agent-qa (capreg) — group layouts",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -302,37 +282,12 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "screener.deleteSaved": {
-   "owner": "agent-qa (capreg) — group screener",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "screener.duplicateSaved": {
-   "owner": "agent-qa (capreg) — group screener",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "screener.listSaved": {
-   "owner": "agent-qa (capreg) — group screener",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "screener.openSaved": {
    "owner": "agent-qa (capreg) — group screener",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "screener.page": {
-   "owner": "agent-qa (capreg) — group screener",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "screener.renameSaved": {
-   "owner": "agent-qa (capreg) — group screener",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "screener.saveAs": {
    "owner": "agent-qa (capreg) — group screener",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -362,37 +317,7 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "watchlist.clear": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "watchlist.delete": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "watchlist.list": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "watchlist.open": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "watchlist.rename": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "watchlist.reorder": {
-   "owner": "agent-qa (capreg) — group lists",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "watchlist.setNote": {
    "owner": "agent-qa (capreg) — group lists",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
