@@ -2047,7 +2047,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⭐ NLM-1 D2 (dark): a plan that refers to the chart it creates ("add a chart for QQQ and put RSI on it / on both")
       // on a board where no single target could be picked — Track A's bindCreated aims it at the new chart's alias
       if (routingV2Active() && fast?.kind === 'ops' && !fast.ops.every(o => o.target)) {
-        const made = planCreatedReference(refText, host)
+        // the binder reads the member's TYPED words (raw) when NLM-1 rewrote them — see nlm1/plans.js `said`
+        const typedRaw = String(raw || '').trim()
+        const made = planCreatedReference(refText, host, { said: typedRaw !== text ? typedRaw : null })
         if (made?.ask) {
           push({ role: 'agent', text: made.ask })
           record({ member: text, outcome: made.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })

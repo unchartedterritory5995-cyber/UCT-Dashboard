@@ -220,13 +220,7 @@
       "modelTurns": 0
      }
     }
-   ],
-   "gap": {
-    "id": "NLM1-G1",
-    "owner": "runtime exact Undo (#771 area): AUDIT",
-    "mode": "the board is back as it started",
-    "reason": "same root cause as workflows.json D2-13: after the request's change to a chart it created is undone, that creation's own Undo is refused (\"Workspace has changed since I made that change\"); the grouped Undo honestly reports 1 of 2 taken back. Same with NLM-1 off."
-   }
+   ]
   },
   {
    "id": "G-a4.new-chart-two-indicators",

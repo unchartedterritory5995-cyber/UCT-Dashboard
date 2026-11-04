@@ -544,13 +544,7 @@
       "modelTurns": 0
      }
     }
-   ],
-   "gap": {
-    "id": "NLM1-G1",
-    "owner": "runtime exact Undo (#771 area): AUDIT",
-    "mode": "the board is back as it started",
-    "reason": "after the new chart's later changes are undone exactly, the creation's own Undo is refused (\"Workspace has changed since I made that change\"): the new chart's stored settings are not byte-identical after those undos, so the workspace fingerprint no longer matches. Same with NLM-1 off. Not a reference issue."
-   }
+   ]
   },
   {
    "id": "D2-14.same-but-weekly-new-chart",

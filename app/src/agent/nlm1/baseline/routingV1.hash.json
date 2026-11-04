@@ -10,6 +10,11 @@
       "base": "7be34d2dd9 (origin/agent/w2/live-train4-fixes, Track A CG-37; inputs byte-identical: git diff 7be34d2dd9 -- routing.js capabilities* builtins.js contract qa/capabilityRegression/baseline is empty)",
       "sha256": "4979c3772137af707a8e94fe4b8bc0c0d063e6cd96fb69f9b5a6c7eee627ff43",
       "cases": 2268
+    },
+    {
+      "base": "29830442d0 (origin/master after #796/#797/#798; PACKAGE 1 base; inputs byte-identical: git diff 29830442d0 -- routing.js capabilities* builtins.js contract qa/capabilityRegression/baseline testing/corpus.js is empty; same hash as 7be34d2dd9)",
+      "sha256": "4979c3772137af707a8e94fe4b8bc0c0d063e6cd96fb69f9b5a6c7eee627ff43",
+      "cases": 2268
     }
   ]
 }

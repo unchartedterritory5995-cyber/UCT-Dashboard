@@ -34,7 +34,10 @@ function aimAt(op, chartRef) {
 // `bind`: the created-object binder (Track A's bindCreated today; created-binding-v2 when it lands — same contract:
 // (ops, text, host) → { ops } | { ask } | null). This module hands it UNTARGETED ops only (a target is filled only where it
 // is certain: the workspace), so it never depends on a binder re-aiming an op the plan aimed at an existing chart.
-export function planCreatedReference(text, host, { bind = bindCreated } = {}) {
+// `said`: the member's OWN words when `text` is NLM-1's rewrite of them ("same but weekly" → "add a chart for TSLA and
+// make it weekly"). The binder reads the words only for whether the MEMBER named an existing chart; a ticker the rewrite
+// carried over from the earlier request is not the member naming the chart that already shows it.
+export function planCreatedReference(text, host, { bind = bindCreated, said = null } = {}) {
   try {
     const t = String(text || '')
     const both = BOTH.test(t)
@@ -49,7 +52,7 @@ export function planCreatedReference(text, host, { bind = bindCreated } = {}) {
       const list = (() => { try { return kind?.list?.(host) || [] } catch { return [] } })()
       return list.length === 1 && getCapability(o.action)?.target === 'workspace' ? { ...o, target: list[0].ref } : o
     })
-    const bound = bind(filled, words, host)
+    const bound = bind(filled, said != null ? String(said) : words, host)
     if (!bound) return null
     if (bound.ask) return { ask: bound.ask }
     let ops = bound.ops
