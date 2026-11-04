@@ -19,6 +19,7 @@ import { CREATE_INDICATOR_FLAG_KEY } from '../../../../components/chart/builder/
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
+import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -123,7 +124,12 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
+  // NLM-1 (dark): seed.nlm1 turns BOTH keys on for this case (server config routing_v2 + the browser switch); every other
+  // case has the browser key cleared, so NLM-1 stays off whatever an earlier case left cached
   const p = setupPanel()
+  try { if (seed.nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.removeItem('uct.agent.routingV2') } catch { /* */ }
+  // NLM-1's third key (in-plan rules, nlm1/inplan.js): ON only for a case seeded nlm1Inplan, cleared otherwise
+  try { if (seed.nlm1Inplan) localStorage.setItem('uct.agent.nlm1.inplan', '1'); else localStorage.removeItem('uct.agent.nlm1.inplan') } catch { /* */ }
   const srv = stepScript ? installStepServer(p, stepScript, { planner: 'v2' }) : null
   const st = { log: [], replay: null, views: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
@@ -133,7 +139,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
     p.st.calls.push([method, u, body])
-    if (u === '/api/agent/config') return json(srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds))
+    if (u === '/api/agent/config') { const cfg = srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds); return json(seed.nlm1 ? { ...cfg, routing_v2: true } : cfg) }
     if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
     // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
     // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
@@ -202,6 +208,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)
   }
+  // NLM-1: the config cleared above is read again through THIS case's config route (routing_v2: true) before any turn
+  if (seed.nlm1) loadAgentConfig()
   const spec = BOARDS[boardName]()
   let mounted = null
   mounted = p.mount(...spec)

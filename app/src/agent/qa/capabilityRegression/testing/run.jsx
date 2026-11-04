@@ -29,6 +29,24 @@ export function checkExpect(ctx, e, label) {
   const calls = p.st.calls.slice(since.calls).filter(c => c[1] !== '/api/agent/turn' && c[1] !== '/api/agent/record')
   if (e.modelTurns != null) expect(turnCount(p) - since.turns, `${label}: model turns`).toBeLessThanOrEqual(e.modelTurns)
   if (e.unchanged) expect(boardState(board), `${label}: the board is unchanged`).toBe(before)
+  // NLM-1 step plans: what the panel SAID (a read-back line, a skipped step) — a structural phrase, matched case-insensitively
+  for (const r of e.says || []) expect(String(p.transcript()), `${label}: the panel says /${r}/`).toMatch(new RegExp(r, 'i'))
+  for (const r of e.saysNot || []) expect(String(p.transcript()), `${label}: the panel does not say /${r}/`).not.toMatch(new RegExp(r, 'i'))
+  if (e.bySymbol) {
+    // NLM-1: a chart found by the ONE symbol it shows (wherever a new chart was placed): its timeframe, and which indicator
+    // kinds it carries (`has` / `hasNot`: defIds; `period`: a movingAverage of that length)
+    for (const [sym, want] of Object.entries(e.bySymbol)) {
+      const cs = chartsOf(board).filter(w => String(h.charts.read(w.id)?.symbol || '').toUpperCase() === sym)
+      expect(cs.length, `${label}: exactly one ${sym} chart`).toBe(1)
+      const c = h.charts.read(cs[0].id)
+      const inst = p.instancesOn(board, cs[0].id)
+      if (want.tf) expect(c?.tf, `${label}: the ${sym} chart's timeframe`).toBe(want.tf)
+      for (const d of want.has || []) expect(inst.some(i => i.defId === d), `${label}: ${d} on the ${sym} chart`).toBe(true)
+      for (const d of want.hasNot || []) expect(inst.some(i => i.defId === d), `${label}: no ${d} on the ${sym} chart`).toBe(false)
+      for (const n of want.ma || []) expect(inst.some(i => i.defId === 'movingAverage' && i.inputs?.period === n), `${label}: MA ${n} on the ${sym} chart`).toBe(true)
+      for (const n of want.noMa || []) expect(inst.some(i => i.defId === 'movingAverage' && i.inputs?.period === n), `${label}: no MA ${n} on the ${sym} chart`).toBe(false)
+    }
+  }
   if (e.restored) expect(boardState(board), `${label}: the board is back as it started`).toBe(start)
   if (e.charts) {
     const cs = chartsOf(board)
@@ -179,7 +197,7 @@ export async function replay({ board: boardName = 'ONE', steps, seed = {} }, lab
     const since = { calls: p.st.calls.length, turns: turnCount(p), receipts: receiptsNow().length, refusals: refusals().length }
     p.st.envelopes.length = 0
     if (s.routes) {
-      const got = routedNames(s.say, { host: m.h }).names
+      const got = routedNames(s.say, { host: m.h, v2: !!seed.nlm1 }).names   // NLM-1: the router the case runs with
       for (const a of s.routes) expect(got, `${label} · step ${i + 1}: "${s.say}" routes ${a}`).toContain(a)
     }
     if (s.model) p.st.envelopes.push(faithful(p, s.model))
