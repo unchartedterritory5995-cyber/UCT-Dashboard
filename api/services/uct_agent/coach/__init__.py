@@ -145,7 +145,7 @@ def guard_inputs(context: Any, message: str) -> list[str]:
 
 
 def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | None = None,
-                   history: list | None = None) -> dict:
+                   history: list | None = None, classifier_create=None) -> dict:
     """Apply guard.enforce to a coach turn's reply (and a clarify question's text). A violating text is REPLACED
     by the fixed sentence; the codes are logged value-free and noted in `usage['coach_guard']` (codes only)."""
     import logging
@@ -159,6 +159,12 @@ def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | Non
     reply = out.get("reply")
     if isinstance(reply, str) and reply.strip():
         res = guard.enforce(reply, inputs)
+        # stage 2 (UCT_AGENT_COACH_CLASSIFIER, default off): a closed-schema classifier on replies stage 1 PASSED;
+        # fail closed (no callable wired, error, timeout -> replaced). Off, second_stage returns [] without a call.
+        from api.services.uct_agent.coach import classifier
+        extra = classifier.second_stage(reply, res["violations"], classifier_create)
+        if extra:
+            res = {"text": guard.FIXED, "violations": extra}
         codes += res["violations"]
         out["reply"] = res["text"] if (res["violations"] or out.get("disposition") == "answer") else reply
         # review B4 / N5: the model never writes its own definition of a UCT setup -- an uncited definition-like
