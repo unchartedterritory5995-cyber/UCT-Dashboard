@@ -1,5 +1,21 @@
 # RESUME.md — exact state to resume from (written 2026-11-03 ≈07:00Z, owner's usage limit approaching)
 
+## STOP 4 — parallel tracks (2026-11-04 ~16:20Z) — read first
+
+Production = `993ef96a2a` (train 4: #771 + #776). Master `c87ab6d578` (#774 + #783 clock pin) gate QUEUED (GitHub Actions degraded). Flags unchanged.
+
+| Track | Owner | Branch / PR | State |
+| --- | --- | --- | --- |
+| A release | turncap builder | agent/budget/v1-turn-cap #785 | review approve w/ nits; fixing 4 nits; then verification review → release first |
+| A release | v2 builder | release/agent-dark-train #786 | fixing 2 v2 parity gaps (ma-cross multichart, draft-create); then review → merge (flags OFF) |
+| A release | nlfix builder | agent/w2/live-train4-fixes | M1 ambiguity on all paths, M2 card names charts; then delta review → release |
+| B intelligence | NLM-1 builder | agent/nlm1/flexible-understanding | milestone NLM-1 (registry routing, in-plan refs, context) dark UCT_AGENT_ROUTING_V2 |
+| B acceptance | capreg builder | agent/qa/nlm1-heldout | independent held-out ≥300 + 15 workflows + 20 context cases |
+| C Brain | blake-d8 | #781 + safeguards | E-1 dark; rights tooling, calc dates, retention flag-off |
+| D workflows | trwf builder | agent/w4/trading-workflows | 3 dark workflows via canonical APIs |
+
+Release order once Actions recovers: gate c87ab → #785 → train4-fixes → #786. Live acceptance on owner account PAUSED (needs dedicated test admin account — owner steps in isolation plan). Coach eval blocked on eval key/ledger.
+
 ## STOP 3 / OVERNIGHT 2026-11-04 — read this section first
 ### STOP 3 update (~10:30Z)
 - Production = master = `88cca06313` (#769 capability regression system merged + deployed 09:48Z; tests/CI/docs only; gate skip-master path verified).
