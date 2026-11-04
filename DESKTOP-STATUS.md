@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 23:40 CT
+updated: 2026-11-03 23:50 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet: W4-T2 Opus; W5-T1, W4-T7, W4-T12, W4-T3 r1, E lows). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (0 Opus, 6 Sonnet: W5-T1, W4-T7, W4-T12, W4-T3 r1, E lows, W5-T3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read fd609214e4 (PAUSE banner).
@@ -28,14 +28,14 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows (created by builders)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3 (created by builders)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
 1. W5-T6 (desktop's own; starts the moment W5-T1 is READY, branched from T1's tip)
 2. W4-T3 fix round @ 572376edf6: STARTED 23:07 CT
 3. E evidence-engine lows @ e58edcbeaf: STARTED 23:40 CT (slot freed by W4-T11 READY)
-4. W5-T3 codec @ cd61d6741d (final-tip + EVIDENCE.md; no engine bump)
+4. W5-T3 codec @ cd61d6741d: STARTED 23:50 CT (slot freed by W4-T2 READY)
 5. W3 S1 round 2 @ 7eaca7777f (measure-pair both lanes + final-tip; engine 8)
 6. W4-T0 census peel @ 75c4c400c2 (job.sh + coverage map docs)
 7. W2 round 3 @ 1a8dddb408 (classify P11, edit packet; NEVER arm or touch flags)
@@ -43,10 +43,12 @@ Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to 
 READY lanes wait for the new coordinator's review. The desktop does not review, merge or bump.
 
 ## W4-T2
-state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
-branch: feat/pine-w4-t2-simple-folding   worktree: pine-dsk-w4t2   model: Opus
-engine bump needed: expected yes (engine change), confirmed at READY
-next: builder implementing W4-BREAKDOWN T2; measure-pair both lanes, then final-tip
+state: READY            round: r0            updated: 2026-11-03 23:50 CT
+branch: feat/pine-w4-t2-simple-folding   tip: ac659bae66 (docs-only evidence over ce5c4bf34b, the final-tip tree)   tested on master: 5d95103c8a
+engine bump needed: YES (refusals become served values on the runtime lane; SCRIPT_ENGINE_VERSION NOT edited)
+evidence: docs/pine/evidence/2026-11-03-w4-t2/EVIDENCE.md (on the branch)
+report: pineRuntimeFrontend.js T2 band only. New simpleValueOf used by invariantTest, constValueOf and foldConstNode: a root name is simple when its writes are one folding root declaration, root or if/else-if/else reassignments whose tests fold, or a var nothing reassigns; the value at a read is the ordered result of the writes before it. foldConstNode also folds + - * and math.* over constants (k + 2, math.max(len, 3)); / and % stay out (T17). The object door keeps master's answer. Rails: new w4SimpleFolding.test.js (26) plus 3 object-door shapes; 22 fail on master, all pass on tip. Intended existing-test updates: k + 2 gap test now asserts span 7; two volume-profile pins move past line 154 (vendorHarness c47/f6, constantLengthRefusal, finiteWindow). Mutations 25/25 killed (round-1 survivors were redundant guards, removed; rails added where they mattered). measure-pair rt0: 0 diffs in C18, census, harness. rt1: C18 and harness identical (incl. adx-and-di-for-v4); 6/967 census rows differ, all intended (RSI loses conditional-history walls at 42/43, next wall is T4's; 3 rows lose a dynamic-offset wall; 2 later peel-step walls fall away). final-tip on ce5c4bf34b: gate pytest 46 passed, version-gate 6 passed, hygiene clean, vitest 1 failed = pollingSites.rail (desktop baseline): 0 new failures. Open: numeric inputs still fold at the author's default (owner rule 2026-08-11), so "changes with the member's input" holds only for text inputs and timeframe tests; still refused: writes in loops/switch, simple values inside function bodies, text-valued simple names (T3); spec row range-filter-bs-signals is not in the desktop sample, unchecked.
+desktop check of the definition of done: PASS (T2 band plus intended test updates, rail red on master / green on tip, 25/25 mutations, measure-pair both lanes, final-tip at baseline on ce5c4bf34b and ce5c4bf34b..ac659bae66 is EVIDENCE.md only, local == origin, worktree clean)
 
 ## W5-T1
 state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
@@ -93,3 +95,9 @@ state: BUILDING   round: r0   updated: 2026-11-03 23:40 CT
 branch: fix/pine-evidence-engine-lows   start tip: e58edcbeaf   worktree: pine-dsk-elows   model: Sonnet
 engine bump needed: decided at READY
 next: all 5 lows already coded; run deploy-gate pytest + hygiene + rails, write EVIDENCE.md, READY
+
+## W5-T3 codec (re-homed)
+state: BUILDING   round: r0   updated: 2026-11-03 23:50 CT
+branch: per ASSIGNMENTS row (existing branch)   start tip: cd61d6741d   worktree: pine-dsk-w5t3   model: Sonnet
+engine bump needed: no (per ASSIGNMENTS)
+next: final-tip + EVIDENCE.md, READY
