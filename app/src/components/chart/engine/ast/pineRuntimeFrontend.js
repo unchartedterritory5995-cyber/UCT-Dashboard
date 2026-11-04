@@ -7657,7 +7657,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const servedLoopLine = (ln) => {
     const w = blockKeywordOf(ln)
     if (w !== 'for' && w !== 'while') return false
-    return !loopHasJump(ln.sub)
+    if (loopHasJump(ln.sub) || !ln.sub || !ln.sub.length) return false
+    // Only a body whose LAST line is a plain value line: an expression, a binding,
+    // a reassignment, or another served loop. A body ending in a call statement
+    // (a drawing, a void array write, a log, a user function that may itself have no
+    // value), a tuple, or an `if`/`switch` chain keeps the old answer (the function
+    // is compiled valueless and refuses by name when its value is read).
+    const last = ln.sub[ln.sub.length - 1]
+    const lw = blockKeywordOf(last)
+    if (lw === 'for' || lw === 'while') return servedLoopLine(last)
+    const h = (last && last.header) || []
+    if (!h.length || (last.sub && last.sub.length)) return false
+    if (h[0].kind !== 'ident' && h[0].kind !== 'number' && !isPunct(h[0], '(')) return false
+    if (h[0].kind === 'ident' && isPunct(h[1], '(')) return false
+    if (h[0].kind === 'ident' && (lw === 'if' || lw === 'else' || lw === 'switch')) return false
+    return true
   }
   /** the sink the NEXT `for`/`while` statement lowered writes its body's value into */
   let pendingLoopSink = null
@@ -7720,11 +7734,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // as a value block into it, so the last pass that ran is what stays. A loop
     // with `break`/`continue` keeps the old answer (valueless).
     if (!atObjectDoor && h === lines.length - 1 && servedLoopLine(head)) {
-      const inner = { allow: !!(vstate && vstate.allow), valueless: false, end: null }
+      const inner = { allow: false, valueless: false, end: null }
       body.push(...seedSink(sink))
       pendingLoopSink = { sink, label, atTok, vstate: inner }
       try { for (const s of lowerStmts(lines.slice(h), scope)) body.push(s) } finally { pendingLoopSink = null }
-      if (inner.valueless) noteValueless(vstate, 'loop', label, at)
       return body
     }
     const end = h === lines.length - 1 ? valuelessEndOf(head) : null

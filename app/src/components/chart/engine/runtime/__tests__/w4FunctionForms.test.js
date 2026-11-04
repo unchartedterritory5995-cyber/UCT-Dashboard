@@ -104,6 +104,15 @@ describe('W4-T15 a function ending in a loop returns the loop\'s last value', ()
     expect(r.guard).toBe('runtime:function')
     expect(r.message).toMatch(/ends in a loop/)
   })
+  it('a loop body ending in an if chain keeps the by-name refusal (not given a value here)', () => {
+    const r = refusalOf('f(n) =>\n    s = 0.0\n    for i = 1 to n\n        if i > 1\n            s += i\nplot(f(3))\n')
+    expect(r.guard).toBe('runtime:function')
+    expect(r.message).toMatch(/ends in a loop/)
+  })
+  it('a loop body ending in a tuple destructuring keeps the by-name refusal', () => {
+    const r = refusalOf('g(i) =>\n    [i, i + 1]\nf(n) =>\n    for i = 1 to n\n        [a, b] = g(i)\nplot(f(3))\n')
+    expect(r.message).toMatch(/ends in a loop|tuple|values/)
+  })
   it('a loop whose body ends in a void call is still valueless, and runs for its effect', () => {
     const src = 'var a = array.new<float>()\nload(n) =>\n    for i = 1 to n\n        array.push(a, i)\n'
       + 'load(3)\nplot(array.size(a))\n'
