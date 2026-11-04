@@ -296,9 +296,9 @@ def _member_style_row(conn, user_id):
     return gid
 
 
-def _starter_installed_copy(conn, monkeypatch, gid):
-    """A member's copy of firm style `gid`, adopted while both switches are on, with the row then listed at a
-    newer version so an update is waiting for it. Returns the copy's style id."""
+def _starter_installed_copy(conn, gid):
+    """A member's copy of firm style `gid`, with the row then listed at a newer version so an update is waiting
+    for it. Returns the copy's style id."""
     out = gallery.adopt_style(MEMBER, gid, conn=conn)
     assert out is not None
     conn.execute("UPDATE j2_template_gallery SET version = version + 1 WHERE id = ?", (gid,))
@@ -323,6 +323,27 @@ def _every_read(conn, gid, hidden_gid, style_id):
         "queue:hidden": hidden_gid in {x["id"] for x in queue["hidden"]},
         "queue:reported": gid in {x["id"] for x in queue["reported"]},
     }
+
+
+def test_every_read_path_shows_a_firm_style(conn):
+    """THE LOAD-BEARING RAIL (P5-AUD-1), its on half: a firm style row appears on every path a gallery read can
+    reach it by -- the list, UCT picks, the style / pack / search filters, the member and admin item, the update
+    list and plan for an adopted copy, and the admin queue's hidden and reported lists. (Its off half tested the
+    starter-packs switch, retired as always on 2026-11-04, so this state is production's.)"""
+    rows = _style_rows(conn)
+    gid = next(r["id"] for r in rows if r["trading_style"] == "swing")
+    hidden_gid = next(r["id"] for r in rows if r["trading_style"] == "day")
+    style_id = _starter_installed_copy(conn, gid)
+    # A report on the firm row and an admin hide of another one.
+    assert gallery.report(MEMBER, gid, reason="other", conn=conn) == {"reported": True, "already": False}
+    assert gallery.admin_act(ADMIN, hidden_gid, "hide", conn=conn) is not None
+    shown = _every_read(conn, gid, hidden_gid, style_id)
+    assert len(shown) == 11, sorted(shown)                                    # non-vacuity: every path was read
+    assert all(shown.values()), {k: v for k, v in shown.items() if not v}
+    # Hidden is a visibility state: nothing was deleted, the pick is still featured, the member's copy is theirs.
+    assert len(_style_rows(conn)) == 15
+    assert conn.execute("SELECT featured FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1
+    assert js.get_style(MEMBER, style_id, conn) is not None
 
 
 def test_with_both_switches_on_every_firm_style_is_a_uct_pick(conn, monkeypatch):
