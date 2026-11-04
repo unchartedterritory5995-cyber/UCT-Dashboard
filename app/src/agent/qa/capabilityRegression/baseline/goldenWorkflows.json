@@ -917,13 +917,7 @@
             "receipt": true
           }
         }
-      ],
-      "gap": {
-        "id": "CG-34",
-        "reason": "after 'open a chart for AMD' (widget.addCharts), 'add rsi to it' asks 'Which chart do you mean?' — the chart this conversation just CREATED is not 'it' (subjectTarget remembers changed charts, not created ones); nothing is added",
-        "owner": "agent-core builder (useAgent.js subjectTarget / memory)",
-        "mode": "an indicator matching"
-      }
+      ]
     },
     {
       "id": "GW-23.weekly-and-ema-then-undo-all",

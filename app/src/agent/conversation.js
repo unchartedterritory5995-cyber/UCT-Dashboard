@@ -376,7 +376,8 @@ function indicatorClause(t, ctx) {
   m = /^(hide|show|unhide|turn off|turn on) (.+)$/.exec(t) || /^turn (.+) (off|on)$/.exec(t)
   if (m) {
     const [verb, words] = /^turn .+ (?:off|on)$/.test(t) ? [m[2] === 'off' ? 'hide' : 'show', m[1]] : [m[1], m[2]]
-    const action = /hide|off/.test(verb) ? 'indicator.hide' : 'indicator.show'
+    // CG-10 (corpus #769): the verb is matched WHOLE — "unhide" contains "hide" but means SHOW
+    const action = verb === 'hide' || verb === 'turn off' ? 'indicator.hide' : 'indicator.show'
     return done(ref(words), i => ({ action, target: ixe(i.chart), args: { instance: i.instanceId } }))
   }
   // where it draws: "put it in its own pane", "move them to the price chart"

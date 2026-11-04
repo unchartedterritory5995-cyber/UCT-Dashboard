@@ -112,13 +112,13 @@ production's kinds):
 | nl | 94 / 154 | a phrasing reaches it with no gap at (b) or (c) |
 | routing | 94 / 154 | the production routed request carries it, and it is not cut by the budget |
 | args | 94 / 154 | a canonical op passes shapeError |
-| execution | 93 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 68 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| execution | 94 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 69 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
 | refusal | 27 / 154 | a refusal / must-not-change case |
 | permission | 146 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
 | undo | 43 / 95 | undo-exact capabilities with a restore assertion |
-| multiStep | 19 / 154 | inside a multi-op plan or a multi-step workflow |
-| phrasings | 92 / 154 | ≥ 3 gap-free phrasings |
+| multiStep | 21 / 154 | inside a multi-op plan or a multi-step workflow |
+| phrasings | 94 / 154 | ≥ 3 gap-free phrasings |
 
 94 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow; D7 and D8 added app settings and chart templates through the preference writer; E1 to E6 added saved screens, watchlist and layout management, breadth variants, volume / indicator listing / drawing visibility / widget links, and the multi-step golden workflows GW-19 to GW-21; F1 and F2 added the time-anchored drawings, promoted settings, Replay Mode, go-to-date and custom timeframes over a synthetic bar-history fixture; F3 added an approval-and-Dismiss refusal case for every approval-gated intent plus the forbidden families; F4 added cross-turn combos GW-22 to GW-24). The other 60 are in the backlog: see §2a. Their contract is
 pinned, but nothing tests their language or execution yet. That backlog is the honest size of the "silent loss"
@@ -175,6 +175,17 @@ all resolve against the same bars.
   It never compares exact prose.
 
 ## 4. Known gaps (fix tasks for the routing / NL builders)
+
+> **Status after release train 4 (master 993ef96a2a, #771 + #776; reconciled on #774 2026-11-04).** Every gap below
+> CG-1 to CG-36 (with CG-3a and CG-7b) now passes. Each case reported "no longer fails" and its marker was removed
+> (no decision needed), then the lock and coverage were regenerated.
+>
+> Two ROUTING-COLLISION rows still fail as recorded:
+> - **CG-4:** "add the relative strength index" is still also selected by the screener words.
+> - **CG-13:** "how does NVDA stack up against AMD" is still also selected by the charts compare words.
+>
+> Both are now additive: the owner group is named, and the steal only costs request budget. The table below is kept as
+> the history of what each gap was.
 
 | id | level | phrasing(s) | owner |
 |---|---|---|---|

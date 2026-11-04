@@ -3,13 +3,7 @@
   "rows": [
     {
       "text": "tell me about TSM the company",
-      "owner": "data",
-      "gap": {
-        "id": "CG-12",
-        "reason": "the alerts words /\\b(notify|ping|tell) me\\b/ select 'tell me about …'",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by alerts"
-      }
+      "owner": "data"
     },
     {
       "text": "how does NVDA stack up against AMD",
@@ -23,13 +17,7 @@
     },
     {
       "text": "tell me about AAPL",
-      "owner": "data",
-      "gap": {
-        "id": "CG-12",
-        "reason": "the alerts words /\\b(notify|ping|tell) me\\b/ select 'tell me about …' — and nothing else names data, so the owner group is never sent (SUBTRACTIVE)",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by alerts"
-      }
+      "owner": "data"
     },
     {
       "text": "what does NVDA do",
@@ -49,13 +37,7 @@
     },
     {
       "text": "NVDA drawdowns this year",
-      "owner": "data",
-      "gap": {
-        "id": "CG-7",
-        "reason": "the drawings word /\\bdraw\\w*\\b/ selects 'drawdowns' (SUBTRACTIVE: data is not named)",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by drawings"
-      }
+      "owner": "data"
     },
     {
       "text": "how far is NVDA off its high",
@@ -121,13 +103,7 @@
     },
     {
       "text": "run my Momentum screen",
-      "owner": "screener",
-      "gap": {
-        "id": "CG-18",
-        "reason": "'momentum' is an indicators word, so a saved screen's name pulls the indicators group in (ADDITIVE: budget only)",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by indicators"
-      }
+      "owner": "screener"
     },
     {
       "text": "how's breadth today",
@@ -135,13 +111,7 @@
     },
     {
       "text": "what percent of stocks are above the 50 day",
-      "owner": "breadth",
-      "gap": {
-        "id": "CG-19",
-        "reason": "the indicators length word /\\d{1,3}[- ]?day/ selects '50 day' in a breadth question (ADDITIVE: budget only)",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by indicators"
-      }
+      "owner": "breadth"
     },
     {
       "text": "add AMD to my watchlist",
@@ -153,13 +123,7 @@
     },
     {
       "text": "open my Swing layout",
-      "owner": "layouts",
-      "gap": {
-        "id": "CG-20",
-        "reason": "'swing' is a charts setting word (swing markers), so a layout NAME pulls the charts group in (ADDITIVE: budget only)",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by charts"
-      }
+      "owner": "layouts"
     },
     {
       "text": "save this layout",
@@ -167,13 +131,7 @@
     },
     {
       "text": "add a news widget",
-      "owner": "workspace",
-      "gap": {
-        "id": "CG-21",
-        "reason": "'news' is a data word, so a news WIDGET request also routes the data group (ADDITIVE: budget only)",
-        "owner": "nlfix builder (routing.js)",
-        "mode": "stolen by data"
-      }
+      "owner": "workspace"
     },
     {
       "text": "close the right chart",

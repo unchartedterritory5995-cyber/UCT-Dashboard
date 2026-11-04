@@ -10,84 +10,20 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | nl | 94 / 154 |
 | routing | 94 / 154 |
 | args | 94 / 154 |
-| execution | 93 / 154 |
-| receipt | 68 / 154 |
+| execution | 94 / 154 |
+| receipt | 69 / 154 |
 | refusal | 27 / 154 |
 | permission | 146 / 154 |
 | undo | 43 / 95 |
-| multiStep | 19 / 154 |
-| phrasings | 92 / 154 |
+| multiStep | 21 / 154 |
+| phrasings | 94 / 154 |
 
-## Known gaps (66)
+## Known gaps (2)
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
-| CG-1 | a | grid.four.named | "Show SPY, QQQ, NVDA and TSLA in four equal panels." | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: 'panels' / 'four equal panels' is not a chartGrid word (EQUAL_SIZE needs size/width/height after equal; MULTI_CHARTS needs 'charts'), so the request is routed [charts, agent] only — the model is never shown chartGrid.set (it needs a need_groups reroute the live planner did not ask for on 11-03) |
-| CG-2 | a | grid.four.named | "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA." | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: the chartGrid words match '2x2' / '2 x 2' / '2 by 2' but not the multiplication sign '2×2' (U+00D7) the owner typed; routed [charts, layouts] — no chartGrid.set |
-| CG-3a | a | grid.four.unnamed | "Put four charts on my screen." | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: a COUNT of charts with no tickers routes chartGrid (which needs tickers) but not the workspace group (widget.add / widget.arrange) — the model has no action that can add the charts |
-| CG-3 | c | grid.four.unnamed | "Put four charts on my screen." | agent-core builder (routing.js / multiChart.js / useAgent.js) | no single plan makes N equal charts without tickers: add ×3 + widget.arrange(grid) on a board with a chart is refused ('Adding widgets and changing existing ones in one request isn’t supported yet'); chartGrid.set requires tickers; screenChartGrid only converts adds that carry tickers |
-| CG-3a | a | grid.four.unnamed | "Create four charts." | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: as 'Put four charts on my screen.' — no workspace group for a count of charts without tickers |
-| CG-3 | c | grid.four.unnamed | "Create four charts." | agent-core builder (routing.js / multiChart.js / useAgent.js) | as 'Put four charts on my screen.' — add + re-arrange of an existing chart is refused as a mixed request |
-| CG-3a | a | grid.four.unnamed | "Make a 2×2 chart layout." | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: '2×2' (U+00D7) and 'chart layout' route [charts, layouts] only — no workspace, no chartGrid |
-| CG-3 | c | grid.four.unnamed | "Make a 2×2 chart layout." | agent-core builder (routing.js / multiChart.js / useAgent.js) | as 'Put four charts on my screen.' |
-| CG-3 | c | grid.four.unnamed | "give me a 2x2 grid of charts" | agent-core builder (routing.js / multiChart.js / useAgent.js) | routes the grid and the workspace, but the only plans are refused (add + arrange existing = mixed request) or impossible (chartGrid.set needs tickers) |
-| CG-3 | c | grid.four.unnamed | "I want four equal charts on the board" | agent-core builder (routing.js / multiChart.js / useAgent.js) | as 'give me a 2x2 grid of charts' |
-| CG-3 | c | grid.four.unnamed | "four charts, same size, please" | agent-core builder (routing.js / multiChart.js / useAgent.js) | as 'give me a 2x2 grid of charts' |
-| CG-4 | a | indicator.rsi | "add the relative strength index" | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: 'relative strength' is a SCREENER strength word (routing.js screener group) and no indicators word matches the spelled-out 'relative strength index', so indicator.add is never sent (routed [screener, agent]) |
-| CG-5 | a | describe.setup | "what's the setup here" | agent-core builder (routing.js / multiChart.js / useAgent.js) | routing: the chartSetup group's describe words need describe/summarise/walk me through, so 'what's the setup here' does not route chart.describeSetup. MASKED today by the capability's own fast matcher (it claims this exact phrasing with no model call); it bites when the fast reader misses (a typo, a longer sentence) |
-| CG-6 | a | stock.pullbacks | "show me NVDA's recent pullbacks" | nlfix builder (routing.js), per AUDIT 11-04 | routing: no data-group word names 'pullbacks' (it is only screener SOFT vocabulary), so the message is unrecognised and stock.dailyBars arrives only through the budget fill — production edd353fc06 omitted the data group for this possessive form (AUDIT 11-04 live) |
-| CG-6 | a | stock.pullbacks | "nvda pullbacks" | nlfix builder (routing.js), per AUDIT 11-04 | routing: as "show me NVDA's recent pullbacks" — data reached only by the fill (the fast reader claims this exact phrasing today) |
-| CG-6 | a | stock.pullbacks | "how far has NVDA pulled back" | nlfix builder (routing.js), per AUDIT 11-04 | routing: 'pulled back' names no data-group word; stock.dailyBars only via the fill |
-| CG-7 | a | stock.pullbacks | "NVDA drawdowns this year" | nlfix builder (routing.js), per AUDIT 11-04 | routing: 'drawdowns' matches the DRAWINGS group (/\bdraw\w*\b/) — routed [drawings, agent]: stock.dailyBars is not sent |
-| CG-7b | a | stock.offHigh | "NVDA distance from the 52-week high" | nlfix builder (routing.js), per AUDIT 11-04 | routing: '52-week' is a screener word; nothing names the data group, so stock.dailyBars is not sent |
-| CG-8 | c | undo.named-after-grid | "undo the change you made to my layout" | nlfix builder (routing.js), per AUDIT 11-04 | a named Undo ('my layout') right after chartGrid.set is refused as 'not a layout change' — the grid (a board re-tile) is not matched as a layout change (AUDIT 11-04 live; nlfix fixing) |
-| CG-9 | a | undo.named-after-grid | "put my layout back" | nlfix builder (routing.js), per AUDIT 11-04 | routing: 'put my layout back' is not an Undo phrase (only 'put it/that/them back the way it was'), so agent.undo is not sent |
-| CG-9 | c | undo.named-after-grid | "put my layout back" | nlfix builder (routing.js), per AUDIT 11-04 | neither the fast Undo words nor the routing read 'put my layout back' as an Undo; with the grid just made the board is not restored |
-| CG-10 | b | indicator.show | "unhide the 50 sma" | agent-core builder (conversation.js follow-up reader / NL) | WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call |
-| CG-10 | c | indicator.show | "unhide the 50 sma" | agent-core builder (conversation.js follow-up reader / NL) | through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it) |
-| CG-11 | a | stock.quote | "how much is NVDA right now" | nlfix builder (routing.js) | routing: 'how much is X' names no data-group word (quote words: price / trading at), so the request is routed without stock.quote |
-| CG-12 | a | stock.profile | "tell me about TSM the company" | nlfix builder (routing.js) | routing: 'tell me' is an ALERTS word (/\b(notify/ping/tell) me\b/), so the request is routed [alerts, agent] — stock.profile is not sent |
-| CG-13 | a | stock.compare | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | routing: 'against' is a charts COMPARE word and 'stack up' only data SOFT vocabulary, so the request routes [charts, agent] — stock.compare (data) is not sent |
-| CG-14 | a | widget.remove | "get rid of the AMD chart" | nlfix builder (routing.js) | routing: the workspace words name add/open/close/remove/delete … chart but not 'get rid of', so widget.remove is not sent (routed [charts, agent]) |
-| CG-16 | a | widget.addCharts | "give me new charts for AAPL and MSFT" | nlfix builder (routing.js) | routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical |
-| CG-15 | b | board.swap | "trade places with the left and right charts" | agent-md builder (marketDataQuote.js fast matcher) | WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens |
-| CG-15 | c | board.swap | "trade places with the left and right charts" | agent-md builder (marketDataQuote.js fast matcher) | through the panel the swap phrasing becomes a quote read; the board is unchanged |
-| CG-17 | c | indicatorAlert.ma-cross-multichart | "mark when the 9 ema crosses above the 20 on the NVDA chart" | nlfix builder | four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect) |
-| CG-17 | c | indicatorAlert.ma-cross-multichart | "alert me when NVDA's 9 ema crosses above its 20" | nlfix builder | four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect) |
-| CG-17 | c | indicatorAlert.ma-cross-multichart | "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside" | nlfix builder | four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect) |
-| CG-22 | b | drawing.setLevel | "move the 200 line up to 210" | agent-md builder (marketDataQuote.js fast matcher) | WRONG deterministic reading (the CG-15 family): the quote fast reader claims 'move the 200 line up to 210' as a price quote for the 'symbol' LINE — no model call, the line is not moved |
-| CG-22 | c | drawing.setLevel | "move the 200 line up to 210" | agent-md builder (marketDataQuote.js fast matcher) | through the panel the move becomes a quote read; the line stays at 200 |
-| CG-23 | b | chart.setCandleColors | "make the up candles blue and the down candles orange" | agent-md builder (marketDataQuote.js fast matcher) | WRONG deterministic reading (CG-15 family): the quote fast reader claims the candle-colour request as a quote for MAKE, CANDLES, BLUE, ORANGE |
-| CG-23 | c | chart.setCandleColors | "make the up candles blue and the down candles orange" | agent-md builder (marketDataQuote.js fast matcher) | through the panel the candle colours are not changed (a quote read instead) |
-| CG-23 | b | chart.setCandleColors | "blue up candles, orange down candles" | agent-md builder (marketDataQuote.js fast matcher) | WRONG deterministic reading (CG-15 family): quote for BLUE, CANDLES, ORANGE |
-| CG-23 | c | chart.setCandleColors | "blue up candles, orange down candles" | agent-md builder (marketDataQuote.js fast matcher) | through the panel the candle colours are not changed |
-| CG-24 | a | definition.search | "are there any volatility indicators" | nlfix builder (routing.js) | routing: 'are there any … indicators' names the indicators group but not the definitions group (its words need my/saved/custom, 'indicators for/that', find/search/what … indicators) |
-| CG-25 | a | settings.appTheme | "use the light theme" | nlfix builder (routing.js) | routing: 'theme' alone is a CHARTS word (chart themes); the settings words need 'app theme' or 'dark/light mode', so 'use the light theme' never sends settings.setAppTheme |
-| CG-26 | a | settings.defaultTimeframe | "new charts should open on the weekly" | nlfix builder (routing.js) | routing: a default stated as 'new charts should open on …' names no settings word (they need 'default (chart) timeframe'); routed as a chart timeframe change |
-| CG-27 | a | settings.alertSound | "turn off alert sounds" | nlfix builder (routing.js) | routing: the settings word is /\b(alert )?sound\b/ — the plural 'sounds' does not match, so 'turn off alert sounds' routes [alerts] only |
-| CG-28 | a | indicator.list | "which studies do I have on here" | nlfix builder (routing.js) | routing: 'studies' is not an indicators word (only 'indicator(s)', the indicator names and 'what's on this chart'), so 'which studies do I have on here' does not send indicator.list |
-| CG-29 | a | drawing.trendline | "connect oct 9 at 150 to oct 28 at 180 with a trend line" | nlfix builder (routing.js) | routing: the drawingTools words need a draw verb (draw/add/put/place/plot/anchor/drop/mark) or 'trendline … from/between/starting', so 'connect … with a trend line' never sends drawing.addTrendline |
-| CG-29 | a | drawing.trendline | "draw a line from the oct 9 150 level to 180 on oct 28" | nlfix builder (routing.js) | routing: 'draw a line from <date> … to <date>' names the drawings group (levels) but not drawingTools, so drawing.addTrendline is not sent |
-| CG-30 | a | drawing.fib | "fib retracement sep 2 100 to oct 28 180" | nlfix builder (routing.js) | routing: 'fib retracement <date> <price> to …' has no draw verb and no from/between/starting word, so drawing.addFib is not sent |
-| CG-31 | a | drawing.text | "write breakout on the chart at oct 15, 150" | nlfix builder (routing.js) | routing: 'write … on the chart' is not a drawingTools verb (draw/add/put/place/plot/anchor/drop/mark), so drawing.addText is not sent |
-| CG-32 | a | drawing.avwap | "anchor a vwap to oct 1" | nlfix builder (routing.js) | routing: the AVWAP words are 'anchored vwap' / 'avwap'; 'anchor a vwap' matches neither, so drawing.addAvwap is not sent |
-| CG-33 | a | chart.replay | "show me this chart as of march 2 2026" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
-| CG-33 | a | chart.replay | "replay the chart from march 2 2026" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
-| CG-33 | a | chart.replay | "go back to march 2 2026 and hide what came after" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
-| CG-33 | a | chart.replay | "start replay mode on 2026-03-02" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
-| CG-35 | a | earnings.this-week | "what's on the calendar this week" | nlfix builder (routing.js) | routing: no group's words match 'what's on the calendar this week' (no calendar group on /charts; the screener words need earnings/reporting + this/next week), so the message falls back to every group and reaches the screener only by the budget fill |
-| CG-36 | a | breadth.averages | "averages for the S&P" | nlfix builder (routing.js) | routing: no group's words match 'averages for the S&P' (the breadth words need a % / above / below form or 'breadth'), so it falls back to every group and reaches breadth only by the budget fill |
-| CG-36 | a | breadth.averages | "how are the moving averages looking for the market" | nlfix builder (routing.js) | routing: 'moving averages' is an INDICATORS word, so a market-averages question routes [indicators] only and breadth.show is not sent |
-| CG-34 | workflow | GW-22.new-chart-then-rsi-on-it | — | agent-core builder (useAgent.js subjectTarget / memory) | after 'open a chart for AMD' (widget.addCharts), 'add rsi to it' asks 'Which chart do you mean?' — the chart this conversation just CREATED is not 'it' (subjectTarget remembers changed charts, not created ones); nothing is added |
-| CG-12 | collision | routing data | "tell me about TSM the company" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
-| CG-12 | collision | routing data | "tell me about AAPL" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' — and nothing else names data, so the owner group is never sent (SUBTRACTIVE) |
-| CG-7 | collision | routing data | "NVDA drawdowns this year" | nlfix builder (routing.js) | the drawings word /\bdraw\w*\b/ selects 'drawdowns' (SUBTRACTIVE: data is not named) |
 | CG-4 | collision | routing indicators | "add the relative strength index" | nlfix builder (routing.js) | 'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named) |
-| CG-18 | collision | routing screener | "run my Momentum screen" | nlfix builder (routing.js) | 'momentum' is an indicators word, so a saved screen's name pulls the indicators group in (ADDITIVE: budget only) |
-| CG-19 | collision | routing breadth | "what percent of stocks are above the 50 day" | nlfix builder (routing.js) | the indicators length word /\d{1,3}[- ]?day/ selects '50 day' in a breadth question (ADDITIVE: budget only) |
-| CG-20 | collision | routing layouts | "open my Swing layout" | nlfix builder (routing.js) | 'swing' is a charts setting word (swing markers), so a layout NAME pulls the charts group in (ADDITIVE: budget only) |
-| CG-21 | collision | routing workspace | "add a news widget" | nlfix builder (routing.js) | 'news' is a data word, so a news WIDGET request also routes the data group (ADDITIVE: budget only) |
 
 ## Per capability
 
@@ -106,8 +42,8 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | breadth.history | breadth | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | breadth.page | breadth | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | breadth.show | breadth | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
-| calendar.day | — | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| calendar.nextReport | — | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
+| calendar.day | calendar | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
+| calendar.nextReport | calendar | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | chart.addCustomTimeframe | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chart.addTab | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
 | chart.applyTemplate | charts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
@@ -123,7 +59,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | chart.resetDefaults | charts | confirm | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | chart.selectTab | charts | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chart.setBackground | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| chart.setCandleColors | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ |
+| chart.setCandleColors | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chart.setScale | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | chart.setSession | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chart.setSetting | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
@@ -236,9 +172,9 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | watchlist.setNote | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | watchlist.show | lists | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | widget.add | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
-| widget.addCharts | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| widget.addCharts | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | widget.addTab | workspace | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| widget.arrange | workspace | local | exact | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
+| widget.arrange | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
 | widget.closeTab | workspace | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | widget.move | workspace | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | widget.remove | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |

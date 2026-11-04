@@ -73,34 +73,14 @@
           "text": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
           "det": "required"
         },
-        {
-          "text": "Show SPY, QQQ, NVDA and TSLA in four equal panels.",
-          "gaps": {
-            "a": {
-              "id": "CG-1",
-              "reason": "routing: 'panels' / 'four equal panels' is not a chartGrid word (EQUAL_SIZE needs size/width/height after equal; MULTI_CHARTS needs 'charts'), so the request is routed [charts, agent] only — the model is never shown chartGrid.set (it needs a need_groups reroute the live planner did not ask for on 11-03)",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ chartGrid.set"
-            }
-          }
-        },
+        "Show SPY, QQQ, NVDA and TSLA in four equal panels.",
         {
           "text": "Give me four equally sized charts with those tickers.",
           "prelude": [
             "I'm watching SPY, QQQ, NVDA and TSLA today."
           ]
         },
-        {
-          "text": "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.",
-          "gaps": {
-            "a": {
-              "id": "CG-2",
-              "reason": "routing: the chartGrid words match '2x2' / '2 x 2' / '2 by 2' but not the multiplication sign '2×2' (U+00D7) the owner typed; routed [charts, layouts] — no chartGrid.set",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ chartGrid.set"
-            }
-          }
-        },
+        "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.",
         "Create four charts for SPY, QQQ, NVDA and TSLA",
         "put spy, qqq, nvda and tsla on four charts",
         "Show 4 charts: SPY, QQQ, NVDA, TSLA",
@@ -234,90 +214,12 @@
         "refusal": false
       },
       "phrasings": [
-        {
-          "text": "Put four charts on my screen.",
-          "gaps": {
-            "a": {
-              "id": "CG-3a",
-              "reason": "routing: a COUNT of charts with no tickers routes chartGrid (which needs tickers) but not the workspace group (widget.add / widget.arrange) — the model has no action that can add the charts",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ widget.add"
-            },
-            "c": {
-              "id": "CG-3",
-              "reason": "no single plan makes N equal charts without tickers: add ×3 + widget.arrange(grid) on a board with a chart is refused ('Adding widgets and changing existing ones in one request isn’t supported yet'); chartGrid.set requires tickers; screenChartGrid only converts adds that carry tickers",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "chart count"
-            }
-          }
-        },
-        {
-          "text": "Create four charts.",
-          "gaps": {
-            "a": {
-              "id": "CG-3a",
-              "reason": "routing: as 'Put four charts on my screen.' — no workspace group for a count of charts without tickers",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ widget.add"
-            },
-            "c": {
-              "id": "CG-3",
-              "reason": "as 'Put four charts on my screen.' — add + re-arrange of an existing chart is refused as a mixed request",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "chart count"
-            }
-          }
-        },
-        {
-          "text": "Make a 2×2 chart layout.",
-          "gaps": {
-            "a": {
-              "id": "CG-3a",
-              "reason": "routing: '2×2' (U+00D7) and 'chart layout' route [charts, layouts] only — no workspace, no chartGrid",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ widget.add"
-            },
-            "c": {
-              "id": "CG-3",
-              "reason": "as 'Put four charts on my screen.'",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "chart count"
-            }
-          }
-        },
-        {
-          "text": "give me a 2x2 grid of charts",
-          "gaps": {
-            "c": {
-              "id": "CG-3",
-              "reason": "routes the grid and the workspace, but the only plans are refused (add + arrange existing = mixed request) or impossible (chartGrid.set needs tickers)",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "chart count"
-            }
-          }
-        },
-        {
-          "text": "I want four equal charts on the board",
-          "gaps": {
-            "c": {
-              "id": "CG-3",
-              "reason": "as 'give me a 2x2 grid of charts'",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "chart count"
-            }
-          }
-        },
-        {
-          "text": "four charts, same size, please",
-          "gaps": {
-            "c": {
-              "id": "CG-3",
-              "reason": "as 'give me a 2x2 grid of charts'",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "chart count"
-            }
-          }
-        }
+        "Put four charts on my screen.",
+        "Create four charts.",
+        "Make a 2×2 chart layout.",
+        "give me a 2x2 grid of charts",
+        "I want four equal charts on the board",
+        "four charts, same size, please"
       ]
     },
     {
@@ -722,17 +624,7 @@
           "det": "required"
         },
         "put RSI on the chart",
-        {
-          "text": "add the relative strength index",
-          "gaps": {
-            "a": {
-              "id": "CG-4",
-              "reason": "routing: 'relative strength' is a SCREENER strength word (routing.js screener group) and no indicators word matches the spelled-out 'relative strength index', so indicator.add is never sent (routed [screener, agent])",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ indicator.add"
-            }
-          }
-        },
+        "add the relative strength index",
         "show me RSI on this chart",
         "can you add an RSI"
       ]
@@ -833,17 +725,7 @@
       "phrasings": [
         "describe the setup on nvda",
         "describe this setup",
-        {
-          "text": "what's the setup here",
-          "gaps": {
-            "a": {
-              "id": "CG-5",
-              "reason": "routing: the chartSetup group's describe words need describe/summarise/walk me through, so 'what's the setup here' does not route chart.describeSetup. MASKED today by the capability's own fast matcher (it claims this exact phrasing with no model call); it bites when the fast reader misses (a typo, a longer sentence)",
-              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
-              "mode": "→ chart.describeSetup"
-            }
-          }
-        },
+        "what's the setup here",
         "walk me through the setup on NVDA",
         "summarize the NVDA setup",
         "describe the chart setup for NVDA"
@@ -1215,50 +1097,10 @@
         "unchanged": true
       },
       "phrasings": [
-        {
-          "text": "show me NVDA's recent pullbacks",
-          "gaps": {
-            "a": {
-              "id": "CG-6",
-              "reason": "routing: no data-group word names 'pullbacks' (it is only screener SOFT vocabulary), so the message is unrecognised and stock.dailyBars arrives only through the budget fill — production edd353fc06 omitted the data group for this possessive form (AUDIT 11-04 live)",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "names the data group by its own words"
-            }
-          }
-        },
-        {
-          "text": "nvda pullbacks",
-          "gaps": {
-            "a": {
-              "id": "CG-6",
-              "reason": "routing: as \"show me NVDA's recent pullbacks\" — data reached only by the fill (the fast reader claims this exact phrasing today)",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "names the data group by its own words"
-            }
-          }
-        },
-        {
-          "text": "how far has NVDA pulled back",
-          "gaps": {
-            "a": {
-              "id": "CG-6",
-              "reason": "routing: 'pulled back' names no data-group word; stock.dailyBars only via the fill",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "names the data group by its own words"
-            }
-          }
-        },
-        {
-          "text": "NVDA drawdowns this year",
-          "gaps": {
-            "a": {
-              "id": "CG-7",
-              "reason": "routing: 'drawdowns' matches the DRAWINGS group (/\\bdraw\\w*\\b/) — routed [drawings, agent]: stock.dailyBars is not sent",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "→ stock.dailyBars"
-            }
-          }
-        }
+        "show me NVDA's recent pullbacks",
+        "nvda pullbacks",
+        "how far has NVDA pulled back",
+        "NVDA drawdowns this year"
       ],
       "ownWords": [
         "data"
@@ -1309,17 +1151,7 @@
       "phrasings": [
         "how far off its high is NVDA",
         "how far is NVDA off its high",
-        {
-          "text": "NVDA distance from the 52-week high",
-          "gaps": {
-            "a": {
-              "id": "CG-7b",
-              "reason": "routing: '52-week' is a screener word; nothing names the data group, so stock.dailyBars is not sent",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "→ stock.dailyBars"
-            }
-          }
-        }
+        "NVDA distance from the 52-week high"
       ],
       "ownWords": [
         "data"
@@ -1375,35 +1207,9 @@
       },
       "phrasings": [
         "undo the last change you made to my charts",
-        {
-          "text": "undo the change you made to my layout",
-          "gaps": {
-            "c": {
-              "id": "CG-8",
-              "reason": "a named Undo ('my layout') right after chartGrid.set is refused as 'not a layout change' — the grid (a board re-tile) is not matched as a layout change (AUDIT 11-04 live; nlfix fixing)",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "the board is back as it started"
-            }
-          }
-        },
+        "undo the change you made to my layout",
         "undo that",
-        {
-          "text": "put my layout back",
-          "gaps": {
-            "a": {
-              "id": "CG-9",
-              "reason": "routing: 'put my layout back' is not an Undo phrase (only 'put it/that/them back the way it was'), so agent.undo is not sent",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "→ agent.undo"
-            },
-            "c": {
-              "id": "CG-9",
-              "reason": "neither the fast Undo words nor the routing read 'put my layout back' as an Undo; with the grid just made the board is not restored",
-              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
-              "mode": "the board is back as it started"
-            }
-          }
-        }
+        "put my layout back"
       ]
     },
     {
@@ -1859,23 +1665,7 @@
       },
       "phrasings": [
         "show the 50 sma again",
-        {
-          "text": "unhide the 50 sma",
-          "gaps": {
-            "b": {
-              "id": "CG-10",
-              "reason": "WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call",
-              "owner": "agent-core builder (conversation.js follow-up reader / NL)",
-              "mode": "read as {\"plan\":[{\"action\":\"indicator.hide\",\"args\":{\"instance\":\"ovl:2\"}}],\"via\":\"followUp\"}"
-            },
-            "c": {
-              "id": "CG-10",
-              "reason": "through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it)",
-              "owner": "agent-core builder (conversation.js follow-up reader / NL)",
-              "mode": "hidden"
-            }
-          }
-        },
+        "unhide the 50 sma",
         "turn the 50 day back on",
         "show the SMA 50"
       ]
@@ -2111,17 +1901,7 @@
         "whats nvda at",
         "what's NVDA trading at",
         "NVDA price",
-        {
-          "text": "how much is NVDA right now",
-          "gaps": {
-            "a": {
-              "id": "CG-11",
-              "reason": "routing: 'how much is X' names no data-group word (quote words: price / trading at), so the request is routed without stock.quote",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ stock.quote"
-            }
-          }
-        },
+        "how much is NVDA right now",
         "quote NVDA"
       ]
     },
@@ -2166,17 +1946,7 @@
         "give me a quick profile on TSM",
         "what does TSM do",
         "TSM profile",
-        {
-          "text": "tell me about TSM the company",
-          "gaps": {
-            "a": {
-              "id": "CG-12",
-              "reason": "routing: 'tell me' is an ALERTS word (/\\b(notify|ping|tell) me\\b/), so the request is routed [alerts, agent] — stock.profile is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ stock.profile"
-            }
-          }
-        }
+        "tell me about TSM the company"
       ]
     },
     {
@@ -2224,17 +1994,7 @@
       },
       "phrasings": [
         "compare NVDA and AMD fundamentals",
-        {
-          "text": "how does NVDA stack up against AMD",
-          "gaps": {
-            "a": {
-              "id": "CG-13",
-              "reason": "routing: 'against' is a charts COMPARE word and 'stack up' only data SOFT vocabulary, so the request routes [charts, agent] — stock.compare (data) is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ stock.compare"
-            }
-          }
-        },
+        "how does NVDA stack up against AMD",
         "NVDA vs AMD on valuation",
         "compare the fundamentals of NVDA versus AMD"
       ]
@@ -2334,17 +2094,7 @@
       "phrasings": [
         "close the right chart",
         "remove the chart on the right",
-        {
-          "text": "get rid of the AMD chart",
-          "gaps": {
-            "a": {
-              "id": "CG-14",
-              "reason": "routing: the workspace words name add/open/close/remove/delete … chart but not 'get rid of', so widget.remove is not sent (routed [charts, agent])",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ widget.remove"
-            }
-          }
-        },
+        "get rid of the AMD chart",
         "close the AMD chart",
         "delete the right-hand chart"
       ]
@@ -2664,17 +2414,7 @@
         "open charts for AAPL and MSFT",
         "add charts for AAPL and MSFT",
         "open AAPL and MSFT in new charts",
-        {
-          "text": "give me new charts for AAPL and MSFT",
-          "gaps": {
-            "a": {
-              "id": "CG-16",
-              "reason": "routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ widget.addCharts"
-            }
-          }
-        }
+        "give me new charts for AAPL and MSFT"
       ]
     },
     {
@@ -2728,23 +2468,7 @@
         "swap the two charts",
         "switch places between the NVDA and AMD charts",
         "swap NVDA and AMD",
-        {
-          "text": "trade places with the left and right charts",
-          "gaps": {
-            "b": {
-              "id": "CG-15",
-              "reason": "WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"places\",\"left\",\"charts\"]}}],\"via\":\"fastPath\"}"
-            },
-            "c": {
-              "id": "CG-15",
-              "reason": "through the panel the swap phrasing becomes a quote read; the board is unchanged",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "chart symbols (board order)"
-            }
-          }
-        }
+        "trade places with the left and right charts"
       ]
     },
     {
@@ -3102,39 +2826,9 @@
         }
       },
       "phrasings": [
-        {
-          "text": "mark when the 9 ema crosses above the 20 on the NVDA chart",
-          "gaps": {
-            "c": {
-              "id": "CG-17",
-              "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
-              "owner": "nlfix builder",
-              "mode": "a proposal waiting"
-            }
-          }
-        },
-        {
-          "text": "alert me when NVDA's 9 ema crosses above its 20",
-          "gaps": {
-            "c": {
-              "id": "CG-17",
-              "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
-              "owner": "nlfix builder",
-              "mode": "a proposal waiting"
-            }
-          }
-        },
-        {
-          "text": "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside",
-          "gaps": {
-            "c": {
-              "id": "CG-17",
-              "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
-              "owner": "nlfix builder",
-              "mode": "a proposal waiting"
-            }
-          }
-        }
+        "mark when the 9 ema crosses above the 20 on the NVDA chart",
+        "alert me when NVDA's 9 ema crosses above its 20",
+        "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside"
       ]
     },
     {
@@ -3484,23 +3178,7 @@
       },
       "phrasings": [
         "move the line to 210",
-        {
-          "text": "move the 200 line up to 210",
-          "gaps": {
-            "b": {
-              "id": "CG-22",
-              "reason": "WRONG deterministic reading (the CG-15 family): the quote fast reader claims 'move the 200 line up to 210' as a price quote for the 'symbol' LINE — no model call, the line is not moved",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"line\"]}}],\"via\":\"fastPath\"}"
-            },
-            "c": {
-              "id": "CG-22",
-              "reason": "through the panel the move becomes a quote read; the line stays at 200",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "a drawing {\"points.0.price\":210}"
-            }
-          }
-        },
+        "move the 200 line up to 210",
         "set that level to 210",
         "drag the line to 210"
       ],
@@ -4113,40 +3791,8 @@
         }
       },
       "phrasings": [
-        {
-          "text": "make the up candles blue and the down candles orange",
-          "gaps": {
-            "b": {
-              "id": "CG-23",
-              "reason": "WRONG deterministic reading (CG-15 family): the quote fast reader claims the candle-colour request as a quote for MAKE, CANDLES, BLUE, ORANGE",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"make\",\"candles\",\"blue\",\"orange\"]}}],\"via\":\"fastPath\"}"
-            },
-            "c": {
-              "id": "CG-23",
-              "reason": "through the panel the candle colours are not changed (a quote read instead)",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "chart setting candles.upColor is blue"
-            }
-          }
-        },
-        {
-          "text": "blue up candles, orange down candles",
-          "gaps": {
-            "b": {
-              "id": "CG-23",
-              "reason": "WRONG deterministic reading (CG-15 family): quote for BLUE, CANDLES, ORANGE",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"blue\",\"candles\",\"orange\"]}}],\"via\":\"fastPath\"}"
-            },
-            "c": {
-              "id": "CG-23",
-              "reason": "through the panel the candle colours are not changed",
-              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
-              "mode": "chart setting candles.upColor is blue"
-            }
-          }
-        },
+        "make the up candles blue and the down candles orange",
+        "blue up candles, orange down candles",
         "change my candle colors to blue and orange",
         "color the green candles blue and the red ones orange"
       ]
@@ -4189,17 +3835,7 @@
         "find me an indicator for volatility",
         "search the indicators for volatility",
         "what indicators measure volatility",
-        {
-          "text": "are there any volatility indicators",
-          "gaps": {
-            "a": {
-              "id": "CG-24",
-              "reason": "routing: 'are there any … indicators' names the indicators group but not the definitions group (its words need my/saved/custom, 'indicators for/that', find/search/what … indicators)",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ definition.search"
-            }
-          }
-        }
+        "are there any volatility indicators"
       ]
     },
     {
@@ -4311,17 +3947,7 @@
       "phrasings": [
         "switch to light mode",
         "change the app theme to light",
-        {
-          "text": "use the light theme",
-          "gaps": {
-            "a": {
-              "id": "CG-25",
-              "reason": "routing: 'theme' alone is a CHARTS word (chart themes); the settings words need 'app theme' or 'dark/light mode', so 'use the light theme' never sends settings.setAppTheme",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ settings.setAppTheme"
-            }
-          }
-        },
+        "use the light theme",
         "turn on light mode"
       ]
     },
@@ -4374,17 +4000,7 @@
       "phrasings": [
         "make my default timeframe weekly",
         "set the default chart timeframe to weekly",
-        {
-          "text": "new charts should open on the weekly",
-          "gaps": {
-            "a": {
-              "id": "CG-26",
-              "reason": "routing: a default stated as 'new charts should open on …' names no settings word (they need 'default (chart) timeframe'); routed as a chart timeframe change",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ settings.setDefaultTimeframe"
-            }
-          }
-        },
+        "new charts should open on the weekly",
         "change my default timeframe to W"
       ]
     },
@@ -4436,17 +4052,7 @@
         }
       },
       "phrasings": [
-        {
-          "text": "turn off alert sounds",
-          "gaps": {
-            "a": {
-              "id": "CG-27",
-              "reason": "routing: the settings word is /\\b(alert )?sound\\b/ — the plural 'sounds' does not match, so 'turn off alert sounds' routes [alerts] only",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ settings.setAlertSound"
-            }
-          }
-        },
+        "turn off alert sounds",
         "mute the alert sound",
         "no sound for alerts please",
         "disable the alert sound"
@@ -5706,17 +5312,7 @@
         "what indicators are on this chart",
         "what's on this chart",
         "list the indicators on my chart",
-        {
-          "text": "which studies do I have on here",
-          "gaps": {
-            "a": {
-              "id": "CG-28",
-              "reason": "routing: 'studies' is not an indicators word (only 'indicator(s)', the indicator names and 'what's on this chart'), so 'which studies do I have on here' does not send indicator.list",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ indicator.list"
-            }
-          }
-        }
+        "which studies do I have on here"
       ]
     },
     {
@@ -5893,28 +5489,8 @@
       "phrasings": [
         "draw a trendline on nvda from oct 9 at 150 to oct 28 at 180",
         "trendline from 150 on oct 9 to 180 on oct 28",
-        {
-          "text": "connect oct 9 at 150 to oct 28 at 180 with a trend line",
-          "gaps": {
-            "a": {
-              "id": "CG-29",
-              "reason": "routing: the drawingTools words need a draw verb (draw/add/put/place/plot/anchor/drop/mark) or 'trendline … from/between/starting', so 'connect … with a trend line' never sends drawing.addTrendline",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ drawing.addTrendline"
-            }
-          }
-        },
-        {
-          "text": "draw a line from the oct 9 150 level to 180 on oct 28",
-          "gaps": {
-            "a": {
-              "id": "CG-29",
-              "reason": "routing: 'draw a line from <date> … to <date>' names the drawings group (levels) but not drawingTools, so drawing.addTrendline is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ drawing.addTrendline"
-            }
-          }
-        }
+        "connect oct 9 at 150 to oct 28 at 180 with a trend line",
+        "draw a line from the oct 9 150 level to 180 on oct 28"
       ]
     },
     {
@@ -6159,17 +5735,7 @@
       "phrasings": [
         "draw a fib from sep 2 at 100 to oct 28 at 180",
         "fibonacci retracement from 100 on sep 2 to 180 on oct 28",
-        {
-          "text": "fib retracement sep 2 100 to oct 28 180",
-          "gaps": {
-            "a": {
-              "id": "CG-30",
-              "reason": "routing: 'fib retracement <date> <price> to …' has no draw verb and no from/between/starting word, so drawing.addFib is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ drawing.addFib"
-            }
-          }
-        },
+        "fib retracement sep 2 100 to oct 28 180",
         "put a fib from the sep 2 100 low to the oct 28 180 high"
       ]
     },
@@ -6226,17 +5792,7 @@
       "phrasings": [
         "add a note that says breakout at 150 on oct 15",
         "put the text breakout on oct 15 at 150",
-        {
-          "text": "write breakout on the chart at oct 15, 150",
-          "gaps": {
-            "a": {
-              "id": "CG-31",
-              "reason": "routing: 'write … on the chart' is not a drawingTools verb (draw/add/put/place/plot/anchor/drop/mark), so drawing.addText is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ drawing.addText"
-            }
-          }
-        },
+        "write breakout on the chart at oct 15, 150",
         "drop a text label breakout at 150 on oct 15"
       ]
     },
@@ -6293,17 +5849,7 @@
         "anchored vwap on nvda from oct 1",
         "avwap from oct 1",
         "add an anchored vwap starting oct 1",
-        {
-          "text": "anchor a vwap to oct 1",
-          "gaps": {
-            "a": {
-              "id": "CG-32",
-              "reason": "routing: the AVWAP words are 'anchored vwap' / 'avwap'; 'anchor a vwap' matches neither, so drawing.addAvwap is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ drawing.addAvwap"
-            }
-          }
-        }
+        "anchor a vwap to oct 1"
       ]
     },
     {
@@ -6447,50 +5993,10 @@
         "refusal": false
       },
       "phrasings": [
-        {
-          "text": "show me this chart as of march 2 2026",
-          "gaps": {
-            "a": {
-              "id": "CG-33",
-              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ chart.replay"
-            }
-          }
-        },
-        {
-          "text": "replay the chart from march 2 2026",
-          "gaps": {
-            "a": {
-              "id": "CG-33",
-              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ chart.replay"
-            }
-          }
-        },
-        {
-          "text": "go back to march 2 2026 and hide what came after",
-          "gaps": {
-            "a": {
-              "id": "CG-33",
-              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ chart.replay"
-            }
-          }
-        },
-        {
-          "text": "start replay mode on 2026-03-02",
-          "gaps": {
-            "a": {
-              "id": "CG-33",
-              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ chart.replay"
-            }
-          }
-        }
+        "show me this chart as of march 2 2026",
+        "replay the chart from march 2 2026",
+        "go back to march 2 2026 and hide what came after",
+        "start replay mode on 2026-03-02"
       ]
     },
     {
@@ -6711,17 +6217,7 @@
         "unchanged": true
       },
       "phrasings": [
-        {
-          "text": "what's on the calendar this week",
-          "gaps": {
-            "a": {
-              "id": "CG-35",
-              "reason": "routing: no group's words match 'what's on the calendar this week' (no calendar group on /charts; the screener words need earnings/reporting + this/next week), so the message falls back to every group and reaches the screener only by the budget fill",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "names the screener group by its own words"
-            }
-          }
-        },
+        "what's on the calendar this week",
         "which stocks report earnings this week",
         "who's reporting this week"
       ]
@@ -6780,28 +6276,8 @@
         "unchanged": true
       },
       "phrasings": [
-        {
-          "text": "averages for the S&P",
-          "gaps": {
-            "a": {
-              "id": "CG-36",
-              "reason": "routing: no group's words match 'averages for the S&P' (the breadth words need a % / above / below form or 'breadth'), so it falls back to every group and reaches breadth only by the budget fill",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "names the breadth group by its own words"
-            }
-          }
-        },
-        {
-          "text": "how are the moving averages looking for the market",
-          "gaps": {
-            "a": {
-              "id": "CG-36",
-              "reason": "routing: 'moving averages' is an INDICATORS word, so a market-averages question routes [indicators] only and breadth.show is not sent",
-              "owner": "nlfix builder (routing.js)",
-              "mode": "→ breadth.show"
-            }
-          }
-        },
+        "averages for the S&P",
+        "how are the moving averages looking for the market",
         "market averages breadth"
       ]
     }

@@ -346,10 +346,11 @@ describe('through the real panel — multi-chart indicator customisation and cop
     }
     const t = transcript()
     for (const line of [/Added EMA 9 to Left chart|Added EMA 9 on Left chart/, /Added EMA 20/, /Changed EMA 9's colour on Left chart \(QQQ\) to #2faf68/, /Moved RSI \(14\) in its own pane on Left chart/, /Copied .*on Right chart/, /Copied .*on Third chart/]) expect(t).toMatch(line)
-    // Undo walks the steps back, newest first: the third chart's copy goes first
+    // OWNER RULING (W2, 11-04): a plain Undo takes back the WHOLE request, newest first (each step through its own Undo)
     await say('undo')
     await waitFor(() => expect(live('c3')).toEqual([]))
-    expect(live('c2')).toEqual(['EMA 20', 'EMA 9', 'RSI (14)'])
+    expect(live('c2')).toEqual([])
+    expect(transcript()).toMatch(/Took back all \d+ changes from that request/)
   }, 60000)
 
   it('E4 · "move rsi above price" (instant) on the chart with RSI', async () => {
