@@ -11,6 +11,11 @@ import { useSyncExternalStore } from 'react'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
+const hostSpy = vi.hoisted(() => ({ widgetOps: null }))
+vi.mock('../../agent/host', async (orig) => {
+  const real = await orig()
+  return { ...real, buildWorkspaceHost: (o) => { hostSpy.widgetOps = o.widgetOps; return real.buildWorkspaceHost(o) } }
+})
 vi.mock('./WidgetHost', async () => {
   const React = await import('react')
   const { useWorkspace } = await import('./WorkspaceContext')
@@ -297,4 +302,20 @@ test('no room left: the refusal banner says so, the board is untouched, and Dism
     expect(document.querySelectorAll('[data-widget-id]').length).toBe(before)
     await act(async () => { fireEvent.click(banner().querySelector('button')) })
     expect(banner()).toBeNull()
+}, 45000)
+
+test('a refused add that carries a ticker saves no N:<id> pref (the Agent adding a chart when the board filled after its plan)', async () => {
+  // The Agent's plan refuses a full board first, so this only happens when the board fills between plan and commit. That
+  // is the call capabilities/workspace.js commit makes, through the workspace's real widgetOps.
+  mount(NO_ROOM)
+  await screen.findByTestId('chart-c00')
+  const before = document.querySelectorAll('[data-widget-id]').length
+  await act(async () => { hostSpy.widgetOps.add('chart', null, { symbol: 'TSLA', tf: 'D' }) })
+  await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
+  // the symbol writer saves on a 400ms debounce: wait past it, then read what was stored
+  await act(async () => { await new Promise(r => setTimeout(r, 800)) })
+  const groups = JSON.parse(prefStore.get().charts_workspace_groups || '{}')
+  expect(Object.keys(groups).filter(k => k.startsWith('N:'))).toEqual([])
+  expect(Object.values(groups)).not.toContain('TSLA')
+  expect(document.querySelectorAll('[data-widget-id]').length).toBe(before)
 }, 45000)
