@@ -53,6 +53,11 @@ def test_an_http_error_is_free(ledger):
     assert _spent() == 0.0
 
 
+def test_an_error_after_a_stream_began_is_charged(ledger):
+    error = anthropic.APIStatusError("overloaded", response=httpx.Response(200, request=REQUEST), body=None)
+    assert cost_guard.charge_unreported_call(DAY, "PL", "claude-haiku-4-5", BODY, error) > 0
+
+
 def test_no_api_key_means_nothing_was_sent(ledger, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY")
     assert cost_guard.charge_unreported_call(DAY, "PL", "claude-haiku-4-5", BODY, RuntimeError("no key")) == 0.0

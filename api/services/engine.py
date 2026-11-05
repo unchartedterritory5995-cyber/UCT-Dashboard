@@ -82,8 +82,10 @@ def _get_anthropic_client():
                     raise RuntimeError("ANTHROPIC_API_KEY is not set")
                 # timeout bounds a hung LLM call so it can't pin a worker thread
                 # forever (the 2026-07-01 thread-exhaustion class). 60s is generous
-                # for our max_tokens; the SDK still retries transient errors.
-                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
+                # for our max_tokens. max_retries=0: an SDK retry after a timeout is a
+                # billed attempt no ledger or daily count can see, and every lane on
+                # this client inherits it unless it overrides it.
+                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0, max_retries=0)
     return _anthropic_client
 
 # ── Earnings analysis configuration ───────────────────────────────────────────

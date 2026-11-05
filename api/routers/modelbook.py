@@ -2032,7 +2032,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
     # reasoning), and small max_tokens. With web search OFF (the default) this is a
     # single fast call (~15-25s, no server-tool loop). With web search ON, allow a
     # couple of pause_turn resumes for the server-side search loop.
-    bounded = client.with_options(timeout=90.0, max_retries=1)
+    bounded = client.with_options(timeout=90.0, max_retries=0)
     use_effort = True  # toggled off if the installed SDK predates output_config
 
     def _call(msgs):

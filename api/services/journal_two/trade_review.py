@@ -32,6 +32,7 @@ class AnthropicReviewClient:
             api_key=key,
             timeout=llm_timeouts.seconds("COMPASS_TRADE_REVIEW_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH),
+            max_retries=0,
         )
 
     def write_review(self, *, system_prompt: str, user_message: str,

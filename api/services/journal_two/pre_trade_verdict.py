@@ -44,6 +44,7 @@ class AnthropicVerdictClient:
             api_key=key,
             timeout=llm_timeouts.seconds("COMPASS_VERDICT_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH),
+            max_retries=0,
         )
 
     def write_verdict(self, *, system_prompt: str, user_message: str,

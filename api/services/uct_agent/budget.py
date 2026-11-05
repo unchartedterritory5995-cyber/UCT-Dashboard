@@ -475,10 +475,14 @@ def _usage_tokens(resp) -> dict:
 
 def _is_provider_error_response(e: BaseException) -> bool:
     """An HTTP error status from the provider (nothing generated, nothing billed). A timeout or a
-    dropped connection is NOT one: the call may have run, so it is charged at the worst case."""
+    dropped connection is NOT one: the call may have run, so it is charged at the worst case.
+
+    Nor is an error event in a stream. The SDK raises that as an APIStatusError too, carrying the 200 the
+    stream began with, and generation had started: the provider's docs do not say such a call is free, so
+    it is treated as billed. Only a status of 400 or above counts."""
     try:
         import anthropic
-        return isinstance(e, anthropic.APIStatusError)
+        return isinstance(e, anthropic.APIStatusError) and int(getattr(e, "status_code", 0) or 0) >= 400
     except Exception:  # noqa: BLE001
         return False
 

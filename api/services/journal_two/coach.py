@@ -62,6 +62,7 @@ class AnthropicClient:
             api_key=key,
             timeout=llm_timeouts.seconds("COMPASS_REVIEW_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH_LONG),
+            max_retries=0,
         )
 
     # ------------------------------------------------------------------

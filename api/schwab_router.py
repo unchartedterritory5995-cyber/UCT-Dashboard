@@ -289,7 +289,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
             day_note = " (Saturday — markets closed, summarize Friday's action)"
         elif weekday == 6:
             day_note = " (Sunday — markets closed, summarize Friday's action)"
-        client = anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH))
+        client = anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH), max_retries=0)
         response = client.messages.create(
             # Was "claude-sonnet-4-20250514" — Anthropic deprecated that pinned
             # snapshot. Using the stable alias "claude-sonnet-4-6" so future

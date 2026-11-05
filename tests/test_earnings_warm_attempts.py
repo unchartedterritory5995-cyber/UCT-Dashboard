@@ -128,6 +128,17 @@ def test_an_http_error_is_free_and_keeps_the_attempt(warm, kind, gen):
 
 
 @pytest.mark.parametrize("kind,gen", GENERATORS)
+def test_an_error_after_a_stream_began_keeps_the_attempt(warm, kind, gen):
+    """The SDK raises an SSE error event as an APIStatusError carrying the stream's 200."""
+    warm.client.messages.create.side_effect = anthropic.APIStatusError(
+        "overloaded", response=httpx.Response(200, request=REQUEST), body=None)
+    gen(SYM, _row(), force_fresh_check=True)
+    gen(SYM, _row(), force_fresh_check=True)
+    assert _calls(warm) == 1
+    assert _attempts(kind) == 1
+
+
+@pytest.mark.parametrize("kind,gen", GENERATORS)
 def test_a_payload_the_store_refuses_uses_the_attempt(warm, kind, gen):
     warm.enrichment["value"] = {**COMPLETE, "pre_earnings": {"label": "x", "ret": float("nan")}}
     gen(SYM, _row(), force_fresh_check=True)

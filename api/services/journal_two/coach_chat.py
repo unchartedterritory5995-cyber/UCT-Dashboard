@@ -490,7 +490,7 @@ class AnthropicChatClient:
         # census.py` fails by file:line if it is removed. Without it the SDK
         # applies its 600 s default read timeout to a REQUEST-PATH client.
         self.timeout = float(timeout) if timeout else chat_call_timeout_secs()
-        self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout)
+        self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout, max_retries=0)
 
     def start_stream(self, *, system_prompt: str, messages: list, tools: list,
                      user_id: str = "unknown", timeout: float | None = None,
@@ -1096,6 +1096,7 @@ class _DefaultSummaryClient:
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
             timeout=float(timeout) if timeout else summary_call_timeout_secs(),
+            max_retries=0,
         )
         msg = client.messages.create(
             model="claude-sonnet-4-6",

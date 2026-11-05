@@ -232,7 +232,7 @@ def _call_claude(bundle_text: str) -> dict[str, Any]:
 
     try:
         from anthropic import Anthropic
-        client = Anthropic(api_key=api_key, timeout=_CLAUDE_TIMEOUT)
+        client = Anthropic(api_key=api_key, timeout=_CLAUDE_TIMEOUT, max_retries=0)
     except Exception as e:
         return {"error": f"anthropic sdk init failed: {e}"}
 
