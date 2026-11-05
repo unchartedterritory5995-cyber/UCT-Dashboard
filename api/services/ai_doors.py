@@ -212,7 +212,8 @@ DOORS: dict[str, Door] = {
         "CALL_RECAP_DAILY_CAP_USD $10/day, durable"),
     "api/services/cot_narrative.py": Door(
         "member", "POST /api/cot/{symbol}/narrative (require_paid); Friday prewarm",
-        "300 generations/UTC day global (cot.db); cached per facts hash",
+        "300 model calls/UTC day global (daily_counters, durable; rejected replies count); "
+        "cached per facts hash",
         gap="no per-member counter"),
     "api/services/definition_concierge.py": Door(
         "member", "POST /api/user-definitions/propose (require_paid)",
