@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 169,
-  "withProductionKinds": 160,
+  "all": 174,
+  "withProductionKinds": 165,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 169,
-  "withAnyRegressionCase": 117,
+  "capabilities": 174,
+  "withAnyRegressionCase": 122,
   "perProtection": {
    "nl": {
-    "covered": 117,
-    "applicable": 169
+    "covered": 122,
+    "applicable": 174
    },
    "routing": {
-    "covered": 112,
-    "applicable": 169
+    "covered": 116,
+    "applicable": 174
    },
    "args": {
-    "covered": 117,
-    "applicable": 169
+    "covered": 122,
+    "applicable": 174
    },
    "execution": {
-    "covered": 117,
-    "applicable": 169
+    "covered": 122,
+    "applicable": 174
    },
    "receipt": {
-    "covered": 91,
-    "applicable": 169
+    "covered": 96,
+    "applicable": 174
    },
    "refusal": {
     "covered": 31,
-    "applicable": 169
+    "applicable": 174
    },
    "permission": {
-    "covered": 163,
-    "applicable": 169
+    "covered": 168,
+    "applicable": 174
    },
    "undo": {
     "covered": 54,
-    "applicable": 107
+    "applicable": 112
    },
    "multiStep": {
-    "covered": 31,
-    "applicable": 169
+    "covered": 38,
+    "applicable": 174
    },
    "phrasings": {
     "covered": 116,
-    "applicable": 169
+    "applicable": 174
    }
   }
  },
@@ -2331,25 +2331,22 @@
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": true
+    "phrasings": false
    },
-   "phrasings": 4,
+   "phrasings": 0,
    "evidence": {
     "nl": [
-     "chartSetup.resetView: \"reset the chart view\"",
-     "chartSetup.resetView: \"reset view\"",
-     "chartSetup.resetView: \"reset the view on this chart\"",
-     "chartSetup.resetView: \"put this chart back to its default view\""
+     "GW-31.chartSetup-resetView"
     ],
     "routing": [],
     "args": [
-     "corpus chartSetup.resetView"
+     "GW-31.chartSetup-resetView"
     ],
     "execution": [
-     "chartSetup.resetView (c)"
+     "GW-31.chartSetup-resetView"
     ],
     "receipt": [
-     "chartSetup.resetView (c)"
+     "GW-31.chartSetup-resetView"
     ],
     "refusal": [],
     "permission": [],
@@ -2434,34 +2431,31 @@
     "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": true,
-    "multiStep": false,
-    "phrasings": true
+    "undo": false,
+    "multiStep": true,
+    "phrasings": false
    },
-   "phrasings": 4,
+   "phrasings": 0,
    "evidence": {
     "nl": [
-     "chartSetup.hideAllIndicators: \"hide all indicators for now\"",
-     "chartSetup.hideAllIndicators: \"hide every indicator on this chart\"",
-     "chartSetup.hideAllIndicators: \"hide all the indicators and volume\"",
-     "chartSetup.hideAllIndicators: \"hide everything drawn on this chart for now\""
+     "GW-32.chartSetup-hideAllIndicators"
     ],
     "routing": [],
     "args": [
-     "corpus chartSetup.hideAllIndicators"
+     "GW-32.chartSetup-hideAllIndicators"
     ],
     "execution": [
-     "chartSetup.hideAllIndicators (c)"
+     "GW-32.chartSetup-hideAllIndicators"
     ],
     "receipt": [
-     "chartSetup.hideAllIndicators (c)"
+     "GW-32.chartSetup-hideAllIndicators"
     ],
     "refusal": [],
     "permission": [],
-    "undo": [
-     "chartSetup.hideAllIndicators: undo restores"
+    "undo": [],
+    "multiStep": [
+     "GW-32.chartSetup-hideAllIndicators"
     ],
-    "multiStep": [],
     "phrasings": []
    }
   },
@@ -2486,33 +2480,32 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
-    "phrasings": true
+    "multiStep": true,
+    "phrasings": false
    },
-   "phrasings": 4,
+   "phrasings": 0,
    "evidence": {
     "nl": [
-     "chartSetup.hideMovingAverages: \"hide my moving averages\"",
-     "chartSetup.hideMovingAverages: \"hide all moving averages\"",
-     "chartSetup.hideMovingAverages: \"hide every moving average on this chart\"",
-     "chartSetup.hideMovingAverages: \"turn off all the moving averages\""
+     "GW-33.chartSetup-hideMovingAverages"
     ],
     "routing": [],
     "args": [
-     "corpus chartSetup.hideMovingAverages"
+     "GW-33.chartSetup-hideMovingAverages"
     ],
     "execution": [
-     "chartSetup.hideMovingAverages (c)"
+     "GW-33.chartSetup-hideMovingAverages"
     ],
     "receipt": [
-     "chartSetup.hideMovingAverages (c)"
+     "GW-33.chartSetup-hideMovingAverages"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "chartSetup.hideMovingAverages: undo restores"
+     "GW-33.chartSetup-hideMovingAverages"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "GW-33.chartSetup-hideMovingAverages"
+    ],
     "phrasings": []
    }
   },
@@ -2538,25 +2531,22 @@
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": true
+    "phrasings": false
    },
-   "phrasings": 4,
+   "phrasings": 0,
    "evidence": {
     "nl": [
-     "chartSetup.setRange.1y: \"show one year on this chart\"",
-     "chartSetup.setRange.1y: \"show me the 1Y range\"",
-     "chartSetup.setRange.1y: \"set this chart to the 1 year range\"",
-     "chartSetup.setRange.1y: \"use the 1Y range button\""
+     "GW-30.chartSetup-setRange-1y"
     ],
     "routing": [],
     "args": [
-     "corpus chartSetup.setRange.1y"
+     "GW-30.chartSetup-setRange-1y"
     ],
     "execution": [
-     "chartSetup.setRange.1y (c)"
+     "GW-30.chartSetup-setRange-1y"
     ],
     "receipt": [
-     "chartSetup.setRange.1y (c)"
+     "GW-30.chartSetup-setRange-1y"
     ],
     "refusal": [],
     "permission": [],
@@ -2816,6 +2806,54 @@
     "permission": [],
     "undo": [],
     "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.add": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": false,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "routing": [],
+    "args": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "execution": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "receipt": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "GW-35.drawing-add-arrow"
+    ],
     "phrasings": []
    }
   },
@@ -3479,6 +3517,62 @@
     "phrasings": []
    }
   },
+  "drawing.setAlert": {
+   "domain": "drawing",
+   "group": "alerts",
+   "target": "drawing",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setAlert: \"alert me if it breaks below this trendline\"",
+     "drawing.setAlert: \"set an alert when price loses that trendline\"",
+     "drawing.setAlert: \"alert me when NVDA breaks below that trendline\""
+    ],
+    "routing": [
+     "drawing.setAlert: \"alert me if it breaks below this trendline\"",
+     "drawing.setAlert: \"set an alert when price loses that trendline\"",
+     "drawing.setAlert: \"alert me when NVDA breaks below that trendline\""
+    ],
+    "args": [
+     "corpus drawing.setAlert"
+    ],
+    "execution": [
+     "drawing.setAlert (c)"
+    ],
+    "receipt": [
+     "drawing.setAlert (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "drawing.setAlert: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [
+     "drawing.setAlert: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
   "drawing.setAllVisible": {
    "domain": "drawing",
    "group": "drawings",
@@ -3531,6 +3625,116 @@
     "undo": [],
     "multiStep": [
      "drawing.hideAll: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setAnchors": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setAnchors: \"drag the arrow's end point up to 200\"",
+     "drawing.setAnchors: \"drag this drawing's end point up to 200\"",
+     "drawing.setAnchors: \"drag the end point of the drawing to 200\""
+    ],
+    "routing": [
+     "drawing.setAnchors: \"drag the arrow's end point up to 200\"",
+     "drawing.setAnchors: \"drag this drawing's end point up to 200\"",
+     "drawing.setAnchors: \"drag the end point of the drawing to 200\""
+    ],
+    "args": [
+     "corpus drawing.setAnchors"
+    ],
+    "execution": [
+     "drawing.setAnchors (c)"
+    ],
+    "receipt": [
+     "drawing.setAnchors (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.setAnchors: undo restores"
+    ],
+    "multiStep": [
+     "drawing.setAnchors: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setFibLevels": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setFibLevels: \"hide the 78.6 level on that fib\"",
+     "drawing.setFibLevels: \"remove the 0.786 level from the fib drawing\"",
+     "drawing.setFibLevels: \"turn off the 78.6 fib level\""
+    ],
+    "routing": [
+     "drawing.setFibLevels: \"hide the 78.6 level on that fib\"",
+     "drawing.setFibLevels: \"remove the 0.786 level from the fib drawing\"",
+     "drawing.setFibLevels: \"turn off the 78.6 fib level\""
+    ],
+    "args": [
+     "corpus drawing.setFibLevels"
+    ],
+    "execution": [
+     "drawing.setFibLevels (c)"
+    ],
+    "receipt": [
+     "drawing.setFibLevels (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "drawing.setFibLevels: after an earlier turn"
     ],
     "phrasings": []
    }
@@ -3589,6 +3793,60 @@
     ],
     "multiStep": [
      "drawing.setLevel: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setProps": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setProps: \"make that drawing a large arrow\"",
+     "drawing.setProps: \"set the arrow size on that drawing to large\"",
+     "drawing.setProps: \"use a large arrow size on the drawing\""
+    ],
+    "routing": [
+     "drawing.setProps: \"make that drawing a large arrow\"",
+     "drawing.setProps: \"set the arrow size on that drawing to large\"",
+     "drawing.setProps: \"use a large arrow size on the drawing\""
+    ],
+    "args": [
+     "corpus drawing.setProps"
+    ],
+    "execution": [
+     "drawing.setProps (c)"
+    ],
+    "receipt": [
+     "drawing.setProps (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "drawing.setProps: after an earlier turn"
     ],
     "phrasings": []
    }
@@ -8083,14 +8341,13 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 3,
    "evidence": {
     "nl": [
      "watchlist.setFlag: \"add NVDA to my flagged list\"",
      "watchlist.setFlag: \"put NVDA on my flagged list\"",
      "watchlist.setFlag: \"add NVDA to flagged\"",
-     "watchlist.setFlag.bare: \"flag NVDA\"",
-     "watchlist.setFlag.bare: \"star NVDA\""
+     "GW-34.watchlist-setFlag-bare"
     ],
     "routing": [
      "watchlist.setFlag: \"add NVDA to my flagged list\"",
@@ -8099,15 +8356,15 @@
     ],
     "args": [
      "corpus watchlist.setFlag",
-     "corpus watchlist.setFlag.bare"
+     "GW-34.watchlist-setFlag-bare"
     ],
     "execution": [
      "watchlist.setFlag (c)",
-     "watchlist.setFlag.bare (c)"
+     "GW-34.watchlist-setFlag-bare"
     ],
     "receipt": [
      "watchlist.setFlag (c)",
-     "watchlist.setFlag.bare (c)"
+     "GW-34.watchlist-setFlag-bare"
     ],
     "refusal": [],
     "permission": [],

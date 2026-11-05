@@ -3050,7 +3050,7 @@
     "domain": "alert",
     "target": "alertLibrary",
     "summary": "Create ONE price alert in UCT's Alerts: it goes off ONCE when the stock is at or above (direction above) or at or below (direction below) a price level, checked while the market is open. Only price levels — no percent-move, indicator, volume or time alerts; alerts cannot be paused, edited or made repeating.",
-    "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.",
+    "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). An alert on an indicator (RSI, MACD, a moving-average cross…) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.",
     "args": {
      "type": "object",
      "properties": {
@@ -3899,96 +3899,6 @@
     "shape": null
    },
    {
-    "name": "chartGrid.set",
-    "domain": "chartGrid",
-    "target": "board",
-    "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo.",
-    "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"…, and a watchlist\") and the board has none: a Watchlist widget is added in a cleared right column; else null. replace = true only when they chose to replace the board with this workspace, \"charts\" to replace only their charts, else null. Never widget.add + chart.setSymbol for this.",
-    "args": {
-     "type": "object",
-     "properties": {
-      "symbols": {
-       "type": "array",
-       "items": {
-        "type": "string"
-       }
-      },
-      "timeframe": {
-       "type": [
-        "string",
-        "null"
-       ],
-       "enum": [
-        "1",
-        "5",
-        "15",
-        "30",
-        "60",
-        "D",
-        "W",
-        "M",
-        null
-       ]
-      },
-      "layout": {
-       "type": [
-        "string",
-        "null"
-       ],
-       "enum": [
-        "grid",
-        "columns",
-        "rows",
-        null
-       ]
-      },
-      "new_charts": {
-       "type": [
-        "boolean",
-        "null"
-       ]
-      },
-      "watchlist": {
-       "type": [
-        "boolean",
-        "null"
-       ]
-      },
-      "replace": {
-       "type": [
-        "boolean",
-        "string",
-        "null"
-       ],
-       "enum": [
-        true,
-        false,
-        "charts",
-        null
-       ]
-      }
-     },
-     "required": [
-      "symbols",
-      "timeframe",
-      "layout",
-      "new_charts",
-      "watchlist",
-      "replace"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "local",
-    "reversible": true,
-    "undo": "exact",
-    "query": false,
-    "argAliases": null,
-    "coerce": null,
-    "defaults": null,
-    "defaultsWhen": null,
-    "shape": null
-   },
-   {
     "name": "chart.applyThemeAll",
     "domain": "chart",
     "target": "board",
@@ -4263,6 +4173,49 @@
      "additionalProperties": false
     },
     "risk": "local",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "drawing.setAlert",
+    "domain": "drawing",
+    "target": "drawing",
+    "summary": "Set an alert that FOLLOWS a drawing (the drawing menu's \"Set alert…\"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line's level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.",
+    "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "drawing": {
+       "type": "string"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "above",
+        "below"
+       ]
+      },
+      "level": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "drawing",
+      "direction",
+      "level"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
     "reversible": true,
     "undo": "exact",
     "query": false,
@@ -9689,11 +9642,55 @@
     "shape": null
    },
    {
+    "name": "indicatorAlert.list",
+    "domain": "indicatorAlert",
+    "target": "indicatorAlertLibrary",
+    "summary": "Show the member's indicator alerts from UCT's real list: symbol, indicator, condition, timeframe, whether each is active or paused, and why one can't fire. Use this (disposition apply) for \"show my indicator alerts\", \"why hasn't my RSI alert fired\".",
+    "hints": "target = the ref of the indicatorAlertLibrary entry. symbol: one ticker, or null. status: active | paused | attention (alerts that can't fire) | null (all).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "symbol": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "status": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "active",
+        "paused",
+        "attention",
+        null
+       ]
+      }
+     },
+     "required": [
+      "symbol",
+      "status"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
     "name": "indicatorAlert.create",
     "domain": "indicatorAlert",
     "target": "indicatorAlertLibrary",
-    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
-    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. MA cross (\"the 9 ema crosses above the 20\"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. chart = the ref of the chart the alert is for (one indicator id can be on several charts). Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member's own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart's symbol with the instance's own settings, on the chart's timeframe or another native one. Undo deletes it.",
+    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart's indicators entry (never a name); chart = the ref of the chart it is on; plot = null, or for several lines the address the catalog names (macd.signal) — not sure which line: ask. condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (\"crosses above 70\" = cross_above; \"is over 70\" = above); threshold = the level, else null. MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. The member's own yes/no signal: trigger = becomes_true (\"turns on\") | becomes_false (\"turns off\") | is_true, condition and threshold null; trigger = null otherwise. timeframe = null for the chart's own, or 1 | 5 | 15 | 30 | 60 | D | W | M (\"alert on the weekly RSI\" = W). A PRICE level (\"when NVDA hits 150\") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.",
     "args": {
      "type": "object",
      "properties": {
@@ -9707,7 +9704,10 @@
        ]
       },
       "condition": {
-       "type": "string"
+       "type": [
+        "string",
+        "null"
+       ]
       },
       "threshold": {
        "type": [
@@ -9726,6 +9726,24 @@
         "string",
         "null"
        ]
+      },
+      "trigger": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "becomes_true",
+        "becomes_false",
+        "is_true",
+        null
+       ]
+      },
+      "timeframe": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
@@ -9734,7 +9752,9 @@
       "condition",
       "threshold",
       "crossWith",
-      "chart"
+      "chart",
+      "trigger",
+      "timeframe"
      ],
      "additionalProperties": false
     },
@@ -9752,7 +9772,7 @@
     "name": "indicatorAlert.toggle",
     "domain": "indicatorAlert",
     "target": "indicatorAlert",
-    "summary": "Pause or resume ONE indicator alert (the alert manager's own switch). Undo switches it back.",
+    "summary": "Pause or resume ONE indicator alert (the ON / OFF switch on its row in the chart's Indicator Alerts popover). Undo switches it back.",
     "hints": "target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.",
     "args": {
      "type": "object",
@@ -10639,7 +10659,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -10671,15 +10691,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -10687,7 +10707,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -10900,7 +10920,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -10932,15 +10952,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -10948,7 +10968,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -11159,7 +11179,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -11191,15 +11211,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -11207,7 +11227,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -11240,7 +11260,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -11425,7 +11444,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -11457,15 +11476,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -11473,7 +11492,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -11683,7 +11702,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -11715,15 +11734,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -11731,7 +11750,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -11942,7 +11961,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -11974,15 +11993,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -11990,7 +12009,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -12201,7 +12220,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -12233,15 +12252,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -12249,7 +12268,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -12282,7 +12301,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -12728,7 +12746,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -12760,15 +12778,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -12776,7 +12794,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -12988,7 +13006,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -13020,15 +13038,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -13036,7 +13054,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -13246,7 +13264,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -13278,15 +13296,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -13294,7 +13312,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -13765,7 +13783,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -13797,15 +13815,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -13813,7 +13831,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -14024,7 +14042,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -14056,15 +14074,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -14072,7 +14090,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -14105,7 +14123,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -14551,7 +14568,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -14583,15 +14600,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -14599,7 +14616,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -15071,7 +15088,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -15103,15 +15120,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -15119,7 +15136,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -15591,7 +15608,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -15623,15 +15640,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -15639,7 +15656,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -15850,7 +15867,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -15882,15 +15899,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -15898,7 +15915,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -15931,7 +15948,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -16377,7 +16393,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -16409,15 +16425,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -16425,7 +16441,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -16636,7 +16652,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -16668,15 +16684,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -16684,7 +16700,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -16717,7 +16733,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -16902,7 +16917,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -16934,15 +16949,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -16950,7 +16965,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -16983,7 +16998,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -17168,7 +17182,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -17200,15 +17214,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -17216,7 +17230,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -17249,7 +17263,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",
@@ -17434,7 +17447,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -17466,15 +17479,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -17482,7 +17495,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -17693,7 +17706,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -17725,15 +17738,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -17741,7 +17754,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -17952,7 +17965,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -17984,15 +17997,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -18000,7 +18013,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -18210,7 +18223,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -18242,15 +18255,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -18258,7 +18271,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -18469,7 +18482,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -18501,15 +18514,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -18517,7 +18530,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -18988,7 +19001,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -19020,15 +19033,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -19036,7 +19049,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -19509,7 +19522,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -19541,15 +19554,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -19557,7 +19570,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -20029,7 +20042,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -20061,15 +20074,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -20077,7 +20090,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -20549,7 +20562,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -20581,15 +20594,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -20597,7 +20610,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -20807,7 +20820,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -20839,15 +20852,15 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -20855,7 +20868,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -20888,7 +20901,6 @@
     ],
     "selected": [
      "charts",
-     "chartGrid",
      "indicators",
      "screener",
      "alerts",

@@ -677,6 +677,19 @@
    ],
    "fast": false
   },
+  "drawing.add": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.addAvwap": {
    "domain": "drawing",
    "group": "drawingTools",
@@ -833,6 +846,19 @@
    ],
    "fast": false
   },
+  "drawing.setAlert": {
+   "domain": "drawing",
+   "group": "alerts",
+   "target": "drawing",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.setAllVisible": {
    "domain": "drawing",
    "group": "drawings",
@@ -846,7 +872,46 @@
    ],
    "fast": false
   },
+  "drawing.setAnchors": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.setFibLevels": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.setLevel": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.setProps": {
    "domain": "drawing",
    "group": "drawings",
    "target": "drawing",

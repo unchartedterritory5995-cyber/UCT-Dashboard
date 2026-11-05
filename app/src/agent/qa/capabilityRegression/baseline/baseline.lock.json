@@ -3712,106 +3712,6 @@
     }
    }
   },
-  "chartSetup.setRange.1y": {
-   "digest": "e26e59983f375f8a",
-   "phrasings": {
-    "show one year on this chart": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "show me the 1Y range": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "set this chart to the 1 year range": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "use the 1Y range button": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
-  "chartSetup.resetView": {
-   "digest": "3ab44ae339b0b9b3",
-   "phrasings": {
-    "reset the chart view": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "reset view": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "reset the view on this chart": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "put this chart back to its default view": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
-  "chartSetup.hideAllIndicators": {
-   "digest": "4719d9736aaa7124",
-   "phrasings": {
-    "hide all indicators for now": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "hide every indicator on this chart": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "hide all the indicators and volume": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "hide everything drawn on this chart for now": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
-  "chartSetup.hideMovingAverages": {
-   "digest": "8f109d09920863e7",
-   "phrasings": {
-    "hide my moving averages": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "hide all moving averages": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "hide every moving average on this chart": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "turn off all the moving averages": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
   "indicatorAlert.list": {
    "digest": "956a3e1c3968cad9",
    "phrasings": {
@@ -4022,21 +3922,6 @@
     }
    }
   },
-  "watchlist.setFlag.bare": {
-   "digest": "c6d6f0d6279998a6",
-   "phrasings": {
-    "flag NVDA": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "star NVDA": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
   "watchlist.keepOnly": {
    "digest": "b745d9174ae1f506",
    "phrasings": {
@@ -4051,6 +3936,86 @@
      "modes": {}
     },
     "clear Momentum except for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setAnchors": {
+   "digest": "85ab080338aed101",
+   "phrasings": {
+    "drag the arrow's end point up to 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drag this drawing's end point up to 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drag the end point of the drawing to 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setProps": {
+   "digest": "3ba9a11e5aaa40e9",
+   "phrasings": {
+    "make that drawing a large arrow": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the arrow size on that drawing to large": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use a large arrow size on the drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setFibLevels": {
+   "digest": "15eebe56684a2313",
+   "phrasings": {
+    "hide the 78.6 level on that fib": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the 0.786 level from the fib drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off the 78.6 fib level": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setAlert": {
+   "digest": "aabd9de9ec954c3f",
+   "phrasings": {
+    "alert me if it breaks below this trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert when price loses that trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me when NVDA breaks below that trendline": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -4403,6 +4368,36 @@
   },
   "GW-29.counted-others-two-charts": {
    "digest": "60952e71b5fe019e",
+   "gap": false,
+   "mode": null
+  },
+  "GW-30.chartSetup-setRange-1y": {
+   "digest": "561ab0060dd5be8d",
+   "gap": false,
+   "mode": null
+  },
+  "GW-31.chartSetup-resetView": {
+   "digest": "cdcffd0af93d154f",
+   "gap": false,
+   "mode": null
+  },
+  "GW-32.chartSetup-hideAllIndicators": {
+   "digest": "95b234c5362dd080",
+   "gap": false,
+   "mode": null
+  },
+  "GW-33.chartSetup-hideMovingAverages": {
+   "digest": "7676abd0fe970120",
+   "gap": false,
+   "mode": null
+  },
+  "GW-34.watchlist-setFlag-bare": {
+   "digest": "1714d2004e7eeef7",
+   "gap": false,
+   "mode": null
+  },
+  "GW-35.drawing-add-arrow": {
+   "digest": "936b8274f624215f",
    "gap": false,
    "mode": null
   }
