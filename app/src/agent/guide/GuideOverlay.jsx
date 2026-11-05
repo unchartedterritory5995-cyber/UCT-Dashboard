@@ -11,10 +11,12 @@
 //     the card never points at nothing and never claims a control is visible when it is not
 //   • Back goes to the nearest earlier step whose control is on screen, and a `waitFor` already met does not bounce it
 //     forward again; the step moves on by itself once what it waits for goes away and comes back
-//   • Escape ends it wherever focus is (the card never takes focus, so a key on the card alone would almost never
-//     fire). Declared in the shortcut registry (`agent.guideEscape`), bound only while a walkthrough is on screen, and
-//     never consumed: a sheet, the palette, an inline form or the chart's own keys still answer the same press. The
-//     card's × always ends it
+//   • Escape ends it only when nothing else answers that press: one press does one thing. The guide listens last
+//     (`agent.guideEscape`, window bubble), so a press something stopped never reaches it and one something prevented
+//     is left alone; a text field's Escape is the field's (the Agent's own message box, where focus sits after asking, ends
+//     the guide from its own handler: the panel keeps its keys from reaching the board); a layer open at the press (a sheet, the palette, a dialog)
+//     owns it; a menu the press closed had it (`agent.guideEscapeGate` notes all of that in the capture phase, before
+//     any layer reacts: lib/topLayer.js). Bound only while a walkthrough is on screen. The card's × always ends it
 //   • leaving Charts or closing the Agent unmounts it: the walkthrough ends, every timer and listener with it
 //   • the card is announced politely (aria-live) and never takes focus from what the member is doing
 
@@ -23,7 +25,8 @@ import { createPortal } from 'react-dom'
 import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget } from './guideStore'
 import { findTarget, rectOf, reveal } from './targets'
 import { POLL_MS, LOST_MS, sameRect, placeCard } from './placement'
-import { registerShortcuts } from '../../pages/command/shortcutRegistry'
+import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
+import { layerOpenedSince } from '../../lib/topLayer'
 import styles from './GuideOverlay.module.css'
 
 /** The nearest step before this one whose control is on screen → its index, or null. */
@@ -31,6 +34,10 @@ function earlierStep(st) {
   for (let i = st.index - 1; i >= 0; i--) if (findTarget(st.steps[i].target, st)) return i
   return null
 }
+
+// the menus that close on Escape carry no layer attribute (a plain dropdown is not a layer): which were open at the press
+const MENUS = '[role="menu"],[data-guide$="Menu"]'
+const NO_LAYERS_BENEATH = new Set()
 
 export default function GuideOverlay() {
   const { state: st, notice } = useSyncExternalStore(subscribeGuide, guideSnapshot, guideSnapshot)
@@ -84,9 +91,23 @@ export default function GuideOverlay() {
   // closing the Agent / leaving Charts ends the walkthrough
   useEffect(() => () => endGuide('closed'), [])
 
-  // Escape, wherever focus is — never consumed (no preventDefault, no stopPropagation)
+  // Escape, only when nothing else answers it (see the header). Never consumed either.
   const active = !!st
-  useEffect(() => (active ? registerShortcuts({ 'agent.guideEscape': () => endGuide('exit') }) : undefined), [active])
+  useEffect(() => {
+    if (!active) return undefined
+    let press = { field: false, layer: false, menus: [] }
+    return registerShortcuts({
+      // the window capture phase: a layer that closes from its own listener is already gone by the bubble phase
+      // (and a field that closes on its own Escape has lost focus by then: the name box of a new list)
+      'agent.guideEscapeGate': () => { press = { field: isEditableFocus(), layer: layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH), menus: [...document.querySelectorAll(MENUS)] } },
+      'agent.guideEscape': (e) => {
+        const { field, layer, menus } = press
+        if (e.defaultPrevented || field || layer) return
+        // a menu that answered from a React handler has closed by the next task
+        setTimeout(() => { if (!e.defaultPrevented && menus.every(m => m.isConnected)) endGuide('exit') }, 0)
+      },
+    })
+  }, [active])
 
   if (typeof document === 'undefined') return null
   if (!st || !step) {
