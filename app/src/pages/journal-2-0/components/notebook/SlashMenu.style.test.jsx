@@ -4,7 +4,8 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 import { STYLE_EVENT } from '../../lib/journalStylesFlag'
 
 afterEach(() => __resetNotebookFlags())
-const item = () => ITEMS.find((i) => i.title === 'Journal style')
+// S7 (one vocabulary): the row reads "Template" now; it is still the journal style switch underneath.
+const item = () => ITEMS.find((i) => i.title === 'Template')
 
 describe('/style', () => {
   it('is a Planning a trade item available only while journal styles are on', () => {
@@ -14,8 +15,9 @@ describe('/style', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     expect(item().available({})).toBe(true)
   })
-  it('answers /style by its title', () => {
+  it('answers /style (a keyword now) and /template by its title', () => {
     expect(blockItemMatches(item(), 'style')).toBe(true)
+    expect(blockItemMatches(item(), 'template')).toBe(true)
   })
   it('dispatches the style event on the editor root', () => {
     const seen = []

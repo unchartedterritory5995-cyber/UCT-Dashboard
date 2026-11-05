@@ -52,6 +52,6 @@ describe('the switch is off (never latched)', () => {
     expect(screen.queryByRole('dialog', { name: 'Choose a journal style' })).toBeNull()
     expect(loaded).toEqual({ banner: 0, sheet: 0, surfaces: 0 })
     expect(urls.filter((u) => u.includes('journal-styles') || u.includes('style-update-plan'))).toEqual([])
-    expect(ITEMS.find((i) => i.title === 'Journal style').available({})).toBe(false)
+    expect(ITEMS.find((i) => i.title === 'Template') /* S7: the Journal style row reads Template */.available({})).toBe(false)
   })
 })
