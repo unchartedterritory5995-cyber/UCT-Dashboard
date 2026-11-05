@@ -133,3 +133,10 @@ Logs `job-mp.log`, `mp0.log`, `mp1.log`.
 ## Capture queue (N2/N3)
 `docs/pine/capture-queue-2026-11-04-w4-t11.md`: rows W4-T11-a (bad substring positions), W4-T11-b (tonumber texts, replace overlap/missing/empty target),
 W4-T11-c (format_time letters, zones, `na` time) with probe scripts.
+
+## final-tip r1 (LAST, on the final tree; lock heavy-final2; `final-tip.sh pine-dsk-w4t11 dsk-w4t11r1-final tests/test_script_engine_version_gate.py`)
+Tip `b8e7e4acd4b6a65e9daab54fa87a692c9c3ff0e3` (code `3bf1815f93` + docs-only evidence; this closing section is a further docs-only commit). Tested on master `5d95103c8a`.
+Logs `_resume-2026-11-01/runs/dsk-w4t11r1-final/`, job log `runs/w4t11r1/job-final.log`.
+- gate pytest: `46 passed` (rc=0). Hygiene rc=0: `clean: 34667 tracked file(s)...`. `tests/test_script_engine_version_gate.py`: `6 passed`.
+- full chart+hooks vitest: `Test Files  1 failed | 1334 passed | 27 skipped (1362)`; the one failure is `src/hooks/pollingSites.rail.test.js`
+  (known desktop baseline, same single file as r0).
