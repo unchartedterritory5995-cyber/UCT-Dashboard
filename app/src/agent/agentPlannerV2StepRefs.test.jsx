@@ -36,8 +36,11 @@ const rowsOf = (m, sym) => { const w = chartOf(m, sym); return (m.h.charts.read(
 
 describe('planner v2: an indicator a step added is a result the next step can name', () => {
   it('unit: an ind ref binds to the instance its step reported; one no step reported is refused', () => {
-    const refMap = { ind1: { kind: 'indicatorInstance', ref: 'inst:abc' }, c1: { kind: 'chart', ref: 'w1' } }
-    expect(bindInstanceRef({ action: 'indicatorStyle.set', args: { instance: 'ind1' } }, refMap).op.args.instance).toBe('inst:abc')
+    const refMap = { ind1: { kind: 'indicatorInstance', ref: 'inst:abc', chart: 'w1' }, c1: { kind: 'chart', ref: 'w1' }, c2: { kind: 'chart', ref: 'w2' } }
+    expect(bindInstanceRef({ action: 'indicatorStyle.set', target: 'c1', args: { instance: 'ind1' } }, refMap).op.args.instance).toBe('inst:abc')
+    // the ref is (chart, instance): on another chart it is refused; with no target it is bound to its own chart
+    expect(bindInstanceRef({ action: 'indicatorStyle.set', target: 'c2', args: { instance: 'ind1' } }, refMap).refusal).toMatch(/not on this step's target/)
+    expect(bindInstanceRef({ action: 'indicatorStyle.set', target: null, args: { instance: 'ind1' } }, refMap).op.target).toMatch(/w1/)
     expect(bindInstanceRef({ action: 'indicatorStyle.set', args: { instance: 'ind2' } }, refMap).refusal).toMatch(/not an indicator an earlier step of this turn added/)
     expect(bindInstanceRef({ action: 'indicatorStyle.set', args: { instance: 'c1' } }, refMap).op.args.instance).toBe('c1')   // not an ind ref: as before
     expect(bindInstanceRef({ action: 'indicatorStyle.set', args: { instance: '#21:ema' } }, refMap).op.args.instance).toBe('#21:ema')
@@ -96,7 +99,62 @@ describe('planner v2: an indicator a step added is a result the next step can na
     expect(st[2]).toBe('refused')                                // "ind1" was never reported: refused, never guessed
     expect(m.srv.results[2].refusal).toMatch(/not an indicator an earlier step of this turn added/)
     expect(m.h.charts.read(chartsOf(m.board)[0].id)?.tf).toBe('W')
-    expect(said()).toMatch(/Checked on your board: 1 of 2 checked steps that ran here are in place\. Not in place: step 2/)
+    // review nit (a): the refused step never ran — it is not read back as "not in place" (its refusal was said)
+    expect(said()).toMatch(/Checked on your board: all 1 checked steps that ran here are in place/)
+    expect(said()).not.toMatch(/Not in place: step 2/)
+  }, 60000)
+
+  // ⛔ review BLOCKER: instance ids are per CHART (inst:<defId>:<n>), so two charts share them — a ref is (chart, instance)
+  const ieOf = (c, sym) => (c.body.context.indicatorEdits || []).find(e => e.symbol === sym)?.ref
+  const SMA50 = { defId: 'movingAverage', inputs: [{ key: 'period', value: 50 }, { key: 'maType', value: 'sma' }] }
+  const ORANGE = '#f59e0b'                                   // the colour family 'orange' resolves to
+  const styled = (r) => String(r?.inputs?.color || '').toLowerCase() === ORANGE
+  it('review repro: ind1 (NVDA\'s EMA) aimed at AMD, whose SMA shares its id → refused; neither indicator changes', async () => {
+    const script = [
+      (c) => ({ action: 'indicator.add', target: ieOf(c, 'NVDA'), args: MA21 }),
+      (c) => ({ action: 'indicator.add', target: ieOf(c, 'AMD'), args: SMA50 }),
+      (c) => ({ action: 'indicatorStyle.set', target: ieOf(c, 'AMD'), args: { instance: addedOf(c, 0, 'indicatorInstance'), property: 'color', value: 'orange', output: null } }),
+      { reply: '' },
+    ]
+    const { m, said } = await v2('TWO', script)
+    expect(m.srv.results.map(r => r.status)).toEqual(['done', 'done', 'refused'])
+    expect(m.srv.results[2].refusal).toMatch(/not on this step's target/)
+    const ema = rowsOf(m, 'NVDA').find(r => r.defId === 'movingAverage')
+    const sma = rowsOf(m, 'AMD').find(r => r.defId === 'movingAverage')
+    expect(ema.instanceId).toBe(sma.instanceId)                  // the premise: the two charts DO share the id
+    expect(styled(sma)).toBe(false)                              // the wrong-target write is gone
+    expect(styled(ema)).toBe(false)
+    expect(said()).toMatch(/all 2 checked steps that ran here are in place/)
+  }, 60000)
+
+  it('same-chart control: ind1 aimed at its own chart (NVDA) styles NVDA\'s EMA, never AMD\'s SMA', async () => {
+    const script = [
+      (c) => ({ action: 'indicator.add', target: ieOf(c, 'NVDA'), args: MA21 }),
+      (c) => ({ action: 'indicator.add', target: ieOf(c, 'AMD'), args: SMA50 }),
+      (c) => ({ action: 'indicatorStyle.set', target: ieOf(c, 'NVDA'), args: { instance: addedOf(c, 0, 'indicatorInstance'), property: 'color', value: 'orange', output: null } }),
+      { reply: '' },
+    ]
+    const { m } = await v2('TWO', script)
+    expect(addedOf({ results: m.srv.results }, 1, 'indicatorInstance')).toBe('ind2')   // AMD's SMA: its own ref (chart + id)
+    expect(styled(rowsOf(m, 'NVDA').find(r => r.defId === 'movingAverage'))).toBe(true)
+    expect(styled(rowsOf(m, 'AMD').find(r => r.defId === 'movingAverage'))).toBe(false)
+  }, 60000)
+
+  it('review nit (b): the same indicator added in two steps (two charts, or one chart twice) reads back as in place', async () => {
+    const two = await v2('TWO', [
+      (c) => ({ action: 'indicator.add', target: ieOf(c, 'NVDA'), args: { defId: 'rsi', inputs: null } }),
+      (c) => ({ action: 'indicator.add', target: ieOf(c, 'AMD'), args: { defId: 'rsi', inputs: null } }),
+      { reply: '' },
+    ])
+    expect(two.said()).toMatch(/all 2 checked steps that ran here are in place/)
+    cleanup()
+    const one = await v2('ONE', [
+      (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: { defId: 'rsi', inputs: null } }),
+      (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: { defId: 'rsi', inputs: null } }),
+      { reply: '' },
+    ])
+    if (one.m.srv.results.every(r => r.status === 'done')) expect(one.said()).toMatch(/all 2 checked steps that ran here are in place/)
+    expect(one.said()).not.toMatch(/more than one indicator like it|Not in place/)
   }, 60000)
 
   it('kill switch: the v2 runner is exactly as before — no ind refs, no read-back', async () => {

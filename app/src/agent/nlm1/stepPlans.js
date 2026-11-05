@@ -123,19 +123,32 @@ export function snapshotInstances(host) {
 }
 
 /** The instance an indicator.add STEP added: the one new instance that matches it → { ok, instanceId, chart } | { ok:false, why } */
-export function addedInstance(host, step, before) {
+const chartKey = (r) => String(r ?? '').split('~')[0]
+/** `chart`: only that chart's instances (an instance id is unique per CHART only); `claimed`: Set of "chart|id" already
+ *  given to an earlier step — the first unclaimed match is this step's (the same indicator added twice is two results) */
+export function addedInstance(host, step, before, { chart = null, claimed = null } = {}) {
   const want = inputsOf(step.args)
   const hits = []
   for (const c of listCharts(host)) {
+    if (chart != null && chartKey(c.ref) !== chartKey(chart)) continue
     const had = before?.get(String(c.ref)) || new Set()
     for (const r of instancesOf(host, c.ref)) {
       if (had.has(String(r.instanceId)) || r.defId !== step.args?.defId) continue
       if (MA_KEYS.some(k => want[k] != null && String(r.inputs?.[k]) !== String(want[k]))) continue
+      if (claimed?.has(`${chartKey(c.ref)}|${r.instanceId}`)) continue
       hits.push({ instanceId: String(r.instanceId), chart: String(c.ref) })
     }
   }
+  if (claimed && hits.length) { claimed.add(`${chartKey(hits[0].chart)}|${hits[0].instanceId}`); return { ok: true, ...hits[0] } }
   if (hits.length === 1) return { ok: true, ...hits[0] }
   return { ok: false, why: hits.length ? 'more than one indicator like it was added' : 'it did not take effect' }
+}
+
+/** Is an indicator like the step's on that chart now (new or already there — "already on the chart, nothing to add")? */
+export function hasInstanceLike(host, step, chart) {
+  if (chart == null) return false
+  const want = inputsOf(step.args)
+  return instancesOf(host, chart).some(r => r.defId === step.args?.defId && !MA_KEYS.some(k => want[k] != null && String(r.inputs?.[k]) !== String(want[k])))
 }
 
 /**
@@ -180,15 +193,19 @@ export async function readBackStepPlan(plan, host, { reached = false } = {}) {
   let checked = 0
   let ok = 0
   const touched = new Set()
+  const claimed = new Set()
   plan.steps.forEach((s, i) => {
-    const n = i + 1
+    if (s.refused) return                          // never ran: its refusal was said where it happened
+    const n = (s.index ?? i) + 1
     const ref = realChart(s)
     let verdict = null                             // true | false | null (no read-back for this kind of step)
     try {
       if (s.alias) verdict = !!s.aliasRef
       else if (s.action === 'chart.setSymbol') verdict = !!ref && String(host.charts.read(ref)?.symbol || '').toUpperCase() === String(s.args?.symbol || '').toUpperCase()
       else if (s.action === 'chart.setTimeframe') verdict = !!ref && String(host.charts.read(ref)?.tf || '') === String(s.args?.timeframe || '')
-      else if (s.action === 'indicator.add') verdict = addedInstance(host, s, plan.before).ok
+      // the postcondition is the indicator ON that chart: the instance this step added, or — a step that found it already
+      // there ("nothing to add") — the one already on it
+      else if (s.action === 'indicator.add') verdict = addedInstance(host, s, plan.before, { chart: ref, claimed }).ok || hasInstanceLike(host, s, ref)
     } catch { verdict = false }
     if (verdict == null) return
     checked++
