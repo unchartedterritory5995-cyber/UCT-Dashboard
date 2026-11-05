@@ -234,7 +234,7 @@ function Item({ it, agent, member, at, cont }) {
         {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card
             still marks itself undoable for tests and the harnesses. */}
         <div className={`${styles.bubble} ${styles.cardBubble}`} data-testid="agent-receipt"
-          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined}>
+          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined} data-status={it.faulted ? 'failed' : undefined}>
           <div className={styles.receiptLines} data-testid="agent-receipt-summary">{view.summary}</div>
           {view.details && (
             <details className={styles.receiptDetails}>
@@ -244,6 +244,7 @@ function Item({ it, agent, member, at, cont }) {
           )}
           {it.notes?.length > 0 && <div className={styles.cardMeta}>{it.notes.join(' · ')}</div>}
           {it.undoId && it.undone && <div className={styles.cardMeta}>Undone</div>}
+          {it.faulted && <div className={styles.cardMeta}>The chart hit an error after this change.</div>}
         </div>
         </AgentSays>
       )
