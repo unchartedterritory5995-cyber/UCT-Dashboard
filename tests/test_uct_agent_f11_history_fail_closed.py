@@ -46,6 +46,11 @@ def test_a_row_naming_a_local_only_action_is_never_replayed():
     assert SECRET not in _history({"kind": "answered", "actions": ["breadth.show"]})
 
 
+# Kinds the browser no longer records but stored conversations still hold, so they stay listed and keep replaying. Each
+# needs its reason. "unsupported": the Multi Chart refusal, the only path that wrote it, went when the Agent began working there.
+LEGACY_OUTCOME_KINDS = {"unsupported"}
+
+
 def test_the_action_less_list_matches_what_the_browser_records():
     """Rail: a new browser outcome kind recorded WITHOUT `actions` must be added here on purpose (it then
     replays) — otherwise it stays fail-closed. A listed kind the browser no longer records is stale."""
@@ -60,4 +65,7 @@ def test_the_action_less_list_matches_what_the_browser_records():
                 seen.add(m.group(1))
     assert seen, "found no outcome records: the rail would check nothing"
     assert seen <= turn.ACTIONLESS_OUTCOME_KINDS, f"decide these: {sorted(seen - turn.ACTIONLESS_OUTCOME_KINDS)}"
-    assert turn.ACTIONLESS_OUTCOME_KINDS <= seen, f"stale: {sorted(turn.ACTIONLESS_OUTCOME_KINDS - seen)}"
+    stale = turn.ACTIONLESS_OUTCOME_KINDS - seen - LEGACY_OUTCOME_KINDS
+    assert not stale, f"stale: {sorted(stale)}"
+    assert LEGACY_OUTCOME_KINDS <= turn.ACTIONLESS_OUTCOME_KINDS, "a legacy kind must stay listed: stored rows hold it"
+    assert not (LEGACY_OUTCOME_KINDS & seen), f"recorded again, no longer legacy: {sorted(LEGACY_OUTCOME_KINDS & seen)}"

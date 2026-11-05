@@ -66,7 +66,7 @@ def extract_suggestions_from_transcript(transcripts: list[dict]) -> list[str]:
 
     try:
         from anthropic import Anthropic
-        client = Anthropic(api_key=api_key, timeout=20)
+        client = Anthropic(api_key=api_key, timeout=20, max_retries=0)
         resp = client.messages.create(
             model=_HAIKU_MODEL,
             max_tokens=400,

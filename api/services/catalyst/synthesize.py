@@ -313,6 +313,12 @@ def _call_anthropic(model: str, prompt: str, system: str) -> tuple:
     return msg, msg.usage.input_tokens, msg.usage.output_tokens
 
 
+def _ledger_request(prompt: str, system: str) -> dict:
+    """What a failed `_call_anthropic` asked for, for the worst-case charge."""
+    return {"system": system, "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": SYNTH_MAX_TOKENS}
+
+
 def _extract_text(msg) -> str:
     parts = []
     for block in msg.content:
@@ -544,6 +550,9 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             logger.warning("[catalyst-synth] %s model %s failed for %s: %s: %s",
                            stage, model, candidate["ticker"],
                            type(e).__name__, str(e)[:300])
+            cost_guard.charge_unreported_call(
+                market_date, candidate["ticker"], model,
+                _ledger_request(prompt, system_prompt), e)
             continue
         got_output = True
         in_tokens += in_i
@@ -581,14 +590,11 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
 
     # No-sources enforcement: re-prompt once if missing required phrase
     if not _validate_no_sources_phrasing(parsed, has_sources):
+        retry_prompt = (prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
+                                "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
+                                "Re-output the JSON.")
         try:
-            msg2, in2, out2 = _call_anthropic(
-                used_model,
-                prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
-                        "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
-                        "Re-output the JSON.",
-                system_prompt,
-            )
+            msg2, in2, out2 = _call_anthropic(used_model, retry_prompt, system_prompt)
             in_tokens += in2
             out_tokens += out2
             cost_guard.record(market_date, candidate["ticker"], used_model,
@@ -605,7 +611,10 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                     "catalyst_type": "None",
                     "source_urls": [],
                 }
-        except Exception:
+        except Exception as e:
+            cost_guard.charge_unreported_call(
+                market_date, candidate["ticker"], used_model,
+                _ledger_request(retry_prompt, system_prompt), e)
             parsed = {
                 "thesis": "No clear catalyst identified. Source pool was thin.",
                 "tag": candidate.get("tag", CATALYST_TAG.GAPPER),

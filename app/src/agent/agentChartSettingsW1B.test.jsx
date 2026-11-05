@@ -57,20 +57,16 @@ describe('KNOWN → ELIGIBLE rows (W1-B)', () => {
     p.st.envelopes.push(set('watermark.opacity', 1.5))
     expect(await say('make the watermark opacity 1.5')).toMatch(/Watermark opacity \(0 to 1\): Watermark opacity \(0 to 1\) is from 0 to 1/)
     expect(stored(board)).toBe(afterOpacity)                                   // a refusal writes nothing
-    p.st.envelopes.push(set('volume.paneHeightPct', 30))
-    expect(await say('make the volume pane 30 percent')).toMatch(/Put Volume in its own pane first/)
-    expect(stored(board)).toBe(afterOpacity)
-    p.st.envelopes.push(p.env('apply', [
-      { action: 'chart.setSetting', target: 'c', args: { setting: 'volume.separatePane', value: true } },
-      { action: 'chart.setSetting', target: 'c', args: { setting: 'volume.paneHeightPct', value: 30 } },
-    ]))
-    const both = await say('put volume in its own pane at 30 percent')
-    expect(both).toMatch(/Volume in its own pane: on/)
-    expect(both).toMatch(/Volume pane height \(% of the chart\): 30/)
-    expect(settings(board).volume).toMatchObject({ separatePane: true, paneHeightPct: 30 })
+    p.st.envelopes.push(set('watermark.sizeScale', 2))
+    expect(await say('bigger watermark')).toMatch(/Watermark size: 2/)
+    await say('hide the watermark')
+    const afterHide = stored(board)
+    p.st.envelopes.push(set('watermark.sizeScale', 1))
+    expect(await say('smaller watermark')).toMatch(/Turn the watermark on first/)
+    expect(stored(board)).toBe(afterHide)
     await say('undo')
-    expect(stored(board)).toBe(afterOpacity)
-    expect(p.turns()).toBe(4)
+    expect(settings(board).watermark.visible).not.toBe(false)
+    expect(settings(board).watermark.sizeScale).toBe(2)
   }, 60000)
 
   it('colours: a dark-pool colour keeps the 8-digit form the color menu stores; a gradient colour needs the Gradient background first', async () => {

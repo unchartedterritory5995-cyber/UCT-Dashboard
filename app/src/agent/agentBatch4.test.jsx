@@ -181,8 +181,8 @@ describe('capability questions — deterministic, truthful, never future-as-pres
     const a = answerFor('drawings')
     expect(a.status).toBe('partial')
     expect(a.text).toMatch(/^Partly\. .*horizontal line at a price/)
-    expect(a.text).toMatch(/trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note or anchored VWAP from the dates and prices you give me/)
-    expect(a.text).toMatch(/channels, pitchforks, arrows, measurements/)
+    expect(a.text).toMatch(/any tool on the drawing toolbar from the dates and prices you give me/)
+    expect(a.text).toMatch(/channels, pitchforks, arrows, Fibonacci extensions and Measure/)
     expect(a.text).not.toMatch(/Planned for UCT Agent/)
   })
   it('Batch 5: "Can you resize my chart widgets?" is now something the Agent DOES — a polite command, not a question', () => {

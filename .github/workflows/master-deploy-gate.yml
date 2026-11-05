@@ -66,6 +66,9 @@ on:
 # older run is never cancelled by a newer one.
 env:
   AGENT_SHARDS: '4'
+  # the UCT Agent browser suite (agent-ci.yml AGENT_VITEST_PATHS, the same list): src/agent, the builder's agentMutations,
+  # and (DUP-RECEIPT 11-05, owner) the 7 page tests that drive the Agent outside src/agent
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
 
 concurrency:
   group: master-deploy
@@ -385,7 +388,7 @@ jobs:
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
-          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)  # CI runs this as 4 shards + an equivalence rail"
+          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"
 
   # ── SPEEDUP (2026-11-04): the Agent browser suite was 22.3 of the gate's ~31 min, run
   # serially AFTER the Python checks. It now runs as 4 parallel vitest shards beside the
@@ -424,7 +427,7 @@ jobs:
             exit 1
           fi
           start=$(date +%s)
-          npx vitest run src/agent src/components/chart/builder/agentMutations             --shard=${{ matrix.shard }}/${AGENT_SHARDS}             --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
+          npx vitest run $AGENT_VITEST_PATHS             --shard=${{ matrix.shard }}/${AGENT_SHARDS}             --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
           echo "shard ${{ matrix.shard }} wall: $(( $(date +%s) - start )) s"
 
       - name: Keep the shard report for the equivalence rail
@@ -456,7 +459,7 @@ jobs:
           merge-multiple: true
       - name: Expected file list
         working-directory: app
-        run: npx vitest list src/agent src/components/chart/builder/agentMutations --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+        run: npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
       - name: Union of executed files equals the expected list; exactly 4 shard reports; floor 30; no failures
         run: |
           node - <<'EOF2'
@@ -520,4 +523,4 @@ jobs:
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
-          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)  # CI runs this as 4 shards + an equivalence rail"
+          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"

@@ -70,9 +70,17 @@ _logger = _logging.getLogger(__name__)
 
 _anthropic_client = None  # anthropic.Anthropic | None (lazy-init)
 
+#: Modules that keep the SDK's default retries on the shared client. Options flow does
+#: not change behaviour without its owner, and these files are not edited, so the caller
+#: is read here (the `alert_routing._producer_of` idiom). Any other caller, including a
+#: lane added tomorrow, gets 0 retries. `tests/test_llm_clients_no_sdk_retries.py` pins it.
+_KEEPS_SDK_RETRIES = frozenset({"api.flow_explain"})
+_keeps_sdk_retries_logged = False
+
+
 def _get_anthropic_client():
     """Return the module-level Anthropic client, initializing it once (thread-safe)."""
-    global _anthropic_client
+    global _anthropic_client, _keeps_sdk_retries_logged
     if _anthropic_client is None:
         with _anthropic_lock:
             if _anthropic_client is None:
@@ -82,8 +90,19 @@ def _get_anthropic_client():
                     raise RuntimeError("ANTHROPIC_API_KEY is not set")
                 # timeout bounds a hung LLM call so it can't pin a worker thread
                 # forever (the 2026-07-01 thread-exhaustion class). 60s is generous
-                # for our max_tokens; the SDK still retries transient errors.
-                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
+                # for our max_tokens. max_retries=0: an SDK retry after a timeout is a
+                # billed attempt no ledger or daily count can see, and every lane on
+                # this client inherits it unless it overrides it.
+                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0, max_retries=0)
+    caller = sys._getframe(1).f_globals.get("__name__")
+    if caller in _KEEPS_SDK_RETRIES:
+        import anthropic
+        with _anthropic_lock:
+            first, _keeps_sdk_retries_logged = not _keeps_sdk_retries_logged, True
+        if first:
+            _logger.info("shared Anthropic client: %s keeps the SDK default of %d retries",
+                         caller, anthropic.DEFAULT_MAX_RETRIES)
+        return _anthropic_client.with_options(max_retries=anthropic.DEFAULT_MAX_RETRIES)
     return _anthropic_client
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
@@ -1331,6 +1350,17 @@ def _row_timing(row: dict | None) -> str | None:
     return None
 
 
+def _release_unbilled_attempt(kind: str, sym: str, exc: BaseException) -> None:
+    """An HTTP error response generated nothing and is free, so it does not use the
+    name's daily warm attempt: a provider outage at 06:20 must not leave the whole
+    board cold until tomorrow. A timeout or a dropped connection may have run and
+    keeps the attempt (`earnings_ai_store.claim_attempt`)."""
+    from api.services import earnings_ai_store as _ai_store
+    from api.services.uct_agent import budget
+    if budget._is_provider_error_response(exc):
+        _ai_store.release_attempt(kind, sym)
+
+
 def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: bool = False) -> dict:
     """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h.
 
@@ -1363,6 +1393,12 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
         cache.set(cache_key, _prior, ttl=_EARNINGS_CACHE_TTL_HIT)
         _ai_store.touch("analysis", sym)
         return _prior
+
+    # A row that is still pending never reaches the model, so it uses no attempt.
+    is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
+    if force_fresh_check and not is_pending and not _ai_store.claim_attempt("analysis", sym):
+        _logger.info("earnings warm: %s analysis already failed today, not re-billing", sym)
+        return _prior or {"sym": sym}
 
     import datetime as _dt
     import requests as _req
@@ -1456,7 +1492,6 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     analysis_headline = None
     analysis_summary = None
     analysis_bullets = []
-    is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
     if not is_pending:
         try:
             def _fmt_eps(v):
@@ -1649,6 +1684,8 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
             analysis = analysis_summary or analysis_headline
         except Exception as _e:
             _logger.warning("AI analysis failed for %s: %s", sym, _e, exc_info=True)
+            if force_fresh_check:
+                _release_unbilled_attempt("analysis", sym, _e)
             analysis = None
             analysis_headline = None
             analysis_summary  = None
@@ -1686,8 +1723,9 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     complete = analysis is not None and enrichment_complete
     ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
-    if complete:
-        _ai_store.put("analysis", sym, result)   # persist only real, complete output
+    # persist only real, complete output
+    if complete and _ai_store.put("analysis", sym, result) and force_fresh_check:
+        _ai_store.release_attempt("analysis", sym)
     return result
 
 
@@ -1752,6 +1790,10 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         cache.set(cache_key, _prior, ttl=_EARNINGS_CACHE_TTL_HIT)
         _ai_store.touch("preview", sym)
         return _prior
+
+    if force_fresh_check and not _ai_store.claim_attempt("preview", sym):
+        _logger.info("earnings warm: %s preview already failed today, not re-billing", sym)
+        return _prior or {"sym": sym}
 
     import datetime as _dt
     import requests as _req
@@ -2046,6 +2088,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
     except Exception as _e:
         _logger.warning("AI preview failed for %s: %s", sym, _e, exc_info=True)
+        if force_fresh_check:
+            _release_unbilled_attempt("preview", sym, _e)
         preview_text    = ""
         preview_bullets = []
 
@@ -2075,8 +2119,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
     # Persist only real, complete output — a miss/partial stays lazy so it retries.
-    if complete:
-        _ai_store.put("preview", sym, result)
+    if complete and _ai_store.put("preview", sym, result) and force_fresh_check:
+        _ai_store.release_attempt("preview", sym)
     return result
 
 

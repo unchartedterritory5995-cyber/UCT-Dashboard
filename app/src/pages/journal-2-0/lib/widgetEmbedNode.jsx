@@ -149,7 +149,7 @@ export const WidgetEmbed = Node.create({
       // `{ v, setupTag, fingerprint, planBlock }` — shape and builders in
       // lib/chartPlan.js. Plan ROLES are not here: they ride the drawings in
       // `annotations` (a role on a horizontal line), which plan_extract reads.
-      // Registered unconditionally (the gate NOTEBOOK_CHART_PLAN_ENABLED only
+      // Registered unconditionally (the chart-plan key, CHART_PLAN_FLAG, only
       // hides the doors), so a gate-off tab still declares 4 and never saves a
       // note without it. Removing this line drops the declaration to 3 and the
       // server then refuses this bundle's writes to every note that carries `ta`
