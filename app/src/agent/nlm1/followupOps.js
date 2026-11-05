@@ -60,10 +60,30 @@ const normPhrase = (p) => String(p || '').toLowerCase().replace(/[.!?]+$/, '').r
   .replace(/^(?:on|to|for|onto|from|off|in|with|of)\s+/, '').replace(/\b(?:the|my)\b/g, ' ').replace(/\b(?:charts?|ones?)\b/g, ' ').replace(/\s+/g, ' ').trim()
 
 /**
- * The charts a phrase names → [ref…] | null. `last`: the charts the last request touched; `created`: the charts it created
- * (creation order).
+ * The NUMBER a phrase says, read from the member's own words BEFORE normalising (which drops "one" / "chart"):
+ * 'one' — "the other one", "one", "that chart", "it", "the other" (a single chart); 'many' — "the others", "both",
+ * "the top two", "them", "all"; null — no number said (a place list, a ticker list: each part is checked on its own).
+ * (#806 review: "and the other one" on a four-chart board switched THREE charts; "put one back" reverted BOTH.)
  */
-export function resolveCharts(phraseRaw, { host, last = [], created = [] } = {}) {
+export function numberOf(phraseRaw) {
+  const w = String(phraseRaw || '').toLowerCase()
+  if (/\b(?:ones|charts|others|rest|remaining|them|those|these|both|all|every|each|everything|two|three|four|five|six|seven|eight|nine)\b|\b[2-9]\b/.test(w)) return 'many'
+  if (/\b(?:one|chart|it|that|this|other)\b/.test(w)) return 'one'
+  return null
+}
+
+/**
+ * The charts a phrase names → [ref…] | null. `last`: the charts the last request touched; `created`: the charts it created
+ * (creation order). ⛔ The phrase's own NUMBER is kept: a singular phrase ("the other one", "one", "it") that resolves to
+ * anything but exactly ONE chart is no reading (the message goes on as v1 reads it — to the model, which asks), and a
+ * counted one ("the other two") must match its count. Never several charts for a phrase that names one.
+ */
+export function resolveCharts(phraseRaw, opts = {}) {
+  const got = resolveChartsAny(phraseRaw, opts)
+  if (got && numberOf(phraseRaw) === 'one' && got.length !== 1) return null
+  return got
+}
+function resolveChartsAny(phraseRaw, { host, last = [], created = [] } = {}) {
   const charts = boardCharts(host)
   if (!charts.length) return null
   const P = places(charts)

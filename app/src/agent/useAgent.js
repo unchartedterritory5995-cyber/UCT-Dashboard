@@ -1664,10 +1664,45 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // live board, each step through the ordinary execute (own plan, policy, receipt, Undo). A step that does not fully
   // land — refused, failed, asking, or waiting for approval — STOPS the request: what was done and what was not is
   // said plainly, never reported as the whole request.
-  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null }) => {
+  // How a step of a multi-step request is READ (no execution): the NLM-1 readers first (a step's own created chart, an
+  // ordinal among this request's new charts), then the ordinary resolver, then the NLM-1 follow-up mechanisms. Shared by
+  // runCompound and the NLM-1 whole-message pre-check (so the check reads each step exactly as the run would).
+  const readStepRef = useRef(null)
+  readStepRef.current = (step, working) => {
+    // ⭐ NLM-1 D2 (dark): a step that refers to the chart IT creates ("…, add a chart for AMD and put the 21 ema on it, …")
+    const made = routingV2Active() && step.kind === 'fast' ? planCreatedReference(step.text, host) : null
+    // D2.1 (dark): "…, then make the second one weekly" — counted among the charts this request's grid step made
+    const ord = !made?.ops && routingV2Active() ? rescopeOrdinal(step.text, { host, order: working || [] }) : null
+    let r = made?.ops ? { ops: made.ops } : ord?.ops ? { ops: ord.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
+    // D2.2 (dark): a step no reader takes ("…, add the 21 ema and make it orange": the indicator the step before added),
+    // read by the NLM-1 mechanisms over what THIS request has committed so far (memory's current turn)
+    if (routingV2Active() && (r.say || !r.ops?.length) && !r.noop) {
+      const fo = resolveFollowUpOps(step.text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })
+      if (fo?.ops) r = { ops: fo.ops }
+    }
+    return r
+  }
+  const stepUnread = (r) => !!r && !r.noop && (!!r.say || !r.ops?.length || r.ops.length > MAX_STEP_OPS)
+  // the up-front check can judge only a step that stands on its own: one that refers back ("make it orange" after "…, add
+  // the 21 ema") reads only once the step before it has run — the run itself (`whole`) is all or nothing for those
+  const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new one|the new chart|the same)\b/i.test(String(t || ""))
+  const preUnread = (step) => step.kind !== "undo" && !refersBack(step.text) && stepUnread(readStepRef.current(step, null))
+
+  // `whole` (NLM-1 multi-step REWRITES only): the steps are NLM-1's reading of ONE message the member typed, so they run all
+  // or not at all — a step that is not read, or does not go through, never ends in "stopped at …": nothing run yet → the
+  // run returns { fallback: true } (the caller hands the member's ORIGINAL message to the planner, exactly as v1 does);
+  // steps already run → they are taken back first (this request's own Undo entries, newest first), then the same.
+  // A step that waits on an approval card or an answer is not a failure: it stops there as before.
+  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null, whole = false }) => {
     const idsAtStart = undoRef.current.map(e => e.id)    // NLM-1 D2 (dark): the whole request's Undo entries, grouped at the end
     let working = working0
     let done = 0
+    const fallBack = async () => {
+      const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
+      for (const id of fresh.reverse()) { if (!(await doUndo(id, { member: null, voice }))) break }
+      mark('nlm1:whole-fallback', String(done))
+      return { fallback: true, rolledBack: fresh.length }
+    }
     const stop = (i, why) => {
       const rest = steps.slice(i).map(s => `“${s.text}”`)
       const text = done
@@ -1694,17 +1729,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       const idsBefore = undoRef.current.map(e => e.id)
       const chartRefsBefore = (() => { try { return (host?.charts?.list?.() || []).map(c => c.ref) } catch { return [] } })()
-      // ⭐ NLM-1 D2 (dark): a step that refers to the chart IT creates ("…, add a chart for AMD and put the 21 ema on it, …")
-      const made = routingV2Active() && step.kind === 'fast' ? planCreatedReference(step.text, host) : null
-      // D2.1 (dark): "…, then make the second one weekly" — counted among the charts this request's grid step made
-      const ord = !made?.ops && routingV2Active() ? rescopeOrdinal(step.text, { host, order: working || [] }) : null
-      let r = made?.ops ? { ops: made.ops } : ord?.ops ? { ops: ord.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
-      // D2.2 (dark): a step no reader takes ("…, add the 21 ema and make it orange": the indicator the step before added),
-      // read by the NLM-1 mechanisms over what THIS request has committed so far (memory's current turn)
-      if (routingV2Active() && (r.say || !r.ops?.length) && !r.noop) {
-        const fo = resolveFollowUpOps(step.text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })
-        if (fo?.ops) r = { ops: fo.ops }
-      }
+      const r = readStepRef.current(step, working)
+      if (whole && stepUnread(r)) return await fallBack()
       if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
@@ -1727,6 +1753,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           }
           return
         }
+        if (whole && !off.includes('proposed') && !off.some(k => k.startsWith('clarify'))) return await fallBack()
         const why = off.includes('proposed') ? 'that step needs your approval first — the card above'
           : off.some(k => k.startsWith('clarify')) ? 'that step needs your answer first'
             : 'that step didn’t fully go through (see above)'
@@ -1748,6 +1775,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // ⭐ NLM-1 D2 (dark): every step of ONE request is ONE Undo group — "undo" takes the whole request back, newest first
     // (doUndo's group path: each entry's own exact Undo and checks). Off: each step keeps its own entry, as before.
     if (routingV2Active()) groupFresh(idsAtStart)
+    return { done: true }
   }, [host, execute, push, record, doUndo])
   runCompoundRef.current = runCompound
   // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
@@ -1817,7 +1845,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           // D3.3: an explicit form counts as read when a reader OR an NLM-1 mechanism (a created-chart plan, a command at a
           // referent set, a swap, a follow-up over the request so far) takes it — "already read as typed" stays the readers only
           const nlmTakes = (t) => { try { return !!(planCreatedReference(t, host)?.ops || resolveFollowUpOps(t, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })?.ops) } catch { return false } }
-          const rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: (t) => reads(t) || nlmTakes(t), originalClaimed: typed })
+          let rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: (t) => reads(t) || nlmTakes(t), originalClaimed: typed })
+          // ⛔ ALL OR NOTHING (AUDIT, #806): a reading made of STEPS is taken only when EVERY step reads on this board now —
+          // otherwise NLM-1 declines and the member's message goes on exactly as typed (to the planner, as v1 sends it).
+          // NLM-1 never stops a request v1 would have handed to the planner.
+          const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => preUnread({ kind: 'fast', text: x })) : -1
+          if (unreadStep >= 0) { mark('nlm1:rewrite-declined', `${rw.rule}:${unreadStep}`); rw = null }
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
           // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
           // the chart THAT part creates) — the ordinary multi-step run (runCompound): each part read, executed, receipted,
@@ -1825,7 +1858,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (rw?.steps?.length > 1) {
             referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
             referentsRef.current.note(memoryRef.current.currentTurn(), rw.steps[rw.steps.length - 1])
-            return await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice })
+            const ran = await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice, whole: true })
+            if (!ran?.fallback) return ran
+            // a step did not go through after all (anything run was taken back): the member's ORIGINAL message, as v1 sends it
+            text = String(raw || '').trim()
           }
           // D2/D3.1 (nlm1/followupOps.js): a follow-up no reader takes, as OPERATIONS — chart referent sets (positions,
           // ordinals, quantifiers), repeat / additive copies of the last request, "back to" inversion from the snapshot
@@ -1985,6 +2021,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), follow: { words: follow.words } }
         push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
         record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
+      // PACKAGE 3: a follow-up that needs ONE chart picked ("apply it to my other chart" with several): the pick runs its ops there
+      if (follow?.kind === 'askTarget') {
+        pendingRef.current = { kind: 'target', ops: follow.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host) }
+        push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
+        record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-target', actions: follow.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
         return
       }
       if (follow?.kind === 'ops') {
@@ -2194,7 +2237,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: q, outcomeData: { kind: 'clarify-workspace' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
           return
         }
-        return await runCompound(compound.steps, { member: text, voice })
+        // ⛔ ALL OR NOTHING for NLM-1's rewrites (AUDIT, #806): a message NLM-1 re-worded that now reads as several steps
+        // runs only when EVERY step reads on this board now, and then all or nothing (runCompound `whole`); otherwise the
+        // member's ORIGINAL message goes on to the model, exactly as v1 sends it — never "stopped at …" where v1 would ask
+        const typed = String(raw || '').trim()
+        const reworded = text !== typed
+        const unread = reworded && compound.steps.some(preUnread)
+        if (!unread) {
+          const ran = await runCompound(compound.steps, { member: text, voice, whole: reworded })
+          if (!ran?.fallback) return ran
+        }
+        mark('nlm1:rewrite-declined', 'compound')
+        text = typed
       }
       } // ── end of the legacy instant path ──
       // ── model path ──

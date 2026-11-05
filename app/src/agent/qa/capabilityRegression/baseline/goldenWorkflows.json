@@ -1325,6 +1325,291 @@
           }
         }
       ]
+    },
+    {
+      "id": "GW-27.indicator-package-draft-to-delete",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — the whole lifecycle in one conversation, each committed step undone",
+      "capabilities": [
+        "indicator.draft",
+        "indicator.previewDraft",
+        "indicator.saveDraft",
+        "indicator.add",
+        "indicatorStyle.set",
+        "definition.delete",
+        "agent.undo"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1,
+              "name": "Volume Thrust Days"
+            },
+            "customIndicators": {
+              "saved": 0
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "show me the preview",
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.previewDraft",
+                "target": "$indicatorDrafts{active}",
+                "args": {
+                  "chart": "$ctx:charts.0.ref"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "preview": {
+              "chart": 0
+            },
+            "customIndicators": {
+              "saved": 0
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "save it",
+          "expect": {
+            "customIndicators": {
+              "saved": 1,
+              "count": 0,
+              "name": "Volume Thrust Days"
+            },
+            "drafts": {
+              "count": 0
+            },
+            "preview": null,
+            "receipt": true,
+            "modelTurns": 0
+          },
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.saveDraft",
+                "target": "$indicatorDrafts{active}",
+                "args": {
+                  "addTo": [],
+                  "name": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "say": "apply it",
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            },
+            "receipt": true,
+            "modelTurns": 0
+          },
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.add",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "defId": "u_aaaaaaaaae10",
+                  "inputs": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "say": "make it thicker",
+          "model": {
+            "ops": [
+              {
+                "action": "indicatorStyle.set",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "instance": "inst:u_aaaaaaaaae10:1",
+                  "property": "lineWidth",
+                  "value": "thicker",
+                  "output": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "has": {
+                "inputs.lineWidth": 2
+              }
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "only show it on the daily",
+          "model": {
+            "ops": [
+              {
+                "action": "indicatorStyle.set",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "instance": "inst:u_aaaaaaaaae10:1",
+                  "property": "showOn",
+                  "value": "daily",
+                  "output": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "has": {
+                "visibility": {
+                  "preset": "custom",
+                  "tfs": [
+                    "D"
+                  ]
+                }
+              }
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "lacks": [
+                "visibility"
+              ],
+              "has": {
+                "inputs.lineWidth": 2
+              }
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "has": {
+                "inputs.lineWidth": 1
+              }
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 0,
+              "saved": 1
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "delete Volume Thrust Days from my indicators",
+          "model": {
+            "ops": [
+              {
+                "action": "definition.delete",
+                "target": "$definitionLibrary",
+                "args": {
+                  "defId": "u_aaaaaaaaae10"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "customIndicators": {
+              "saved": 1
+            }
+          },
+          "approve": true,
+          "afterApprove": {
+            "customIndicators": {
+              "saved": 0
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "customIndicators": {
+              "saved": 1,
+              "name": "Volume Thrust Days"
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
     }
   ]
 }

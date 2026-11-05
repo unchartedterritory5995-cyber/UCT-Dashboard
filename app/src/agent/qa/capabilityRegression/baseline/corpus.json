@@ -7670,6 +7670,1314 @@
         "gold price",
         "how much is gold"
       ]
+    },
+    {
+      "id": "indicator.create-human-name",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicator.draft"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "needs": [
+        "indicator.draft"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.draft",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "indicator.draft",
+            "target": "$indicatorDrafts{new}",
+            "args": {
+              "message": "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+              "chart": "$ctx:charts.0.ref",
+              "edit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "customIndicators": {
+          "chart": 0,
+          "count": 1,
+          "saved": 1,
+          "placement": "price",
+          "name": "Volume Thrust Days",
+          "humanName": true
+        },
+        "receipt": true,
+        "proposal": false,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "customIndicators": {
+            "chart": 0,
+            "count": 0,
+            "saved": 1
+          }
+        }
+      },
+      "phrasings": [
+        "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+        "create an indicator that flags days when price closes above the 21 EMA on volume at least 1.5 times its 50-day average",
+        "build me a custom indicator marking closes above the 21 ema with volume over 1.5x the 50 day average"
+      ]
+    },
+    {
+      "id": "indicator.draft-only",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicator.draft"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "needs": [
+        "indicator.draft"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.draft",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "disposition": "apply",
+        "ops": [
+          {
+            "action": "indicator.draft",
+            "target": "$indicatorDrafts{new}",
+            "args": {
+              "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+              "chart": "$ctx:charts.0.ref",
+              "edit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drafts": {
+          "count": 1,
+          "name": "Volume Thrust Days"
+        },
+        "customIndicators": {
+          "chart": 0,
+          "count": 0,
+          "saved": 0
+        },
+        "preview": null,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drafts": {
+            "name": null
+          },
+          "customIndicators": {
+            "saved": 0
+          }
+        }
+      },
+      "phrasings": [
+        "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+        "help me build an indicator that marks days where close is above the 21 EMA on 1.5x the 50-day average volume, don't save it yet",
+        "let's work on an indicator: close above the 21 ema and volume above 1.5 times the 50 day average"
+      ]
+    },
+    {
+      "id": "indicator.preview-draft",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicator.previewDraft"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1
+            },
+            "customIndicators": {
+              "saved": 0
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.draft"
+      ],
+      "needs": [
+        "indicator.previewDraft"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.previewDraft",
+            "target": "$indicatorDrafts{active}",
+            "args": {
+              "chart": "$ctx:charts.0.ref"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "preview": {
+          "chart": 0
+        },
+        "customIndicators": {
+          "chart": 0,
+          "count": 0,
+          "saved": 0
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the preview",
+        "preview it on the chart",
+        "let me see what it looks like on the chart",
+        "show me how it looks"
+      ]
+    },
+    {
+      "id": "indicator.save-draft-as",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicator.saveDraft"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1
+            },
+            "customIndicators": {
+              "saved": 0
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.draft"
+      ],
+      "needs": [
+        "indicator.saveDraft"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.saveDraft",
+            "target": "$indicatorDrafts{active}",
+            "args": {
+              "addTo": [],
+              "name": "Thrust Days"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "customIndicators": {
+          "chart": 0,
+          "count": 0,
+          "saved": 1,
+          "name": "Thrust Days"
+        },
+        "drafts": {
+          "count": 0
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "save it as Thrust Days",
+        "save the indicator as Thrust Days",
+        "save this as Thrust Days",
+        "ok save it, call it Thrust Days"
+      ]
+    },
+    {
+      "id": "indicator.apply-saved",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1
+            },
+            "customIndicators": {
+              "saved": 0
+            }
+          }
+        },
+        {
+          "say": "save it as Volume Thrust Days",
+          "expect": {
+            "customIndicators": {
+              "saved": 1,
+              "count": 0
+            }
+          },
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.saveDraft",
+                "target": "$indicatorDrafts{active}",
+                "args": {
+                  "addTo": [],
+                  "name": "Volume Thrust Days"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.saveDraft"
+      ],
+      "needs": [
+        "indicator.add"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.add",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "defId": "u_aaaaaaaaae10",
+              "inputs": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "customIndicators": {
+          "chart": 0,
+          "count": 1,
+          "saved": 1
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "customIndicators": {
+            "chart": 0,
+            "count": 0,
+            "saved": 1
+          }
+        }
+      },
+      "phrasings": [
+        {
+          "text": "apply it",
+          "prelude": []
+        },
+        "add it to my chart",
+        "ok, put it on the chart"
+      ]
+    },
+    {
+      "id": "indicator.discard-draft",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicator.discardDraft"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1
+            },
+            "customIndicators": {
+              "saved": 0
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.draft"
+      ],
+      "needs": [
+        "indicator.discardDraft"
+      ],
+      "deterministic": null,
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "indicator.discardDraft",
+            "target": "$indicatorDrafts{active}",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "drafts": {
+          "count": 1
+        },
+        "customIndicators": {
+          "saved": 0
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "drafts": {
+          "count": 0
+        },
+        "customIndicators": {
+          "saved": 0,
+          "count": 0
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "discard the draft",
+        "never mind, throw that draft away",
+        "scrap the indicator draft"
+      ]
+    },
+    {
+      "id": "indicator.followup-thicker",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicatorStyle.set"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.draft",
+        "indicator.add"
+      ],
+      "needs": [
+        "indicatorStyle.set"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.set",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "inst:u_aaaaaaaaae10:1",
+              "property": "lineWidth",
+              "value": "thicker",
+              "output": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "defId": "u_aaaaaaaaae10"
+          },
+          "has": {
+            "inputs.lineWidth": 2
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "instance": {
+            "find": {
+              "defId": "u_aaaaaaaaae10"
+            },
+            "has": {
+              "inputs.lineWidth": 1
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "make it thicker",
+        "make it a bit thicker",
+        "make that thicker"
+      ]
+    },
+    {
+      "id": "indicator.followup-daily-only",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicatorStyle.set"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.draft",
+        "indicator.add"
+      ],
+      "needs": [
+        "indicatorStyle.set"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.set",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "inst:u_aaaaaaaaae10:1",
+              "property": "showOn",
+              "value": "daily",
+              "output": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "defId": "u_aaaaaaaaae10"
+          },
+          "has": {
+            "visibility": {
+              "preset": "custom",
+              "tfs": [
+                "D"
+              ]
+            }
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "instance": {
+            "find": {
+              "defId": "u_aaaaaaaaae10"
+            },
+            "lacks": [
+              "visibility"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "only show it on the daily",
+        "show it on daily charts only",
+        "make it daily only",
+        "hide it on every timeframe except the daily"
+      ]
+    },
+    {
+      "id": "indicator.followup-other-chart",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
+      "capabilities": [
+        "indicatorCopy.copyTo"
+      ],
+      "board": "AUTHOR_TWO",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "before": [
+        {
+          "say": "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.draft",
+        "indicator.add"
+      ],
+      "needs": [
+        "indicatorCopy.copyTo"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorCopy.copyTo",
+            "target": "$indicatorEdits[1]",
+            "args": {
+              "from": "$ctx:charts.0.ref",
+              "instances": [
+                "inst:u_aaaaaaaaae10:1"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "customIndicators": {
+          "chart": 1,
+          "count": 1,
+          "saved": 1
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "customIndicators": {
+            "chart": 1,
+            "count": 0,
+            "saved": 1
+          }
+        }
+      },
+      "phrasings": [
+        "apply it to my other chart",
+        "put it on the other chart too",
+        "copy it to the SPY chart"
+      ]
+    },
+    {
+      "id": "indicatorStyle.place-own-pane",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — configure an existing indicator",
+      "capabilities": [
+        "indicatorStyle.placeIn"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicatorStyle.placeIn"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.placeIn",
+            "args": {
+              "place": "pane"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.placeIn",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:2",
+              "place": "pane"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "placement.target": "pane"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "put the 50 sma in its own pane",
+        "move the 50 sma to a separate pane",
+        "give the SMA 50 its own pane"
+      ]
+    },
+    {
+      "id": "indicatorCopy.duplicate",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — configure an existing indicator",
+      "capabilities": [
+        "indicatorCopy.duplicate"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicatorCopy.duplicate"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorCopy.duplicate",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "duplicate the 20 ema",
+        "make a copy of the 20 ema",
+        "clone the 20 ema"
+      ]
+    },
+    {
+      "id": "grid.add-count.reuses-one",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — one chart on the board",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "new_charts": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "timeframe": null,
+              "layout": "grid",
+              "new_charts": null,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "symbols": [
+            "SPY",
+            "QQQ",
+            "IWM",
+            "DIA"
+          ],
+          "keepsIds": [
+            "c1"
+          ],
+          "sameSize": true
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "det": "required"
+        },
+        {
+          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "det": "required"
+        },
+        {
+          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "det": "required"
+        },
+        {
+          "text": "add four charts for SPY QQQ IWM DIA",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "grid.add-count.reuses-two",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — two charts on the board",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "TWO",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "new_charts": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "timeframe": null,
+              "layout": "grid",
+              "new_charts": null,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "symbols": [
+            "SPY",
+            "QQQ",
+            "IWM",
+            "DIA"
+          ],
+          "keepsIds": [
+            "c1",
+            "c2"
+          ],
+          "sameSize": true
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "det": "required"
+        },
+        {
+          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "det": "required"
+        },
+        {
+          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "det": "required"
+        },
+        {
+          "text": "add four charts for SPY QQQ IWM DIA",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "grid.add-new.adds",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — words that SAY more (\"new\", \"more\", \"another\") still add beside the board's charts",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ"
+              ],
+              "new_charts": true
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ"
+              ],
+              "timeframe": null,
+              "layout": null,
+              "new_charts": true,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 3,
+          "symbolSet": [
+            "NVDA",
+            "SPY",
+            "QQQ"
+          ],
+          "keepsIds": [
+            "c1"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add two new charts for SPY and QQQ",
+          "det": "required"
+        },
+        {
+          "text": "open two more charts: SPY and QQQ"
+        },
+        {
+          "text": "add another two charts for SPY and QQQ"
+        }
+      ]
     }
   ],
   "refusals": [
@@ -8959,6 +10267,304 @@
             "noCalls": [
               "history\\.eventStudy"
             ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.undo-after-indicator-save",
+      "capabilities": [
+        "agent.undo"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — a Save is permanent (D7): Undo after it changes nothing and says how to remove it",
+      "steps": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1
+            }
+          }
+        },
+        {
+          "say": "save it",
+          "expect": {
+            "customIndicators": {
+              "saved": 1
+            }
+          },
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.saveDraft",
+                "target": "$indicatorDrafts{active}",
+                "args": {
+                  "addTo": [],
+                  "name": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "customIndicators": {
+              "saved": 1
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.other-chart-ambiguous",
+      "capabilities": [
+        "indicator.draft"
+      ],
+      "board": "AUTHOR_FOUR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "source": "PACKAGE 3 review (11-04): on a board of FOUR, \"apply it to my other chart\" names no one chart — UCT asks which (no model call, nothing changes), never silence",
+      "steps": [
+        {
+          "say": "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            }
+          }
+        },
+        {
+          "say": "apply it to my other chart",
+          "expect": {
+            "receipt": false,
+            "modelTurns": 0,
+            "customIndicators": {
+              "chart": 1,
+              "count": 0,
+              "saved": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.other-one.ambiguous-four",
+      "source": "GRID-REUSE #2 (11-04, v1 with NLM-1 off): a SINGULAR referent (\"the other one\") is exactly ONE chart — the only other one, else a question; never several (live: a 4-chart board, \"same for the other one\" changed all three)",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to the SPY chart",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "same for the other one",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "do the same on the other chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "same for the QQQ chart",
+          "expect": {
+            "receipt": true,
+            "indicators": {
+              "chart": 1,
+              "include": [
+                "rsi(14)"
+              ]
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 1,
+              "exclude": [
+                "rsi(14)"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.other-one.two-charts",
+      "source": "GRID-REUSE #2 (11-04, v1 with NLM-1 off): a SINGULAR referent (\"the other one\") is exactly ONE chart — the only other one, else a question; never several (live: a 4-chart board, \"same for the other one\" changed all three) — with ONE other chart it is that chart",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "TWO",
+      "steps": [
+        {
+          "say": "add rsi to the NVDA chart",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "same for the other one",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "indicators": {
+              "chart": 1,
+              "include": [
+                "rsi(14)"
+              ]
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 1,
+              "exclude": [
+                "rsi(14)"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.other-charts.plural-four",
+      "source": "GRID-REUSE #2 (11-04, v1 with NLM-1 off): a SINGULAR referent (\"the other one\") is exactly ONE chart — the only other one, else a question; never several (live: a 4-chart board, \"same for the other one\" changed all three) — the PLURAL (\"the other charts\") is still every other chart",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to the SPY chart",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "same for the other charts",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "indicatorsEach": {
+              "include": [
+                "rsi(14)"
+              ]
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 3,
+              "exclude": [
+                "rsi(14)"
+              ]
+            }
           }
         }
       ]
