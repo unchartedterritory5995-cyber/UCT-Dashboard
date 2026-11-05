@@ -1130,14 +1130,24 @@
   opacity: 1;
 }
 
+/* Notebook visual audit issue 19: the A/L/% chips measured 17x11 px with 9 px
+   type at 3.16-3.26:1 -- under WCAG 2.5.8's 24x24 target. Each chip is now at
+   least 24x24, in the --text-xs token size, in --text-muted at FULL opacity
+   (the old 0.82 compounded the pill's own fade). Hover and the selected gold
+   state are unchanged, and so is what a click does. */
 .scaleToggleBtn {
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
-  opacity: 0.82;
+  color: var(--text-muted);
+  opacity: 1;
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-sans);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.4px;
   line-height: 1;

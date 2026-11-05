@@ -166,7 +166,7 @@
   flex: 1;
   min-width: 200px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge); /* a field edge: 3:1 on every surface (visual audit 10) */
   border-radius: var(--radius-md);
   padding: 7px 12px;
   color: var(--text-bright);
@@ -817,4 +817,68 @@
 .canvasStartHint { color: var(--text-muted); font-size: 12px; flex: 1 1 220px; }
 @media (max-width: 1024px) {
   .canvasStart .templatesBtn { min-height: var(--tap-min); }
+}
+
+/* ── Themed checkboxes, Notebook only (visual audit issue 5) ──────────────────
+   63 unchecked boxes rendered as the browser's white/grey squares in a black-
+   and-gold UI; `accent-color` only themes the CHECKED state. Every checkbox
+   inside the Notebook tab (cards, table rows, task lists, properties, wizards)
+   is still a REAL <input type="checkbox"> -- semantics, keyboard, the TipTap
+   task-list click and the card-selection click are unchanged. Only the paint.
+
+   ⭐ ZERO specificity (:where), on purpose: every component rule that SIZES a
+   checkbox (the 24 px WCAG 2.5.8 floors in NoteCard / NotesTableView, the
+   20-22 px touch boxes, PropertiesSection's padded 44 px hit area) still wins,
+   so no target shrinks. That is also why the drawn box lives in ::before at a
+   fixed 16x16, centred: the element can be 24 px or 44 px of padding and the
+   box a member sees is the same 16 px square, never a frame round the padding.
+   The global :focus-visible ring (tokens.css) draws on the element itself. */
+:where(.wrap input[type="checkbox"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  vertical-align: middle;
+  cursor: pointer;
+  flex: none;
+}
+:where(.wrap input[type="checkbox"])::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid var(--field-edge);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+}
+:where(.wrap input[type="checkbox"]:checked)::before {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+/* The tick: a mask painted in --bg, the same ink .btn-primary puts on gold, so
+   it is dark on the dark themes' bright gold and light on the light theme's
+   dark gold (#7a5c16). A fixed-colour SVG could not follow the theme. */
+:where(.wrap input[type="checkbox"]:checked)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+:where(.wrap input[type="checkbox"]:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

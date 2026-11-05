@@ -2342,13 +2342,13 @@ def test_a_sampling_PARAMETER_IS_NEVER_SENT_so_a_proposal_is_ONE_round_trip(conc
 
 def test_a_FAILED_ATTEMPT_IS_BILLED_BUT_UNLEDGERED_so_THE_ATTEMPTS_ARE_BOUNDED(
         concierge, model):
-    """⛔ A TIMED-OUT CALL IS BILLED AND INVISIBLE. Tokens are billed as GENERATED,
-    but a timeout returns no ``usage``, so `cost_guard.record` never sees them and
-    the daily caps count the attempt as ZERO. The SDK retries twice by default,
-    which makes that up to THREE billed-and-invisible attempts per model call.
+    """⛔ A TIMED-OUT CALL IS BILLED AND REPORTS NOTHING. Tokens are billed as GENERATED,
+    but a timeout returns no ``usage``. The SDK retries twice by default, which would
+    make that up to THREE billed attempts per model call.
 
-    ⭐ HALF ONE, THE HAZARD, MEASURED: a failed attempt really does leave the
-    ledger at $0. That is what makes the attempt COUNT the thing worth bounding.
+    ⭐ HALF ONE, THE HAZARD, CLOSED: a failed attempt used to leave the ledger at $0, so
+    the daily caps never saw it. It is now charged its worst case
+    (`charge_unreported`), so the member's allowance and the $4 limit both move.
 
     ⭐ HALF TWO, THE BOUND, PINNED AT THE WIRE and derived from the constant — a
     caller that stops configuring the client records an empty options dict.
@@ -2361,9 +2361,8 @@ def test_a_FAILED_ATTEMPT_IS_BILLED_BUT_UNLEDGERED_so_THE_ATTEMPTS_ARE_BOUNDED(
     client = model([RuntimeError("Request timed out.")])
     res = concierge.propose("average it", user_id=USER, bars=bars())
     assert res["ok"] is False and res["gate"] == "model:transport"
-    assert concierge.spend_for(USER) == 0.0, (
-        "the hazard is gone — reread this test: a failed attempt used to be "
-        "invisible to the ledger, which is the reason attempts are bounded")
+    assert concierge.spend_for(USER) > 0.0, (
+        "a failed attempt is invisible to the ledger again: the caps count it as $0")
 
     assert client.options.get("max_retries") == concierge.MAX_HTTP_RETRIES, (
         f"the concierge configured {client.options!r} — the retry bound never "

@@ -455,10 +455,17 @@ _web_lock = threading.Lock()
 def _web_lookup(ctx: dict, query: str, recency: str) -> dict:
     """The turn's own research call (`turn._research` → perplexity_search.web_search), admitted and settled through
     budget.Meter.research exactly as /api/agent/turn does. Returns the research dict, {"budget_refused": True} when
-    the budget did not admit it, or {"error": …} when the provider had nothing. Never raises."""
+    the budget did not admit it, or {"error": …} when the provider had nothing. Never raises.
+
+    ⛔ THE LOOKUP COUNTS AGAINST THE MEMBER'S REQUEST, FOUND BY THE SERVER. `turn_id` comes from the browser, so each
+    new id would be a new turn: a request id the server opened is what the per-turn cap and the request-rate windows
+    bound. No request in the follow-up window means no paid lookup (the facts are still served)."""
     from api.services.uct_agent import budget, turn
-    meter = budget.Meter(user_id=ctx.get("user_id"), request_id=None)
     try:
+        request = budget.latest_request(ctx.get("user_id"))
+        if request is None:
+            return {"budget_refused": True, "citations": []}
+        meter = budget.Meter(user_id=ctx.get("user_id"), request_id=None, turn_request_id=request)
         res = meter.research(lambda: turn._research(query, recency))
     except budget.BudgetRefused:
         return {"budget_refused": True, "citations": []}

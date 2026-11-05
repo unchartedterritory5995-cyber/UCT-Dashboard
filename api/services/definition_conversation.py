@@ -1455,6 +1455,11 @@ def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
         int(getattr(usage, "output_tokens", 0) or 0)
 
 
+def _request_for(messages: List[dict]) -> Dict[str, Any]:
+    """What `_call_model` sends that the model reads, for `dc.charge_unreported`."""
+    return {"system": system_blocks(), "tools": [anthropic_tool()], "messages": messages}
+
+
 def _tool_input(msg: Any) -> Optional[dict]:
     """The emit_patch call, and ONLY a tool call. ⛔ No prose recovery: a JSON
     object written in prose is not a patch."""
@@ -1927,6 +1932,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             logger.warning("[converse] model call failed: %s", exc)
+            dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
             return _refusal("model:transport", **extra)
 
         # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
@@ -1937,10 +1943,13 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         cache_write = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
         tokens["input"] += in_tokens
         tokens["output"] += out_tokens
-        spent = cost_guard.record(market_date, f"concierge:{user_id}", dc.MODEL,
-                                  in_tokens, out_tokens,
-                                  cache_read_tokens=cache_read, cache_creation_tokens=cache_write)
-        dc._record_spend(user_id, market_date, spent)
+        if not (in_tokens or out_tokens or cache_read or cache_write):    # no usage: a real reply is never zero tokens
+            spent = dc.charge_unreported(None, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
+        else:
+            spent = cost_guard.record(market_date, f"concierge:{user_id}", dc.MODEL,
+                                      in_tokens, out_tokens,
+                                      cache_read_tokens=cache_read, cache_creation_tokens=cache_write)
+            dc._record_spend(user_id, market_date, spent)
         cost_usd += spent
         calls.append({"input_tokens": in_tokens, "output_tokens": out_tokens,
                       "cache_read_tokens": cache_read, "cache_creation_tokens": cache_write,

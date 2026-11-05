@@ -292,17 +292,18 @@ def test_the_web_lookup_is_metered_through_budget_meter_research_exactly_as_the_
     calls = []
 
     class FakeMeter:
-        def __init__(self, *, user_id, request_id, site_reader=None):
-            calls.append(("meter", user_id, request_id))
+        def __init__(self, *, user_id, request_id, site_reader=None, turn_request_id=None):
+            calls.append(("meter", user_id, request_id, turn_request_id))
 
         def research(self, fn):
             calls.append(("research",))
             return fn()
     monkeypatch.setattr(budget, "Meter", FakeMeter)
+    monkeypatch.setattr(budget, "latest_request", lambda uid: 77)         # the member's open request, found by the server
     monkeypatch.setattr(turn, "_research", lambda q, r: calls.append(("web", q, r)) or {"answer": "A.", "citations": [], "cached": True, "cost_usd": None})
     res = rs1._web_lookup({"user_id": USER, "turn_id": "t"}, "why is NVDA down today", "day")
     assert res["answer"] == "A." and res["cached"] is True
-    assert calls == [("meter", USER, None), ("research",), ("web", "why is NVDA down today", "day")]
+    assert calls == [("meter", USER, None, 77), ("research",), ("web", "why is NVDA down today", "day")]
 
     class Refusing(FakeMeter):
         def research(self, fn):

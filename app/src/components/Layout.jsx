@@ -107,9 +107,10 @@ export default function Layout({ children }) {
       // Unknown uct id (e.g. a retired theme): fall back to OLED, cleanly.
     }
     clearAppThemeVars(el)
-    // Default (no stored pref) = the neutral-graphite base in tokens.css :root
-    // (data-theme "dark" has no override block, so :root shows through). 'oled'
-    // and 'light' remain explicit choices.
+    // A member with no saved theme gets OLED: usePreferences DEFAULTS.theme is
+    // 'oled' (since 6279fec750). 'dark' = the Graphite theme, whose palette IS the
+    // tokens.css :root ramp (data-theme "dark" has no override block, so :root
+    // shows through). 'light' is the other explicit base.
     el.dataset.theme = t === 'light' ? 'light' : t === 'oled' ? 'oled' : 'dark'
   }, [prefs.theme])
 
