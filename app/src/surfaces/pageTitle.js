@@ -60,7 +60,11 @@ export const EXPLICIT_TITLES = [
 
 /** The document title for `pathname`, or `null` when this route is out of
  * scope (the caller must leave `document.title` untouched, not clear it). */
-export function titleForPath(pathname) {
+export function titleForPath(pathname, search = '') {
+  // ⛔ Fix round 1 (review minor 16): an OPEN NOTE names the tab itself ("{title} · Notebook · …",
+  // NoteEditorPage). Its effect runs before Layout's, so a title here would overwrite it.
+  if ((pathname === '/journal/notebook' || pathname.startsWith('/journal/notebook/'))
+      && /(?:^|[?&])note=/.test(search || '')) return null
   const named = EXPLICIT_TITLES.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))
   if (named) return named[1]
   const match = SURFACE_PATHS.find((p) => pathname === p || pathname.startsWith(`${p}/`))

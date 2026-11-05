@@ -113,3 +113,11 @@ describe('S5 (B11): Settings and the Notebook are named', () => {
     expect(noteDocumentTitle('  ')).toBe('Untitled · Notebook · UCT Intelligence')
   })
 })
+
+describe('fix round 1: an open note owns the tab', () => {
+  it('the Notebook with ?note= is left to the editor; without it, the home title', () => {
+    expect(titleForPath('/journal/notebook', '?note=n1')).toBeNull()
+    expect(titleForPath('/journal/notebook', '?view=all&note=n1')).toBeNull()
+    expect(titleForPath('/journal/notebook', '?view=all')).toBe('Notebook · UCT Intelligence')
+  })
+})
