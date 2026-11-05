@@ -68,11 +68,6 @@ DEFAULT_CAP_USD = 5.0
 DEFAULT_MAX_CALLS = 2
 DEFAULT_TURN_USD = 0.25
 TURN_USD_ENV = "UCT_AGENT_TURN_USD"
-# THE TURN DEADLINE, from the per-call timeouts: planner v2's 6 default rounds at 60 s each, plus one research
-# lookup's 4 attempts at 30 s. It is checked BEFORE each paid call, so nothing already running is cut off and
-# nothing is reserved past it. A turn can overrun it only by the one call that started in time.
-DEFAULT_TURN_DEADLINE_S = 6 * 60.0 + 4 * 30.0
-TURN_DEADLINE_ENV = "UCT_AGENT_TURN_DEADLINE_S"
 #: Cache-write multipliers by TTL: the default (5 minute) cache write bills 1.25x input, a 1-hour write 2x.
 CACHE_WRITE_MULT = 1.25
 CACHE_WRITE_MULT_1H = 2.0
@@ -97,8 +92,6 @@ SITE_EXHAUSTED = ("UCT's shared AI budget for today has been reached, so UCT Age
                   "tomorrow. Charts, breadth and other instant commands still work.")
 UNAVAILABLE = ("UCT Agent can't check its AI budget right now, so nothing was sent and nothing changed. "
                "Instant commands still work. Please try again shortly.")
-TURN_DEADLINE = ("That request has been running too long, so I stopped before starting another AI step. "
-                 "Try asking in smaller parts.")
 STEP_LIMIT = "That request needed more AI steps than one request is allowed, so nothing was changed. Try asking in smaller parts."
 TURN_CAP_FIRST = ("That request is larger than one turn's AI budget allows, so nothing was sent and nothing changed. "
                   "Try a shorter request or a new chat.")
@@ -133,11 +126,6 @@ def cap_usd() -> float:
 def turn_cap_usd() -> float:
     """One member request's dollar ceiling (v1 by request id here; planner v2 reads the same switch per turn)."""
     return _num(TURN_USD_ENV, DEFAULT_TURN_USD)
-
-
-def turn_deadline_s() -> float:
-    """How long one turn may keep STARTING paid calls. The environment can only shorten it."""
-    return min(_num(TURN_DEADLINE_ENV, DEFAULT_TURN_DEADLINE_S), DEFAULT_TURN_DEADLINE_S)
 
 
 def max_calls() -> int:
@@ -513,13 +501,6 @@ class Meter:
         self.site_reader = site_reader
         self.heartbeat = heartbeat
         self.spent_usd = 0.0
-        self.deadline = time.monotonic() + turn_deadline_s()
-
-    def _check_deadline(self) -> None:
-        """Refused before anything is reserved or sent. A paused v2 turn resumes under a new Meter, so
-        the time a member spends on an approval card is not counted."""
-        if time.monotonic() >= self.deadline:
-            raise BudgetRefused("turn_deadline", TURN_DEADLINE)
 
     def calls_left(self) -> int:
         if self.request_id is None:
@@ -545,7 +526,6 @@ class Meter:
         settled against the daily and site caps exactly like any other, but does not use one of the request's calls,
         so a classified turn keeps its planner call, its reroute and its research round. It still counts toward the
         request's per-turn dollar cap (every row carries its request)."""
-        self._check_deadline()
         model = str(kwargs.get("model") or "")
         worst = worst_case_usd(kwargs)
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category=category, model=model,
@@ -579,7 +559,6 @@ class Meter:
         return resp
 
     def research(self, fn: Callable[[], dict]) -> dict:
-        self._check_deadline()
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category="research", model="perplexity",
                       worst_usd=research_worst_case_usd(), site_reader=self.site_reader, counts_as_call=False,
                       turn_request_id=self.turn_request_id)

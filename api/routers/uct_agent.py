@@ -627,7 +627,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         if shown:
             store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
         # call_limit / turn_cap: this request's own limits (not today's), so a 400 with UCT's fixed sentence
-        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason in ("call_limit", "turn_cap", "turn_deadline") else 429),
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason in ("call_limit", "turn_cap") else 429),
                             detail=e.sentence)
     except agent.TurnError as e:
         _give_back(uid)
