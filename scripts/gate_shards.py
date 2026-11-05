@@ -517,6 +517,22 @@ GATE_READ_PATHS = (
     "docs/pine/pine-presentation-spec.md",
     "docs/pine/pine-version-evolution.md",
     "docs/superpowers/specs/universal-indicator-ecosystem/OOS_2_PARITY_SET.json",
+    # 2026-11-04 sweep: found missing by the read-set rail on master 01a7006e03. Exact paths, each
+    # named by a vitest source: the Notebook widget builder / share / formula rails pin client
+    # tables to these Python sources, the importer rail reads the emoji table, the caution layer
+    # reads auto_structures, the agent rails read their corpora, and the Pine door census reads
+    # the runtime lane. Adding a path only makes C0 short-circuit less often (never more).
+    "api/routers/notebook_widget_definitions.py",
+    "api/services/auto_structures.py",
+    "api/services/journal_two/note_connectors/convert/emoji.py",
+    "api/services/journal_two/widget_engine/payload.py",
+    "api/services/journal_two/widget_engine/plan.py",
+    "api/services/journal_two/widget_engine/share.py",
+    "api/services/journal_two/widget_formula.py",
+    "api/services/uct_agent/scan/eval/discovery.json",
+    "api/services/uct_agent/scan/sat/section_b_requests.json",
+    "docs/agent/program/contracts/MD-1-phrasings.md",
+    "tools/pine_coverage/runtime_lane.mjs",
 )
 
 
