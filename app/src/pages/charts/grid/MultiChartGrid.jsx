@@ -162,16 +162,20 @@ export default function MultiChartGrid({ mc }) {
   )
   const inGroupMode = state.groupsMode
   // ⭐ UCT Agent: the chart the member last CLICKED ("this chart") — never the hover-sticky active cell, which moves as
-  // the pointer crosses the grid on its way to the Agent panel — and the cell last changed ("the one I just changed").
+  // the pointer crosses the grid on its way to the Agent panel — and the cell last changed, by each of them: "the one I
+  // just changed" is the member's, "the one you just changed" the Agent's. `latest` says which came last ("we").
   const clickedIdRef = useRef(null)
-  const changedIdRef = useRef(null)
+  const changedRef = useRef({ member: null, agent: null, latest: null })
+  const agentWritingRef = useRef(false)
   const onChangeFns = useMemo(
     () => cells.map((_, i) => (next) => {
       if (spikeActive) return
       const cur = cellsRef.current[i]
       // A settings write can come from the chart itself, so it counts only on the cell the member is working in
       if (next?.sym !== displayedSymRef.current[i] || next?.tf !== cur?.tf || (next?.chartType ?? null) !== (cur?.chartType ?? null)
-        || (next && 'settings' in next && activeCellRef.current === i)) changedIdRef.current = cur?.id ?? null
+        || (next && 'settings' in next && activeCellRef.current === i)) {
+        if (!agentWritingRef.current) { changedRef.current.member = cur?.id ?? null; changedRef.current.latest = 'member' }
+      }
       // A real new-ticker commit changes the sym away from what's DISPLAYED
       // (loadSym). A TF/style change carries the displayed sym unchanged.
       const isNewSym = !!next?.sym && next.sym !== displayedSymRef.current[i]
@@ -211,7 +215,12 @@ export default function MultiChartGrid({ mc }) {
   const agentLiveRef = useRef(null)
   agentLiveRef.current = { cells, layout, maxId, state, flushSave: mc.flushSave }
   const onAgentChangeFns = useMemo(
-    () => cells.map((_, i) => () => { changedIdRef.current = cellsRef.current[i]?.id ?? null }),
+    () => cells.map((_, i) => (write) => {
+      agentWritingRef.current = true
+      try { write() } finally { agentWritingRef.current = false }
+      changedRef.current.agent = cellsRef.current[i]?.id ?? null
+      changedRef.current.latest = 'agent'
+    }),
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
   const groupsActive = useCallback(() => !!agentLiveRef.current.state.groupsMode, [])
@@ -228,7 +237,8 @@ export default function MultiChartGrid({ mc }) {
           shape: () => ({ rows: live().layout.rows, cols: live().layout.cols }),
           // the maximized cell is the only one on screen; otherwise the last one clicked
           selected: () => known(live().maxId) || known(clickedIdRef.current),
-          lastChanged: () => known(changedIdRef.current),
+          lastChanged: (who = null) => known(changedRef.current[who || changedRef.current.latest]),
+          maximized: () => known(live().maxId),
           syncTimeRange: () => !!live().state.syncTimeRange,
           groupsMode: () => !!live().state.groupsMode,
           persist: () => live().flushSave?.() ?? { ok: false, reason: 'not-saved' },

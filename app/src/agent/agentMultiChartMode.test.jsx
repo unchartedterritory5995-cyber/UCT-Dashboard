@@ -51,7 +51,7 @@ import AgentPanel from './AgentPanel'
 import useMultiChartState from '../pages/charts/grid/useMultiChartState'
 import MultiChartGrid from '../pages/charts/grid/MultiChartGrid'
 import { buildWorkspaceHost, buildCellSync, gridPositionWord, scopeHostToGrid } from './host'
-import { screenGridOps, GRID_BOARD_REFUSAL } from './gridMode'
+import { screenGridOps, GRID_BOARD_REFUSAL, GRID_HIDDEN_REFUSAL } from './gridMode'
 import { cellPatch, cellStored, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
 import { peekDrawings, removeDrawing } from '../components/chart/drawingsStore'
 import { guideState, endGuide } from './guide/guideStore'
@@ -221,13 +221,40 @@ describe('Multi Chart: which chart', () => {
     await waitFor(() => expect(at('c2').tf).toBe('D'))
     expect(at('c1').tf).toBe('W')
   }, 30000)
-  it('"the one I just changed" beats the clicked chart: they are different cells, and the words name one', async () => {
+  it('"the one you just changed" beats the clicked chart: they are different cells, and the words name one', async () => {
     const { say } = mount()
     click('c0')
     await say('make the top-right chart weekly')
     await waitFor(() => expect(tfs()).toBe('DWDD'))
-    await say('make the one I just changed daily')
+    await say('make the one you just changed daily')
     await waitFor(() => expect(tfs()).toBe('DDDD'))
+  }, 30000)
+  it('"you" is the Agent\'s last change and "I" the member\'s, each with the other\'s change more recent', async () => {
+    const hand = (id) => {
+      const bar = document.querySelector(`[data-grid-cell-id="${id}"] [data-guide="chart.timeframe"]`)
+      act(() => { fireEvent.click([...bar.querySelectorAll('button')].find(b => b.textContent === '1M')) })
+    }
+    const { say } = mount()
+    hand('c2')
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(at('c1').tf).toBe('W'))
+    await say('make the one I just changed daily')          // the Agent acted last; "I" is still the member's cell
+    await waitFor(() => expect(at('c2').tf).toBe('D'))
+    expect(at('c1').tf).toBe('W')
+    hand('c0')
+    await say('make the one you just changed weekly')       // the member acted last; "you" is still the Agent's: c2, its last
+    await waitFor(() => expect(at('c2').tf).toBe('W'))
+    expect(at('c0').tf).toBe('M')
+    expect(at('c1').tf).toBe('W')
+  }, 30000)
+  it('"the one you just changed" with only a member\'s change is asked, never guessed', async () => {
+    const { say } = mount()
+    const bar = document.querySelector('[data-grid-cell-id="c2"] [data-guide="chart.timeframe"]')
+    act(() => { fireEvent.click([...bar.querySelectorAll('button')].find(b => b.textContent === '1M')) })
+    envelopes.push(plan('chart.setTimeframe', { timeframe: 'W' }, 2))
+    await say('make the one you just changed weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    expect(tfs()).toBe('DDMD')
   }, 30000)
   it('a model plan aimed at the clicked chart when the words name the one just changed is asked, not run', async () => {
     const { say } = mount()
@@ -235,7 +262,7 @@ describe('Multi Chart: which chart', () => {
     await say('make the top-right chart weekly')
     await waitFor(() => expect(tfs()).toBe('DWDD'))
     envelopes.push(plan('chart.setType', { type: 'bars' }, 0))
-    await say('turn the one I just changed into plain bars for me please')
+    await say('turn the one you just changed into plain bars for me please')
     await waitFor(() => expect(transcript()).toMatch(/Which chart do you mean/))
     expect(at('c0').settings).toBeUndefined()
   }, 30000)
@@ -409,6 +436,24 @@ describe('Multi Chart: what does not carry over', () => {
     const out = screenGridOps([{ action: 'chart.setSetting', target: 'c0', args: { setting: 'watermark.visible', value: true } }], { charts: { grid: () => null } })
     expect(out.refuse).toMatch(/watermark/)
   })
+  it('a cell behind a maximized one is refused, whichever way it was named; the maximized cell is not', () => {
+    const hostFor = (maximized) => ({ charts: {
+      list: () => [{ ref: 'c0', cell: {} }, { ref: 'c1', cell: {} }],
+      grid: () => ({ groupsMode: () => false, syncTimeRange: () => false, maximized: () => maximized }),
+    } })
+    const op = (target) => [{ action: 'chart.setTimeframe', target, args: { timeframe: 'W' } }]
+    expect(screenGridOps(op('c1'), hostFor('c0')).refuse).toBe(GRID_HIDDEN_REFUSAL)
+    expect(screenGridOps(op('c0'), hostFor('c0'))).toBe(null)
+    expect(screenGridOps(op('c1'), hostFor(null))).toBe(null)
+  })
+  it('through the panel: "the top-right chart" with another cell maximized changes nothing and says why', async () => {
+    const { say } = mount()
+    fireEvent.click(document.querySelector('[data-grid-cell-id="c0"] [aria-label*="aximize"]'))
+    await waitFor(() => expect(H.api.current.get('grid:board').agent.gridBoard.maximized()).toBe('c0'))
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(transcript()).toMatch(/hidden behind the maximized one/))
+    expect(tfs()).toBe('DDDD')
+  }, 30000)
   it('a layout write is refused, a layout read is not', () => {
     expect(screenGridOps([{ action: 'layout.open', target: 'layouts', args: {} }], {}).refuse).toBe(GRID_BOARD_REFUSAL)
     expect(screenGridOps([{ action: 'layout.list', target: 'layouts', args: {} }], {})).toBe(null)
@@ -572,7 +617,12 @@ describe('Multi Chart: grid truth, unit by unit', () => {
     expect((await sync(async () => [{ id: 'a', sym: 'X', tf: 'D' }])('a')).ok).toBe(true)
   })
   it('"the one I just changed" is read only when there is a cell to point at', () => {
-    expect(asSubjectWords('make the one I just changed weekly', null, 'c1')).toEqual({ text: 'make it weekly', subject: 'c1', changed: true })
+    const by = { member: 'c1', agent: 'c2' }
+    const changed = (who) => by[who] ?? 'c3'
+    expect(asSubjectWords('make the one I just changed weekly', null, changed)).toEqual({ text: 'make it weekly', subject: 'c1', changed: true })
+    expect(asSubjectWords('make the one you just changed weekly', null, changed).subject).toBe('c2')
+    expect(asSubjectWords('make the one we just changed weekly', null, changed).subject).toBe('c3')
+    expect(asSubjectWords('make the one you just changed weekly', null, () => null).subject).toBe(null)
     expect(asSubjectWords('make the one I just changed weekly', null, null).subject).toBe(null)
   })
 })
