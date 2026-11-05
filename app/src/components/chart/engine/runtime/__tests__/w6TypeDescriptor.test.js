@@ -134,6 +134,27 @@ describe('⛔ C18 — the object door reads a declared-only collection as master
   it('off the door the written type is the type: the method form is served', () => {
     expect(run(build(PUSH))[0]).toEqual([1, 1, 1, 1, 1, 1])
   })
+  it('⛔ (review N1) a declared-only array used while still `na` stops BY NAME, never a VM kind mismatch', () => {
+    for (const use of ['plot(a.size())\n', 'a.push(close)\nplot(close)\n', 'plot(array.get(a, 0))\n']) {
+      const b = build(`var array<float> a = na\n${use}`)
+      expect(b.ok, b.ok ? '' : b.refusal.message).toBe(true)
+      let err = null
+      try { run(b) } catch (e) { err = e }
+      expect(err, use).toBeTruthy()
+      expect(err.name, use).toBe('CollectionError')
+      expect(err.message, use).toContain('the array is `na`')
+    }
+    // ⛔ only `na` is this stop: a NUMBER reaching an array operand (an untyped parameter handed
+    // `close`, the C18 rule) keeps the VM's own kind check
+    let numErr = null
+    try { run(build('f(arr) => arr.size()\nplot(f(close))\n')) } catch (e) { numErr = e }
+    expect(numErr).toBeTruthy()
+    expect(numErr.name).not.toBe('CollectionError')
+    expect(numErr.message).toContain('takes an array, got number')
+    // the control: once an array is assigned, the same calls run
+    expect(run(build('var array<float> a = na\na := array.new_float()\na.push(close)\nplot(a.size())\n'))[0])
+      .toEqual([1, 1, 1, 1, 1, 1])
+  })
   it('at the door it is not a collection (master refused this method form)', () => {
     const b = build(PUSH, { objectDoor: true })
     expect(b.ok).toBe(false)
