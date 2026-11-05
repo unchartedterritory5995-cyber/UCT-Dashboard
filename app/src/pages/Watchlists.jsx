@@ -2918,14 +2918,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.pickHeader}>
             {/* Back-to-list-picker button only when there IS a picker to return to
                 (onExitPick set). Custom-Period Sort has none, so it shows no dead button. */}
-            {onExitPick && <button data-guide="watchlist.lists" className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
+            {onExitPick && <button className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               {/* Add a symbol — only on lists you own (community lists aren't yours).
                   Opens the same predictive inline add row used everywhere else. */}
               {pickOwnedId && (
                 <button
-                  data-guide="watchlist.addSymbol"
                   className={`${styles.wlActionBtn}${addingToList === pickOwnedId ? ' ' + styles.wlActionBtnActive : ''}`}
                   onClick={() => {
                     setExpandedLists(prev => new Set(prev).add(pickOwnedId))

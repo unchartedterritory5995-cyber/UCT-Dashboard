@@ -7,7 +7,7 @@
 // `lastShown` remembers the feature the member was last shown (and on which chart), for "now do it for me".
 
 const subs = new Set()
-let state = null            // { feature, steps, index, back, chartRef, widgetRef, chartLabel, startedAt } | null
+let state = null            // { feature, steps, index, chartRef, chartLabel, startedAt } | null
 let ended = null            // { featureId, reason, at } — why the last walkthrough stopped
 let lastShown = null        // { featureId, chartRef, at }
 let seq = 0
@@ -35,7 +35,7 @@ export function startGuide(feature, { chartRef = null, chartLabel = null, steps 
   if (!feature) return null
   const list = (steps || feature.steps || []).filter(Boolean)
   if (!list.length) return null
-  state = { id: ++seq, feature, steps: list, index: 0, back: false, chartRef, widgetRef: null, chartLabel, startedAt: now }
+  state = { id: ++seq, feature, steps: list, index: 0, chartRef, chartLabel, startedAt: now }
   ended = null
   notice = null
   lastShown = { featureId: feature.id, chartRef, chartLabel, at: now }
@@ -45,20 +45,12 @@ export function startGuide(feature, { chartRef = null, chartLabel = null, steps 
 export function nextStep() {
   if (!state) return
   if (state.index >= state.steps.length - 1) { endGuide('done'); return }
-  state = { ...state, index: state.index + 1, back: false }
+  state = { ...state, index: state.index + 1 }
   emit()
 }
-/** Back to step `to` (default: the one before). `back` tells the overlay this step was RETURNED to: a `waitFor` that is
- *  already met (the member's own earlier click) must not bounce them straight forward again. */
-export function prevStep(to = state ? state.index - 1 : 0) {
+export function prevStep() {
   if (!state || state.index === 0) return
-  state = { ...state, index: Math.max(0, to), back: true }
-  emit()
-}
-/** The board cell this walkthrough is now about (a `pin` step's control sits in it): `{ inWidget }` targets look only there. */
-export function pinWidget(widgetRef) {
-  if (!state || !widgetRef || state.widgetRef === widgetRef) return
-  state = { ...state, widgetRef }
+  state = { ...state, index: state.index - 1 }
   emit()
 }
 /** reason: 'done' | 'exit' | 'lost' (its control is gone) | 'replaced' | 'closed' (the Agent went away) */

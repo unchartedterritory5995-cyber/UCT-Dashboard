@@ -51,9 +51,8 @@ control.
   control disappears mid-walkthrough, the guide stops and says why.
 - **Does not interfere:** the ring has `pointer-events: none`, the card is non-modal (`data-escape-layer`), the
   overlay never takes focus, and it cleans up every timer and listener on unmount.
-- **Escape:** ends the guide wherever focus is (the card never takes focus). It is declared in the shortcut registry
-  (`agent.guideEscape`), bound only while a walkthrough is on screen, and never consumed: a sheet, the palette, an
-  inline form or the chart's own keys still answer the same press.
+- **Escape:** pressed inside the card, it ends the guide. There is no window-level key listener, so the app's key
+  census and shortcut registry are untouched and every other Escape works as before.
 
 ## Instant indicator explanations (owner decision 2026-10-29)
 

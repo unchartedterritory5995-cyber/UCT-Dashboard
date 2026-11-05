@@ -22,11 +22,6 @@
 // Steps:
 //   { target, text }                    point at it and say what it does
 //   { target, text, waitFor }           ask the member to do something; the step advances when `waitFor` appears
-//   optional: true                      leave the step out unless its control is on screen
-//   retreat: true                       its control going away (a menu closed, a form cancelled) returns to the nearest
-//                                       earlier step on screen, instead of ending the walkthrough
-//   pin: true                           the board cell this control sits in is the one `{ inWidget }` targets look in
-//   nextLabel / noBack                  the card's forward button wording / no Back (the step's outcome can't be stepped back over)
 //   chart-scoped targets (`chart.*`) are found inside the chart being talked about (data-widget-id)
 //
 // Adding a feature: one entry here (+ the `data-guide` attribute on its control). Nothing else changes: the guide
@@ -36,26 +31,6 @@ import { manifestFor } from '../capabilities'
 
 export const GUIDE_FEATURES = [
   // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)
-  {
-    // pages/charts/widgets/WatchlistPicker.jsx — the ONLY place a member creates a list: ＋ New in the picker of a Watchlist
-    // widget (PickerHeader), a name, Create; the widget then opens the new list (pages/Watchlists.jsx, pick mode). The
-    // picker shows on a fresh widget, or behind ‹ Lists on one already showing a list (a full board can't add a widget).
-    // `everyPage`: asked on another page it says where this lives, rather than leaving the words to the model.
-    id: 'watchlistCreate', everyPage: true, terms: ['new watchlist', 'create a watchlist', 'creating a watchlist'], control: 'the Widgets menu', title: 'Creating a watchlist', topic: 'watchlists',
-    words: [/\b(?:create|creating|make|making|build|building|start|starting|set up|setting up|new)\b(?:\s+(?:a|an|the|my|me|another|new|own|custom|first|second|stock|ticker|personal|blank))*\s+(?:watch ?)?lists?\b/],
-    caps: ['watchlist.create'],
-    explain: 'You create a watchlist in a Watchlist widget: in its list picker, click ＋ New, name the list and click Create. The picker opens when you add the widget (Widgets ▾ → Watchlist), or from ‹ Lists on a Watchlist widget already on your board.',
-    steps: [
-      { target: { widgetType: 'watchlist', guide: 'watchlist.lists' }, text: 'New lists start in the list picker. Click ‹ Lists on this widget to open it (the widget will show your new list afterwards), or press Next to add a new Watchlist widget instead.', optional: true, waitFor: 'watchlist.picker', nextLabel: 'Next' },
-      { target: 'workspace.widgets', text: 'Open Widgets ▾.', waitFor: ['workspace.widgetsMenu', 'watchlist.picker'] },
-      { target: 'workspace.widgets.watchlist', text: 'Click Watchlist to add one to your board. If the board is full, the menu says so — close a widget first.', waitFor: 'watchlist.picker', retreat: true },
-      { target: { within: 'watchlist.picker', aria: 'New watchlist' }, text: 'This is the list picker. Click ＋ New to start a list.', waitFor: { within: 'watchlist.picker', aria: 'New watchlist name' }, pin: true },
-      { target: { within: 'watchlist.picker', aria: 'New watchlist name' }, text: 'Type a name for the list.', waitFor: { inWidget: 'watchlist.addSymbol' }, nextLabel: 'Next', pin: true, retreat: true },
-      { target: 'watchlist.createList', text: 'Click Create. If it can’t be created, the form tells you here and nothing is saved.', waitFor: { inWidget: 'watchlist.addSymbol' }, pin: true, retreat: true },
-      { target: { inWidget: 'watchlist.addSymbol' }, text: 'The list is open in this widget and saved in My Lists. Click + to add its first ticker.', noBack: true },
-    ],
-    doIt: { say: 'Tell me what to call it — for example “create a watchlist called Momentum” — and I’ll make it once you confirm.' },
-  },
   {
     id: 'canvas', terms: ['canvas settings', 'chart background', 'grid lines', 'crosshair settings'], control: 'the chart’s settings gear', title: 'Chart background, grid, crosshair and watermark', topic: 'chartSettings',
     words: [/\b(background|grid ?lines?|crosshair|watermark|canvas|scale text)\b/],
