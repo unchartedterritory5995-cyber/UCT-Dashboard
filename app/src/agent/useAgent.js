@@ -555,13 +555,16 @@ const selfSaved = (items) => {
 // arrangement) does not wait on unrelated preference writes (the new charts' own chart_settings writes as they load):
 // its receipt follows the board's own save. Any other kind waits exactly as before.
 const BOARD_ONLY = new Set(['board', 'workspace'])
+// A ticker or timeframe change lives in the layout and the link-group tickers, which persist writes itself: the reload a chart
+// does for it (and any chart_settings write from that) is not this change's save. Its conflicts are still checked.
+const LAYOUT_ONLY = new Set(['chart.setTimeframe', 'chart.setSymbol'])
 async function persistBoard(host, ops) {
   if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
   try {
     // ops aimed at a widget this same change creates (a new chart born on its ticker) are part of the board write
     const made = new Set(ops.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
     const own = ops.filter(o => !made.has(String(o?.target)))
-    const boardOnly = kindsOf(own).length > 0 && kindsOf(own).every(k => BOARD_ONLY.has(k))
+    const boardOnly = kindsOf(own).length > 0 && (kindsOf(own).every(k => BOARD_ONLY.has(k)) || own.every(o => LAYOUT_ONLY.has(o?.action)))
     const r = await host.persist(boardOnly ? { settle: [] } : undefined)
     return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' }
   } catch {
@@ -837,7 +840,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, patchItem, push, record])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null, more = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
@@ -1229,7 +1232,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     mark('commit:start')
     let res, saved
+    let saying = null                      // the receipt already on screen, while its save is out (id)
     const commitStartedAt = Date.now()
+    const receiptNotes = (after = null) => [...(onTarget ? [onTarget] : []), ...(after ? [after] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)]
     try {
       res = await commitPlan(host, plan, { env, ctx: capCtx })
       mark('commit:end')
@@ -1237,9 +1242,28 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         res.lines = expansion.lines
         if (res.undo) res.undo.lines = expansion.lines
       }
-      // Persistence acknowledgment (board changes): the receipt and its Undo wait for the server.
-      saved = res.ok ? (selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)) : { ok: true }
-      if (res.ok && saved.ok) saved = await confirmDrawings(host, drawingRefsOfPlan(plan))
+      // ⭐ SPEED (fast chart.setTimeframe p50 2189 ms, production telemetry 11-05): the change is on screen and read back here
+      // (commitPlan: kind.landed), so the member is told now, not after the POSTs. The receipt says it is SAVING: no Undo, and
+      // never a claim that it is saved. Everything else still waits for the save: the lock, the in-flight mark, the working
+      // signal, Undo and the record. The save's answer patches this same receipt (below), a failure in words.
+      // Only a change that is the whole request: a step, a follow-up or a deferred step has its order to keep.
+      if (res.ok && !more && !lead && !afterCommit && !deferred.length && !res.followUps?.length && !tapRef.current && !v2TapRef.current
+        && ((!selfSaved(plan.plans) && host?.persist && boardEpoch(host, ops) != null) || drawingRefsOfPlan(plan).length)) {
+        const first = composed ? [...composed.lines, ...res.lines] : res.lines
+        const notes = receiptNotes()
+        if (![...first, ...notes].some(l => /\bsaved?\b/i.test(String(l)))) {
+          withdrawPending()
+          saying = nid()
+          push({ id: saying, role: 'receipt', lines: first, undoId: null, saving: true, charts: receiptCharts(host, plan, res), notes })
+          mark('receipt:saving')
+        }
+      }
+      // Persistence acknowledgment (board changes): Undo waits for the server, and the receipt too unless it was said above.
+      const persisted = async () => {
+        const s = selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)
+        return s.ok ? confirmDrawings(host, drawingRefsOfPlan(plan)) : s
+      }
+      saved = res.ok ? await persisted().catch(() => ({ ok: false, reason: 'not-saved' })) : { ok: true }
     } finally {
       // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
       writeLocal(AGENT_INFLIGHT_KEY, null)
@@ -1255,7 +1279,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const lines = [...(composed ? [...composed.lines, ...res.lines] : res.lines), ...leadLines]
       if (lead) lead.used = true
       if (!saved.ok) {
-        push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
+        const unsaved = { undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true }
+        if (saying) patchItem(saying, { ...unsaved, saving: false })
+        else push({ role: 'receipt', lines, ...unsaved })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
         rememberChange(memoryRef.current, host, ops, null, res.created || null)
@@ -1270,10 +1296,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const afterNote = afterCommit ? await afterCommit() : null
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      const receiptId = nid()
+      const receiptId = saying || nid()
       const shown = receiptCharts(host, plan, res)
       watchChartFaults(plannedChartRefs(plan, res), { receiptId, undoId: res.undo?.id || null, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
-      if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      if (saying) patchItem(saying, { saving: false, undoId: res.undo?.id || null })
+      else if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: receiptNotes(afterNote) })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
@@ -1291,10 +1318,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
       record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
-  }, [host, push, record, capCtx, withdrawPending])
+  }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false }) => {
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1388,7 +1415,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const idsBefore = undoRef.current.map(e => e.id)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset, afterCommit: gridMode ? watchGridSync(opsIn, host) : null })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset, more, afterCommit: gridMode ? watchGridSync(opsIn, host) : null })
     } finally { traceEnd('done') }
     // ⭐ MISSION 3: an add + change-existing request, run as its parts in the member's order — each part the SAME
     // executeInner (planning, protection, policy, board check, commit, persistence, receipt and its own Undo entry). A part
@@ -2116,7 +2143,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // one chart reused, then a NEW chart proposed — the second step only if the first one landed
         const [first, second] = multi.steps
         lastActionsRef.current = [...first.ops, ...second.ops].map(o => o.action)
-        await execute(first.ops, { path: 'fast', mode: first.mode, member: text, voice })
+        await execute(first.ops, { path: 'fast', mode: first.mode, member: text, voice, more: true })
         const now = (() => { try { return host?.charts?.read?.(second.needs.ref) } catch { return null } })()
         if (String(now?.symbol || '').toUpperCase() !== second.needs.symbol) return
         return await execute(second.ops, { path: 'fast', mode: second.mode, member: text, voice })

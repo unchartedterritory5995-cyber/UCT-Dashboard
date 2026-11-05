@@ -1,7 +1,7 @@
 // UCT Agent — Context & Awareness, Slice 1B: agent/deixis.js + the host's selection mapping.
 // End-to-end rails (real ChartsWorkspace + panel): pages/charts/ChartsWorkspace.thisChart.test.jsx.
 import { describe, it, expect } from 'vitest'
-import { pointsAtChart, resolveDeictic, screenDeicticOps, screenUnnamedTargets, chartQualifier, chartsNamedBy } from './deixis'
+import { pointsAtChart, resolveDeictic, screenDeicticOps, screenUnnamedTargets, chartsNamedBy } from './deixis'
 import { buildChartSource } from './host'
 import { buildContext, getCapability, getTargetKind } from './capabilities'
 import { registerBuiltins } from './builtins'

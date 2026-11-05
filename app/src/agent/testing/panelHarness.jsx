@@ -75,7 +75,7 @@ export function setupPanel() {
     const h = {
       ...board.host,
       charts: { ...base, list: () => base.list().map(d), read: (ref) => d(base.read(ref)), canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => st.selected },
-      persist: async () => ({ ok: true }),
+      persist: async (...a) => (st.persist ? st.persist(...a) : { ok: true }),   // st.persist: a test's own save
     }
     render(<AuthContext.Provider value={{ user: { id: 1, role: admin ? 'admin' : 'member' } }}><AgentPanel host={h} onClose={() => {}} /></AuthContext.Provider>)
     const box = screen.getByLabelText('Message UCT Agent')
