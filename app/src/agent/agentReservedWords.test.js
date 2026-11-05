@@ -1,6 +1,7 @@
 // UCT Agent — period, session and study words are never tickers; a real symbol spelled the same still is.
 // "show YTD" used to reach chart.setSymbol as the ticker YTD and came back "UCT has no symbol".
 import { describe, it, expect } from 'vitest'
+import process from 'node:process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { registerBuiltins } from './builtins'

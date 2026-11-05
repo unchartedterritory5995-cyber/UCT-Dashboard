@@ -13,17 +13,16 @@ vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: ()
 import AgentPanel from './AgentPanel'
 registerBuiltins()
 
-let script, turns
+let script
 const env = (o) => ({ conversationId: 'c1', envelope: { disposition: 'answer', reply: '', question: null, ops: [], unsupported_category: null, ...o }, usage: {} })
 beforeEach(() => {
-  turns = 0
   script = () => env({ reply: 'ok' })
   try { localStorage.clear() } catch { /* */ }
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url)
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
     const body = init.body ? JSON.parse(init.body) : null
-    if (u === '/api/agent/turn' || u === '/api/agent/turn/stream') { turns += 1; return json(script(body)) }
+    if (u === '/api/agent/turn' || u === '/api/agent/turn/stream') return json(script(body))
     if (u === '/api/agent/record') return json({ conversationId: 'c1' })
     if (u === '/api/agent/config') return json({ stream: false })
     return json({ conversations: [] })
