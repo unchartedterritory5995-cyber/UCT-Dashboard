@@ -53,8 +53,10 @@ describe('A — the pattern grammar: what a capture pins is admitted, the rest r
     expect(why('{1}')).toBe('format:index')
     expect(why('{x}')).toBe('format:element')
     expect(why('{0,number}')).toBe('format:element:number')
+    // ⛔ W3-S1 r3 — `percent` stays refused BY NAME until capture Q-W3-3 matches
     expect(why('{0,number,percent}')).toBe('format:number-pattern:percent')
     expect(why('{0,number,integer}')).toBe('format:number-pattern:integer')
+    expect(why('{0,number,currency}')).toBe('format:number-pattern:currency')
     expect(why('{0,number,#.#}')).toBe('format:number-pattern:#.#')
     expect(why('{0,number,#,###.##}')).toBe('format:number-pattern:#,###.##')
     expect(why('{0,date,short}')).toBe('format:element:date')
@@ -109,6 +111,9 @@ describe('D — what no capture pins is WITHHELD, never approximated', () => {
   it('⛔ the four unpinned cases each come back null', () => {
     expect(formatMessageNumber(1234.5)).toBeNull()          // grouping unmeasured
     expect(formatMessageNumber(999.9994)).toBe('999.999')   // CONTROL — just below the bound
+    // ⛔ W3-S1 — below the bound, but it ROUNDS to "1000": Java's `#,##0.###` prints "1,000"
+    expect(formatMessageNumber(999.9996)).toBeNull()
+    expect(formatMessageNumber(-999.9996)).toBeNull()
     expect(formatMessageNumber(0.0625)).toBeNull()          // exact tie at three decimals
     expect(exactTieAt(0.0625, 3)).toBe(true)
     expect(exactTieAt(0.06251, 3)).toBe(false)              // CONTROL — not a tie
