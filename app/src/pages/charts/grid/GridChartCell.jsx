@@ -73,7 +73,7 @@ function GridChartCell({
   isMaximized,        // this cell is expanded to fill the whole grid body
   onToggleMaximize,   // () => void — expand/restore this cell
   chartApiById,       // the workspace's chart registry (ref) — this cell's UCT Agent adapter lives in it (gridAgentAdapter.js)
-  onAgentChange,      // () => void — the Agent changed this cell ("the one I just changed")
+  onAgentChange,      // (write) => void — runs the Agent's write to this cell, so it counts as the Agent's ("the one you just changed")
   groupsActive,       // () => boolean — Groups mode: a new ticker here refills the whole grid
   deepWarm,           // bool — this cell is MAXIMIZED; pre-load full history for instant scroll-back (StockChart deepWarm). Gated on maxId (not hover) so the React.memo "hover sweep re-renders zero charts" contract holds.
 }) {
@@ -279,8 +279,9 @@ function GridChartCell({
             const want = patch.settings?.sessionView === 'extended' ? 'extended' : 'regular'
             if (want !== r.sessionView) setSessionView(want)
           }
-          r.onChange(cellPatch(r.cell, patch))
-          r.onAgentChange?.()
+          const write = () => r.onChange(cellPatch(r.cell, patch))
+          if (r.onAgentChange) r.onAgentChange(write)
+          else write()
           return true
         },
       },

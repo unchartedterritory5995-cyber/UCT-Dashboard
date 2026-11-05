@@ -130,6 +130,17 @@ export function translateRefs(ops, refMap) {
 }
 // hotfix 2026-11-03: tab-adding actions — only when the member's own words say "tab"
 const TAB_ADDS = new Set(['chart.addTab', 'widget.addTab'])
+// Does a plan that adds tabs carry on the tab the member's previous message added? Only a short follow-up ("and a weekly one")
+// on the very next message, every op the same tab action on the same widget. Memory's lifetime is no test: "the last change
+// added a tab" stays true for half an hour, and any later request planned as tabs would pass (the 2026-11-03 hotfix's case).
+const TAB_FOLLOW_MAX_WORDS = 6
+export function continuesTabs(ops, lastTurn, turnNow, text) {
+  if (!lastTurn || lastTurn.id !== turnNow - 1) return false
+  const words = String(text || '').trim().split(/\s+/)
+  if (words.length > TAB_FOLLOW_MAX_WORDS || /\bcharts?\b/i.test(text)) return false
+  const added = new Set(lastTurn.ops.filter(o => TAB_ADDS.has(o?.action)).map(o => `${o.action}:${o.args?.widget}`))
+  return ops.every(o => TAB_ADDS.has(o?.action) && added.has(`${o.action}:${o.args?.widget}`))
+}
 // hotfix 2026-11-03: a planned "change …, then undo it" whose change committed nothing undoable
 // review F3: the refusal wording that would claim nothing changed
 const DIDNT_CHANGE = /^I didn['’]t change anything/
@@ -176,9 +187,11 @@ const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it =
 // (references.IT_WORDS); "the new one", "the chart you just added" only right after a turn that CREATED a widget.
 const THAT_ONE = /\b(?:that one|that chart)\b/gi
 const NEW_ONE = /\b(?:the|that|this) new (?:one|chart)\b|\bthe (?:one|chart) (?:you )?just (?:added|made|created|opened)\b|\bthe (?:one|chart) (?:you )?(?:added|made|created|opened)\b/gi
-// ⭐ Multi Chart: "the one I just changed" — the cell last changed, by the member's hand or the Agent's (`changed`). Nothing to
-// point at → the words are left alone, and the chart is asked for.
-const JUST_CHANGED = /\bthe (?:one|chart) (?:i|we|you) (?:just |last )?(?:changed|edited|updated|set|switched)\b/gi
+// ⭐ Multi Chart: "the one I just changed" is the member's last change, "the one you just changed" the Agent's, "the one we
+// changed" whichever came last (`changed(who)`). Nothing to point at → the words are left alone, and the chart is asked for.
+const JUST_CHANGED = /\bthe (?:one|chart) (i|we|you) (?:just |last )?(?:changed|edited|updated|set|switched)\b/i
+const CHANGED_BY = { i: 'member', you: 'agent', we: null }
+const gridChanged = (host) => { const grid = host?.charts?.grid?.(); return grid ? (who) => grid.lastChanged(who) : null }
 // → { text, subject }: `subject` = the chart "the new one" names (review #771: exactly ONE chart the latest committing request
 // created — `created`, never the conversation subject a later step of that request moved). Several or none → the words
 // are left alone (the instant path asks which chart; the model reads them).
@@ -186,11 +199,9 @@ export function asSubjectWords(text, created = null, changed = null) {
   const t = String(text || '')
   let out = t.replace(THAT_ONE, 'it')
   let subject = null
-  JUST_CHANGED.lastIndex = 0
-  if (changed && JUST_CHANGED.test(t)) {
-    JUST_CHANGED.lastIndex = 0
-    return { text: out.replace(JUST_CHANGED, 'it'), subject: changed, changed: true }
-  }
+  const said = changed ? JUST_CHANGED.exec(t) : null
+  const cell = said ? changed(CHANGED_BY[said[1].toLowerCase()]) : null
+  if (cell) return { text: out.replace(JUST_CHANGED, 'it'), subject: cell, changed: true }
   NEW_ONE.lastIndex = 0
   if (NEW_ONE.test(t)) {
     NEW_ONE.lastIndex = 0
@@ -1873,7 +1884,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           }
           const last = memoryRef.current?.lastTurn?.(epochOf(host))
           // read as the panel reads it: "the new one" is "it" bound to the chart just created (asSubjectWords)
-          const reads = (t0) => { const t = asSubjectWords(t0, createdRef.current?.refs || null, host?.charts?.grid?.()?.lastChanged() || null).text; try { return [fastParse(t, { host }), multiChartPlan(t, { host }), planCompound(t, { host })].some(r => r && r.kind !== 'say') } catch { return false } }
+          const reads = (t0) => { const t = asSubjectWords(t0, createdRef.current?.refs || null, gridChanged(host)).text; try { return [fastParse(t, { host }), multiChartPlan(t, { host }), planCompound(t, { host })].some(r => r && r.kind !== 'say') } catch { return false } }
           const typed = reads(text)
           // D3.3: an explicit form counts as read when a reader OR an NLM-1 mechanism (a created-chart plan, a command at a
           // referent set, a swap, a follow-up over the request so far) takes it — "already read as typed" stays the readers only
@@ -2044,7 +2055,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
       // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
-      const subj = asSubjectWords(text, createdRef.current?.refs || null, host?.charts?.grid?.()?.lastChanged() || null)
+      const subj = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
       const refText = subj.text
       const memNow = withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
@@ -2571,9 +2582,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
-      // ("and a weekly one" right after a tab was added continues that request: the last change carries the same tab action)
-      const tabsLast = (memoryRef.current?.lastChange?.(epochOf(host))?.ops || []).map(o => o?.action)
-      if ((env.ops || []).some(o => TAB_ADDS.has(o?.action) && !tabsLast.includes(o.action)) && !/\btabs?\b/i.test(`${askedFor || ''} ${text}`)) {
+      // ("and a weekly one" on the very next message continues that request: see continuesTabs)
+      if ((env.ops || []).some(o => TAB_ADDS.has(o?.action)) && !/\btabs?\b/i.test(`${askedFor || ''} ${text}`)
+        && !continuesTabs(env.ops, memoryRef.current?.lastTurn?.(epochOf(host)), memoryRef.current?.currentTurn?.(), text)) {
         const t = 'I didn’t change anything: my plan would have added a chart tab, which you didn’t ask for. Ask again — and say “tab” if a tab is what you want.'
         push({ role: 'refusal', text: t })
         record({ member: null, outcome: t, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
@@ -2636,7 +2647,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ W2 (context across turns): "add the RSI to that one" / "make it weekly" right after a chart was made or changed —
       // the conversation's SUBJECT chart (memory, the same referent the instant path uses) identifies the chart, so a plan
       // whose every op is on exactly that chart is not asked about again. A clicked chart still outranks memory (S6).
-      const sw0 = asSubjectWords(text, createdRef.current?.refs || null, host?.charts?.grid?.()?.lastChanged() || null)
+      const sw0 = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
       const onSubject = (() => {
         try {
           if (host?.charts?.selected?.() && !sw0.changed) return false

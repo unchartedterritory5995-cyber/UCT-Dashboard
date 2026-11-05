@@ -21,6 +21,7 @@ import { AuthContext } from '../context/AuthContext'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
+import { continuesTabs } from './useAgent'
 
 registerBuiltins()
 
@@ -143,6 +144,50 @@ describe('T3 · "on four charts, all the same size"', () => {
     expect(transcript()).not.toMatch(/a chart tab, which you didn’t ask for/)
     expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1').opts)).toMatch(/Weekly/)
   }, 30000)
+  const REFUSED = /a chart tab, which you didn’t ask for/
+  const tabOn = (widget) => (b) => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget, timeframe: 'W', name: 'Weekly' } }])
+  const firstTab = async (say) => {
+    envelopes.push(b => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: 'D', name: 'Daily' } }]))
+    await say('give this chart another tab called Daily please, thanks a lot')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+  }
+  it('the four-charts request right after a tab was added is still refused: the 11-03 hotfix\'s case, a tab just before it', async () => {
+    const { h, say } = mount(...FULL())
+    await firstTab(say)
+    envelopes.push(b => env('apply', [
+      { action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: null, name: 'SPY' } },
+      { action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: null, name: 'QQQ' } },
+      { action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: null, name: 'NVDA' } },
+      { action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: null, name: 'TSLA' } },
+    ], 'Done'))
+    await say('Put SPY, QQQ, NVDA, and TSLA on four charts please, thank you kindly friend')
+    await waitFor(() => expect(transcript()).toMatch(REFUSED))
+    expect(receipts()).toHaveLength(1)
+    expect(h.charts.read('c1').symbol).toBe('NVDA')
+  }, 30000)
+  it('a short request is no follow-up once another message came between', async () => {
+    const { say } = mount(...FULL())
+    await firstTab(say)
+    envelopes.push(env('answer', [], 'It is a daily chart.'))
+    await say('what timeframe is that tab anyway my friend, just curious')
+    await waitFor(() => expect(transcript()).toMatch(/It is a daily chart/))
+    envelopes.push(tabOn('c1'))
+    await say('and a weekly one')
+    await waitFor(() => expect(transcript()).toMatch(REFUSED))
+    expect(receipts()).toHaveLength(1)
+  }, 30000)
+  it('the follow-up must be on the same widget', () => {
+    const last = { id: 4, ops: [{ action: 'chart.addTab', args: { widget: 'c1' } }] }
+    const op = (widget, action = 'chart.addTab') => ({ action, args: { widget } })
+    expect(continuesTabs([op('c1')], last, 5, 'and a weekly one')).toBe(true)
+    expect(continuesTabs([op('c2')], last, 5, 'and a weekly one')).toBe(false)
+    expect(continuesTabs([op('c1', 'widget.addTab')], last, 5, 'and a weekly one')).toBe(false)
+    expect(continuesTabs([op('c1')], last, 6, 'and a weekly one')).toBe(false)
+    expect(continuesTabs([op('c1')], last, 5, 'and could you also add a weekly one here')).toBe(false)
+    expect(continuesTabs([op('c1')], last, 5, 'and two more charts')).toBe(false)
+    expect(continuesTabs([op('c1'), { action: 'chart.setSymbol', args: {} }], last, 5, 'and a weekly one')).toBe(false)
+    expect(continuesTabs([op('c1')], null, 5, 'and a weekly one')).toBe(false)
+  })
   it('a tab the last change did NOT add is still refused when the member never said "tab"', async () => {
     const { h, say } = mount(...FULL())
     envelopes.push(b => env('apply', [{ action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } }]))
