@@ -8,7 +8,11 @@
 //   • vocabulary      a small curated trader table (vocabulary.json, data, reviewed): studies, oscillator, pane, s/r…;
 //   • context         the last change's groups (pinned, = v1) and, for a short follow-up, their RELATED groups; the
 //                     pending question's groups (`after`, = v1).
-// v1's regexes are kept as the BOOST layer: every v1 hit stays selected, so no phrasing v1 routes loses its group.
+//   • capabilities    each capability's own description scored on its own (capabilityIndex capabilityScores): the best
+//                     capabilities' groups are ADDED to the request, so a word that identifies one action reaches it
+//                     whatever its group's size, and a capability that ships tomorrow is reachable by its own words.
+// v1's regexes are kept as the BOOST layer: every v1 hit stays selected, so no phrasing v1 routes loses its group
+// (bar V1_ONLY_WORDS, which v2 reaches from descriptions).
 // A typo-corrected reading (nl/lexicon.js) is scored too, but only the words the correction CHANGED, discounted —
 // a correction is a guess ("march" → "match" must not name the screener).
 //
@@ -26,9 +30,9 @@
 // registry in the browser and against the sent manifest on the server; approvals and protected layouts apply as
 // before. The `routing` object sent to the server has v1's exact shape.
 
-import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect, routeManifest } from '../routing'
+import { GROUPS, ROUTING_VERSION, V1_ONLY_WORDS, groupOfAction, selectGroups, wordsSelect, routeManifest } from '../routing'
 import { manifestFor } from '../capabilities'
-import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
+import { buildIndex, lexicalScores, capabilityScores, capabilityTokens, resolveTokens, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
 
 export const ROUTING_V2_VERSION = 1
 // tuned on the capreg corpus + nlm1 dev paraphrases (never on the held-out set); a frozen object — tests read it
@@ -51,6 +55,11 @@ export const TUNING = Object.freeze({
   LIKELY_FLOOR: 1,      // the least own score an entity-expanded group needs to be packed (charts exempt)
   MATCHED_ADD: 0,       // D1.3: the evidence a v2 group needs to be ADDED to a request v1's words already recognised
   DOUBT_FILL: 1,        // D1.3: under doubt, v1's fill stops at this share of the byte budget (v1's own fallback request size)
+  // Discovery: a group is named by its best CAPABILITY's description, so a big group's one specific action counts in full
+  CAP_FLOOR: 6.0,       // the least capability score that names its group
+  CAP_REL: 0.8,         // …and this fraction of the best capability's score
+  CAP_GROUPS: 3,        // at most this many groups named this way
+  PHRASES: true,        // false (rail only): routing from the capabilities' own descriptions, no regex and no vocabulary
 })
 // dev sweeps only (nlm1 tuning script): an override object; production never sets it
 const T = () => (globalThis.__NLM1_TUNING__ ? { ...TUNING, ...globalThis.__NLM1_TUNING__ } : TUNING)
@@ -70,9 +79,14 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
   const ownSet = new Set(own)
   const weights = new Map()
   const qTokens = [...own]
-  for (const t of entityTokens(raw)) if (!ownSet.has(t)) { qTokens.push(t); weights.set(t, ENTITY_W) }
+  const entities = new Set(entityTokens(raw).map(stem).filter(t => !ownSet.has(t)))
+  for (const t of entities) { qTokens.push(t); weights.set(t, ENTITY_W) }
   for (const c of corrected) for (const t of tokens(c)) if (!ownSet.has(t) && !weights.has(t)) { qTokens.push(t); weights.set(t, k.CORRECTED_W) }
   const lex = lexicalScores(index, qTokens, weights)
+  // the message's own words against each capability's own description (entity types are too weak to name one capability)
+  const capWords = capabilityTokens(raw).filter(t => !tick.has(t))
+  const capQuery = [...capWords, ...qTokens.filter(t => weights.has(t) && !entities.has(t))]
+  const caps = capabilityScores(index, resolveTokens(index, capQuery), weights)
   const vocab = {}
   const terms = new Set()
   for (const [text, f] of [[raw, 1], ...corrected.map(c => [c, k.CORRECTED_W])]) {
@@ -87,7 +101,7 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
     const s = (lex[g] || 0) + k.VOCAB_W * (vocab[g] || 0)
     if (s > 0) scores[g] = s
   }
-  return { scores, vocabulary: [...terms], vocab, lex, tickers: tick.size, words: own.length }
+  return { scores, vocabulary: [...terms], vocab, lex, caps, tickers: tick.size, words: own.length }
 }
 
 /**
@@ -97,7 +111,7 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
  */
 export function selectGroupsV2(message, opts = {}) {
   const k = T()
-  const v1 = selectGroups(message, opts)
+  const v1 = k.PHRASES ? selectGroups(message, { ...opts, without: V1_ONLY_WORDS }) : { selected: [], priority: [], matched: false, soft: [] }
   const manifest = opts.manifest || defaultManifest()
   const sc = scoreGroups(manifest, message, opts)
   const { scores, vocabulary } = sc
@@ -120,22 +134,28 @@ export function selectGroupsV2(message, opts = {}) {
   if (v1.matched) for (const g of v1.priority) if (known.has(g) && !always.includes(g) && !followUps.includes(g)) boosted[g] = (boosted[g] || 0) + k.STRONG
   const ranked = rank(boosted)
   const strong = lexRanked.filter(([g, s]) => s >= k.STRONG || (s >= k.STRONG_FLOOR && (s >= k.REL_STRONG * top || related.has(g)))).map(([g]) => g)
+  // DISCOVERY: the groups the best-described capabilities belong to. They only ADD: `top` and `uncertain` below read the
+  // group scores alone, so a message that was in doubt keeps every safety of being in doubt (charts, the fill)
+  const capBest = new Map()
+  for (const [name, s] of sc.caps) { const g = groupOfAction(name); if (g && !capBest.has(g)) capBest.set(g, s) }
+  const capTop = sc.caps.length ? sc.caps[0][1] : 0
+  const capNamed = [...capBest].filter(([g, s]) => known.has(g) && !always.includes(g) && s >= k.CAP_FLOOR && s >= k.CAP_REL * capTop).slice(0, k.CAP_GROUPS).map(([g]) => g)
   // D1.1: a short request LED by a ticker that names nothing else ("ARM", "lemme peek at UBER") is a chart symbol request
   // — what typing a ticker on the chart does
   if (!strong.length && sc.tickers > 0 && sc.words <= k.TICKER_WORDS && known.has('charts')) strong.push('charts')
   // an always-on group (agent: "what can you actually do") named by the message recognises it, too
   const alwaysNamed = always.some(g => (scores[g] || 0) >= k.STRONG_FLOOR)
   const v1Own = v1.matched ? v1.priority.filter(id => !always.includes(id) && !followUps.includes(id)) : []
-  const matched = v1.matched || strong.length > 0 || alwaysNamed
+  const matched = v1.matched || strong.length > 0 || alwaysNamed || capNamed.length > 0
   // D1.1 (held-out, AUDIT 11-04): v2 recognising a message v1 did not, on evidence short of decisive, is UNCERTAIN — the
   // page's own controls (charts) stay in its selection, as v1's fallback puts them first
   const uncertain = !v1.matched && matched && top < k.STRONG
   // D1.1: ANY undo signal (its words, its vocabulary, its index) offers Undo — add-only, one action (#766's rule)
-  const undoSignal = known.has('undo') && ((sc.vocab.undo || 0) > 0 || (sc.lex.undo || 0) >= k.STRONG_FLOOR || wordsSelect('undo', message))
-  const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong,
+  const undoSignal = known.has('undo') && ((sc.vocab.undo || 0) > 0 || (sc.lex.undo || 0) >= k.STRONG_FLOOR || (k.PHRASES && wordsSelect('undo', message)))
+  const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong, capNamed,
     v1: v1.matched ? v1Own : null, v1Matched: v1.matched, v1Soft: v1.soft || [], uncertain, undoSignal }
   if (!matched) return { ...v1, ...diag }
-  const priority = [...new Set([...always, ...followUps, ...(uncertain ? ['charts'] : []), ...v1Own, ...strong, ...(undoSignal ? ['undo'] : [])])]
+  const priority = [...new Set([...always, ...followUps, ...(uncertain ? ['charts'] : []), ...v1Own, ...strong, ...capNamed, ...(undoSignal ? ['undo'] : [])])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched: true, soft: [], ...diag }
 }
 
@@ -170,7 +190,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const bySize = (a, b) => sizeOf(a) - sizeOf(b)
   const after = (opts.after || []).filter(id => known.has(id))
   // 1. pinned (= v1)
-  const riders = [...GROUPS.filter(g => g.ridesAlong && wordsSelect(g.id, message)).map(g => g.id), ...(sel.undoSignal ? ['undo'] : [])]
+  const riders = [...(k.PHRASES ? GROUPS.filter(g => g.ridesAlong && wordsSelect(g.id, message)).map(g => g.id) : []), ...(sel.undoSignal ? ['undo'] : [])]
   const pinned = [...new Set([...always, ...riders, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])]
     .map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
   // 2. own: v1's hits smallest first (exactly v1's order), then the strong scored groups, best first (uncertain: charts first)
@@ -187,6 +207,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   // D2.1: v1's own hits are packed smallest-first (v1's order) while they all FIT; when they don't, the cut falls on the
   // least evidence, never simply on the biggest group ("add a chart for AMD then add RSI and MACD to it": charts, the
   // group the request most plainly needs, was cut for being the largest)
+  const capNamed = (sel.capNamed || []).filter(id => !pinned.includes(id))
   const v1Own = (sel.v1 || []).filter(id => !pinned.includes(id))
   const pinnedSize = pinned.reduce((a, id) => a + sizeOf(id), counts.get(null) || 0)
   const v1Fits = v1Own.reduce((a, id) => a + sizeOf(id), pinnedSize) <= budget
@@ -199,10 +220,11 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   })()
   const evidenceOf = (g) => (scoreOf.get(g) || 0) + (entEvidence.has(g) ? k.STRONG : 0)
   const v1Order = v1Fits ? [...v1Own].sort(bySize) : [...v1Own].sort((a, b) => (evidenceOf(b) - evidenceOf(a)) || bySize(a, b))
-  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead]
+  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...capNamed, ...lead]
     : [...v1Order,
       // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD
-      ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
+      // DISCOVERY: a group a capability's description named comes first of those: it names one action, a group score many
+      ...capNamed, ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
   // 4. weak
   const weak = sel.ranked.filter(([, s]) => s >= k.WEAK).map(([g]) => g)
   // 5. context

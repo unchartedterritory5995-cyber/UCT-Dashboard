@@ -34,6 +34,13 @@ const DATA_HISTORY = new RegExp(`^(?!.*(?:${UNIVERSE_WORDS.source}))(?!.*(?:${CO
 const GRID_CELLS = /\b(two|three|four|five|six|seven|eight|nine|[2-9]) (?:\w+ )?(?:panels|cells|boxes|windows|quadrants)\b|\bequal (?:panels|cells|boxes|windows|quadrants)\b/
 const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height)\b|\bequal(ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b|\bsplit\b|\btile\b|\btiled\b/
 
+// #825's temporary reachability words for chartSetup's Reset view and hide-all. Routing v2 no longer reads them (selectGroups
+// `without`): it reaches those capabilities from their descriptions. They stay here only so that v1, the kill-switch path,
+// keeps routing byte-identical.
+const RESET_VIEW_WORDS = /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/
+const HIDE_ALL_WORDS = /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/
+export const V1_ONLY_WORDS = new Set([RESET_VIEW_WORDS, HIDE_ALL_WORDS])
+
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
   { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
@@ -71,10 +78,11 @@ export const GROUPS = [
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/,
       // chart range bar, Reset view, hide-all: chartSetup's own capabilities, by the words a member uses for the buttons
-      // temporary reachability; replace with description-driven discovery
-      /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
-      /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
-      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
+      // v1 ONLY (see V1_ONLY_WORDS): routing v2 finds Reset view and hide-all from their own descriptions
+      RESET_VIEW_WORDS, HIDE_ALL_WORDS,
+      // temporary reachability; replace with description-driven discovery. Both routers still read it, for one shape: a range
+      // value other capabilities also take ("show 1Y on the chart": widget.showScan and stock.themes share 1y and pack first)
+      /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -370,7 +378,7 @@ export function wordsSelect(id, message) {
   const g = GROUPS.find(x => x.id === id)
   return !!g && (g.words || []).some(re => re.test(q))
 }
-export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null } = {}) {
+export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null, without = null } = {}) {
   const raw = String(message || '')
   // W2 (CG-2): "2×2" typed with the multiplication sign reads as "2x2"
   const q = raw.toLowerCase().replace(/×/g, 'x')
@@ -383,7 +391,7 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   try { if (typeof correct === 'function') texts = [q, ...(correct(raw) || []).map(t => String(t).toLowerCase())] } catch { texts = [q] }
   for (const g of GROUPS) {
     if (g.always) continue
-    if (texts.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
+    if (texts.some(t => g.words.some(re => !without?.has(re) && re.test(t)))) hits.add(g.id)
   }
   for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw

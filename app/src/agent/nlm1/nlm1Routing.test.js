@@ -9,7 +9,7 @@ import { MANIFEST_CONTRACT, manifestFor } from '../capabilities'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
 import vocabulary from './vocabulary.json'
 import dev from './dev/paraphrases.json'
-import { vocabularyTerms, buildIndex, entityTokens, tokens } from './capabilityIndex'
+import { vocabularyTerms, buildIndex, entityTokens, tokens, stem } from './capabilityIndex'
 import { selectGroupsV2, scoreGroups, routeManifestV2 } from './routingV2'
 import { ROUTERS, routerFromEnv, routerName, routeManifestFromEnv } from './routers'
 
@@ -51,7 +51,7 @@ describe('the index is generated from the registry', () => {
   it('every manifest group is a document; names, args and the indicator catalog are in it', () => {
     const idx = buildIndex(full())
     for (const c of full()) expect(idx.docs.has(groupOfAction(c.name)), c.name).toBe(true)
-    expect(idx.docs.get('charts').has('timeframe')).toBe(true)
+    expect(idx.docs.get('charts').has(stem('timeframe'))).toBe(true)
     expect(idx.docs.get('drawingTools').has('fib')).toBe(true)
     expect(idx.docs.get('indicators').has('rsi')).toBe(true)
   })

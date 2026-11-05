@@ -6,6 +6,10 @@
 // registry's addable rows, the member's own saved ones included). A capability that ships tomorrow is routable by
 // its own words the day it registers; nothing here is hand-written per group.
 //
+// Beside the group documents, each CAPABILITY is a document of its own (capabilityFields: its name, summary, the examples
+// quoted in its summary and hints, enum values and argument names at any depth, coerce words, hints). A group's document
+// dilutes one specific action; a capability's does not, so "flag this name" finds watchlist.setFlag in a 17-action group.
+//
 // On top: the curated TRADER VOCABULARY (vocabulary.json, data, reviewed) — "studies", "oscillator", "pane",
 // "levels", "s/r", "quad" … → the groups they point at.
 //
@@ -17,7 +21,7 @@ import { addableRows } from '../capabilities/indicatorEdits'
 import { isReservedWord } from '../nl/tickers'
 import vocabulary from './vocabulary.json'
 
-export const INDEX_VERSION = 1
+export const INDEX_VERSION = 2
 
 // ── text → tokens ──────────────────────────────────────────────────────────────────────────────────────────────
 const STOP = new Set(('a an the to of on in for and or my me i it its this that these those is are be was were with please can could would ' +
@@ -25,20 +29,37 @@ const STOP = new Set(('a an the to of on in for and or my me i it its this that 
   'want need like get got make let lets us we our them they their there here what which who how when where why all each every ' +
   'not no yes ok okay hey thanks thank pls').split(' '))
 
-export function stem(w) {
+// Words the suffix rules below would fold into a different word: "news" is not "new", "settings" is not the verb "set".
+const WHOLE = new Map([['news', 'news'], ['setting', 'setting'], ['settings', 'setting']])
+const VOWEL = /[aeiouy]/
+/** One root for a word's forms: flag / flags / flagged / flagging, save / saves / saved / saving, line / lines. */
+export function stem(word) {
+  let w = word.replace(/(col|fav|neighb)our/, '$1or')
+  if (WHOLE.has(w)) return WHOLE.get(w)
   if (w.length <= 3 || /\d/.test(w)) return w
-  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y'
-  if (w.endsWith('ing') && w.length > 5) return w.slice(0, -3)
-  if (w.endsWith('ed') && w.length > 4) return w.slice(0, -2)
-  if (/(?:ss|us|is)$/.test(w)) return w
-  if (/(?:sh|ch|x|s)es$/.test(w)) return w.slice(0, -2)
-  if (w.endsWith('s')) return w.slice(0, -1)
-  return w
+  if (w.endsWith('ies') && w.length > 4) w = w.slice(0, -3) + 'y'
+  else if (/(?:ss|us|is)$/.test(w)) return w
+  else if (/(?:sh|ch|x|s)es$/.test(w)) w = w.slice(0, -2)
+  else if (w.endsWith('s')) w = w.slice(0, -1)
+  for (const suffix of ['ing', 'ed']) {
+    const root = w.slice(0, -suffix.length)
+    if (!w.endsWith(suffix) || root.length < 3 || !VOWEL.test(root) || /e$/.test(root)) continue
+    w = root.replace(/([bdgmnprt])\1$/, '$1')
+    break
+  }
+  return w.length > 3 && w.endsWith('e') ? w.slice(0, -1) : w
 }
 const splitCamel = (s) => String(s || '').replace(/([a-z])([A-Z])/g, '$1 $2')
 export function tokens(text) {
   const words = String(text || '').toLowerCase().replace(/×/g, 'x').match(/[a-z0-9]+/g) || []
   return words.filter(w => !STOP.has(w)).map(stem)
+}
+// A capability's description says "EVERY indicator", "ALL charts", and that is what tells it from its one-at-a-time
+// sibling: at capability level the quantifiers count, as one word
+const QUANTIFIER = /^(?:all|every|each|everything)$/
+export function capabilityTokens(text) {
+  const words = String(text || '').toLowerCase().replace(/×/g, 'x').match(/[a-z0-9]+/g) || []
+  return words.filter(w => QUANTIFIER.test(w) || !STOP.has(w)).map(w => (QUANTIFIER.test(w) ? 'all' : stem(w)))
 }
 
 // ── the vocabulary: phrase patterns, compiled once ─────────────────────────────────────────────────────────────
@@ -121,6 +142,7 @@ function catalogNames() {
   try { return addableRows().map(r => [r.name, splitCamel(r.defId), typeof r.settings === 'string' ? r.settings : JSON.stringify(r.settings || '')].join(' ').trim()).filter(Boolean) } catch { return [] }
 }
 
+const idWords = (s) => splitCamel(s).replace(/[._-]/g, ' ')
 function argWords(schema) {
   const out = []
   const props = schema?.properties || {}
@@ -131,10 +153,110 @@ function argWords(schema) {
   return out.join(' ')
 }
 
+/** Every argument name and enum value of a schema, at any depth: { names, values }, as words. */
+function schemaWords(schema, into = { names: [], values: [] }) {
+  if (!schema || typeof schema !== 'object') return into
+  for (const e of schema.enum || []) if (typeof e === 'string') into.values.push(idWords(e))
+  for (const [k, v] of Object.entries(schema.properties || {})) { into.names.push(idWords(k)); schemaWords(v, into) }
+  for (const v of [schema.items, ...(schema.anyOf || [])]) schemaWords(v, into)
+  return into
+}
+
+// ── capability documents: what ONE capability says about itself ────────────────────────────────────────────────
+// A word that identifies one capability identifies its group, whatever the group's size. How much a field TELLS: the
+// name is what the capability IS; a quoted example ("keep only these", "hide the grid") is a member's own wording; the
+// summary describes it; enum values and argument names are what it takes; a hint is mostly instructions to the model.
+const CAP_FIELD = Object.freeze({ NAME: 3, QUOTED: 2, ENUM: 1.5, CATALOG: 1.5, SUMMARY: 1, ARG: 0.75, COERCE: 0.75, HINT: 0.25 })
+const QUOTED = /["“]([^"“”]{3,80})["”]/g
+const ACTION_NAME = /\b[a-z][a-zA-Z]*\.[a-z][a-zA-Z.]*\b/g       // a pointer to ANOTHER capability is not evidence for this one
+const CAP_K1 = 1.2
+const CAP_B = 0.4
+
+/** "widget.showScan" → what it IS ("widget Scan") and its verb ("show"); a one-word action ("drawing.lock") IS its verb. */
+function nameWords(name) {
+  const words = idWords(name).split(' ')
+  return words.length > 2 ? { object: [words[0], ...words.slice(2)].join(' '), verb: words[1] } : { object: words.join(' '), verb: '' }
+}
+
+function capabilityFields(c, catalog) {
+  const prose = [c.summary, c.hints, c.shape].filter(Boolean).join(' ').replace(ACTION_NAME, ' ')
+  const { names, values } = schemaWords(c.args)
+  const { object, verb } = nameWords(c.name)
+  const fields = [
+    [object, CAP_FIELD.NAME],
+    [verb, CAP_FIELD.SUMMARY],
+    [String(c.summary || '').replace(ACTION_NAME, ' '), CAP_FIELD.SUMMARY],
+    [[...prose.matchAll(QUOTED)].map(m => m[1]).join(' '), CAP_FIELD.QUOTED],
+    [values.join(' '), CAP_FIELD.ENUM],
+    [names.join(' '), CAP_FIELD.ARG],
+    [Object.values(c.coerce || {}).flatMap(Object.keys).join(' '), CAP_FIELD.COERCE],
+    [[c.hints, c.shape].filter(Boolean).join(' ').replace(ACTION_NAME, ' '), CAP_FIELD.HINT],
+  ]
+  if (c.name === 'indicator.add') fields.push([catalog.join(' '), CAP_FIELD.CATALOG])
+  return fields
+}
+
+function capabilityPostings(manifest, catalog) {
+  const docs = new Map()
+  for (const c of manifest) {
+    const d = new Map()
+    for (const [text, w] of capabilityFields(c, catalog)) for (const t of capabilityTokens(text)) d.set(t, (d.get(t) || 0) + w)
+    docs.set(c.name, d)
+  }
+  const len = new Map([...docs].map(([n, d]) => [n, [...d.values()].reduce((a, b) => a + b, 0)]))
+  const avg = [...len.values()].reduce((a, b) => a + b, 0) / Math.max(1, len.size)
+  const postings = new Map()
+  for (const [name, d] of docs) {
+    const norm = CAP_K1 * (1 - CAP_B + CAP_B * (len.get(name) / avg))
+    for (const [t, tf] of d) {
+      if (!postings.has(t)) postings.set(t, [])
+      postings.get(t).push([name, (tf * (CAP_K1 + 1)) / (tf + norm)])
+    }
+  }
+  const N = docs.size
+  const idf = new Map([...postings].map(([t, list]) => [t, Math.log(1 + (N - list.length + 0.5) / (list.length + 0.5))]))
+  return { postings, idf }
+}
+
+/**
+ * What a word MEANS to the registry when the registry has no such token: "unflag" → flag, "recolor" → color, "gridlines"
+ * → grid + line, "pre market" → premarket. Only ever resolves onto tokens the capabilities themselves use.
+ */
+export function resolveTokens(index, qTokens) {
+  const known = (t) => index.capIdf.has(t)
+  const out = []
+  qTokens.forEach((t, i) => {
+    const next = qTokens[i + 1]
+    if (next && known(stem(t + next))) out.push(stem(t + next))
+    if (known(t)) { out.push(t); return }
+    const bare = t.replace(/^(?:un|re)/, '')
+    if (bare !== t && bare.length >= 3 && known(stem(bare))) { out.push(stem(bare)); return }
+    for (let at = 3; at <= t.length - 3; at++) {
+      const [a, b] = [stem(t.slice(0, at)), stem(t.slice(at))]
+      if (known(a) && known(b)) { out.push(a, b); return }
+    }
+    out.push(t)
+  })
+  return [...new Set(out)]
+}
+
+/** BM25 of each capability for query tokens: [[name, score], …], best first. Reads only the postings of the query's tokens. */
+export function capabilityScores(index, qTokens, weights = null) {
+  const scores = new Map()
+  for (const t of new Set(qTokens)) {
+    const list = index.capPostings.get(t)
+    if (!list) continue
+    const w = (weights?.get(t) ?? 1) * index.capIdf.get(t)
+    for (const [name, tf] of list) scores.set(name, (scores.get(name) || 0) + w * tf)
+  }
+  return [...scores].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+}
+
 let MEMO = { key: null, index: null }
 
 /**
- * The index for a manifest: { docs: Map<group, Map<token, weightedTf>>, len: Map<group, n>, avg, idf: Map<token, idf>, groups: [ids] }.
+ * The index for a manifest: { docs: Map<group, Map<token, weightedTf>>, len: Map<group, n>, avg, idf: Map<token, idf>, groups: [ids],
+ * capPostings: Map<token, [[capability, tf]]>, capIdf: Map<token, idf> }.
  * Memoised on the manifest's names + the catalog's names (both change only when the registry / the member's catalog does).
  */
 export function buildIndex(manifest) {
@@ -164,7 +286,8 @@ export function buildIndex(manifest) {
   for (const d of docs.values()) for (const t of d.keys()) df.set(t, (df.get(t) || 0) + 1)
   const N = docs.size
   const idf = new Map([...df].map(([t, n]) => [t, Math.log(1 + (N - n + 0.5) / (n + 0.5))]))
-  const index = { docs, field, len, avg, idf, groups: [...docs.keys()] }
+  const { postings: capPostings, idf: capIdf } = capabilityPostings(manifest, cat)
+  const index = { docs, field, len, avg, idf, groups: [...docs.keys()], capPostings, capIdf }
   MEMO = { key, index }
   return index
 }
