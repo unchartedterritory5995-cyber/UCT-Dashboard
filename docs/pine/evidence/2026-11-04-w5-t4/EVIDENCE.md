@@ -286,3 +286,11 @@ lock `dsk/heavy-final3.lock`, code tip `da8da64717`, run LAST on the final tree,
 (`runs/w5t4r2/n20.log`, `final.log`). Gate pytest 46 passed; hygiene clean (34729 tracked files); rails pytest 222 passed;
 full chart+hooks vitest: Test Files 1 failed | 1337 passed | 27 skipped (1365); the only failure is
 `src/hooks/pollingSites.rail.test.js`, the desktop baseline. `hostParity.rail.test.js` and `hostParity.v8.rail.test.js` passed inside the run.
+
+## Round r3: the HP-1 vitest rail under Node 20 (delta review)
+`hostParity.rail.test.js` HP-1 test asserted `(\d+)\/\1` (equal counts), red under Node 20 (164 equal + 2 REPORTED). It now asserts the
+`hp1Summary` contract `HP-1 GREEN: N/M cases equal the committed digests` (the V8 rail owns the REPORTED split). Code tip `12a25effad`.
+The vitest rail files were run under Node 20 itself (portable v20.20.2, V8 11.3.244.8; Node 20.18.0 cannot start vitest 4: ERR_REQUIRE_ESM):
+`hostParity.rail.test.js` + `hostParity.v8.rail.test.js`: Test Files 2 passed, Tests 34 passed (`runs/w5t4r3/n20vitest.log`).
+final-tip (LAST, `dsk/heavy-final3.lock`): gate pytest 46 passed, hygiene clean (34729), rails pytest 222 passed, vitest Test Files 1 failed | 1337 passed |
+27 skipped, the one failure `pollingSites.rail.test.js` (baseline).
