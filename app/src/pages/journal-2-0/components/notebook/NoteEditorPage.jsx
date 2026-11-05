@@ -5661,9 +5661,10 @@ export default function NoteEditorPage({
             <ToolButton
               active={editor.isActive('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              label="❝"
+              // VIS-6 fix round 1 (review 8): the UIcon quote glyph, not a text glyph; its name is "Quote".
+              label={<UIcon name="quote" {...TOOLBAR_ICON} />}
               disabled={!canRunHistory(editor, 'toggleBlockquote')}
-              title={canRunHistory(editor, 'toggleBlockquote') ? undefined : "Quote isn't available inside a list -- exit the list first"}
+              title={canRunHistory(editor, 'toggleBlockquote') ? 'Quote' : "Quote isn't available inside a list -- exit the list first"}
             />
             <ToolButton
               active={editor.isActive('codeBlock')}

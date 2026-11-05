@@ -795,5 +795,8 @@
     opacity: 0;
     cursor: pointer;
   }
-  .sortWrap:focus-within > .sortFace { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+  /* Fix round 1 (review 3): KEYBOARD focus only. A tapped select does not match :focus-visible, so the face never
+     keeps a ring after the native picker closes. Hover is the face's too (the select above it takes the pointer). */
+  .sortWrap:has(> .sortSelect:focus-visible) > .sortFace { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+  .sortWrap:hover > .sortFace { background: var(--bg-hover); border-color: var(--border-accent); }
 }

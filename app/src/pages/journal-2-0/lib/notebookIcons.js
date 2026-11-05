@@ -13,5 +13,5 @@ export const ICON_STROKE = 1.75
 /** A toolbar icon: 16 px, the one stroke, flat (currentColor). */
 export const TOOLBAR_ICON = Object.freeze({ size: 16, strokeWidth: ICON_STROKE, gold: false })
 
-/** A nav icon: 20 px, the one stroke, flat. */
-export const NAV_ICON = Object.freeze({ size: 20, strokeWidth: ICON_STROKE, gold: false })
+// The nav size (20, --icon-size-nav) has no Notebook consumer yet, so it has no constant (fix round 1, review 8):
+// the token lint's icon-size rule allows 16 and 20 and nothing else.

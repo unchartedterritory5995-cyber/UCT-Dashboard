@@ -21,9 +21,9 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync, writeFileSync, renameSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import {
-  scanCss, scanJs, tally, compareToBaseline, checkDeclaration, FONT_SCALE, RADIUS_SCALE,
+  scanCss, scanJs, tally, compareToBaseline, checkDeclaration, planBaselineWrite, ruleTotals, FONT_SCALE, RADIUS_SCALE, RULES, ICON_SIZES,
 } from './__tests__/notebookTokenLint'
-import { TOOLBAR_ICON, NAV_ICON, ICON_STROKE } from '../pages/journal-2-0/lib/notebookIcons'
+import { TOOLBAR_ICON, ICON_STROKE } from '../pages/journal-2-0/lib/notebookIcons'
 
 const SRC = join(process.cwd(), 'src')
 const J2 = join(SRC, 'pages', 'journal-2-0')
@@ -47,7 +47,10 @@ export function notebookFiles() {
   const tab = readdirSync(join(J2, 'tabs')).filter((n) => /^NotebookTab.*\.(css|jsx)$/.test(n) && !isTest(n))
     .map((n) => join(J2, 'tabs', n))
   const modules = walk(J2).filter((p) => /(Note|Notebook)[^/\\]*\.module\.css$/.test(p) && !isTest(p))
-  return [...new Set([...notebook, ...tab, ...modules])].sort()
+  // Fix round 1 (review 6): the one GLOBAL stylesheet every note body wears (lib/tiptap.js imports it into the editor,
+  // the shared page and the version previews). Named, not matched: it is an authority, not a pattern.
+  const named = [join(J2, 'lib', 'noteContent.css')]
+  return [...new Set([...notebook, ...tab, ...modules, ...named])].sort()
 }
 
 function currentTally() {
@@ -62,6 +65,9 @@ function currentTally() {
 
 const readBaseline = () => JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
 
+/** Fix round 1 (review 2): the per-rule ceiling (see the test that reads it). Only ever lowered. */
+const CEILING = Object.freeze({ 'font-size': 226, 'border-radius': 68, 'transition-all': 0, 'raw-duration': 0, spacing: 1195, 'icon-size': 244 })
+
 describe('VIS-6: Notebook token rail', () => {
   it('covers the Notebook (the walk finds the editor, the tab and its CSS modules)', () => {
     const files = notebookFiles().map(rel)
@@ -75,14 +81,24 @@ describe('VIS-6: Notebook token rail', () => {
   it('adds no off-token literal beyond the baseline, and the baseline claims nothing that is gone', () => {
     const current = currentTally()
     if (process.env.NOTEBOOK_TOKENS_WRITE_BASELINE === '1') {
+      // ⛔ Fix round 1 (review 2): the writer may only REMOVE entries. A literal the tree has beyond the baseline is
+      // refused here, and nothing is written: fix it, never absorb it.
+      const plan = planBaselineWrite(current, readBaseline())
+      expect(plan.refused, `refusing to write: these are NEW off-token literals:\n${(plan.refused || []).join('\n')}`).toBeUndefined()
       const tmp = `${BASELINE_PATH}.tmp`
-      writeFileSync(tmp, `${JSON.stringify(current, null, 1)}\n`)
+      writeFileSync(tmp, `${JSON.stringify(plan.next, null, 1)}\n`)
       renameSync(tmp, BASELINE_PATH)
       return
     }
     const { added, stale } = compareToBaseline(current, readBaseline())
     expect(added, `new off-token literals (use the tokens in styles/tokens.css):\n${added.join('\n')}`).toEqual([])
     expect(stale, `the baseline overstates (shrink notebookTokens.baseline.json):\n${stale.join('\n')}`).toEqual([])
+  })
+
+  // ⛔ Fix round 1 (review 2): the ceiling. Each rule's total in the baseline, written here, so growing the baseline is
+  // a visible edit to THIS file. It may only go down: when a fix shrinks the baseline, lower the number to match.
+  it('the baseline holds exactly the ceiling per rule (lower the ceiling with the baseline; it never rises)', () => {
+    expect(ruleTotals(readBaseline())).toEqual(CEILING)
   })
 
   it('freezes no transition: all and no raw transition duration (issue 23 fixed them all)', () => {
@@ -163,8 +179,49 @@ describe('VIS-6: the tokens the scale names exist', () => {
 
   it('the icon tokens and lib/notebookIcons.js say the same thing', () => {
     expect(decl('--icon-size-toolbar')).toBe(`${TOOLBAR_ICON.size}px`)
-    expect(decl('--icon-size-nav')).toBe(`${NAV_ICON.size}px`)
+    expect(decl('--icon-size-nav')).toBe(`${ICON_SIZES[1]}px`)
     expect(Number(decl('--icon-stroke'))).toBe(ICON_STROKE)
-    expect([TOOLBAR_ICON.gold, NAV_ICON.gold]).toEqual([false, false])
+    expect(TOOLBAR_ICON.gold).toBe(false)
+  })
+})
+
+describe('fix round 1: the writer refuses growth, and the scanner gaps review 7 named are closed (controls)', () => {
+  it('the writer refuses a baseline that would grow, and writes one that shrinks', () => {
+    const base = { 'x.css': { 'font-size 15px': 1 } }
+    expect(planBaselineWrite({ 'x.css': { 'font-size 15px': 1, 'font-size 9px': 1 } }, base).refused).toHaveLength(1)
+    expect(planBaselineWrite({ 'y.css': { 'spacing 5px': 1 } }, base).refused).toHaveLength(1)
+    expect(planBaselineWrite({}, base)).toEqual({ next: {} })
+    expect(ruleTotals(base)).toMatchObject({ 'font-size': 1, spacing: 0 })
+    expect(Object.keys(CEILING).sort()).toEqual([...RULES].sort())
+  })
+
+  it('a vendor-prefixed transition is a transition', () => {
+    expect(scanCss('.a { -webkit-transition: all 120ms; }')).toEqual([
+      { rule: 'transition-all', value: 'all' }, { rule: 'raw-duration', value: '120ms' }])
+    expect(scanCss('.a { transition-delay: 80ms; }')).toEqual([{ rule: 'raw-duration', value: '80ms' }])
+  })
+
+  it('a rem or em size, and the off-scale --text-xs, are literals; an on-scale token is not', () => {
+    expect(scanCss('.a { font-size: 0.95rem; }')).toEqual([{ rule: 'font-size', value: '0.95rem' }])
+    expect(scanCss('.a { font-size: 1.2em; }')).toEqual([{ rule: 'font-size', value: '1.2em' }])
+    expect(scanCss('.a { font-size: var(--text-xs); }')).toEqual([{ rule: 'font-size', value: 'var(--text-xs)' }])
+    expect(scanCss('.a { font-size: var(--text-md); }')).toEqual([])
+  })
+
+  it('the font shorthand reads only the size before the slash', () => {
+    expect(scanCss('.a { font: 600 13px/18px var(--font-sans); }')).toEqual([])
+    expect(scanCss('.a { font: 600 15px/1.4 var(--font-sans); }')).toEqual([{ rule: 'font-size', value: '15px' }])
+  })
+
+  it('spacing: a padding, margin or gap off the 4 px steps is reported (2 px allowed, negative by size)', () => {
+    expect(scanCss('.a { padding: 6px 12px; }')).toEqual([{ rule: 'spacing', value: '6px' }])
+    expect(scanCss('.a { margin: -4px 0 2px; gap: var(--space-sm, 7px); column-gap: 10px; }')).toEqual([{ rule: 'spacing', value: '10px' }])
+    expect(scanJs('<i style={{ padding: 5, marginTop: 8 }} />')).toEqual([{ rule: 'spacing', value: '5px' }])
+  })
+
+  it('icon-size: a UIcon that is not 16 or 20 is reported; the spread constant is not', () => {
+    expect(scanJs('<UIcon name="x" size={12} gold={false} />')).toEqual([{ rule: 'icon-size', value: '12px' }])
+    expect(scanJs('<UIcon name="x" size={16} />')).toEqual([])
+    expect(scanJs('<UIcon name="x" {...TOOLBAR_ICON} />')).toEqual([])
   })
 })

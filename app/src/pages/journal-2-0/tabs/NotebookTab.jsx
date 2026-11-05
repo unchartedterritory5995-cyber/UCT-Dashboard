@@ -893,6 +893,9 @@ export default function NotebookTab() {
   const listToolbarShown = !noteId && !isHome && !isToday && !landingPending
   // the compact sort words, on a phone only (review minor 12)
   const phoneSortWords = useIsPhone()
+  // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
+  // set `updated_asc` / `title_desc`). ONE authority for the select's value and its touch-tier face.
+  const sortField = sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort
   // a LAYOUT effect: registered in the list's first commit, before the browser paints it (no fold after a paint)
   useLayoutEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
@@ -2809,7 +2812,7 @@ export default function NotebookTab() {
             // aria-hidden. Above 1024 px the face is not drawn and the select renders as before.
             <span className={styles.sortWrap} data-sort-wrap="">
             <span className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.sortFace}`} aria-hidden="true" data-sort-face="">
-              {SORT_OPTIONS.find((o) => o.value === (sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort))?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
+              {SORT_OPTIONS.find((o) => o.value === sortField)?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
               <UIcon name="chevronDown" {...TOOLBAR_ICON} />
             </span>
             <select
@@ -2822,7 +2825,7 @@ export default function NotebookTab() {
               // much sorted. Show the FIELD regardless of direction; picking
               // an option here still resets to that field's natural
               // direction, which is the expected behavior either way.
-              value={sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort}
+              value={sortField}
               onChange={(e) => setSort(e.target.value)}
               // Wave 8 (8A, axe select-name): a select with no name is read as
               // "combo box, Recently updated" with nothing saying what it orders.
