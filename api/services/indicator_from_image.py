@@ -113,11 +113,12 @@ MAX_TOKENS: int = 8192
 IMAGE_TOKENS_WORST: int = 4784
 
 #: The most this call's fixed prompt can bill: its 33,166 bytes (system, tool schema, framing of the user
-#: turn) at 3 bytes a token, plus `budget.FRAMING_TOKENS`. Counting a token per byte, as the generic bound
-#: does, reserved $0.467 for a call that cannot pass about $0.30. A byte count, not a provider count: no
-#: paid or live call is made to pin it. `tests/test_vision_spend_containment.py` fails if the prompt
-#: outgrows it.
-PROMPT_TOKENS_WORST: int = 15_100
+#: turn) at an ASSUMED 2 bytes a token, plus `budget.FRAMING_TOKENS`: about $0.332 a call, against the $0.467
+#: a token per byte reserved. ⛔ The 2 is a conservative assumption, not a measurement: no live call is allowed
+#: here, so no provider token count exists. 3 bytes a token left only 45 tokens of slack and held only at
+#: 2.3 bytes a token or more, so it was not a proven bound. Replace it with a count if one is ever made.
+#: `tests/test_vision_spend_containment.py` fails if the prompt outgrows it.
+PROMPT_TOKENS_WORST: int = 20_600
 
 #: ⛔ ONE BILLED ATTEMPT. See the header: a timed-out call has already generated
 #: tokens and reports no ``usage``, so an SDK retry is spend the ledger counts as
