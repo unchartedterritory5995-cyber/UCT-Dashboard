@@ -2,7 +2,7 @@
 // phrasing still carries every action its intent needs, no needed group is cut by the per-request budget, the request
 // never exceeds that budget, and v2 never loses a group v1 selected for the message (the regexes are v2's boost layer).
 import { describe, expect } from 'vitest'
-import { registerCatalog } from './testing/registry'
+import { registerCatalog, isDark } from './testing/registry'
 import { corpus, phrasingsOf, gapIt } from './testing/corpus'
 import { routedNames } from './testing/route'
 import { groupOfAction } from '../../routing'
@@ -14,7 +14,8 @@ pinClock()
 
 await registerCatalog()
 
-for (const intent of corpus.intents) {
+// (a DARK intent — `"kinds": "ALL"` — runs in corpus.dark.test.jsx, with every gated kind on; same split as corpus.routing.test.js)
+for (const intent of corpus.intents.filter(i => !isDark(i))) {
   describe(`(a·v2) routing · ${intent.id}`, () => {
     for (const ph of phrasingsOf(intent)) {
       const { run, tag } = gapIt(ph.gaps?.a)
