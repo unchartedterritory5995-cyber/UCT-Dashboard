@@ -860,7 +860,7 @@ def test_S5_plan_summary_sentences_per_kind_of_change():
         {"op": "add_tag", "noteTitle": "E", "args": {"tag": "x"}},
     ]
     assert ai.plan_summary(changes) == (
-        "Will add #x to 2 notes: A, E. Will remove #old from 1 note: B. Will set Status on 1 note: A. "
+        "Will add #x to 2 notes: A, E. Will remove #old from 1 note: B. Will set Status to Active on 1 note: A. "
         "Will move 1 note to Ideas / Q4: C. Will add to 1 note: D. Will create 1 note: New one.")
     many = [{"op": "add_tag", "noteTitle": t, "args": {"tag": "y"}} for t in "ABCDE"]
     assert ai.plan_summary(many) == "Will add #y to 5 notes: A, B, C and 2 more."
@@ -872,3 +872,17 @@ def test_S5_a_plan_with_no_change_keeps_the_model_sentence_with_titles_for_keys(
            "notes": [{"id": "id-a", "title": "CRWD plan"}, {"id": "id-b", "title": "Q4 review"}]}
     assert ai._named_by_title("I can't delete n1 or n12.", ctx) == "I can't delete CRWD plan or Q4 review."
     assert ai._named_by_title("nothing about n9", ctx) == "nothing about n9"
+
+
+def test_S5_fix_round_1_a_property_change_says_its_value_and_different_values_stay_apart():
+    """Review minor 15: "Will set Status on 1 note" dropped what it will be set TO, and two
+    different values for one property were merged into one sentence."""
+    changes = [
+        {"op": "set_property", "noteTitle": "A", "args": {"name": "Status", "value": "Active"}},
+        {"op": "set_property", "noteTitle": "B", "args": {"name": "Status", "value": "Closed"}},
+        {"op": "set_property", "noteTitle": "C", "args": {"name": "Status", "value": "Active"}},
+        {"op": "set_property", "noteTitle": "D", "args": {"name": "Setups", "value": ["Flag", "Base"]}},
+    ]
+    assert ai.plan_summary(changes) == (
+        "Will set Status to Active on 2 notes: A, C. Will set Status to Closed on 1 note: B. "
+        "Will set Setups to Flag, Base on 1 note: D.")

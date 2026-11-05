@@ -564,6 +564,16 @@ def _titles_phrase(titles: list[str], shown: int = 3) -> str:
     return f"{head} and {rest} more" if rest > 0 else head
 
 
+def _value_phrase(value: Any) -> str:
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(v) for v in value) or "nothing"
+    if value is None or value == "":
+        return "nothing"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return str(value)
+
+
 def plan_summary(changes: list[dict[str, Any]]) -> str:
     """Audit 2026-11-05, spec S5 (B15): the sentence a member reads above a plan, written from the
     VALIDATED changes -- never the model's. The model's summary read "Added #security to (n1 and
@@ -579,7 +589,8 @@ def plan_summary(changes: list[dict[str, Any]]) -> str:
         elif op == REMOVE_TAG:
             key = (op, f"Will remove #{args.get('tag')} from")
         elif op == SET_PROPERTY:
-            key = (op, f"Will set {args.get('name')} on")
+            # Fix round 1 (review minor 15): say what it will be set TO, one sentence per value.
+            key = (op, f"Will set {args.get('name')} to {_value_phrase(args.get('value'))} on")
         elif op == MOVE:
             key = (op, "Will move", args.get("path") or "")
         elif op == APPEND:
