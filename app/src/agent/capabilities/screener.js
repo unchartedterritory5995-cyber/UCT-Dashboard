@@ -45,8 +45,18 @@ import { matchName } from '../nl/match'
 import { serverServesScan, serverDataKinds, activeConversationId } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
-import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS } from './scanHidden'
+import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn } from './scanHidden'
 import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN } from './scanRefine'
+
+// W1.1 R-05: a message shaped like a screen or a refinement of one (a screen verb, "only / just", a universe noun, a
+// "which stocks" question) — the gate for claiming a hidden-field PHRASE before the planner (screener.run `fast`)
+export const HIDDEN_SCREEN_SHAPED = /^(?:(?:now|and|ok|okay|then|also|but|next)[ ,]+)*(?:(?:please|pls|can you|could you|would you)\s+)?(?:(?:show|find|get|give|list|pull up|screen|scan|filter|run|rank|sort|order|narrow|limit|restrict|keep|refine|exclude|drop|remove)\b|only\b|just\b|(?:all |the )?(?:stocks|names|tickers|ones)\b|(?:which|what) (?:stocks|names|tickers)\b|those\b|top \d+\b|(?:any|every)thing\b)/
+// …over a UNIVERSE or the last screen's results (never one stock's figure: "show me the composite rating for NVDA")
+export const HIDDEN_SCREEN_UNIVERSE = /\b(?:stocks|names|tickers|equities|ones|those|them|these|screens?|scans?|filter|rank|sort|order|only|just|top \d+|anything|everything|leaders|which|what)\b/
+// …but never a question, an explanation, a guide request or a chart control that happens to use the same words
+export const HIDDEN_NOT_A_SCREEN = /\b(?:where|how|what(?:'s| is| does| do| are)|explain|meaning|means|definition|defined|charts?|levels?|toggle|settings?|overlay|widget|turn (?:on|off)|enable|disable|bars)\b/
+/** W1.1 R-05: is this message a screen (or a refinement) over a universe, as far as words can tell? */
+export const hiddenScreenRequest = (lower) => HIDDEN_SCREEN_SHAPED.test(lower) && HIDDEN_SCREEN_UNIVERSE.test(lower) && !HIDDEN_NOT_A_SCREEN.test(lower)
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -536,9 +546,10 @@ async function listSavedViaGateway() {
 /** The model's screen args → the Screener's wire spec (with "refine" building on the last screen). */
 function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, within = null }, { lenient = false, host = null } = {}) {
   if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
-  // W1-C C-01: a REFINEMENT that adds a hidden UCT field gets the SC-1 §2d sentence PLUS one public alternative
-  // (scanRefine.js), checked before the catalog so the alternative is always offered on a follow-up
-  if (mode === 'refine') {
+  // W1-C C-01: a screen that names a hidden UCT field gets the SC-1 §2d sentence PLUS one public alternative
+  // (scanRefine.js), checked before the catalog so the alternative is always offered — on a refinement AND on a new
+  // screen (W1.1 R-05 / live LT-11: "show me my strongest stocks" gave the bare sentence with no alternative)
+  {
     const why = refineRefusal([...(filters || []).map(x => String(x?.field || '')), ...(sortField ? [sortField] : [])])
     if (why) return { error: why.replace(/\.$/, '') }
   }
@@ -625,6 +636,13 @@ export const screenerKind = {
 }
 
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
+/** W1.1 R-05: does the message name one of the member's saved (or UCT's starter) screens, whole words? */
+function namesSavedScreen(lower) {
+  const lib = cache.saved
+  if (!lib) return false
+  const text = ` ${norm(lower)} `
+  return [...(lib.saved || []), ...(lib.starters || [])].some(s => { const n = norm(s?.name); return n.length >= 3 && text.includes(` ${n} `) })
+}
 const FILTER_ITEM = {
   type: 'object',
   properties: {
@@ -757,6 +775,18 @@ export function registerScreenerCapabilities() {
       // "which is stronger, NVDA or AMD" are never claimed, so they never get a false refusal.
       if (/^(?:please )?(?:rank|sort|order)(?: (?:them|these|those|it|my stocks|the results|the list|this screen))? by (?:rs|rs rank|relative strength)(?: rank(?:ing)?)?$/.test(lower)) {
         return { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
+      }
+      // ⛔ W1.1 R-05 (live LT-8, 2026-11-03): a SCREEN-SHAPED request whose own words name a hidden UCT field ("now only
+      // the ones with rs rank over 90", "stocks with a uct composite over 90", "sort them by sponsorship grade") is
+      // claimed HERE, before the planner can re-map the phrase to a public look-alike (rs_rank → rs_line_trend). The
+      // claimed args carry the hidden key itself, so buildSpec refuses them with the F-16 sentence + the public
+      // alternative: 0 model calls, no scan, nothing substituted. Questions and guide requests ("what is rs rank",
+      // "where do i see the uct composite", "show dark pool levels on this chart") are not screens and stay unclaimed.
+      // (a SAVED screen named in the message — "run my Composite screen" — is screener.runSaved's, which refuses a rated
+      // saved screen by its own name; the planner / its fast path keep it)
+      const hp = hiddenPhraseIn(lower)
+      if (hp && hiddenScreenRequest(lower) && !namesSavedScreen(lower)) {
+        return { filters: [{ field: hp.key, op: 'gte', value: 0, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null }
       }
       if (!cache.meta) return null
       const m = /^(?:(?:now|and|ok|okay) )?(?:show me )?(?:only|just) (?:the ones|those|them|the stocks|the names|stocks|names)? ?(above|over|under|below) \$(\d+(?:\.\d+)?)$/.exec(lower)
