@@ -76,7 +76,7 @@ No. Python service only; no engine file touched.
   rail); the runtime shape is `_runtime_key_re()` derived from `HASH_PREFIX`, and `_key_shape_ok` admits exactly
   those two. Rail `test_the_runtime_record_key_is_the_scan_lanes_handle`. NOTE: `api/routers/definition_record.py` refuses non-ast documents by name (400) before any regex,
   so runtime records are unreachable through it (out of scope, not touched).
-- Mutations (driver committed: `mutate_r1.py`, heavy-mut.lock, log `dsk/w5t16r1-mut.log`): 16/16 killed -
+- Mutations (driver committed: `mutate_r1.py`, heavy-mut.lock, log `dsk/w5t16r1-mut.log`): 18/18 killed (r2 re-run, log `dsk/w5t16r2-mut.log`; adds runtime key shape, tree-shape-is-a-copy, tree identity dropped) -
   label-as-tf, `_service_tf` identity, pad ignored, warm-up guard/bool/upper/lower, def_hash constant,
   def_hash stripped, shape refuses namespace, column length, runtime check, withheld uncaught, lane
   record->alert, zero-evaluated written, forward-only origin off.
@@ -86,3 +86,12 @@ No. Python service only; no engine file touched.
   the failures being the declared baselines `settingsScope.rail` and `pollingSites.rail`. Log `dsk/w5t16r1-final.log`.
   (This line is the only change after the tested tree.)
 - Engine bump: no.
+
+## r2 (FIX after delta NO-GO): one authority per key shape
+`_HASH_RE` is again `user_definitions.RESULT_IDENTITY_RE` (the object; `tests/test_semantics_consumers.py:118`
+passes). The runtime shape lives once, `_runtime_key_re()`, derived from `runtime_definitions.HASH_PREFIX`;
+`_key_shape_ok` admits those two. Rails: `test_one_authority_per_key_shape`,
+`test_a_malformed_runtime_key_is_refused_by_the_shared_door`. Test files naming a changed symbol (grep of
+`tests/`): test_definition_record_runtime.py, test_runtime_server_lane.py, test_semantics_consumers.py (plus the
+existing test_definition_record.py); all four go in final-tip. The router refuses non-ast docs by name (400)
+before any regex, so runtime records are unreachable through it (out of scope).
