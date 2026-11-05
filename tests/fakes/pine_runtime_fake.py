@@ -64,6 +64,7 @@ class PineRuntimeFake:
         self.withhold: Dict[str, Tuple[str, str]] = {}
         self.refuse_output: Dict[str, Tuple[str, str]] = {}
         self.tamper: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
+        self.withheld_bars = 0
         self.calls: List[Dict[str, Any]] = []
         self.seen: set = set()
         self.urls: List[str] = []
@@ -153,6 +154,7 @@ class PineRuntimeFake:
                 plain[key] = out[key]
                 columns[key] = b64_column(out[key])
         return {"job": job["job"], "status": "ok", "columns": columns, "refusals": refusals,
+                "warmup": {"withheldBars": self.withheld_bars},
                 "digest": codec.column_digest(self.identity, plain, refusals, rows=n), "cache": "miss", "ms": 1}
 
 
