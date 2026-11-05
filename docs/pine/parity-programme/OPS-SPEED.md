@@ -5,35 +5,55 @@ Self-tests below were run on the desktop, branch `ops/pine-tooling-speed`.
 
 ## 1. measure-pair BASE CACHE (`measure-pair.sh`)
 The base side (2nd pair argument) is reused when the cache key matches. Cache: `$UCT_RESUME/mp-cache/<key>/`.
-Key = base commit SHA + side name + runtime lane + census flag + node version + sha256 of every measuring input copied in
-(audit test, probe test, the harness corpus test, `run_census.py` + `ref_rebuilt.json` + the whole pine-sample listing when
-census is on, and the reviewer test + `probes*.json` when `REV_DIR` is set). Any doubt is a miss: a dirty tracked base tree,
-an unreadable input, an incomplete entry (no `COMPLETE` marker), a moved HEAD. A miss runs as before and fills the cache
-(written to a temp dir, then renamed). A hit prints `BASE CACHE HIT <key>`, restores the files into `<outdir>`, replays the
-recorded rc lines, and skips the side. `MP_CACHE=0` disables. The tip side is never cached.
-`BASE_HEAD <sha> <time> before|after <side>` lines are printed around each side. If HEAD moved, the script prints
-`BASE_HEAD MOVED`, does not fill the cache, and exits 4 (no `MEASURE_DONE`).
-
-Self-test (pine-dsk-mpbase2 at `b8e86984`, restored/unchanged after; runtime lane 1, census off, tip and base both that
-worktree, under `heavy-mp2.lock`): see Results.
+Key = base commit SHA + side name + runtime lane + census flag + node version + sha256 of every measuring input:
+the audit test, probe test, the harness corpus test, `app/node_modules/.package-lock.json` and `vitest/package.json` (the
+installed toolchain, since node_modules is a junction into pine-base), `app/package-lock.json`, any `app/.env*`, and with
+census on `run_census.py` + `ref_rebuilt.json` + the whole pine-sample listing; with `REV_DIR` the reviewer test + `probes*.json`.
+NO KEY (a miss, nothing filled) when any of these hold, with the reason printed (`cache: no key (...)`):
+- an output-changing environment variable is set, even to an empty value (r1 B1). The list, grepped from `audit/zz*.js`,
+  `run_census.py`, `vendorHarness/*.js` and the engine's `import.meta.env` / `process.env` reads, is the regex `MP_ENV_RE` at
+  the top of the cache section: `AUDIT_C18_*` (LIMIT, ONLY, NORT, OUT), `VENDOR_*`, `VITE_*` (`VITE_PINE_MEMBER_PANE_ENABLED`,
+  `VITE_VOLUME_NUMERIC_PANE_ENABLED`, `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`), `PINE_*`, `RUNTIME_*`, `OOS_*`, `COVERAGE_*`,
+  `RT<digit>*`, `UIE_*`, `RF_*`, `F4_*`, `O1_*`, `B1_*`, `CAP3_*`, `CAPABILITY_*`, `TS_CORPUS*`, `VAR_*`, `BOOL_*`, `HISTORY_*`,
+  `EXECUTION_*`, `FORMULA_*`, `MULTI_*`, `PARAM_*`, `PERIOD_*`, `SESSION_*`, `SCREENER_*`, `P3_*`, `H1_*`, `C46_*`, `BAR_INDEX*`,
+  `NODE_OPTIONS`, `NODE_ENV`, `MODE`, `GUARD`, `REV_PROBES`, `REV_OUT`. Add more per machine with `MP_CACHE_EXTRA_ENV` (a regex).
+  `AUDIT_SRC`, `AUDIT_FILE` and `REV_DIR` are the script's own and are keyed by content instead.
+- the base tree has ANY change: tracked, staged, or untracked (the audit lists `corpus/` and `tests/fixtures/` directories), or an
+  ignored file under `corpus/`, `tests/fixtures/` or `app/src` (r1 B2).
+- an input is unreadable, an entry has no `COMPLETE`/`MANIFEST`, or its manifest does not verify (r1 B3, B4).
+A miss runs as before. The base side's old outputs are deleted first (`side_clean`), so anything present afterwards was written
+by this run. The cache is FILLED only when HEAD did not move, the tree is still clean, and every step line reported `rc=0`
+(all steps present: audit, probe, harness, plus census / six rev probes when on). The entry stores a sha256 MANIFEST of every
+file; restore verifies it (and that no unlisted file exists) before copying, else it is a miss. Written to a temp dir, then renamed.
+A hit prints `BASE CACHE HIT <key>`, restores the files, replays the recorded rc lines, and skips the side. `MP_CACHE=0` disables.
+The tip side is never cached. `BASE_HEAD <sha> <time> before|after <side>` lines are printed around each side; if HEAD moved the
+script prints `BASE_HEAD MOVED`, does not fill the cache, and exits 4. `MP_SOURCE_ONLY=1` sources the functions without running (self-tests).
 
 ## 2. final-tip.sh
-- Refuses a tree with tracked changes (prints them, exit 5, nothing written).
-- Prints and writes `TIP <sha> <time>` to `<outdir>/TIP` at the start (a stale TIP/FINAL_DONE is deleted first); writes
-  `<outdir>/FINAL_DONE` (`TIP <sha> done scope=.. shards=..`) at the end.
+- Refuses a tree with tracked changes OR untracked files (except `.uct-session-owner`; the `app/node_modules` junction is
+  gitignored): prints them, exit 5, nothing written (r1 B7).
+- Prints and writes `TIP <sha> <time>` to `<outdir>/TIP` at the start (stale TIP/FINAL_DONE deleted first).
+- Writes `<outdir>/FINAL_DONE` at the end: line 1 `TIP <sha> done`, then `scope=.. shards=.. parallel=..`,
+  `rc gate=.. hyg=.. py=.. js=..` (py is NA with no extra pytest files), `shard_rcs=..`, `totals=ok|missing|na`,
+  `jsfail=<failing test files>|none`, `integrity=ok|...` (r1 B5). Before writing it re-checks that HEAD still equals the TIP sha
+  and the tree is clean; otherwise `integrity` says what moved.
+- Exit 6 (INCOMPLETE) when a vitest run or any shard reported no `Tests` totals line (an OOM-killed shard), or integrity failed
+  (r1 B6, B7). Test failures alone still exit 0; ready-check judges them.
 - `FINAL_TIP_SCOPE=affected`: gate pytest + hygiene + extra pytest as before, then vitest `--changed <FINAL_TIP_BASE>`
   (default `merge-base HEAD origin/master`, `--passWithNoTests`) plus `FINAL_TIP_RAILS` (space-separated vitest paths
-  relative to `app/`, the lane's named rails). Default `full` is unchanged.
+  relative to `app/`). FINAL_DONE says `scope=affected`, and ready-check REFUSES it. Default `full` is unchanged.
 - `FINAL_TIP_SHARDS=N`: the full vitest runs as `--shard=i/N`, sequentially, or all at once when `FINAL_TIP_PARALLEL=1`.
-  Per-shard logs `js-shard<i>.log`, concatenated into `js.log`, and an `AGG Test Files` / `AGG Tests` line sums the counts.
-  `FINAL_TIP_WORKERS` (default 2) is `--maxWorkers` PER process, so parallel shards use N x that many workers.
-  Affected mode is NOT a substitute for the full run on the lane's final tip unless the coordinator says so.
+  Per-shard logs `js-shard<i>.log`; `AGG Test Files` / `AGG Tests` sums the counts and `AGG INCOMPLETE` is printed when a shard
+  reported none. `FINAL_TIP_WORKERS` (default 2) is `--maxWorkers` PER process, so parallel shards use N x that many workers.
 
 ## 3. ready-check.sh `<worktree> <outdir>`
 One-line verdict, exit 0 PASS / 1 FAIL. PASS needs: local branch == `origin/<branch>` (after a fetch); no tracked changes and
 no untracked files other than `.uct-session-owner`; `<outdir>/TIP` and `FINAL_DONE` present and naming the same sha; that
-sha is the last commit touching a non-docs path or a later one; it is an ancestor of HEAD; and `git diff --name-only TIP HEAD`
-lists only `docs/` paths. `<outdir>` is the final-tip dir, `$UCT_RESUME/runs/<label>`.
+sha is the last commit touching a non-docs path or a later one, an ancestor of HEAD, with only `docs/` changed since; AND the
+FINAL_DONE record shows `scope=full` (shards allowed; affected never passes), `integrity=ok`, `totals=ok`, gate and hygiene
+rc 0, py rc 0 or NA, and js rc 0 or ONLY failures in the named baseline allowlist `BASELINE_FAIL_RE`
+(`pollingSites.rail`, `settingsScope.rail` test files, by name). A js rc != 0 with no named failing file (a crash) fails.
+An old-format FINAL_DONE (no `integrity=`) fails. The PASS line carries scope, rcs and the baseline failures it tolerated.
 
 ## 4. lane_env `<lane>` (env-desktop.sh)
 Sets `RUN=$UCT_RESUME/runs/<lane>/` (created) and `LOCK_MUT LOCK_MP2 LOCK_MP3 LOCK_FINAL2 LOCK_FINAL3` =
@@ -43,6 +63,7 @@ Prints an error and returns 1 (exports nothing, creates nothing) if the lane nam
 `ram_gate` (waits until free RAM >= 6000 MB, `RAM_GATE_MB` overrides; gives up after `RAM_GATE_MAX_WAIT`, default 6 h, so it
 always ends) runs before every lock acquisition: `hl` calls it, and `lock_run <LOCKVAR> <label> -- cmd...` is the lane-lock
 equivalent (`lock_run LOCK_FINAL2 mylane-final -- bash $RUN/job.sh`). Prefer `lock_run` over raw `heavy_lock.py run`.
+`hl` now also waits for (or, after the cap, refuses below) 6000 MB free: a behaviour change for existing callers.
 Note: lane-scoped lock files do not exclude each other; "one heavy job at a time" across lanes is still on you, so keep
 using the machine lock rule in BUILDER-RULES unless the coordinator allows concurrency.
 
@@ -75,3 +96,11 @@ then `git worktree remove` without `--force` from the main worktree. The branch 
 - ready-check dogfood: this branch passes it against the opsspeed-shard TIP.
 - ram_gate / lock_run: gate passes at a low threshold, gives up (rc 1) when the wait cap is 0, and lock_run ran an echo under
   a lane lock.
+
+## Review r1 fixes: self-tests, OLD (36bc5aa) vs NEW (run through `lock_run` after `ram_gate`; scripts in `_resume-2026-11-01/dsk/opsspeed-r1/t_mp.sh`, `t_ft.sh`)
+- B1 key with `AUDIT_C18_LIMIT=20`: OLD key identical to the full run's (truncated base would be served); NEW no key. Same for `VITE_PINE_MEMBER_PANE_ENABLED`, `AUDIT_C18_NORT`.
+- B2 untracked `tests/fixtures/pine/*.pine` and an ignored `corpus/` file: OLD key unchanged; NEW no key.
+- B3 changed `app/node_modules/.package-lock.json`: OLD key unchanged; NEW different key.
+- B4 a run whose steps reported `rc=1` with stale outputs present: OLD FILLED the cache; NEW refused. A cache entry whose file was altered: OLD restored it; NEW manifest check refused it (miss). `side_clean` removes stale outputs before the side runs.
+- B5/B6 on a fake repo with a stub vitest (FINAL_DONE records, then ready-check): OLD printed `READY-CHECK PASS` for affected scope, a non-baseline js failure, a js crash with no totals, and a dead shard. NEW: affected FAIL (scope), non-baseline failure FAIL (named file), crash FAIL (totals=missing, final-tip exit 6), dead shard FAIL (exit 6, `shard_rcs=0,137`), baseline-only `pollingSites.rail` failure PASS, clean full and 2 parallel shards PASS.
+- B7 untracked file: OLD ran and wrote FINAL_DONE; NEW exit 5. HEAD moved during the run: NEW `integrity=HEAD-moved-to-..`, exit 6, ready-check FAIL. File written during the run: NEW `integrity=tree-changed-during-run`, exit 6.

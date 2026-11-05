@@ -17,9 +17,9 @@ freeram() { powershell.exe -NoProfile -Command "[int]((Get-CimInstance Win32_Ope
 # RAM gate (coordinator rule): call before acquiring ANY heavy lock. Waits until free RAM >= RAM_GATE_MB (6000);
 # gives up (return 1) after RAM_GATE_MAX_WAIT seconds (default 21600) so a wait loop always ends.
 ram_gate() {
-  local need=${RAM_GATE_MB:-6000} waited=0 max=${RAM_GATE_MAX_WAIT:-21600} r
+  local bad=0 need=${RAM_GATE_MB:-6000} waited=0 max=${RAM_GATE_MAX_WAIT:-21600} r
   while :; do
-    r=$(freeram); [ "${r:-0}" -ge "$need" ] && return 0
+    r=$(freeram); case "$r" in ''|*[!0-9]*) bad=$((bad+1)); [ "$bad" -ge 3 ] && { echo "ram_gate: freeram unreadable ('$r'), giving up" >&2; return 1; };; *) bad=0; [ "$r" -ge "$need" ] && return 0;; esac
     [ "$waited" -ge "$max" ] && { echo "ram_gate: still ${r} MB < $need after ${waited}s, giving up" >&2; return 1; }
     echo "ram_gate: free ${r} MB < $need, waiting 120 s"; sleep 120; waited=$((waited+120))
   done

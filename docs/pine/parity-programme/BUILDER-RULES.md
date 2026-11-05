@@ -71,7 +71,7 @@ script. Full rules: AGENT-RULES.md (this folder). Its absolute paths are the des
 
 ## Ops rules (OPS-SPEED.md has the tools and self-tests)
 - (a) `final-tip.sh` is the LAST step, after the last non-docs commit, on a clean tree. Then push and run
-  `scripts/ready-check.sh <wt> $UCT_RESUME/runs/<label>`; it must print `READY-CHECK PASS`. Only docs may change after TIP.
+  `scripts/ready-check.sh <wt> $UCT_RESUME/runs/<label>`; it must print `READY-CHECK PASS` (which needs a FULL-scope run with every rc 0 except the named baseline failures). Only docs may change after TIP.
 - (b) Job scripts live under `$RUN` (`lane_env <lane>` creates `$UCT_RESUME/runs/<lane>/`), never in a shared scratchpad
   or `/tmp`: another lane's file of the same name gets run instead of yours.
 - (c) Never run pytest, or `--collect-only`, over the whole `tests/` tree. Name the files.
