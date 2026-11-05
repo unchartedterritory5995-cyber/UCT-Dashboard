@@ -300,9 +300,9 @@ export default function JournalLayout() {
               aria-controls="journal-header-tools"
               data-journal-tools-toggle=""
             >
-              {/* Tier 2 (production check of Tier 1b, 390 px): folded, the toggle is a ⋯ at the end of the section
+              {/* Tier 2 (production check of Tier 1b, 390 px): folded, the toggle is a tools icon at the end of the section
                   strip (no row of its own); its words stay its name. Open, it reads "Journal tools" as before. */}
-              <UIcon name="more" size={16} gold={false} aria-hidden="true" className={styles.toolsIcon} />
+              <UIcon name="wrench" size={16} gold={false} aria-hidden="true" className={styles.toolsIcon} />
               <span className={styles.toolsLabel}>Journal tools</span>
               <UIcon name={toolsOpen ? 'chevronUp' : 'chevronDown'} size={14} gold={false} aria-hidden="true"
                 className={styles.toolsChevron} />

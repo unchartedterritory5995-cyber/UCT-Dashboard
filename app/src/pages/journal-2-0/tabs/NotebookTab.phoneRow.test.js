@@ -21,6 +21,9 @@ describe('the phone filter row holds the ⋯', () => {
 
   it('on a phone only, the row\'s labelled buttons give up side padding', () => {
     expect(phone).toMatch(/\.toolbar \.toolBtn, \.toolbar \.phoneFolders \{ padding-inline: 10px; \}/)
+    // measured at 390 px (the Tier 2 local-build check): with a 6 px gap the ⋯ still wrapped by 2 px
+    expect(phone).toMatch(/\.toolbar \{ flex-wrap: wrap; gap: 4px;/)
+    expect(phone).toMatch(/\.main:not\(\.mainNote\) \{ padding-top: 8px; \}/)
     const outside = css.replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
     expect(outside).not.toMatch(/\.toolbar \.toolBtn, \.toolbar \.phoneFolders/)
   })

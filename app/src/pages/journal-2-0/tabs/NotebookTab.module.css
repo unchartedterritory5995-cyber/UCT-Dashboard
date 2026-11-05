@@ -390,6 +390,8 @@
   /* S12 (V4, issue 14): 96 px clears the ONE floating "+" (56 px at bottom 16 px); the Log-Trade FAB never rendered
      on the Notebook and the orb gives way to the "+" here, so the old 150 px only cost the list a screen's end. */
   .main { overflow: visible; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); padding-left: 0; padding-right: 0; }
+  /* Tier 2 (390 px production check): 8 px above a list's filter row, not 16 (an open note keeps its 0). */
+  .main:not(.mainNote) { padding-top: 8px; }
   /* Phones stack the panel above the notes when it IS shown — the slide/resize
    * affordances stay desktop-only either way. D-7 fix: it is no longer forced
    * open regardless of `collapsed` — List's own landing still shows it (its
@@ -419,7 +421,7 @@
   /* Fix round 1 (review Important 7): the row WRAPS. With only Folders, View, sort and ⋯ it is one line; a folder
      plus a filter (its chip and Clear filter) takes a second line instead of clipping or panning the page sideways.
      Rail: NotebookTab.toolbarFits.test.js. */
-  .toolbar { flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .toolbar { flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
   .toolbar > * { max-width: 100%; }
   .phoneFolders { display: inline-flex; }
   .wrap[data-list-toolbar] > .sidebarToggle { display: none; }
