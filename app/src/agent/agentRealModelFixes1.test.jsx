@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, ONE, TWO } from './testing/panelHarness'
+import { buildContext } from './capabilities'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -33,6 +34,9 @@ function withHideAll(h, { land = true } = {}) {
   return { hidden, calls }
 }
 const planIs = (action, target, args) => p.env('apply', [{ action, target, args }])
+const lists = () => [{ id: 'm1', name: 'Momentum', symbols: ['NVDA'] }]
+/** The context entry of this kind the panel really sent, as the model reads it. */
+const refOfKind = (h, kind) => Object.entries(buildContext(h, { surface: 'charts', message: '' }).refMap).find(([, v]) => v.kind === kind)?.[0]
 async function withRsi(say, chart = 'c') {
   p.select(chart)
   await say('add rsi')
@@ -149,5 +153,51 @@ describe('defect 1: a chart under hide-all is not "already shown"', () => {
     const text = await say('bring them back')
     expect(text).not.toMatch(/Brought back/)
     expect(text).toMatch(/did not confirm/)
+  }, 40000)
+})
+
+describe('defect 2: an action with one possible target has nothing to choose', () => {
+  const half = () => [[{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'N', opts: {} }], { 'N:c': 'AAPL' }]
+  const types = (board) => board.state.widgets.map(w => w.type)
+  it.each(['watchlistLibrary', 'watchlist', 'board', 'chart'])('widget.add aimed at the %s entry adds the widget', async (kind) => {
+    const { say, h, board } = p.mount(...half(), { watchlists: lists() })
+    const ref = refOfKind(h, kind)
+    expect(ref, kind).toBeTruthy()
+    p.st.envelopes.push(planIs('widget.add', ref, { type: 'watchlist', as: null }))
+    const text = await say('add a watchlist widget to the board')
+    expect(text).not.toMatch(/not on the workspace/)
+    expect(types(board)).toEqual(['chart', 'watchlist'])
+  }, 40000)
+  it('the news add, aimed right, is unchanged', async () => {
+    const { say, h, board } = p.mount(...half())
+    p.st.envelopes.push(planIs('widget.add', refOfKind(h, 'workspace'), { type: 'news', as: null }))
+    await say('add the news widget')
+    expect(types(board)).toEqual(['chart', 'news'])
+  }, 40000)
+  it('a step on the new widget that the request cannot do leaves the add standing, and says so', async () => {
+    const { say, h, board } = p.mount(...half(), { watchlists: lists() })
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'watchlist', as: 'new1' } },
+      { action: 'widget.showList', target: 'new1', args: { widget: 'new1', list: 'm1' } },
+    ]))
+    const text = await say('open a watchlist next to the charts')
+    expect(types(board)).toEqual(['chart', 'watchlist'])
+    expect(text).toMatch(/can’t set it up in the request that adds it/)
+    expect(text).not.toMatch(/not on the workspace/)
+  }, 40000)
+  it('NEGATIVE: an action on a chart is not re-aimed: a chart is one of several', async () => {
+    const { say, h, board } = p.mount(...TWO('AAPL', 'NVDA'))
+    p.st.envelopes.push(planIs('chart.setTimeframe', refOfKind(h, 'workspace'), { timeframe: 'W' }))
+    expect(await say('make it weekly')).toMatch(/not on the workspace|Which/)
+    expect(board.state.widgets.every(w => !w.opts?.tf || w.opts.tf === 'D')).toBe(true)
+  }, 40000)
+  it('NEGATIVE: a chart that is configurable keeps its follow-up step', async () => {
+    const { say, h, board } = p.mount(...half())
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'TSLA' } },
+    ]))
+    expect(await say('add a chart of tsla')).not.toMatch(/can’t set it up/)
+    expect(board.state.widgets.length).toBe(2)
   }, 40000)
 })

@@ -123,7 +123,12 @@ export function translateRefs(ops, refMap) {
   const isAlias = (v, kinds) => typeof v === 'string' && aliasKind[v] != null && (!kinds || [].concat(kinds).includes(aliasKind[v]))
   return (ops || []).map((o) => {
     const cap = getCapability(o?.action)
-    const target = isAlias(o?.target, cap?.target) ? o.target : (refMap[o?.target]?.ref || o?.target)
+    // ⛔ REAL-MODEL VERIFICATION 2026-11-05: "add a watchlist widget" aimed widget.add at a watchlist's own context entry and was
+    // refused "That target is not on the workspace". An action with one possible target has nothing to choose: whichever
+    // context entry the model named, it means that one (`onlyRef`: the workspace, the board).
+    const hit = refMap[o?.target]
+    const only = hit && hit.kind !== cap?.target ? getTargetKind(cap?.target)?.onlyRef : null
+    const target = isAlias(o?.target, cap?.target) ? o.target : (only || hit?.ref || o?.target)
     const out = { ...o, target, args: argRefsBack(o, refMap, isAlias) }
     const c = cap?.creates?.(o?.args || {})
     if (c?.alias) aliasKind[c.alias] = c.kind

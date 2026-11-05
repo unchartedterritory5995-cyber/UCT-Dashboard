@@ -141,6 +141,7 @@ export const widgetUnboundedFields = (type) => optionCandidates(type).filter(f =
 
 export const boardKind = {
   name: 'board',
+  onlyRef: 'board',              // one per board: an action on it has nothing to choose (useAgent translateRefs)
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
   stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null }),

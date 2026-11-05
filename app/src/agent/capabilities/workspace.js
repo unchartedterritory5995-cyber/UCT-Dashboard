@@ -147,6 +147,7 @@ const createdIds = (item) => {
 
 export const workspaceKind = {
   name: 'workspace',
+  onlyRef: 'workspace',          // one per board: an action on it has nothing to choose (useAgent translateRefs)
   list: (host) => (host?.widgets ? [host.widgets.snapshot()] : []),
   read: (host, ref) => (host?.widgets && ref === 'workspace' ? host.widgets.snapshot() : null),
   stateOf: (snap) => ({ creates: [], ids: snap.widgets.map(w => w.id) }),
