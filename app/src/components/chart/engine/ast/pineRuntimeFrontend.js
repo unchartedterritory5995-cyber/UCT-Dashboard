@@ -1803,13 +1803,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const ty = slotTy(slot)
     return isCollectionTy(ty) && !doorHidesDeclared(ty)
   }
-  /** The element kind of a collection slot (`'text'`, `'colour'`, `'udt'`), or null. */
+  /** The element kind of a collection slot (`'text'`, `'colour'`, …), or null.
+   *  ⛔ At the door a declared-only collection's element kind is hidden too
+   *  (master read text / colour elements off the initialiser). */
   const slotElemKind = (slot) => {
     const ty = slotTy(slot)
     const e = elemTy(ty)
-    if (!e || (doorHidesDeclared(ty) && e.kind !== 'udt')) return null
-    return e.kind
+    return e && !doorHidesDeclared(ty) ? e.kind : null
   }
+  /** The user type of a collection slot's elements, or null. ⭐ NOT hidden at the
+   *  door: master read a record element off the annotation (`array<Foo>`). */
   const slotElemUdt = (slot) => elemUdtOf(slotTy(slot)) || null
   const slotUdt = (slot) => udtNameOf(slotTy(slot)) || null
 
