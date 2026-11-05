@@ -8,7 +8,7 @@ import {
   checklistEnabled, recordedDone, withDone, closedAs, CHECKLIST_MAX_ITEMS, countedItems,
 } from './gettingStarted'
 import { TOUR_REGISTRY, BASE_TOUR_ID, replayableTours } from './tourRegistry'
-import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
+import { WALKTHROUGH_TITLE, LEGACY_WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
 import { extractPlainText } from '../../../lib/tiptap'
 
@@ -104,6 +104,9 @@ describe('own notes exclude the sample', () => {
 describe('a template note is recognised by the walkthrough every template ends with', () => {
   it('reads the walkthrough title off the note body', () => {
     expect(isTemplateNote(note('a', { bodyPlain: `Thesis\n${WALKTHROUGH_TITLE}\n1. Do this` }))).toBe(true)
+    // S7 fix round 2: a note made before the walkthrough was renamed carries the old title, and still counts.
+    expect(isTemplateNote(note('l', { bodyPlain: `Thesis\n${LEGACY_WALKTHROUGH_TITLE}\n1. Do this` }))).toBe(true)
+    expect(WALKTHROUGH_TITLE).not.toMatch(/use this template/i)
     expect(isTemplateNote(note('b', { bodyPlain: 'my own words' }))).toBe(false)
     expect(isTemplateNote(note('c', { bodyPlain: undefined }))).toBe(false)
   })

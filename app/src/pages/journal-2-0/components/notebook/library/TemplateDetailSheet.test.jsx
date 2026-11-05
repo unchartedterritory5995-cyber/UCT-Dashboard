@@ -184,11 +184,13 @@ describe('the template detail', () => {
     expect(calls.some((c) => /routine|tracker|tick/i.test(c.path))).toBe(false)
   })
 
-  it('use_opens_adopt_sheet (the template kind, with no title or author: the credit is the server\'s)', async () => {
+  // S9 (audit 2026-11-05): Use makes the note at once; the adoption sheet opens from Use only when a choice needs the
+  // member (this PREVIEW's setup has no suggestion and no Any), and then with the template's name for the note's title.
+  it('use_opens_adopt_sheet only when a choice needs the member (the template kind; the credit is the server\'s)', async () => {
     const { onClose, navigate } = await open()
     await userEvent.setup().click(screen.getByRole('button', { name: USE_TEMPLATE_LABEL }))
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
-    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: 'g-open', kind: 'template', navigate })
+    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: 'g-open', kind: 'template', navigate, name: 'Pre-market prep' })
     expect(onClose).toHaveBeenCalledTimes(1)
     // Opening the adoption sheet is not a write from here.
     expect(calls.filter((c) => c.method === 'POST' && !c.path.endsWith('/preview-mine'))).toEqual([])
@@ -208,7 +210,38 @@ describe('the template detail', () => {
     expect(within(tool).queryByText(bindWords('week'))).toBeNull()
   })
 
-  it('"Use this template" waits while the picker is making a note (busy)', async () => {
+  it('S9: with every choice answered, Use makes the note in one press, titled, and closes (no second sheet)', async () => {
+    const answered = { ...PREVIEW, slots: [{ ...PREVIEW.slots[0], value: 'Flag' }] }
+    installServer({ preview: answered })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      if (!String(url).endsWith('/use-template')) return realFetch(url, init)
+      calls.push({ path: new URL(String(url), 'http://x').pathname, method: 'POST', body: JSON.parse(init.body) })
+      return { ok: true, status: 200, json: async () => ({ note: { id: 'n-1' } }) }
+    })
+    const landNote = vi.fn()
+    const { onClose } = await open({ landNote })
+    await userEvent.setup().click(screen.getByRole('button', { name: USE_TEMPLATE_LABEL }))
+    await waitFor(() => expect(landNote).toHaveBeenCalledWith({ id: 'n-1' }))
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+    const uses = calls.filter((c) => c.path.endsWith('/use-template'))
+    expect(uses).toHaveLength(1)
+    expect(uses[0].body.title).toMatch(/^Pre-market prep · [A-Z][a-z]{2}, [A-Z][a-z]{2} \d{1,2}$/)
+    expect(uses[0].body.answers).toEqual({ p1: 'Flag' })
+  })
+
+  it('S9: "Customize first" opens the adoption sheet with every choice, and writes nothing', async () => {
+    const { onClose, navigate } = await open()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Customize first' }))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: 'g-open', kind: 'template', navigate, name: 'Pre-market prep' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(calls.filter((c) => c.method === 'POST' && !c.path.endsWith('/preview-mine'))).toEqual([])
+  })
+
+  // S7: "Use this template" is "Use".
+  it('"Use" waits while the picker is making a note (busy)', async () => {
     render(<TemplateDetailSheet item={ITEM} onClose={() => {}} busy />)
     await screen.findByText('Win rate by setup')
     const use = screen.getByRole('button', { name: USE_TEMPLATE_LABEL })

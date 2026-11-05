@@ -7,7 +7,6 @@ import { passageNavigationState } from '../lib/openCitation'
 import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
-import NotesTableView from '../components/notebook/NotesTableView'
 import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -144,6 +143,8 @@ const TemplatePicker = lazyView(() => import('../components/notebook/TemplatePic
 // its status read lands, so it loads after first paint with nothing in its place (`null` fallback).
 const NoteConnectorsTrustStrip = lazyView(() => import('../components/connectors/NoteConnectorsTrustStrip'), 'connected apps status', null)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+// Tier 1a bytes (perf-budgets.md): the table view mode, fetched on its first use like every other view mode.
+const NotesTableView = lazyView(() => import('../components/notebook/NotesTableView'), 'table')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
 const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
@@ -478,7 +479,7 @@ export default function NotebookTab() {
   const { propertyDefs, error: propertyDefsError, refresh: refreshPropertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
-  // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
+  // false | true | 'kinds' (Notebook P1: "From a template" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked,
@@ -1819,6 +1820,12 @@ export default function NotebookTab() {
     }
     landCreatedNote(created, { fresh: true, ...openOptions })
   }
+  // S9 (audit 2026-11-05): a Template library Use names the note itself ("{Template} · {Ddd, Mon D}"), so the caret goes
+  // to the note's first field, never the title it already has.
+  // Fix round 1 (review finding 10): only a note the Use NAMED skips the title; an untitled one (a members' gallery
+  // template made without a name) opens in its title, as every picked note did before.
+  const landTemplateNote = (created) => landPickedNote(created,
+    typeof created?.title === 'string' && created.title.trim() ? { to: 'field' } : {})
   const landCreatedNote = (created, openOptions) => {
     globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
     // Instant: put it in the tree now, then reconcile from the server.
@@ -2720,7 +2727,8 @@ export default function NotebookTab() {
             {stylesOn && (
               <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
                 <UIcon name="sliders" size={16} gold={false} />
-                <span className={styles.actionLabel}>Styles</span>
+                {/* S7 (one vocabulary): the journal styles manager is where a member manages templates. */}
+                <span className={styles.actionLabel}>Manage templates</span>
               </button>
             )}
             {toolsOn && (
@@ -2885,7 +2893,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landPickedNote} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (
@@ -3090,7 +3098,7 @@ export default function NotebookTab() {
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
               mount above (the picker at the empty-notebook branch) must never steal focus from a
               page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landPickedNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
         </Sheet>
 
         {voiceNote && voiceOn && (

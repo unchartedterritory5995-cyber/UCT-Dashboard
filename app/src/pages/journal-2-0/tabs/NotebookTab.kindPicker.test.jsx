@@ -73,7 +73,7 @@ const renderTab = () => render(
 )
 
 describe('New note: pick a kind (Notebook P1)', () => {
-  it('the Home New-note menu gets a "From a style" door only while the switch is on', async () => {
+  it('the Home New-note menu gets a "From a template" door only while the switch is on', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     const { unmount } = render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('research-home')
@@ -102,7 +102,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
-    const [another] = await screen.findAllByLabelText('Choose another style for Trade plan', {}, T)
+    const [another] = await screen.findAllByLabelText('Choose another template for Trade plan', {}, T)
     fireEvent.click(another)
     fireEvent.click(screen.getAllByRole('button', { name: 'Use My plan' })[0])
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
@@ -134,7 +134,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
       .toContain("Couldn't create that note. Nothing was saved."))
   })
 
-  it('From a style opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
+  it('From a template opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('research-home')
@@ -160,7 +160,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
     await screen.findAllByRole('region', { name: 'Your templates' })
-    expect(screen.queryByRole('group', { name: 'Start from a kind of note' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Start from a template' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'New Trade plan' })).toBeNull()
     expect(screen.queryByText(/journal styles/i)).toBeNull()   // not even the picker's failure line
     expect(urls).not.toContain('/api/j2/journal-styles')

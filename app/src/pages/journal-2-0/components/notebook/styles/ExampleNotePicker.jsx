@@ -11,8 +11,8 @@ import { libraryError } from './styleErrors'
 import styles from './ExampleNote.module.css'
 
 export const PICKER_TITLE = 'Pick a note for your example'
-const NO_KIND_SENTENCE = "This style has no kind of note, so it can't have an example."
-const KIND_FAILED = "Couldn't read this style's kind of note. Try again."
+const NO_KIND_SENTENCE = "This template has no note type, so it can't have an example."
+const KIND_FAILED = "Couldn't read this template's note type. Try again."
 const NOTES_FAILED = "Couldn't load your notes. Try again."
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -55,7 +55,7 @@ export default function ExampleNotePicker({ styleItemId, onPick, onClose }) {
         </div>
       )}>
       <div className={styles.picker}>
-        <p className={styles.hint} id={`${uid}-what`}>Your notes of this style's kind, newest first.</p>
+        <p className={styles.hint} id={`${uid}-what`}>Your notes of this template's type, newest first.</p>
         <input type="search" className={styles.search} value={query} onChange={(e) => setQuery(e.target.value)}
           aria-label="Search your notes" aria-describedby={`${uid}-what`} placeholder="Search your notes…" />
         {kind.phase === 'none' && <p className={styles.error} role="alert">{NO_KIND_SENTENCE}</p>}

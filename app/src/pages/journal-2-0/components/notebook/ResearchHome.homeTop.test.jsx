@@ -186,15 +186,15 @@ describe('P0.1: the Home header carries a New note door', () => {
     expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim()))
       .toEqual(['From an outline', 'Voice note', "Today's note"])
   })
-  it('Notebook P1: "From a style" is listed only when NotebookTab passes onFromStyle, and runs it', () => {
+  it('Notebook P1: "From a template" is listed only when NotebookTab passes onFromStyle, and runs it', () => {
     const onFromStyle = vi.fn()
     const { unmount } = renderHome({ hasAnyNotes: true, onCreateNote: vi.fn(), onOpenNewNoteSheet: vi.fn() })
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    expect(screen.queryByRole('menuitem', { name: /From a style/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /From a template/ })).toBeNull()
     unmount()
     renderHome({ hasAnyNotes: true, onCreateNote: vi.fn(), onOpenNewNoteSheet: vi.fn(), onFromStyle })
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /From a style/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /From a template/ }))
     expect(onFromStyle).toHaveBeenCalledTimes(1)
   })
 })

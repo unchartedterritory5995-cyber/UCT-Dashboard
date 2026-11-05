@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 // Wave 11 Task 11.15: the share preview. Every assertion reads what the member SEES (text, roles, names, values) or
 // what the server is SENT (path, body), never component state. `fetch` is a fake gallery server whose answers have
 // the shape of `template_gallery.share_preview` over `widget_engine/share.py`: {travels, slots, kept, notShared,
@@ -656,10 +657,10 @@ describe('the doors', () => {
     unmount()
     waves.eleven = false
     render(<ShareStyleForm style={tpl} onClose={() => {}} onShared={() => {}} />)
-    expect(await screen.findByText('Share My prep to community')).toBeTruthy()
+    expect(await screen.findByText('Share My prep to the Template library')).toBeTruthy()
     cleanup()
     waves.eleven = true
     render(<ShareStyleForm style={{ id: 's2', name: 'Plain', blocks: [{ block: 'marketcontext' }] }} onClose={() => {}} onShared={() => {}} />)
-    expect(await screen.findByText('Share Plain to community')).toBeTruthy()
+    expect(await screen.findByText('Share Plain to the Template library')).toBeTruthy()
   })
 })

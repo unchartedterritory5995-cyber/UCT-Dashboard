@@ -48,7 +48,7 @@ import {
   recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq, connectNotebookDb,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
+import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
@@ -93,7 +93,6 @@ import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
-import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
 import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
@@ -101,6 +100,7 @@ import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
 import TickerSuggestion from './TickerSuggestion'
 import { noteDocumentTitle } from '../../../../surfaces/pageTitle.js'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
+import { firstFieldPos } from '../../lib/firstFieldPos'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
@@ -188,6 +188,9 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Tier 1a bytes (perf-budgets.md): version history (and the AI change-set history and aiActions it pulls in) is fetched
+// on its FIRST open from More, then stays mounted so its own close and focus return run exactly as before.
+const NoteHistoryPanel = lazyChunk(() => import('./NoteHistoryPanel'))
 // Notebook P2 Tier 2 part A, item 8: the "Set alert" chip for a sentence like "alert me if NVDA closes below
 // 120". LAZY, and mounted only while the smart-chips switch is on (an off switch never fetches it). Its mount
 // is also what switches the alert plugin on (lib/alertPhraseOffer.js: HOSTED ONLY).
@@ -1051,6 +1054,10 @@ export default function NoteEditorPage({
   const [findWithReplace, setFindWithReplace] = useState(false)
   // The visible Find door (the header button, and on a phone the More panel's item).
   const openFind = () => setFindOpen(true)
+  // S10 (M4): the save indicator is mounted empty, then filled (a live region that arrives holding words is often
+  // not read).
+  const [indicatorOn, setIndicatorOn] = useState(false)
+  useEffect(() => { setIndicatorOn(true) }, [])
   // The More panel's "Move to folder" select on a phone (its label's target).
   const moveFolderId = useId()
   const onPageKeyDown = (e) => {
@@ -1110,6 +1117,34 @@ export default function NoteEditorPage({
   const detailsRegionId = useId()
   const subtitleId = useId()
   const [subtitleFocused, setSubtitleFocused] = useState(false)
+  const subtitleInputRef = useRef(null)
+  // Audit 2026-11-05, spec S10 (M4, detail #21): the title keys Notion users expect. Enter moves the caret to the start
+  // of the body; Shift+Enter to the subtitle (shown for the visit, like focusing it does). An input never takes a
+  // newline, so nothing is typed into the title either way. ⛔ Never while an IME is composing (Enter commits it).
+  const focusBodyStart = () => {
+    const ed = editorRef.current
+    if (ed && !ed.isDestroyed) ed.commands.focus('start')
+  }
+  // Fix round 1 (review finding 6): Safari sends the Enter that COMMITS an IME conversion with isComposing false and
+  // keyCode 229; that Enter belongs to the IME, never to this handler.
+  const imeEnter = (e) => Boolean(e.nativeEvent?.isComposing) || e.keyCode === 229 || e.nativeEvent?.keyCode === 229
+  const onTitleKeyDown = (e) => {
+    if (e.key !== 'Enter' || imeEnter(e) || e.altKey || e.ctrlKey || e.metaKey) return
+    e.preventDefault()
+    if (e.shiftKey) {
+      setSubtitleFocused(true)
+      // Unhidden on this render; focused once it is in the layout.
+      requestAnimationFrame(() => subtitleInputRef.current?.focus())
+      return
+    }
+    focusBodyStart()
+  }
+  // Enter in the subtitle goes on to the body as well.
+  const onSubtitleKeyDown = (e) => {
+    if (e.key !== 'Enter' || imeEnter(e) || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+    e.preventDefault()
+    focusBodyStart()
+  }
   const onToggleFavorite = async () => {
     if (favoriteBusy) return
     const next = !isFavorite
@@ -1130,6 +1165,9 @@ export default function NoteEditorPage({
 
   // Wave C: version history / trust panel.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Tier 1a bytes: the history chunk mounts on the first open and stays (a closed Sheet renders nothing either way).
+  const [historyEverOpen, setHistoryEverOpen] = useState(false)
+  if (historyOpen && !historyEverOpen) setHistoryEverOpen(true)
   // Notebook P1: how many times /style was pressed in THIS editor. The style host is fetched on demand: a styled
   // note (the banner check) or the first /style; it answers the count itself once it is there.
   const [styleAsk, setStyleAsk] = useState(false)   // false, then the number of presses
@@ -1210,7 +1248,9 @@ export default function NoteEditorPage({
   // header button is not displayed on a phone). Both doors call `toggleOutline`.
   const outlineOpenerRef = useRef(null)
   const toggleOutline = (opener) => {
+    // S10: the header's Outline button moved into More; the More door (always on screen) is the fallback.
     outlineOpenerRef.current = opener || outlineToggleRef.current
+      || pageRef.current?.querySelector('[data-note-header] [data-more-trigger]') || null
     setPaletteOpen(false)
     setOutlineOpen((o) => !o)
   }
@@ -1255,7 +1295,7 @@ export default function NoteEditorPage({
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!openFocus || openFocus === 'body' || openFocus === 'collapsed' || openFocusDoneRef.current) return
+    if (!openFocus || openFocus === 'body' || openFocus === 'field' || openFocus === 'collapsed' || openFocusDoneRef.current) return
     // Lane KEYS3 (Q2): 'ticker' is a fresh note from a template that asks for one. A note
     // with no Ticker field on screen falls back to the title, as before.
     const target = openFocus === 'ticker' ? (tickerInputRef.current || titleInputRef.current)
@@ -3263,7 +3303,9 @@ export default function NoteEditorPage({
   // one-shot and nothing throws. The title/landmark effect above is
   // untouched.
   useLayoutEffect(() => {
-    if (openFocus !== 'body' || openFocusDoneRef.current) return
+    // S9 (audit 2026-11-05): 'field' is a note a template's Use just made and named: the caret goes to its first
+    // field (lib/firstFieldPos.js), or to the end like 'body' when it has none.
+    if ((openFocus !== 'body' && openFocus !== 'field') || openFocusDoneRef.current) return
     if (!editor || editor.isDestroyed) return
     let cancelled = false
     let rafId = null
@@ -3276,7 +3318,8 @@ export default function NoteEditorPage({
       const dom = editor.view && editor.view.dom
       if (dom && dom.isConnected && editor.isEditable) {
         openFocusDoneRef.current = true
-        editor.commands.focus('end')
+        const at = openFocus === 'field' ? firstFieldPos(editor.state.doc) : null
+        editor.commands.focus(at ?? 'end')
         onOpenFocused?.()
         return
       }
@@ -4924,7 +4967,9 @@ export default function NoteEditorPage({
   // -- so there is no second implementation of any of them. Ask, Writing help and Outline open
   // their own sheets (the panel stays open behind them, like Delete's question, and focus comes
   // back to the item); Find puts the member back on the note, so it closes the panel.
-  const phoneTools = ({ close }) => (
+  // S10 (M4): Ask stays a phone-only item (the header's AI group holds it elsewhere); Find and Outline are lead items on
+  // every width (`moreLead`), and the folder sits under the title.
+  const phoneTools = () => (
     <div className={styles.phoneTools}>
       <button
         type="button"
@@ -4935,42 +4980,55 @@ export default function NoteEditorPage({
         <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
         Ask about this note
       </button>
+    </div>
+  )
+  const moreLead = ({ close, trigger }) => (
+    <div className={styles.phoneTools}>
       {!isCanvas && (
         <button
           type="button"
           className={styles.chromeBtn}
           onClick={() => { openFind(); close() }}
           aria-label="Find in note"
+          title="Find in this note"
         >
           <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Find in note
         </button>
       )}
       {editor && (
+        // The outline closes back to the More door, which stays on screen (this item hides with the panel).
         <button
           type="button"
           className={`${styles.chromeBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
-          onClick={(e) => toggleOutline(e.currentTarget)}
+          onClick={() => { toggleOutline(trigger); close() }}
           aria-expanded={outlineOpen}
           aria-label="Outline"
+          title="Outline — every heading in this note"
         >
           <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Outline
         </button>
       )}
-      <label className={styles.phoneFolder} htmlFor={moveFolderId}>Move to folder</label>
+    </div>
+  )
+  // S10 (M4): the folder, a small select on the line under the title (it was a header control).
+  const folderLead = (
+    <>
       <select
-        id={moveFolderId}
-        className={styles.headerSelect}
+        className={styles.folderInline}
         value={note.folderId || ''}
         onChange={(e) => onFolderChange(e.target.value)}
+        aria-label="Folder"
+        data-note-folder=""
       >
         <option value="">Unfiled</option>
         {folders.map((f) => (
           <option key={f.id} value={f.id}>{f.name}</option>
         ))}
       </select>
-    </div>
+      <NoteLinkedTradeChips noteId={noteId} />
+    </>
   )
 
   return (
@@ -5069,7 +5127,7 @@ export default function NoteEditorPage({
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {blockedLabel(durable.persisted)}
           </div>
-        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        ) : durable.unsynced && !isOffline && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {unsyncedLabel(durable.persisted)}
@@ -5096,7 +5154,9 @@ export default function NoteEditorPage({
             its own. Auto-clears the instant `online` fires -- no dismiss
             state to manage for something that already un-shows itself.
             Competitive audit finding Accessibility QW-5, 2026-09-22. */}
-        {isOffline && (
+        {/* Fix round 1 (S10 review finding 5): with unsent words kept here, the save indicator is the one offline
+            message ("Offline, kept on this device"); this banner speaks only when there is nothing unsent. */}
+        {isOffline && !durable.unsynced && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {OFFLINE_VIEWING_BANNER}
@@ -5119,10 +5179,23 @@ export default function NoteEditorPage({
               : `Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
           </div>
         )}
+        {/* Audit 2026-11-05, spec S10 (M4): "Saved", "Saving…" or "Offline, kept on this device", always visible,
+            read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
+            one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
+            announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}
+        <span className={styles.savedIndicator} role="status" aria-live="polite" data-save-indicator="">
+          {indicatorOn ? saveIndicatorWords({
+            status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
+            offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
+          }) : ''}
+        </span>
+        {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to
+            Trash are in ⋯; the folder and the linked trades are on the line under the title. */}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
           <button
             type="button"
             className={styles.chromeBtn}
+            data-header-control="favorite"
             onClick={onToggleFavorite}
             disabled={favoriteBusy}
             aria-pressed={isFavorite}
@@ -5131,7 +5204,8 @@ export default function NoteEditorPage({
           >
             <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
           </button>
-          <NoteLinkedTradeChips noteId={noteId} />
+          {/* S10 (M4): the AI control -- Ask and Writing help, one group. */}
+          <div className={styles.aiGroup} role="group" aria-label="AI" data-header-control="ai">
           {/* Notebook phone pass (2026-10-10): `.askSlot` lays out as if it were not there; on a
               phone it hides ONLY the toggle (the panel is a Sheet there and must still open,
               from More's "Ask about this note"). */}
@@ -5148,53 +5222,6 @@ export default function NoteEditorPage({
             onClose={focusAskToggle}
           />
           </div>
-          {/*
-            ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
-            (grepped the whole file for setFindOpen(true): one call site, the
-            keydown handler). History, two buttons over, has always had a
-            labeled button in this same row. Competitive audit finding UX #5,
-            2026-09-22. NoteFindBar's own Escape/Enter handling is untouched
-            by this -- purely a missing entry point, not new find logic.
-          */}
-          {/* Notebook phone pass (2026-10-10): `.phoneInMore` -- not displayed on a phone, where
-              the same action is the More panel's "Find in note" (`phoneTools` below). */}
-          {!isCanvas && (
-            <button
-              type="button"
-              className={`${styles.chromeBtn} ${styles.phoneInMore}`}
-              onClick={openFind}
-              title="Find in this note"
-              aria-label="Find in note"
-            >
-              <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              Find
-            </button>
-          )}
-          <NoteShareControls noteId={noteId} noteTitle={title} onMessage={setChromeMsg} />
-          {/* Wave 8 (8A): the header's select and inputs carry names -- a
-              placeholder vanishes once there is a value, and a select has none. */}
-          <select
-            className={`${styles.headerSelect} ${styles.phoneInMore}`}
-            value={note.folderId || ''}
-            onChange={(e) => onFolderChange(e.target.value)}
-            aria-label="Folder"
-          >
-            <option value="">Unfiled</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-          {/* Notebook UX pass (2026-10-10): the Ticker field moved out of this row into the
-              note's details, beside the properties it derives (Sector, Industry, Theme). It
-              was also mirrored there as a read-only "Ticker" property, so the ticker showed
-              twice; now there is ONE control, the same input on the same door. */}
-          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
-          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
-          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
-          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
-          {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
-              so the formatting row fits ONE line at 1200 px. Both keep their names, their
-              `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
           {/* Phone pass follow-up (2026-10-10): Writing help STAYS in the phone row, as an icon
               (`.phoneIconLabel` hides the word, the aria-label keeps the name). Moving it into More
               left its walkthrough pointing at nothing: the Writing help tour opens on this button. */}
@@ -5212,23 +5239,37 @@ export default function NoteEditorPage({
               <span className={styles.phoneIconLabel}>Writing help</span>
             </button>
           )}
-          {/* Wave 5: the note's outline (every heading, click to jump) -- a
-              panel beside the note on desktop, a sheet on touch. It shares
-              the palette's corner, so opening one closes the other. */}
-          {editor && (
-            <button
-              ref={outlineToggleRef}
-              type="button"
-              className={`${styles.chromeBtn} ${styles.phoneInMore} ${outlineOpen ? styles.toolBtnActive : ''}`}
-              onClick={() => toggleOutline(outlineToggleRef.current)}
-              aria-expanded={outlineOpen}
-              aria-label="Outline"
-              title="Outline — every heading in this note"
-            >
-              <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              Outline
-            </button>
-          )}
+          </div>
+          {/*
+            ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
+            (grepped the whole file for setFindOpen(true): one call site, the
+            keydown handler). History, two buttons over, has always had a
+            labeled button in this same row. Competitive audit finding UX #5,
+            2026-09-22. NoteFindBar's own Escape/Enter handling is untouched
+            by this -- purely a missing entry point, not new find logic.
+          */}
+          {/* Notebook phone pass (2026-10-10): `.phoneInMore` -- not displayed on a phone, where
+              the same action is the More panel's "Find in note" (`phoneTools` below). */}
+          {/* S10: Find is now the first item in ⋯ (`moreLead`, every width; Cmd/Ctrl+F still opens it). */}
+          <span className={styles.shareSlot} data-header-control="share">
+            <NoteShareControls noteId={noteId} noteTitle={title} onMessage={setChromeMsg} />
+          </span>
+          {/* Wave 8 (8A): the folder select moved under the title (S10, `folderLead`). */}
+          {/* Notebook UX pass (2026-10-10): the Ticker field moved out of this row into the
+              note's details, beside the properties it derives (Sector, Industry, Theme). It
+              was also mirrored there as a read-only "Ticker" property, so the ticker showed
+              twice; now there is ONE control, the same input on the same door. */}
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
+          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
+              so the formatting row fits ONE line at 1200 px. Both keep their names, their
+              `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
+          {/* Phone pass follow-up (2026-10-10): Writing help STAYS in the phone row, as an icon
+              (`.phoneIconLabel` hides the word, the aria-label keeps the name). Moving it into More
+              left its walkthrough pointing at nothing: the Writing help tour opens on this button. */}
+          {/* S10: Writing help sits in the AI group above; the Outline is an item in ⋯ (`moreLead`). */}
           {/* Wave 10 lane K2 (design finding D-3): the page-level actions live behind ONE
               "More note actions" door, Notion's "…" -- the review measured up to five rows of
               controls above the title at 1200 px with a red Delete among the first. Delete is
@@ -5236,8 +5277,8 @@ export default function NoteEditorPage({
               note's other properties. Every action keeps its name and its keyboard door
               (NoteMoreMenu.jsx; rails: NoteEditorPage.moreMenu.test.jsx). */}
           {/* The tour's Export step points here now: the file doors are inside. */}
-          <span className={styles.tourWrap} data-tour="note-export">
-          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools}>
+          <span className={styles.tourWrap} data-tour="note-export" data-header-control="more">
+          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools} leadItems={moreLead}>
             <button
               type="button"
               className={styles.chromeBtn}
@@ -5301,8 +5342,9 @@ export default function NoteEditorPage({
               <div className={moreStyles.meta}><NoteStats editor={editor} /></div>
             </>)}
             <div className={moreStyles.sep} role="separator" />
+            {/* S7 (one vocabulary): the note menu's "Delete" is "Move to Trash", the sidebar's word. */}
             <button type="button" className={`${styles.chromeBtn} ${moreStyles.danger}`} onClick={onDeleteRequest}>
-              Delete
+              Move to Trash
             </button>
           </NoteMoreMenu>
           </span>
@@ -5321,9 +5363,9 @@ export default function NoteEditorPage({
       )}
       {confirmingDelete && (
         <ConfirmModal
-          title="Delete this note?"
+          title="Move this note to Trash?"
           body="It moves to Trash and can be restored for 30 days before it's permanently removed."
-          confirmLabel="Delete"
+          confirmLabel="Move to Trash"
           tone="danger"
           onConfirm={onDeleteConfirm}
           onClose={() => setConfirmingDelete(false)}
@@ -5778,6 +5820,7 @@ export default function NoteEditorPage({
             scheduleAutosave()
             onTitleChange?.(noteId, v)
           }}
+          onKeyDown={onTitleKeyDown}
           placeholder="Title"
           aria-label="Note title"
           // M-6: the hook NotebookTab's skip link finds the title by -- never
@@ -5802,11 +5845,13 @@ export default function NoteEditorPage({
             subtitleRef.current = v
             scheduleAutosave()
           }}
+          ref={subtitleInputRef}
+          onKeyDown={onSubtitleKeyDown}
           placeholder="Subtitle (optional)"
           aria-label="Subtitle"
         />
         <NoteDetailsLine items={detailItems} open={detailsOpen} onToggle={toggleDetails}
-          controls={`${subtitleId} ${detailsRegionId}`} />
+          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead} />
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
@@ -6021,13 +6066,17 @@ export default function NoteEditorPage({
           <div className={styles.railRight}><NoteRailRight insights={insights} /></div>
         )}
       </div>
-      <NoteHistoryPanel
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        noteId={noteId}
-        currentNote={note}
-        onRestored={onVersionRestored}
-      />
+      {historyEverOpen && (
+        <Suspense fallback={null}>
+          <NoteHistoryPanel
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            noteId={noteId}
+            currentNote={note}
+            onRestored={onVersionRestored}
+          />
+        </Suspense>
+      )}
       {resurfaceVersionId && (
         <Suspense fallback={null}>
           <ResurfaceVersionSheet noteId={noteId} versionId={resurfaceVersionId} onClose={clearResurfaceParam} />

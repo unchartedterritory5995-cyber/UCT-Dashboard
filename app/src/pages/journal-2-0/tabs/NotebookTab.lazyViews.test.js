@@ -16,6 +16,8 @@ const JsxParser = Parser.extend(jsx())
 const FILE = path.join(path.resolve(__dirname), 'NotebookTab.jsx')
 const LAZY = [
   '../components/notebook/NoteGraphView',
+  // Tier 1a bytes: the table view mode, through `lazyView` like the others.
+  '../components/notebook/NotesTableView',
   '../components/notebook/NoteBoardView',
   '../components/notebook/NoteCalendarView',
   '../components/notebook/NoteTimelineView',

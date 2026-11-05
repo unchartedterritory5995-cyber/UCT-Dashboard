@@ -37,8 +37,9 @@ const getBoardJson = async (url) => {
 /** The box's one line. No count while unknown or unreadable: none is better than a wrong one. */
 function lineFor(board) {
   const open = Array.isArray(board?.cards) ? board.cards.filter((c) => !c.example).length : null
-  if (open == null) return 'Active setups'
-  return open === 0 ? 'Active setups · none open' : `Active setups · ${open} open`
+  // S7 (one vocabulary): "Setups" everywhere (it was Active setups here, and a third name in the tour).
+  if (open == null) return 'Setups'
+  return open === 0 ? 'Setups · none open' : `Setups · ${open} open`
 }
 
 export default function SetupsBox() {

@@ -1,13 +1,15 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 
 // @vitest-environment jsdom
-// P0.5 -- Active setups gets a real door on Research Home: a box near the top (right under the
+// P0.5 -- Setups gets a real door on Research Home: a box near the top (right under the
 // Notices box) that says how many plans are open and links to the board. It was a bare link at the
 // very bottom of the page.
 //
 // What this holds:
-//   * switch ON: "Active setups · N open" from the board's own read (examples are not the member's
+//   * switch ON: "Setups · N open" from the board's own read (examples are not the member's
 //     setups, so they are not counted), "none open" in words, and ALWAYS the link;
-//   * a failed read (a 500, a network error) leaves the box showing "Active setups" and its link,
+//   * a failed read (a 500, a network error) leaves the box showing "Setups" and its link,
 //     with no count and no error: the door must not disappear because the count could not be read;
 //   * switch OFF: no box and NO fetch;
 //   * first run (no notes): not offered, and nothing fetched;
@@ -75,13 +77,13 @@ beforeEach(() => {
 })
 afterEach(() => __resetNotebookFlags())
 
-describe('Active setups box, switch ON', () => {
+describe('Setups box, switch ON', () => {
   beforeEach(() => latchNotebookFlags({ notebook_setups_board_enabled: true }))
 
-  it('shows "Active setups · N open" from the board read and links to the board', async () => {
+  it('shows "Setups · N open" from the board read and links to the board', async () => {
     stubFetch({ [BOARD_URL]: BOARD })
     renderHome()
-    expect(await screen.findByText('Active setups · 2 open')).toBeTruthy()
+    expect(await screen.findByText('Setups · 2 open')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open the setups board' }).getAttribute('href')).toBe(SETUPS_BOARD_PATH)
     expect(BOARD_URL).toBe('/api/j2/setups-board')
   })
@@ -89,24 +91,24 @@ describe('Active setups box, switch ON', () => {
   it('zero open plans says so in words and still links', async () => {
     stubFetch({ [BOARD_URL]: { cards: [{ noteId: 'x', example: true }] } })
     renderHome()
-    expect(await screen.findByText('Active setups · none open')).toBeTruthy()
+    expect(await screen.findByText('Setups · none open')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open the setups board' }).getAttribute('href')).toBe(SETUPS_BOARD_PATH)
   })
 
   it('an empty board reads as none open, not as an unknown count', async () => {
     stubFetch({ [BOARD_URL]: { cards: [] } })
     renderHome()
-    expect(await screen.findByText('Active setups · none open')).toBeTruthy()
+    expect(await screen.findByText('Setups · none open')).toBeTruthy()
   })
 
-  it('before the read lands, and with no usable body, the box says only "Active setups" and keeps its link', async () => {
+  it('before the read lands, and with no usable body, the box says only "Setups" and keeps its link', async () => {
     stubFetch({ [BOARD_URL]: { weird: true } })
     renderHome()
-    expect(screen.getByText('Active setups')).toBeTruthy()
+    expect(screen.getByText('Setups')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open the setups board' })).toBeTruthy()
     await waitFor(() => expect(fetchUrls()).toContain(BOARD_URL))
     await new Promise((r) => setTimeout(r, 30))
-    expect(screen.getByText('Active setups')).toBeTruthy()
+    expect(screen.getByText('Setups')).toBeTruthy()
     expect(screen.queryByText(/open$/)).toBeNull()
     expect(screen.queryByText(/none open/)).toBeNull()
   })
@@ -116,12 +118,12 @@ describe('Active setups box, switch ON', () => {
     ['a network error', () => { throw new TypeError('Failed to fetch') }],
     ['a body that is not JSON', () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError('Unexpected token') } })],
   ]) {
-    it(`a failed read (${name}) leaves "Active setups" and the link: no count, never an error`, async () => {
+    it(`a failed read (${name}) leaves "Setups" and the link: no count, never an error`, async () => {
       stubFetch({ [BOARD_URL]: failing })
       renderHome()
       await waitFor(() => expect(fetchUrls()).toContain(BOARD_URL))
       await new Promise((r) => setTimeout(r, 40))
-      expect(screen.getByText('Active setups')).toBeTruthy()
+      expect(screen.getByText('Setups')).toBeTruthy()
       expect(screen.getByRole('link', { name: 'Open the setups board' }).getAttribute('href')).toBe(SETUPS_BOARD_PATH)
       expect(box().textContent).not.toMatch(/\d/)
       expect(box().textContent).not.toMatch(/none open|error|failed|try again|boom/i)
@@ -152,14 +154,14 @@ describe('Active setups box, switch ON', () => {
   })
 })
 
-describe('Active setups box, position', () => {
+describe('Setups box, position', () => {
   beforeEach(() => latchNotebookFlags({ notebook_setups_board_enabled: true }))
 
   it('quiet home: straight after the Notices box and before the Ask door', async () => {
     stubFetch({ [BOARD_URL]: BOARD })
     renderHome()
     const notices = await screen.findByText(/Notices · 3/)
-    expect(await screen.findByText('Active setups · 2 open')).toBeTruthy()
+    expect(await screen.findByText('Setups · 2 open')).toBeTruthy()
     expect(follows(notices, box())).toBe(true)
     expect(follows(box(), screen.getByTestId('ask-door'))).toBe(true)
     // it is no longer at the bottom of the page
@@ -184,22 +186,22 @@ describe('Active setups box, position', () => {
   it('quiet -> full keeps the very same box mounted across the flip', async () => {
     stubFetch({ [BOARD_URL]: BOARD })
     const { rerender } = renderHome()
-    await screen.findByText('Active setups · 2 open')
+    await screen.findByText('Setups · 2 open')
     const before = box()
     hookResult = { home: FAVORITES, isLoading: false, error: null, refresh: vi.fn() }
     rerender(tree())
     expect(screen.getByText('Favorites')).toBeTruthy()          // the layout DID flip
     expect(box()).toBe(before)
-    expect(box().textContent).toContain('Active setups · 2 open')
+    expect(box().textContent).toContain('Setups · 2 open')
   })
 })
 
-describe('Active setups box, switch OFF', () => {
+describe('Setups box, switch OFF', () => {
   it('no box, and no fetch of the board', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: false })
     renderHome()
     await screen.findByText(/Notices · 3/)
-    expect(screen.queryByText(/Active setups/)).toBeNull()
+    expect(screen.queryByText(/Setups/)).toBeNull()
     expect(screen.queryByRole('link', { name: 'Open the setups board' })).toBeNull()
     expect(fetchUrls()).not.toContain(BOARD_URL)
   })
@@ -212,7 +214,7 @@ describe('Active setups box, switch OFF', () => {
   })
 })
 
-describe('Active setups box, source', () => {
+describe('Setups box, source', () => {
   const src = (f) => readFileSync(resolve(here, f), 'utf8')
 
   it('the URL has ONE authority: the link module owns it and both the box and the board import it', () => {

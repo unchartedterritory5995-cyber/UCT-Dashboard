@@ -1,3 +1,4 @@
+// S7 (audit 2026-11-05, one vocabulary): the note menu's "Delete" reads "Move to Trash" (and its question "Move this note to Trash?"), the sidebar's word; the rails below follow the new words.
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -61,7 +62,7 @@ describe('D-3: the page-level actions sit behind "More note actions"', () => {
   it('closed: no Delete, Duplicate, Lock or Archive on the page -- one door, collapsed', async () => {
     await renderEditor()
     expect(more()).toHaveAttribute('aria-expanded', 'false')
-    for (const name of ['Delete', 'Duplicate note', 'Lock', 'Archive', 'Save as template', 'Open a note beside…']) {
+    for (const name of ['Move to Trash', 'Duplicate note', 'Lock', 'Archive', 'Save as template', 'Open a note beside…']) {
       expect(screen.queryByRole('button', { name }), name).toBeNull()
     }
     // hidden, not unmounted: the organise sentence and a half-typed template name survive a close
@@ -73,11 +74,11 @@ describe('D-3: the page-level actions sit behind "More note actions"', () => {
     fireEvent.click(more())
     expect(more()).toHaveAttribute('aria-expanded', 'true')
     const group = within(panel())
-    for (const name of ['Duplicate note', 'Lock', 'Archive', 'Save as template', 'Open a note beside…', 'Delete']) {
+    for (const name of ['Duplicate note', 'Lock', 'Archive', 'Save as template', 'Open a note beside…', 'Move to Trash']) {
       expect(group.getByRole('button', { name }), name).toBeTruthy()
     }
     const buttons = group.getAllByRole('button')
-    expect(buttons[buttons.length - 1]).toHaveAccessibleName('Delete')
+    expect(buttons[buttons.length - 1]).toHaveAccessibleName('Move to Trash')
     expect(buttons[buttons.length - 1].previousElementSibling).toHaveAttribute('role', 'separator')
     expect(buttons[buttons.length - 1]).not.toHaveClass('btn-danger')
   })
@@ -119,16 +120,16 @@ describe('the door keeps the keyboard contract (K2)', () => {
   it('Delete asks first; Escape on the question puts focus back on Delete, and the panel is still open', async () => {
     await renderEditor()
     fireEvent.click(more())
-    const del = within(panel()).getByRole('button', { name: 'Delete' })
+    const del = within(panel()).getByRole('button', { name: 'Move to Trash' })
     del.focus()
     fireEvent.click(del)
-    const dialog = await screen.findByRole('dialog', { name: 'Delete this note?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Move this note to Trash?' })
     // a press inside the question is not a press outside the panel
     fireEvent.mouseDown(within(dialog).getByRole('button', { name: 'Cancel' }))
     fireEvent.keyDown(window, { key: 'Escape' })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete this note?' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Move this note to Trash?' })).toBeNull())
     expect(more()).toHaveAttribute('aria-expanded', 'true')
-    expect(document.activeElement).toBe(within(panel()).getByRole('button', { name: 'Delete' }))
+    expect(document.activeElement).toBe(within(panel()).getByRole('button', { name: 'Move to Trash' }))
   })
 
   it('NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer', async () => {
@@ -221,8 +222,11 @@ describe('fix round 1 (K2 review)', () => {
 
   it('M-2: Escape inside the panel with the find bar open closes ONLY the panel; the find bar stays and focus is on More', async () => {
     await renderEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Find in note' }))
+    // S10 (M4): Find is the first item in More now; choosing it closes the panel and opens the bar.
+    fireEvent.click(more())
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Find in note' }))
     const find = await screen.findByRole('searchbox', { name: 'Find in note' })
+    expect(more()).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(more())
     const first = within(panel()).getAllByRole('button')[0]
     first.focus()
@@ -235,16 +239,16 @@ describe('fix round 1 (K2 review)', () => {
   it('M-3: a tap on the Delete question\'s BACKDROP keeps the panel open and puts focus back on Delete', async () => {
     await renderEditor()
     fireEvent.click(more())
-    const del = within(panel()).getByRole('button', { name: 'Delete' })
+    const del = within(panel()).getByRole('button', { name: 'Move to Trash' })
     del.focus()
     fireEvent.click(del)
-    const dialog = await screen.findByRole('dialog', { name: 'Delete this note?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Move this note to Trash?' })
     const backdrop = dialog.parentElement
     expect(backdrop).toHaveAttribute('role', 'presentation')   // non-vacuity: this IS the backdrop
     fireEvent.mouseDown(backdrop)
     fireEvent.click(backdrop)
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete this note?' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Move this note to Trash?' })).toBeNull())
     expect(more()).toHaveAttribute('aria-expanded', 'true')
-    expect(document.activeElement).toBe(within(panel()).getByRole('button', { name: 'Delete' }))
+    expect(document.activeElement).toBe(within(panel()).getByRole('button', { name: 'Move to Trash' }))
   })
 })

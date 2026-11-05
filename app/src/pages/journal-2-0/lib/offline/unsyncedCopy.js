@@ -67,3 +67,33 @@ export const BLOCKED_TITLE =
  * cases. Competitive audit finding Accessibility QW-5, 2026-09-22.
  */
 export const OFFLINE_VIEWING_BANNER = "Viewing an earlier saved copy — you're offline."
+
+/**
+ * Audit 2026-11-05, spec S10 (M4): the note header's always-visible save indicator. READ FROM THE EXISTING STATE, never
+ * a new store: the editor's own `saveStatus` and the offline outbox's `durable.unsynced` / `persisted` (useDurableNote).
+ *   * "Saving…" while an edit is waiting or on its way (`dirty`, `saving`);
+ *   * "Saved" once the server has it;
+ *   * "Offline, kept on this device" when the browser is offline and the outbox has COMMITTED the work (never while a
+ *     write is only intended). The noun narrows exactly as `savedLocally` does: "in this browser" unless the platform
+ *     granted persistence.
+ * ⛔ Silent ('') where another line in the header already speaks for the state (blocked, conflict, refused, a failed
+ *    or reconnecting save while online): two status lines naming one state as two would read as two states.
+ * ⛔ Fix round 1 (review finding 5): OFFLINE, this is the ONE offline message: the editor hides the Wave Q1 "Saved on
+ *    this device · waiting to sync" line and the "Viewing an earlier saved copy" banner while it speaks. An edit still
+ *    inside the durable debounce (`dirty`) is not yet kept anywhere, so it reads "Saving…" even offline. While the note
+ *    loads nothing is said (`loading`): "Saved" before the note exists would be a claim nobody measured.
+ */
+export const SAVING_WORDS = 'Saving…'
+export const SAVED_WORDS = 'Saved'
+export function offlineKept(persisted) {
+  return persisted === true ? 'Offline, kept on this device' : 'Offline, kept in this browser'
+}
+export function saveIndicatorWords({ status, unsynced = false, persisted = false, offline = false, blocked = false,
+  loading = false } = {}) {
+  if (loading || blocked || status === 'conflict' || status === 'refused') return ''
+  if (status === 'dirty') return SAVING_WORDS
+  if (offline && unsynced) return offlineKept(persisted)
+  if (status === 'error' || status === 'reconnecting') return ''
+  if (status === 'saving' || status === 'dirty') return SAVING_WORDS
+  return SAVED_WORDS
+}
