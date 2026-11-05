@@ -189,6 +189,17 @@ export function checkExpect(ctx, e, label) {
     for (const no of e.indicators.exclude || []) expect(got, `${label}: no ${no}`).not.toContain(no)
     if (e.indicators.count != null) expect(got.length, `${label}: indicator count`).toBe(e.indicators.count)
   }
+  if (e.screenRows) {
+    // SG-1: the rows the screen RETURNED (the fixture applies the engine's semantics to the wire spec) — each satisfies the
+    // member's stated condition, written here in the Screener's own sign ({key, op, value}); `min` rows at least
+    const rows = ctx.st.screenRows || []
+    const cmp = { gt: (a, b) => a > b, gte: (a, b) => a >= b, lt: (a, b) => a < b, lte: (a, b) => a <= b, eq: (a, b) => a === b, in: (a, b) => b.includes(a) }
+    if (e.screenRows.min != null) expect(rows.length, `${label}: rows returned`).toBeGreaterThanOrEqual(e.screenRows.min)
+    for (const c of e.screenRows.all || []) {
+      const bad = rows.filter(r => !cmp[c.op](r[c.key], c.value)).map(r => r.ticker)
+      expect(bad, `${label}: every returned row has ${c.key} ${c.op} ${JSON.stringify(c.value)}`).toEqual([])
+    }
+  }
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)
   for (const r of e.noCalls || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: nothing matching /${r}/ ran`).toBe(false)
