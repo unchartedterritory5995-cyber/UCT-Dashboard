@@ -908,8 +908,10 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                         descriptor this module never reads (no scalar check, no
                         ``interpret``): the column comes from the runtime service, which is
                         the only place a runtime document can be evaluated. ``warmup_bars``
-                        is then the leading bars charged to warm-up (the tree's own
-                        ``max_lookback`` is not there to ask). A raise from ``column_for``
+                        is then the leading bars charged to warm-up for every symbol, and a
+                        column's own ``.warmup_bars`` (the service-reported warm-up) raises
+                        that symbol's charge (the tree's own ``max_lookback`` is not there
+                        to ask). A raise from ``column_for``
                         is NOT caught: a refusal of the run is the caller's to map.
     :param withheld_for: ``bars -> sentence | None`` — ⭐ C48 / C45 (M3): why the
                         member's chart withholds this screen on a symbol's bars
@@ -1003,6 +1005,7 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     unanswered_only = 0     # in-window bars, but the screen answered none of them
     withheld = 0            # ⭐ M3: the member's chart withholds it on these bars -> NOT TESTED
     withheld_why: Optional[str] = None
+    warmup_seen = warmup
     try:
         for sym in symbols:
             bars = bars_for(sym)
@@ -1010,9 +1013,14 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                 missing_bars += 1
                 continue
             bars = list(bars)
-            scan = _scan_symbol(tree, bars, frm=frm, to=to, warmup=warmup,
-                                fields=fields, opts=opts,
-                                col=(column_for(sym, bars) if column_for is not None else None))
+            col = column_for(sym, bars) if column_for is not None else None
+            # W5-T15 r2: a column MAY carry the warm-up the SERVICE reported for this run
+            # (`.warmup_bars`, from the run's own `withheldBars`): those leading bars are
+            # charged to warm-up whatever follows, never tallied as a signal or a "no".
+            sym_warm = max(warmup, int(getattr(col, "warmup_bars", 0) or 0))
+            warmup_seen = max(warmup_seen, sym_warm)
+            scan = _scan_symbol(tree, bars, frm=frm, to=to, warmup=sym_warm,
+                                fields=fields, opts=opts, col=col)
             # ⭐⭐ C48 / C45 (M3) — ASKED AFTER THE TREE, as the chart and the sweep ask
             # it (a symbol whose bars the tree refuses keeps that refusal). Withheld,
             # the symbol contributes no bar to any count: its every answer is the
@@ -1032,7 +1040,10 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                 continue
             scans.append((sym, bars, scan))
     except BacktestRefusal as r:
-        return refuse(r.reason, r.detail, r.extra.get("names", ()), warmup=warmup)
+        return refuse(r.reason, r.detail, r.extra.get("names", ()), warmup=warmup_seen)
+    # the receipt states the LONGEST warm-up any symbol was charged (per-symbol warm-ups differ)
+    warmup = warmup_seen
+    method["warmup_bars"] = warmup
 
     tested = len(scans)
     _assert_closes("universe", len(symbols),

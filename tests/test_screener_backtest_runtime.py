@@ -107,7 +107,7 @@ def _app(monkeypatch, w, *, row=None, universe=("AAA", "BBB"), fake_admission=Tr
     if fake_admission:
         monkeypatch.setattr(rd, "server_lane_refusal", w.server_lane_refusal)
     monkeypatch.setattr(bt, "_runtime_client", w.make_client)
-    monkeypatch.setattr(bt, "RUNTIME_WARMUP_BARS", 0)
+    monkeypatch.setattr(bt, "RUNTIME_HISTORY_LEAD", 0)
     monkeypatch.setattr(snapshot_builder, "_load_universe", lambda: list(universe))
     rows = _store_rows()
     monkeypatch.setattr(bars_sqlite, "get_bars_before", lambda sym, tf, want, to_key: list(rows)[:want])
@@ -299,12 +299,77 @@ def test_two_plots_of_one_script_are_two_jobs_and_a_runtime_job_is_never_an_ast_
     assert a != b
 
 
-def test_the_leading_bars_are_charged_to_warmup_not_to_no_signal(monkeypatch, w):
+def test_the_warmup_charged_is_the_one_the_SERVICE_reports(monkeypatch, w):
     client = _app(monkeypatch, w)
-    monkeypatch.setattr(bt, "RUNTIME_WARMUP_BARS", 5)
+    w.fake.withheld_bars = 5
     body = _post(client).json()
     assert body["coverage"]["bars_warmup"] == 10, body["coverage"]       # 5 per symbol x 2
     assert body["method"]["warmup_bars"] == 5
+    # the warm-up bars are never tallied: answered + warm-up + holes == in-window
+    c = body["coverage"]
+    assert c["bars_answered"] + c["bars_warmup"] + c["bars_not_computable"] == c["bars_in_window"]
+    assert c["bars_not_computable"] == 0, c      # the script's own first-bar na sits INSIDE the warm-up
+
+
+def test_the_history_lead_only_sizes_the_read_and_charges_nothing(monkeypatch, w):
+    client = _app(monkeypatch, w)
+    monkeypatch.setattr(bt, "RUNTIME_HISTORY_LEAD", 500)      # more bars than the tape holds
+    body = _post(client).json()
+    assert body["backtestable"] is True, body
+    assert body["coverage"]["bars_warmup"] == 0 and body["coverage"]["bars_answered"] > 0, body["coverage"]
+    assert body["method"]["warmup_bars"] == 0
+    # ...and it IS the read size: the store is asked for lead + window + horizon bars
+    seen = []
+    monkeypatch.setattr(bars_sqlite, "get_bars_before", lambda sym, tf, want, to_key: seen.append(want) or _store_rows()[:want])
+    monkeypatch.setattr(bt, "RUNTIME_HISTORY_LEAD", 0)
+    _post(client, horizons=[5, 6])
+    small = max(seen)
+    seen.clear()
+    from api.services.cache import cache
+    cache.delete_prefix("screen_backtest::")
+    monkeypatch.setattr(bt, "RUNTIME_HISTORY_LEAD", 30)
+    _post(client, horizons=[5, 6])
+    assert 30 <= max(seen) - small <= 31, (small, max(seen))
+
+
+def test_a_finite_value_inside_the_services_own_warmup_fails_the_request_as_integrity(monkeypatch, w):
+    from tests.fakes.pine_runtime_fake import b64_column, redigest
+
+    def tamper(reply):
+        for r, j in zip(reply["results"], w.fake.calls[-1]["jobs"]):
+            n = j["bars"]["n"]
+            r["columns"]["sig"] = b64_column([1.0] * n)
+            r["digest"] = redigest(w.fake.identity, r, n)
+        return reply
+    w.fake.withheld_bars = 3
+    w.fake.tamper = tamper
+    r = _post(_app(monkeypatch, w))
+    assert r.status_code == 500 and prc.INTEGRITY in r.json()["detail"], r.text
+    assert "warm-up" in r.json()["detail"], r.json()
+
+
+def test_a_warmup_that_is_the_whole_tape_leaves_nothing_to_tally_and_says_so(monkeypatch, w):
+    client = _app(monkeypatch, w)
+    w.fake.withheld_bars = 0
+    _post(client)
+    n = w.fake.calls[-1]["jobs"][0]["bars"]["n"]
+    from api.services.cache import cache
+    cache.delete_prefix("screen_backtest::")
+    w.fake.withheld_bars = n
+    r = _post(client)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["backtestable"] is False and body["coverage"]["bars_answered"] == 0, body
+
+
+def test_admission_is_t11s_public_form_asked_with_the_chosen_plot(monkeypatch, w):
+    asked = []
+    real = bt.runtime_server_lane.admission
+    monkeypatch.setattr(bt.runtime_server_lane, "admission",
+                        lambda row, plot, lane: asked.append((plot, lane)) or real(row, plot, lane))
+    client = _app(monkeypatch, w, row=runtime_row({"sig": 0, "other": 1}))
+    assert _post(client, plot="other").status_code == 200
+    assert asked and set(asked) == {("other", "backtest")}
 
 
 def test_each_plot_of_one_script_is_its_own_receipt_through_the_route(monkeypatch, w):

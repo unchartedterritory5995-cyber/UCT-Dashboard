@@ -473,11 +473,14 @@ def _definition_tree(def_id: str, user_id: Any, plot: Optional[str] = None) -> t
 _STATUS_503 = frozenset({runtime_client.UNAVAILABLE, runtime_client.AUTH, runtime_client.BUSY})
 _STATUS_500 = frozenset({runtime_client.INTEGRITY})
 
-#: Bars of history read BEFORE the window for a runtime script. Its own warm-up is not known
-#: to this door (the service does not return one yet), so a fixed lead is read and the script's
-#: own na bars count as `bars_not_computable`, never as "no signal". Recursive indicators
-#: converge over the lead; it is NOT a TradingView-equal seed (TV runs from the first bar).
-RUNTIME_WARMUP_BARS = 500
+#: THE ONE HISTORY RULE for a runtime script (W5-T15 r2). The window is chosen BEFORE the run,
+#: so a fixed lead of history, `RUNTIME_HISTORY_LEAD` bars, is READ before the window. It only
+#: sizes the read; it charges NOTHING. What is charged to warm-up is what the SERVICE reports for
+#: the run (`withheldBars`, carried by the column as `.warmup_bars`): bars [0, withheldBars) are
+#: na (T11 refuses a finite value there as integrity) and are never tallied as a signal or a "no".
+#: A script whose warm-up outruns the lead has the shortfall charged to warm-up, honestly. Later
+#: na bars are `bars_not_computable`. The lead is NOT a TradingView-equal seed (TV runs from bar 0).
+RUNTIME_HISTORY_LEAD = 500
 #: Symbols per service request (memory: one chunk's bars + columns are live at a time).
 RUNTIME_BATCH = 50
 
@@ -487,16 +490,12 @@ def _refuse_runtime(guard: str, sentence: str) -> HTTPException:
     return HTTPException(status_code=code, detail=f"{guard}: {sentence}")
 
 
-def _runtime_admission(row: dict) -> None:
-    """The two per-call questions every server lane asks, in the lane's own order
-    (`runtime_server_lane`): the stored verdict, then runtime admission for lane
-    ``backtest``. Raises the mapped refusal; returns None when the run may go ahead.
-    Asked at the door AND before every service request, so a kill or a stage change
-    reaches a run already in flight at its next chunk."""
-    reason = runtime_server_lane._verdict(row)
-    if reason:
-        raise _refuse_runtime(runtime_server_lane.VERDICT_GUARD, reason)
-    refused = runtime_server_lane._admission(row, "backtest")
+def _runtime_admission(row: dict, plot: str) -> None:
+    """The ONE admission question (`runtime_server_lane.admission`, T11's public form): the
+    stored verdict, then runtime admission for lane ``backtest``. Raises the mapped refusal;
+    returns None when the run may go ahead. Asked at the door AND before every service
+    request, so a kill or a stage change reaches a run already in flight at its next chunk."""
+    refused = runtime_server_lane.admission(row, plot, "backtest")
     if refused is not None:
         raise _refuse_runtime(*refused)
 
@@ -507,8 +506,10 @@ def _runtime_descriptor(row: dict, doc: dict, compute: dict, def_id: str,
     where the tree stands (the job id digests it; the engine never reads it)."""
     # ORDER: verdict + admission FIRST, so a refused script answers its own guard and
     # never a question about its plots.
-    _runtime_admission(row)
     outputs = compute.get("outputs") if isinstance(compute.get("outputs"), dict) else {}
+    # admission wants a plot name; with none chosen yet it is asked of the first output, which
+    # decides nothing (the five questions are the same for every plot of one document)
+    _runtime_admission(row, plot or next(iter(outputs), ""))
     if plot is None and len(outputs) == 1:
         plot = next(iter(outputs))
     if plot is None or plot not in outputs:
@@ -552,6 +553,14 @@ def _service_bars(bars: list) -> list:
     return [{**b, "t": _epoch_seconds(b.get("t"))} for b in bars]
 
 
+class _ReplayColumn(list):
+    """One plot's column (None for na) carrying the warm-up the SERVICE reported for the run."""
+
+    def __init__(self, values, warmup_bars: int):
+        super().__init__(values)
+        self.warmup_bars = warmup_bars
+
+
 class _RuntimeReplay:
     """Feeds ``run_backtest`` the columns the service computed. ``bars_for(sym)`` reads the
     next batch of symbols and sends it as ONE request (profile ``backtest``); ``column_for``
@@ -562,13 +571,15 @@ class _RuntimeReplay:
         self.rt, self.symbols, self.tf, self.read_bars, self.want = rt, symbols, tf, read_bars, want
         self._bars: dict = {}
         self._cols: dict = {}
+        self._warm: dict = {}
         self._pos = {s: i for i, s in enumerate(symbols)}
 
     def _load(self, start: int) -> None:
         row, plot = self.rt["row"], self.rt["plot"]
-        _runtime_admission(row)
+        _runtime_admission(row, plot)
         self._bars.clear()
         self._cols.clear()
+        self._warm.clear()
         jobs = []
         for sym in self.symbols[start:start + RUNTIME_BATCH]:
             bars = self.read_bars(sym, self.want)
@@ -586,6 +597,7 @@ class _RuntimeReplay:
             if why is not None:
                 raise _refuse_runtime(why.guard, why.sentence)
             self._cols[job.job] = [None if (v != v) else float(v) for v in res.columns[plot]]
+            self._warm[job.job] = int((res.warmup or {}).get("withheldBars", 0))
 
     def bars_for(self, sym: str) -> list:
         if sym not in self._bars:
@@ -593,7 +605,7 @@ class _RuntimeReplay:
         return self._bars.pop(sym)
 
     def column_for(self, sym: str, bars: list) -> list:
-        col = self._cols.pop(sym)
+        col = _ReplayColumn(self._cols.pop(sym), self._warm.pop(sym, 0))
         if len(col) != len(bars):
             raise _refuse_runtime(runtime_client.INTEGRITY,
                                   f"the service returned {len(col)} values for {len(bars)} bars of {sym}")
@@ -970,7 +982,7 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
         tree, symbols, _iso(start), _iso(end),
         bars_for=(replay.bars_for if replay else (lambda sym: read_bars(sym, want))),
         column_for=(replay.column_for if replay else None),
-        warmup_bars=(RUNTIME_WARMUP_BARS if replay else 0),
+        warmup_bars=0,
         horizons=horizons,
         bars_source=_bars_source_label(tf, want, to_key),
         opts=opts,
@@ -1199,7 +1211,7 @@ def run_screen_backtest(body: BacktestRequest,
     # and the number it returns is what sizes the read below.
     try:
         # a runtime script has no tree to measure: it is handed a fixed lead of history
-        warmup = RUNTIME_WARMUP_BARS if runtime else ast_interpret.max_lookback(tree)
+        warmup = RUNTIME_HISTORY_LEAD if runtime else ast_interpret.max_lookback(tree)
     except ast_interpret.TableRefusal as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
