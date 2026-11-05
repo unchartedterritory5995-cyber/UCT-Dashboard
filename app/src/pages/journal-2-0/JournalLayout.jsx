@@ -110,6 +110,16 @@ export const PAID_HOTKEY_CHORDS = new Set(['g>k'])
 
 const VIEW_MODE_IDS = VIEW_MODES.map((m) => m.id)
 
+/** Tier 2 re-review R1-1. Rendered beside the page INSIDE its Suspense boundary, so it commits only when the page
+ *  has (never during the chunk's fallback). By its passive effect the page's own layout effects have run, and a list
+ *  toolbar has registered its "Journal tools" door; when none has, the page offers no door at this address. */
+function ListDoorProbe({ at, onDoorless }) {
+  useEffect(() => {
+    if (!journalToolsDoorMounted()) onDoorless(at)
+  }, [at, onDoorless])
+  return null
+}
+
 export default function JournalLayout() {
   const isPaid = useIsPaid()
   // Best-effort refresh of broker-synced trades when the journal opens
@@ -155,6 +165,11 @@ export default function JournalLayout() {
   const toolsToggleRef = useRef(null)
   // ...and from the FIRST paint on the list's own address, before the list has mounted (no fold after a paint).
   const onListAddress = isNotebookListAddress(pathname, location.search, NOTEBOOK_PATH, VIEW_MODE_IDS)
+  // Tier 2 re-review R1-1: the first-paint fold is a PROMISE that the list's ⋯ will offer "Journal tools". When the
+  // page under it has rendered and offers no door (an error state, a missing list, anything without the list
+  // toolbar), the promise is released for this address, so the tools are never stranded (ListDoorProbe, below).
+  const [doorlessAt, setDoorlessAt] = useState(null)
+  const holdListFold = onListAddress && doorlessAt !== location.key
   useEffect(() => {
     const onOpen = () => {
       setToolsOpen(true)
@@ -255,7 +270,7 @@ export default function JournalLayout() {
       className={styles.root}
       data-compact-header={compactHeader ? 'true' : undefined}
       data-tools-open={toolsOpen ? 'true' : undefined}
-      data-tools-door={compactHeader && (toolsDoor || onListAddress) ? 'true' : undefined}
+      data-tools-door={compactHeader && (toolsDoor || holdListFold) ? 'true' : undefined}
     >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
@@ -451,6 +466,7 @@ export default function JournalLayout() {
           <RouteFocusTarget />
           <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
             <Outlet context={{ settings }} />
+            {onListAddress && <ListDoorProbe at={location.key} onDoorless={setDoorlessAt} />}
           </Suspense>
         </div>
       </J2PriceProvider>
