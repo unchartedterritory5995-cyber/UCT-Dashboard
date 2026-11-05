@@ -201,3 +201,54 @@ describe('defect 2: an action with one possible target has nothing to choose', (
     expect(board.state.widgets.length).toBe(2)
   }, 40000)
 })
+
+describe('defect 3: a pending card is resolved by itself', () => {
+  async function tfThenCard(say) {
+    await withRsi(say)
+    await say('set it to weekly')
+    p.st.envelopes.push(planIs('indicator.remove', 'ixe:c', { instance: 'rsi' }))
+    await say('take the rsi off please')
+    expect(p.proposals().length).toBe(1)
+  }
+  const tfOf = (board) => board.state.widgets.find(w => w.id === 'c').opts.tf
+  it.each(['actually undo that', 'undo', 'undo that', 'revert that', 'undo all of that', 'wait, undo that'])('"%s" withdraws the card and leaves the earlier change', async (words) => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    const text = await say(words)
+    expect(text).toMatch(/Withdrew that proposal/)
+    expect(text).not.toMatch(/Undid/)
+    expect(tfOf(board)).toBe('W')
+    await say('do it')
+    expect(tfOf(board)).toBe('W')
+    expect(p.instancesOn(board, 'c').some(r => r.defId === 'rsi')).toBe(true)
+  }, 40000)
+  it('the model planning agent.undo over a card does the same', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    p.st.envelopes.push(planIs('agent.undo', 'self', { scope: 'last', about: null }))
+    expect(await say('hmm scratch that one')).toMatch(/Withdrew that proposal/)
+    expect(tfOf(board)).toBe('W')
+  }, 40000)
+  it('with the card gone, the next Undo takes back the older change', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    await say('undo')
+    await say('undo')
+    expect(tfOf(board) ?? 'D').toBe('D')
+  }, 40000)
+  it('NEGATIVE: with no card waiting, an Undo undoes', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await say('set it to weekly')
+    expect(tfOf(board)).toBe('W')
+    expect(await say('undo')).toMatch(/Undid/)
+    expect(tfOf(board) ?? 'D').toBe('D')
+  }, 40000)
+  it('NEGATIVE: an Undo that names another change still undoes it, and the card goes with the state it was made for', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    const text = await say('undo the timeframe change')
+    expect(text).toMatch(/Undid/)
+    expect(text).toMatch(/I withdrew the proposal above/)
+    expect(tfOf(board) ?? 'D').toBe('D')
+  }, 40000)
+})

@@ -1615,7 +1615,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // takes back the WHOLE request, newest first, each entry through doUndoOne (every refusal unchanged); the first that can't
   // be undone stops it there, said exactly. A described Undo ("undo the timeframe change") takes back only the steps of
   // the group it describes. `single`: exactly the one entry (the group runner itself).
+  // ⛔ REAL-MODEL VERIFICATION 2026-11-05: "actually undo that" with a card waiting withdrew the card AND undid an older tab
+  // switch. Nothing on the card has happened, so an Undo said over it is about the card, and one request does one thing: the card
+  // goes and the board stays. An Undo that names something else (`about`) or a receipt's own button (`undoId`) still runs.
+  const dismissRef = useRef(null)
+  const undoSaidOverCard = async ({ member }) => {
+    await dismissRef.current({ member, text: 'Withdrew that proposal: nothing on it was applied, and nothing else changed.' })
+    return true
+  }
   const doUndo = useCallback(async (undoId, { member, voice, about = null, rest = false, single = false } = {}) => {
+    if (!undoId && !about && pendingRef.current?.kind === 'proposal') return await undoSaidOverCard({ member })
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     // OWNER RULING (W2, 11-04: "undo" after "add the 9 and 20 EMAs" took back only one EMA): a PLAIN Undo of the newest
@@ -1634,6 +1643,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     return await undoIds(ids, { member, voice, rest, what: 'from that request' })
   }, [host, doUndoOne, undoIds])
   const undoTurn = useCallback(async ({ member, voice, rest = false } = {}) => {
+    if (pendingRef.current?.kind === 'proposal') return await undoSaidOverCard({ member })
     const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
     if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
     return await undoIds(ids, { member, voice, rest })
@@ -1705,11 +1715,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
   }, [execute, patchItem, push, record, host])
 
-  const dismiss = useCallback(({ member } = {}) => {
+  const dismiss = useCallback(({ member, text = 'Okay — nothing changed.' } = {}) => {
     const p = pendingRef.current
     pendingRef.current = null
     if (p?.kind === 'proposal') patchItem(p.id, { status: 'dismissed' })
-    const text = 'Okay — nothing changed.'
     push({ role: 'outcome', text })
     record({ member, outcome: text, outcomeData: { kind: 'dismissed' }, telemetry: { path: 'fast' } })
     // NLM-1 step plans (dark): a card dismissed mid-plan — what of the plan IS in place, read back (the rest never ran)
@@ -1718,6 +1727,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (v2Ref.current?.paused()) return v2Ref.current.afterCard(v2DepsRef.current())
     return undefined
   }, [patchItem, push, record])
+  dismissRef.current = dismiss
 
   // A local "which one?" for fast-path ops when several targets of the kind exist.
   const chooseTarget = useCallback(async (ref, label) => {
