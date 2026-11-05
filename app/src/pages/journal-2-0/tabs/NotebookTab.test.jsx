@@ -563,6 +563,20 @@ describe('NotebookTab — import', () => {
 
   // Fix round 1 (review minor 13): the import door reaches the ONE note-views helper -- the folder
   // counts, folder rows, Recents and the Tasks view are asked again, never only this tab's lists.
+  // Fix round 2 (review minor 13): the create door every New-note path ends in (landCreatedNote)
+  // reaches the helper too -- the list said "3 of 3" beside a sidebar 5 before it did.
+  it('a new note (landCreatedNote) revalidates every note view (the S6 helper)', async () => {
+    renderTab()
+    swrMutateSpy.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    await waitFor(() => {
+      const predicates = swrMutateSpy.mock.calls.map(([k]) => k).filter((k) => typeof k === 'function')
+      expect(predicates.some((p) => p('/api/j2/notes/folder-counts') && p('/api/j2/notes/tasks?status=open')
+        && !p('/api/j2/notes/new1'))).toBe(true)
+    })
+  })
+
   it('a completed import revalidates every note view (the S6 helper)', async () => {
     renderTab()
     fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
