@@ -27,6 +27,22 @@ export const DAILY_TEMPLATE_MISSING = "Your daily template no longer exists, so 
  *  made that folder deserves to know where the note went. One sentence, one place. */
 export const DAILY_FOLDER_NOTICE = 'Saved in your Daily folder.'
 
+/** Fix round 1 (review finding 7): a door OUTSIDE the Notebook (Today, the Compass recap card,
+ *  Insights) that made the day's note navigates away at once, so it cannot say where the note went.
+ *  It queues the sentence here; the Notebook says it once when it opens (NotebookTab). Session
+ *  storage survives the navigation and any redirect on the way; a blocked store says nothing. */
+const PENDING_NOTICE_KEY = 'uct.nb.pendingNotice'
+export function queueNotebookNotice(message) {
+  try { sessionStorage.setItem(PENDING_NOTICE_KEY, String(message || '')) } catch { /* nothing said */ }
+}
+export function takeQueuedNotebookNotice() {
+  try {
+    const m = sessionStorage.getItem(PENDING_NOTICE_KEY)
+    sessionStorage.removeItem(PENDING_NOTICE_KEY)
+    return m || null
+  } catch { return null }
+}
+
 /** Open (or make) today's note. Resolves `{note, created, templateMissing}`. */
 export async function openDailyNote({ templateId, today = todayET } = {}) {
   const res = await fetch('/api/j2/notes/daily', {

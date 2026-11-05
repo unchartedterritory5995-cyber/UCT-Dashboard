@@ -41,7 +41,9 @@ import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
 import { stepTrail, stepsBackToList } from '../lib/noteReturnTrail'
-import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
+import {
+  DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote, takeQueuedNotebookNotice,
+} from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
@@ -1364,6 +1366,12 @@ export default function NotebookTab() {
   // could not be checked is offered a confirmed way through; `armed` is the
   // confirmation step.
   const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, anyway?, armed? }
+  // Fix round 1 (review finding 7): a sentence another door queued before navigating here (Today,
+  // the Compass recap card, Insights: "Saved in your Daily folder."), said once on arrival.
+  useEffect(() => {
+    const queued = takeQueuedNotebookNotice()
+    if (queued) setBulkNotice({ message: queued, tone: 'info' })
+  }, [])
   const anywayRef = useRef(null)
   const anywayConfirmRef = useRef(null)
   // ⛔ THE WAY BACK HAS ITS OWN NOTICE (review S4). With one shared notice, any

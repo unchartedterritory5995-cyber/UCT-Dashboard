@@ -104,6 +104,16 @@ describe('Today', () => {
     await waitFor(() => expect(document.title).toBe('Notebook · UCT Intelligence'))
   })
 
+  // Fix round 1 (review finding 7): a door OUTSIDE the Notebook (Today, the Compass recap, Insights)
+  // that made the day's note queues the sentence; the Notebook says it when it opens.
+  it('a queued notice from another door is said once when the Notebook opens', async () => {
+    const { queueNotebookNotice } = await import('../lib/dailyNote')
+    queueNotebookNotice('Saved in your Daily folder.')
+    renderTab()
+    await waitFor(() => expect(screen.getByTestId('bulk-notice')).toHaveTextContent('Saved in your Daily folder.'))
+    expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeNull()
+  })
+
   it('a refusal says nothing was created', async () => {
     answer = () => ({ ok: false, status: 500, json: async () => ({}) })
     renderTab()
