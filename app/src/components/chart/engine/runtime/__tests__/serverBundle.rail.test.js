@@ -23,6 +23,7 @@ import {
 } from '../runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
 import { columnDigest } from '../columnDigest.js'
+import { walk } from '../../../../../../../tools/pine_runtime_closure.mjs'
 
 const APP = path.resolve(process.cwd())
 const REPO = path.resolve(APP, '..')
@@ -53,9 +54,12 @@ describe('server bundle (W5-T1)', () => {
     expect(text).not.toMatch(/from\s*["'][^"']*\.json["']/)
   })
 
-  it('inlines jsep and the four JSON tables', () => {
+  it('inlines jsep and the JSON tables: every module and JSON of the compute closure is in the bundle', () => {
     expect(text).toMatch(/jsep/i)
-    expect(built.manifest.modules).toBeGreaterThan(80)
+    // ⭐ W5-T2 — the closure is the one `tools/pine_runtime_closure.mjs` walks (64 modules and 3 JSON
+    // once the registry, the gates and the network modules were cut out of it; 84 and 4 before).
+    const closure = walk()
+    expect(built.manifest.modules).toBeGreaterThanOrEqual(closure.modules.size + closure.json.size)
   })
 
   it('exports the entry surface and the identity constants read from their declaring modules', async () => {
@@ -81,12 +85,14 @@ describe('server bundle (W5-T1)', () => {
     expect(mod.runtimeWarmupOf({})).toBe(null)
   })
 
-  it('bakes import.meta.env once: no live read remains, the VITE_* value moves the bundle', async () => {
+  it('bakes import.meta.env once: no live read remains, and no VITE_* value reaches the closure (W5-T2)', async () => {
     expect(text.split(String.fromCharCode(10)).filter((l) => !l.startsWith('//') && l.includes('import.meta'))).toEqual([])
     const on = await buildPineRuntime({ outfile: path.join(dir, 'on', 'pine-runtime.mjs'), logLevel: 'silent',
       env: { VITE_PINE_LOWER_TF_ENABLED: '1', NOT_BAKED: 'x' } })
     expect(on.manifest.viteEnvNames).toEqual(['VITE_PINE_LOWER_TF_ENABLED'])
-    expect(on.manifest.sha256).not.toBe(built.manifest.sha256)
+    // ⭐ W5-T2 — the build gates were cut from the compute closure (design 2.2 H3): a VITE_* value
+    // is still baked by the define, and no longer reaches anything the bundle holds.
+    expect(on.manifest.sha256).toBe(built.manifest.sha256)
     expect(built.manifest.viteEnvNames).toEqual([])
     expect(Object.entries(viteEnvOf({ VITE_PINE_RUNTIME_PANE_ENABLED: '2', X: '1', VITE_PINE_LOWER_TF_ENABLED: '1', VITE_A: '1' })))
       .toEqual([['VITE_PINE_LOWER_TF_ENABLED', '1'], ['VITE_PINE_RUNTIME_PANE_ENABLED', '2']])
