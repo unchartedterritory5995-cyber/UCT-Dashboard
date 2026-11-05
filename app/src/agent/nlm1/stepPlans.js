@@ -161,7 +161,9 @@ export function resolveResultRefs(op, plan, host) {
  * Each step's postcondition, read back after the plan → { lines: [text], inPlace, total, notSaved }.
  * Checked: a chart created, a symbol, a timeframe, an indicator present. Other steps are reported by their receipts only.
  */
-export async function readBackStepPlan(plan, host) {
+// `reached` (planner v2): the steps checked are the ones that REACHED this board — a step the server refused never does —
+// so the line never claims "all" of what the member asked for
+export async function readBackStepPlan(plan, host, { reached = false } = {}) {
   const charts = () => listCharts(host)
   const newCharts = () => charts().filter(c => !plan.before?.has(String(c.ref))).map(c => String(c.ref))
   // a created step's real chart: the new chart its symbol step names (else the only new chart)
@@ -201,8 +203,8 @@ export async function readBackStepPlan(plan, host) {
   const lines = []
   if (checked) {
     lines.push(missing.length
-      ? `Checked on your board: ${ok} of ${checked} checked steps are in place. Not in place: ${missing.join(', ')}.`
-      : `Checked on your board: all ${checked} checked steps are in place.`)
+      ? `Checked on your board: ${ok} of ${checked} checked steps${reached ? ' that ran here' : ''} are in place. Not in place: ${missing.join(', ')}.`
+      : `Checked on your board: all ${checked} checked steps${reached ? ' that ran here' : ''} are in place.`)
   }
   // a step that changes what an earlier step adds and was never reached (the batch stopped before it): say so
   const notRun = plan.steps.filter(s => typeof s.args?.instance === 'string' && STEP_REF.test(s.args.instance) && !s.reached)
