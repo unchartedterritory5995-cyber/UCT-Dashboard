@@ -74,6 +74,9 @@ _TECH = {
     "macd_hist": ("{sym} MACD histogram (12, 26, 9)", "price_units", DOMAIN_ANY, None),
     # W2-B2 (UCT Agent history.eventStudy): the opening gap vs the previous close, from the stored opens / closes
     "gap_pct": ("{sym} opening gap vs the previous close (%)", "percent_change", "signed", None),
+    # PKG2 (UCT Agent "after N-day breakouts"): the close vs the highest close of the N sessions BEFORE it, in %.
+    # Above 0 = a new N-day closing high; `cross_above 0` = the session it broke out. Stored closes only.
+    "pct_from_high": ("{sym} close vs its prior {n}-day closing high (%)", "percent_change", "signed", (5, 252)),
 }
 
 
@@ -128,6 +131,12 @@ def _tech_load(spec: dict) -> dict:
                 for c, u, l in zip(closes, up, lo)]
     elif spec["indicator"] == "macd_hist":
         _m, _s, vals = ic.compute_macd_raw(closes, 12, 26, 9)
+    elif spec["indicator"] == "pct_from_high":
+        # the prior N closes only (never the session itself), so a value > 0 IS a new N-day closing high
+        vals = [None] * len(closes)
+        for k in range(n, len(closes)):
+            hi = max(closes[k - n:k])
+            vals[k] = None if hi <= 0 else (closes[k] / hi - 1.0) * 100.0
     else:
         sma = ic.compute_sma(closes, n)
         vals = [None if (s is None or s == 0) else (c / s - 1.0) * 100.0 for c, s in zip(closes, sma)]

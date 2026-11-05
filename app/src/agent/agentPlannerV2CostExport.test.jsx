@@ -8,7 +8,7 @@
 // No model, no network.
 import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
-import { registerCatalog } from './qa/capabilityRegression/testing/registry'
+import { registerCatalog, isDark } from './qa/capabilityRegression/testing/registry'
 import { corpus, phrasingsOf } from './qa/capabilityRegression/testing/corpus'
 import { panelHost } from './qa/capabilityRegression/testing/harness'
 import { manifestFor, MANIFEST_CONTRACT, buildContext, refreshContext } from './capabilities'
@@ -17,6 +17,8 @@ import { correctTypos, lexiconFor } from './nl/lexicon'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 await registerCatalog()
+// PKG2: a DARK corpus entry ("kinds": "ALL") runs only in capabilityRegression/corpus.dark.test.jsx
+const PROD_INTENTS = corpus.intents.filter(i => !isDark(i))
 
 const OUT = globalThis.process?.env?.V2_COST_EXPORT || null
 const CAP_CTX = { surface: 'charts', createIndicator: true, manageIndicators: true }
@@ -28,7 +30,7 @@ describe('planner v2 cost export — the corpus requests as the browser builds t
     const intents = []
     const boards = {}
     const groupsSeen = new Map()
-    for (const intent of corpus.intents) {
+    for (const intent of PROD_INTENTS) {
       for (const op of intent.model.ops) expect(names.has(op.action), `${intent.id}: ${op.action} in the v2 manifest`).toBe(true)
       const host = panelHost(intent.board)
       await refreshContext(50)
@@ -46,6 +48,6 @@ describe('planner v2 cost export — the corpus requests as the browser builds t
     expect(groupsSeen.size).toBeLessThanOrEqual(1)
     if (OUT) fs.writeFileSync(OUT, JSON.stringify({ about: 'planner v2 cost export (agentPlannerV2CostExport.test.jsx)', manifest: full,
       routing_groups: [...groupsSeen.values()][0] || null, boards, intents }))
-    expect(intents).toHaveLength(corpus.intents.length)
+    expect(intents).toHaveLength(PROD_INTENTS.length)
   }, 60000)
 })

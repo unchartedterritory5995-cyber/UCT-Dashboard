@@ -21,7 +21,7 @@ import { RESOLVE_KIND, toCandidates, resolveInstruments, isFundLabel, FUND_NOTE 
 
 export const CAPABILITY = 'history.afterEvent'
 export const KIND = 'history.eventStudy'
-export const INDICATORS = ['gap_pct', 'pct_from_sma', 'rsi', 'bb_pct_b', 'macd_hist']
+export const INDICATORS = ['gap_pct', 'pct_from_sma', 'rsi', 'bb_pct_b', 'macd_hist', 'pct_from_high']
 export const NO_PERIOD = ['gap_pct', 'macd_hist']
 export const OPS = ['above', 'below', 'cross_above', 'cross_below']
 export const DEFAULT_HORIZONS = [1, 5, 21]
@@ -29,7 +29,11 @@ export const MAX_HORIZONS = 4
 export const MAX_SESSIONS = 252
 export const DESCRIPTIVE = "Descriptive, not predictive: this is what happened after past events in UCT's stored daily history; past results do not predict future returns."
 const GAPS_NOTE = "Opening gaps on any session are counted — UCT's data carries no past earnings dates, so earnings days are not separated."
-const INDICATOR_WORDS = { gap_pct: 'opening gap vs the previous close (%)', pct_from_sma: '% from its N-day SMA', rsi: 'RSI(N)', bb_pct_b: 'Bollinger %B (N, 2σ)', macd_hist: 'MACD histogram (12, 26, 9)' }
+const INDICATOR_WORDS = { gap_pct: 'opening gap vs the previous close (%)', pct_from_sma: '% from its N-day SMA', rsi: 'RSI(N)', bb_pct_b: 'Bollinger %B (N, 2σ)', macd_hist: 'MACD histogram (12, 26, 9)', pct_from_high: 'a new N-day closing high' }
+/** PKG2: a BREADTH-conditioned study ("SPY after breadth thrusts") is refused in fixed words, before any read or model call:
+ *  UCT's breadth readings are model-isolated and never composed into a study (ADR-005; the server refuses the series kind too). */
+export const BREADTH_DECLINE = "Studies conditioned on market breadth (a breadth thrust, % of stocks above a moving average, new highs / lows) aren't available to UCT Agent: UCT's breadth readings are shown to you directly and are never combined into a study. "
+  + 'I can study what one stock or ETF did after its OWN technical events instead — a new N-day closing high (a breakout), an opening gap, RSI, or crossing a moving average — for example "how has SPY done after new 50-day highs". No figure is stated.'
 
 export function historyServed() {
   if (!agentClient.serverServesData()) return false
@@ -100,7 +104,7 @@ export async function answerAfterEvent(args) {
   if (!historyServed()) return "UCT's event studies aren't available to the Agent here."
   const candidates = toCandidates([a.symbol])
   if (candidates.length !== 1) return "Which ticker? I couldn't find a symbol in that."
-  if (!a.indicator || !a.op || a.threshold == null) return `Which condition? I can study what followed an opening gap of N%+, RSI, % from a moving average, Bollinger %B or the MACD histogram above / below / crossing a level — for example "how has NVDA behaved after 5%+ gaps".`
+  if (!a.indicator || !a.op || a.threshold == null) return `Which condition? I can study what followed an opening gap of N%+, a new N-day closing high (a breakout), RSI, % from a moving average, Bollinger %B or the MACD histogram above / below / crossing a level — for example "how has NVDA behaved after 5%+ gaps".`
   if (!NO_PERIOD.includes(a.indicator) && !a.period) return `Which period? For example "${INDICATOR_WORDS[a.indicator].replace('N', '14')}".`
   // MD-1 §4.7: the word is resolved against UCT's symbol index BEFORE anything is read
   const r = await resolveInstruments(candidates)
@@ -114,24 +118,64 @@ export async function answerAfterEvent(args) {
   return answerFromEventStudy(env, { symbol: resolved, name: r.names[resolved], indicator: a.indicator })
 }
 
-// ── fast path: "how has NVDA behaved after 5%+ (earnings) gaps (down)?" — pure, fail-closed ─────────────────────
+// ── fast path — pure, fail-closed. The candidate word is kept exactly as typed (MD-1 §4.7 resolves it in answer()):
+//   "how has NVDA behaved after 5%+ (earnings) gaps (down)?"         gap_pct above N (5 when no size is named)
+//   "how does SPY do after new 50-day highs / 20-day breakouts?"      pct_from_high N cross_above 0 (52-week = 252)
+//   "what happens to AMD after it crosses above its 50-day?"          pct_from_sma N cross_above | cross_below 0
+//   "how has NVDA done after RSI drops below 30?"                     rsi 14 cross_below 30 (cross_above for above)
+//   "how does SPY do after breadth thrusts?"                          the fixed BREADTH_DECLINE, no read (ADR-005)
 const SYM = '(\\$?[A-Za-z][A-Za-z0-9.]{0,5})'
-const GAPS = new RegExp(`^(?:how (?:has|did|does) ${SYM} (?:behaved?|do|done|perform(?:ed)?|react(?:ed)?|trade[d]?|act(?:ed)?)|what (?:happens|happened) (?:to|with) ${SYM}) after (?:a |an )?(\\d{1,2}(?:\\.\\d+)?)\\s?%\\s?\\+? (?:(?:earnings|opening|open) )?gaps?(?: (up|down|higher|lower))?(?: since (\\d{4}))?$`, 'i')
+const LEAD = `(?:how (?:has|did|does|do) ${SYM} (?:usually |typically |historically )?(?:behaved?|do|done|perform(?:ed)?|react(?:ed)?|trade[d]?|act(?:ed)?|move[d]?)|what (?:usually |typically )?(?:happens|happened) (?:to|with) ${SYM})`
+const TAIL = '(?: (?:historically|in the past|over time))?(?: since (\\d{4}))?$'
+const GAPS = new RegExp(`^${LEAD} after (?:a |an )?(?:(\\d{1,2}(?:\\.\\d+)?)\\s?%\\s?\\+? (?:or (?:more|bigger|larger) )?)?(?:(?:earnings|opening|open|big) )?gaps?(?: (up|down|higher|lower))?${TAIL}`, 'i')
+const HIGHS = new RegExp(`^${LEAD} after (?:it )?(?:(?:makes?|made|making|hits?|hitting|sets?|setting|breaks? out to|broke out to|breaking out to) )?(?:a |an )?(?:new )?(?:(52)[- ]?week|(\\d{1,3})[- ]?(day|session|week))s? (?:closing )?(?:highs?|breakouts?|break[- ]outs?)${TAIL}`, 'i')
+const SMA_X = new RegExp(`^${LEAD} after (?:it )?(?:cross(?:es|ed|ing)?|breaks?|broke|breaking|closes|closed|closing|moves?|moved|moving) (above|over|below|under) (?:its |the )?(\\d{1,3})[- ]?day(?: (?:simple )?(?:moving average|sma|ma|line|average))?${TAIL}`, 'i')
+const RSI_X = new RegExp(`^${LEAD} after (?:its |the )?rsi(?: ?\\(?(\\d{1,3})\\)?)? (?:(?:drops?|dropped|falls?|fell|goes|went|gets?|got|crosses|crossed|dips?|dipped|moves?|moved|rises?|rose|climbs?|climbed) )?(below|under|above|over) (\\d{1,2})${TAIL}`, 'i')
+const BREADTH_STUDY = /^(?:how|what)\b[^,;]{0,80}\b(?:after|following)\b[^,;]{0,40}\b(?:breadth thrusts?|zweig(?: breadth)?(?: thrusts?)?|breadth (?:surges?|spikes?|signals?))(?: (?:historically|in the past|over time))?(?: since \d{4})?$/i   // anchored: a trailing second request is never swallowed
+const NOT_A_SYMBOL = new Set(['it', 'its', 'this', 'that', 'they', 'them', 'stocks', 'stock', 'market', 'the'])
 const normalise = (t) => String(t || '').replace(/[’`]/g, "'").trim().replace(/[?!.]+$/, '').replace(/\s+/g, ' ').trim()
+const sinceOf = (y) => (y ? `${y}-01-01` : null)
+const study = (symbol, indicator, period, op, threshold, year) => ({ action: CAPABILITY, params: { symbol, indicator, period, op, threshold, horizons: [...DEFAULT_HORIZONS], since: sinceOf(year) } })
 
-/** The gap question → { action, params } with the candidate word exactly as typed; null otherwise. */
+/** The event question → { action, params } with the candidate word exactly as typed, { say } for a breadth-conditioned
+ *  study (declined in fixed words), or null. */
 export function match(text) {
   if (!historyServed()) return null
   const s = normalise(text)
-  if (!s || s.length > 120) return null
-  const m = GAPS.exec(s)
-  if (!m) return null
-  const symbol = m[1] || m[2]
-  const pct = Number(m[3])
-  if (!(pct >= 1 && pct <= 50)) return null
-  const down = m[4] === 'down' || m[4] === 'lower'
-  const since = m[5] ? `${m[5]}-01-01` : null
-  return { action: CAPABILITY, params: { symbol, indicator: 'gap_pct', period: null, op: down ? 'below' : 'above', threshold: down ? -pct : pct, horizons: [...DEFAULT_HORIZONS], since } }
+  if (!s || s.length > 140) return null
+  if (BREADTH_STUDY.test(s)) return { say: BREADTH_DECLINE }
+  const sym = (m) => { const w = m[1] || m[2]; return w && !NOT_A_SYMBOL.has(w.toLowerCase()) ? w : null }
+  let m = GAPS.exec(s)
+  if (m) {
+    const symbol = sym(m)
+    const pct = m[3] == null ? 5 : Number(m[3])
+    if (!symbol || !(pct >= 1 && pct <= 50)) return null
+    const down = m[4] === 'down' || m[4] === 'lower'
+    return study(symbol, 'gap_pct', null, down ? 'below' : 'above', down ? -pct : pct, m[5])
+  }
+  m = HIGHS.exec(s)
+  if (m) {
+    const symbol = sym(m)
+    const n = m[3] ? 252 : m[5] === 'week' ? Number(m[4]) * 5 : Number(m[4])
+    if (!symbol || !(n >= 5 && n <= 252)) return null
+    return study(symbol, 'pct_from_high', n, 'cross_above', 0, m[6])
+  }
+  m = SMA_X.exec(s)
+  if (m) {
+    const symbol = sym(m)
+    const n = Number(m[4])
+    if (!symbol || !(n >= 2 && n <= 400)) return null
+    return study(symbol, 'pct_from_sma', n, /above|over/i.test(m[3]) ? 'cross_above' : 'cross_below', 0, m[5])
+  }
+  m = RSI_X.exec(s)
+  if (m) {
+    const symbol = sym(m)
+    const n = m[3] ? Number(m[3]) : 14
+    const level = Number(m[5])
+    if (!symbol || !(n >= 2 && n <= 200) || !(level >= 1 && level <= 99)) return null
+    return study(symbol, 'rsi', n, /above|over/i.test(m[4]) ? 'cross_above' : 'cross_below', level, m[6])
+  }
+  return null
 }
 
 let registered = false
@@ -145,10 +189,12 @@ export function registerHistoryCapability() {
     surfaces: ['charts'],
     target: 'market', query: true,
     localOnly: true,                    // ⛔ shown to the member; the model never sees a return (turn.LOCAL_ONLY_ACTIONS)
-    summary: 'EVENT STUDY from UCT\'s stored daily history: every time ONE stock met a technical condition (an opening gap of N%+, RSI, % from an N-day SMA, Bollinger %B or the MACD histogram above / below / crossing a level), '
+    summary: 'EVENT STUDY from UCT\'s stored daily history: every time ONE stock met a technical condition (an opening gap of N%+, a new N-day closing high = a breakout, RSI, % from an N-day SMA, Bollinger %B or the MACD histogram above / below / crossing a level), '
       + 'what its price did over the next 1, 5 and 21 sessions — events, hit rate, average, median, best, worst, against all sessions. UCT computes and shows it; you never see the returns. '
-      + 'Use this (disposition apply, research null) for "how has NVDA behaved after 5%+ gaps", "what happens after AMD crosses above its 50-day". Descriptive, never a prediction.',
-    hints: 'target = the ref of the stockData entry; symbol uppercase. indicator gap_pct (period null; threshold = the gap % — negative with op below for gaps down) | pct_from_sma (period = the SMA days; threshold in %) | rsi (period) | bb_pct_b (period) | macd_hist (period null). '
+      + 'Use this (disposition apply, research null) for "how has NVDA behaved after 5%+ gaps", "what happens after AMD crosses above its 50-day", "how does SPY do after 20-day breakouts". Descriptive, never a prediction. '
+      + 'A study conditioned on MARKET BREADTH (breadth thrusts, % above a moving average, NH/NL) or on earnings dates is NOT available: plan nothing and say so in one line, with no figure.',
+    hints: 'target = the ref of the stockData entry; symbol uppercase. indicator gap_pct (period null; threshold = the gap % — negative with op below for gaps down; 5 when no size is named) | pct_from_high (an N-day BREAKOUT / new N-day high: period = N, 252 for a 52-week high; op cross_above, threshold 0) '
+      + '| pct_from_sma (crossing a moving average: period = the SMA days; op cross_above / cross_below, threshold 0) | rsi (period, 14 when none is named) | bb_pct_b (period) | macd_hist (period null). '
       + 'op above | below | cross_above | cross_below. horizons = session counts (1–252, at most 4; null = [1, 5, 21]). since = YYYY-MM-DD or null (all history). reply: one short line, no figures.',
     args: {
       type: 'object',
@@ -166,7 +212,8 @@ export function registerHistoryCapability() {
     },
     fastWhole: true,
     fastCorrect: false,
-    fast: ({ raw }) => { const m = match(raw); return m ? m.params : null },
+    // (a breadth-conditioned study is answered in fixed words — fastPath's `__say` — with no read and no model call)
+    fast: ({ raw }) => { const m = match(raw); return m ? (m.say ? { __say: m.say } : m.params) : null },
     answer: (_snap, args) => answerAfterEvent(args),
   })
   return true
