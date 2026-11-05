@@ -64,5 +64,47 @@
   "api/services/runtime_server_lane.py",
   "return RuntimeColumn(res.columns[plot_key], res.warmup)",
   "return RuntimeColumn(res.columns[plot_key], {})"
+ ],
+ [
+  "A01 admission skips the stored verdict",
+  "api/services/runtime_server_lane.py",
+  "    reason = _verdict(row)\n    if reason:\n        return (VERDICT_GUARD, reason)\n    return _admission(row, lane)",
+  "    return _admission(row, lane)"
+ ],
+ [
+  "A02 admission skips server_lane_refusal",
+  "api/services/runtime_server_lane.py",
+  "        return (VERDICT_GUARD, reason)\n    return _admission(row, lane)",
+  "        return (VERDICT_GUARD, reason)\n    return None"
+ ],
+ [
+  "A03 column fn asks step 4 only, not the public chain",
+  "api/services/runtime_server_lane.py",
+  "        refused = admission(row, plot_key, lane)",
+  "        refused = _admission(row, lane)"
+ ],
+ [
+  "A04 unnamed plot admitted",
+  "api/services/runtime_server_lane.py",
+  "    if not isinstance(plot_key, str) or not plot_key:\n        return (client_mod.INTEGRITY",
+  "    if False:\n        return (client_mod.INTEGRITY"
+ ],
+ [
+  "A05 admission accepts an unknown lane",
+  "api/services/runtime_server_lane.py",
+  "    if lane not in client_mod.PROFILES:\n        raise ValueError(f\"lane {lane!r} is not one of {client_mod.PROFILES}\")\n    if not isinstance(plot_key",
+  "    if False:\n        raise ValueError(f\"lane {lane!r} is not one of {client_mod.PROFILES}\")\n    if not isinstance(plot_key"
+ ],
+ [
+  "I01 +/-Infinity admitted in an ok column (ruling: integrity)",
+  "api/services/pine_runtime_client.py",
+  "if any(math.isinf(v) for v in col):",
+  "if False:"
+ ],
+ [
+  "I02 only +Infinity refused",
+  "api/services/pine_runtime_client.py",
+  "if any(math.isinf(v) for v in col):",
+  "if any(v == math.inf for v in col):"
  ]
 ]

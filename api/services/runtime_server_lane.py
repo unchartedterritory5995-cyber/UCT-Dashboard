@@ -16,6 +16,10 @@ A refusal RAISES ``ServerLaneWithheld`` (guard + sentence). It never returns an 
 all-na column: a refusal read as "no number" is a scan symbol counted as a non-hit and an alert
 that arms and never fires (3.7 rule 3).
 
+``admission(row, plot_key, lane)`` is the same chain as a public question (no service call) for
+lanes that must decide before they fetch bars; ``_verdict`` (step 2) and ``_admission`` (step 4)
+stay as the thin underscore names T13-T15 were written against.
+
 ``server_lane_refusal`` is W5-T12's (``runtime_definitions``); it is reached through
 ``_admission`` at call time, so a build without it refuses every call by name.
 """
@@ -80,6 +84,23 @@ def _verdict(row: Mapping[str, Any]) -> Optional[str]:
         return "the stored verdict for this version could not be read, so it is withheld"
 
 
+def admission(row: Mapping[str, Any], plot_key: str, lane: str) -> Optional[Tuple[str, str]]:
+    """THE PUBLIC ADMISSION QUESTION a server lane asks before it evaluates one plot of a stored
+    runtime row: ``(guard, sentence)`` for the first refusal, or ``None``. The 5.2 chain, in order:
+    the stored verdict (``withheld``), then ``server_lane_refusal`` (step 4). It makes no service
+    call. ``runtime_column_fn`` asks exactly this on every call, so the two cannot disagree.
+    A plot key that is not a non-empty string is refused (``runtime:server-integrity``): a lane
+    that cannot name its plot has nothing to evaluate."""
+    if lane not in client_mod.PROFILES:
+        raise ValueError(f"lane {lane!r} is not one of {client_mod.PROFILES}")
+    if not isinstance(plot_key, str) or not plot_key:
+        return (client_mod.INTEGRITY, "the lane named no plot, so nothing is evaluated")
+    reason = _verdict(row)
+    if reason:
+        return (VERDICT_GUARD, reason)
+    return _admission(row, lane)
+
+
 def runtime_column_fn(row: Mapping[str, Any], plot_key: str, lane: str, *,
                       client_factory: Optional[Callable[[], client_mod.PineRuntimeClient]] = None,
                       cache: Optional[client_mod.RunCache] = None) -> Callable[..., List[float]]:
@@ -96,10 +117,7 @@ def runtime_column_fn(row: Mapping[str, Any], plot_key: str, lane: str, *,
 
     def fn(bars: Any, params: Optional[Mapping[str, Any]], *, tf: str, ticker: str,
            exchange: str = "", history_from_listing: bool = False) -> List[float]:
-        reason = _verdict(row)
-        if reason:
-            raise ServerLaneWithheld(VERDICT_GUARD, reason)
-        refused = _admission(row, lane)
+        refused = admission(row, plot_key, lane)
         if refused is not None:
             raise ServerLaneWithheld(*refused)
         job = client_mod.Job(job=f"{ticker}|{tf}", ticker=ticker, exchange=exchange, tf=tf, bars=bars,
