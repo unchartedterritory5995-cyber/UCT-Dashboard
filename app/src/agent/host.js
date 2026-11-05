@@ -320,6 +320,8 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
     remove: (id) => widgetOps.remove(id),
     color: (id, color) => widgetOps.color?.(id, color),
     cancelPending: () => widgetOps.cancelPending?.(),
+    // the bound's banner: a refused add says it on the board too, as the Widgets menu does
+    raiseBound: (sentence) => widgetOps.raiseBound?.(sentence),
   }
 }
 

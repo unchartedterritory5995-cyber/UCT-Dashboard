@@ -29,6 +29,7 @@ import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, c
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
+import { boardRefusalIn } from '../pages/charts/boardBound'
 import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
@@ -791,6 +792,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
     const leadLines = lead && !lead.used ? lead.lines : []
     const refusalPush = (text) => {
+      const full = boardRefusalIn(text)
+      if (full) { try { host?.widgets?.raiseBound?.(full) } catch { /* the words below still say it */ } }
       const before = leadLines.length ? `${leadLines.join(' ')} ` : ''
       if (lead) lead.used = true
       push({ role: 'refusal', text: `${before}${note ? `${text} ${note}` : text}` })
