@@ -56,7 +56,7 @@ def test_server_limits_equal_the_shared_contract():
 
 
 def test_every_capability_belongs_to_a_routing_group_and_each_request_fits():
-    assert all(c["name"].split(".")[0] in _GROUP_OF for c in CAPS)
+    assert all(c["name"] in _GROUP_BY_ACTION or c["name"].split(".")[0] in _GROUP_OF for c in CAPS)
     for g, req in _requests():
         assert len(req) <= CONTRACT["catalog"]["maxGroupSize"] + 1, g
         assert len(req) <= turn.MAX_CAPABILITIES, g

@@ -225,7 +225,7 @@ describe('L3 · destructive / permanent changes still need approval', () => {
       // W1-B B-03 (owner's Wave 1 directive: create = risk 'confirm'; delete is a hard delete in the product)
       'indicatorAlert.create', 'indicatorAlert.delete', 'indicatorTemplate.delete', 'layout.create',
       'layout.delete', 'layout.duplicate', 'layout.rename', 'layout.saveAs', 'layout.saveCurrent', 'screener.deleteSaved', 'screener.duplicateSaved',
-      'screener.renameSaved', 'screener.saveAs', 'watchlist.clear', 'watchlist.create', 'watchlist.delete', 'watchlist.rename'])
+      'screener.renameSaved', 'screener.saveAs', 'watchlist.clear', 'watchlist.create', 'watchlist.delete', 'watchlist.keepOnly', 'watchlist.rename'])
     // the new grid is an ordinary, reversible workspace change (exact Undo)
     expect(getCapability('chartGrid.set')).toMatchObject({ target: 'board' })
     expect(getCapability('chartGrid.set').risk ?? 'local').toBe('local')

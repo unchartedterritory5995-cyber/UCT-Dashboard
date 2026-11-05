@@ -43,7 +43,7 @@ def test_the_guarded_actions_are_a_deliberate_list():
                        "indicatorAlert.create", "indicatorAlert.delete", "indicatorTemplate.delete", "layout.create", "layout.delete",
                        "layout.duplicate", "layout.rename", "layout.saveAs", "layout.saveCurrent", "screener.deleteSaved",
                        "screener.duplicateSaved", "screener.renameSaved", "screener.saveAs", "watchlist.clear",
-                       "watchlist.create", "watchlist.delete", "watchlist.rename"]
+                       "watchlist.create", "watchlist.delete", "watchlist.keepOnly", "watchlist.rename"]
 
 
 @pytest.mark.parametrize("action", [a for a in GUARDED if a not in turn.EXPLICIT_OK_ACTIONS])
