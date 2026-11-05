@@ -102,3 +102,18 @@ Logs: `runs/w4t12-final2/{gate,hyg,py,js}.log`.
 ## Engine bump
 Yes: door outcomes change on the runtime lane (refusals become served values). The coordinator bumps
 `SCRIPT_ENGINE_VERSION` at merge; not edited here. No licence-held text is included.
+
+## Round r1 (review NO-GO @f8ddebfa76: B1 MEDIUM, note N1)
+Code tip `4e813ca81c` (tests plus one helper; no engine behaviour change).
+- B1: the two object-door gates that had no rail now each have one, in `runtime/__tests__/w4PaintTyping.test.js`
+  ("the object door builds what master builds"): a colour `switch`, a colour `if` block, and an element of a colour array. Each builds
+  on the pane (`ok`) and is refused at the door with master's guard (`runtime:colour`; the `if` block asserts only `ok:false`).
+  Mutations (`mutate.py`, restored byte-exact, `runs/w4t12r1/mut.log`), all KILLED: R1 drop `!atObjectDoor &&` at the switch/if
+  binding (`:9678`; killed by the switch and the if rails), R2 drop it at the colour-array read (`:2675`; killed by the array rail),
+  R3 the shared `literalBool` reads nothing (killed by the literal-true / literal-false fill rails).
+  The EVIDENCE statement "every new proof is off at the object door" is now proved for all four gates.
+- N1: `literalBool` is one exported module-level helper; the fill reads it (W4-T13 uses the same one).
+- No re-measure: only tests and a helper hoist changed.
+- final-tip last, on the final tree (`final-tip.sh pine-dsk-w4t12 dsk-w4t12r1-final tests/test_script_engine_version_gate.py`, `runs/w4t12r1/final.out`):
+  gate pytest `46 passed`; `test_script_engine_version_gate.py` `6 passed`; hygiene clean;
+  vitest `Test Files 1 failed | 1335 passed | 27 skipped (1363)`, the one failure the `pollingSites.rail` baseline.
