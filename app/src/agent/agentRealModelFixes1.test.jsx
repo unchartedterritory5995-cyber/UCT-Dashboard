@@ -8,6 +8,7 @@ import { setupPanel, ONE, TWO } from './testing/panelHarness'
 import { buildContext } from './capabilities'
 import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
 import { preflightRefusals } from './nl1/interpreter'
+import { addChartTab } from '../pages/charts/chartTabs'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -303,4 +304,49 @@ describe('defect 4: a question reaches the panel only with its options', () => {
       expect(preflightRefusals(h, [{ action: 'widget.add', target: 'workspace', args: { type: 'news', as: null } }])).toEqual([])
     })
   })
+})
+
+describe('defect 5: chart tabs', () => {
+  const widgetOf = (board, id = 'c') => board.state.widgets.find(w => w.id === id)
+  const planTabs = (...tfs) => p.env('apply', tfs.map(timeframe => ({ action: 'chart.addTab', target: 'board', args: { widget: 'c', timeframe, name: null } })))
+  it('a tab on a NOT LINKED chart starts on the chart\'s own key, as the tab strip\'s "+" stores it', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(planTabs('W'))
+    await say('open a new tab on this chart at weekly')
+    const { opts } = widgetOf(board)
+    expect(opts.chartTabs[0].color).toBe('N:c')
+    expect(addChartTab({}, { color: 'N:c', tf: 'W' }).chartTabs[0].color).toBe(opts.chartTabs[0].color)
+    expect(board.state.groupSyms[opts.chartTabs[0].color]).toBe('AAPL')
+  }, 40000)
+  it('two tabs in one request: the receipt names both, and only the last says it is showing', async () => {
+    const { say } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(planTabs('60', 'W'))
+    const text = await say('open a new tab on this chart at 1 hour, and a weekly one too')
+    expect(text).toMatch(/Added a chart tab “1h”/)
+    expect(text).toMatch(/Added a chart tab “1W” .* and switched to it/)
+    expect(text).not.toMatch(/“1h”[^“]* and switched to it/)
+  }, 40000)
+  it('a second tab starts on the same key as the first', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(planTabs('60', 'W'))
+    await say('open a new tab at 1 hour and a weekly tab too')
+    expect(widgetOf(board).opts.chartTabs.map(t => t.color)).toEqual(['N:c', 'N:c'])
+  }, 40000)
+  it('two tabs alike are counted, and a named tab is named', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'chart.addTab', target: 'board', args: { widget: 'c', timeframe: null, name: 'Swing' } },
+      { action: 'chart.addTab', target: 'board', args: { widget: 'c', timeframe: 'W', name: null } },
+    ]))
+    const text = await say('add a tab called Swing and a weekly tab')
+    expect(text).toMatch(/“Swing”/)
+    expect(text).toMatch(/“1W”/)
+    expect(widgetOf(board).opts.chartTabs.length).toBe(2)
+  }, 40000)
+  it('NEGATIVE: a chart in a link group keeps its group, so its tab follows the group', async () => {
+    const { say, board } = p.mount([{ id: 'c', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'B', opts: {} }], { B: 'MSFT' })
+    p.st.envelopes.push(planTabs('W'))
+    await say('open a new tab at weekly')
+    expect(widgetOf(board).opts.chartTabs[0].color).toBe('B')
+  }, 40000)
 })

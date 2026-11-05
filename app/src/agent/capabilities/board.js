@@ -38,7 +38,8 @@ import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
 import { labelMap, WIDGET_REGISTRY } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
-import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
+import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups, effectiveGroup } from '../../pages/charts/colorGroups'
+import { tfLabel } from '../../components/chart/timeframes'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
@@ -1241,6 +1242,15 @@ export function registerBoardCapabilities() {
     return { t }
   }
   const setOpts = (st, t, opts) => (same(opts, t.opts) ? st : { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) })
+  // ⛔ REAL-MODEL VERIFICATION 2026-11-05: the link a new tab starts on is the key the "+" stores (ChartWidget handleAddTab: its
+  // `activeColor`). A NOT LINKED chart's key is its own `N:<id>` (WidgetHost), never the plain 'N', which holds no symbol, so a new
+  // tab opened on SPY while the chart showed AAPL.
+  const linkKeyOfTab = (t, extraOn) => {
+    const active = tabsOf(t).find(x => x.active)
+    const color = active?.color || t.color || 'A'
+    if (effectiveGroup(color, extraOn === true) !== NOT_LINKED) return color
+    return active?.key === 'main' || color === NOT_LINKED ? `${NOT_LINKED}:${t.id}` : `${NOT_LINKED}:tab:${t.id}:${active.id}`
+  }
   const tabArg = { type: 'string' }
   const tabHint = 'tab = "main" (the widget\'s own chart), the extra tab\'s position "1", "2"… or its label, from the board entry\'s chartTabs.'
 
@@ -1255,18 +1265,22 @@ export function registerBoardCapabilities() {
       if (why) return why
       return sanitizeChartTabs(t.opts).tabs.length >= MAX_CHART_TABS ? `That chart already has ${MAX_CHART_TABS} extra tabs.` : null
     },
-    apply(st, { widget, timeframe, name }) {
+    apply(st, { widget, timeframe, name }, env) {
       const { t } = chartWidget(st, widget)
-      const activeColor = tabsOf(t).find(x => x.active)?.color || t.color || 'A'
-      let opts = addChartTab(t.opts || {}, { color: activeColor, tf: timeframe || 'D' })
+      let opts = addChartTab(t.opts || {}, { color: linkKeyOfTab(t, env?.target?.extraGroups), tf: timeframe || 'D' })
       if (name) { const { tabs } = sanitizeChartTabs(opts); opts = renameChartTab(opts, tabs[tabs.length - 1].id, name) }
       return setOpts(st, t, opts)
     },
-    describe(b, a, { widget }) {
+    // ⛔ REAL-MODEL VERIFICATION 2026-11-05: `a` is the whole plan's result, so two tabs in one request both described the last one
+    // and the receipt named only it: each op names its own tab, from its own arguments.
+    describe(b, a, { widget, timeframe, name }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
       if (!o || !n || same(o.opts, n.opts)) return null
-      const tabs = tabsOf(n)
-      return `Added a chart tab “${tabs[tabs.length - 1].label}” to the ${nameOf(o, b.board)} and switched to it`
+      const added = tabsOf(n).slice(tabsOf(o).length)
+      const want = String(name || '').trim() || tfLabel(timeframe || 'D')
+      const mine = added.filter(x => x.label === want)
+      const said = mine.length ? mine : added.slice(-1)
+      return `Added ${said.length > 1 ? `${said.length} chart tabs` : 'a chart tab'} “${said[0]?.label || want}” to the ${nameOf(o, b.board)}${said.some(x => x.active) ? ' and switched to it' : ''}`
     },
   })
   reg({
