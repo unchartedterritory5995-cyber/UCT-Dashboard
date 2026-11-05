@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Notebook P1 lane C: the Styles manager, through the REAL client (lib/journalStyles.js) with only the
@@ -86,7 +87,7 @@ const OWN_KIND_URL = re(`/api/j2/note-kinds/${OWN_KIND.id}`)
 const MEMBER_END = new RegExp(`${MEMBER.id}$`)
 const RESTORE_END = new RegExp(`${MEMBER.id}/restore$`)
 const OWN_KIND_END = new RegExp(`note-kinds/${OWN_KIND.id}$`)
-const OFFLINE = "You're offline. Changes to styles need a connection."
+const OFFLINE = "You're offline. Changes to templates need a connection."
 const SERVER_SIDE = 'Something went wrong on our side. Try again.'
 const NETWORK = Symbol('network failure')
 const CODE_BUG = Symbol('a bug in our own code')
@@ -243,7 +244,7 @@ describe('the Styles manager', () => {
     await waitFor(() => expect(document.activeElement).toBe(undo))
     fireEvent.click(undo)
     await waitFor(() => expect(called('POST', RESTORE_END)).toHaveLength(1))
-    await screen.findByText('Style restored.')
+    await screen.findByText('Template restored.')
     // the row is back, with its Default badge, and focus is on it (not on <body>)
     const row = (await screen.findByText(NAME)).closest('li')
     expect(within(row).getByText('Default')).toBeInTheDocument()
@@ -515,7 +516,7 @@ describe('the Styles manager', () => {
     fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     await screen.findByLabelText('Name')
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Give the style a name.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Give the template a name.')
     expect(called('POST', /journal-styles$/)).toHaveLength(0)
   })
 
@@ -851,7 +852,7 @@ describe('kinds of note', () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
+    await screen.findByText(/Note type deleted. 2 templates you had deleted for it were removed for good\./)
   })
 
   it('the server’s own answer with wave 11 dark (one deleted style went with the kind) is worded in the singular', async () => {
@@ -861,17 +862,17 @@ describe('kinds of note', () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted. 1 style you had deleted for it was removed for good.')
+    await screen.findByText('Note type deleted. 1 template you had deleted for it was removed for good.')
   })
 
-  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Kind deleted." alone', async () => {
+  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Note type deleted." alone', async () => {
     expect(KIND_DELETED_W11.purgedDeletedStyles).toBe(0)
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED_W11])
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted.')
+    await screen.findByText('Note type deleted.')
     expect(screen.queryByText(/removed for good/)).toBeNull()
   })
 

@@ -32,6 +32,14 @@ export const FILLING_WORDS = {
   source_error: "This couldn't be read just now. It fills in here when it can.",
 }
 
+/** Fix round 1 (review finding 7): what a retrying gap says once nothing will fill it -- its reads ran out, it was
+ *  captured on an earlier day, or this is a reader's view. Past tense: no promise the block cannot keep. */
+export const FINAL_WORDS = {
+  no_earnings_yet: "The earnings list wasn't loaded for this day.",
+  no_quotes: "Prices weren't loaded for this day.",
+  source_error: "This couldn't be read for this day.",
+}
+
 /** "Oct 5, 2026, 10:30 AM" in New York, or null for a time that cannot be read. */
 function easternTime(iso) {
   const d = new Date(iso)
@@ -83,9 +91,13 @@ export default function PrepCapture({ part, params, setParams, editable, childre
     const tick = async () => {
       if (!alive) return
       tries += 1
+      // Pinned to the snapshot's own day (review finding 7c): a chain started before midnight never reads, or writes,
+      // the next day's list into yesterday's snapshot.
+      if (!fillsItself(snap, new Date())) { setExhausted(snap?.capturedAt ?? null); return }
       const body = await readPart(part)
       if (!alive) return
-      if (body && !body.missing && !body.needs) {
+      if (body && !body.missing && !body.needs && etDay(body.capturedAt) === etDay(snap.capturedAt)
+        && fillsItself(snap, new Date())) {
         setParamsRef.current({ snapshot: body })
         return
       }
@@ -112,7 +124,7 @@ export default function PrepCapture({ part, params, setParams, editable, childre
   const when = snap ? easternTime(snap.capturedAt) : null
   let body = null
   if (snap?.needs) body = <BlockNeedsSwitch what={snap.needs} />
-  else if (snap?.missing) body = <p className={styles.muted} data-prep-filling={filling ? '' : undefined}>{editable && fillsItself(snap) ? FILLING_WORDS[snap.missing] : snap.detail}</p>
+  else if (snap?.missing) body = <p className={styles.muted} data-prep-filling={filling ? '' : undefined}>{filling ? FILLING_WORDS[snap.missing] : RETRYABLE.includes(snap.missing) ? FINAL_WORDS[snap.missing] : snap.detail}</p>
   else if (snap) body = children(snap)
   // M-4 (R-T12-C fix round): an empty block says why for an editor too, above its "Capture now".
   else body = <p className={styles.muted}>Not captured yet.</p>

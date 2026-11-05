@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import fs from 'node:fs'

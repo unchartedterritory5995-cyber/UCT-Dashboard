@@ -74,7 +74,7 @@ const renderTab = () => render(
 )
 
 describe('New note: pick a kind (Notebook P1)', () => {
-  it('the Home New-note menu gets a "From a style" door only while the switch is on', async () => {
+  it('the Home New-note menu gets a "From a template" door only while the switch is on', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     const { unmount } = render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('research-home')
@@ -135,7 +135,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
       .toContain("Couldn't create that note. Nothing was saved."))
   })
 
-  it('From a style opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
+  it('From a template opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('research-home')

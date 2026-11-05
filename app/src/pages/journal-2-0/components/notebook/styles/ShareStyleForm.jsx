@@ -118,8 +118,8 @@ function PlainShareStyleForm({ style, onShared, onClose }) {
   }
 
   return (
-    <Sheet open onClose={onClose} title={`Share ${style?.name || 'this style'} to community`} labelledByTitle variant="auto" maxWidth={560}>
-      <form className={styles.editor} onSubmit={submit} aria-label={`Share ${style?.name || 'this style'} to community`}>
+    <Sheet open onClose={onClose} title={`Share ${style?.name || 'this template'} to the Template library`} labelledByTitle variant="auto" maxWidth={560}>
+      <form className={styles.editor} onSubmit={submit} aria-label={`Share ${style?.name || 'this template'} to the Template library`}>
         <div className={styles.field}>
           <label htmlFor={`${uid}-title`}>Title in the library</label>
           <input id={`${uid}-title`} type="text" value={title} maxLength={MAX_TITLE} required onChange={(e) => setTitle(e.target.value)} />

@@ -62,7 +62,7 @@ describe('the Styles door on the Notebook tab', () => {
   it("the Settings card's own link opens the manager on Research Home", async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(<Providers route="/settings"><JournalStylesCard /></Providers>)
-    const href = screen.getByRole('link', { name: 'Open journal styles' }).getAttribute('href')
+    const href = screen.getByRole('link', { name: 'Manage templates' }).getAttribute('href')
     cleanup()
     expect(href).not.toMatch(/view=/)                                       // the case under test: Home, not the list
     render(<Providers route={href}><NotebookTab /></Providers>)

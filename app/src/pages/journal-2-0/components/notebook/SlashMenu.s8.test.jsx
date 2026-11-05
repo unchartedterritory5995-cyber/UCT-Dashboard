@@ -133,5 +133,29 @@ describe('no match (detail #26): say where it lives; Esc keeps the text', () => 
     expect(noMatchLines('screener').where).toMatch(/Screener page/)
     expect(noMatchLines('or this')).toBeNull()
     expect(noMatchLines('')).toBeNull()
+    // Fix round 1 (review finding 8b): "/" before a digit is ordinary writing ("1/2", "target / 200"), and one letter
+    // is a word still being typed: no box.
+    for (const q of ['2', '200', '1x', 'a', '_x']) expect(noMatchLines(q), q).toBeNull()
+  })
+
+  it('a session that STARTS on a no-match query (a paste) still announces it: the region fills after it mounts', async () => {
+    await mount()
+    const records = []
+    const mo = new MutationObserver((rs) => records.push(...rs))
+    mo.observe(document.body, { childList: true, subtree: true, characterData: true })
+    await type('/scanner')
+    await waitFor(() => expect(status()?.textContent).toContain('No block called "scanner".'))
+    await new Promise((r) => setTimeout(r, 0))
+    mo.disconnect()
+    const filledLater = records.some((r) => r.type === 'childList' && r.target === status()
+      && [...r.addedNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.includes('No block called')))
+    expect(filledLater).toBe(true)
+  })
+
+  it('prose after a space ("target / 200") shows no box', async () => {
+    await mount()
+    await type('/200')
+    await new Promise((r) => setTimeout(r, 20))
+    expect(note()).toBeNull()
   })
 })

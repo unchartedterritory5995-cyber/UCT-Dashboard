@@ -10,7 +10,7 @@ function ListForm({ onFromOutline, onFromStyle, onToday, onVoice }) {
   const menu = useMenuButton()
   const items = [
     onFromOutline && { key: 'outline', label: 'From an outline', run: onFromOutline },
-    onFromStyle && { key: 'style', label: 'From a style', run: onFromStyle },
+    onFromStyle && { key: 'style', label: 'From a template', run: onFromStyle },
     onVoice && { key: 'voice', label: 'Voice note', run: onVoice },
     onToday && { key: 'today', label: "Today's note", run: onToday },
   ].filter(Boolean)
@@ -90,14 +90,14 @@ describe('NewNoteMenu', () => {
   })
 })
 
-describe('NewNoteMenu: From a style (Notebook P1)', () => {
-  it('lists "From a style" only when a handler is passed', () => {
+describe('NewNoteMenu: From a template (Notebook P1)', () => {
+  it('lists "From a template" only when a handler is passed', () => {
     const { rerender } = render(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    expect(screen.queryByRole('menuitem', { name: /From a style/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /From a template/ })).toBeNull()
     const onFromStyle = vi.fn()
     rerender(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} onFromStyle={onFromStyle} />)
-    fireEvent.click(screen.getByRole('menuitem', { name: /From a style/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /From a template/ }))
     expect(onFromStyle).toHaveBeenCalledTimes(1)
   })
 })
@@ -112,8 +112,8 @@ describe('the list form (useMenuButton + MenuRows)', () => {
     expect(caret).toHaveAttribute('aria-haspopup', 'menu')
     fireEvent.click(caret)
     expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim()))
-      .toEqual(['From an outline', 'From a style', "Today's note"])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'From a style' }))
+      .toEqual(['From an outline', 'From a template', "Today's note"])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From a template' }))
     expect(onFromStyle).toHaveBeenCalledTimes(1)
     expect(document.activeElement).toBe(caret)
     expect(screen.queryByRole('menu')).toBeNull()

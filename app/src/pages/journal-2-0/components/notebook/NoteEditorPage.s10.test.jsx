@@ -136,6 +136,9 @@ describe('2. the Saved indicator', () => {
     for (const status of ['conflict', 'refused']) expect(saveIndicatorWords({ status })).toBe('')
     expect(saveIndicatorWords({ status: 'saved', blocked: true })).toBe('')
     expect(saveIndicatorWords({ status: 'error' })).toBe('')
+    // Fix round 1 (review finding 5): an edit inside the durable debounce is not kept yet; a loading note says nothing.
+    expect(saveIndicatorWords({ status: 'dirty', offline: true, unsynced: true, persisted: true })).toBe(SAVING_WORDS)
+    expect(saveIndicatorWords({ status: 'saved', loading: true })).toBe('')
   })
 
   it('is a polite live region, then moves Saved -> Saving… -> Offline · saved on this device', async () => {
@@ -144,14 +147,35 @@ describe('2. the Saved indicator', () => {
     expect(el).toHaveAttribute('role', 'status')
     expect(el).toHaveAttribute('aria-live', 'polite')
     await waitFor(() => expect(el.textContent).toBe('Saved'))
+    // The outbox holds the work and the save cannot reach the server.
+    DURABLE.override = { unsynced: true, persisted: true }
+    globalThis.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
+    updateMock.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch')))
     // An edit is waiting to go: Saving…
     fireEvent.change(screen.getByRole('textbox', { name: 'Note title' }), { target: { value: 'Swing plan v2' } })
     await waitFor(() => expect(indicator().textContent).toBe('Saving…'))
-    // The outbox holds the work and the browser goes offline.
-    DURABLE.override = { unsynced: true, persisted: true }
+    // Online, the save fails: the Wave Q1 line speaks (the control for the offline check below).
+    await waitFor(() => expect(screen.getByText(/waiting to sync/)).toBeTruthy(), { timeout: 8000 })
+    // Then the browser goes offline.
     onLine = false
     act(() => { window.dispatchEvent(new Event('offline')) })
     await waitFor(() => expect(indicator().textContent).toBe('Offline · saved on this device'))
+    // Fix round 1 (review finding 5) + VIS-5: ONE offline message. The Wave Q1 line stays quiet while the indicator
+    // speaks for the unsent words, and the "earlier saved copy" banner is retired.
+    expect(screen.queryByText(/waiting to sync/)).toBeNull()
+    expect(screen.queryByText(/Viewing an earlier saved copy/)).toBeNull()
+  })
+
+  // ⚰️ Tier 1a's fix round 1 kept the "Viewing an earlier saved copy" banner for offline-with-nothing-unsent (a
+  // second line, with the indicator reading "Saved"). VIS-5 (audit issue 17) retires it: the indicator's pill says
+  // the same fact in the same place -- offline, and this copy is the one saved here.
+  it('CONTROL: offline with nothing unsent, the ONE pill still says the member is offline -- and nothing else does', async () => {
+    await renderEditor()
+    await waitFor(() => expect(indicator().textContent).toBe('Saved'))
+    onLine = false
+    act(() => { window.dispatchEvent(new Event('offline')) })
+    await waitFor(() => expect(indicator().textContent).toMatch(/^Offline · saved (on this device|in this browser)$/))
+    expect(screen.queryByText(/Viewing an earlier saved copy/)).toBeNull()
   })
 
   it('is mounted EMPTY, and filled after (a region that arrives holding words is not read)', async () => {
@@ -174,13 +198,17 @@ describe('3. the title keys', () => {
   it('Enter in the title puts the caret in the body, at its start, and the title gains no newline', async () => {
     await renderEditor()
     const title = screen.getByRole('textbox', { name: 'Note title' })
+    const body = document.querySelector('.ProseMirror')
+    const docBefore = JSON.stringify(body.editor.getJSON())
     title.focus()
     const ev = fireEvent.keyDown(title, { key: 'Enter' })
     expect(ev).toBe(false)                                     // default prevented: nothing typed
     expect(title.value).toBe('Swing plan')
-    const body = document.querySelector('.ProseMirror')
+    // Fix round 1 (review): a real assertion, not the vacuous "an input has no newline": focus is IN the body, at its
+    // start, and the body's document is exactly what it was (the Enter typed nothing anywhere).
     await waitFor(() => expect(body.contains(document.activeElement) || document.activeElement === body).toBe(true))
     expect(body.editor.state.selection.from).toBeLessThanOrEqual(2)
+    expect(JSON.stringify(body.editor.getJSON())).toBe(docBefore)
   })
 
   it('Shift+Enter goes to the subtitle (shown for the visit)', async () => {
@@ -193,6 +221,21 @@ describe('3. the title keys', () => {
     expect(subtitle.hidden).toBe(false)
     expect(title.value).toBe('Swing plan')
   })
+
+  // Fix round 1 (review finding 6): the Enter that COMMITS an IME conversion belongs to the IME. Chrome and Firefox
+  // mark it isComposing; Safari sends isComposing false with keyCode 229. Either way focus stays in the title.
+  for (const [name, init] of [['isComposing', { isComposing: true }], ['keyCode 229 (Safari)', { keyCode: 229 }]]) {
+    it(`an IME Enter (${name}) stays in the title, with or without Shift`, async () => {
+      await renderEditor()
+      const title = screen.getByRole('textbox', { name: 'Note title' })
+      title.focus()
+      fireEvent.keyDown(title, { key: 'Enter', ...init })
+      fireEvent.keyDown(title, { key: 'Enter', shiftKey: true, ...init })
+      await new Promise((r) => setTimeout(r, 30))
+      expect(document.activeElement).toBe(title)
+      expect(document.querySelector('input[aria-label="Subtitle"]').hidden).toBe(true)
+    })
+  }
 
   it('CONTROL: a key that is not Enter is the title\'s own (nothing moves)', async () => {
     await renderEditor()

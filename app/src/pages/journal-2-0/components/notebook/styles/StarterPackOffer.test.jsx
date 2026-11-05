@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // P5 Task 5: "How do you trade?", the starter pack offer (R-P5-5), through the REAL client
@@ -33,9 +34,9 @@ const WITH_OWN = contractBody('journal-styles.list')               // one style 
 const INSTALLED = contractBody('journal-styles.starter-pack.install')
 const TITLES = INSTALLED.installed.map((i) => i.title)
 const TITLE = 'How do you trade?'
-const LINE = 'Pick one and we will add three styles you can change.'
+const LINE = 'Pick one and we will add three templates you can change.'
 const FAILED = "Couldn't confirm that pack. Try again; nothing is added twice."
-const EMPTY_LINE = 'Nothing was added. This pack has no styles to add right now.'
+const EMPTY_LINE = 'Nothing was added. This pack has no templates to add right now.'
 const NOT_SAVED = "Couldn't save your answer, so this card may ask again."
 const INSTALL_URL = /^\/api\/j2\/journal-styles\/starter-packs\/swing$/
 
@@ -147,7 +148,7 @@ describe('How do you trade? (R-P5-5)', () => {
     kindSection()
     const offer = await screen.findByRole('region', { name: TITLE })
     fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
-    expect(await within(offer).findByText(`Added: ${TITLES.join(', ')}. They are in your Styles.`)).toBeInTheDocument()
+    expect(await within(offer).findByText(`Added: ${TITLES.join(', ')}. They are in your templates.`)).toBeInTheDocument()
     expect(posts()).toHaveLength(1)
     const { key, value } = written()
     expect(key).toBe('notebook_starter_pack')
@@ -167,7 +168,7 @@ describe('How do you trade? (R-P5-5)', () => {
     kindSection()
     const offer = await screen.findByRole('region', { name: TITLE })
     fireEvent.click(within(offer).getByRole('button', { name: 'Swing' }))
-    expect(await within(offer).findByText(`Added: ${TITLES[0]}. They are in your Styles.`)).toBeInTheDocument()
+    expect(await within(offer).findByText(`Added: ${TITLES[0]}. They are in your templates.`)).toBeInTheDocument()
     expect(within(offer).getByText(`Already had: ${TITLES[1]}.`)).toBeInTheDocument()
     expect(within(offer).getByText(`Skipped: ${TITLES[2]}. You can keep up to 200 styles. Delete one first.`)).toBeInTheDocument()
   })

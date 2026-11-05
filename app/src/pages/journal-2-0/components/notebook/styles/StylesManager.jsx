@@ -229,7 +229,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     if (!full.builtin) body.duplicateOf = full.id
     const out = await createJournalStyle(body, { via: 'duplicate' })
     await mutate()
-    if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')
+    if (thenEdit) openEditor(out.style, opener); else setStatus('Template duplicated.')
   })
   const makeDefault = (s) => run(async () => {
     await setDefaultJournalStyle(s.id)
@@ -248,11 +248,11 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     await mutate()
     pendingFocus.current = { type: 'row', id: undo.id }
     setUndo(null)
-    setStatus('Style restored.')
+    setStatus('Template restored.')
   }, { keepUndo: true })
   const saved = (s) => {
     setUndo(null); setProblem('')
-    setStatus(`Saved ${s?.name || 'the style'}.`)
+    setStatus(`Saved ${s?.name || 'the template'}.`)
     closeEditor()
     mutate()
   }
@@ -289,7 +289,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     await mutate()
     pendingFocus.current = next ? { type: 'kindRow', id: next.id } : { type: 'addKind' }
     const n = out?.purgedDeletedStyles || 0
-    setStatus(n ? `Kind deleted. ${plural(n, 'style you had deleted', 'styles you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Kind deleted.')
+    setStatus(n ? `Note type deleted. ${plural(n, 'template you had deleted', 'templates you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Note type deleted.')
   })
 
   const applyOffer = () => run(async () => {
@@ -374,14 +374,14 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 {starter.on && (
                   <button type="button" className={`${styles.btn} ${styles.quiet}`} onClick={starter.open}>Starter packs</button>
                 )}
-                {libraryOn && <LibraryDoor label="Community" className={styles.btn} />}
+                {libraryOn && <LibraryDoor label="Template library" className={styles.btn} />}
                 {libraryOn && updates.length > 0 && (
                   <button type="button" className={styles.btn} aria-expanded={showUpdates} aria-controls="js-library-updates"
                     onClick={() => setShowUpdates((v) => !v)}>{`Updates (${updates.length})`}</button>
                 )}
               </div>
               {libraryOn && showUpdates && updates.length > 0 && (
-                <section id="js-library-updates" className={styles.kindGroup} aria-label="Updates from the community library">
+                <section id="js-library-updates" className={styles.kindGroup} aria-label="Updates from the Template library">
                   <ul className={styles.styleList}>
                     {updates.map((u) => (
                       <li key={u.styleId} className={styles.styleRow}>
@@ -432,7 +432,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               )}
                               {libraryOn && !s.builtin && !s.sourceGalleryId && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => setSharing(s)}
-                                  aria-label={`Share ${s.name} to community`}>Share to community</button>
+                                  aria-label={`Share ${s.name} to the Template library`}>Share to the Template library</button>
                               )}
                               {!s.isDefault && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => makeDefault(s)}

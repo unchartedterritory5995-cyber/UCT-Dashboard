@@ -695,14 +695,15 @@ MOVERS_SCAN_MAX = 200
 #: The sentence for each gap code (the client shows `detail`; the code is for rails and logic).
 #: Audit 2026-11-05, spec S9 (detail #49): a gap that fills itself (`PREP_RETRYABLE`) never asks the member to
 #: "capture again": the open note reads the part again in the background the same day and fills the block
-#: (PrepCapture.jsx). The sentence says so.
+#: (PrepCapture.jsx). Fix round 1 (review finding 7): the FROZEN sentence promises nothing ("was still loading when
+#: this was captured"), so it stays true on every later day; the live "fills in" words are the client's alone.
 PREP_GAPS = {
     "no_wire": "The morning wire has not published yet today.",
-    "no_earnings_yet": "Today's earnings list is still loading. It fills in here when it's ready.",
+    "no_earnings_yet": "Today's earnings list was still loading when this was captured.",
     "no_names": "Add names to a watchlist, flag them, or hold a position to see them here.",
-    "no_quotes": "Your names' prices are still loading. They fill in here when they're ready.",
+    "no_quotes": "Your names' prices were still loading when this was captured.",
     "no_setups": "No setups on your board yet. Draw a plan's entry on a chart to see its levels here.",
-    "source_error": "This couldn't be read just now. It fills in here when it can.",
+    "source_error": "This couldn't be read when it was captured.",
 }
 #: The gaps the client reads again by itself (railed against PrepCapture.jsx's RETRYABLE by
 #: tests/test_prep_gaps_s9.py, which parses the client list rather than restating it).

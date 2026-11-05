@@ -35,5 +35,9 @@ def test_no_retryable_gap_asks_the_member_to_retry():
         assert "capture again" not in words and "try again" not in words, code
 
 
-def test_the_earnings_gap_says_it_fills_in():
-    assert trader_blocks.PREP_GAPS["no_earnings_yet"] == "Today's earnings list is still loading. It fills in here when it's ready."
+def test_the_frozen_earnings_gap_promises_nothing():
+    """Fix round 1 (review finding 7b): the sentence is FROZEN into the note, so it must stay true on every later day:
+    no "fills in" promise (that live wording is the client's alone, while it is really reading again)."""
+    assert trader_blocks.PREP_GAPS["no_earnings_yet"] == "Today's earnings list was still loading when this was captured."
+    for code in trader_blocks.PREP_RETRYABLE:
+        assert "fills in" not in trader_blocks.PREP_GAPS[code], code

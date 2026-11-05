@@ -2306,6 +2306,8 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
         if note_day is None:
             from api.services.journal_two import trading_days
             note_day = trading_days.et_day_of(now.isoformat())
+        if inline_routines is None and inline_trackers is None:
+            inline_routines, inline_trackers = _copy_inline_pools(style, conn)
         ctx = {"ticker": ticker, "now": now, "memo": {}, "mode": mode,
                "user_id": user_id, "fill_widgets": fill_widgets, "definitions": dict(definitions or {}),
                "note_day": note_day, "answers": dict(answers or {}), "choices": dict(choices or {}), "conn": conn,
@@ -2497,6 +2499,26 @@ def _lock_for_style(conn: sqlite3.Connection) -> None:
             time.sleep(0.05)
 
 
+def _copy_inline_pools(style: dict, conn: sqlite3.Connection) -> tuple[dict, dict]:
+    """S9 fix round 1 (review finding 1): a member's copy of a listed template can still hold an `inline` routine or
+    tracker slot (a Use answered "not now"); its definition is read from the listing it came from
+    (`template_gallery.listing_tool_pools`). Nothing is read for a style with no such slot or no source."""
+    gid = style.get("sourceGalleryId") if isinstance(style, dict) else None
+    if not isinstance(gid, str) or not gid:
+        return {}, {}
+    has_inline = False
+    for b in style.get("blocks") or []:
+        fam = slot_family(b.get("block")) if isinstance(b, dict) else None
+        st = b.get("settings") if isinstance(b, dict) else None
+        if fam in ("routine", "tracker") and isinstance(st, dict) and "inline" in st:
+            has_inline = True
+            break
+    if not has_inline:
+        return {}, {}
+    from api.services.journal_two import template_gallery
+    return template_gallery.listing_tool_pools(conn, gid)
+
+
 def _finish_tools(doc: dict, style: dict, ctx: dict, skipped: list) -> dict:
     """Fix round 2 (W11-R31): fill the routine and tracker markers `compose(tools_later=True)` left, from the style AS
     IT STANDS NOW (read under the lock): a slot another create already remembered is a ref, and this note adopts it
@@ -2642,6 +2664,10 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                     composed = compose(user_id, composed_from, ticker=ticker, conn=conn, mode="create",
                                        after_build=prefill, now=now, note_day=note_day, answers=answers,
                                        choices=choices, tools_later=True)
+                    # Fix round 2 (re-review R1-2): the listing's routine/tracker definitions are read and cleaned
+                    # BEFORE the write lock (W11-R53/W11-R31: no reducer or clean runs while it is held). They are keyed
+                    # by the listing, not the style version; a key that moved under the lock says its own honest line.
+                    pools_r, pools_t = _copy_inline_pools(composed_from, conn)
                     _lock_for_style(conn)
                     began = True
                     current = get_style(user_id, style["id"], conn)
@@ -2655,7 +2681,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                     composed_from = current
                 ctx = {"user_id": user_id, "conn": conn, "now": now, "note_day": note_day, "fill_widgets": True,
                        "choices": dict(choices or {}), "answers": dict(answers or {}), "tool_answers": True,
-                       "inline_routines": {}, "inline_trackers": {}, "definitions": {}, "defs": {}, "tools": {},
+                       "inline_routines": pools_r, "inline_trackers": pools_t, "definitions": {}, "defs": {}, "tools": {},
                        "gallery_id": current.get("sourceGalleryId"), "template_title": current.get("name")}
                 body = _finish_tools(composed["bodyJson"], current, ctx, composed["skipped"])
                 base = {k: payload[k] for k in ("title", "subtitle", "tags", "ticker", "folderId") if k in payload}

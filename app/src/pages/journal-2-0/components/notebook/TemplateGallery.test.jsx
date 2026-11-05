@@ -1,3 +1,4 @@
+// S7 fix round 1 (audit 2026-11-05): an outline card's "Use template" COPIES (no note), so it says so: "Add to my templates". One word, one outcome.
 // Wave 12 (lane 12A) — the community template gallery, end to end in the client:
 // the door (gated), browse + filters, preview, Use template (a COPY, then the member's
 // own create door), report, publish (Share from Your templates), Your submissions with
@@ -161,7 +162,7 @@ describe('browse', () => {
     const picks = await screen.findByRole('region', { name: 'UCT picks' })
     expect(within(picks).getByRole('heading', { name: PICK.title })).toBeInTheDocument()
     for (const t of LISTED.filter((x) => x.featured)) expect(within(picks).getByRole('heading', { name: t.title })).toBeInTheDocument()
-    const community = screen.getByRole('region', { name: 'Community' })
+    const community = screen.getByRole('region', { name: 'From members' })
     expect(within(community).getByText(/by Alice Trader/)).toBeInTheDocument()
     expect(within(community).getByText(ALICE.description)).toBeInTheDocument()
     expect(within(community).queryByText(PICK.title)).not.toBeInTheDocument()   // a pick is not listed twice
@@ -198,7 +199,7 @@ describe('browse', () => {
     gateOn()
     server.useFails = true
     const { user } = await openGallery()
-    await user.click(await screen.findByRole('button', { name: 'Use template Breakout checklist' }))
+    await user.click(await screen.findByRole('button', { name: 'Add Breakout checklist to my templates' }))
     const sentence = contractBody('template-gallery.use.not-found').detail
     expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
     expect(screen.queryByText(/Added “Breakout checklist”/)).not.toBeInTheDocument()
@@ -302,7 +303,7 @@ describe('the style library switch (P3a), off', () => {
     latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: false })
     await openGallery()
     await screen.findByRole('region', { name: 'UCT picks' })
-    expect(screen.queryByRole('button', { name: 'Styles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Templates' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Filter by type' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Filter by trading style' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Following' })).not.toBeInTheDocument()
@@ -401,7 +402,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
   it("a tool card's Use opens the adoption sheet with its kind, and no copy is made", async () => {
     const { user } = await openWith({ w11: true })
     const widget = galleryCard('Win rate widget')
-    expect(within(widget).queryByRole('button', { name: /Use template/ })).toBeNull()
+    expect(within(widget).queryByRole('button', { name: /to my templates/ })).toBeNull()
     expect(within(widget).queryByRole('button', { name: /^Preview/ })).toBeNull()
     await user.click(within(widget).getByRole('button', { name: 'Use Win rate widget' }))
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
@@ -411,7 +412,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     expect(openAdoptSheet.mock.calls[1][0]).toEqual({ galleryId: 'tool-t', kind: 'tracker' })
     expect(calls.some((c) => /\/use$/.test(c.path))).toBe(false)
     // An outline card keeps Preview and Use template.
-    expect(within(galleryCard(ALICE.title)).getByRole('button', { name: `Use template ${ALICE.title}` })).toBeInTheDocument()
+    expect(within(galleryCard(ALICE.title)).getByRole('button', { name: `Add ${ALICE.title} to my templates` })).toBeInTheDocument()
   })
 
   it('helpful_days_sentence_under_button (a tool card)', async () => {
@@ -445,7 +446,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     expect(alice.querySelector('[data-library-facts]')).toBeNull()
     expect(within(alice).getByText(ALICE.description)).toBeInTheDocument()
     expect(within(alice).getByRole('button', { name: `Preview ${ALICE.title}` })).toBeInTheDocument()
-    expect(within(galleryCard('Win rate widget')).getByRole('button', { name: 'Use template Win rate widget' })).toBeInTheDocument()
+    expect(within(galleryCard('Win rate widget')).getByRole('button', { name: 'Add Win rate widget to my templates' })).toBeInTheDocument()
     expect(within(galleryCard('Win rate widget')).queryByRole('button', { name: /^Helpful/ })).toBeNull()
     expect(document.querySelector('[data-template-library]')).toBeNull()
   })

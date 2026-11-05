@@ -12,7 +12,7 @@ import styles from './ExampleNote.module.css'
 
 export const PICKER_TITLE = 'Pick a note for your example'
 const NO_KIND_SENTENCE = "This template has no note type, so it can't have an example."
-const KIND_FAILED = "Couldn't read this style's kind of note. Try again."
+const KIND_FAILED = "Couldn't read this template's note type. Try again."
 const NOTES_FAILED = "Couldn't load your notes. Try again."
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })

@@ -99,7 +99,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { useHasCoarsePointer } from '../../../../hooks/useBreakpoint'
 import styles from './TemplatePicker.module.css'
 
-// The community gallery (and the admin review panel it carries) is dark behind
+// The Template library (and the admin review panel it carries) is dark behind
 // notebook_template_gallery_enabled and reached by one button, so it loads when that button
 // is pressed, never with the picker: it was ~25 kB of source in every member's first open.
 const TemplateGallery = lazyChunk(() => import('./TemplateGallery'))
@@ -368,6 +368,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
           <TemplateGallery
             onBack={() => { setCommunity(false); setBackToDoor(true) }}
             onUseNow={onPickMember}
+            landNote={onLandNote}
             busy={busy}
           />
         </Suspense>

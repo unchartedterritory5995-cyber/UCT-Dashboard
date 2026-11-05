@@ -26,12 +26,12 @@ export const COPY = Object.freeze({
     body: 'The ▾ beside New opens From a template: a blank page, UCT templates for plans and reviews, and your own.',
   },
   door: {
-    title: 'The community gallery',
+    title: 'The Template library',
     body: 'Browse the Template library shows templates other members shared. UCT reviews each one before it is listed, and UCT picks come first.',
   },
   use: {
-    title: 'Use template makes a copy',
-    body: 'In the gallery, Use template copies it into Your templates. Then Make a note from it, or change your copy first.',
+    title: 'Add to my templates makes a copy',
+    body: 'In the gallery, Add to my templates copies it into Your templates. Then Make a note from it, or change your copy first.',
   },
   share: {
     title: 'Share one of yours',

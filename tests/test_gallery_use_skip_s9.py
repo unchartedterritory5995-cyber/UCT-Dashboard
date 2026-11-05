@@ -32,13 +32,16 @@ def _note_bodies(db):
 
 
 def _nodes(doc, kind):
-    out, stack = [], [doc]
-    while stack:
-        n = stack.pop()
+    """Every `kind` node, in document order."""
+    out = []
+
+    def walk(n):
         if isinstance(n, dict):
             if n.get("type") == kind:
                 out.append(n)
-            stack.extend(n.get("content") or [])
+            for c in n.get("content") or []:
+                walk(c)
+    walk(doc)
     return out
 
 
@@ -91,20 +94,75 @@ def test_no_answer_is_still_refused(db):
     assert _count(db, "j2_routines") == 0
 
 
-def test_inline_routine_and_tracker_skipped_at_adoption_make_nothing(db):
-    """A member's listed template carries INLINE routine and tracker parts, made at adoption (`_materialize`)."""
+def _inline_listing(db):
     r, t = routine(db), tracker(db)
     s = style(db, blocks=[routine_slot("a", r["id"]), tracker_slot("a", t["id"])])
-    gid = list_template(db, s["id"], edits={"blocks": {"routine_a": {"items": ["Coffee", "Mark levels"]}}})
+    return list_template(db, s["id"], edits={"blocks": {"routine_a": {"items": ["Coffee", "Mark levels"]}}})
+
+
+def test_inline_routine_and_tracker_skipped_at_adoption_make_nothing(db):
+    """A member's listed template carries INLINE routine and tracker parts, made at adoption (`_materialize`).
+    Fix round 1 (review finding 1, CRITICAL): the skip must leave the steps IN the note -- presence, not only the
+    absence of a tool. Before the fix the copy kept an inline slot the note's compose could not read (no pools), and
+    the note said "This routine is not in your account." with `slot-missing` in `skipped`."""
+    gid = _inline_listing(db)
     routines_before, trackers_before = _count(db, "j2_routines"), _count(db, "j2_trackers")
     out = gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"skip": True}, "tracker_a": {"skip": True}},
                                        payload={}, conn=db)
     assert out["created"]["routines"] == [] and out["created"]["trackers"] == []
+    assert out["skipped"] == []
     assert _count(db, "j2_routines") == routines_before
     assert _count(db, "j2_trackers") == trackers_before
     [body] = _note_bodies(db)
     assert not [n for n in _nodes(body, "widgetEmbed")
                 if (n.get("attrs") or {}).get("widgetId") in ("routine", "tracker")]
+    [checklist] = _nodes(body, "taskList")
+    assert [_text(i) for i in _nodes(checklist, "taskItem")] == ["Coffee", "Mark levels"]
+    text = _text(body)
+    assert "not in your account" not in text
+    # The tracker lands as a line to fill in, named.
+    assert any(_text(p).endswith(": ") or _text(p).endswith(":") for p in _nodes(body, "paragraph"))
+
+
+def test_inline_skip_then_a_ticked_use_makes_exactly_one_routine(db):
+    """The reviewer's probe (scratchpad/ux/rv/test_rv_inline_skip.py), as a rail: the copy is reused (W11-R4), so
+    `_materialize` never runs again; the second Use must still be able to start the routine."""
+    gid = _inline_listing(db)
+    before = _count(db, "j2_routines")
+    gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"skip": True}, "tracker_a": {"skip": True}},
+                                 payload={}, conn=db)
+    out2 = gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"create": True}, "tracker_a": {"create": True}},
+                                        payload={}, conn=db)
+    assert out2["skipped"] == []
+    assert len(out2["created"]["routines"]) == 1
+    assert _count(db, "j2_routines") == before + 1
+    second = _note_bodies(db)[-1]
+    embeds = [n for n in _nodes(second, "widgetEmbed") if (n.get("attrs") or {}).get("widgetId") == "routine"]
+    assert len(embeds) == 1
+    # A third Use reuses that routine: still exactly one.
+    gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"create": True}, "tracker_a": {"create": True}},
+                                 payload={}, conn=db)
+    assert _count(db, "j2_routines") == before + 1
+
+
+def test_the_listing_is_read_before_the_style_write_lock(db, monkeypatch):
+    """Fix round 2 (re-review R1-2): the listing's definitions are read and cleaned OUTSIDE the create's write lock
+    (W11-R53/W11-R31: no reducer or clean runs while it is held). Every read is recorded with whether a transaction
+    was open on the connection it ran on."""
+    gid = _inline_listing(db)
+    gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"skip": True}, "tracker_a": {"skip": True}},
+                                 payload={}, conn=db)               # the copy now holds inline slots
+    seen = []
+    real = gallery.listing_tool_pools
+
+    def spy(conn, gallery_id):
+        seen.append(conn.in_transaction)
+        return real(conn, gallery_id)
+    monkeypatch.setattr(gallery, "listing_tool_pools", spy)
+    gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"create": True}, "tracker_a": {"create": True}},
+                                 payload={}, conn=db)
+    assert seen, "non-vacuity: the definitions were read for the copy's inline slots"
+    assert not any(seen), "the listing was read while the style write lock was held"
 
 
 def test_inline_control_create_makes_the_member_their_own(db):

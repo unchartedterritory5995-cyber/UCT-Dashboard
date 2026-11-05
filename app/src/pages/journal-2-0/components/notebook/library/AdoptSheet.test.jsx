@@ -671,6 +671,8 @@ describe('server sentences and the credit line', () => {
     })
     const first = mount({ galleryId: G })
     await ready()
+    // S9: the default is "Just this note" now; this rail is about a lost Use that MADE the routine, so it asks for one.
+    fireEvent.click(screen.getByRole('radio', { name: createWords('Pre-market routine') }))
     fireEvent.click(useButton())
     expect(await screen.findByRole('alert')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))

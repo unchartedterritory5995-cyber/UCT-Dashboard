@@ -49,6 +49,7 @@ import {
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
+import { takeImageForNote } from '../../lib/pendingImageInsert'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
@@ -1123,8 +1124,11 @@ export default function NoteEditorPage({
     const ed = editorRef.current
     if (ed && !ed.isDestroyed) ed.commands.focus('start')
   }
+  // Fix round 1 (review finding 6): Safari sends the Enter that COMMITS an IME conversion with isComposing false and
+  // keyCode 229; that Enter belongs to the IME, never to this handler.
+  const imeEnter = (e) => Boolean(e.nativeEvent?.isComposing) || e.keyCode === 229 || e.nativeEvent?.keyCode === 229
   const onTitleKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.nativeEvent?.isComposing || e.altKey || e.ctrlKey || e.metaKey) return
+    if (e.key !== 'Enter' || imeEnter(e) || e.altKey || e.ctrlKey || e.metaKey) return
     e.preventDefault()
     if (e.shiftKey) {
       setSubtitleFocused(true)
@@ -1136,7 +1140,7 @@ export default function NoteEditorPage({
   }
   // Enter in the subtitle goes on to the body as well.
   const onSubtitleKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.nativeEvent?.isComposing || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+    if (e.key !== 'Enter' || imeEnter(e) || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
     e.preventDefault()
     focusBodyStart()
   }
@@ -3195,6 +3199,14 @@ export default function NoteEditorPage({
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // S12 (audit 2026-11-05, M9): the phone "+" sheet's "Photo / chart screenshot" made THIS note for an image the
+  // member picked on the list. It is placed by this editor's own image door (`handleImageInsert`, the paste / Insert
+  // Image path), once, the first time the editor is ready -- never by a write of its own (lib/pendingImageInsert.js).
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !note || locked || !editor.isEditable) return
+    const file = takeImageForNote(noteId)
+    if (file) handleImageInsert(file)
+  }, [editor, note?.id, noteId, locked]) // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ I-A fix round 5 (review M-19): a save or Discard that took a refused-copy offer
   // off the page took the focused button with it. Focus goes to the editor (or, when it
   // cannot take focus, the page's landmark), never to the document body.
@@ -5196,7 +5208,7 @@ export default function NoteEditorPage({
         <span className={styles.savedIndicator} role="status" aria-live="polite" data-save-indicator="">
           {indicatorOn ? saveIndicatorWords({
             status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-            offline: isOffline, blocked: noteIsBlocked,
+            offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
           }) : ''}
         </span>
         {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to

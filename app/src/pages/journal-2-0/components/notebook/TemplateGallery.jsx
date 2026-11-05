@@ -134,7 +134,7 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
   const openAdopt = async () => {
     try {
       const mod = await import('./library/openAdoptSheet')
-      mod.openAdoptSheet({ galleryId: item.id, kind: adoptKind })
+      mod.openAdoptSheet({ galleryId: item.id, kind: adoptKind, ...(adoptKind === 'template' ? { name: item.title } : {}) })
     } catch {
       onMessage?.({ tone: 'error', text: doorLostSentence() })
     }
@@ -165,8 +165,8 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
               <UIcon name="eye" size={13} gold={false} /> Preview
             </button>
             <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onUse(item)} disabled={busy}
-              aria-label={`Use template ${item.title}`}>
-              Use template
+              aria-label={`Add ${item.title} to my templates`}>
+              Add to my templates
             </button>
           </>
         )}
@@ -310,7 +310,7 @@ function MySubmissions({ onMessage }) {
   )
 }
 
-export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '', backLabel = 'Back to templates' }) {
+export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '', backLabel = 'Back to templates', landNote = null }) {
   const uid = useId()
   const headingRef = useRef(null)
   const wrapRef = useRef(null)
@@ -441,7 +441,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
 
   const cardProps = {
     libraryOn, layoutSharing, isAdmin, busy: busy || using, onPreview: openPreview, onStylePreview: openStylePreview,
-    onUse: use, onChanged: refresh, onMessage: setMessage, onOpenAuthor: openAuthor,
+    onUse: use, onChanged: refresh, onMessage: setMessage, onOpenAuthor: openAuthor, landNote,
   }
   const card = (item) => <LibraryCard key={item.id} {...cardProps} item={item} />
   // No `onAdopted` refresh here: adoptStyle already revalidates every library view once
@@ -573,7 +573,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
           )}
           {community.length > 0 && (
             <section className={styles.section} aria-labelledby={`${uid}-community`}>
-              <h4 className={styles.sectionLabel} id={`${uid}-community`}>Community</h4>
+              <h4 className={styles.sectionLabel} id={`${uid}-community`}>From members</h4>
               {renderCards(community)}
             </section>
           )}

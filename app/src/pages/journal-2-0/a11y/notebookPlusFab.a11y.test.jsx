@@ -7,7 +7,7 @@ import { axeSurface } from './surface'
 import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
 
 const mount = () => render(
-  <MemoryRouter><main><NotebookPlusFab onQuickNote={vi.fn()} onVoiceNote={vi.fn()} askAi /></main></MemoryRouter>,
+  <MemoryRouter><main><NotebookPlusFab onQuickNote={vi.fn()} onVoiceNote={vi.fn()} onPhoto={vi.fn()} askAi /></main></MemoryRouter>,
 )
 
 describe('the floating "+" -- axe', () => {

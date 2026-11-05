@@ -73,6 +73,11 @@ export const BLOCKED_TITLE =
  *     `savedLocally` does: "in this browser" unless the platform granted persistence.
  * ⛔ Silent ('') where another line in the header already speaks for the state (blocked, conflict, refused, a failed
  *    or reconnecting save while online): two status lines naming one state as two would read as two states.
+ * ⛔ Fix round 1 (review finding 5) + VIS-5: OFFLINE, this is the ONE offline message: the editor hides the Wave Q1
+ *    "Saved on this device · waiting to sync" line and the retrying line, and the "Viewing an earlier saved copy" banner
+ *    is retired. An edit still
+ *    inside the durable debounce (`dirty`) is not yet kept anywhere, so it reads "Saving…" even offline. While the note
+ *    loads nothing is said (`loading`): "Saved" before the note exists would be a claim nobody measured.
  */
 export const SAVING_WORDS = 'Saving…'
 export const SAVED_WORDS = 'Saved'
@@ -82,15 +87,18 @@ export const SAVED_WORDS = 'Saved'
 export function offlineKept(persisted) {
   return persisted === true ? 'Offline · saved on this device' : 'Offline · saved in this browser'
 }
-export function saveIndicatorWords({ status, unsynced = false, persisted = false, offline = false, blocked = false } = {}) {
-  if (blocked || status === 'conflict' || status === 'refused') return ''
+export function saveIndicatorWords({ status, unsynced = false, persisted = false, offline = false, blocked = false,
+  loading = false } = {}) {
+  if (loading || blocked || status === 'conflict' || status === 'refused') return ''
+  // Fix round 1 (Tier 1a): an edit still inside the durable debounce is not yet kept anywhere -- "Saving…", even offline.
+  if (status === 'dirty') return SAVING_WORDS
   if (offline) {
-    // Committed to the outbox, or nothing waiting at all: the copy on screen is the one saved here.
+    // VIS-5: committed to the outbox, or nothing waiting at all -- the copy on screen is the one saved here.
     if (unsynced) return offlineKept(persisted)
     // A save that failed with NOTHING committed locally is a real problem, and the header's error line says it.
     if (status === 'error' || status === 'reconnecting') return ''
-    // A write only intended (not yet in the outbox) is never claimed as saved.
-    if (status === 'saving' || status === 'dirty') return SAVING_WORDS
+    // A write on its way but not yet in the outbox is never claimed as saved.
+    if (status === 'saving') return SAVING_WORDS
     return offlineKept(persisted)
   }
   if (status === 'error' || status === 'reconnecting') return ''

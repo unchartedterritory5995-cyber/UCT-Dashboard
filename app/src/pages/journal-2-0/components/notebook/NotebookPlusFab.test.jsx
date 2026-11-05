@@ -34,6 +34,19 @@ describe('the floating "+"', () => {
     expect(screen.getByTestId('where').textContent).toBe('/support')
   })
 
+  it('Photo / chart screenshot is the file input label (the picker opens inside the tap) and hands the file on', () => {
+    const onPhoto = vi.fn()
+    mount({ onPhoto })
+    const sheet = open()
+    const input = within(sheet).getByLabelText('Photo / chart screenshot')
+    expect(input).toHaveAttribute('type', 'file')
+    expect(input).toHaveAttribute('accept', 'image/*')
+    const f = new File(['x'], 'chart.png', { type: 'image/png' })
+    fireEvent.change(input, { target: { files: [f] } })
+    expect(onPhoto).toHaveBeenCalledWith(f)
+    expect(screen.queryByRole('dialog', { name: 'Add' })).toBeNull()
+  })
+
   it('a gate that is off leaves no row that opens nothing', () => {
     mount()
     const sheet = open()

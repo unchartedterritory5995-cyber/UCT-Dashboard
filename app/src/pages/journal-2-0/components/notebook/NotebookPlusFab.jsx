@@ -1,5 +1,5 @@
 // S12 + VIS-4 (audit 2026-11-05, M9): ONE floating "+" on a phone's Notebook. It opens a Sheet of the quick doors --
-// Quick note · Voice note · Ask AI · Help -- and REPLACES the five floating buttons that sat over the notes there
+// Quick note · Voice note · Photo / chart screenshot · Ask AI · Help -- and REPLACES the five floating buttons that sat over the notes there
 // (the Compass orb and its Learn, paperclip and agent-menu buttons, and the Help "?"). Those keep their places on
 // every other page: this component writes `data-notebook-route` on <html> while it is mounted, and only the phone
 // rules in FloatingOrb.module.css and FeedbackWidget.module.css read it (an orb in a live call is never hidden).
@@ -14,7 +14,7 @@ import styles from './NotebookPlusFab.module.css'
 
 export const NOTEBOOK_ROUTE_ATTR = 'data-notebook-route'
 
-export default function NotebookPlusFab({ onQuickNote, onVoiceNote = null, askAi = false, busy = false }) {
+export default function NotebookPlusFab({ onQuickNote, onVoiceNote = null, onPhoto = null, askAi = false, busy = false }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const buttonRef = useRef(null)
@@ -29,6 +29,7 @@ export default function NotebookPlusFab({ onQuickNote, onVoiceNote = null, askAi
   const rows = [
     { key: 'note', label: 'Quick note', icon: 'edit', run: onQuickNote, disabled: busy },
     onVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: onVoiceNote },
+    onPhoto && { key: 'photo', label: 'Photo / chart screenshot', icon: 'camera' },
     askAi && { key: 'ask', label: 'Ask AI', icon: 'compass', run: () => navigate('/journal/compass') },
     { key: 'help', label: 'Help', icon: 'info', run: () => navigate('/support') },
   ].filter(Boolean)
@@ -43,11 +44,25 @@ export default function NotebookPlusFab({ onQuickNote, onVoiceNote = null, askAi
       <Sheet open={open} onClose={() => setOpen(false)} title="Add" labelledByTitle variant="bottom-sheet"
         returnFocusTo={buttonRef}>
         <div className={styles.rows}>
-          {rows.map((r) => (
+          {rows.map((r) => (r.key === 'photo' ? (
+            // The picker must open INSIDE the tap (iOS refuses a later one), so this row is the file input's own
+            // label. The chosen image goes to a new note's editor, placed by its own image door (pendingImageInsert).
+            <label key={r.key} className={styles.row} data-disabled={busy ? '' : undefined}>
+              <input type="file" accept="image/*" className="sr-only" disabled={busy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  setOpen(false)
+                  onPhoto(file)
+                }} />
+              <UIcon name={r.icon} size={18} gold={false} /> {r.label}
+            </label>
+          ) : (
             <button key={r.key} type="button" className={styles.row} onClick={choose(r.run)} disabled={r.disabled}>
               <UIcon name={r.icon} size={18} gold={false} /> {r.label}
             </button>
-          ))}
+          )))}
         </div>
       </Sheet>
     </>
