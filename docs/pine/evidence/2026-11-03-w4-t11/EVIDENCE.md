@@ -66,3 +66,70 @@ Command: `final-tip.sh pine-dsk-w4t11 w4t11-final tests/test_script_engine_versi
 - W4-T11-a: `str.substring` with out-of-range or reversed positions: runtime error vs na (this lane raises).
 - W4-T11-b: `str.tonumber` of padded text ("  5 "), "+5", "5.", exponents; `str.replace` with empty target and overlapping targets.
 - W4-T11-c: `str.format_time` letters beyond `yyyy yy MM M dd d HH H mm m ss s` (names, 12-hour, zone letters) and non-NY zones: refused by name.
+
+---
+
+# FIX ROUND r1 (review W4-T11, NO-GO @a944bd68c2)
+
+Code tip `3bf1815f93` (r1 fix commit; later commits are docs only). Tested on master `5d95103c8a` (merge-base).
+Engine bump: YES (unchanged). `SCRIPT_ENGINE_VERSION` not edited. Logs under `_resume-2026-11-01/runs/w4t11r1/`.
+
+## B1 (MEDIUM): one runtime-error authority
+- `runtime/text.js`: `TextRuntimeError` deleted; all five throw sites (substring whole-number, substring range, replace occurrence,
+  replace empty target, format_time pattern) throw `PineRuntimeError` (`collections.js`, name `runtime.error`, guard `runtime:runtime.error`).
+- Rail (`w4TextFns.test.js`, describe "a str.* runtime error stops the whole script through the pane pipeline", 4 tests): through the
+  REAL `computeRuntimeColumns` with `compute.objects: true`, a label whose text is `str.substring(s, 0, 9)` over a 3-char runtime
+  text stops the whole script (no columns returned, `err.name === 'runtime.error'`, guard `runtime:runtime.error`); same for an
+  empty `str.replace` target and for fractional/negative positions; CONTROL: an in-range substring returns the plot.
+
+## Red on base (redbase: base bytes of `text.js` and `pineRuntimeFrontend.js` copied in, run, tip bytes restored; sha256 prefixes
+identical before/after; `git status` clean). Log `redbase.log`; base `5d95103c8a`, tip `3bf1815f93`.
+`w4TextFns.test.js` + `objectDoorGate.test.js` on base: 36 failed | 36 passed (72). w4TextFns: 22 red, 5 pass (the refusal-by-name controls:
+format_time unknown-symbol zone, another zone, unprinted letter, `str.match`, the in-range stop CONTROL). objectDoorGate: 14 red (the W4-T11 pane-builds and
+refuses-BY-NAME rails; the "door draws nothing new" rails and the older rails pass on both, as intended for a gate).
+The two tests added after the first red-on-master record are red on base: "a fractional position stops the script" and
+"a fractional or negative occurrence stops the script" (also the new stop-rail fractional test).
+
+## Object door gate (note N1 taken)
+- `text.js`: the four new `TEXT_FNS` entries carry `afterDoor: true`; FE `pineRuntimeFrontend.js`: the `TEXT_FNS` arm calls
+  `objectDoorRefuses` when `spec.afterDoor === true`, and the `str.format_time` arm calls it first. The door builds exactly what master built;
+  at the door the pane build refuses BY NAME (`runtime:object-door`).
+- Rails (`objectDoorGate.test.js`, describe "W4-T11 text builtins are gated at the object door", 22 tests): for substring (3 and 2 args),
+  replace (3 and 4 args), tonumber, pos, format_time: (a) the end-to-end door (memberPaneDefinition -> objectReaderFor -> evaluateObjects)
+  still answers `{ok:false, labels:null}` as master; (b) the runtime pane builds it; (c) the same build with `objectDoor:true` refuses
+  `runtime:object-door` ("runtime pane only"); CONTROL: `str.length` over the same text still builds at the door.
+- Door-level measure: C18 corpus audit and C18 constructed probes byte-identical tip vs base on both lanes (below): no member-visible change.
+
+## Mutations r1 (mutate.py over w4TextFns + objectDoorGate; `mut.sh`, lock heavy-mut; 10/10 killed, restores byte-exact, tree clean after)
+| mutation | killed by |
+|---|---|
+| substring range throw -> plain `Error` | stop rail "str.substring reached only by a LABEL stops the script" |
+| substring whole-number throw -> plain `Error` | stop rail "a fractional position and a fractional occurrence stop it the same way" |
+| replace occurrence throw -> plain `Error` | same fractional/negative stop rail |
+| replace empty target throw -> plain `Error` | stop rail "str.replace with an empty target" |
+| TEXT_FNS door gate off (`if (false)`) | door rails "substring/substring2/replace/replace4/tonumber/pos ... refuses BY NAME" |
+| format_time door refusal removed | "format_time: the same build at the object door refuses BY NAME" |
+| `afterDoor` dropped on tonumber / pos / substring / replace (4) | each name's "refuses BY NAME" rail |
+The 20 earlier mutations (text.js behaviour, FE variants) stand: behaviour code is unchanged except the error class and the gate.
+(The format_time pattern throw at run time is not reachable through the FE, which refuses a bad pattern first; it carries the same class.)
+
+## measure-pair r1 (`mp.sh`, lock heavy-mp2, mpbase2 switched in-job and detached to master `5d95103c8a`; HEAD asserted before/after each lane:
+tip `3bf1815f932873d259199e37b74ec8f514077b34`, base `5d95103c8a426e9c5844f42acef2f2131a96101a`, no drift; samples in `head-samples-rt*.log`)
+Logs `job-mp.log`, `mp0.log`, `mp1.log`.
+- runtime 0: `== side tip 3bf1815f93` 23:47:28, `== side base 5d95103c8a` 00:06:16. runtime 1: `== side tip 3bf1815f93` 00:27:05, `== side base 5d95103c8a` 00:49:03.
+- C18 corpus audit and C18 constructed probes: identical (ms excluded) on both lanes. Object-door changes: NONE.
+- Harness: rt0 `TOTAL 336, MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140` both sides; rt1 `MATCH 111 / DIVERGE 107 / INCONCLUSIVE 118` both sides; harness output files byte-identical.
+- Census 967/967 rows both sides. rt0: 6 differing rows. rt1: 12. Classification (0 unintended):
+  - INTENDED rt0+rt1 (2 each): `example:functions:str.format_time#0`, `example:functions:str.replace#0`: runtime lane now reached (rt1: attached false->true);
+    both stay `clean:false`, refusal `pine:no-output` (the example has no plot).
+  - INTENDED rt1, first runtime wall moved, same final refusal, still unattached: `fibonacci-retracement-mtflog` (peel 2 to 1), `fibonacci-retracement-statistics-by-volprofex`
+    (7 to 3), `session-tpo-profile` (3 to 2), `sessions-nephew-sam` (5 to 3).
+  - NOISE (translator `pine:timeout` budget jitter or nested step detail; attached/clean/final guard unchanged): rt0 `multi-timeframe-trend-indicator`,
+    `volatility-coil-edge-bullbyte`, `halftrend-longshort-signal-engine-bigbeluga`, `market-structure-with-inducements-sweeps-luxalgo`; rt1 `multi-timeframe-trend-indicator`,
+    `multiple-mtf-moving-average-xdecow`, `gex-levels-breakout-structure-session-avwap-esspxspy`, `interactive-atr-stop-loss`, `mirage-liquidity-sweep-pro-willyalgotrader`, `session-liquidity`
+    (rtProbe/runtimeDeclined detail only; guard identical in every case).
+  - No script changed attached/clean state except the two example rows above.
+
+## Capture queue (N2/N3)
+`docs/pine/capture-queue-2026-11-04-w4-t11.md`: rows W4-T11-a (bad substring positions), W4-T11-b (tonumber texts, replace overlap/missing/empty target),
+W4-T11-c (format_time letters, zones, `na` time) with probe scripts.
