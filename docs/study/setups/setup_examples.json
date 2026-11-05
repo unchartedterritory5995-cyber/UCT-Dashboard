@@ -1656,7 +1656,22 @@
      "glow",
      "gopen",
      "mid"
-    ]
+    ],
+    "gap_asof": "2021-11-05",
+    "true_gap": true,
+    "gap_top": 50.61,
+    "gap_low": 51.15,
+    "test_low_vs_gap_low_pct": -0.3,
+    "close_vs_gap_low_pct": 1.0,
+    "close_vs_gap_top_pct": 2.1,
+    "gap_day_pct": 8.97,
+    "gap_day_dcr": 0.84,
+    "post_gap_run_pct": 7.7,
+    "pullback_from_high_pct": -11.6,
+    "day_pct": -2.45,
+    "dcr": 0.26,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1673,7 +1688,22 @@
     "levels_touched": [
      "glow",
      "gopen"
-    ]
+    ],
+    "gap_asof": "2021-11-08",
+    "true_gap": true,
+    "gap_top": 72.99,
+    "gap_low": 80.71,
+    "test_low_vs_gap_low_pct": 1.2,
+    "close_vs_gap_low_pct": 5.8,
+    "close_vs_gap_top_pct": 16.9,
+    "gap_day_pct": 29.47,
+    "gap_day_dcr": 0.89,
+    "post_gap_run_pct": 28.6,
+    "pullback_from_high_pct": -28.4,
+    "day_pct": -5.27,
+    "dcr": 0.4,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1692,7 +1722,22 @@
      "glow",
      "gopen",
      "mid"
-    ]
+    ],
+    "gap_asof": "2022-01-31",
+    "true_gap": true,
+    "gap_top": 38.7,
+    "gap_low": 39.82,
+    "test_low_vs_gap_low_pct": -1.2,
+    "close_vs_gap_low_pct": 1.0,
+    "close_vs_gap_top_pct": 3.9,
+    "gap_day_pct": 11.13,
+    "gap_day_dcr": 0.98,
+    "post_gap_run_pct": 7.3,
+    "pullback_from_high_pct": -14.2,
+    "day_pct": -1.97,
+    "dcr": 0.45,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1708,7 +1753,21 @@
     "first_test": true,
     "levels_touched": [
      "top"
-    ]
+    ],
+    "gap_asof": "2022-03-16",
+    "true_gap": true,
+    "gap_top": 83.44,
+    "gap_low": 85.62,
+    "test_low_vs_gap_low_pct": -2.1,
+    "close_vs_gap_low_pct": -1.8,
+    "close_vs_gap_top_pct": 0.8,
+    "gap_day_pct": 5.16,
+    "gap_day_dcr": 0.4,
+    "post_gap_run_pct": 6.0,
+    "pullback_from_high_pct": -9.5,
+    "day_pct": -4.51,
+    "dcr": 0.11,
+    "reclaimed_in_forward": false
    },
    "q": 3.0
   },
@@ -1725,7 +1784,22 @@
     "levels_touched": [
      "top",
      "mid"
-    ]
+    ],
+    "gap_asof": "2023-01-19",
+    "true_gap": true,
+    "gap_top": 41.58,
+    "gap_low": 42.41,
+    "test_low_vs_gap_low_pct": -3.2,
+    "close_vs_gap_low_pct": -0.7,
+    "close_vs_gap_top_pct": 1.3,
+    "gap_day_pct": 9.61,
+    "gap_day_dcr": 0.6,
+    "post_gap_run_pct": 4.3,
+    "pullback_from_high_pct": -12.0,
+    "day_pct": -4.12,
+    "dcr": 0.54,
+    "reclaim_sessions": 1,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1741,7 +1815,22 @@
     "first_test": true,
     "levels_touched": [
      "glow"
-    ]
+    ],
+    "gap_asof": "2023-01-27",
+    "true_gap": true,
+    "gap_top": 158.23,
+    "gap_low": 165.5,
+    "test_low_vs_gap_low_pct": -0.4,
+    "close_vs_gap_low_pct": 0.1,
+    "close_vs_gap_top_pct": 4.7,
+    "gap_day_pct": 10.54,
+    "gap_day_dcr": 0.68,
+    "post_gap_run_pct": 5.7,
+    "pullback_from_high_pct": -9.5,
+    "day_pct": -3.73,
+    "dcr": 0.14,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1757,7 +1846,21 @@
     "first_test": true,
     "levels_touched": [
      "mid"
-    ]
+    ],
+    "gap_asof": "2023-03-28",
+    "true_gap": true,
+    "gap_top": 88.22,
+    "gap_low": 92.06,
+    "test_low_vs_gap_low_pct": -2.2,
+    "close_vs_gap_low_pct": -1.4,
+    "close_vs_gap_top_pct": 2.9,
+    "gap_day_pct": 14.26,
+    "gap_day_dcr": 0.85,
+    "post_gap_run_pct": 6.8,
+    "pullback_from_high_pct": -14.3,
+    "day_pct": -2.94,
+    "dcr": 0.18,
+    "reclaimed_in_forward": false
    },
    "q": 3.0
   },
@@ -1773,7 +1876,22 @@
     "first_test": true,
     "levels_touched": [
      "top"
-    ]
+    ],
+    "gap_asof": "2023-12-21",
+    "true_gap": true,
+    "gap_top": 81.62,
+    "gap_low": 83.11,
+    "test_low_vs_gap_low_pct": -1.6,
+    "close_vs_gap_low_pct": -0.9,
+    "close_vs_gap_top_pct": 0.9,
+    "gap_day_pct": 8.63,
+    "gap_day_dcr": 0.81,
+    "post_gap_run_pct": 2.8,
+    "pullback_from_high_pct": -7.0,
+    "day_pct": -3.52,
+    "dcr": 0.25,
+    "reclaim_sessions": 3,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1792,7 +1910,22 @@
      "glow",
      "gopen",
      "mid"
-    ]
+    ],
+    "gap_asof": "2024-01-23",
+    "true_gap": true,
+    "gap_top": 39.49,
+    "gap_low": 39.77,
+    "test_low_vs_gap_low_pct": -0.2,
+    "close_vs_gap_low_pct": 3.7,
+    "close_vs_gap_top_pct": 4.4,
+    "gap_day_pct": 5.31,
+    "gap_day_dcr": 0.28,
+    "post_gap_run_pct": 7.6,
+    "pullback_from_high_pct": -8.8,
+    "day_pct": 3.05,
+    "dcr": 0.96,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 3.0
   },
@@ -1808,7 +1941,21 @@
     "first_test": true,
     "levels_touched": [
      "mid"
-    ]
+    ],
+    "gap_asof": "2024-03-05",
+    "true_gap": true,
+    "gap_top": 18.87,
+    "gap_low": 20.34,
+    "test_low_vs_gap_low_pct": -4.1,
+    "close_vs_gap_low_pct": -3.5,
+    "close_vs_gap_top_pct": 4.0,
+    "gap_day_pct": 11.19,
+    "gap_day_dcr": 0.56,
+    "post_gap_run_pct": 1.6,
+    "pullback_from_high_pct": -7.5,
+    "day_pct": -2.24,
+    "dcr": 0.21,
+    "reclaimed_in_forward": false
    },
    "q": 3.0
   },
@@ -1826,7 +1973,10 @@
      "sma50"
     ],
     "red_to_green": true,
-    "dcr": 0.981
+    "dcr": 0.981,
+    "open_vs_prior_close_pct": -0.06,
+    "low_vs_prior_low_pct": -0.18,
+    "day_pct": 1.11
    },
    "q": 0.9
   },
@@ -1841,7 +1991,10 @@
      "sma50"
     ],
     "red_to_green": true,
-    "dcr": 0.973
+    "dcr": 0.973,
+    "open_vs_prior_close_pct": -0.07,
+    "low_vs_prior_low_pct": 0.07,
+    "day_pct": 2.28
    },
    "q": 0.9
   },
@@ -1857,7 +2010,10 @@
      "ema9"
     ],
     "red_to_green": true,
-    "dcr": 0.944
+    "dcr": 0.944,
+    "open_vs_prior_close_pct": -0.16,
+    "low_vs_prior_low_pct": -0.44,
+    "day_pct": 1.38
    },
    "q": 0.9
   },
@@ -1873,7 +2029,10 @@
      "sma50"
     ],
     "red_to_green": true,
-    "dcr": 0.925
+    "dcr": 0.925,
+    "open_vs_prior_close_pct": -1.16,
+    "low_vs_prior_low_pct": 1.18,
+    "day_pct": 1.92
    },
    "q": 0.9
   },
@@ -1890,7 +2049,10 @@
      "ema20"
     ],
     "red_to_green": true,
-    "dcr": 0.992
+    "dcr": 0.992,
+    "open_vs_prior_close_pct": -0.11,
+    "low_vs_prior_low_pct": -3.14,
+    "day_pct": 2.4
    },
    "q": 0.9
   },
@@ -1905,7 +2067,10 @@
      "prior_low"
     ],
     "red_to_green": true,
-    "dcr": 1.0
+    "dcr": 1.0,
+    "open_vs_prior_close_pct": -0.71,
+    "low_vs_prior_low_pct": -2.73,
+    "day_pct": 3.79
    },
    "q": 0.9
   },
@@ -1920,7 +2085,10 @@
      "ema20"
     ],
     "red_to_green": true,
-    "dcr": 0.977
+    "dcr": 0.977,
+    "open_vs_prior_close_pct": -1.12,
+    "low_vs_prior_low_pct": 0.88,
+    "day_pct": 1.86
    },
    "q": 0.9
   },
@@ -1936,7 +2104,10 @@
      "ema20"
     ],
     "red_to_green": true,
-    "dcr": 0.904
+    "dcr": 0.904,
+    "open_vs_prior_close_pct": -0.77,
+    "low_vs_prior_low_pct": 0.29,
+    "day_pct": 2.16
    },
    "q": 0.9
   },
@@ -1953,7 +2124,10 @@
      "sma50"
     ],
     "red_to_green": true,
-    "dcr": 0.982
+    "dcr": 0.982,
+    "open_vs_prior_close_pct": -0.84,
+    "low_vs_prior_low_pct": -2.25,
+    "day_pct": 8.27
    },
    "q": 0.9
   },
@@ -1972,7 +2146,10 @@
      "sma50"
     ],
     "red_to_green": false,
-    "dcr": 0.974
+    "dcr": 0.974,
+    "open_vs_prior_close_pct": -9.88,
+    "low_vs_prior_low_pct": -7.18,
+    "day_pct": -0.87
    },
    "q": 0.9
   },
@@ -7738,7 +7915,12 @@
     "fwd_20d_pct": 17.7,
     "avg_dollar_volume_m": 335.8,
     "known_name": true,
-    "gap_asof": "2025-10-31"
+    "gap_asof": "2025-10-31",
+    "gap_low": 124.0,
+    "test_low_vs_gap_low_pct": -7.5,
+    "close_vs_gap_low_pct": -2.8,
+    "reclaim_sessions": 1,
+    "reclaimed_in_forward": true
    },
    "q": 22.38
   },
@@ -7792,7 +7974,12 @@
     "fwd_20d_pct": 13.4,
     "avg_dollar_volume_m": 271.6,
     "known_name": true,
-    "gap_asof": "2023-02-15"
+    "gap_asof": "2023-02-15",
+    "gap_low": 57.05,
+    "test_low_vs_gap_low_pct": -11.8,
+    "close_vs_gap_low_pct": -4.9,
+    "reclaim_sessions": 3,
+    "reclaimed_in_forward": true
    },
    "q": 22.19
   },
@@ -7844,7 +8031,12 @@
     "fwd_20d_pct": 37.8,
     "avg_dollar_volume_m": 503.3,
     "known_name": false,
-    "gap_asof": "2025-07-29"
+    "gap_asof": "2025-07-29",
+    "gap_low": 183.16,
+    "test_low_vs_gap_low_pct": -5.4,
+    "close_vs_gap_low_pct": -0.1,
+    "reclaim_sessions": 2,
+    "reclaimed_in_forward": true
    },
    "q": 22.0
   },
@@ -7899,7 +8091,12 @@
     "fwd_20d_pct": 61.4,
     "avg_dollar_volume_m": 722.7,
     "known_name": false,
-    "gap_asof": "2026-04-15"
+    "gap_asof": "2026-04-15",
+    "gap_low": 17.77,
+    "test_low_vs_gap_low_pct": -3.7,
+    "close_vs_gap_low_pct": 2.8,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 22.0
   },
@@ -7953,7 +8150,12 @@
     "fwd_20d_pct": 24.1,
     "avg_dollar_volume_m": 381.8,
     "known_name": false,
-    "gap_asof": "2026-04-30"
+    "gap_asof": "2026-04-30",
+    "gap_low": 226.99,
+    "test_low_vs_gap_low_pct": -5.5,
+    "close_vs_gap_low_pct": -1.5,
+    "reclaim_sessions": 1,
+    "reclaimed_in_forward": true
    },
    "q": 21.8
   },
@@ -8006,7 +8208,12 @@
     "fwd_20d_pct": 24.9,
     "avg_dollar_volume_m": 247.7,
     "known_name": true,
-    "gap_asof": "2026-02-25"
+    "gap_asof": "2026-02-25",
+    "gap_low": 77.22,
+    "test_low_vs_gap_low_pct": -5.9,
+    "close_vs_gap_low_pct": -2.3,
+    "reclaim_sessions": 2,
+    "reclaimed_in_forward": true
    },
    "q": 21.77
   },
@@ -8060,7 +8267,12 @@
     "fwd_20d_pct": 38.6,
     "avg_dollar_volume_m": 41.6,
     "known_name": false,
-    "gap_asof": "2026-05-06"
+    "gap_asof": "2026-05-06",
+    "gap_low": 56.95,
+    "test_low_vs_gap_low_pct": -8.8,
+    "close_vs_gap_low_pct": -4.0,
+    "reclaim_sessions": 2,
+    "reclaimed_in_forward": true
    },
    "q": 21.6
   },
@@ -8114,7 +8326,12 @@
     "fwd_20d_pct": 10.4,
     "avg_dollar_volume_m": 243.4,
     "known_name": true,
-    "gap_asof": "2024-08-29"
+    "gap_asof": "2024-08-29",
+    "gap_low": 37.52,
+    "test_low_vs_gap_low_pct": -4.8,
+    "close_vs_gap_low_pct": -0.7,
+    "reclaim_sessions": 1,
+    "reclaimed_in_forward": true
    },
    "q": 21.35
   },
@@ -8168,7 +8385,12 @@
     "fwd_20d_pct": 11.3,
     "avg_dollar_volume_m": 561.8,
     "known_name": false,
-    "gap_asof": "2024-06-10"
+    "gap_asof": "2024-06-10",
+    "gap_low": 104.0,
+    "test_low_vs_gap_low_pct": -5.5,
+    "close_vs_gap_low_pct": 2.1,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 21.18
   },
@@ -8223,7 +8445,12 @@
     "fwd_20d_pct": 8.6,
     "avg_dollar_volume_m": 154.1,
     "known_name": false,
-    "gap_asof": "2024-10-31"
+    "gap_asof": "2024-10-31",
+    "gap_low": 566.57,
+    "test_low_vs_gap_low_pct": -1.5,
+    "close_vs_gap_low_pct": 1.4,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 20.96
   },
@@ -8276,7 +8503,12 @@
     "fwd_20d_pct": 24.1,
     "avg_dollar_volume_m": 467.7,
     "known_name": false,
-    "gap_asof": "2025-10-29"
+    "gap_asof": "2025-10-29",
+    "gap_low": 162.16,
+    "test_low_vs_gap_low_pct": -6.6,
+    "close_vs_gap_low_pct": -2.0,
+    "reclaim_sessions": 1,
+    "reclaimed_in_forward": true
    },
    "q": 20.8
   },
@@ -8327,7 +8559,12 @@
     "fwd_20d_pct": 11.3,
     "avg_dollar_volume_m": 842.5,
     "known_name": true,
-    "gap_asof": "2022-08-02"
+    "gap_asof": "2022-08-02",
+    "gap_low": 27.1,
+    "test_low_vs_gap_low_pct": -15.4,
+    "close_vs_gap_low_pct": -9.0,
+    "reclaim_sessions": 5,
+    "reclaimed_in_forward": true
    },
    "q": 20.38
   },
@@ -8379,7 +8616,12 @@
     "fwd_20d_pct": 22.6,
     "avg_dollar_volume_m": 64.5,
     "known_name": false,
-    "gap_asof": "2022-11-11"
+    "gap_asof": "2022-11-11",
+    "gap_low": 28.5,
+    "test_low_vs_gap_low_pct": -1.1,
+    "close_vs_gap_low_pct": 7.0,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
    },
    "q": 20.27
   },
@@ -8430,7 +8672,11 @@
     "fwd_20d_pct": 24.9,
     "avg_dollar_volume_m": 55.2,
     "known_name": false,
-    "gap_asof": "2025-12-08"
+    "gap_asof": "2025-12-08",
+    "gap_low": 86.61,
+    "test_low_vs_gap_low_pct": -23.6,
+    "close_vs_gap_low_pct": -21.3,
+    "reclaimed_in_forward": false
    },
    "q": 20.26
   },
@@ -10026,5 +10272,498 @@
     "asof": "2024-09-11"
    }
   ]
- }
+ },
+ "facts_filled": [
+  {
+   "generated": "2026-11-04",
+   "script": "scripts/study/fill_setup_facts.py",
+   "why": "the lesson line read facts the scan had not stored and printed None%; the test is now measured against the gap-up day's low, the level the owner ruled on 2026-10-26/27",
+   "examples": [
+    {
+     "setup": "Gap Support",
+     "sym": "LYFT",
+     "asof": "2021-11-15",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TTD",
+     "asof": "2022-01-04",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "NFLX",
+     "asof": "2022-02-07",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "SBUX",
+     "asof": "2022-04-05",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "EDU",
+     "asof": "2023-01-30",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "AXP",
+     "asof": "2023-03-10",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "BABA",
+     "asof": "2023-04-20",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "MU",
+     "asof": "2024-01-02",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "UAL",
+     "asof": "2024-02-06",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "FMS",
+     "asof": "2024-03-14",
+     "added": [
+      "gap_asof",
+      "true_gap",
+      "gap_top",
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "close_vs_gap_top_pct",
+      "gap_day_pct",
+      "gap_day_dcr",
+      "post_gap_run_pct",
+      "pullback_from_high_pct",
+      "day_pct",
+      "dcr",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "CCI",
+     "asof": "2021-11-15",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "QQQ",
+     "asof": "2021-12-15",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "INTC",
+     "asof": "2022-01-14",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "ANET",
+     "asof": "2022-02-16",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "SNOW",
+     "asof": "2022-03-24",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "RKLB",
+     "asof": "2023-01-10",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "ZM",
+     "asof": "2023-02-14",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "CSCO",
+     "asof": "2023-03-16",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "CELH",
+     "asof": "2024-01-02",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Go Signal",
+     "sym": "COLM",
+     "asof": "2024-02-02",
+     "added": [
+      "open_vs_prior_close_pct",
+      "low_vs_prior_low_pct",
+      "day_pct"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TWLO",
+     "asof": "2025-11-21",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TTD",
+     "asof": "2023-03-13",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "CLS",
+     "asof": "2025-08-20",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "QBTS",
+     "asof": "2026-04-29",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "FTAI",
+     "asof": "2026-05-19",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "CAVA",
+     "asof": "2026-03-27",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "VECO",
+     "asof": "2026-05-19",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "AFRM",
+     "asof": "2024-09-10",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "KKR",
+     "asof": "2024-08-05",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "ARGX",
+     "asof": "2024-11-19",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TER",
+     "asof": "2025-11-21",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "UBER",
+     "asof": "2022-10-11",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "DOCS",
+     "asof": "2023-01-06",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "KYMR",
+     "asof": "2026-01-20",
+     "added": [
+      "gap_low",
+      "test_low_vs_gap_low_pct",
+      "close_vs_gap_low_pct",
+      "reclaimed_in_forward"
+     ]
+    }
+   ]
+  }
+ ]
 }
