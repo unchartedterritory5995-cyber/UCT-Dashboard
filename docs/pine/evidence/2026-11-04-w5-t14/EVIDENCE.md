@@ -194,3 +194,8 @@ bar that is na is `not_computable` (never a non-hit), and a service that serves 
   answer must refuse), and **T11a: T11's own check `if any(v == v for v in col[:wb])` in `api/services/pine_runtime_client.py` replaced by `if False:`
   goes RED on `test_a_finite_value_inside_the_warmup_withholds...` and is restored byte-exact** (`mutate_pytest.py` asserts the restore; `git status` shows
   no change to T11's file). The S05 row was dropped with the duplicate it covered.
+- final-tip, LAST, on the final code tree (tip `8fa5e69a98`; later commits are this file only; `heavy-final3.lock`; `bash $S/final-tip.sh pine-dsk-w5t14 dsk-w5t14r1-final tests/test_scan_runtime_lane.py tests/test_scan_run.py tests/test_scan_evaluator_off_request_path.py tests/test_pine_runtime_client.py tests/test_runtime_server_lane.py`,
+  log `runs/w5t14r1/final.log`): gate pytest **46 passed**; hygiene **clean**; named files **317 passed, 1 failed** (the failure is
+  `test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes`, a base failure: the handlers named are `indicator_alerts`
+  create_alert / get_current_value, not this lane); chart+hooks vitest **2 failed | 1333 passed | 27 skipped (1362)**, the two being exactly the baselines
+  `settingsScope.rail` and `pollingSites.rail`. Engine bump: NO.
