@@ -32,13 +32,15 @@ describe('RT7 — a fixed `rightbars` is read as the number it is', () => {
     expect(r.ok).toBe(false)
     expect(String(r.refusal.message)).not.toMatch(PLAIN)
     expect(String(r.refusal.message)).not.toMatch(/counts backwards in whole bars/)
-    expect(r.refusal.guard).toBe('runtime:history-expression')
+    // W4-T7: the hoist of `src` now succeeds inside the frame, so the next wall
+    // is the pivot's own: a windowed built-in fed by a mutable variable.
+    expect(r.refusal.guard).toBe('runtime:call-windowed-state')
   })
   it('a literal `rightbars` in a function body reaches the same named wall', () => {
     const r = build(`f(src) => ta.pivotlow(src, 3, 2)\n${prelude}plot(f(low + 0 * k))\n`)
     expect(r.ok).toBe(false)
     expect(String(r.refusal.message)).not.toMatch(/counts backwards in whole bars/)
-    expect(r.refusal.guard).toBe('runtime:history-expression')
+    expect(r.refusal.guard).toBe('runtime:call-windowed-state')
   })
   it('control: a `rightbars` only known while the bar runs keeps the builder\'s own refusal', () => {
     const r = build(`${prelude}r = int(k)\nplot(ta.pivothigh(high + 0 * k, 2, r))\n`)
