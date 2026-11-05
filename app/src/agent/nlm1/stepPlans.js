@@ -94,7 +94,8 @@ export function prepareStepPlan(opsIn) {
     let alias = null
     if (produced.chart === 'created') {
       if (!id) produced = {}
-      else { alias = String(id); argsOut.as = alias }
+      // the model's own `as` name stays the alias when it gave one (later ops may target it by that name too)
+      else { alias = typeof argsOut.as === 'string' && argsOut.as ? argsOut.as : String(id); argsOut.as = alias }
     }
     const chart = produced.chart === 'created' ? alias
       : produced.chart === 'target' ? (cap.target === 'indicatorEdits' ? (chartOfIndicatorEdits(target) || target) : target) : null

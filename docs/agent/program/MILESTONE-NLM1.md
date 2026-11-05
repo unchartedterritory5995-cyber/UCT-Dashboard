@@ -359,6 +359,36 @@ Dark behind the same two NLM-1 keys (the in-plan key is not involved). No prompt
   - P9: an approval dismissed mid-plan. No alert is created and "nothing changed".
   - P10: a reference to a refused step. The board is unchanged; step 2 is reported as not run because step 1 did not take effect.
 
+## 3d. BUILD (d): step plans through the v1 planner (branch `agent/nlm1/step-plans-planner`, stacked on #806)
+
+- **Schema** (`api/services/uct_agent/turn.py envelope_schema`): every op, in both the embedded and compact shapes, gets `id: string | null`. It is required and nullable, because the strict grammar needs every property listed.
+- **Server** (`sanitize_envelope`):
+  - A null id is dropped, so a plan that uses no results reaches the browser exactly as before.
+  - A reference to a later or missing step, or a malformed or reused id, refuses the whole plan (`STEP_PLAN_REFUSED`).
+  - An earlier step's result (`$s1.chart`) is accepted as a target, never treated as "Which one do you mean?".
+  - `expand_compact_ops` keeps a string id.
+  - `nl1_plan_problems` tells the model about a bad reference in its repair round.
+- **Prompt:** one paragraph, "STEP RESULTS", after WHOLE REQUESTS. The `as` names keep working, and `$s1.chart` may stand for a new chart's `as`.
+- **Browser:** `nlm1/stepPlans.js` is unchanged except that a create's own `as` name stays its alias. Planner v2's "New refs:" is not changed: planner v2 is off and not needed here.
+- **Cost (no new calls; every call stays inside the #785 meter).** Measured on the golden manifest:
+
+| Manifest | System prompt | Output schema | Worst case per planner call (60 KB context) |
+|---|---|---|---|
+| Full catalog, 134 caps, compact | 95,736 → 96,280 B (+544) | 3,583 → 3,620 B (+37) | $0.2189 → $0.2196 |
+| Worst routed set, 55 caps, compact | 64,322 → 64,866 B (+544) | 2,034 → 2,071 B (+37) | $0.1757 → $0.1765 |
+| Embedded op shape, 10 caps | 30,956 → 31,500 B (+544) | 11,124 → 11,494 B (+370) | $0.1567 → $0.1584 |
+
+  Output grows by about 5 tokens per op (`"id":null`), within the unchanged `max_tokens` (2048). All cases stay under $0.25, and the meter refuses any call that would not fit.
+- **No-model proof:**
+  - `nlm1StepPlans.test.jsx` (20/20) replays scripted plans in the new schema through the real panel, as the browser receives them after the server. It checks final state, the read-back line and grouped Undo. Cases: P1–P10; P11 ("add a chart for AMD, make it weekly, put the 21 EMA and RSI on it, then make the EMA orange": all 5 checked steps in place, Undo restores); P12 (an existing chart: SMA thicker, other chart weekly); P13 (no ids, runs as today, no read-back); P14 and P15 (a wrong result field, a duplicate id: refused whole).
+  - `tests/test_uct_agent_step_plans.py` (20) covers the schema, the prompt, null-id identity, compact conversion, the six malformed shapes refused whole on the server, and the repair messages.
+- **What a real-model check should measure** (owner-approved small eval, or the owner's own use). Over about 30 multi-step requests (create plus change, indicator plus style, several charts):
+  - the share of plans that use ids where a result is needed (indicator then style) versus `as` alone or `#21:ema` selectors;
+  - malformed-reference rate (refused whole) and repair success;
+  - task success by final state and read-back "all in place";
+  - plain requests still emitting `id: null` everywhere (no spurious ids);
+  - output tokens per op and dollars per turn against the $0.25 cap.
+
 ## 4. PACKAGE 1: multi-step and follow-up conversations (live for admins after review; owner policy 11-04)
 
 Branch `agent/nlm1/package1` on master `29830442d0`: #790 (D1 routing, D2/D3 follow-ups, in-plan key) + step plans (a)–(c) (§3c), merged as one package.
@@ -366,7 +396,7 @@ Branch `agent/nlm1/package1` on master `29830442d0`: #790 (D1 routing, D2/D3 fol
 - **created-binding-v2 overlap (#797):** `planCreatedReference` sits on the v2 binder unchanged. One fix: when NLM-1 rewrote the member's words ("same but weekly" → "add a chart for TSLA and make it weekly"), the binder now reads the member's typed words when deciding whether they named an existing chart. A ticker carried over from the rewrite no longer triggers a question. A member who types the ticker of an existing chart is still asked, as on master.
 - **NLM1-G1** is fixed on master (#798): its two gap markers are removed, and both cases pass with the in-plan key on.
 - **Unchanged:** spending caps, server auth (`/api/agent/config` admin-only), approvals, Undo and receipts.
-- **Step plans:** the executor is live, but no real request reaches it until the planner emits step ids. That is the prompt/schema change (d), a later package.
+- **Step plans:** the executor is live; the planner emits step ids from (d) on (§3d, branch `agent/nlm1/step-plans-planner`).
 
 **Proof.**
 - Flag-off fingerprint: base `29830442d0` equals the frozen hash.

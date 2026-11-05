@@ -338,6 +338,62 @@ def compact_ops(capabilities: list[dict], force: bool = False) -> bool:
     return force or len(capabilities) > STRICT_OP_VARIANTS_MAX
 
 
+# ── STEP PLANS (NLM-1 (d)): an op may carry an `id`; a LATER op names that op's RESULT as "$<id>.<field>" ──────────────
+# ("$s1.chart" as a target: the chart op s1 created or changed; "$s1.indicator" as an indicator change's instance: the
+# indicator op s1 added). Backward compatible: `id` is null on every op of a plan that needs no result, and a null id is
+# dropped here, so such a plan reaches the browser exactly as before. The server checks only what it can know — every
+# reference names an EARLIER op's id, ids are short names used once; the browser (nlm1/stepPlans.js) checks the rest
+# (which fields an op produces, where a reference may go) and refuses the WHOLE plan on any violation.
+STEP_ID = re.compile(r"^[A-Za-z][\w-]{0,23}$")
+STEP_REF = re.compile(r"^\$([A-Za-z][\w-]*)\.([a-z]+)$")
+
+
+def _step_refs_in(v: Any):
+    if isinstance(v, str):
+        if STEP_REF.match(v):
+            yield v
+    elif isinstance(v, list):
+        for x in v:
+            yield from _step_refs_in(x)
+    elif isinstance(v, dict):
+        for x in v.values():
+            yield from _step_refs_in(x)
+
+
+def step_plan_errors(ops: list) -> list[str]:
+    """Why these ops are not a valid step plan, as sentences the model can act on ([] = valid, or no step plan)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for i, o in enumerate(ops, 1):
+        if not isinstance(o, dict):
+            continue
+        args = o.get("args")
+        if args is None and isinstance(o.get("args_json"), str):
+            try:
+                args = json.loads(o["args_json"])
+            except (TypeError, ValueError):
+                args = None
+        target = o.get("target")
+        refs = ([target] if isinstance(target, str) and STEP_REF.match(target) else []) + list(_step_refs_in(args))
+        for r in refs:
+            rid = STEP_REF.match(r).group(1)
+            if rid not in seen:
+                out.append(f"Op {i} uses {_clean(r, 30)!r}, but no EARLIER op in this plan has the id {_clean(rid, 24)!r}.")
+        oid = o.get("id")
+        if oid is not None:
+            if not isinstance(oid, str) or not STEP_ID.match(oid):
+                out.append(f"Op {i} has the id {_clean(str(oid), 24)!r}: an id is null or a short name such as s1.")
+            elif oid in seen:
+                out.append(f"Op {i} reuses the id {oid!r}: each id is used once.")
+            else:
+                seen.add(oid)
+    return out
+
+
+STEP_PLAN_REFUSED = ("UCT Agent planned steps that refer to a step that isn't earlier in the plan, so nothing was changed. "
+                     "Try rephrasing.")
+
+
 # The model API refuses some embedded-args schemas outright (HTTP 400, nothing generated, no cost):
 # a strict grammar that compiles too large — measured on production 2026-10-09 for the 9-action
 # screener group (screener.run's array of condition objects) — or a construct it does not accept.
@@ -360,8 +416,9 @@ def _compact_op_schema(capabilities: list[dict]) -> dict:
             "action": {"type": "string", "enum": [a["name"] for a in capabilities]},
             "target": {"type": "string"},
             "args_json": {"type": "string"},
+            "id": {"type": ["string", "null"]},
         },
-        "required": ["action", "target", "args_json"],
+        "required": ["action", "target", "args_json", "id"],
         "additionalProperties": False,
     }
 
@@ -650,7 +707,8 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
             _unreadable("args_schema", action=o.get("action"),
                         keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
                         want=sorted((cap or {}).get("args", {}).get("properties") or {}))
-        out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
+        out.append({"action": o.get("action"), "target": o.get("target"), "args": args,
+                    **({"id": o["id"]} if o.get("id") is not None else {})})
     return {**env, "ops": out}
 
 
@@ -720,8 +778,9 @@ def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = No
             "action": {"type": "string", "const": a["name"]},
             "target": {"type": "string"},
             "args": model_safe_schema(a["args"]),
+            "id": {"type": ["string", "null"]},
         },
-        "required": ["action", "target", "args"],
+        "required": ["action", "target", "args", "id"],
         "additionalProperties": False,
     } for a in capabilities]
     if compact_ops(capabilities, force=bool(compact)):
@@ -799,6 +858,7 @@ If the request can be done with reasonable, established defaults, plan it; do no
 
 WHOLE REQUESTS
 A request with several steps is ONE plan: put every step in `ops`, in order, connected by `as` names — e.g. "make a watchlist of X and open it" is: run the screen (as "screen1"), create the list (as "list1"), add the screen's results to "list1" ({from:"screen1", top:null}), open "list1" in the workspace. Pick `as` names that are not refs in <workspace_context>. Never plan only the first step, and never tell the member you "will" do the rest later. UCT shows the whole plan once and asks for approval where an action needs it.
+STEP RESULTS. Every op has `id`: null, unless a LATER op in this plan needs what this op produces; then a short unique id (s1, s2, …). A later op may use "$s1.chart" as its target (the chart op s1 created or changed; a new chart may also keep using its `as` name) and "$s1.indicator" as an indicator change's `instance` (the indicator op s1 adds, which has no instance id yet). E.g. "add the 21 EMA and make it orange": indicator.add with id "s1", then indicatorStyle.set with instance "$s1.indicator". Never reference a later or missing id.
 
 TARGETING
 Every op has `target` = a `ref` from <workspace_context> (each action says which kind of target it acts on). If exactly one target of that kind exists, use it. To CHANGE, delete or overwrite one of several that the member did not identify (by name, symbol, position such as left / top-right, or "all of them"), use clarify — never guess which one to change. "All of them" means one op per target (still apply when they asked for it).
@@ -2041,13 +2101,17 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
                         "Split it into smaller requests.")
     if cap_names is not None and any(o.get("action") not in cap_names for o in ops):
         raise TurnError("UCT Agent planned an action that doesn't exist, so nothing was changed. Try rephrasing.")
+    # STEP PLANS: a reference to a later or missing step, or a bad / reused id, refuses the WHOLE plan (never part of it)
+    if step_plan_errors(ops):
+        raise TurnError(STEP_PLAN_REFUSED)
+    ops = [{k: v for k, v in o.items() if not (k == "id" and v is None)} for o in ops]
     # A target may also be a TRANSACTION-LOCAL alias that an EARLIER op in this
     # same plan declares through its `as` argument (a widget created in this
     # request). Generic: any capability may declare one; the browser resolves it.
     known = set(valid_refs)
     bad_targets = []
     for o in ops:
-        if o.get("target") not in known:
+        if o.get("target") not in known and not (isinstance(o.get("target"), str) and STEP_REF.match(o["target"])):
             bad_targets.append(o)
         alias = (o.get("args") or {}).get("as") if isinstance(o.get("args"), dict) else None
         if isinstance(alias, str) and alias:
@@ -2205,7 +2269,7 @@ def nl1_plan_problems(env: Any, capabilities: list[dict], valid_refs: set[str]) 
         return []
     by_name = {c["name"]: c for c in capabilities}
     known = set(valid_refs)
-    out: list[str] = []
+    out: list[str] = list(step_plan_errors([o for o in env.get("ops") or [] if isinstance(o, dict)]))
     for o in env.get("ops") or []:
         if not isinstance(o, dict):
             continue
@@ -2223,7 +2287,7 @@ def nl1_plan_problems(env: Any, capabilities: list[dict], valid_refs: set[str]) 
         if not (isinstance(args, dict) and args_match(cap["args"], args)):
             out.append(f"The arguments for {name} do not match its schema (its args: {', '.join(sorted(cap['args'].get('properties') or {}))}).")
         target = str(o.get("target") or "")
-        if target not in known:
+        if target not in known and not STEP_REF.match(target):
             out.append(f"{name} targets {_clean(target, 24)!r}, which is not a ref in <workspace_context> (use a ref of a {cap['target']} target listed there).")
         alias = args.get("as") if isinstance(args, dict) else None
         if isinstance(alias, str) and alias:

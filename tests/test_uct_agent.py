@@ -541,7 +541,7 @@ def test_past_the_budget_the_op_shape_is_compact_and_still_closed():
     caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX + 3))
     items = turn.envelope_schema(caps)["properties"]["ops"]["items"]
     assert items["properties"]["action"]["enum"] == [c["name"] for c in caps]
-    assert set(items["required"]) == {"action", "target", "args_json"} and items["additionalProperties"] is False
+    assert set(items["required"]) == {"action", "target", "args_json", "id"} and items["additionalProperties"] is False   # NLM-1 (d): id, null unless a later op needs its result
     assert "args_json" in turn.system_prompt(caps)
 
 
@@ -665,7 +665,7 @@ def test_a_schema_refusal_is_retried_once_compact_and_args_are_still_checked_str
     out = turn.run_turn(message="set it", context=CTX, history=[], capabilities=few, caller=c)
     assert len(c.calls) == 2
     assert "anyOf" in c.calls[0]["output_config"]["format"]["schema"]["properties"]["ops"]["items"]          # embedded
-    assert c.calls[1]["output_config"]["format"]["schema"]["properties"]["ops"]["items"]["required"] == ["action", "target", "args_json"]
+    assert c.calls[1]["output_config"]["format"]["schema"]["properties"]["ops"]["items"]["required"] == ["action", "target", "args_json", "id"]
     assert "args_json" in c.calls[1]["system"][0]["text"]
     assert out["envelope"]["ops"] == [{"action": "example.set1", "target": "c1", "args": {"level": "high", "note": None}}]
     assert out["usage"]["schema_fallback"] is True and out["usage"]["model_calls"] == 1
