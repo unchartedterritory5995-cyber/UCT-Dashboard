@@ -48,7 +48,7 @@ import { TABLE, parseFormula } from './parse'
 import { translatePine } from './pine'
 import { functionReachability } from './doorCoverage'
 import { probeRuntimeProgram } from '../runtime/runtimeColumns'
-import { VALUE_BUILD_DRAWING_GUARD } from '../../builder/memberPane/runtimeObjectsDoor'
+import { valueBuildDefersToDrawing } from '../../builder/memberPane/runtimeObjectsDoor'
 import { runtimePaneEnabled, __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
 import {
@@ -98,7 +98,7 @@ const short = (s, n = 220) => (s == null ? null : String(s).slice(0, n))
 function runtimeProbeOf(source, declined) {
   try {
     let p = probeRuntimeProgram(source)
-    if (!p.ok && (p.refusal || {}).guard === VALUE_BUILD_DRAWING_GUARD) {
+    if (!p.ok && valueBuildDefersToDrawing((p.refusal || {}).guard)) {
       p = probeRuntimeProgram(source, { objectsInRun: true })
     }
     if (p.ok) return null
