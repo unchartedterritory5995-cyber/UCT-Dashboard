@@ -433,11 +433,17 @@ def test_nl1_a_number_for_a_string_enum_value_is_read_as_that_value_and_nothing_
     assert turn.coerce_enum_numbers({"properties": {"t": {"type": "string", "enum": ["5"]}}}, {"t": True}) == {"t": True}
 
 
-def test_legacy_never_coerces(flag_off):
-    legacy = {"disposition": "apply", "reply": "", "question": None, "unsupported_category": None, "research": None, "title": None,
-              "ops": [{"action": "chart.setTimeframe", "target": "c1", "args_json": json.dumps({"timeframe": 15})}]}
+def test_legacy_coerces_a_number_to_its_enum_string_since_w11(flag_off):
+    # (Until W1.1 the legacy path refused {"timeframe": 15} outright; R-01 — LT-3, live planner 2026-11-03 — gives every
+    # path the same schema-driven tolerance: a number whose text is one of the enum's strings reads as that string.
+    # Still never a guess: 7 is not a timeframe and fails exactly as before.)
+    def legacy(tf):
+        return {"disposition": "apply", "reply": "", "question": None, "unsupported_category": None, "research": None, "title": None,
+                "ops": [{"action": "chart.setTimeframe", "target": "c1", "args_json": json.dumps({"timeframe": tf})}]}
+    out = turn.run_turn(message="15m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy(15))), interpreter="nl1")
+    assert out["envelope"]["ops"][0]["args"] == {"timeframe": "15"}
     with pytest.raises(turn.TurnError):
-        turn.run_turn(message="15m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy)), interpreter="nl1")
+        turn.run_turn(message="7m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy(7))), interpreter="nl1")
 
 
 def test_nl1_rules_name_protected_layouts(flag_on):
