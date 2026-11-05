@@ -40,8 +40,8 @@ RAILS = [
 MUTATIONS = [
     ("M1  the LLM client loses its timeout=",
      "api/schwab_router.py",
-     'anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH), max_retries=0)',
-     'anthropic.Anthropic(api_key=api_key, max_retries=0)',
+     'anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH))',
+     'anthropic.Anthropic(api_key=api_key)',
      None),
 
     ("M2  the handler goes back ON the event loop",

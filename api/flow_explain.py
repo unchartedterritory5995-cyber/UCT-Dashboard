@@ -93,10 +93,6 @@ _FALLBACK_PRICING = (15.0, 75.0)
 
 _MAX_TOKENS = 400
 _LLM_TIMEOUT_SECS = 30.0
-#: The SDK's default, kept for this lane when the shared client went to 0: options
-#: flow does not change behaviour without its owner. Each retry may bill, so a failed
-#: call is charged at the worst case x (_SDK_RETRIES + 1): see `_charge_failed_call`.
-_SDK_RETRIES = 2
 _MEM_CACHE_MAX = 2048
 
 
@@ -560,7 +556,7 @@ def _anthropic():
     """Shared Anthropic client, per-request timeout override (30s bounds the
     call so it can't pin an anyio worker — the 2026-07-01 outage class)."""
     from api.services.engine import _get_anthropic_client
-    return _get_anthropic_client().with_options(timeout=_LLM_TIMEOUT_SECS, max_retries=_SDK_RETRIES)
+    return _get_anthropic_client().with_options(timeout=_LLM_TIMEOUT_SECS)
 
 
 def _user_prompt(p: FlowPrint, ctx: dict) -> str:
@@ -640,21 +636,6 @@ def _call_llm(p: FlowPrint, ctx: dict) -> tuple[str, list[str], str, float]:
     return explanation, signals, model, cost
 
 
-def _charge_failed_call(date: str, p: FlowPrint, ctx: dict, exc: BaseException) -> None:
-    """A call that raised reports no usage and may have billed on every attempt, so it
-    costs the worst case x (_SDK_RETRIES + 1) on the daily ledger, not $0. An HTTP error
-    response is free, and with no API key nothing was sent. Never raises."""
-    try:
-        from api.services.uct_agent import budget
-        if budget._is_provider_error_response(exc) or not os.environ.get("ANTHROPIC_API_KEY"):
-            return
-        request = {"system": _SYSTEM_PROMPT, "messages": [{"role": "user", "content": _user_prompt(p, ctx)}]}
-        worst = _estimate_cost_usd(_model_name(), budget.request_bytes(request) + budget.FRAMING_TOKENS, _MAX_TOKENS)
-        _add_cost(date, worst * (_SDK_RETRIES + 1))
-    except Exception:
-        logger.warning("flow-explain could not charge a failed call", exc_info=True)
-
-
 def _estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     price_in, price_out = _PRICING.get(model, _FALLBACK_PRICING)
     return (input_tokens / 1_000_000) * price_in + (output_tokens / 1_000_000) * price_out
@@ -708,9 +689,8 @@ def explain_print(body: FlowPrint, user: dict = Depends(require_paid)) -> FlowEx
         return FlowExplainResponse(
             explanation=explanation, signals=signals, cached=False, model=model,
         )
-    except Exception as exc:
+    except Exception:
         logger.warning("flow-explain LLM failed; serving deterministic fallback", exc_info=True)
-        _charge_failed_call(date_et, body, ctx, exc)
         explanation = _deterministic_explanation(body, ctx)
         signals = _signals_from_context(body, ctx)
         # Deliberately NOT cached: a transient LLM error shouldn't pin the

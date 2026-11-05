@@ -174,8 +174,7 @@ DOORS: dict[str, Door] = {
     # ── Options flow / research / terminal ───────────────────────────────────
     "api/flow_explain.py": Door(
         "member", "POST /api/flow-explain (require_paid)",
-        "50/member/ET day in flow_explain.db (in-memory fallback) + $5/day global; keeps the "
-        "SDK's 2 retries, so a failed call is charged the worst case x 3",
+        "50/member/ET day in flow_explain.db (in-memory fallback) + $5/day global",
         meter="flow_explain", gap="not wired to the population cap in this ticket"),
     "api/services/ticker_explain.py": Door(
         "member", "POST /api/research/explain/{sym} (get_current_user)",
