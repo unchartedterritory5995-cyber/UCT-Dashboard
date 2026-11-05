@@ -163,6 +163,9 @@ import {
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
 import { runtimeKillOf } from './runtimeKill'
 import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
+// ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
+// never imported by the compute closure.
+import './lowerTfGate.js'
 import { runtimeWarmupOf } from './runtime/runtimeObjects'
 
 // ─── shared fragments ────────────────────────────────────────────────────────

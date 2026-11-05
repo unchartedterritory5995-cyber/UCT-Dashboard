@@ -1,0 +1,11 @@
+//@version=5
+indicator("hp for loop", overlay=false)
+n = 25
+float acc = 0.0
+float wsum = 0.0
+for i = 0 to n - 1
+    w = n - i
+    acc += close[i] * w
+    wsum += w
+plot(acc / wsum, "wma")
+plot(ta.wma(close, n), "ta_wma")

@@ -1,0 +1,20 @@
+[
+ [
+  "control:noop-comment",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "registerObjectRuntimeValues(runtimeObjectValues)",
+  "registerObjectRuntimeValues(runtimeObjectValues) // mutation control"
+ ],
+ [
+  "pine:tick-wall",
+  "src/components/chart/engine/ast/pine.js",
+  "  if (TRANSLATE_WINDOW_CLOCK() <= TRANSLATE_DEADLINE) return\n",
+  "  if (wallNow() <= TRANSLATE_DEADLINE) return\n"
+ ],
+ [
+  "pine:checkClock-wall",
+  "src/components/chart/engine/ast/pine.js",
+  "const clock = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_WINDOW_CLOCK : this.now",
+  "const clock = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_WINDOW_CLOCK : wallNow"
+ ]
+]
