@@ -722,3 +722,25 @@ def test_the_shared_store_time_helper_is_the_one_conversion():
 def test_an_admission_that_cannot_answer_admits_nothing():
     got = scan_runtime.runtime_admission(_row(), "no-such-lane", OUT)      # T11's admission raises
     assert got is not None and got[0] == "runtime:server-unavailable"
+
+
+def test_a_finite_value_inside_the_warmup_withholds_the_symbol_never_a_non_hit(world):
+    """A service that disagrees with the engine's curtain (finite values inside the warm-up, honest
+    digest) is refused by T11 r2 as integrity: the lane counts that symbol `withheld` -- not answered,
+    not a hit, not a non-hit -- and files no receipt."""
+    from tests.fakes.pine_runtime_fake import b64_column, redigest
+
+    def finite_warmup(reply):
+        for r in reply["results"]:
+            n = len(codec.decode_column(base64.b64decode(r["columns"][OUT])))
+            r["columns"][OUT] = b64_column([1.0] * n)
+            r["digest"] = redigest(FIXTURE_IDENTITY, r, n)
+        return reply
+    world.fake.withheld_bars = 3
+    world.fake.tamper = finite_warmup
+    world.bars = {"UP": _bars(n=8)}
+    out = _run(world, ["UP"])
+    assert (out["withheld"], out["answered"], out["evaluated"], out["hits"]) == (1, 0, 0, [])
+    assert out["withheld_reason"] == prc.INTEGRITY
+    assert "warm-up" in out["runtime_withheld_symbols"][0]["sentence"]
+    assert out["persisted"] is False and world.hits_written == []
