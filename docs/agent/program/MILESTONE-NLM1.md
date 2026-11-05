@@ -382,12 +382,26 @@ Dark behind the same two NLM-1 keys (the in-plan key is not involved). No prompt
 - **No-model proof:**
   - `nlm1StepPlans.test.jsx` (20/20) replays scripted plans in the new schema through the real panel, as the browser receives them after the server. It checks final state, the read-back line and grouped Undo. Cases: P1–P10; P11 ("add a chart for AMD, make it weekly, put the 21 EMA and RSI on it, then make the EMA orange": all 5 checked steps in place, Undo restores); P12 (an existing chart: SMA thicker, other chart weekly); P13 (no ids, runs as today, no read-back); P14 and P15 (a wrong result field, a duplicate id: refused whole).
   - `tests/test_uct_agent_step_plans.py` (20) covers the schema, the prompt, null-id identity, compact conversion, the six malformed shapes refused whole on the server, and the repair messages.
-- **What a real-model check should measure** (owner-approved small eval, or the owner's own use). Over about 30 multi-step requests (create plus change, indicator plus style, several charts):
-  - the share of plans that use ids where a result is needed (indicator then style) versus `as` alone or `#21:ema` selectors;
-  - malformed-reference rate (refused whole) and repair success;
-  - task success by final state and read-back "all in place";
-  - plain requests still emitting `id: null` everywhere (no spurious ids);
-  - output tokens per op and dollars per turn against the $0.25 cap.
+- **Realistic cost (typical routed requests, measured).** Each row uses the real turn request the panel sends (routed capabilities and context from the harness) and the server's prompt and schema for exactly those capabilities. Realistic columns assume about 3.6 bytes per token. The first turn writes the system prompt and schema to the cache at 1.25×; later turns read it at 0.1×. Output is the AMD plan: 908 B, about 250 tokens, about $0.0013. With every id null the same plan is 910 B, so the ids add nothing measurable.
+
+| Request (board) | Caps | System prompt / schema | Context + message | Worst-case bound | Realistic, first turn | Realistic, cached turn |
+|---|---|---|---|---|---|---|
+| AMD 5-step: new chart, weekly, 21 EMA + RSI, EMA orange (1 chart) | 51 | 45,868 / 2,013 B | 8,481 B | $0.088 | $0.021 | $0.006 |
+| TSLA left + 50 SMA thicker, right weekly (2 charts) | 48 | 43,616 / 1,941 B | 9,004 B | $0.086 | $0.021 | $0.006 |
+| "make the left chart look cleaner" (2 charts) | 43 | 38,937 / 1,900 B | 3,636 B | $0.073 | $0.018 | $0.005 |
+
+  Typical requests have a worst-case bound of about $0.07–0.09 per call, so a schema retry or a repair (a second call) still fits under the $0.25 turn cap. Only an unrouted full-catalog request with a very large context approaches $0.22, and there a second call is refused.
+- **Turn behaviour when a second call cannot fit (unchanged, existing tests in `tests/test_uct_agent_turn_cap.py`).** The v1 server never runs an op; it returns one whole envelope or a refusal, so a partial plan cannot reach the member.
+  - **Server repair** (where a bad step reference would be fixed): skipped, and the first plan is served through the usual checks. A malformed step plan then ends in `STEP_PLAN_REFUSED` ("…nothing was changed"). Test: `test_TURN_the_server_repair_is_skipped_when_it_cannot_fit_and_the_plan_is_served_as_checked`.
+  - **Schema retry, reroute or browser repair:** refused with `TURN_CAP_LATER` ("I stopped before finishing it. Nothing was changed."). Tests: `test_WORDING_a_later_refusal_says_nothing_was_changed`, `test_ROUTE_a_reroute_is_charged_to_the_same_turn_and_refused_honestly_when_it_cannot_fit`, `test_ROUTE_a_refused_browser_repair_is_not_written_to_the_transcript_the_member_never_saw_it`.
+- **Real-model behaviours to confirm** (owner's admin use in production, or an owner-approved eval of about 30 requests; no paid calls were made in development):
+  1. **Indicator then style:** "add the 21 EMA and make it orange", "add RSI and make it thicker", "put the 50 SMA on and turn it blue". The plan should give the `indicator.add` an id and the style an instance of `$s1.indicator`. Measure how often it does that versus a guessed instance id or a `#21:ema` selector, and whether the read-back says "all … in place".
+  2. **New chart plus a chain:** "add a chart for AMD, make it weekly, put the 21 EMA and RSI on it, then make the EMA orange". Expect a create with an id, `$c.chart` targets, and the EMA's result styled. Check one Undo restores the board.
+  3. **Existing-chart chains on 2- and 4-chart boards:** "put TSLA on the left chart with the 50 SMA thicker and make the right chart weekly". Explicit charts must be named, never a guessed chart; a plan that touches a chart the member did not name must become a proposal.
+  4. **Plain requests stay plain:** "make it weekly", "add rsi", questions. Every id should be null (no spurious ids) and no read-back line should appear. Measure the spurious-id rate (target 0).
+  5. **Malformed references:** the rate of plans refused whole (`STEP_PLAN_REFUSED`, or the browser's "didn't run any of that plan"), whether the repair round fixes them, and that a refusal never leaves a partial change.
+  6. **Partial failure honesty:** a step that cannot happen (an unknown indicator or a refused action mid-plan). The panel must say what is in place and what did not run, and the read-back must match the board.
+  7. **Cost:** dollars per turn and output tokens per op on real traffic against the measured numbers above; any `TURN_CAP_*` refusal on a routed request.
 
 ## 4. PACKAGE 1: multi-step and follow-up conversations (live for admins after review; owner policy 11-04)
 
