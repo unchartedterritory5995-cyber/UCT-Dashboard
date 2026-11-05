@@ -58,6 +58,7 @@ def init() -> None:
 def admit(go: str, members: str, hold_file: str) -> None:
     """Each thread takes one member's slot and keeps it until the parent says stop."""
     from api.services.uct_agent import limits
+    limits.RENEW_EVERY_S = float(os.environ.get("SPEND_TEST_RENEW_S") or limits.RENEW_EVERY_S)
     names = members.split(",")
     barrier, got, refused, lock = on_your_marks(go, len(names)), [], [], threading.Lock()
 

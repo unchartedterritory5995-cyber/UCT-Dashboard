@@ -275,7 +275,8 @@ def _v2_waiter(q: "queue.Queue", uid):
 
     def wait_step(step_id: str):
         limits.renew(uid)                             # a step may wait longer than the in-flight lease
-        deadline = time.monotonic() + call_deadline.cap(turn_v2.STEP_TIMEOUT_S)    # and never past the turn's own
+        left = call_deadline.left()                   # and never past the turn's own deadline
+        deadline = time.monotonic() + (turn_v2.STEP_TIMEOUT_S if left is None else min(turn_v2.STEP_TIMEOUT_S, left))
         while True:
             left = deadline - time.monotonic()
             if left <= 0:
@@ -410,7 +411,8 @@ def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event, o
     try:
         slot = limits.admit(uid, new_request=False)
     except limits.Refused as e:
-        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
+        raise HTTPException(status_code=503 if e.reason in limits.SERVICE_REASONS else 429, detail=e.sentence,
+                            headers={"Retry-After": str(e.retry_after)})
     token, q = body.turnId, queue.Queue()
     clock = budget.TurnClock(used_s=p["state"].get("active_s") or 0.0)
     clock.on_expire(lambda: _v2_unregister(token))
@@ -497,7 +499,8 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, 
     try:
         slot = limits.admit(uid, new_request=not body.reroute)
     except limits.Refused as e:
-        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
+        raise HTTPException(status_code=503 if e.reason in limits.SERVICE_REASONS else 429, detail=e.sentence,
+                            headers={"Retry-After": str(e.retry_after)})
     clock = budget.TurnClock()
     if on_expired is not None:
         clock.on_expire(on_expired)
@@ -729,12 +732,17 @@ def _set_title(uid: int, cid: str, title: str) -> None:
         log.exception("[uct-agent] could not store the conversation title")
 
 
+NAMING_MIN_LEFT_S = 10.0
+
+
 def _name_unnamed(uid: int, cid: str, request_id: int | None = None, clock=None) -> None:
     """Background: name a chat that is still on its first message. Never over the member's own
     name (the store refuses that) or over a name the Agent gave it meanwhile. The naming call is
     one of its request's calls (budget.py): a request that used both is not named this turn."""
     from api.services.uct_agent import budget, store, turn as agent
     try:
+        if clock is not None and clock.left() < NAMING_MIN_LEFT_S:
+            return                                      # a call capped to seconds would time out and cost its worst case
         if over_cost_cap() or (store.title_info(uid, cid) or {}).get("source") is not None:
             return
         try:

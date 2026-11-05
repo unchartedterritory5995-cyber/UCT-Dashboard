@@ -628,7 +628,9 @@ def web_search(
     data = None
     attempts = 0                      # requests actually sent (each may be billed): the Agent ledger needs the count
     for attempt in range(_MAX_RETRIES + 1):
-        if call_deadline.expired():       # the caller's own deadline: no further billed attempt
+        try:
+            attempt_timeout = call_deadline.cap(timeout)
+        except call_deadline.NotStarted:  # the caller's own deadline: no further billed attempt
             _log_call(cost_surface, model, resolved_mode, ok=False, error="deadline")
             return {"answer": "", "citations": [], "error": "deadline passed",
                     "mode": resolved_mode, "model": model}
@@ -641,7 +643,7 @@ def web_search(
                     "Content-Type": "application/json",
                 },
                 json=payload,
-                timeout=call_deadline.cap(timeout),
+                timeout=attempt_timeout,
             )
             r.raise_for_status()
             data = r.json()

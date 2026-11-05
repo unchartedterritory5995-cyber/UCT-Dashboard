@@ -306,3 +306,173 @@ def test_ADMIT_the_existing_protections_did_not_move():
     assert budget.DEFAULT_TURN_DEADLINE_S == 480 and limits.DEFAULTS["UCT_AGENT_INFLIGHT_GLOBAL"] == 20
     from api.services.catalyst import cost_guard
     assert cost_guard.hard_cap_usd() == 15.0
+
+
+# ═══ the independent review's findings ═══════════════════════════════════════════════════════════
+def test_REVIEW_a_deadline_that_passes_during_reserve_sends_nothing_and_releases(clean, monkeypatch):  # noqa: F811
+    """`reserve` can wait seconds on a busy store. Before: the call went out with a 1 ms timeout and could be billed."""
+    m = budget.Meter(user_id="u", request_id=None, site_reader=ZERO_SITE)
+    real = budget.reserve
+
+    def slow_reserve(**kw):
+        rid = real(**kw)
+        m.deadline = time.monotonic() - 1
+        return rid
+
+    monkeypatch.setattr(budget, "reserve", slow_reserve)
+    calls = []
+    with pytest.raises(budget.BudgetRefused):
+        m.call("turn", _caller(calls), **KW)
+    assert calls == [] and held()[1] == 0 and budget.state()["committed_usd"] == 0
+
+
+def test_REVIEW_cap_raises_past_the_deadline_rather_than_a_tiny_timeout():
+    with call_deadline.until(time.monotonic() - 1), pytest.raises(call_deadline.NotStarted):
+        call_deadline.cap(60)
+
+
+def test_REVIEW_a_call_refused_at_the_client_is_released_not_charged(clean):  # noqa: F811
+    m = budget.Meter(user_id="u", request_id=None, site_reader=ZERO_SITE)
+
+    def refused_at_the_client(**kw):
+        m.deadline = time.monotonic() - 1
+        raise call_deadline.NotStarted()                   # what `cap` raises in the caller, before anything is sent
+
+    with pytest.raises(budget.BudgetRefused):
+        m.call("turn", refused_at_the_client, **KW)
+    assert budget.state()["committed_usd"] == 0 and held()[1] == 0
+
+
+def test_REVIEW_an_expired_turn_cannot_start_anything_through_a_new_meter(clean):  # noqa: F811
+    """The ledger's word, not one clock's: rs1's lookup builds its own Meter, in any process."""
+    rid = budget.open_request("u", "c", "x")
+    assert budget.close_turn(rid) == 0
+    fresh = budget.Meter(user_id="u", request_id=None, turn_request_id=rid, site_reader=ZERO_SITE)
+    looked = []
+    with pytest.raises(budget.BudgetRefused) as e:
+        fresh.research(lambda: looked.append(1) or {"answer": "a"})
+    assert e.value.reason == "turn_deadline" and looked == []
+    with pytest.raises(budget.BudgetRefused):
+        fresh.call("turn", _caller(looked), **KW)
+    assert looked == [] and budget.state()["committed_usd"] == 0
+
+
+def test_REVIEW_a_turn_that_ends_at_its_deadline_also_ends_on_the_ledger(clean):  # noqa: F811
+    """No stuck worker here: the turn stopped by itself. A later reroute of the request still starts nothing."""
+    rid = budget.open_request("u", "c", "x")
+    clock = budget.TurnClock()
+    budget.Meter(user_id="u", request_id=None, turn_request_id=rid, site_reader=ZERO_SITE, clock=clock)
+    with limits.guard("u", limits.admit("u", new_request=False), clock):
+        clock.at = time.monotonic() - 1
+    assert held() == (0, 0)
+    calls = []
+    fresh = budget.Meter(user_id="u", request_id=None, turn_request_id=rid, site_reader=ZERO_SITE)
+    with pytest.raises(budget.BudgetRefused) as e:
+        fresh.call("turn", _caller(calls), **KW)
+    assert e.value.reason == "turn_deadline" and calls == []
+
+
+def test_REVIEW_a_late_reply_is_kept_as_confirmed_and_counts_once(clean):  # noqa: F811
+    rid = budget.open_request("u", "c", "x")
+    r = budget.reserve(user_id="u", request_id=None, turn_request_id=rid, category="turn", model="m", worst_usd=0.2,
+                       site_reader=ZERO_SITE, counts_as_call=False)
+    budget.close_turn(rid)
+    st = budget.state()
+    assert st["estimated_usd"] == pytest.approx(0.2) and st["confirmed_usd"] == 0
+    assert budget.settle(r, actual_usd=0.05, tokens={"input": 10, "output": 5}) == 0.0
+    st = budget.state()
+    assert st["settled_usd"] == pytest.approx(0.2) and st["committed_usd"] == pytest.approx(0.2)
+    assert st["confirmed_usd"] == pytest.approx(0.05) and st["estimated_usd"] == 0
+
+
+def test_REVIEW_a_settled_call_is_confirmed_and_a_timeout_is_an_estimate(clean):  # noqa: F811
+    m = budget.Meter(user_id="u", request_id=None, site_reader=ZERO_SITE)
+    m.call("turn", lambda **kw: _resp(usage=(1000, 100, 0, 0)), **KW)
+    with pytest.raises(TimeoutError):
+        m.call("turn", lambda **kw: (_ for _ in ()).throw(TimeoutError()), **KW)
+    st = budget.state()
+    assert st["confirmed_usd"] > 0 and st["estimated_usd"] == pytest.approx(budget.worst_case_usd(KW), abs=1e-5)
+    assert st["settled_usd"] == pytest.approx(st["confirmed_usd"] + st["estimated_usd"], abs=1e-5)
+
+
+def test_REVIEW_naming_cannot_start_past_the_deadline(clean, monkeypatch):  # noqa: F811
+    clock, names = budget.TurnClock(), []
+    clock.at = time.monotonic() - 1
+    monkeypatch.setattr(turn, "name_conversation", lambda *a, **k: names.append(1))
+    router._name_unnamed("u", "c", None, clock)
+    assert names == []
+
+
+def test_REVIEW_naming_is_skipped_with_too_little_left_and_runs_with_enough(clean, monkeypatch):  # noqa: F811
+    names = []
+    monkeypatch.setattr(turn, "name_conversation", lambda *a, **k: names.append(1))
+    from api.services.uct_agent import store
+    monkeypatch.setattr(store, "title_info", lambda *a: None)
+    monkeypatch.setattr(store, "get_turns", lambda *a: [])
+    tight = budget.TurnClock()
+    tight.at = time.monotonic() + router.NAMING_MIN_LEFT_S - 1
+    router._name_unnamed("u", "c", None, tight)
+    assert names == []
+    router._name_unnamed("u", "c", None, budget.TurnClock())
+    assert names == [1]
+
+
+@pytest.mark.parametrize("reason,sentence", [("store_unavailable", limits.UNAVAILABLE), ("multiple_replicas", limits.UNAVAILABLE)])
+def test_REVIEW_a_service_refusal_reaches_the_member_as_503_with_a_clear_message(client, monkeypatch, reason, sentence):  # noqa: F811
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls))
+    monkeypatch.setattr(limits, "admit", lambda *a, **k: (_ for _ in ()).throw(limits.Refused(reason, sentence, 5)))
+    r = client.post("/api/agent/turn", json={"message": "add rsi"})
+    assert r.status_code == 503 and r.json()["detail"] == sentence and r.headers["Retry-After"] == "5" and calls == []
+
+
+def test_REVIEW_a_broken_store_reaches_the_route_as_a_refusal_not_a_paid_call(client, monkeypatch):  # noqa: F811
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls))
+    with monkeypatch.context() as broken:
+        broken.setattr(limits, "_connect", lambda: (_ for _ in ()).throw(OSError("disk")))
+        r = client.post("/api/agent/turn", json={"message": "add rsi"})
+    assert r.status_code == 503 and r.json()["detail"] == limits.UNAVAILABLE and calls == []
+
+
+def test_REVIEW_a_rate_refusal_is_still_429(client, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(limits, "admit", lambda *a, **k: (_ for _ in ()).throw(limits.Refused("in_flight", limits.IN_FLIGHT, 5)))
+    assert client.post("/api/agent/turn", json={"message": "add rsi"}).status_code == 429
+
+
+def test_REVIEW_the_lease_cannot_be_set_shorter_than_two_renewals(monkeypatch):
+    monkeypatch.setenv("UCT_AGENT_INFLIGHT_LEASE_S", "1")
+    assert limits.lease_s() == 60
+
+
+def test_REVIEW_the_meter_cannot_extend_the_turns_deadline():
+    m = budget.Meter(user_id="u", request_id=None)
+    before = m.deadline
+    m.deadline = before + 1000
+    assert m.deadline == before
+
+
+def test_REVIEW_a_stuck_worker_is_counted_until_it_ends(short, hung, client):  # noqa: F811
+    t = threading.Thread(target=lambda: client.post("/api/agent/turn", json={"message": "add rsi"}))
+    t.start()
+    assert hung.entered.wait(10)
+    assert until(lambda: limits.lingering_workers() == 1)
+    hung.release.set()
+    t.join(20)
+    assert limits.lingering_workers() == 0
+
+
+def test_REVIEW_a_following_turn_of_the_request_is_not_closed_by_the_old_cleanup(clean):  # noqa: F811
+    """The cleanups run before the slot is freed, so the order leaves nothing of a next turn to close."""
+    order, clock = [], budget.TurnClock()
+    clock.on_expire(lambda: order.append("cleanup"))
+    clock.at = time.monotonic() - 10
+    real = limits.done
+    token = limits.admit("u", new_request=False)
+    import unittest.mock as mock
+    with mock.patch.object(limits, "done", side_effect=lambda t: (order.append("freed"), real(t))), \
+            mock.patch.object(limits, "EXPIRE_GRACE_S", 0.0):
+        with limits.guard("u", token, clock):
+            assert until(lambda: "freed" in order)
+    assert order[:2] == ["cleanup", "freed"]
+

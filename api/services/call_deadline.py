@@ -14,14 +14,15 @@ import contextlib
 import contextvars
 import time
 
-#: The shortest timeout `cap` returns: 0 means "no timeout" to some clients.
-MIN_TIMEOUT_S = 0.001
-
 _end: contextvars.ContextVar = contextvars.ContextVar("call_deadline_end", default=None)
 
 
 class Expired(Exception):
     """The deadline passed while a call was running. Not an HTTP error: the call may have been billed."""
+
+
+class NotStarted(Expired):
+    """The deadline passed before the call was sent, so nothing can have been billed."""
 
 
 @contextlib.contextmanager
@@ -47,6 +48,11 @@ def expired() -> bool:
 
 
 def cap(timeout: float) -> float:
-    """`timeout`, shortened to what is left. Never 0."""
+    """`timeout`, shortened to what is left. Past the deadline it RAISES: a tiny timeout would still send the
+    request on a pooled connection, and the provider could bill it."""
     remaining = left()
-    return timeout if remaining is None else max(MIN_TIMEOUT_S, min(timeout, remaining))
+    if remaining is None:
+        return timeout
+    if remaining <= 0:
+        raise NotStarted()
+    return min(timeout, remaining)

@@ -120,10 +120,9 @@ IMAGE_TOKENS_WORST: int = 4784
 #: `tests/test_vision_spend_containment.py` fails if the prompt outgrows it.
 PROMPT_TOKENS_WORST: int = 20_600
 
-#: One member's share of the $4 interactive lane: $1 a day. Without it, one member's timeouts could drain
-#: the lane for everyone. A quarter is the smallest share that still leaves room for ordinary use: the
-#: room needed to start a read is its worst case, so a smaller share would allow only one or two a day.
-MEMBER_LANE_SHARE: float = 0.25
+#: One member's hard daily ceiling on the $4 interactive lane. A fixed figure on purpose: as a fraction of the
+#: lane it would rise whenever the lane did. Without it, one member's timeouts could drain the lane for everyone.
+MEMBER_VISION_USD: float = 1.00
 
 #: ⛔ ONE BILLED ATTEMPT. See the header: a timed-out call has already generated
 #: tokens and reports no ``usage``, so an SDK retry is spend the ledger counts as
@@ -551,7 +550,7 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
     try:
         slot = cost_guard.reserve_member_call(
             market_date, ticker, MODEL, worst, max_per_hour=max_per_hour,
-            member_limit_usd=cost_guard.interactive_limit_usd() * MEMBER_LANE_SHARE)
+            member_limit_usd=MEMBER_VISION_USD)
     except Exception:                               # noqa: BLE001 -- never raises out
         logger.exception("[indicator-vision] ledger unavailable; call refused")
         return _refusal("vision:spend-cap")

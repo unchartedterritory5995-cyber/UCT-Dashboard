@@ -105,6 +105,7 @@ def test_GLOBAL_one_member_cannot_crowd_out_the_others(world):
 
 def test_GLOBAL_a_killed_process_frees_its_places_with_the_lease(world):
     world.env["UCT_AGENT_INFLIGHT_LEASE_S"] = "1"
+    world.env["SPEND_TEST_RENEW_S"] = "0.1"                # the lease is never shorter than two renewals
     a = world.start("admit", world.go, members("gone", 5), world.stop)
     world.race(a)
     assert len(world.line(a)["got"]) == 5
@@ -146,31 +147,100 @@ def test_VISION_a_second_process_sees_what_the_first_already_spent(world):
     assert _vision_ledger(world)[1] <= 1.0
 
 
-# ═══ the limits above hold on one volume, so web must stay on one instance ═══════════════════════
+# ═══ one web replica: the supported scope, docs/agent/budget/SINGLE-REPLICA-SCOPE.md ═════════════
 #: Flip this only when these limits really live on a store instances share. It protects the $1-a-day vision member
-#: share and the 20 global in-flight turns: both count in SQLite on web's own volume, so a second instance would
-#: count separately and each limit would silently double.
+#: ceiling and the 20 global in-flight turns: both count in SQLite on web's own volume, so a second instance on its
+#: own volume would count separately and each limit would silently double.
 SHARED_STORE_EXISTS = False
 
 
-def _replica_counts(node):
-    if isinstance(node, dict):
-        for key, value in node.items():
-            if key == "numReplicas":
-                yield value
-            yield from _replica_counts(value)
-    elif isinstance(node, list):
-        for value in node:
-            yield from _replica_counts(value)
+def replica_total(config):
+    """What a Railway config asks for: every region's replicas added up, else `numReplicas`, else Railway's 1."""
+    deploy = config.get("deploy") or {}
+    regions = deploy.get("multiRegionConfig") or {}
+    if regions:
+        return sum(int((r or {}).get("numReplicas") or 0) for r in regions.values())
+    return int(deploy.get("numReplicas") or 1)
 
 
-def test_REPLICAS_the_walk_finds_a_multi_region_setting():
-    config = {"deploy": {"multiRegionConfig": {"us-west2": {"numReplicas": 2}}}}
-    assert list(_replica_counts(config)) == [2]
+@pytest.mark.parametrize("config,total", [
+    ({}, 1), ({"deploy": {"numReplicas": 3}}, 3),
+    ({"deploy": {"numReplicas": 1, "multiRegionConfig": {"us-west2": {"numReplicas": 1}, "us-east4": {"numReplicas": 1}}}}, 2),
+], ids=["default", "plain", "two-regions-of-one"])
+def test_REPLICAS_regions_are_added_up(config, total):
+    """One replica in each of two regions is two instances, however small each figure looks."""
+    assert replica_total(config) == total
 
 
-@pytest.mark.parametrize("name", ["railway.json", "railway.web.json"])
-def test_REPLICAS_web_config_stays_on_one_instance_until_a_shared_store_exists(name):
-    """Reads the repo's config only: the Railway dashboard can still set replicas, and this cannot see that."""
-    counts = list(_replica_counts(json.loads((ROOT / name).read_text("utf-8"))))
-    assert SHARED_STORE_EXISTS or all(int(n) <= 1 for n in counts), f"{name} sets numReplicas {counts}"
+def test_REPLICAS_web_pins_one_replica_until_a_shared_store_exists():
+    """The SOURCE check. ⛔ Not the effective one: see test_REPLICAS_separate_volumes_are_invisible below."""
+    web = json.loads((ROOT / "railway.web.json").read_text("utf-8"))
+    assert SHARED_STORE_EXISTS or (web["deploy"]["numReplicas"] == 1 and replica_total(web) == 1)
+    assert SHARED_STORE_EXISTS or replica_total(json.loads((ROOT / "railway.json").read_text("utf-8"))) <= 1
+
+
+@pytest.fixture
+def replicas(clean_limits, monkeypatch):
+    def be(replica, deployment="d1"):
+        monkeypatch.setenv("RAILWAY_DEPLOYMENT_ID", deployment)
+        monkeypatch.setenv("RAILWAY_REPLICA_ID", replica)
+    return be
+
+
+@pytest.fixture
+def clean_limits(tmp_path, monkeypatch):
+    from api.services.uct_agent import limits, store
+    monkeypatch.setattr(store, "_DB_PATH", str(tmp_path / "replicas.db"))
+    monkeypatch.setattr(store, "_READY", False)
+    monkeypatch.setattr(limits, "_READY_FOR", None)
+    return limits
+
+
+def test_REPLICAS_a_second_replica_on_this_store_stops_paid_turns_on_both_and_alerts(replicas, clean_limits, monkeypatch):
+    limits, alerts = clean_limits, []
+    monkeypatch.setattr(limits, "_alert_replicas", alerts.append)
+    replicas("r1")
+    assert limits.admit("a", new_request=False)
+    replicas("r2")
+    with pytest.raises(limits.Refused) as e:
+        limits.admit("b", new_request=False)
+    assert e.value.reason == "multiple_replicas" and e.value.sentence == limits.UNAVAILABLE
+    replicas("r1")
+    with pytest.raises(limits.Refused):
+        limits.admit("c", new_request=False)
+    assert alerts == [2, 2]
+
+
+def test_REPLICAS_a_redeploy_is_not_two_replicas(replicas, clean_limits):
+    """A new deployment brings a new replica id. Counting across deployments would refuse turns after every deploy."""
+    replicas("old", "d1")
+    assert clean_limits.admit("a", new_request=False)
+    replicas("new", "d2")
+    assert clean_limits.admit("b", new_request=False)
+
+
+def test_REPLICAS_a_replica_that_has_gone_stops_counting(replicas, clean_limits):
+    limits = clean_limits
+    replicas("r1")
+    assert limits.admit("a", new_request=False, now=1000.0)
+    replicas("r2")
+    assert limits.admit("b", new_request=False, now=1000.0 + limits.REPLICA_WINDOW_S + 1)
+
+
+def test_REPLICAS_outside_railway_there_is_nothing_to_count(clean_limits, monkeypatch):
+    monkeypatch.delenv("RAILWAY_REPLICA_ID", raising=False)
+    assert clean_limits.admit("a", new_request=False)
+
+
+def test_REPLICAS_separate_volumes_are_invisible_to_this_check(replicas, clean_limits, tmp_path, monkeypatch):
+    """⛔ THE BLIND SPOT, PINNED. Replicas on separate volumes each see one, so both keep taking turns. If this test
+    ever fails, the check got better: until then it must not be described as seeing every replica."""
+    from api.services.uct_agent import store
+    limits = clean_limits
+    replicas("r1")
+    assert limits.admit("a", new_request=False)
+    monkeypatch.setattr(store, "_DB_PATH", str(tmp_path / "another_volume.db"))
+    monkeypatch.setattr(store, "_READY", False)
+    monkeypatch.setattr(limits, "_READY_FOR", None)
+    replicas("r2")
+    assert limits.admit("b", new_request=False)            # admitted: it cannot see r1
