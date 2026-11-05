@@ -92,7 +92,8 @@
 /** 8 = W3 (train): refusals name their text shape; a {N} message number that rounds across a digit (999.9996 -> 1000) is withheld */
 /** 9 = W4-T7 (train): an expression's own series inside a function body (per call site) is served instead of refused */
 /** 10 = W4-T2 (train): simple-qualifier folding (reassignment under an invariant test, an unreassigned var, arithmetic over an input) serves values where it refused */
-export const SCRIPT_ENGINE_VERSION = 10
+/** 11 = W4-T9 (train): offsets bounded by simple values and frame parameters are served */
+export const SCRIPT_ENGINE_VERSION = 11
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
