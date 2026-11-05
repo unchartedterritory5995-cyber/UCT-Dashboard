@@ -1002,7 +1002,7 @@ const CATALOG = [
     // Wave 12, lane 12B-2: the one template that declares PROPERTY DEFINITIONS, so the
     // 11B formulas come wired in. Applying it (NotebookTab's createFromTemplate, through
     // lib/templatePropertyDefs.js) creates or reuses the member's definitions, then the
-    // note. With NOTEBOOK_FORMULAS_ENABLED off the formulas are left out and the note is
+    // note. With the notebook_formulas_enabled key off the formulas are left out and the note is
     // still made. ⛔ The field is `propertyDefinitions`, never `properties`: `properties`
     // means VALUES and opens the guarded second write in noteCreation.js, which the hub's
     // write-path rails (hub/writePathsTransitive.test.js) forbid any template to declare.

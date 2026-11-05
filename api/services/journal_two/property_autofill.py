@@ -105,7 +105,7 @@ def candidates(resolved: list[dict[str, Any]]) -> list[dict[str, Any]]:
     suggestion can never replace something the member chose."""
     from api.services.journal_two.note_kinds import offered
     out = []
-    # Kind of note is not suggested while journal styles are off (offered() reads the switch per call).
+    # offered() is the one rule for what a door may suggest (every definition since journal styles are always on).
     for p in offered(list(resolved or [])):
         if p.get("source") != "user_set" or p.get("type") not in AUTOFILL_TYPES:
             continue

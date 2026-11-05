@@ -145,8 +145,8 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
           <LockedGlyph note={note} />
           {blocked && <BlockedBadge />}
         </div>
-        {/* Wave 11 (lane 11B): formula + rollup values. `computed` is on a row only
-            while NOTEBOOK_FORMULAS_ENABLED is on, so off this renders nothing. */}
+        {/* Wave 11 (lane 11B): formula + rollup values. A row without `computed`
+            renders nothing here. */}
         <ComputedChips computed={note.computed} className={styles.computed} />
       </div>
       {thumb && (
