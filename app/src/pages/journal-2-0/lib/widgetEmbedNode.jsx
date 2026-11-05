@@ -135,6 +135,27 @@ export const chartTypeToSearchPlugin = () => new Plugin({
   key: chartTypeToSearchKey,
   props: {
     handleKeyDown(view, event) {
+      // ⛔ Fix round 1 (review finding 4): Esc on a selected chart is "back to writing" -- the caret
+      // lands just after the chart (a paragraph is made when the chart is the last block). An
+      // insert selects the new chart, so without this the member's next sentence went to its
+      // ticker search with no shown way out.
+      if (event.key === 'Escape' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const chart = selectedChart(view.state)
+        if (!chart || !view.editable) return false
+        const tr = view.state.tr
+        const after = Selection.findFrom(tr.doc.resolve(chart.to), 1, true)
+        if (after) {
+          tr.setSelection(after)
+        } else {
+          const para = view.state.schema.nodes.paragraph?.createAndFill()
+          if (!para) return false
+          tr.insert(chart.to, para)
+          tr.setSelection(TextSelection.create(tr.doc, chart.to + 1))
+        }
+        view.dispatch(tr.scrollIntoView())
+        event.preventDefault()
+        return true
+      }
       if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return false
       if (typeof event.key !== 'string' || event.key.length !== 1 || event.key === ' ') return false
       const sel = selectedChart(view.state)

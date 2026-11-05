@@ -1084,6 +1084,15 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
           </Suspense>
         </EmbedErrorBoundary>
       )}
+      {/* Fix round 1 (review finding 4): the spec's hint line while the chart is selected -- the
+          keys a selected chart answers. Polite, so it is said once when the chart is selected. */}
+      {attrs.widgetId === 'chart' && selected && editor?.isEditable !== false && !shareView && (
+        <p className={styles.selectedHint} aria-live="polite">
+          {canRetarget
+            ? 'Selected · type a ticker to switch it (for example A, M, D) · Del removes the chart · Esc back to writing'
+            : 'Selected · Del removes the chart · Esc back to writing'}
+        </p>
+      )}
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}
       {attrs.widgetId === 'chart' && !shareView && notebookFlag('notebook_ta_fingerprint_enabled') === true && (

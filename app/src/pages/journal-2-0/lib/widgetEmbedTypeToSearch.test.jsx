@@ -83,3 +83,36 @@ describe('S3 (B7): a typed key never replaces a selected chart', () => {
     expect(press('A').defaultPrevented).toBe(false)
   })
 })
+
+// ⛔ Fix round 1 (review finding 4): an insert now selects the new chart, so the member's next
+// keystrokes go to its ticker search. Esc is the way back to writing: the caret lands just after
+// the chart, and typing carries on in the text.
+describe('fix round 1: Esc on a selected chart goes back to writing', () => {
+  it('Esc puts the caret after the chart, and "x" lands in the text after it', () => {
+    selectEmbed()
+    const ev = press('Escape')
+    expect(ev.defaultPrevented).toBe(true)
+    expect(ed.state.selection.node).toBeUndefined()
+    ed.commands.insertContent('x')
+    const kinds = ed.getJSON().content.map((n) => n.type)
+    expect(kinds).toEqual(['paragraph', 'widgetEmbed', 'paragraph'])
+    expect(ed.getJSON().content[2].content[0].text).toBe('xafter')
+    expect(embeds()).toHaveLength(1)
+  })
+
+  it('a chart that is the LAST block gets a paragraph to write in', () => {
+    ed = new Editor({ extensions: buildExtensions(), content: { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: buildWidgetEmbedAttrs('chart', { symbol: 'SPY', tf: 'D' }) }] } })
+    ed.view.dispatch(ed.state.tr.setSelection(NodeSelection.create(ed.state.doc, 0)))
+    press('Escape')
+    ed.commands.insertContent('y')
+    expect(ed.getJSON().content.map((n) => n.type)).toEqual(['widgetEmbed', 'paragraph'])
+    expect(embeds()).toHaveLength(1)
+  })
+
+  it('CONTROL: Esc with a caret in text is not taken', () => {
+    ed = new Editor({ extensions: buildExtensions(), content: seed() })
+    ed.commands.setTextSelection(3)
+    expect(press('Escape').defaultPrevented).toBe(false)
+  })
+})

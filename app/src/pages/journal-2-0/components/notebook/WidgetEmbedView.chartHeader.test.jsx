@@ -87,3 +87,19 @@ describe('S3: the chart header', () => {
     await waitFor(() => expect(opened.with).toEqual(['A']))
   })
 })
+
+// ⛔ Fix round 1 (review finding 4): the spec's hint line while the chart is selected.
+describe('fix round 1: a selected chart says what keys do', () => {
+  it('shows the hint while selected, politely announced, and not when unselected', async () => {
+    await mount()
+    const hint = screen.getByText('Selected · type a ticker to switch it (for example A, M, D) · Del removes the chart · Esc back to writing')
+    expect(hint.closest('[aria-live="polite"]')).not.toBeNull()
+    cleanupAndRemountUnselected()
+  })
+})
+
+function cleanupAndRemountUnselected() {
+  document.body.innerHTML = ''
+  render(<WidgetEmbedView node={{ attrs: chartAttrs() }} selected={false} editor={editor()} updateAttributes={vi.fn()} />)
+  expect(screen.queryByText(/Esc back to writing/)).toBeNull()
+}

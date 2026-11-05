@@ -383,3 +383,11 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 .segment > .toolBtn + .toolBtn { margin-left: -1px; }
 .segment > .toolBtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .segment > .toolBtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+/* Fix round 1 (review finding 4): the selected chart's one-line hint. */
+.selectedHint {
+  margin: 4px 0 0;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
