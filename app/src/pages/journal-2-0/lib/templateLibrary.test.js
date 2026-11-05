@@ -278,6 +278,23 @@ describe('templateLibrary: the Idempotency-Key on Use and Adopt (W11-R34)', () =
     expect(keyOf(4)).toBe(keyOf(2))
   })
 
+  // Fix round 2 (re-review R1-4): once the ticked Use LANDS, the held "not now" press is forgotten. Otherwise a later
+  // unticked Use in this tab would resend that old key and replay an older note instead of making the new one.
+  it('a ticked Use that lands forgets the held "not now" key for that item', async () => {
+    fetchMock.mockImplementation(async () => { throw new TypeError('Failed to fetch') })
+    await useTemplate('gk-10', { choices: { routine_a: { skip: true } } })                 // lost (it may have landed)
+    fetchMock.mockImplementation(async () => json(200, { note: { id: 'n2' } }))
+    await useTemplate('gk-10', { choices: { routine_a: { create: true } } })               // the ticked one lands
+    await useTemplate('gk-10', { choices: { routine_a: { skip: true } } })                 // a deliberate new press
+    expect(keyOf(2)).not.toBe(keyOf(0))
+    // CONTROL: a ticked Use that is LOST forgets nothing (the not-now press is still unsettled and still held).
+    fetchMock.mockImplementation(async () => { throw new TypeError('Failed to fetch') })
+    await useTemplate('gk-11', { choices: { routine_a: { skip: true } } })
+    await useTemplate('gk-11', { choices: { routine_a: { create: true } } })
+    await useTemplate('gk-11', { choices: { routine_a: { skip: true } } })
+    expect(keyOf(5)).toBe(keyOf(3))
+  })
+
   it('offline sends nothing, and the press is still open when the member is back', async () => {
     setOnline(false)
     expect((await useTemplate('gk-6', {})).code).toBe('offline')

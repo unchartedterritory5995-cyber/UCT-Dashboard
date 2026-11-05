@@ -47,10 +47,10 @@ export function refusalSentence(err, fallback) {
 }
 
 
-// Audit 2026-11-05, S7/S9 fix round 1 (review finding 3): ONE WORD, ONE OUTCOME. "Use" makes a note in one press, as
-// every other Use does (library/libraryUse.js, the one door), and "Customize first" beside it is what this button did
-// before: the choices (the adoption sheet) or the add-a-copy confirm. Where no note can be made (wave 11 off: the
-// use-template route is dark), the button says what it does instead: "Add to my templates".
+// Audit 2026-11-05, S7/S9 fix round 1 (review finding 3) and fix round 2 (R1-3): ONE WORD, ONE OUTCOME. "Use" makes a
+// note in one press and "Customize first" opens the choices and then makes a note, as everywhere else
+// (library/libraryUse.js, the one door). What this button did before (the add-a-copy confirm, or the adoption sheet in
+// copy mode) is its own button, "Add to my templates" -- the only one where no note can be made (wave 11 off).
 export const ADD_TO_MINE = 'Add to my templates'
 export const addedWords = (name) => `Added "${name}" to your templates.`
 export const notAddedWords = (title) => `Couldn't add "${title}" to your templates. Nothing was changed.`
@@ -94,6 +94,16 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   }
 
   const closeConfirm = () => { setConfirming(false); setNotify(false); adoptBtnRef.current?.focus() }
+  // Fix round 2 (R1-3): "Customize first" opens the choices and ends in a NOTE, as everywhere else.
+  const customize = async () => {
+    try {
+      const mod = await import('./library/libraryUse')
+      const said = await mod.openCustomize(item, typeof landNote === 'function' ? { landNote } : {})
+      if (said) onMessage?.({ tone: 'error', text: said })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    }
+  }
   // S9: Use, in one press (wave 11 only: the route it needs).
   const [using, setUsing] = useState(false)
   const usingRef = useRef(false)
@@ -169,12 +179,20 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
             Use
           </button>
         )}
+        {/* Fix round 2 (re-review R1-3): "Customize first" means ONE thing everywhere -- the choices, then a NOTE
+            (libraryUse.openCustomize, the adoption sheet in 'use' mode). Keeping a copy is its own button. */}
+        {!item.mine && w11 && (
+          <button type="button" className={styles.btn} onClick={customize} disabled={busy || using}
+            aria-label={`Customize first: ${item.title}`} data-library-customize="">
+            Customize first
+          </button>
+        )}
         {!item.mine && (
           <button type="button" ref={adoptBtnRef} className={w11 ? styles.btn : `${styles.btn} ${styles.primary}`}
             onClick={startAdopt} disabled={busy || checking || using} aria-expanded={confirming}
-            aria-label={w11 ? `Customize first: ${item.title}` : `${ADD_TO_MINE}: ${item.title}`}
+            aria-label={`${ADD_TO_MINE}: ${item.title}`}
             {...(w11 ? {} : { 'data-tour': 'library-adopt' })}>
-            {w11 ? 'Customize first' : ADD_TO_MINE}
+            {ADD_TO_MINE}
           </button>
         )}
         {!item.mine && (

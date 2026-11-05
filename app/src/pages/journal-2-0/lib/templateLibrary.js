@@ -262,7 +262,14 @@ export function useTemplate(galleryId, body = {}) {
   // lost Use that MADE the routine, reopened as "Use your <routine>" or asking nothing, still replays its note.
   const choices = isRecord(body) && isRecord(body.choices) ? Object.values(body.choices) : []
   const leavesOut = choices.some((c) => isRecord(c) && c.skip === true)
-  return keyedPost('use-template', galleryId, body, leavesOut ? 'not-now' : '')
+  const sent = keyedPost('use-template', galleryId, body, leavesOut ? 'not-now' : '')
+  if (leavesOut) return sent
+  // Fix round 2 (re-review R1-4): once a Use that puts the routine IN has a settled answer, the held "not now" press for
+  // this item is moot: forget it, so a later unticked Use is a new note, never a replay of an older one.
+  return sent.then((got) => {
+    if (sendKeyed.settled(got)) sendKeyed.forget(`use-template:${String(galleryId)}:not-now`)
+    return got
+  })
 }
 
 /** Adopt a listed template as one of the member's own: `body` is `{notify?, answers?, choices?}`. */

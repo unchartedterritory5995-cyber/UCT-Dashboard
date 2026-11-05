@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -74,7 +75,7 @@ describe('New note: pick a kind', () => {
     const { onCreate } = renderSection()
     fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
-    const use = await screen.findByRole('button', { name: 'Use this style' })
+    const use = await screen.findByRole('button', { name: 'Use' })
     expect(screen.queryByRole('button', { name: 'Use this template' })).toBeNull()   // a style is not a template
     fireEvent.click(use)
     expect(onCreate).toHaveBeenCalledWith({ styleId: 's-mine' })
@@ -86,7 +87,7 @@ describe('New note: pick a kind', () => {
     globalThis.fetch.mockImplementation(async () => ({ ok: false, status: 500, json: async () => ({ detail: 'boom' }) }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     expect((await screen.findByRole('alert')).textContent).toContain('boom')
-    expect(screen.getByRole('button', { name: 'Use this style' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Use' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Use this template' })).toBeNull()
   })
 

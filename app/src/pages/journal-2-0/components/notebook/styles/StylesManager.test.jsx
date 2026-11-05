@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Notebook P1 lane C: the Styles manager, through the REAL client (lib/journalStyles.js) with only the
@@ -851,7 +852,7 @@ describe('kinds of note', () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
+    await screen.findByText(/Kind deleted\. 2 templates you had deleted for it were removed for good\./)
   })
 
   it('the server’s own answer with wave 11 dark (one deleted style went with the kind) is worded in the singular', async () => {
@@ -861,7 +862,7 @@ describe('kinds of note', () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted. 1 style you had deleted for it was removed for good.')
+    await screen.findByText('Kind deleted. 1 template you had deleted for it was removed for good.')
   })
 
   it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Kind deleted." alone', async () => {

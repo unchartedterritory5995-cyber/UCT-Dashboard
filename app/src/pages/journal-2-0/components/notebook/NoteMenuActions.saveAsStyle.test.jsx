@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -168,7 +169,7 @@ describe('Save this note\'s setup as a style', () => {
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await screen.findByText(
-      `Saved as the template “${answer.style.name}”. Left out: Fundamentals (not a style block yet), another Chart (a style holds each block once).`,
+      `Saved as the template “${answer.style.name}”. Left out: Fundamentals (not a template block yet), another Chart (a template holds each block once).`,
     )).toBeInTheDocument()
   })
 

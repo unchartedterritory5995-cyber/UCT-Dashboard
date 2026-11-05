@@ -252,7 +252,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   }, { keepUndo: true })
   const saved = (s) => {
     setUndo(null); setProblem('')
-    setStatus(`Saved ${s?.name || 'the style'}.`)
+    setStatus(`Saved ${s?.name || 'the template'}.`)
     closeEditor()
     mutate()
   }
@@ -289,7 +289,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     await mutate()
     pendingFocus.current = next ? { type: 'kindRow', id: next.id } : { type: 'addKind' }
     const n = out?.purgedDeletedStyles || 0
-    setStatus(n ? `Kind deleted. ${plural(n, 'style you had deleted', 'styles you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Kind deleted.')
+    setStatus(n ? `Kind deleted. ${plural(n, 'template you had deleted', 'templates you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Kind deleted.')
   })
 
   const applyOffer = () => run(async () => {
@@ -432,7 +432,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               )}
                               {libraryOn && !s.builtin && !s.sourceGalleryId && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => setSharing(s)}
-                                  aria-label={`Share ${s.name} to community`}>Share to community</button>
+                                  aria-label={`Share ${s.name} to the Template library`}>Share to the Template library</button>
                               )}
                               {!s.isDefault && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => makeDefault(s)}

@@ -33,6 +33,7 @@ const NOTE = { id: 'n-1', title: 'Pre-market plan · Thu, Nov 5' }
 
 let calls
 let preview
+let hold = null   // a promise the fake server waits on before answering a Use (the double-press rail)
 const json = (status, body) => ({ ok: status < 400, status, json: async () => body })
 function installServer() {
   calls = []
@@ -43,6 +44,7 @@ function installServer() {
     if (u.pathname === '/api/j2/template-gallery/library' && method === 'GET') return json(200, { templates: LIB })
     if (u.pathname.endsWith('/preview-mine')) return json(200, preview)
     if (u.pathname.endsWith('/use-template') && method === 'POST') {
+      if (hold) await hold
       return json(200, { note: NOTE, skipped: [], style: { id: 's-1' }, credit: '', created: {}, reused: {} })
     }
     return json(404, {})
@@ -131,9 +133,19 @@ describe('one-step Use (S9)', () => {
     await mount({ landNote })
     const user = userEvent.setup()
     const use = screen.getByRole('button', { name: `${USE_LABEL} Pre-market plan` })
-    await Promise.all([user.click(use), user.click(use)])
-    await waitFor(() => expect(landNote).toHaveBeenCalled())
-    expect(writes()).toHaveLength(1)
+    // Fix round 2: the first Use is held IN FLIGHT while the second press lands, so the rail tests a double press and
+    // not two presses that happen to run one after the other on a slow machine.
+    let release
+    hold = new Promise((r) => { release = r })
+    try {
+      await user.click(use)
+      await user.click(use)
+      release()
+      await waitFor(() => expect(landNote).toHaveBeenCalled())
+      expect(writes()).toHaveLength(1)
+    } finally {
+      hold = null
+    }
   })
 })
 

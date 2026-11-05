@@ -746,6 +746,20 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
     expect(screen.queryByText(/to your styles/)).toBeNull()
   })
 
+  // Fix round 2 (re-review R1-3): "Customize first" opens the choices in 'use' mode (a NOTE), never the copy flow.
+  it('Customize first opens the choices for a note (use mode), titled, and makes no copy', async () => {
+    server.library = true
+    latchNotebookFlags(W11)
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Customize first: ${STYLE.title}` }))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    const args = openAdoptSheet.mock.calls[0][0]
+    expect(args).toMatchObject({ galleryId: STYLE.id, kind: 'template', name: STYLE.title })
+    expect(args.mode === undefined || args.mode === 'use').toBe(true)
+    expect(adopts()).toEqual([])
+    expect(screen.queryByRole('group', { name: `Add ${STYLE.title} to your templates?` })).toBeNull()
+  })
+
   it('the add-a-copy words say templates, never styles', () => {
     expect(addedWords('Weekend prep')).toBe('Added "Weekend prep" to your templates.')
     expect(notAddedWords('Weekend prep')).toBe("Couldn't add \"Weekend prep\" to your templates. Nothing was changed.")
@@ -756,7 +770,7 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
     latchNotebookFlags(W11)
     const user = await openStyles()
     expect(holdsFamilySlot(STYLE_ITEM)).toBe(false)                            // non-vacuity: the recorded row has none
-    await user.click(within(styleCard()).getByRole('button', { name: `Customize first: ${STYLE.title}` }))
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
     expect(await screen.findByRole('group', { name: `Add ${STYLE.title} to your templates?` })).toBeInTheDocument()
     expect(itemReads()).toHaveLength(1)
     expect(openAdoptSheet).not.toHaveBeenCalled()
@@ -776,7 +790,7 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
       }
       return real(url, init)
     })
-    await user.click(within(styleCard()).getByRole('button', { name: `Customize first: ${STYLE.title}` }))
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
     expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: STYLE.id, kind: 'template', mode: 'adopt' })
     expect(screen.queryByRole('group', { name: `Add ${STYLE.title} to your templates?` })).toBeNull()

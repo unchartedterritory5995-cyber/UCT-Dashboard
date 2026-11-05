@@ -33,6 +33,8 @@ const ROOTS = [
   join(J2, 'components', 'JournalStylesCard.jsx'),
   join(J2, 'lib', 'styleLibrary.js'),
   join(J2, 'lib', 'templateSlots.js'),
+  // Fix round 2 (re-review R1-1): the walkthrough title a template's note opens with.
+  join(J2, 'lib', 'templateBlocks.js'),
 ]
 const rel = (p) => relative(J2, p).split(sep).join('/')
 
@@ -72,6 +74,13 @@ const ALLOW = new Map([
   // The server's own recorded refusal, pinned word for word to the contract fixture: a server change, not this layer's.
   ['components/notebook/styles/LibraryUpdateSheet.jsx|This style changed since you opened the update. Nothing was changed. Look again.',
     "the server's recorded sentence (StyleLibraryDoors.test.jsx pins it to the contract)"],
+  // Fix round 2: a slash row's search KEYWORDS are never shown; "journal style" keeps /journal style finding the row.
+  ['components/notebook/SlashMenu.jsx|journal style', 'a search keyword, never displayed'],
+  // The slot type label is pinned word for word to the server's TYPE_LABELS (templateSlots.test.js reads share.py) and
+  // names the server-side "Kind of note" property (data from the API): a server change, not this naming layer's.
+  ['lib/templateSlots.js|Kind of note', "pinned to the server's TYPE_LABELS and the property's own name"],
+  // A note made before this rename carries the old walkthrough title in its OWN body; it is still recognised.
+  ['lib/templateBlocks.js|How to use this template', 'the legacy title, recognised in stored notes, never written'],
   ['components/notebook/SlashMenu.jsx|My presets', 'the slash menu group of CHART presets (lib/notebookSets), not note templates'],
   ['components/notebook/NoteEditorPage.jsx|Insert a chart or preset — pick ticker and timeframe by clicking',
     'the insert palette offers chart presets (lib/notebookSets), not note templates'],
@@ -96,6 +105,16 @@ const COPY_KEYS = new Set(['title', 'label', 'body', 'text', 'line', 'descriptio
 /** A string given to a call reads as member copy when it is a sentence: a capital letter and a space (heuristic, fix
  *  round 1: `onMessage({text: ...})`, `setSaid('...')`, `refusalSentence(err, '...')`). */
 const LOOKS_LIKE_COPY = (t) => /[A-Z]/.test(t) && / /.test(t.trim())
+/** Fix round 2 (re-review R1-1): the known COPY SINKS. Every string argument they get is member copy, lowercase
+ *  included (`plural(n, 'style you had deleted', ...)`), with no capital-letter test. */
+const COPY_SINKS = new Set(['onMessage', 'onDone', 'setStatus', 'setSaid', 'setChromeMsg', 'refusalSentence', 'plural',
+  'setActionError', 'setDoorProblem', 'setNotice', 'setMessage', 'notify', 'say', 'libraryError'])
+/** A JSX prop whose name says it is words: `useLabel`, `backLabel`, `emptyTitle`, `helpText` (fix round 2). */
+const COPY_PROP = /(Label|Title|Text)$/
+/** Any ALL_CAPS module constant is read when its value is a phrase (holds a space): `OFFER_LINE`, `IN_USE_NOTE`, and the
+ *  values of a constant map such as `WHY` (fix round 2). */
+const ALL_CAPS = /^[A-Z][A-Z0-9_]*$/
+const calleeName = (c) => (c?.type === 'Identifier' ? c.name : c?.type === 'MemberExpression' && !c.computed ? c.property?.name : null)
 
 /** Every member-visible string in one file: `[{text, line}]`. */
 export function visibleStrings(src) {
@@ -105,26 +124,49 @@ export function visibleStrings(src) {
   const literalStrings = (node) => {
     if (!node) return
     if (node.type === 'Literal' && typeof node.value === 'string') push(node.value, node)
-    else if (node.type === 'TemplateLiteral') node.quasis.forEach((q) => push(q.value.cooked, q))
+    else if (node.type === 'TemplateLiteral') {
+      node.quasis.forEach((q) => push(q.value.cooked, q))
+      // Fix round 2 (re-review R1-1): a literal INSIDE `${...}` (`${style?.name || 'this style'}`) is copy too.
+      node.expressions.forEach(literalStrings)
+    }
     else if (node.type === 'ConditionalExpression') { literalStrings(node.consequent); literalStrings(node.alternate) }
     else if (node.type === 'LogicalExpression') { literalStrings(node.left); literalStrings(node.right) }
     else if (node.type === 'JSXExpressionContainer') literalStrings(node.expression)
+  }
+  /** The phrases (strings holding a space) anywhere in a constant's value: literals, map values, list items. */
+  const phrases = (node) => {
+    if (!node) return
+    if (node.type === 'Literal' && typeof node.value === 'string') { if (/ /.test(node.value.trim())) push(node.value, node) }
+    else if (node.type === 'TemplateLiteral') {
+      if (node.quasis.some((q) => / /.test(q.value.cooked.trim()))) node.quasis.forEach((q) => push(q.value.cooked, q))
+      node.expressions.forEach(phrases)
+    } else if (node.type === 'ObjectExpression') node.properties.forEach((pr) => phrases(pr.value))
+    else if (node.type === 'ArrayExpression') node.elements.forEach(phrases)
+    else if (node.type === 'CallExpression') node.arguments.forEach(phrases)          // Object.freeze({...})
+    else if (node.type === 'ConditionalExpression') { phrases(node.consequent); phrases(node.alternate) }
+    else if (node.type === 'LogicalExpression') { phrases(node.left); phrases(node.right) }
+    else if (node.type === 'ArrowFunctionExpression') phrases(node.body)              // (name) => `... ${name} ...`
   }
   const visit = (node, parent) => {
     if (!node || typeof node.type !== 'string') return
     if (node.type === 'JSXText') push(node.value, node)
     if (node.type === 'JSXExpressionContainer' && parent?.type === 'JSXElement') literalStrings(node.expression)
-    if (node.type === 'JSXAttribute' && node.name?.type === 'JSXIdentifier' && COPY_ATTRS.has(node.name.name)) {
+    if (node.type === 'JSXAttribute' && node.name?.type === 'JSXIdentifier'
+      && (COPY_ATTRS.has(node.name.name) || COPY_PROP.test(node.name.name))) {
       literalStrings(node.value)
     }
     if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier' && COPY_CONST.test(node.id.name)) {
       literalStrings(node.init)
+    } else if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier' && ALL_CAPS.test(node.id.name)) {
+      phrases(node.init)
     }
     if (node.type === 'Property' && !node.computed) {
       const k = node.key?.type === 'Identifier' ? node.key.name : node.key?.value
       if (COPY_KEYS.has(k)) literalStrings(node.value)
     }
-    if (node.type === 'CallExpression') {
+    if (node.type === 'CallExpression' && COPY_SINKS.has(calleeName(node.callee))) {
+      node.arguments.forEach(literalStrings)
+    } else if (node.type === 'CallExpression') {
       for (const a of node.arguments) {
         if ((a.type === 'Literal' && typeof a.value === 'string' && LOOKS_LIKE_COPY(a.value))
           || (a.type === 'TemplateLiteral' && LOOKS_LIKE_COPY(a.quasis.map((q) => q.value.cooked).join(' x ')))) literalStrings(a)
@@ -174,6 +216,23 @@ describe('S7: one vocabulary in everything a member reads', () => {
     expect(seen).not.toContain('journal-style')
     const caught = seen.filter((t) => RETIRED.some(({ re }) => re.test(t)))
     expect(caught.length).toBe(5)
+  })
+
+  // Fix round 2 (re-review R1-1): one control per new reach, so the rail proves it can see each one.
+  it('CONTROL: the reader sees a literal inside ${...}, a lowercase sink argument, a *Label prop and a phrase constant', () => {
+    const src = `
+      const OFFER_LINE = 'Three styles to start from'
+      const WHY = { a: 'not a style block yet', b: 'x' }
+      const SLUG = 'style'
+      export default function X({ s }) {
+        notify(plural(2, 'style you had deleted', 'styles you had deleted'))
+        return <Sheet title={\`Share \${s?.name || 'this style'} now\`}><K useLabel="Use this style" backLabel={'Back to styles'} /></Sheet>
+      }`
+    const seen = visibleStrings(src).map((x) => x.text)
+    expect(seen).toEqual(expect.arrayContaining(['this style', 'style you had deleted', 'styles you had deleted',
+      'Use this style', 'Back to styles', 'Three styles to start from', 'not a style block yet']))
+    // A one-word constant is a key, not copy: never read.
+    expect(seen).not.toContain('style')
   })
 
   it('every allowlist entry still names a file that exists (a stale exemption fails by name)', () => {

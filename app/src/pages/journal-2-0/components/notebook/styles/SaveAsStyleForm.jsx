@@ -16,10 +16,10 @@ const SAVE_FAILED = "Couldn't save this template. Nothing was saved."
 
 // Review M-4: what the server left out of the style (`leftOut`), said in one plain sentence. A widget is named by
 // its own label (KindSection's rule), else as a block from a newer version.
-const WHY = { repeat: 'a style holds each block once' }
+const WHY = { repeat: 'a template holds each block once' }
 const widgetName = (id) => (id && WIDGET_REGISTRY[id]?.labels?.header) || blockLabel(id)
 const leftOutSentence = (items) => (items?.length
-  ? ` Left out: ${items.map((x) => `${x.reason === 'repeat' ? 'another ' : ''}${widgetName(x.widgetId)} (${WHY[x.reason] || 'not a style block yet'})`).join(', ')}.`
+  ? ` Left out: ${items.map((x) => `${x.reason === 'repeat' ? 'another ' : ''}${widgetName(x.widgetId)} (${WHY[x.reason] || 'not a template block yet'})`).join(', ')}.`
   : '')
 
 /**
@@ -75,7 +75,7 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
         ...(picked && picked !== defaultKind ? { kindId: picked } : {}),
       }, { via: 'from_note' })
       mutate()
-      onDone?.(`Saved as the template “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.${leftOutSentence(out?.leftOut)}`)
+      onDone?.(`Saved as the template “${out?.style?.name || name.trim() || note.title || 'Untitled template'}”.${leftOutSentence(out?.leftOut)}`)
     } catch (err) {
       setError(reportError(err, SAVE_FAILED))                    // never a bare "500" (review M-2)
     } finally {
