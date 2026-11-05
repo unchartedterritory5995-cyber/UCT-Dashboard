@@ -32,6 +32,12 @@ _INSTRUCT = (
 )
 
 
+MAX_TOKENS = 900
+#: The most one picture can bill as input (`indicator_from_image.IMAGE_TOKENS_WORST`'s documented
+#: ceiling). A picture's base64 bytes are not its tokens, so it is counted apart from the text.
+IMAGE_TOKENS_WORST = 4784
+
+
 def _img_block(png_bytes: bytes) -> dict:
     return {"type": "image", "source": {
         "type": "base64", "media_type": "image/png",
@@ -92,10 +98,20 @@ def parse_verdict(text: str) -> dict:
             "checks": _parse_checks(d.get("checks"))}
 
 
+def worst_case_tokens(setup: str, *, key_level=None, example_pngs=None) -> tuple:
+    """(input, output) tokens one judge call may bill: the text at a token per byte, plus framing, plus
+    every picture at its ceiling."""
+    from api.services.uct_agent import budget
+    pictures = 1 + len([p for p in (example_pngs or []) if p])
+    text = build_messages(setup, b"", key_level=key_level)
+    return (budget.request_bytes({"messages": text}) + budget.FRAMING_TOKENS + pictures * IMAGE_TOKENS_WORST,
+            MAX_TOKENS)
+
+
 def judge(setup: str, png_bytes: bytes, *, client, model: str = "claude-opus-4-8",
           key_level=None, example_pngs=None) -> dict:
     msg = client.messages.create(
-        model=model, max_tokens=900,
+        model=model, max_tokens=MAX_TOKENS,
         messages=build_messages(setup, png_bytes, key_level=key_level, example_pngs=example_pngs))
     text = next((b.text for b in msg.content if getattr(b, "type", None) == "text"), "")
     verdict = parse_verdict(text)
