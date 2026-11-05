@@ -37,6 +37,10 @@ const S = {
     boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
     display: 'flex', flexDirection: 'column', gap: 10,
   },
+  menuButton: {
+    width: '100%', textAlign: 'left', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0,
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+  },
   title: { fontSize: 12, color: '#c9a84c', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' },
   textarea: {
     background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
@@ -70,6 +74,9 @@ export default function FeedbackWidget() {
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
   const triggerRef = useRef(null)
   const panelRef = useRef(null)
+  const firstItemRef = useRef(null)
+  // Opening the menu moves focus into it (fix round 1, minor 8).
+  useEffect(() => { if (mode === 'menu') firstItemRef.current?.focus() }, [mode])
 
   // ⛔ Audit 2026-11-05, spec S5 (B10): Esc did not close this, and a transparent full-page
   // backdrop (z-index 498) sat over the whole app while it was open -- the member's next click on
@@ -127,24 +134,28 @@ export default function FeedbackWidget() {
     <>
       {mode === 'menu' && (
         <div style={S.menu} className={fb.panel} ref={panelRef}>
-          <div
-            style={{ ...S.menuItem, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+          {/* Fix round 1 (review minor 8): real buttons -- in the Tab order, Enter and Space work. */}
+          <button
+            type="button"
+            ref={firstItemRef}
+            style={{ ...S.menuItem, ...S.menuButton, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
             className={fb.menuItem}
             onMouseEnter={() => setHovered('feedback')}
             onMouseLeave={() => setHovered(null)}
             onClick={() => setMode('feedback')}
           >
             <UIcon name="chat" size={15} /> Send Feedback
-          </div>
-          <div
-            style={{ ...S.menuItem, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+          </button>
+          <button
+            type="button"
+            style={{ ...S.menuItem, ...S.menuButton, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
             className={fb.menuItem}
             onMouseEnter={() => setHovered('ticket')}
             onMouseLeave={() => setHovered(null)}
             onClick={() => { close(); navigate('/support') }}
           >
             <UIcon name="document" size={15} /> Support Ticket
-          </div>
+          </button>
         </div>
       )}
 

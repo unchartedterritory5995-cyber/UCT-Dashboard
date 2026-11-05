@@ -65,3 +65,29 @@ describe('Help & Feedback (B10)', () => {
     expect(screen.getByText('Send Feedback')).toBeInTheDocument()
   })
 })
+
+// Fix round 1 (review minor 8): the items were <div onClick> -- no role, not in the Tab order, Enter
+// did nothing -- and opening the menu left focus on the trigger. And the overlay rail must look for
+// the overlay itself: jsdom does no hit-testing.
+describe('Help & Feedback by keyboard (fix round 1)', () => {
+  it('the items are buttons, and opening the menu puts focus on the first', () => {
+    const { trigger } = mount()
+    fireEvent.click(trigger)
+    const first = screen.getByRole('button', { name: 'Send Feedback' })
+    expect(screen.getByRole('button', { name: 'Support Ticket' })).toBeInTheDocument()
+    expect(document.activeElement).toBe(first)
+    fireEvent.click(first)
+    expect(screen.getByLabelText('Feedback message')).toBeInTheDocument()
+  })
+
+  it('no full-page fixed element is left over the page while the menu is open', () => {
+    const { trigger } = mount()
+    fireEvent.click(trigger)
+    const overlays = [...document.body.querySelectorAll('*')].filter((el) => {
+      const s = el.style
+      return s.position === 'fixed' && (s.inset === '0' || s.inset === '0px'
+        || (s.top === '0px' && s.left === '0px' && s.right === '0px' && s.bottom === '0px'))
+    })
+    expect(overlays).toEqual([])
+  })
+})
