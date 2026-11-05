@@ -105,6 +105,21 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     }
   }, [setPref])
 
+  // ⭐ UCT Agent: write the board NOW and say whether the server took it. A receipt never claims a change was saved on the
+  // strength of the debounce above. Same member guard and same writer as the debounced save.
+  const flushSave = useCallback(async () => {
+    await Promise.resolve()   // apply() schedules on a microtask; let it land first
+    if (!hydratedRef.current) return { ok: false, reason: 'not-saved' }
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    const op = beginPrefsOp()
+    saveOpRef.current = op
+    if (op.stale()) return { ok: false, reason: 'not-saved' }
+    try {
+      const ok = await setPref('multichart_state', JSON.stringify(stateRef.current))
+      return ok === false ? { ok: false, reason: 'not-saved' } : { ok: true }
+    } catch { return { ok: false, reason: 'not-saved' } }
+  }, [setPref])
+
   const apply = useCallback((updater) => {
     setState(prev => {
       const next = updater(prev)
@@ -244,6 +259,6 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     state, hydrated,
     settingsOpen, setSettingsOpen,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, setGroupsMode, applyGridTemplate,
-    fillCells, restoreCells, setGroup, clearGroup,
+    fillCells, restoreCells, setGroup, clearGroup, flushSave,
   }
 }
