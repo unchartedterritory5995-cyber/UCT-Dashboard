@@ -4,6 +4,9 @@
 // (POST /api/study/attempts; the key never reaches the browser) and returns the verdict, the lesson and the
 // first forward bars. Nothing here invents a market fact: every bar and every verdict is the bank's own; the two
 // "quick read" facts in Blitz are measured from the bars in front of the member.
+// A skill session is a FRESH draw from the whole approved pool of the setup (study_select.compose_today keeps no
+// per-member list of charts seen), so a pool never "drains" with play: it is thin when a setup has few approved
+// charts and empty only when it has none, and the empty copy says so (2026-11-05; it read "no unseen charts left").
 import { ATTEMPTS_URL, SESSIONS_URL, normalizeBars, studyFetch } from '../useStudySession'
 
 export const SETUP_SKILLS = {

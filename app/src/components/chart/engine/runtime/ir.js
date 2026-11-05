@@ -484,6 +484,7 @@ export function validateIr(p) {
         }
         walkExpr(e.cond, `${where}.cond`)
         walkExpr(e.source, `${where}.source`)
+        if (e.third !== undefined) walkExpr(e.third, `${where}.third`)
         return
       }
       case EXPR.WINDOW: {
@@ -491,6 +492,22 @@ export function validateIr(p) {
           throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${(p.windows || []).length}`)
         }
         walkExpr(e.source, `${where}.source`)
+        // ⭐⭐ W4-T8 — A WINDOW PLANNED `dynamic` READS ITS LENGTH EACH BAR, AND ONLY THAT ONE DOES.
+        // The plan entry and the node must agree, or the opcode would pop a length nobody pushed
+        // (a corrupted stack) or leave one behind (a stack that grows once per bar).
+        // (a body's site is FRAME-RELATIVE: it is read off the first call site's `windowBase`)
+        let planned
+        if (walkingFn === null) planned = (p.windows || [])[e.site]
+        else {
+          const cs = (p.callSites || []).find((c) => c.fn === walkingFn)
+          if (cs) planned = (p.windows || [])[(cs.windowBase || 0) + e.site]
+        }
+        const dyn = !!(planned && planned.dynamic === true)
+        if (planned && dyn !== (e.length !== undefined)) {
+          throw new IrError(`${where}: window site ${e.site} is ${dyn ? '' : 'not '}planned with a per-bar length `
+            + `but the call ${e.length !== undefined ? 'passes' : 'passes no'} one`)
+        }
+        if (e.length !== undefined) walkExpr(e.length, `${where}.length`)
         return
       }
       case EXPR.BUILTIN: {
@@ -843,7 +860,9 @@ export const builtin = (fn, args) => ({ kind: EXPR.BUILTIN, fn, args })
 /** ⭐ A finite-window builtin over a runtime series. `site` indexes the program's
  *  window table; `source` is the expression producing the CURRENT bar's value, and
  *  the committed bars come from that series' own history ring. */
-export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source })
+// ⭐ W4-T8 — `length` (an expression) is present ONLY for a `dynamic` plan entry: the v6 `series int` length.
+export const windowCall = (site, source, length) =>
+  (length === undefined ? { kind: EXPR.WINDOW, site, source } : { kind: EXPR.WINDOW, site, source, length })
 
 /** ⭐ A carried-state builtin over a runtime series. `site` is FRAME-RELATIVE:
  *  the VM adds the invocation's `carriedBase`, so one compiled body serves every
@@ -854,8 +873,11 @@ export const carriedCall = (site, source) => ({ kind: EXPR.CARRIED, site, source
 /** ⭐ A TWO-INPUT carried-state builtin — Pine's `ta.valuewhen(cond, src, n)`.
  *  `site` is FRAME-RELATIVE exactly as `carriedCall`'s is, so one compiled body
  *  serves every invocation and two call sites keep two rings. */
-export const carried2Call = (site, cond, source) => (
-  { kind: EXPR.CARRIED2, site, cond, source })
+export const carried2Call = (site, cond, source, third) => (
+  third === undefined
+    ? { kind: EXPR.CARRIED2, site, cond, source }
+    // ⭐ W4 T10 — a THREE-INPUT member (`ta.stoch`, `ta.vwap`): `third` is pushed last.
+    : { kind: EXPR.CARRIED2, site, cond, source, third })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

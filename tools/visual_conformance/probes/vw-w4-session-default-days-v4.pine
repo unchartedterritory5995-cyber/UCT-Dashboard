@@ -1,0 +1,13 @@
+//@version=4
+study("UCTPROBE_VW_W4_SESSION_DEFAULT_DAYS_V4", overlay = false)
+
+// W4 T3, row W4-T3a, the Pine v4 spelling of `vw-w4-session-default-days.pine` (`period`, `study`).
+// Grade: row N1 against DOW. Chart: BITSTAMP:BTCUSD 60. See the v5 sibling for the reading.
+
+isNa(t) => na(t) ? 1 : 0
+
+plot(bar_index, title = "N0_bar_index_CONTROL")
+plot(dayofweek, title = "DOW_dayofweek")
+plot(isNa(time(period, "0000-2359")), title = "N1_na_no_day_list")
+plot(isNa(time(period, "0000-2359:1234567")), title = "N2_na_every_day_CONTROL")
+plot(isNa(time(period, "0000-2359:23456")), title = "N3_na_monday_to_friday_CONTROL")

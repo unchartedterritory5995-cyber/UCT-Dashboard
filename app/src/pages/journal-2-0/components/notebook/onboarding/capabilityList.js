@@ -50,7 +50,7 @@ export const CAPABILITY_PREVIEW = Object.freeze([
   {
     id: 'setups-board',
     flag: 'notebook_setups_board_enabled',
-    label: 'Active setups board',
+    label: 'Setups board',
     line: 'Every setup you are watching on one board, sorted by how close it is to your entry.',
   },
   {
@@ -111,8 +111,8 @@ export const CAPABILITY_PREVIEW = Object.freeze([
   {
     id: 'journal-styles',
     flag: 'notebook_journal_styles_enabled',
-    label: 'Journal styles',
-    line: 'Pick a kind of note and a style, and every new note of that kind starts with your outline and blocks.',
+    label: 'Templates',
+    line: 'Pick a note type and a template, and every new note of that type starts with your outline and blocks.',
   },
   // P5 final fix: the library's door is in the template gallery, so the line also needs that switch,
   // the same `requires` its tour carries (P5-R-C11).
@@ -120,8 +120,8 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     id: 'style-library',
     flag: 'notebook_style_library_enabled',
     requires: ['notebook_template_gallery_enabled'],
-    label: 'Community library',
-    line: 'Browse styles other traders share, adopt a copy of your own, and ask to be told when the author improves it.',
+    label: 'Template library',
+    line: 'Browse templates other traders share, use one or keep a copy, and hear when its author improves it.',
   },
 ])
 

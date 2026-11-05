@@ -36,12 +36,12 @@ function Page({ empty, lazySheet = false }) {
     <>
       <button type="button" data-tour="templates" onClick={() => setSheet(true)}>Templates</button>
       {/* the empty notebook's inline picker: gone while the sheet is open (NotebookTab `!pickerOpen`) */}
-      {empty && !sheet && <div><button type="button" data-tour="template-gallery-door">Browse the community gallery</button></div>}
+      {empty && !sheet && <div><button type="button" data-tour="template-gallery-door">Browse the Template library</button></div>}
       {sheet && (
         <div role="dialog" aria-label="New note">
           {lazySheet
             ? <Suspense fallback={<TemplatePickerSkeleton />}><NeverPicker /></Suspense>
-            : <button type="button" data-tour="template-gallery-door">Browse the community gallery</button>}
+            : <button type="button" data-tour="template-gallery-door">Browse the Template library</button>}
         </div>
       )}
     </>

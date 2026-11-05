@@ -18,6 +18,8 @@
    to hit, and portaled via SkipLinkSlotContext so it lands as an early Tab stop rather than
    after the whole chrome it exists to bypass. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;
@@ -675,6 +677,7 @@
 .proseEditor [data-type="toggle"][data-open="true"] :global(.uctToggleChevron) svg { transform: rotate(90deg); }
 /* Touch tier is <=1024px, never 640px (canonical breakpoint, breakpoints.css). */
 @media (max-width: 1024px) {
+  .folderInline { min-height: var(--tap-min); }
   .proseEditor :global(.uctToggleChevron) { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
   /* Fin-ai K7: a toggle's title line (a voice note's "Full transcript") was 29 px tall beside
      its 44 px fold button. The line is as tall as the button now, and its first line of text
@@ -747,6 +750,9 @@
 /* ── Phone: fullscreen FORM — 16px inputs (no iOS zoom), finger targets, and a
    non-sticky toolbar so it can't overlap a wrapped header. ── */
 @media (max-width: 640px) {
+  /* S10 (M4): a phone's header holds the four controls and the save indicator's shortest words. */
+  .savedIndicator { min-width: 5.5em; white-space: normal; font-size: 11px; }
+  /* .folderInline: its finger floor lives in the <=1024px block (tablet is touch too). */
   .column { padding: 0 16px; margin: 16px auto 72px; }
   .header { padding: 8px 12px; }
   .saveStatus { min-width: 0; order: 3; flex-basis: 100%; }
@@ -1106,3 +1112,47 @@
 .canvasExtra { margin-top: 12px; }
 .canvasExtra :global(.uctCanvasNode) { display: none; }
 .canvasExtraTitle { margin: 0 0 6px; color: var(--text-muted); font-size: 13px; font-weight: 600; }
+
+/* Audit 2026-11-05, spec S10 (M4): the save indicator. Its width is RESERVED for the longest of its words ("Offline,
+   kept in this browser"), so the header never jumps as "Saved" and "Saving…" swap. Right-aligned against the controls. */
+.savedIndicator {
+  display: inline-block;
+  min-width: 15.5em;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.savedIndicator + .headerControls {
+  margin-left: 0;
+}
+/* S10 (M4): the AI control -- Ask and Writing help, one group in the header. */
+.aiGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.shareSlot { display: contents; }
+/* S10 (M4): the folder, a small quiet select at the start of the line under the title. */
+.folderInline {
+  max-width: 14em;
+  min-height: 28px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.folderInline:hover {
+  color: var(--text-bright);
+}
+.folderInline:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 1px;
+  color: var(--text-bright);
+}

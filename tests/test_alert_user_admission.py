@@ -796,6 +796,26 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
     capture("requirements",
             lambda: aus.admit_user_definition("user-e", DEF_ID, bars=real_bars))
 
+    # ⭐ W5-T13 -- the two runtime doors, DRIVEN: the real `server_lane_refusal` (no
+    # stage variable set on a test box, so it refuses) and the arm-time run answering
+    # a run-wide refusal (the client is stubbed: no network).
+    runtime_row = {"def_id": DEF_ID, "user_id": USER_A, "version": 1, "definition": {
+        "compute": {"kind": "runtime", "source": "//@version=6\nindicator('x')\nplot(close)\n",
+                    "outputs": {"value": 0}}, "plots": [{"key": "value"}], "inputs": []}}
+    for var in ("PINE_RUNTIME_STAGE", "PINE_RUNTIME_SERVER_STAGE"):
+        monkeypatch.delenv(var, raising=False)
+    capture("server-lane", lambda: aus._gate_lane(runtime_row))
+    from api.services import pine_runtime_client as _prc
+
+    class _Withholds:
+        def run(self, *, jobs, **kw):
+            return [_prc.JobResult(job=j.job, status="withheld", refusals=(
+                _prc.Refusal("*", "runtime:limit", "the run went over its instruction budget"),))
+                for j in jobs]
+    monkeypatch.setattr(aus, "_runtime_client", lambda: _Withholds())
+    capture("server-run", lambda: aus._gate_runtime_service(
+        runtime_row, runtime_row["definition"], DEF_ID, real_bars, sym="SPY", tf="5", params={}))
+
     with lane_disagreement(monkeypatch, at_bar=200, by=1e-6):
         capture("cross-lane",
                 lambda: aus.admit_user_definition(USER_A, DEF_ID, bars=real_bars))

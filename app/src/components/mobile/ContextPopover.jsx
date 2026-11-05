@@ -26,6 +26,8 @@ import styles from './ContextPopover.module.css'
 const hintProps = (it) => (it.hint ? { title: it.hint, 'aria-description': it.hint } : null)
 
 export default function ContextPopover({
+  /** A stable name for UCT Agent's product guide (agent/guide/targets.js): no behaviour. */
+  guide,
   open,
   onClose,
   anchor,
@@ -174,6 +176,7 @@ export default function ContextPopover({
       ) : (
         <button
           key={it.key ?? it.label ?? i}
+          data-menu-id={it.key}
           role={asMenu ? 'menuitem' : undefined}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           disabled={it.disabled}
@@ -189,7 +192,11 @@ export default function ContextPopover({
   // Touch → bottom sheet
   if (isTouch) {
     return (
-      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
+      // VIS-7 (audit 2026-11-05, axe aria-dialog-name): the sheet is a dialog and needs a name. The same rule as the
+      // anchored menu below: the title when it is plain text (named BY the visible title), else Options / Actions.
+      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}
+        labelledByTitle={typeof title === 'string' && Boolean(title)}
+        ariaLabel={typeof title === 'string' && title ? undefined : (children != null ? 'Options' : 'Actions')}>
         <div className={styles.sheetList}>
           {children ?? <>{header}{renderItems()}</>}
         </div>
@@ -230,6 +237,7 @@ export default function ContextPopover({
       // The role follows the content. An action list is a menu of menu items. Custom
       // children (a form, a picker) are not menu items, so that form is a named dialog.
       role={children != null ? 'dialog' : 'menu'}
+      data-guide={guide}
       // Both need a name. The title when it is plain text.
       aria-label={typeof title === 'string' && title ? title : (children != null ? 'Options' : 'Actions')}
       tabIndex={-1}

@@ -45,6 +45,7 @@ import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
 import { anchorFor, requestReveal, NEVER_SHOWN } from './tourAnchorVisibility'
+import { focusPageIfLost } from './keyboardDoors'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
@@ -263,6 +264,8 @@ export default function GenericTourEngine({
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
+    // VIS-5 (audit 2026-11-05, issue 25): what opened it may be gone (a Learn menu row); never <body>.
+    if (openedRef.current) focusPageIfLost()
     onCloseRef.current({ opened: openedRef.current, ...extra })
   }, [])
   const finish = useCallback(() => end(), [end])

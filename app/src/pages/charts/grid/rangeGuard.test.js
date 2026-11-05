@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shouldApplyRange, rangeFitsBars, rangeTimeSec, viewMostlyBars } from './rangeGuard'
+import { shouldApplyRange, rangeFitsBars, rangeTimeSec, rangeBarsEnd, viewMostlyBars } from './rangeGuard'
 
 describe('shouldApplyRange', () => {
   it('applies when there is no prior range', () => {
@@ -50,6 +50,28 @@ describe('rangeFitsBars', () => {
     expect(rangeFitsBars({ from: '2024-06-01', to: '2025-02-03' }, first, last)).toBe(false)
     expect(rangeFitsBars({ from: '2024-06-01', to: '2024-09-01' }, first, last)).toBe(false)
     expect(rangeFitsBars({ from: '2026-02-01', to: '2026-03-01' }, first, last)).toBe(false)
+  })
+})
+
+describe('rangeBarsEnd', () => {
+  it('stops a view at the newest bar when its right edge is on the empty axis', () => {
+    expect(rangeBarsEnd('2026-11-04', '2025-10-08')).toBe('2025-10-08')
+    expect(rangeBarsEnd(2000, 1000)).toBe(1000)
+  })
+  it('leaves a view that ends inside the bars alone', () => {
+    expect(rangeBarsEnd('2025-06-01', '2025-10-08')).toBe('2025-06-01')
+  })
+  it('leaves the end alone when there is nothing to compare', () => {
+    expect(rangeBarsEnd('2026-11-04', null)).toBe('2026-11-04')
+  })
+  it('a view from the default position fits a chart with the same bars once judged on them', () => {
+    const view = { from: '2025-06-24', to: '2026-11-04' }
+    expect(rangeFitsBars(view, '2025-01-02', '2025-10-08')).toBe(false)
+    expect(rangeFitsBars({ from: view.from, to: rangeBarsEnd(view.to, '2025-10-08') }, '2025-01-02', '2025-10-08')).toBe(true)
+  })
+  it('the guard against a sliver holds: a chart whose bars stop early still keeps its own view', () => {
+    const shown = { from: '2025-06-24', to: rangeBarsEnd('2026-11-04', '2025-10-08') }
+    expect(rangeFitsBars(shown, '2025-01-02', '2025-07-01')).toBe(false)
   })
 })
 

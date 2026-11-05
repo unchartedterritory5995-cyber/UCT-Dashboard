@@ -124,6 +124,6 @@ describe('planChartGrid (pure)', () => {
   it('the workspace limit is said with the numbers', () => {
     const many = Array.from({ length: 15 }, (_, i) => ({ id: `w${i}`, type: 'news', x: 0, y: 0, w: 1, h: 1 }))
     const g = planChartGrid({ board: [...many, { id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], charts, symbols: ['A1', 'B1', 'C1'], cols: 24, rows: 20, minOf, maxWidgets: 16 })
-    expect(g.reason).toMatch(/holds 16 widgets and has room for 0 more/)
+    expect(g.reason).toMatch(/A board holds at most 16 widgets, and this one would hold \d+\. Close a widget before adding another\./)
   })
 })

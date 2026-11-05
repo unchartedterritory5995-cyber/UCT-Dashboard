@@ -52,7 +52,7 @@ function mount(widgets, groupSyms, extra = {}) {
   const base = board.host.charts
   const h = {
     ...board.host,
-    charts: { ...base, canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => null },
+    charts: { ...base, canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: extra.selected || (() => null) },
     persist: async () => ({ ok: true }),
     ...extra,
   }
@@ -70,6 +70,49 @@ const raw = (board) => JSON.stringify(board.state.widgets)
 const rsiOf = (board, id) => (board.state.widgets.find(w => w.id === id).opts?.settings?.indicatorInstances || []).find(i => i.defId === 'rsi' && !i.deleted)
 const ORANGE = '#f59e0b'
 const orangeOn = (board) => chartsOf(board).filter(w => rsiOf(board, w.id)?.inputs?.color === ORANGE).map(w => w.id)
+
+// C1-103 (browser acceptance, 11-05): a follow-up guard refused "hide all indicators on this chart" before the model was asked,
+// on any board of two charts, because the words share a shape with "them on this chart". Those words point at nothing earlier.
+for (const on of [true, false]) describe(`a request that stands alone is not a follow-up [NLM-1 ${on ? 'on' : 'off'}]`, () => {
+  beforeEach(() => { nlm1 = on })
+  const clicked = { selected: () => 'c1' }
+  for (const t of ['hide all indicators on this chart', 'hide all the indicators on this chart', 'remove all indicators from this chart', 'hide the indicators on this chart', 'show all the moving averages on this chart', 'hide all indicators on the SPY chart', 'please hide all of the studies on the left chart']) {
+    it(`"${t}" with nothing changed yet reaches the model, unrefused`, async () => {
+      const { say } = mount(...TWO(), clicked)
+      envelopes.push(env('answer', [], 'THE MODEL READ IT'))
+      await say(t)
+      await waitFor(() => expect(transcript()).toMatch(/THE MODEL READ IT/))
+      expect(transcript()).not.toMatch(/Nothing I changed/)
+      expect(turnBodies()).toHaveLength(1)
+    }, 20000)
+  }
+  it('...and it is not narrowed to what the conversation added, nor sent to another chart', async () => {
+    const { board, say } = mount(...TWO(), clicked)
+    await say('add rsi to the QQQ chart')
+    await waitFor(() => expect(rsiOf(board, 'c2')).toBeTruthy(), { timeout: 8000 })
+    const before = raw(board)
+    envelopes.push(env('answer', [], 'THE MODEL READ IT'))
+    await say('hide all indicators on this chart')
+    await waitFor(() => expect(transcript()).toMatch(/THE MODEL READ IT/))
+    expect(raw(board)).toBe(before)
+  }, 20000)
+  it('with its indicator gone: "hide all indicators" is still a request, not a report on what I added', async () => {
+    const { board, say } = mount(...TWO(), clicked)
+    await say('add rsi to the QQQ chart')
+    await waitFor(() => expect(rsiOf(board, 'c2')).toBeTruthy(), { timeout: 8000 })
+    await say('undo')
+    await waitFor(() => expect(rsiOf(board, 'c2')).toBeFalsy(), { timeout: 8000 })
+    envelopes.push(env('answer', [], 'THE MODEL READ IT'))
+    await say('hide all indicators')
+    await waitFor(() => expect(transcript()).toMatch(/THE MODEL READ IT/))
+  }, 20000)
+  it('a word that DOES point back still says so: "make it orange on the QQQ chart" with nothing to point at', async () => {
+    const { say } = mount(...TWO(), clicked)
+    await say('make it orange on the QQQ chart')
+    await waitFor(() => expect(transcript()).toMatch(/Nothing I changed in this conversation is on the QQQ chart/))
+    expect(turnBodies()).toHaveLength(0)
+  }, 20000)
+})
 
 for (const on of [true, false]) describe(`IT-ON-THAT-CHART [NLM-1 ${on ? 'on' : 'off'}] · a chart phrase narrows a pronoun to THAT chart's instance — or asks; never several`, () => {
   beforeEach(() => { nlm1 = on })

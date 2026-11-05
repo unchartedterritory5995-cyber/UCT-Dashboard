@@ -541,7 +541,7 @@ export default function BreadthWidget({
         <button
           ref={settingsBtnRef} type="button"
           className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
         ><UIcon name="gear" size={13} /></button>
         )}
         {addOpen && (

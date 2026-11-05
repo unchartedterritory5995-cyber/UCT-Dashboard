@@ -90,7 +90,21 @@ describe('StockChart time-range sync', () => {
     onRange.mockClear()
     act(() => { lib.range = R1; lib.fire() })
     expect(onRange).toHaveBeenCalledTimes(1)
-    expect(onRange.mock.calls[0][0]).toEqual(R1)
+    expect(onRange.mock.calls[0][0]).toEqual({ ...R1, barsTo: R1.to })
+  })
+  it('a view running past the newest bar says where its bars stop, and is still sent whole', async () => {
+    const { onRange } = await mountFollower()
+    onRange.mockClear()
+    const past = { from: '2026-01-20', to: '2026-11-04' }
+    act(() => { lib.range = past; lib.fire() })
+    expect(onRange.mock.calls[0][0]).toEqual({ ...past, barsTo: bars[bars.length - 1].t })
+  })
+  it('a view whose bars fit is followed however far its right edge runs on the empty axis', async () => {
+    const { b } = await mountFollower()
+    const past = { from: '2026-01-20', to: '2026-11-04' }
+    lib.applied.length = 0
+    act(() => b.cb({ ...past, barsTo: bars[bars.length - 1].t }))
+    expect(lib.applied).toEqual([past])
   })
   it('sync turned on later subscribes straight away, and off unsubscribes', async () => {
     const onRange = vi.fn()
@@ -155,7 +169,7 @@ describe('StockChart time-range sync', () => {
     onRange.mockClear()
     act(() => { lib.range = R2; lib.fire() })
     act(() => { lib.range = R1; lib.fire() })
-    expect(onRange.mock.calls.map(c => c[0])).toEqual([R2, R1])
+    expect(onRange.mock.calls.map(c => c[0])).toEqual([{ ...R2, barsTo: R2.to }, { ...R1, barsTo: R1.to }])
   })
   it('compares with what the chart shows now: a range applied before lands again after the member moved away', async () => {
     const { b } = await mountFollower()

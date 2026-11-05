@@ -9417,6 +9417,2316 @@
     "known_name": true
    },
    "q": 17.29
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "THC",
+   "asof": "2023-12-08",
+   "year": 2023,
+   "close": 71.55,
+   "facts": {
+    "day_pct": 3.79,
+    "close_pos": 0.94,
+    "gap_pct": -0.03,
+    "rvol": 0.96,
+    "range_atr": 1.0,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": false,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 14,
+    "strength_day_gain_pct": 9.63,
+    "earnings_like_gap": {
+     "bars_ago": 14,
+     "gap_pct": 8.6,
+     "day_pct": 9.6
+    },
+    "rally": {
+     "rally_pct": 35.1,
+     "bars_ago": 4,
+     "peak_high": 72.67
+    },
+    "drive_pct": 35.1,
+    "pullback_sessions": 3,
+    "pullback_depth_pct": -6.7,
+    "worst_red_body_pct": -2.09,
+    "pullback_range_atr": 1.49,
+    "pullback_rvol_max": 0.59,
+    "trigger_vs_peak_pct": -1.5,
+    "s50_slope10_pct": 0.1,
+    "ma_order_8_21_50": true,
+    "setup_score": 22,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "fwd_max_gain_pct": 12.2,
+    "fwd_5d_pct": 5.3,
+    "fwd_10d_pct": 5.9,
+    "fwd_20d_pct": 10.9,
+    "avg_dollar_volume_m": 96.0,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.03
+   },
+   "q": 22.87
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "ROKU",
+   "asof": "2025-06-24",
+   "year": 2025,
+   "close": 83.69,
+   "facts": {
+    "day_pct": 3.45,
+    "close_pos": 0.99,
+    "gap_pct": 0.11,
+    "rvol": 0.91,
+    "range_atr": 0.91,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 5,
+    "strength_day_gain_pct": 10.43,
+    "earnings_like_gap": {
+     "bars_ago": 5,
+     "gap_pct": 9.3,
+     "day_pct": 10.4
+    },
+    "rally": {
+     "rally_pct": 18.6,
+     "bars_ago": 4,
+     "peak_high": 85.4
+    },
+    "drive_pct": 18.6,
+    "pullback_sessions": 3,
+    "pullback_depth_pct": -9.1,
+    "worst_red_body_pct": -1.58,
+    "pullback_range_atr": 1.46,
+    "pullback_rvol_max": 1.13,
+    "trigger_vs_peak_pct": -2.0,
+    "s50_slope10_pct": 4.4,
+    "ma_order_8_21_50": true,
+    "setup_score": 21,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 2.5,
+    "fwd_max_gain_pct": 13.7,
+    "fwd_5d_pct": 3.0,
+    "fwd_10d_pct": 5.9,
+    "fwd_20d_pct": 7.8,
+    "avg_dollar_volume_m": 302.5,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 0.11
+   },
+   "q": 22.91
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "SMG",
+   "asof": "2023-12-01",
+   "year": 2023,
+   "close": 58.15,
+   "facts": {
+    "day_pct": 4.47,
+    "close_pos": 1.0,
+    "gap_pct": -0.04,
+    "rvol": 0.95,
+    "range_atr": 1.58,
+    "above_200": false,
+    "variant": "v1_strength_day",
+    "tight_pullback": false,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 11,
+    "strength_day_gain_pct": 6.09,
+    "earnings_like_gap": {
+     "bars_ago": 21,
+     "gap_pct": 10.0,
+     "day_pct": 18.5
+    },
+    "rally": {
+     "rally_pct": 31.2,
+     "bars_ago": 11,
+     "peak_high": 58.29
+    },
+    "drive_pct": 31.2,
+    "pullback_sessions": 10,
+    "pullback_depth_pct": -6.9,
+    "worst_red_body_pct": -2.5,
+    "pullback_range_atr": 1.88,
+    "pullback_rvol_max": 1.72,
+    "trigger_vs_peak_pct": -0.2,
+    "s50_slope10_pct": 1.1,
+    "ma_order_8_21_50": true,
+    "setup_score": 20,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "fwd_max_gain_pct": 13.1,
+    "fwd_5d_pct": 4.2,
+    "fwd_10d_pct": 4.6,
+    "fwd_20d_pct": 10.7,
+    "avg_dollar_volume_m": 43.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.04
+   },
+   "q": 20.68
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "SNOW",
+   "asof": "2026-05-15",
+   "year": 2026,
+   "close": 157.47,
+   "facts": {
+    "day_pct": 4.45,
+    "close_pos": 0.78,
+    "gap_pct": -0.52,
+    "rvol": 1.17,
+    "range_atr": 1.44,
+    "above_200": false,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.45,
+    "earnings_like_gap": {
+     "bars_ago": 6,
+     "gap_pct": 9.8,
+     "day_pct": 10.0
+    },
+    "rally": {
+     "rally_pct": 15.0,
+     "bars_ago": 6,
+     "peak_high": 157.0
+    },
+    "drive_pct": 15.0,
+    "pullback_sessions": 5,
+    "pullback_depth_pct": -8.0,
+    "worst_red_body_pct": -0.67,
+    "pullback_range_atr": 1.39,
+    "pullback_rvol_max": 1.1,
+    "trigger_vs_peak_pct": 0.3,
+    "s50_slope10_pct": -2.6,
+    "ma_order_8_21_50": false,
+    "setup_score": 19,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 4.1,
+    "fwd_max_gain_pct": 81.0,
+    "fwd_5d_pct": 9.4,
+    "fwd_10d_pct": 77.9,
+    "fwd_20d_pct": 52.9,
+    "avg_dollar_volume_m": 1143.4,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.52
+   },
+   "q": 21.97
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "RUN",
+   "asof": "2023-11-28",
+   "year": 2023,
+   "close": 11.92,
+   "facts": {
+    "day_pct": 6.91,
+    "close_pos": 0.97,
+    "gap_pct": -0.54,
+    "rvol": 0.99,
+    "range_atr": 1.4,
+    "above_200": false,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "v2_run_20in5",
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 8,
+    "strength_day_gain_pct": 5.56,
+    "earnings_like_gap": {
+     "bars_ago": 9,
+     "gap_pct": 9.4,
+     "day_pct": 19.0
+    },
+    "rally": {
+     "rally_pct": 36.5,
+     "bars_ago": 8,
+     "peak_high": 12.07
+    },
+    "drive_pct": 36.5,
+    "pullback_sessions": 7,
+    "pullback_depth_pct": -11.4,
+    "worst_red_body_pct": -3.22,
+    "pullback_range_atr": 1.62,
+    "pullback_rvol_max": 0.91,
+    "trigger_vs_peak_pct": -1.2,
+    "s50_slope10_pct": -6.1,
+    "ma_order_8_21_50": false,
+    "setup_score": 18,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 13.1,
+    "fwd_max_gain_pct": 73.5,
+    "fwd_5d_pct": 16.9,
+    "fwd_10d_pct": 4.9,
+    "fwd_20d_pct": 70.5,
+    "avg_dollar_volume_m": 148.9,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.54
+   },
+   "q": 19.87
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "NTR",
+   "asof": "2022-02-24",
+   "year": 2022,
+   "close": 77.48,
+   "facts": {
+    "day_pct": 3.16,
+    "close_pos": 0.94,
+    "gap_pct": -0.45,
+    "rvol": 1.95,
+    "range_atr": 1.32,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 16,
+    "strength_day_gain_pct": 4.74,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 14.8,
+     "bars_ago": 4,
+     "peak_high": 78.76
+    },
+    "drive_pct": 14.8,
+    "pullback_sessions": 3,
+    "pullback_depth_pct": -5.1,
+    "worst_red_body_pct": -2.46,
+    "pullback_range_atr": 1.26,
+    "pullback_rvol_max": 1.25,
+    "trigger_vs_peak_pct": -1.6,
+    "s50_slope10_pct": 1.9,
+    "ma_order_8_21_50": true,
+    "setup_score": 18,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 3.1,
+    "fwd_max_gain_pct": 39.8,
+    "fwd_5d_pct": 15.7,
+    "fwd_10d_pct": 31.5,
+    "fwd_20d_pct": 37.9,
+    "avg_dollar_volume_m": 157.6,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.45
+   },
+   "q": 19.89
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "GKOS",
+   "asof": "2026-07-02",
+   "year": 2026,
+   "close": 148.34,
+   "facts": {
+    "day_pct": 7.83,
+    "close_pos": 0.98,
+    "gap_pct": 0.0,
+    "rvol": 1.17,
+    "range_atr": 2.36,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 7.83,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 27.9,
+     "bars_ago": 5,
+     "peak_high": 145.39
+    },
+    "drive_pct": 27.9,
+    "pullback_sessions": 4,
+    "pullback_depth_pct": -6.3,
+    "worst_red_body_pct": -1.18,
+    "pullback_range_atr": 1.68,
+    "pullback_rvol_max": 1.87,
+    "trigger_vs_peak_pct": 2.0,
+    "s50_slope10_pct": 2.7,
+    "ma_order_8_21_50": true,
+    "setup_score": 19,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 5.1,
+    "fwd_max_gain_pct": 24.0,
+    "fwd_5d_pct": 3.0,
+    "fwd_10d_pct": 5.7,
+    "fwd_20d_pct": 12.4,
+    "avg_dollar_volume_m": 109.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 0.0
+   },
+   "q": 19.84
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "RVLV",
+   "asof": "2025-12-19",
+   "year": 2025,
+   "close": 28.99,
+   "facts": {
+    "day_pct": 2.15,
+    "close_pos": 0.96,
+    "gap_pct": -0.74,
+    "rvol": 1.45,
+    "range_atr": 0.81,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 8,
+    "strength_day_gain_pct": 8.07,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 38.3,
+     "bars_ago": 7,
+     "peak_high": 29.32
+    },
+    "drive_pct": 38.3,
+    "pullback_sessions": 6,
+    "pullback_depth_pct": -7.4,
+    "worst_red_body_pct": -2.93,
+    "pullback_range_atr": 1.71,
+    "pullback_rvol_max": 1.08,
+    "trigger_vs_peak_pct": -1.1,
+    "s50_slope10_pct": 5.5,
+    "ma_order_8_21_50": true,
+    "setup_score": 19,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 2.0,
+    "fwd_max_gain_pct": 9.3,
+    "fwd_5d_pct": 8.5,
+    "fwd_10d_pct": 8.0,
+    "fwd_20d_pct": 3.6,
+    "avg_dollar_volume_m": 25.8,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.74
+   },
+   "q": 19.61
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "COF",
+   "asof": "2024-11-05",
+   "year": 2024,
+   "close": 166.05,
+   "facts": {
+    "day_pct": 2.96,
+    "close_pos": 0.91,
+    "gap_pct": 0.68,
+    "rvol": 1.03,
+    "range_atr": 1.03,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "strength_day_bars_ago": 7,
+    "strength_day_gain_pct": 5.23,
+    "earnings_like_gap": {
+     "bars_ago": 7,
+     "gap_pct": 7.2,
+     "day_pct": 5.2
+    },
+    "rally": {
+     "rally_pct": 12.3,
+     "bars_ago": 7,
+     "peak_high": 167.93
+    },
+    "drive_pct": 12.3,
+    "pullback_sessions": 6,
+    "pullback_depth_pct": -4.7,
+    "worst_red_body_pct": -2.52,
+    "pullback_range_atr": 1.78,
+    "pullback_rvol_max": 1.7,
+    "trigger_vs_peak_pct": -1.1,
+    "s50_slope10_pct": 3.1,
+    "ma_order_8_21_50": true,
+    "setup_score": 18,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 10.6,
+    "fwd_max_gain_pct": 19.4,
+    "fwd_5d_pct": 12.5,
+    "fwd_10d_pct": 9.0,
+    "fwd_20d_pct": 11.7,
+    "avg_dollar_volume_m": 347.8,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 0.68
+   },
+   "q": 19.39
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "GME",
+   "asof": "2024-11-08",
+   "year": 2024,
+   "close": 24.88,
+   "facts": {
+    "day_pct": 6.1,
+    "close_pos": 0.76,
+    "gap_pct": -0.04,
+    "rvol": 1.73,
+    "range_atr": 2.18,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.1,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 19.7,
+     "bars_ago": 7,
+     "peak_high": 24.54
+    },
+    "drive_pct": 19.7,
+    "pullback_sessions": 6,
+    "pullback_depth_pct": -10.8,
+    "worst_red_body_pct": -2.85,
+    "pullback_range_atr": 1.97,
+    "pullback_rvol_max": 0.72,
+    "trigger_vs_peak_pct": 1.4,
+    "s50_slope10_pct": 0.6,
+    "ma_order_8_21_50": true,
+    "setup_score": 17,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 6.0,
+    "fwd_max_gain_pct": 29.1,
+    "fwd_5d_pct": 6.9,
+    "fwd_10d_pct": 12.1,
+    "fwd_20d_pct": 12.3,
+    "avg_dollar_volume_m": 656.2,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.04
+   },
+   "q": 18.25
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "HPQ",
+   "asof": "2026-05-21",
+   "year": 2026,
+   "close": 21.9,
+   "facts": {
+    "day_pct": 3.94,
+    "close_pos": 0.9,
+    "gap_pct": -0.19,
+    "rvol": 0.94,
+    "range_atr": 1.42,
+    "above_200": false,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 9,
+    "strength_day_gain_pct": 8.05,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 16.3,
+     "bars_ago": 8,
+     "peak_high": 22.78
+    },
+    "drive_pct": 16.3,
+    "pullback_sessions": 7,
+    "pullback_depth_pct": -10.3,
+    "worst_red_body_pct": -3.22,
+    "pullback_range_atr": 1.61,
+    "pullback_rvol_max": 0.99,
+    "trigger_vs_peak_pct": -3.9,
+    "s50_slope10_pct": 2.4,
+    "ma_order_8_21_50": true,
+    "setup_score": 17,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 8.5,
+    "fwd_max_gain_pct": 35.4,
+    "fwd_5d_pct": 23.5,
+    "fwd_10d_pct": 16.8,
+    "fwd_20d_pct": 7.5,
+    "avg_dollar_volume_m": 350.9,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.19
+   },
+   "q": 18.25
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "URI",
+   "asof": "2023-11-10",
+   "year": 2023,
+   "close": 456.53,
+   "facts": {
+    "day_pct": 4.35,
+    "close_pos": 0.94,
+    "gap_pct": 1.17,
+    "rvol": 1.07,
+    "range_atr": 1.1,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.35,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 14.6,
+     "bars_ago": 5,
+     "peak_high": 457.08
+    },
+    "drive_pct": 14.6,
+    "pullback_sessions": 4,
+    "pullback_depth_pct": -5.3,
+    "worst_red_body_pct": -3.48,
+    "pullback_range_atr": 1.43,
+    "pullback_rvol_max": 1.03,
+    "trigger_vs_peak_pct": -0.1,
+    "s50_slope10_pct": -1.3,
+    "ma_order_8_21_50": false,
+    "setup_score": 17,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "fwd_max_gain_pct": 10.8,
+    "fwd_5d_pct": 5.4,
+    "fwd_10d_pct": 1.7,
+    "fwd_20d_pct": 10.6,
+    "avg_dollar_volume_m": 329.0,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 1.17
+   },
+   "q": 18.12
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "FTI",
+   "asof": "2024-03-13",
+   "year": 2024,
+   "close": 23.23,
+   "facts": {
+    "day_pct": 4.08,
+    "close_pos": 1.0,
+    "gap_pct": 0.85,
+    "rvol": 1.48,
+    "range_atr": 1.17,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.08,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 21.0,
+     "bars_ago": 8,
+     "peak_high": 22.97
+    },
+    "drive_pct": 21.0,
+    "pullback_sessions": 7,
+    "pullback_depth_pct": -7.0,
+    "worst_red_body_pct": -4.07,
+    "pullback_range_atr": 1.63,
+    "pullback_rvol_max": 1.62,
+    "trigger_vs_peak_pct": 1.1,
+    "s50_slope10_pct": 1.8,
+    "ma_order_8_21_50": true,
+    "setup_score": 17,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 4.4,
+    "fwd_max_gain_pct": 17.3,
+    "fwd_5d_pct": 7.1,
+    "fwd_10d_pct": 9.0,
+    "fwd_20d_pct": 13.5,
+    "avg_dollar_volume_m": 103.3,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 0.85
+   },
+   "q": 18.06
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "AFRM",
+   "asof": "2025-08-22",
+   "year": 2025,
+   "close": 79.49,
+   "facts": {
+    "day_pct": 6.71,
+    "close_pos": 0.85,
+    "gap_pct": -0.27,
+    "rvol": 1.56,
+    "range_atr": 1.51,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": false,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.71,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 20.7,
+     "bars_ago": 4,
+     "peak_high": 80.16
+    },
+    "drive_pct": 20.7,
+    "pullback_sessions": 3,
+    "pullback_depth_pct": -11.7,
+    "worst_red_body_pct": -3.79,
+    "pullback_range_atr": 1.56,
+    "pullback_rvol_max": 1.11,
+    "trigger_vs_peak_pct": -0.8,
+    "s50_slope10_pct": 6.2,
+    "ma_order_8_21_50": true,
+    "setup_score": 17,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "fwd_max_gain_pct": 25.8,
+    "fwd_5d_pct": 11.3,
+    "fwd_10d_pct": 8.0,
+    "fwd_20d_pct": 13.4,
+    "avg_dollar_volume_m": 395.3,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": -0.27
+   },
+   "q": 19.45
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "OKTA",
+   "asof": "2026-06-18",
+   "year": 2026,
+   "close": 117.81,
+   "facts": {
+    "gap_pct": 13.53,
+    "bars_since_gap": 14,
+    "true_gap": true,
+    "gap_low": 106.5,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.5,
+    "close_vs_gap_low_pct": 10.6,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.77,
+    "gap_day_pct": 30.14,
+    "gap_day_dcr": 0.92,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 15.5,
+    "pullback_from_high_pct": -24.8,
+    "test_depth_atr": 4.0,
+    "day_pct": 4.23,
+    "dcr": 0.86,
+    "range_atr": 1.42,
+    "rvol": 1.97,
+    "gap_top": 96.64,
+    "close_vs_gap_top_pct": 21.9,
+    "above_200": true,
+    "s50_slope10_pct": 9.5,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 22,
+    "fwd_min_low_vs_trigger_low_pct": 6.4,
+    "fwd_max_gain_pct": 33.3,
+    "fwd_5d_pct": 5.5,
+    "fwd_10d_pct": 26.1,
+    "fwd_20d_pct": 26.0,
+    "avg_dollar_volume_m": 320.1,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2026-05-29",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 24.64
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "FIVN",
+   "asof": "2026-06-26",
+   "year": 2026,
+   "close": 21.32,
+   "facts": {
+    "gap_pct": 17.33,
+    "bars_since_gap": 38,
+    "true_gap": true,
+    "gap_low": 19.66,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.7,
+    "close_vs_gap_low_pct": 8.4,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 6.06,
+    "gap_day_pct": 29.3,
+    "gap_day_dcr": 0.73,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "ema9",
+     "sma200"
+    ],
+    "post_gap_run_pct": 21.1,
+    "pullback_from_high_pct": -26.5,
+    "test_depth_atr": 5.43,
+    "day_pct": 9.28,
+    "dcr": 0.97,
+    "range_atr": 1.19,
+    "rvol": 1.43,
+    "gap_top": 17.41,
+    "close_vs_gap_top_pct": 22.5,
+    "above_200": true,
+    "s50_slope10_pct": 5.4,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 21,
+    "fwd_min_low_vs_trigger_low_pct": 4.6,
+    "fwd_max_gain_pct": 24.5,
+    "fwd_5d_pct": 13.0,
+    "fwd_10d_pct": 21.1,
+    "fwd_20d_pct": 19.8,
+    "avg_dollar_volume_m": 55.2,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2026-05-01",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 22.3
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "RGTI",
+   "asof": "2025-08-22",
+   "year": 2025,
+   "close": 14.82,
+   "facts": {
+    "gap_pct": 8.49,
+    "bars_since_gap": 27,
+    "true_gap": true,
+    "gap_low": 13.78,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.3,
+    "close_vs_gap_low_pct": 7.5,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.54,
+    "gap_day_pct": 30.19,
+    "gap_day_dcr": 0.91,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 9.6,
+    "pullback_from_high_pct": -23.9,
+    "test_depth_atr": 3.28,
+    "day_pct": 3.85,
+    "dcr": 0.87,
+    "range_atr": 0.87,
+    "rvol": 0.71,
+    "gap_top": 13.02,
+    "close_vs_gap_top_pct": 13.8,
+    "above_200": true,
+    "s50_slope10_pct": 6.0,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "fwd_max_gain_pct": 99.7,
+    "fwd_5d_pct": 9.5,
+    "fwd_10d_pct": 2.2,
+    "fwd_20d_pct": 91.4,
+    "avg_dollar_volume_m": 578.9,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2025-07-16",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 21.98
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TOST",
+   "asof": "2025-01-13",
+   "year": 2025,
+   "close": 35.11,
+   "facts": {
+    "gap_pct": 17.51,
+    "bars_since_gap": 42,
+    "true_gap": true,
+    "gap_low": 34.71,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.5,
+    "close_vs_gap_low_pct": 1.2,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 5.32,
+    "gap_day_pct": 14.72,
+    "gap_day_dcr": 0.75,
+    "levels_touched": [
+     "glow"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 17.7,
+    "pullback_from_high_pct": -21.7,
+    "test_depth_atr": 7.29,
+    "day_pct": -1.65,
+    "dcr": 0.78,
+    "range_atr": 0.55,
+    "rvol": 0.64,
+    "gap_top": 33.01,
+    "close_vs_gap_top_pct": 6.4,
+    "above_200": true,
+    "s50_slope10_pct": 4.2,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "fwd_max_gain_pct": 21.6,
+    "fwd_5d_pct": 10.1,
+    "fwd_10d_pct": 13.8,
+    "fwd_20d_pct": 14.2,
+    "avg_dollar_volume_m": 206.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2024-11-08",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 21.47
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "BRSL",
+   "asof": "2023-07-06",
+   "year": 2023,
+   "close": 30.62,
+   "facts": {
+    "gap_pct": 8.81,
+    "bars_since_gap": 18,
+    "true_gap": true,
+    "gap_low": 29.85,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.4,
+    "close_vs_gap_low_pct": 2.6,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.24,
+    "gap_day_pct": 14.25,
+    "gap_day_dcr": 0.9,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": true,
+    "confluence": [],
+    "post_gap_run_pct": 2.3,
+    "pullback_from_high_pct": -7.8,
+    "test_depth_atr": 3.54,
+    "day_pct": -0.84,
+    "dcr": 0.93,
+    "range_atr": 1.37,
+    "rvol": 0.76,
+    "gap_top": 27.61,
+    "close_vs_gap_top_pct": 10.9,
+    "above_200": true,
+    "s50_slope10_pct": 2.8,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "fwd_max_gain_pct": 11.0,
+    "fwd_5d_pct": 5.2,
+    "fwd_10d_pct": 8.2,
+    "fwd_20d_pct": 6.3,
+    "avg_dollar_volume_m": 36.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2023-06-08",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 20.56
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TTMI",
+   "asof": "2026-05-19",
+   "year": 2026,
+   "close": 161.41,
+   "facts": {
+    "gap_pct": 29.98,
+    "bars_since_gap": 13,
+    "true_gap": true,
+    "gap_low": 148.41,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.0,
+    "close_vs_gap_low_pct": 8.8,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.1,
+    "gap_day_pct": 15.07,
+    "gap_day_dcr": 0.31,
+    "levels_touched": [
+     "glow",
+     "mid"
+    ],
+    "first_test": false,
+    "confluence": [
+     "ema20"
+    ],
+    "post_gap_run_pct": 13.8,
+    "pullback_from_high_pct": -17.6,
+    "test_depth_atr": 2.36,
+    "day_pct": 1.61,
+    "dcr": 0.82,
+    "range_atr": 1.19,
+    "rvol": 1.09,
+    "gap_top": 141.63,
+    "close_vs_gap_top_pct": 14.0,
+    "above_200": true,
+    "s50_slope10_pct": 10.5,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 9.4,
+    "fwd_max_gain_pct": 29.7,
+    "fwd_5d_pct": 18.1,
+    "fwd_10d_pct": 17.5,
+    "fwd_20d_pct": 25.6,
+    "avg_dollar_volume_m": 237.3,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2026-04-30",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 20.85
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "VRT",
+   "asof": "2026-03-31",
+   "year": 2026,
+   "close": 250.58,
+   "facts": {
+    "gap_pct": 16.85,
+    "bars_since_gap": 33,
+    "true_gap": true,
+    "gap_low": 233.0,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.0,
+    "close_vs_gap_low_pct": 7.5,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.42,
+    "gap_day_pct": 24.49,
+    "gap_day_dcr": 0.92,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 13.5,
+    "pullback_from_high_pct": -17.4,
+    "test_depth_atr": 3.32,
+    "day_pct": 6.98,
+    "dcr": 0.98,
+    "range_atr": 1.22,
+    "rvol": 0.79,
+    "gap_top": 206.35,
+    "close_vs_gap_top_pct": 21.4,
+    "above_200": true,
+    "s50_slope10_pct": 8.3,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 20,
+    "fwd_min_low_vs_trigger_low_pct": 6.4,
+    "fwd_max_gain_pct": 31.8,
+    "fwd_5d_pct": 12.2,
+    "fwd_10d_pct": 20.2,
+    "fwd_20d_pct": 22.2,
+    "avg_dollar_volume_m": 1553.6,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2026-02-11",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 22.74
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "TTWO",
+   "asof": "2025-04-07",
+   "year": 2025,
+   "close": 197.53,
+   "facts": {
+    "gap_pct": 8.15,
+    "bars_since_gap": 40,
+    "true_gap": true,
+    "gap_low": 195.97,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -3.8,
+    "close_vs_gap_low_pct": 0.8,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.5,
+    "gap_day_pct": 14.03,
+    "gap_day_dcr": 0.76,
+    "levels_touched": [
+     "glow",
+     "mid"
+    ],
+    "first_test": false,
+    "confluence": [],
+    "post_gap_run_pct": 5.8,
+    "pullback_from_high_pct": -14.7,
+    "test_depth_atr": 4.6,
+    "day_pct": 1.52,
+    "dcr": 0.71,
+    "range_atr": 1.78,
+    "rvol": 1.88,
+    "gap_top": 184.53,
+    "close_vs_gap_top_pct": 7.0,
+    "above_200": true,
+    "s50_slope10_pct": 2.8,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 2.4,
+    "fwd_max_gain_pct": 20.5,
+    "fwd_5d_pct": 7.8,
+    "fwd_10d_pct": 6.3,
+    "fwd_20d_pct": 17.4,
+    "avg_dollar_volume_m": 316.8,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2025-02-07",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 20.47
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "NTRA",
+   "asof": "2024-01-29",
+   "year": 2024,
+   "close": 66.41,
+   "facts": {
+    "gap_pct": 8.47,
+    "bars_since_gap": 8,
+    "true_gap": true,
+    "gap_low": 64.58,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -2.5,
+    "close_vs_gap_low_pct": 2.8,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 2.7,
+    "gap_day_pct": 7.3,
+    "gap_day_dcr": 0.73,
+    "levels_touched": [
+     "top",
+     "glow",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "ema20"
+    ],
+    "post_gap_run_pct": 2.1,
+    "pullback_from_high_pct": -8.7,
+    "test_depth_atr": 1.96,
+    "day_pct": 1.48,
+    "dcr": 0.98,
+    "range_atr": 1.15,
+    "rvol": 1.84,
+    "gap_top": 62.92,
+    "close_vs_gap_top_pct": 5.5,
+    "above_200": true,
+    "s50_slope10_pct": 8.1,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_5d_pct": 3.6,
+    "fwd_10d_pct": 6.9,
+    "fwd_20d_pct": 14.7,
+    "avg_dollar_volume_m": 71.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2024-01-17",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 19.85
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "SHOP",
+   "asof": "2025-09-29",
+   "year": 2025,
+   "close": 149.0,
+   "facts": {
+    "gap_pct": 14.3,
+    "bars_since_gap": 37,
+    "true_gap": true,
+    "gap_low": 145.11,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -2.9,
+    "close_vs_gap_low_pct": 2.7,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.95,
+    "gap_day_pct": 21.97,
+    "gap_day_dcr": 0.87,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 2.7,
+    "pullback_from_high_pct": -11.4,
+    "test_depth_atr": 3.65,
+    "day_pct": 6.24,
+    "dcr": 0.93,
+    "range_atr": 1.75,
+    "rvol": 1.93,
+    "gap_top": 127.23,
+    "close_vs_gap_top_pct": 17.1,
+    "above_200": true,
+    "s50_slope10_pct": 4.8,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 19,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "fwd_max_gain_pct": 18.7,
+    "fwd_5d_pct": 10.4,
+    "fwd_10d_pct": 3.1,
+    "fwd_20d_pct": 17.5,
+    "avg_dollar_volume_m": 1140.2,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2025-08-06",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 21.58
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "THC",
+   "asof": "2022-02-24",
+   "year": 2022,
+   "close": 81.2,
+   "facts": {
+    "gap_pct": 4.4,
+    "bars_since_gap": 10,
+    "true_gap": true,
+    "gap_low": 76.94,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -1.2,
+    "close_vs_gap_low_pct": 5.5,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 2.75,
+    "gap_day_pct": 11.0,
+    "gap_day_dcr": 0.88,
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ],
+    "first_test": true,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 7.3,
+    "pullback_from_high_pct": -13.8,
+    "test_depth_atr": 2.68,
+    "day_pct": 2.63,
+    "dcr": 0.96,
+    "range_atr": 1.19,
+    "rvol": 0.88,
+    "gap_top": 74.82,
+    "close_vs_gap_top_pct": 8.5,
+    "above_200": true,
+    "s50_slope10_pct": 2.3,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 18,
+    "fwd_min_low_vs_trigger_low_pct": 7.1,
+    "fwd_max_gain_pct": 13.2,
+    "fwd_5d_pct": 12.3,
+    "fwd_10d_pct": 10.5,
+    "fwd_20d_pct": 9.3,
+    "avg_dollar_volume_m": 72.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2022-02-09",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 18.99
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "MQ",
+   "asof": "2023-08-25",
+   "year": 2023,
+   "close": 22.68,
+   "facts": {
+    "gap_pct": 20.26,
+    "bars_since_gap": 12,
+    "true_gap": true,
+    "gap_low": 21.52,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 1.7,
+    "close_vs_gap_low_pct": 5.4,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.74,
+    "gap_day_pct": 11.69,
+    "gap_day_dcr": 0.19,
+    "levels_touched": [
+     "glow"
+    ],
+    "first_test": false,
+    "confluence": [
+     "ema9",
+     "ema20",
+     "sma200"
+    ],
+    "post_gap_run_pct": 12.6,
+    "pullback_from_high_pct": -12.3,
+    "test_depth_atr": 2.02,
+    "day_pct": 3.47,
+    "dcr": 0.75,
+    "range_atr": 0.69,
+    "rvol": 0.47,
+    "gap_top": 20.0,
+    "close_vs_gap_top_pct": 13.4,
+    "above_200": true,
+    "s50_slope10_pct": 3.5,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 18,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "fwd_max_gain_pct": 18.7,
+    "fwd_5d_pct": 10.4,
+    "fwd_10d_pct": 14.5,
+    "fwd_20d_pct": 4.9,
+    "avg_dollar_volume_m": 27.2,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2023-08-09",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 18.73
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "DVA",
+   "asof": "2023-06-28",
+   "year": 2023,
+   "close": 97.64,
+   "facts": {
+    "gap_pct": 8.91,
+    "bars_since_gap": 34,
+    "true_gap": true,
+    "gap_low": 97.16,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -1.9,
+    "close_vs_gap_low_pct": 0.5,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 4.51,
+    "gap_day_pct": 12.9,
+    "gap_day_dcr": 0.61,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 2.3,
+    "pullback_from_high_pct": -7.5,
+    "test_depth_atr": 3.64,
+    "day_pct": 1.78,
+    "dcr": 0.91,
+    "range_atr": 1.21,
+    "rvol": 1.01,
+    "gap_top": 89.55,
+    "close_vs_gap_top_pct": 9.0,
+    "above_200": true,
+    "s50_slope10_pct": 3.2,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 18,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "fwd_max_gain_pct": 9.5,
+    "fwd_5d_pct": 4.4,
+    "fwd_10d_pct": 5.8,
+    "fwd_20d_pct": 2.4,
+    "avg_dollar_volume_m": 56.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2023-05-09",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 18.44
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "JBL",
+   "asof": "2024-02-01",
+   "year": 2024,
+   "close": 131.34,
+   "facts": {
+    "gap_pct": 7.91,
+    "bars_since_gap": 32,
+    "true_gap": true,
+    "gap_low": 125.79,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.3,
+    "close_vs_gap_low_pct": 4.4,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 3.55,
+    "gap_day_pct": 13.12,
+    "gap_day_dcr": 0.93,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "ema9",
+     "ema20",
+     "sma50"
+    ],
+    "post_gap_run_pct": 1.1,
+    "pullback_from_high_pct": -9.1,
+    "test_depth_atr": 4.41,
+    "day_pct": 4.83,
+    "dcr": 1.0,
+    "range_atr": 2.08,
+    "rvol": 0.71,
+    "gap_top": 121.2,
+    "close_vs_gap_top_pct": 8.4,
+    "above_200": true,
+    "s50_slope10_pct": -0.7,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "fwd_max_gain_pct": 12.8,
+    "fwd_5d_pct": 3.5,
+    "fwd_10d_pct": 7.4,
+    "fwd_20d_pct": 12.1,
+    "avg_dollar_volume_m": 232.4,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2023-12-14",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 18.08
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "MARA",
+   "asof": "2024-01-19",
+   "year": 2024,
+   "close": 16.13,
+   "facts": {
+    "gap_pct": 11.9,
+    "bars_since_gap": 31,
+    "true_gap": true,
+    "gap_low": 14.07,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 3.9,
+    "close_vs_gap_low_pct": 14.6,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 2.18,
+    "gap_day_pct": 8.47,
+    "gap_day_dcr": 0.54,
+    "levels_touched": [
+     "glow",
+     "gopen",
+     "mid"
+    ],
+    "first_test": false,
+    "confluence": [],
+    "post_gap_run_pct": 110.6,
+    "pullback_from_high_pct": -53.3,
+    "test_depth_atr": 4.53,
+    "day_pct": 0.37,
+    "dcr": 0.81,
+    "range_atr": 0.5,
+    "rvol": 1.45,
+    "gap_top": 13.7,
+    "close_vs_gap_top_pct": 17.7,
+    "above_200": true,
+    "s50_slope10_pct": 17.8,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 4.0,
+    "fwd_max_gain_pct": 88.8,
+    "fwd_5d_pct": 10.7,
+    "fwd_10d_pct": 12.8,
+    "fwd_20d_pct": 67.0,
+    "avg_dollar_volume_m": 801.2,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2023-12-04",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 20.0
+  },
+  {
+   "setup": "Gap Support",
+   "sym": "WHD",
+   "asof": "2024-07-10",
+   "year": 2024,
+   "close": 52.45,
+   "facts": {
+    "gap_pct": 8.8,
+    "bars_since_gap": 20,
+    "true_gap": true,
+    "gap_low": 50.94,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -0.7,
+    "close_vs_gap_low_pct": 3.0,
+    "gap_day_above_50": true,
+    "not_downtrend": true,
+    "gap_vol_2x": true,
+    "gap_rvol": 7.88,
+    "gap_day_pct": 12.77,
+    "gap_day_dcr": 0.51,
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "first_test": false,
+    "confluence": [
+     "sma50"
+    ],
+    "post_gap_run_pct": 4.6,
+    "pullback_from_high_pct": -8.4,
+    "test_depth_atr": 3.16,
+    "day_pct": 2.74,
+    "dcr": 0.94,
+    "range_atr": 1.35,
+    "rvol": 0.51,
+    "gap_top": 47.5,
+    "close_vs_gap_top_pct": 10.4,
+    "above_200": true,
+    "s50_slope10_pct": 0.4,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 3.1,
+    "fwd_max_gain_pct": 23.9,
+    "fwd_5d_pct": 14.5,
+    "fwd_10d_pct": 9.0,
+    "fwd_20d_pct": 10.7,
+    "avg_dollar_volume_m": 36.9,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "gap_asof": "2024-06-10",
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true
+   },
+   "q": 17.95
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "RH",
+   "asof": "2023-01-04",
+   "year": 2023,
+   "close": 276.78,
+   "facts": {
+    "prior_red": true,
+    "prior_dcr": 0.09,
+    "prior_body_pct": 7.79,
+    "prior_range_atr": 2.38,
+    "prior_drop_pct": -5.21,
+    "prior_close_vs_low5_pct": -1.65,
+    "breakdown_look": true,
+    "gap_pct": 2.91,
+    "day_pct": 9.28,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.98,
+    "range_atr": 1.87,
+    "rvol": 1.51,
+    "above_200": false,
+    "sma50_rising": true,
+    "ma_spread_pct": 0.95,
+    "base20_range_pct": 8.9,
+    "breakout20": false,
+    "ext_vs_sma50_pct": 5.0,
+    "downtrend": false,
+    "setup_score": 8,
+    "fwd_min_low_vs_trigger_low_pct": 5.6,
+    "fwd_max_gain_pct": 27.0,
+    "fwd_5d_pct": 14.3,
+    "fwd_10d_pct": 5.8,
+    "fwd_20d_pct": 25.4,
+    "avg_dollar_volume_m": 182.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 8.96
+  },
+  {
+   "setup": "Kicker Candle",
+   "sym": "ROKU",
+   "asof": "2025-08-04",
+   "year": 2025,
+   "close": 85.83,
+   "facts": {
+    "prior_red": true,
+    "prior_dcr": 0.15,
+    "prior_body_pct": 6.55,
+    "prior_range_atr": 1.73,
+    "prior_drop_pct": -15.06,
+    "prior_close_vs_low5_pct": -9.82,
+    "breakdown_look": true,
+    "gap_pct": 1.78,
+    "day_pct": 7.31,
+    "green": true,
+    "close_above_prior_high": true,
+    "close_pos": 0.88,
+    "range_atr": 1.48,
+    "rvol": 2.19,
+    "above_200": true,
+    "sma50_rising": true,
+    "ma_spread_pct": 7.49,
+    "base20_range_pct": 17.7,
+    "breakout20": false,
+    "ext_vs_sma50_pct": 3.2,
+    "downtrend": false,
+    "setup_score": 8,
+    "fwd_min_low_vs_trigger_low_pct": 0.2,
+    "fwd_max_gain_pct": 14.2,
+    "fwd_5d_pct": -4.5,
+    "fwd_10d_pct": 7.6,
+    "fwd_20d_pct": 11.7,
+    "avg_dollar_volume_m": 325.8,
+    "known_name": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 9.78
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "MGRC",
+   "asof": "2024-01-29",
+   "year": 2024,
+   "close": 123.75,
+   "facts": {
+    "day_pct": 10.74,
+    "close_pos": 0.93,
+    "gap_pct": 7.83,
+    "rvol": 23.6,
+    "edge_ratio": 2.56,
+    "prior_sessions": 804,
+    "range_atr": 1.76,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 123.75,
+    "hve_low": 120.5,
+    "base20_range_pct": 9.6,
+    "run_prior_20d_pct": -6.7,
+    "breakout20": true,
+    "setup_score": 9,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": 0.0,
+    "fwd_closes_above_hvc": 20,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 5.7,
+    "fwd_5d_pct": 3.0,
+    "fwd_10d_pct": 5.1,
+    "fwd_20d_pct": 0.0,
+    "avg_dollar_volume_m": 13.0,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 10.26
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "VREX",
+   "asof": "2026-08-10",
+   "year": 2026,
+   "close": 18.46,
+   "facts": {
+    "day_pct": 48.75,
+    "close_pos": 0.76,
+    "gap_pct": 48.19,
+    "rvol": 32.3,
+    "edge_ratio": 6.68,
+    "prior_sessions": 1438,
+    "range_atr": 0.3,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 18.46,
+    "hve_low": 18.36,
+    "base20_range_pct": 15.0,
+    "run_prior_20d_pct": 14.9,
+    "breakout20": true,
+    "setup_score": 9,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -0.1,
+    "fwd_closes_above_hvc": 19,
+    "fwd_reclaim_session": 3,
+    "fwd_max_gain_pct": 0.9,
+    "fwd_5d_pct": 0.0,
+    "fwd_10d_pct": 0.3,
+    "fwd_20d_pct": 0.2,
+    "avg_dollar_volume_m": 6.0,
+    "known_name": false,
+    "earnings_dates_near": [
+     "2026-08-10"
+    ],
+    "earnings_day": true,
+    "earnings_history": true
+   },
+   "q": 10.12
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "BAK",
+   "asof": "2023-05-05",
+   "year": 2023,
+   "close": 9.17,
+   "facts": {
+    "day_pct": 20.82,
+    "close_pos": 0.35,
+    "gap_pct": 1.19,
+    "rvol": 16.1,
+    "edge_ratio": 7.55,
+    "prior_sessions": 622,
+    "range_atr": 13.37,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": false,
+    "hvc": 9.17,
+    "hve_low": 7.65,
+    "base20_range_pct": 14.5,
+    "run_prior_20d_pct": -1.4,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -3.9,
+    "fwd_closes_above_hvc": 15,
+    "fwd_reclaim_session": 19,
+    "fwd_max_gain_pct": 23.8,
+    "fwd_5d_pct": 7.6,
+    "fwd_10d_pct": 4.1,
+    "fwd_20d_pct": 6.7,
+    "avg_dollar_volume_m": 5.6,
+    "known_name": false,
+    "earnings_dates_near": [
+     "2023-05-07"
+    ],
+    "earnings_day": true,
+    "earnings_history": true
+   },
+   "q": 10.11
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "RKT",
+   "asof": "2021-03-02",
+   "year": 2021,
+   "close": 41.6,
+   "facts": {
+    "day_pct": 71.19,
+    "close_pos": 0.91,
+    "gap_pct": 12.51,
+    "rvol": 33.4,
+    "edge_ratio": 7.48,
+    "prior_sessions": 73,
+    "range_atr": 13.67,
+    "detector_fires": false,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": true,
+    "hvc": 41.6,
+    "hve_low": 26.95,
+    "base20_range_pct": 18.1,
+    "run_prior_20d_pct": 12.8,
+    "breakout20": true,
+    "setup_score": 9,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -46.0,
+    "fwd_closes_above_hvc": 0,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": -5.1,
+    "fwd_5d_pct": -38.7,
+    "fwd_10d_pct": -39.9,
+    "fwd_20d_pct": -44.2,
+    "avg_dollar_volume_m": 455.3,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 10.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "FIVN",
+   "asof": "2021-07-19",
+   "year": 2021,
+   "close": 188.12,
+   "facts": {
+    "day_pct": 5.92,
+    "close_pos": 0.77,
+    "gap_pct": 5.92,
+    "rvol": 18.6,
+    "edge_ratio": 3.55,
+    "prior_sessions": 168,
+    "range_atr": 1.22,
+    "detector_fires": false,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": true,
+    "hvc": 188.12,
+    "hve_low": 183.16,
+    "base20_range_pct": 9.0,
+    "run_prior_20d_pct": -3.1,
+    "breakout20": false,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -2.4,
+    "fwd_closes_above_hvc": 19,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 12.5,
+    "fwd_5d_pct": 5.4,
+    "fwd_10d_pct": 7.3,
+    "fwd_20d_pct": -2.4,
+    "avg_dollar_volume_m": 141.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 10.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "TASK",
+   "asof": "2025-05-09",
+   "year": 2025,
+   "close": 16.85,
+   "facts": {
+    "day_pct": 17.18,
+    "close_pos": 0.74,
+    "gap_pct": 13.49,
+    "rvol": 21.7,
+    "edge_ratio": 5.59,
+    "prior_sessions": 982,
+    "range_atr": 1.59,
+    "detector_fires": true,
+    "ever_in_data": false,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 16.85,
+    "hve_low": 16.28,
+    "base20_range_pct": 14.3,
+    "run_prior_20d_pct": 16.6,
+    "breakout20": true,
+    "setup_score": 9,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -1.8,
+    "fwd_closes_above_hvc": 2,
+    "fwd_reclaim_session": 9,
+    "fwd_max_gain_pct": 0.7,
+    "fwd_5d_pct": -1.5,
+    "fwd_10d_pct": -0.6,
+    "fwd_20d_pct": -1.0,
+    "avg_dollar_volume_m": 5.5,
+    "known_name": false,
+    "earnings_dates_near": [
+     "2025-05-09"
+    ],
+    "earnings_day": true,
+    "earnings_history": true
+   },
+   "q": 9.11
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "BIIB",
+   "asof": "2021-06-07",
+   "year": 2021,
+   "close": 395.85,
+   "facts": {
+    "day_pct": 38.34,
+    "close_pos": 0.6,
+    "gap_pct": 3.22,
+    "rvol": 17.4,
+    "edge_ratio": 3.75,
+    "prior_sessions": 139,
+    "range_atr": 24.19,
+    "detector_fires": false,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": true,
+    "hvc": 395.85,
+    "hve_low": 286.0,
+    "base20_range_pct": 6.8,
+    "run_prior_20d_pct": 4.4,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -14.0,
+    "fwd_closes_above_hvc": 5,
+    "fwd_reclaim_session": 2,
+    "fwd_max_gain_pct": 8.0,
+    "fwd_5d_pct": 2.6,
+    "fwd_10d_pct": -3.8,
+    "fwd_20d_pct": -12.9,
+    "avg_dollar_volume_m": 379.1,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 9.0
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "HIMX",
+   "asof": "2026-03-12",
+   "year": 2026,
+   "close": 10.13,
+   "facts": {
+    "day_pct": 10.71,
+    "close_pos": 0.04,
+    "gap_pct": 28.63,
+    "rvol": 31.2,
+    "edge_ratio": 8.37,
+    "prior_sessions": 1335,
+    "range_atr": 4.63,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 10.13,
+    "hve_low": 10.05,
+    "base20_range_pct": 20.4,
+    "run_prior_20d_pct": 10.9,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -26.2,
+    "fwd_closes_above_hvc": 0,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 13.7,
+    "fwd_5d_pct": -11.3,
+    "fwd_10d_pct": -17.6,
+    "fwd_20d_pct": -9.1,
+    "avg_dollar_volume_m": 12.1,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 8.24
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "SEPN",
+   "asof": "2025-05-14",
+   "year": 2025,
+   "close": 10.16,
+   "facts": {
+    "day_pct": 50.97,
+    "close_pos": 0.58,
+    "gap_pct": 60.77,
+    "rvol": 128.0,
+    "edge_ratio": 4.38,
+    "prior_sessions": 136,
+    "range_atr": 5.37,
+    "detector_fires": false,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": true,
+    "hvc": 10.16,
+    "hve_low": 8.51,
+    "base20_range_pct": 23.9,
+    "run_prior_20d_pct": 7.0,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -10.8,
+    "fwd_closes_above_hvc": 5,
+    "fwd_reclaim_session": 15,
+    "fwd_max_gain_pct": 8.1,
+    "fwd_5d_pct": -10.8,
+    "fwd_10d_pct": -3.0,
+    "fwd_20d_pct": 2.5,
+    "avg_dollar_volume_m": 8.0,
+    "known_name": false,
+    "earnings_dates_near": [
+     "2025-05-15"
+    ],
+    "earnings_day": true,
+    "earnings_history": true
+   },
+   "q": 8.16
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "TH",
+   "asof": "2026-04-01",
+   "year": 2026,
+   "close": 12.66,
+   "facts": {
+    "day_pct": 36.42,
+    "close_pos": 0.55,
+    "gap_pct": 33.84,
+    "rvol": 22.1,
+    "edge_ratio": 6.61,
+    "prior_sessions": 60,
+    "range_atr": 3.11,
+    "detector_fires": false,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": true,
+    "hvc": 12.66,
+    "hve_low": 11.89,
+    "base20_range_pct": 20.2,
+    "run_prior_20d_pct": 15.3,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": 7.6,
+    "fwd_closes_above_hvc": 20,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 27.3,
+    "fwd_5d_pct": 17.7,
+    "fwd_10d_pct": 15.9,
+    "fwd_20d_pct": 14.8,
+    "avg_dollar_volume_m": 5.4,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 10.11
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "ZNTL",
+   "asof": "2026-04-10",
+   "year": 2026,
+   "close": 6.61,
+   "facts": {
+    "day_pct": 49.55,
+    "close_pos": 0.86,
+    "gap_pct": 2.26,
+    "rvol": 50.1,
+    "edge_ratio": 2.92,
+    "prior_sessions": 1355,
+    "range_atr": 7.26,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 6.61,
+    "hve_low": 4.52,
+    "base20_range_pct": 52.5,
+    "run_prior_20d_pct": 60.7,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -41.9,
+    "fwd_closes_above_hvc": 0,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 3.6,
+    "fwd_5d_pct": -29.8,
+    "fwd_10d_pct": -39.8,
+    "fwd_20d_pct": -33.3,
+    "avg_dollar_volume_m": 5.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true
+   },
+   "q": 8.11
   }
  ],
  "kicker_pass2": {
@@ -10764,6 +13074,422 @@
      ]
     }
    ]
+  },
+  {
+   "generated": "2026-11-05",
+   "script": "scripts/study/fill_setup_facts.py",
+   "why": "the lesson line read facts the scan had not stored and printed None%; the test is now measured against the gap-up day's low, the level the owner ruled on 2026-10-26/27",
+   "examples": [
+    {
+     "setup": "Gap Support",
+     "sym": "OKTA",
+     "asof": "2026-06-18",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "FIVN",
+     "asof": "2026-06-26",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "RGTI",
+     "asof": "2025-08-22",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TOST",
+     "asof": "2025-01-13",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "BRSL",
+     "asof": "2023-07-06",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TTMI",
+     "asof": "2026-05-19",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "VRT",
+     "asof": "2026-03-31",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "TTWO",
+     "asof": "2025-04-07",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "NTRA",
+     "asof": "2024-01-29",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "SHOP",
+     "asof": "2025-09-29",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "THC",
+     "asof": "2022-02-24",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "MQ",
+     "asof": "2023-08-25",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "DVA",
+     "asof": "2023-06-28",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "JBL",
+     "asof": "2024-02-01",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "MARA",
+     "asof": "2024-01-19",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    },
+    {
+     "setup": "Gap Support",
+     "sym": "WHD",
+     "asof": "2024-07-10",
+     "added": [
+      "reclaim_sessions",
+      "reclaimed_in_forward"
+     ]
+    }
+   ]
   }
- ]
+ ],
+ "slingshot_pass3": {
+  "generated": "2026-11-05",
+  "scanned": 647,
+  "detector_fires": 12545,
+  "passing": 34,
+  "seconds": 18,
+  "why": "the pass-2 finder (gallery score v3 from his perfect / beautiful charts: earnings-style drive, orderly pullback, decisive but technical trigger, no gap, no drama) on the local bars; fresh symbols only, an earnings-style drive first, the trigger day never an earnings day, no ETF",
+  "script": "scripts/study/find_slingshot_examples.py",
+  "bars": "local sandbox copy of the pod bars (bars.db dump of 2026-11-04, 734 daily tickers)",
+  "earnings": "yfinance reported earnings dates, within 3 days of the chart's last bar",
+  "added": [
+   {
+    "setup": "Slingshot",
+    "sym": "THC",
+    "asof": "2023-12-08"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "ROKU",
+    "asof": "2025-06-24"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "SMG",
+    "asof": "2023-12-01"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "SNOW",
+    "asof": "2026-05-15"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "RUN",
+    "asof": "2023-11-28"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "NTR",
+    "asof": "2022-02-24"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "GKOS",
+    "asof": "2026-07-02"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "RVLV",
+    "asof": "2025-12-19"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "COF",
+    "asof": "2024-11-05"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "GME",
+    "asof": "2024-11-08"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "HPQ",
+    "asof": "2026-05-21"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "URI",
+    "asof": "2023-11-10"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "FTI",
+    "asof": "2024-03-13"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "AFRM",
+    "asof": "2025-08-22"
+   }
+  ]
+ },
+ "gap_support_pass3": {
+  "generated": "2026-11-05",
+  "scanned": 656,
+  "detector_fires": 9618,
+  "passing": 92,
+  "seconds": 30,
+  "why": "the finder with his 2026-10-26/27 rulings (the level is the gap-up day's low; held > slight breach > fill and reclaim; gaps up only, never in a downtrend) on the local bars; fresh symbols, one pick per date, gaps of 4% or more, the test day never an earnings day",
+  "script": "scripts/study/find_gap_support_examples.py",
+  "bars": "local sandbox copy of the pod bars (bars.db dump of 2026-11-04, 734 daily tickers)",
+  "earnings": "yfinance reported earnings dates, within 3 days of the chart's last bar",
+  "added": [
+   {
+    "setup": "Gap Support",
+    "sym": "OKTA",
+    "asof": "2026-06-18"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "FIVN",
+    "asof": "2026-06-26"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "RGTI",
+    "asof": "2025-08-22"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "TOST",
+    "asof": "2025-01-13"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "BRSL",
+    "asof": "2023-07-06"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "TTMI",
+    "asof": "2026-05-19"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "VRT",
+    "asof": "2026-03-31"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "TTWO",
+    "asof": "2025-04-07"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "NTRA",
+    "asof": "2024-01-29"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "SHOP",
+    "asof": "2025-09-29"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "THC",
+    "asof": "2022-02-24"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "MQ",
+    "asof": "2023-08-25"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "DVA",
+    "asof": "2023-06-28"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "JBL",
+    "asof": "2024-02-01"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "MARA",
+    "asof": "2024-01-19"
+   },
+   {
+    "setup": "Gap Support",
+    "sym": "WHD",
+    "asof": "2024-07-10"
+   }
+  ]
+ },
+ "kicker_pass5": {
+  "generated": "2026-11-05",
+  "scanned": 656,
+  "seconds": 20,
+  "kicker_passing": 8,
+  "why": "the pass-4 finder (his trapped-sellers rules: a real red day closing weak, an almost-failed breakdown, then the gap that closes above the red day's high) on the local bars; fresh symbols, never within 3 days of an earnings date (an earnings-day gap is an earnings gapper, his 2026-10-24 ruling)",
+  "script": "scripts/study/find_pass4_examples.py",
+  "bars": "local sandbox copy of the pod bars (bars.db dump of 2026-11-04, 734 daily tickers)",
+  "earnings": "yfinance reported earnings dates, within 3 days of the chart's last bar",
+  "added": [
+   {
+    "setup": "Kicker Candle",
+    "sym": "RH",
+    "asof": "2023-01-04"
+   },
+   {
+    "setup": "Kicker Candle",
+    "sym": "ROKU",
+    "asof": "2025-08-04"
+   }
+  ]
+ },
+ "hve_pass4": {
+  "generated": "2026-11-05",
+  "scanned": 698,
+  "passing": 170,
+  "seconds": 13,
+  "why": "the pass-4 finder (his definition confirmed 2026-10-25: the record volume of the lookback, ten times normal, up day, OPEX and month-end excluded) on the local bars; fresh and lesser-known names first, an up day of 5% or more, an earnings day only when the volume is truly massive",
+  "script": "scripts/study/find_hve_examples.py",
+  "bars": "local sandbox copy of the pod bars (bars.db dump of 2026-11-04, 734 daily tickers)",
+  "earnings": "yfinance reported earnings dates, within 3 days of the chart's last bar",
+  "added": [
+   {
+    "setup": "High Volume Edge",
+    "sym": "MGRC",
+    "asof": "2024-01-29"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "VREX",
+    "asof": "2026-08-10"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "BAK",
+    "asof": "2023-05-05"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "RKT",
+    "asof": "2021-03-02"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "FIVN",
+    "asof": "2021-07-19"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "TASK",
+    "asof": "2025-05-09"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "BIIB",
+    "asof": "2021-06-07"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "HIMX",
+    "asof": "2026-03-12"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "SEPN",
+    "asof": "2025-05-14"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "TH",
+    "asof": "2026-04-01"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "ZNTL",
+    "asof": "2026-04-10"
+   }
+  ]
+ }
 }

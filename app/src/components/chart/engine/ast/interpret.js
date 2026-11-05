@@ -2501,6 +2501,66 @@ const windowFn = (name) => (series, n) =>
  *  that removes nothing: ARITY 1 is Pine's, arity 2 is still the house
  *  function's, and no call that worked before this wave answers differently.
  */
+/** ─── ⭐⭐ W4 T10 — STATE KERNELS OVER A VALUE THE RUN COMPUTES ──────────────
+ *
+ *  `ta.cum`, `ta.pivothigh`/`ta.pivotlow` (here, one input) and `ta.stoch`,
+ *  `ta.vwap(source)` (`CARRIED2`, three inputs) used to refuse
+ *  `runtime:call-windowed-state` whenever their source was a mutable variable.
+ *  Each is the columnar lane's arithmetic stepped one bar at a time: the rail
+ *  `w4StateKernels.test.js` holds every one to the COLUMNAR answer on the same
+ *  numbers (the differential), so the arithmetic below has no second meaning.
+ *
+ *  ⭐ `cumPine` — `cumCol`'s loop. A non-finite value blanks THAT bar and the
+ *  running total HOLDS (it neither resets nor poisons). One cell.
+ */
+const CUM_PINE_CELLS = 1
+function cumPineInit(st, off) { st[off] = 0 }
+function cumPineStep(st, off, v) {
+  if (!Number.isFinite(v)) return NaN      // the total is held, as `cumCol` holds `total`
+  st[off] += v
+  return st[off]
+}
+
+/** ⭐ `pivotHighPine` / `pivotLowPine` — `pivotCol` run at the CONFIRMATION bar.
+ *
+ *  Pine's `ta.pivothigh(src, left, right)` answers on the bar `right` bars AFTER
+ *  the pivot, with the pivot's price: `pivotCol`'s value at the centre, read
+ *  `right` bars later (`pine.js::pivotAtConfirmation` writes it as `[right]`). So
+ *  the kernel holds the last `span = left + right + 1` values, and when the
+ *  window is full judges the CENTRE, `right` slots from the newest. The rule is
+ *  `pivotCol`'s verbatim (see its comment): the left side admits a tie, the right
+ *  does not, and a hole anywhere in the window makes the answer unknown.
+ *
+ *  ⭐ `n` IS THE SPAN and `m` IS `right`: the table's one-length signature cannot
+ *  carry two numbers, so the plan entry carries the second beside the first and
+ *  `step` receives it as its sixth argument. Cells: the ring, a cursor, a count.
+ */
+const PIVOT_PINE_CELLS = (n) => n + 2
+function pivotPineInit(st, off, n) {
+  for (let i = 0; i < n; i += 1) st[off + i] = NaN
+  st[off + n] = 0         // write cursor
+  st[off + n + 1] = 0     // values seen, saturating at n
+}
+const pivotPineStep = (beats) => (st, off, v, n, _k, right) => {
+  const w = st[off + n]
+  st[off + w] = v
+  const next = (w + 1) % n
+  st[off + n] = next
+  const seen = st[off + n + 1]
+  if (seen < n) st[off + n + 1] = seen + 1
+  if (seen + 1 < n) return NaN
+  // The oldest value sits at the cursor; the centre is `n - 1 - right` after it.
+  const centreAt = n - 1 - right
+  const c = st[off + ((next + centreAt) % n)]
+  if (Number.isNaN(c)) return NaN
+  for (let j = 0; j < n; j += 1) {
+    if (j === centreAt) continue
+    const x = st[off + ((next + j) % n)]
+    if (Number.isNaN(x) || !(beats(c, x) || (j < centreAt && c === x))) return NaN
+  }
+  return c
+}
+
 export const CARRIED = Object.freeze({
   ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
   rma: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 1 / n },
@@ -2571,6 +2631,17 @@ export const CARRIED = Object.freeze({
   // bare-name lookup can never reach it from the columnar lane. It is held to the
   // shipped `computeRSI` in `runtimeRsiHma.test.js` instead.
   rsiPine: { cells: RSI_PINE_CELLS, init: rsiPineInit, step: rsiPineStep, runtimeOnly: true },
+  // ⭐⭐ W4 T10 — the state kernels (see the block above `CARRIED`). `runtimeOnly`
+  // for the reason `rsiPine` is: the derived `ta.<key>(source, 6)` differential
+  // would spell a key that is not a Pine name. `w4StateKernels.test.js` holds each
+  // to the columnar answer itself. `cells` of the pivots is a FUNCTION of the span.
+  cumPine: { cells: CUM_PINE_CELLS, init: cumPineInit, step: cumPineStep, runtimeOnly: true },
+  pivotHighPine: {
+    cells: PIVOT_PINE_CELLS, init: pivotPineInit, step: pivotPineStep((a, b) => a > b), runtimeOnly: true,
+  },
+  pivotLowPine: {
+    cells: PIVOT_PINE_CELLS, init: pivotPineInit, step: pivotPineStep((a, b) => a < b), runtimeOnly: true,
+  },
 })
 
 /** ─── ⭐⭐ TWO-INPUT CARRIED STATE — PINE'S `ta.valuewhen` ──────────────────
@@ -2671,6 +2742,75 @@ const crossStep = (fired) => (st, off, a, b) => {
   return fired(a, b, ap, bp) ? 1 : 0
 }
 
+/** ⭐ `stochPine(close, high, low, n)` — `computeStochastic`'s fast %K, a bar at
+ *  a time. Rings of the last `n` highs and lows, a cursor and a count.
+ *
+ *  ⛔ A NON-FINITE INPUT RESTARTS THE WINDOW. The columnar binding
+ *  (`bindShipped` -> `finiteTailStart`) starts its column after the LAST
+ *  non-finite value of ANY argument, which no forward pass can know; the causal
+ *  form of the same rule is "restart after each one". They agree on every series
+ *  whose holes are a leading prefix (a warm-up), which is the case a source
+ *  computed by the run presents, and on the part of a gappy series after its
+ *  final hole. A zero range is 50, `computeStochastic`'s own answer. */
+const STOCH_PINE_CELLS = (n) => 2 * n + 2
+function stochPineInit(st, off, n) {
+  for (let i = 0; i < 2 * n + 2; i += 1) st[off + i] = 0
+}
+function stochPineStep(st, off, c, h, n, l) {
+  const curAt = off + 2 * n
+  const seenAt = curAt + 1
+  if (!Number.isFinite(c) || !Number.isFinite(h) || !Number.isFinite(l)) {
+    st[curAt] = 0
+    st[seenAt] = 0
+    return NaN
+  }
+  const w = st[curAt]
+  st[off + w] = h
+  st[off + n + w] = l
+  st[curAt] = (w + 1) % n
+  const seen = st[seenAt] < n ? st[seenAt] + 1 : n
+  st[seenAt] = seen
+  if (seen < n) return NaN
+  let lowestLow = Infinity
+  let highestHigh = -Infinity
+  for (let j = 0; j < n; j += 1) {
+    if (st[off + n + j] < lowestLow) lowestLow = st[off + n + j]
+    if (st[off + j] > highestHigh) highestHigh = st[off + j]
+  }
+  const range = highestHigh - lowestLow
+  return range === 0 ? 50 : ((c - lowestLow) / range) * 100
+}
+
+/** ⭐ `vwapPine(sessionKey, price, 0, volume)` — `computeVWAP(bars, price)`'s
+ *  session accumulator, a bar at a time. The session key is the ET calendar day
+ *  the front end builds from the clock fields (`computeVWAP`'s own bucket), a
+ *  new key zeroes the sums, and a non-finite price blanks the REST OF ITS
+ *  SESSION (the `cumFrom` rule). No readable instant (`na` key) answers `na`,
+ *  `computeVWAP`'s unit gate taken per bar. `n` is unread. */
+const VWAP_PINE_CELLS = () => 4
+function vwapPineInit(st, off) {
+  st[off] = 0           // sum of price * volume
+  st[off + 1] = 0       // sum of volume
+  st[off + 2] = NaN     // the session in force
+  st[off + 3] = 0       // 1 once a price in this session was not finite
+}
+function vwapPineStep(st, off, key, price, _n, volume) {
+  if (!Number.isFinite(key)) return NaN
+  if (key !== st[off + 2]) {
+    st[off] = 0
+    st[off + 1] = 0
+    st[off + 2] = key
+    st[off + 3] = 0
+  }
+  if (st[off + 3] === 1 || !Number.isFinite(price)) {
+    st[off + 3] = 1
+    return NaN
+  }
+  st[off] += price * volume
+  st[off + 1] += volume
+  return st[off + 1] > 0 ? st[off] / st[off + 1] : NaN
+}
+
 export const CARRIED2 = Object.freeze({
   valuewhen: {
     cells: VALUEWHEN_CELLS, init: valueWhenPineInit, step: valueWhenPineStep,
@@ -2681,6 +2821,11 @@ export const CARRIED2 = Object.freeze({
   crossOver: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_OVER_FIRED) },
   crossUnder: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_UNDER_FIRED) },
   crossAny: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_ANY_FIRED) },
+  // ⭐⭐ W4 T10 — THREE-INPUT MEMBERS (`inputs: 3`): the VM pops a third value
+  // and hands it to `step` as its sixth argument. The step reads
+  // `(st, off, first, second, n, third)`, the order the front end pushes them.
+  stochPine: { cells: STOCH_PINE_CELLS, init: stochPineInit, step: stochPineStep, inputs: 3 },
+  vwapPine: { cells: VWAP_PINE_CELLS, init: vwapPineInit, step: vwapPineStep, inputs: 3 },
 })
 
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime

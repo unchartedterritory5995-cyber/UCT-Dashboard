@@ -28,6 +28,7 @@ import { drainOutbox } from './outboxDrain'
 import { listBlockedNoteIds } from './blockedNotes'
 import { BLOCKED_BADGE, BLOCKED_TITLE, blockedLabel, unsyncedLabel, savedLocally } from './unsyncedCopy'
 import { AuthContext } from '../../../../context/AuthContext'
+import { chooseView } from '../../tabs/__tests__/toolbarDoors'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -252,7 +253,9 @@ describe('⭐ THE TABLE VIEW SAYS THE SAME THING', () => {
     await settleIdb()
 
     await renderTab()
-    await act(async () => { screen.getByTitle('Table view').click(); await settleIdb(4) })
+    // S11: the member's own control is the View menu's Table row now.
+    chooseView('Table')
+    await act(async () => { await settleIdb(4) })
 
     await waitFor(() => expect(screen.getByText(BLOCKED_BADGE)).toBeInTheDocument())
   })

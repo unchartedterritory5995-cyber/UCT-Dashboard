@@ -15,7 +15,8 @@ import { registerCapability, registerTargetKind, registerContextProvider, getTar
 import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
-import { findTarget } from '../guide/targets'
+import { findTarget, startIndex, unclip } from '../guide/targets'
+import { stepsFor, titleFor } from '../guide/slots'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
@@ -44,35 +45,32 @@ function guideChart(host) {
   try { sel = host?.charts?.selected?.() || null } catch { sel = null }
   return charts.find(c => c.ref === sel) || charts[0]
 }
-const needsChart = (f) => f.steps.some(s => typeof s.target === 'string' && (s.target.startsWith('chart.') || s.target.startsWith('widget.')))
+const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : !!t?.id && scoped(t.id))
 
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
-export function showFeature(f, host) {
+export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
-  const chart = needsChart(f) ? guideChart(host) : null
-  if (needsChart(f) && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
+  const steps = stepsFor(f, words)
+  const needsChart = steps.some(s => scoped(s.target))
+  const chart = needsChart ? guideChart(host) : null
+  if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
-  // an optional opening step (the board's own watchlist) only when it is there
   // ⭐ Multi Chart: a cell has no "more timeframes" menu or drawing strip, so a chart step past the first goes unless it is there
   const absentOnCell = (s, i) => host?.multiChart && i > 0 && String(s.target).startsWith('chart.')
-  const all = f.steps.filter((s, i) => !(s.optional || absentOnCell(s, i)) || findTarget(s.target, { chartRef }))
+  // an optional opening step (the board's own watchlist) only when it is there
+  const all = steps.filter((s, i) => !((s.optional && !s.late) || absentOnCell(s, i)) || findTarget(s.target, { chartRef }))
   // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
   // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
-  // walkthrough starts — never "open the gear" when the settings are already open.
-  let from = 0
-  for (let i = all.length - 1; i > 0; i--) {
-    const prev = all[i - 1]
-    if (prev.waitFor && findTarget(prev.waitFor, { chartRef }) && findTarget(all[i].target, { chartRef })) { from = i; break }
-  }
-  const steps = all.slice(from)
-  const first = steps[0]
-  if (!first || !findTarget(first.target, { chartRef })) {
+  // walkthrough starts — never "open the gear" when the settings are already open. The steps before it stay in the list.
+  const from = startIndex(all, { chartRef })
+  const first = all[from]
+  if (!first || !(findTarget(first.target, { chartRef }) || unclip(first.target, { chartRef }))) {
     // ⭐ Multi Chart: a cell carries its ticker and timeframe controls only; the rest of a chart's header is not on it
     if (host?.multiChart) return `That control isn’t on a Multi Chart cell, so I can’t point at it here — exit Multi Chart to see it. ${f.explain}`
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
   }
   if (guideState()) endGuide('replaced')
-  startGuide(f, { chartRef, chartLabel: chart?.label || null, steps })
+  startGuide({ ...f, title: titleFor(f, words) }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
   return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
@@ -82,10 +80,12 @@ export function showFeature(f, host) {
  * "now do it for me" after a walkthrough → null (not that) | { say } | { ask: { text, choices, ops, pickArg } } |
  * { ops } — the feature's EXISTING capability, aimed at the chart the walkthrough was on (if it is still there).
  */
-const DO_IT = /^(?:(?:ok|okay|now|then|great|cool|alright|actually)[,!.]?\s+)*(?:(?:can|could|would) you |please |just |go ahead and )*(?:do it|do that|do this|change it|set it|you do it|do that one)(?: for me| instead| please| then)*[.!?]*$/i
+const DO_IT = /^(?:(?:ok|okay|now|then|great|cool|alright|actually|no|nah)[,!.]?\s+)*(?:(?:can|could|would|will) you |please |just |go ahead and |i'?d rather you |i want you to )*(?:do it|do that|do this|change it|set it|you do it|do that one|handle it)(?: for me| instead| please| then| yourself)*[.!?]*$/i
 export function doItForMe(text, host) {
   if (!DO_IT.test(String(text || '').trim())) return null
-  const last = lastShownGuide()
+  // while a walkthrough is on screen it is the one meant, however long the member has been at it
+  const running = guideState()
+  const last = running ? { featureId: running.feature.id, chartRef: running.chartRef } : lastShownGuide()
   const f = last ? guideFeature(last.featureId) : null
   if (!f) return null
   const d = f.doIt || {}
@@ -169,25 +169,26 @@ export function registerGuideCapabilities() {
     ...common,
     name: 'guide.show',
     summary: 'SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for "where do I…", "show me how to…", "how do I…" questions, never to do the thing.',
-    hints: `target = the guide entry. feature = one of: ${featuresOn('charts').map(f => `${f.id} (${f.title.toLowerCase()})`).join('; ')}. Other pages, only there: ${GUIDE_FEATURES.filter(f => f.surface).map(f => `${f.id} (${f.surface})`).join(', ')}. A request to DO it ("change my chart to weekly") is a command, not this.`,
-    args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS } }, required: ['feature'], additionalProperties: false },
+    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
+    args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS }, detail: { type: ['string', 'null'] } }, required: ['feature', 'detail'], additionalProperties: false },
+    absentAsNull: ['detail'],
     fast: ({ raw, host }) => {
       const q = String(raw || '').trim()
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
       const f = matchFeature(q, null, here)
-      if (f) return { feature: f.id }
+      if (f) return f.slots ? { feature: f.id, detail: q } : { feature: f.id }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
       const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
       return charts?.everyPage ? { feature: charts.id } : null
     },
-    answer: (_snap, { feature }, host, ctx) => {
+    answer: (_snap, { feature, detail }, host, ctx) => {
       const f = guideFeature(feature)
       // ⭐ W2-C2: a feature of another page is never highlighted here (its control is not on this screen)
       const here = host?.surface || ctx?.surface || 'charts'
       if (f && surfaceOf(f) !== here) return surfaceOf(f) === 'charts' ? `${f.title} is on the Charts page — open Charts and ask me again there.` : `${f.title} is on the ${surfaceOf(f).replace(/^./, ch => ch.toUpperCase())} page — open it and ask me again there.`
       if (f && ctx && !guideFeatures(ctx).includes(f)) return `${f.title} isn’t available on your account here.`
-      return showFeature(f, host)
+      return showFeature(f, host, detail)
     },
   })
 }

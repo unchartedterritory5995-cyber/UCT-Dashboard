@@ -823,7 +823,7 @@ const CAPABILITIES = [
   },
   {
     // ── chart.replay (W1-B B-06): Tools → Replay Mode — the workspace's ONE shared cutoff (ChartsWorkspace replayCutoff,
-    // StockChart's `replayCutoff` prop): every linked chart hides the bars after it. A VIEW: nothing is saved; the Replay
+    // StockChart's `replayCutoff` prop): every chart in the workspace hides the bars after it, linked or not. A VIEW: nothing is saved; the Replay
     // dialog's own startReplay / exitReplayMode write it; Undo puts the previous cutoff back (off → every bar is back).
     name: 'chart.replay',
     summary: 'Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).',
@@ -850,8 +850,8 @@ const CAPABILITIES = [
     },
     describe(b, a) {
       if ((b.replay ?? null) === (a.replay ?? null)) return null
-      if (a.replay == null) return 'Exited Replay Mode — every bar is back on the linked charts'
-      return `Replay Mode: the linked charts show bars up to ${dayWord(a.replay)} and hide what came after (a view only — nothing is saved; exit replay to see every bar again)`
+      if (a.replay == null) return 'Exited Replay Mode — every bar is back on every chart'
+      return `Replay Mode: every chart in this workspace shows bars up to ${dayWord(a.replay)} and hides what came after (a view only — nothing is saved; exit replay to see every bar again)`
     },
     noop: (b, a, { date } = {}) => (date == null ? 'Replay Mode is already off' : 'Replay is already at that date'),
   },

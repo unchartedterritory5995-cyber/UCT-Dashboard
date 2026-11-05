@@ -185,7 +185,7 @@ describe('ImportRepairNotice on Research Home', () => {
     render(<Providers route="/journal/notebook">{wrap(<NotebookTab />)}</Providers>)
     await screen.findAllByText('Theses') // the folder tree is real and fed by the fixtures
     // Non-vacuity: this IS Research Home, not a list (the list's view switcher is absent).
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'List view' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull())
     await settle()
   }
 

@@ -531,3 +531,14 @@
     min-height: 44px;
   }
 }
+
+/* S14: the "?" to Import's own Quick Answer, with the words it answers. */
+.helpRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}

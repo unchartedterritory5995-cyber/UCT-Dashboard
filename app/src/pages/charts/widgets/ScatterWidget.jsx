@@ -474,7 +474,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
       {/* Toolbar: a row of saved-universe TABS (switch / delete) + a ＋ to add one;
           gear on the right. The X/Y axes are chosen by clicking the axis titles. */}
       <div className={chrome.toolbar}>
-        <div className={styles.uniTabs}>
+        <div className={styles.uniTabs} data-guide="scatter.universes">
           {universes.map((u, i) => (
             <span key={`${u.source}:${u.value ?? ''}:${i}`}
               className={`${styles.uniTab}${i === active && !showingLinked ? ' ' + styles.uniTabActive : ''}`}
@@ -520,7 +520,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
         </button>
         <span className={chrome.spacer} />
         <button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
           <UIcon name="gear" size={13} gold={false} />
         </button>
       </div>
@@ -558,7 +558,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
                 {yMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
               </button>
             </div>
-            <button type="button" className={`${styles.axisSel} ${styles.axisX}`} onClick={(e) => toggleMenu('x', e)}>
+            <button type="button" className={`${styles.axisSel} ${styles.axisX}`} data-guide="scatter.axisX" onClick={(e) => toggleMenu('x', e)}>
               {xMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
             </button>
             <button type="button" className={styles.axisSize} onClick={(e) => toggleMenu('size', e)}>
