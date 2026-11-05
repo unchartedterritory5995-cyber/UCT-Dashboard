@@ -40,6 +40,9 @@ Sets `RUN=$UCT_RESUME/runs/<lane>/` (created) and `LOCK_MUT LOCK_MP2 LOCK_MP3 LO
 `$UCT_RESUME/dsk/heavy-<kind>-<lane>.lock`. Use: `"$UCT_PY" "$HEAVY_LOCK" run --path "$LOCK_FINAL2" -- bash $RUN/job.sh`.
 Prints an error and returns 1 (exports nothing, creates nothing) if the lane name is unsafe or any path resolves under
 `C:/Users/Patrick/.claude/` (case-insensitive, Windows or POSIX spelling).
+`ram_gate` (waits until free RAM >= 6000 MB, `RAM_GATE_MB` overrides; gives up after `RAM_GATE_MAX_WAIT`, default 6 h, so it
+always ends) runs before every lock acquisition: `hl` calls it, and `lock_run <LOCKVAR> <label> -- cmd...` is the lane-lock
+equivalent (`lock_run LOCK_FINAL2 mylane-final -- bash $RUN/job.sh`). Prefer `lock_run` over raw `heavy_lock.py run`.
 Note: lane-scoped lock files do not exclude each other; "one heavy job at a time" across lanes is still on you, so keep
 using the machine lock rule in BUILDER-RULES unless the coordinator allows concurrency.
 
@@ -55,4 +58,20 @@ then `git worktree remove` without `--force` from the main worktree. The branch 
   junction target (372 entries) intact.
 - lane_env: ok for a normal lane; refused a lane name with a space and a `.claude` UCT_RESUME (both spellings).
 - final-tip dirty tree: exit 5, no output files.
-RESULTS_PLACEHOLDER
+- measure-pair BASE CACHE (pine-dsk-mpbase2 at b8e86984, HEAD identical before and after every side, runtime 1, census 0):
+  run 1 = MISS then FILLED, base side 465 s (22:04:17 to 22:12:02); run 2 = `BASE CACHE HIT b8e869840657-rt1-cen0-base-3be8c27fca46f109`,
+  base side 2 s. Saving 463 s per base side (whole run 835 s to 562 s; the remainder is the tip side). Cached out-base.json,
+  probe-base.json and harness-base are byte-identical to the fresh run's.
+- final-tip FULL, FINAL_TIP_SHARDS=2 FINAL_TIP_PARALLEL=1 (--maxWorkers=2 each, so 4 workers) on a docs tree: vitest phase
+  22:33:55 to 23:01:47 (28 min; gate pytest alone is 4 min). `AGG Test Files 2 failed | 1321 passed | 27 skipped`,
+  `AGG Tests 2 failed | 22230 passed | 118 skipped | 1 todo`; the two failures are the known baseline pair
+  (pollingSites.rail, vendorHarness coverage audit) on this older-master tree. RAM: free fell from 9.3 GB to a 2.7 GB minimum
+  (about 6.5 GB for two parallel shards; other sessions were running too, so treat it as an upper bound). Sequential shards
+  need the RAM of one. With the box under 6 GB free, use sequential shards or none.
+- final-tip AFFECTED (`FINAL_TIP_BASE=HEAD~1`, a made-up rails path): the mode ran and wrote TIP/FINAL_DONE (scope=affected);
+  `--changed` hit an unhandled `@picovoice/web-voice-processor` resolve error because this worktree borrows pine-base's
+  node_modules (older tree), and the fake rails path reported "No test files found". That is the environment, not the
+  script; use it on a lane worktree with its own matching node_modules. Total 438 s, nearly all of it the 4 min gate pytest.
+- ready-check dogfood: this branch passes it against the opsspeed-shard TIP.
+- ram_gate / lock_run: gate passes at a low threshold, gives up (rc 1) when the wait cap is 0, and lock_run ran an echo under
+  a lane lock.

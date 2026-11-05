@@ -14,8 +14,19 @@ export UCT_PY="${UCT_PY:-python}"
 export H="${H:-$UCT_WORKTREES/pine-handoff}"
 export S="$H/docs/pine/parity-programme/scripts"
 freeram() { powershell.exe -NoProfile -Command "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1KB)" | tr -d '\r'; }
+# RAM gate (coordinator rule): call before acquiring ANY heavy lock. Waits until free RAM >= RAM_GATE_MB (6000);
+# gives up (return 1) after RAM_GATE_MAX_WAIT seconds (default 21600) so a wait loop always ends.
+ram_gate() {
+  local need=${RAM_GATE_MB:-6000} waited=0 max=${RAM_GATE_MAX_WAIT:-21600} r
+  while :; do
+    r=$(freeram); [ "${r:-0}" -ge "$need" ] && return 0
+    [ "$waited" -ge "$max" ] && { echo "ram_gate: still ${r} MB < $need after ${waited}s, giving up" >&2; return 1; }
+    echo "ram_gate: free ${r} MB < $need, waiting 120 s"; sleep 120; waited=$((waited+120))
+  done
+}
 # One heavy job under this machine's lock:  hl <label> -- <command...>  (12 h queue wait)
 hl() {
+  ram_gate || return 1
   local label=$1; shift; [ "${1:-}" = "--" ] && shift
   echo "[hl] $(date +%T) free RAM $(freeram) MB before '$label'"
   "$UCT_PY" "$HEAVY_LOCK" run --label "$label" --timeout 43200 -- "$@"
@@ -39,4 +50,13 @@ lane_env() {
   for k in MUT MP2 MP3 FINAL2 FINAL3; do
     export "LOCK_$k=$d/heavy-$(echo $k | tr 'A-Z' 'a-z')-$lane.lock"
   done
+}
+# lock_run <LOCKVAR> <label> -- <command...>   e.g.  lock_run LOCK_FINAL2 mylane-final -- bash $RUN/job.sh
+# ram_gate, then ONE heavy job under that lane lock (12 h queue wait). Use this instead of calling heavy_lock.py directly.
+lock_run() {
+  local var=$1 label=$2; shift 2; [ "${1:-}" = "--" ] && shift
+  local path=${!var:-}; [ -n "$path" ] || { echo "lock_run: $var is empty (call lane_env <lane> first)" >&2; return 1; }
+  ram_gate || return 1
+  echo "[lock_run] $(date +%T) free RAM $(freeram) MB before '$label' on $var"
+  "$UCT_PY" "$HEAVY_LOCK" run --path "$path" --label "$label" --timeout 43200 -- "$@"
 }
