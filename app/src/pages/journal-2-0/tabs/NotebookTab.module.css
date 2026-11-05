@@ -416,8 +416,11 @@
      labelled dropdowns; "+ New" and Today give way to the floating "+" (NotebookPlusFab), and the ⋯ menu
      carries Today, From a template and Import here (`.phoneOnlyItem`). Measured before: the first note sat
      at y=603 of 844. */
-  .toolbar { flex-wrap: nowrap; gap: 6px; margin-bottom: 12px; }
-  .toolbar > * { flex-shrink: 1; min-width: 0; }
+  /* Fix round 1 (review Important 7): the row WRAPS. With only Folders, View, sort and ⋯ it is one line; a folder
+     plus a filter (its chip and Clear filter) takes a second line instead of clipping or panning the page sideways.
+     Rail: NotebookTab.toolbarFits.test.js. */
+  .toolbar { flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .toolbar > * { max-width: 100%; }
   .phoneFolders { display: inline-flex; }
   .wrap[data-list-toolbar] > .sidebarToggle { display: none; }
   .newWrap .newSplit,

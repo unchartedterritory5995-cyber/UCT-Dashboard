@@ -203,11 +203,11 @@ describe('the stylesheet: one 32 px row on desktop, one 44 px row on a phone', (
     expect(base('.sortSelect').height).toBe('32px')
   })
 
-  it('a phone hides "+ New" and Today (the floating "+" and ⋯ carry them) and keeps the row on one line', () => {
+  it('a phone hides "+ New" and Today (the floating "+" and ⋯ carry them); the row wraps rather than overflow', () => {
     const phone = phoneBodies()
     expect(phone).toMatch(/\.newWrap \.newSplit,\s*\.newWrap \.todayBtn \{ display: none; \}/)
     expect(phone).toMatch(/\.phoneOnlyItem \{ display: flex !important; \}/)
-    expect(phone).toMatch(/\.toolbar \{ flex-wrap: nowrap;/)
+    expect(phone).toMatch(/\.toolbar \{ flex-wrap: wrap;/)   // fix round 1: wraps (NotebookTab.toolbarFits.test.js)
     // the folders door joins the row, and the standalone toggle steps aside while the row is on screen
     expect(phone).toMatch(/\.phoneFolders \{ display: inline-flex; \}/)
     expect(phone).toMatch(/\.wrap\[data-list-toolbar\] > \.sidebarToggle \{ display: none; \}/)
