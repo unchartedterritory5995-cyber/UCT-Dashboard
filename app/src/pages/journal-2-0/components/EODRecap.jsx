@@ -16,6 +16,7 @@ import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
 import { reviewDraftsEnabled, draftDailyReview, todayDayIso } from '../lib/reviewDrafts'
+import { DAILY_FOLDER_NOTICE, queueNotebookNotice } from '../lib/dailyNote'
 import { compassScope } from '../hooks/compassScope'
 
 export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, accountId }) {
@@ -31,7 +32,9 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
     setDrafting(true)
     setDraftError(null)
     try {
-      const { note } = await draftDailyReview({ accountId: compassScope(accountId), day })
+      const { note, created } = await draftDailyReview({ accountId: compassScope(accountId), day })
+      // Fix round 1 (finding 7): a draft that MADE the day's note says where it went, in the Notebook.
+      if (created) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).

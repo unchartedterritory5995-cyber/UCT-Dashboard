@@ -512,7 +512,8 @@
    "label": "EMA20 Distance",
    "type": "range",
    "unit": "%",
-   "category": "technical"
+   "category": "technical",
+   "description": "Percent the price is above (+) or below (-) its 20-day exponential moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
   },
   {
    "key": "pct_vs_sma50",
@@ -520,7 +521,7 @@
    "type": "range",
    "unit": "%",
    "category": "technical",
-   "description": "Percent the price is above (+) or below (-) its 50-day simple moving average."
+   "description": "Percent the price is above (+) or below (-) its 50-day simple moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
   },
   {
    "key": "pct_vs_sma200",
@@ -528,7 +529,7 @@
    "type": "range",
    "unit": "%",
    "category": "technical",
-   "description": "Percent the price is above (+) or below (-) its 200-day simple moving average."
+   "description": "Percent the price is above (+) or below (-) its 200-day simple moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
   },
   {
    "key": "pct_vs_ema9",

@@ -317,6 +317,42 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
     expect(screen.getByText(/No notes match/)).toBeInTheDocument()
   })
 
+  // Audit 2026-11-05, spec S4 (B18): a meaning search that found nothing said nothing about the
+  // notes its index had not reached yet. The server now sends that count; the panel says it.
+  it('an empty search says how many notes the meaning search is still waiting for', () => {
+    useJ2NotesMock.mockImplementation((opts) => (opts?.enabled && 'q' in opts
+      ? { notes: [], meaningPending: 2, isLoading: false, isValidating: false, error: null }
+      : { notes: [], isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    // Fix round 1 (review finding 5): the audit's own two-word query.
+    typeQuery('consolidation pattern')
+    settle()
+    expect(screen.getByText('New notes join meaning search within about 15 minutes. 2 are waiting.')).toBeInTheDocument()
+  })
+
+  // Fix round 2 (re-review N4): at the server's cap the count is a floor, never an exact number.
+  it('a capped count is said as "1,000+"', () => {
+    useJ2NotesMock.mockImplementation((opts) => (opts?.enabled && 'q' in opts
+      ? { notes: [], meaningPending: 1000, meaningPendingCapped: true, isLoading: false, isValidating: false, error: null }
+      : { notes: [], isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('consolidation pattern')
+    settle()
+    expect(screen.getByText('New notes join meaning search within about 15 minutes. 1,000+ are waiting.')).toBeInTheDocument()
+  })
+
+  it('no waiting count, no waiting line', () => {
+    useJ2NotesMock.mockImplementation(() => ({ notes: [], meaningPending: 0, isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('consolidation pattern breakout')
+    settle()
+    expect(screen.getByText(/No notes match/)).toBeInTheDocument()
+    expect(screen.queryByText(/join meaning search/)).toBeNull()
+  })
+
   it('leaving search mode without a query never enables the fetch', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
