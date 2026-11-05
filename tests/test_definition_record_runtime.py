@@ -262,3 +262,20 @@ def test_default_lane_is_the_record_profile(store, monkeypatch):
     monkeypatch.setattr(lane_mod, "runtime_column_fn", fake_cf)
     out = dr.record_runtime_pass(1, "1D", "AAA", row=ROW, plot_key="value", bars=_bars(3))
     assert seen["args"] == ("value", "record") and out["recorded"] is True
+
+
+def test_one_authority_per_key_shape():
+    """The tree shape is user_definitions' (the same object, not a copy); the runtime shape is derived
+    from runtime_definitions.HASH_PREFIX, and a key is admitted by exactly those two."""
+    assert dr._HASH_RE is user_definitions.RESULT_IDENTITY_RE
+    h64 = "ab" * 32
+    assert dr._key_shape_ok("sha256:" + h64) and dr._key_shape_ok("sha256:" + h64 + "~s2")
+    assert dr._key_shape_ok(runtime_definitions.HASH_PREFIX + h64)
+    for bad in ("", "nope", "runtime:" + h64, runtime_definitions.HASH_PREFIX + "ab",
+                runtime_definitions.HASH_PREFIX + h64 + "~s2", "x" + runtime_definitions.HASH_PREFIX + h64, None, 5):
+        assert not dr._key_shape_ok(bad), bad
+
+
+def test_a_malformed_runtime_key_is_refused_by_the_shared_door():
+    with pytest.raises(ValueError, match=dr.REFUSALS["def_hash_shape"]):
+        dr.record_evaluation(runtime_definitions.HASH_PREFIX + "ab", 1, "1D", "A", 1, 2, bars_evaluated=1, bars_true=0)

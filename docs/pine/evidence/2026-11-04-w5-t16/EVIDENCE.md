@@ -72,11 +72,10 @@ No. Python service only; no engine file touched.
   `test_the_real_lane_records_with_the_runs_own_warmup` (fake `withheld_bars=3`, NaN in [0,3): evaluated n-k,
   first bar = bars[k]).
 - B3: `def_hash` = `runtime_definitions.handle(definition)` (the `runtime:sha256:` key T14's `scan_runtime`
-  files the same document under), no stripping, no retyped prefix. The record's key shape
-  (`_IdentityShape`) admits tree result identities or `HASH_PREFIX` + 64 hex, reading the prefix from
-  `runtime_definitions`. Rail `test_the_runtime_record_key_is_the_scan_lanes_handle`. NOTE: the existing
-  `api/routers/definition_record.py` reader validates identities with the tree-only regex; widening it is
-  that file's owner's call (not touched).
+  files the same document under), no stripping, no retyped prefix. The tree shape stays `_HASH_RE is user_definitions.RESULT_IDENTITY_RE` (r2: `test_semantics_consumers.py:118`
+  rail); the runtime shape is `_runtime_key_re()` derived from `HASH_PREFIX`, and `_key_shape_ok` admits exactly
+  those two. Rail `test_the_runtime_record_key_is_the_scan_lanes_handle`. NOTE: `api/routers/definition_record.py` refuses non-ast documents by name (400) before any regex,
+  so runtime records are unreachable through it (out of scope, not touched).
 - Mutations (driver committed: `mutate_r1.py`, heavy-mut.lock, log `dsk/w5t16r1-mut.log`): 16/16 killed -
   label-as-tf, `_service_tf` identity, pad ignored, warm-up guard/bool/upper/lower, def_hash constant,
   def_hash stripped, shape refuses namespace, column length, runtime check, withheld uncaught, lane

@@ -116,22 +116,20 @@ _SECONDS_PER_DAY = 86_400.0
 #: document (owner decision A, 2026-10-06). A semantics-2 record therefore lives
 #: under its own key and can never be read as, merge with, or overwrite the
 #: semantics-1 record of the same tree; existing rows keep their bare hash.
-class _IdentityShape:
-    """A record key is a tree's result identity (`user_definitions.RESULT_IDENTITY_RE`) OR a stored
-    runtime document's handle (`runtime_definitions.HASH_PREFIX` + 64 hex), the very key the scan
-    lanes file the same document under (W5-T16 r1, one rule). The prefix is READ, never retyped."""
-
-    def match(self, value: Any):
-        if _defs.RESULT_IDENTITY_RE.match(value):
-            return True
-        from api.services import runtime_definitions as _rt
-        prefix = _rt.HASH_PREFIX
-        if value.startswith(prefix) and re.fullmatch(r"[0-9a-f]{64}", value[len(prefix):]):
-            return True
-        return None
+_HASH_RE = _defs.RESULT_IDENTITY_RE
 
 
-_HASH_RE = _IdentityShape()
+def _runtime_key_re():
+    """A stored runtime document's record key: `runtime_definitions.HASH_PREFIX` + 64 hex, the very
+    key the scan lanes file it under (W5-T16 r1). Derived from the prefix at call time, so the shape
+    has ONE definition (the prefix) and `_HASH_RE` stays the tree shape's one authority."""
+    from api.services import runtime_definitions as _rt
+    return re.compile("^" + re.escape(_rt.HASH_PREFIX) + "[0-9a-f]{64}$")
+
+
+def _key_shape_ok(value: Any) -> bool:
+    """Is `value` a key this record can file: a tree's result identity or a runtime handle?"""
+    return isinstance(value, str) and bool(_HASH_RE.match(value) or _runtime_key_re().match(value))
 
 #: ⛔ ONE TIMEFRAME VOCABULARY, NOT TWO. Read off the ledger rather than
 #: re-declared, because the failure this guards is a second spelling of one
@@ -265,7 +263,7 @@ def _definition_key(def_hash: Any, rev: Any, tf: Any) -> tuple[str, int, str]:
         if not isinstance(val, str) or not val:
             raise ValueError(
                 f"the rule record {REFUSALS['key_slot']} {name}, got {val!r}")
-    if not _HASH_RE.match(def_hash):
+    if not _key_shape_ok(def_hash):
         raise ValueError(f"{def_hash!r} {REFUSALS['def_hash_shape']}")
     # ⛔ THE BOOL CHECK COMES FIRST. `isinstance(True, int)` is True and
     # `True >= 0` is True, so a bool sails through every obvious numeric guard —
@@ -755,7 +753,7 @@ def origin(def_hash: str, rev: int) -> Optional[int]:
     one and then lose it, except by a prune — and a prune only ever moves this
     number FORWARD, which makes the store strictly stricter, never looser.
     """
-    if not isinstance(def_hash, str) or not _HASH_RE.match(def_hash or ""):
+    if not isinstance(def_hash, str) or not _key_shape_ok(def_hash):
         raise ValueError(f"{def_hash!r} {REFUSALS['def_hash_shape']}")
     if isinstance(rev, bool) or not isinstance(rev, int) or rev < 0:
         raise ValueError(f"{REFUSALS['rev_shape']} — got {rev!r}")
