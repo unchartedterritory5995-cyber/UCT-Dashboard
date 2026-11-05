@@ -413,7 +413,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Options Flow widget settings"
         ><UIcon name="gear" size={13} /></button>
       </div>
@@ -423,6 +423,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
         <span className={styles.seg}>
           <button
             type="button"
+            data-guide="flow.scope"
             className={`${styles.segBtn}${scope === 'market' ? ' ' + styles.segBtnOn : ''}`}
             onClick={() => patchOpts({ scope: 'market' })}
           >Market</button>
@@ -438,6 +439,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
             <button
               key={o.key}
               type="button"
+              data-guide="flow.lead"
               className={`${styles.segBtn}${lead === o.key ? ' ' + styles.segBtnOn : ''}`}
               onClick={() => patchOpts({ lead: o.key })}
             >{o.label}</button>
@@ -445,6 +447,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
         </span>
         <button
           type="button"
+          data-guide="flow.filters"
           className={`${styles.funnelBtn}${filtersOpen ? ' ' + styles.funnelBtnOn : ''}`}
           onClick={() => setFiltersOpen(o => !o)}
           title="Filters"

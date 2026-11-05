@@ -13,6 +13,7 @@ import PrepEarningsBlock from './PrepEarningsBlock'
 import PrepMoversBlock from './PrepMoversBlock'
 import PrepLevelsBlock from './PrepLevelsBlock'
 import { contractBody } from '../../../__fixtures__/contract'
+import { FINAL_WORDS } from './PrepCapture'
 
 const FAILED = "This couldn't be read just now. Nothing was changed."
 const wire = () => contractBody('trader-blocks.prep.wire.held')
@@ -130,11 +131,20 @@ describe('a frozen block', () => {
 })
 
 describe('each gap is named', () => {
-  it('a part with nothing to show says why, from the server', () => {
+  // S9 fix round 1 (review finding 7): a gap that fills itself (no earnings yet) is said in the block's own words: the
+  // past tense once nothing will fill it (this recorded snapshot is from another day), never "Capture again".
+  it('a part with nothing to show says why', () => {
     const empty = contractBody('trader-blocks.prep.earnings')
+    expect(empty.missing).toBe('no_earnings_yet')                     // non-vacuity: the recorded gap
     render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} editable />)
-    expect(screen.getByText(empty.detail)).toBeTruthy()
+    expect(screen.getByText(FINAL_WORDS.no_earnings_yet)).toBeTruthy()
     expect(screen.queryByText(/Before the open/)).toBeNull()
+  })
+
+  it("CONTROL: a gap that never fills itself is the server's own sentence", () => {
+    const empty = { ...contractBody('trader-blocks.prep.earnings'), missing: 'no_names', detail: 'Add names to a watchlist.' }
+    render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} editable />)
+    expect(screen.getByText('Add names to a watchlist.')).toBeTruthy()
   })
 
   it('the wire with nothing published names its gap', () => {

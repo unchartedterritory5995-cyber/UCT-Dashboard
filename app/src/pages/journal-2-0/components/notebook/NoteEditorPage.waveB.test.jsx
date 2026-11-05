@@ -1,3 +1,4 @@
+// S7 (audit 2026-11-05, one vocabulary): the note menu's "Delete" reads "Move to Trash" (and its question "Move this note to Trash?"), the sidebar's word; the rails below follow the new words.
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useSearchParams } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -88,28 +89,28 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
     const confirmSpy = vi.spyOn(window, 'confirm')
     await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     expect(confirmSpy).not.toHaveBeenCalled()
-    expect(screen.getByText('Delete this note?')).toBeInTheDocument()
+    expect(screen.getByText('Move this note to Trash?')).toBeInTheDocument()
   })
 
   it('cancel closes the modal without deleting', async () => {
     await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByText('Delete this note?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Move this note to Trash?')).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/j2/notes/n1', expect.objectContaining({ method: 'DELETE' }))
   })
 
   it('confirming deletes the note and navigates back', async () => {
     const { onBack } = await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     // The modal's own confirm button carries the same accessible name as the
     // header's Delete trigger -- disambiguate by scoping to the dialog.
     const dialog = screen.getByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }))
     await waitFor(() => expect(onBack).toHaveBeenCalled())
     expect(fetchMock).toHaveBeenCalledWith('/api/j2/notes/n1', expect.objectContaining({ method: 'DELETE' }))
   })
@@ -117,40 +118,45 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
   it('Escape closes the modal without deleting', async () => {
     await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(screen.getByText('Delete this note?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(screen.getByText('Move this note to Trash?')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByText('Delete this note?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Move this note to Trash?')).not.toBeInTheDocument()
   })
 })
 
 /**
- * ⛔⛔ A DIFFERENT AXIS FROM SAVE STATUS — connectivity, not writes. Wave Q1's
- * durable working copy lets a member reopen a previously-viewed note while
- * offline (G-083), completely silently before this. Competitive audit
- * finding Accessibility QW-5, 2026-09-22.
+ * ⛔⛔ A DIFFERENT AXIS FROM SAVE STATUS — connectivity, not writes. Wave Q1's durable working copy lets a member
+ * reopen a previously-viewed note while offline (G-083), completely silently before Accessibility QW-5.
+ * VIS-5 (audit 2026-11-05, issue 17): the fact is now said ONCE, by the header's offline pill in the Saved
+ * indicator's reserved slot ("Offline · saved on this device"); the separate "Viewing an earlier saved copy —
+ * you're offline." line is retired, because beside the other two it made three contradictory lines.
  */
-describe('NoteEditorPage — offline-viewing banner (Accessibility QW-5)', () => {
-  const BANNER_TEXT = "Viewing an earlier saved copy — you're offline."
+describe('NoteEditorPage — going offline is said once (QW-5, VIS-5)', () => {
+  const OLD_BANNER = "Viewing an earlier saved copy — you're offline."
+  const pill = () => document.querySelector('[data-save-indicator]')
 
-  it('shows nothing while online (the default)', async () => {
+  it('shows nothing offline while online (the default)', async () => {
     await renderEditor()
-    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+    await waitFor(() => expect(pill().textContent).toBe('Saved'))
+    expect(pill().textContent).not.toMatch(/Offline/)
   })
 
-  it('appears the instant the browser goes offline, no reload needed', async () => {
+  it('says it the instant the browser goes offline, no reload needed -- in ONE place', async () => {
     await renderEditor()
-    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
     fireEvent(window, new Event('offline'))
-    expect(screen.getByText(BANNER_TEXT)).toBeInTheDocument()
+    // jsdom exposes no navigator.storage, so persistence is unknown and the honest noun is the narrow one.
+    await waitFor(() => expect(pill().textContent).toBe('Offline · saved in this browser'))
+    expect(screen.queryByText(OLD_BANNER)).toBeNull()
+    expect(screen.getAllByText(/offline/i)).toHaveLength(1)
   })
 
-  it('auto-clears the instant connectivity returns — no dismiss state to manage', async () => {
+  it('clears the instant connectivity returns — no dismiss state to manage', async () => {
     await renderEditor()
     fireEvent(window, new Event('offline'))
-    expect(screen.getByText(BANNER_TEXT)).toBeInTheDocument()
+    await waitFor(() => expect(pill().textContent).toMatch(/^Offline/))
     fireEvent(window, new Event('online'))
-    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+    await waitFor(() => expect(pill().textContent).toBe('Saved'))
   })
 })
 

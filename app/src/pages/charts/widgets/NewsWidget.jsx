@@ -256,7 +256,7 @@ export default function NewsWidget({
           {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
         {!readOnly && (
-        <div className={styles.filters}>
+        <div className={styles.filters} data-guide="news.filters">
           {FILTERS.map(f => (
             <button
               key={f.key}
@@ -316,7 +316,7 @@ export default function NewsWidget({
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           style={journalDoor && sym && events?.length > 0 ? { marginLeft: 2 } : undefined}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="News widget settings"
         ><UIcon name="gear" size={13} /></button>
         )}

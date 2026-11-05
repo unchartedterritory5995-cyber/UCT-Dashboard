@@ -1119,7 +1119,7 @@ export default function AiSearchWidget({
           type="button"
           className={styles.gearBtn}
           onClick={() => setSettingsOpen(o => !o)}
-          title="AI Search settings"
+          data-guide="widget.settings" title="AI Search settings"
           aria-label="AI Search settings"
         ><UIcon name="gear" size={13} /></button>
       )}
@@ -1251,6 +1251,7 @@ export default function AiSearchWidget({
             ? 'Ask a follow-up…'
             : (scopeSym ? `Ask anything about ${scopeSym}…` : 'Ask anything about the markets…')}
           aria-label={scopeSym ? `Ask anything about ${scopeSym}` : 'Ask anything about the markets'}
+          data-guide="aisearch.ask"
           value={query}
           rows={1}
           onChange={(e) => setQuery(e.target.value)}

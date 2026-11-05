@@ -43,7 +43,7 @@ export const TOURS = Object.freeze([
   {
     id: 'setups-board',
     flag: 'notebook_setups_board_enabled',
-    title: 'Active setups and find more like this',
+    title: 'Setups',
     replayable: true,
     start: '/journal/notebook/setups',
     load: () => import('./setupsBoard.steps').then(steps),

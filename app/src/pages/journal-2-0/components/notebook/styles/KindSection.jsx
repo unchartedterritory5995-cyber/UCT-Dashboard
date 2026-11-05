@@ -3,7 +3,7 @@
 // A lazy chunk (NotebookTab lazyView). It creates nothing itself: onKind/onStyle go to createNote.
 // ⛔ The switch is read in ONE place per layer: NotebookTab mounts this only while journalStylesEnabled(),
 // and the hook refuses to fetch with it off. This file restates neither (a guard repeated is a guard unproved).
-// P3a Task 10: "Browse community styles" opens the community library at Styles (LibraryDoor), only while the
+// P3a Task 10: "Browse the Template library" opens the community library at Styles (LibraryDoor), only while the
 // library switch (styleLibraryEnabled) is on. The gallery's import lives in this lazy chunk, never in the picker.
 // P5 Task 5: "How do you trade?" (StarterPackOffer) sits at the top while R-P5-5 holds: the starter-packs switch
 // is on, the member has no styles of their own and has not answered it. The rule is useStarterPackOffer's alone,
@@ -65,7 +65,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   const offer = useStarterPackOffer(data)
 
   if (isLoading) return <p className={styles.status} role="status">Loading kinds of note…</p>
-  if (error || !data) return <p className={styles.status} role="alert">Couldn't load your journal styles.</p>
+  if (error || !data) return <p className={styles.status} role="alert">Couldn't load your templates.</p>
 
   const showPreview = async (style) => {
     setPreview({ style, loading: true })
@@ -84,10 +84,10 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   return (
     <section className={styles.wrap} aria-labelledby={headingId} data-starter-offer={offer.settled ? 'settled' : 'deciding'}>
       {offer.show && <StarterPackOffer onClose={offer.close} offline={offline} />}
-      <h3 id={headingId} className={styles.h}>Start from a kind of note</h3>
-      {styleLibraryEnabled() && <LibraryDoor label="Browse community styles" className={styles.libraryDoor} />}
-      {offline && <p className={styles.status} role="status">You're offline. These are your saved styles; a new note needs a connection.</p>}
-      <div role="group" aria-label="Start from a kind of note" className={styles.grid}>
+      <h3 id={headingId} className={styles.h}>Start from a template</h3>
+      {styleLibraryEnabled() && <LibraryDoor label="Browse the Template library" className={styles.libraryDoor} />}
+      {offline && <p className={styles.status} role="status">You're offline. These are your saved templates; a new note needs a connection.</p>}
+      <div role="group" aria-label="Start from a template" className={styles.grid}>
         {data.kinds.map((k, i) => {
           const def = defaultStyleFor(data, k.id)
           return (
@@ -97,18 +97,18 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
                 onClick={() => onCreate({ kindId: k.id })}>
                 <UIcon name={iconOf(k)} size={16} gold={false} />
                 <span className={styles.kindName}>{k.name}</span>
-                <span className={styles.kindStyle}>{def ? def.name : 'No style yet'}</span>
+                <span className={styles.kindStyle}>{def ? def.name : 'No template yet'}</span>
               </button>
               <button type="button" className={styles.another} aria-expanded={openKind === k.id}
-                aria-label={`Choose another style for ${k.name}`}
+                aria-label={`Choose another template for ${k.name}`}
                 onClick={() => setOpenKind(openKind === k.id ? null : k.id)}>
-                Choose another style
+                Choose another template
               </button>
               {openKind === k.id && (
                 stylesOfKind(data, k.id).length === 0 ? (
-                  <p className={styles.status}>No styles for this kind yet.</p>
+                  <p className={styles.status}>No templates for this note type yet.</p>
                 ) : (
-                <ul className={styles.list} aria-label={`Styles for ${k.name}`}>
+                <ul className={styles.list} aria-label={`Templates for ${k.name}`}>
                   {stylesOfKind(data, k.id).map((s) => (
                     <li key={s.id} className={styles.row}>
                       <span className={styles.rowName}>{s.name}{s.builtin ? ' · Built-in' : ''}{s.isDefault ? ' · Default' : ''}</span>
@@ -127,7 +127,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
         <TemplatePreview open onClose={() => setPreview(null)} title={preview.style.name}
           subtitle={preview.ticker ? `Shown with ${preview.ticker}, from your notes.` : 'Add a ticker to see the chart block.'}
           body={preview.body} loading={preview.loading} loadError={preview.error}
-          busy={busy || offline} useLabel="Use this style"
+          busy={busy || offline} useLabel="Use"
           onUse={() => { const id = preview.style.id; setPreview(null); onCreate({ styleId: id }) }} />
       )}
     </section>

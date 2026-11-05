@@ -67,8 +67,8 @@ on:
 env:
   AGENT_SHARDS: '4'
   # the UCT Agent browser suite (agent-ci.yml AGENT_VITEST_PATHS, the same list): src/agent, the builder's agentMutations,
-  # and (DUP-RECEIPT 11-05, owner) the 7 page tests that drive the Agent outside src/agent
-  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
+  # and (DUP-RECEIPT 11-05, owner) the 8 page tests that drive the Agent outside src/agent
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
 
 concurrency:
   group: master-deploy

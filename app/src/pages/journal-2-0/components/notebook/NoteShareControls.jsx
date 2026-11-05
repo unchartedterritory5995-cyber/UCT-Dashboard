@@ -292,7 +292,7 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
                 </select>
               </div>
               <div className={styles.row}>
-                <button type="button" ref={focusRefs.create} className={styles.action} onClick={createLink} disabled={busy}>Create link</button>
+                <button type="button" ref={focusRefs.create} className="btn btn-primary btn-sm" onClick={createLink} disabled={busy}>Create link</button>
               </div>
             </>
           ) : (
@@ -306,10 +306,10 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
               />
               <p className={styles.caption}>{whenText(share.expiresAt)}</p>
               <div className={styles.row}>
-                <button type="button" ref={focusRefs.copyLink} className={styles.action} onClick={copyLink} disabled={busy}>Copy link</button>
+                <button type="button" ref={focusRefs.copyLink} className="btn btn-secondary btn-sm" onClick={copyLink} disabled={busy}>Copy link</button>
                 <button
                   type="button"
-                  className={`${styles.action} ${styles.danger}`}
+                  className="btn btn-danger btn-sm"
                   onClick={revokeLink}
                   disabled={busy}
                   aria-describedby={ids.revokeCaption}
@@ -337,8 +337,8 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
                 onFocus={(e) => e.target.select()}
               />
               <div className={styles.row}>
-                <button type="button" ref={focusRefs.copyPage} className={styles.action} onClick={() => copyPage(notePub)} disabled={busy}>Copy page link</button>
-                <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(notePub)} disabled={busy}>
+                <button type="button" ref={focusRefs.copyPage} className="btn btn-secondary btn-sm" onClick={() => copyPage(notePub)} disabled={busy}>Copy page link</button>
+                <button type="button" className="btn btn-danger btn-sm" onClick={() => unpublish(notePub)} disabled={busy}>
                   Unpublish
                 </button>
               </div>
@@ -351,7 +351,7 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
             <p className={styles.caption}>This note is archived. Unarchive it from the note menu to publish it.</p>
           ) : (
             <div className={styles.row}>
-              <button type="button" ref={focusRefs.publishNote} className={styles.action} onClick={() => askPublish('note')} disabled={busy}>Publish this note</button>
+              <button type="button" ref={focusRefs.publishNote} className="btn btn-outline btn-sm" onClick={() => askPublish('note')} disabled={busy}>Publish this note</button>
             </div>
           )}
           {ctx?.folderId && (
@@ -365,8 +365,8 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
                   onFocus={(e) => e.target.select()}
                 />
                 <div className={styles.row}>
-                  <button type="button" ref={focusRefs.copyFolder} className={styles.action} onClick={() => copyPage(folderPub)} disabled={busy}>Copy folder link</button>
-                  <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(folderPub)} disabled={busy}>
+                  <button type="button" ref={focusRefs.copyFolder} className="btn btn-secondary btn-sm" onClick={() => copyPage(folderPub)} disabled={busy}>Copy folder link</button>
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => unpublish(folderPub)} disabled={busy}>
                     Unpublish folder
                   </button>
                 </div>
@@ -374,7 +374,7 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
             ) : (
               <>
                 <div className={styles.row}>
-                  <button type="button" ref={focusRefs.publishFolder} className={styles.action} onClick={() => askPublish('folder')} disabled={busy}>
+                  <button type="button" ref={focusRefs.publishFolder} className="btn btn-outline btn-sm" onClick={() => askPublish('folder')} disabled={busy}>
                     {`Publish folder "${ctx.folderName}"`}
                   </button>
                 </div>
@@ -428,10 +428,10 @@ function PublishConfirmSheet({ kind, noteTitle, folderName, folderNoteCount, bus
           </p>
           {kind === 'folder' && <p className={styles.caption}>{FOLDER_PUBLISH_SCOPE_SENTENCE}</p>}
           <div className={styles.row}>
-            <button type="button" ref={cancelRef} className={styles.action} onClick={onCancel} disabled={busy}>Cancel</button>
+            <button type="button" ref={cancelRef} className="btn btn-secondary btn-sm" onClick={onCancel} disabled={busy}>Cancel</button>
             <button
               type="button"
-              className={styles.action}
+              className="btn btn-primary btn-sm"
               onClick={onPublish}
               disabled={busy}
               aria-describedby={bodyId}

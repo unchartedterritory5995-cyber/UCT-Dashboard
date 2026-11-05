@@ -3142,6 +3142,7 @@ function ChartsWorkspaceBoard() {
       remove: (id) => agentWidgetOpsRef.current.remove(id),
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
+      raiseBound: (sentence) => setBoardRefusal(sentence),
       groupSyms: () => agentGroupSymsRef.current,
       persist: (opts) => agentWidgetOpsRef.current.persist(opts),
       grid: () => agentWidgetOpsRef.current.grid(),
@@ -3458,6 +3459,7 @@ function ChartsWorkspaceBoard() {
                   <div
                     key={dir}
                     onPointerDown={(e) => h.onStartResize(e, w, dir)}
+                    data-guide={`widget.resize.${dir}`}
                     className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}${merged ? ' ' + styles.rzNoMark : ''}` : styles.rzHandle}
                     style={{ ...style, cursor }}
                   />
@@ -3504,7 +3506,7 @@ function ChartsWorkspaceBoard() {
                 : `Switched to “${layoutUndo.plan.to.name || 'layout'}”.`)}
             </span>
             {!layoutUndo.note && !layoutUndo.plan.discarded && layoutUndo.plan.from && (
-              <button type="button" onClick={undoLayoutOpen}>Undo</button>
+              <button type="button" data-guide="workspace.layoutUndo" onClick={undoLayoutOpen}>Undo</button>
             )}
             <button type="button" aria-label="Dismiss" onClick={() => setLayoutUndo(null)}>×</button>
           </div>
@@ -3567,6 +3569,7 @@ function ChartsWorkspaceBoard() {
                   type="button"
                   className={styles.addMenuItem}
                   style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  data-guide="workspace.merge"
                   onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
                   title={merged
                     ? 'Unlock the board and restore widget borders'
@@ -3584,10 +3587,11 @@ function ChartsWorkspaceBoard() {
               type="button"
               className={styles.toolbarBtn}
               style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              data-guide="workspace.layoutsMenuBtn"
               onClick={() => { const n = !layoutsMenuOpen; closeToolbarMenus(); setLayoutsMenuOpen(n) }}
             >Layouts ▾</button>
             {layoutsMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 230 }} onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
+              <div className={styles.addMenu} style={{ minWidth: 230 }} data-guide="workspace.layoutsMenu" onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
                 {layoutsSub === 'open' ? (<>
                   <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
                   <div className={styles.menuDivider} />
@@ -3619,7 +3623,7 @@ function ChartsWorkspaceBoard() {
                 </>) : layoutsSub === 'save' ? (<>
                   <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
                   <div className={styles.menuDivider} />
-                  <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); closeToolbarMenus() }}>Save current arrangement</button>
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.saveCurrent" onClick={() => { handleSaveLayout(); closeToolbarMenus() }}>Save current arrangement</button>
                   <div className={styles.menuDivider} />
                   <div className={styles.menuForm}>
                     <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
@@ -3637,24 +3641,25 @@ function ChartsWorkspaceBoard() {
                         Prebuilt (available to all users)
                       </label>
                     )}
-                    <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>Save template</button>
+                    <button type="button" className={styles.toolbarBtn} data-guide="workspace.saveTemplate" style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>Save template</button>
                     {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
                   </div>
                 </>) : layoutsSub === 'mc' ? (
                   <MultiChartMenu mc={mc} onClose={() => { setLayoutsMenuOpen(false); setLayoutsSub(null) }} />
                 ) : (<>
-                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
-                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
-                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
+                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.newLayout" onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.openLayout" onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.saveLayout" onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
                   {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} onOpen={openVersionHistory} />}
                   <button
                     type="button"
                     className={styles.addMenuItem}
                     style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    data-guide="workspace.multiChart"
                     onClick={() => setLayoutsSub('mc')}
                   >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
                   {!gridMode && (
-                    <button type="button" className={styles.addMenuItem} disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}>⧉ Pop Out Layout</button>
+                    <button type="button" className={styles.addMenuItem} data-guide="workspace.popOutLayout" disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}>⧉ Pop Out Layout</button>
                   )}
                 </>)}
               </div>
@@ -3669,26 +3674,30 @@ function ChartsWorkspaceBoard() {
               type="button"
               className={styles.toolbarBtn}
               style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              data-guide="workspace.tools"
               onClick={() => { const n = !toolsMenuOpen; closeToolbarMenus(); setToolsMenuOpen(n) }}
             >Tools ▾</button>
             {toolsMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 200 }} onMouseLeave={() => setToolsMenuOpen(false)}>
+              <div className={styles.addMenu} style={{ minWidth: 200 }} data-guide="workspace.toolsMenu" onMouseLeave={() => setToolsMenuOpen(false)}>
                 <button
                   type="button"
                   className={styles.addMenuItem}
                   style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  data-guide="workspace.tools.periodSort"
                   onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
                 >{periodSortMode ? '✓ ' : ''}Custom-Period Sort</button>
                 <button
                   type="button"
                   className={styles.addMenuItem}
                   style={compareOpen ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  data-guide="workspace.tools.compare"
                   onClick={() => { openCompare(); closeToolbarMenus() }}
                 >{compareOpen ? '✓ ' : ''}Compare Symbols</button>
                 <button
                   type="button"
                   className={styles.addMenuItem}
                   style={replayCutoff ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  data-guide="workspace.tools.replay"
                   onClick={() => { openReplay(); closeToolbarMenus() }}
                 >{replayCutoff ? '✓ ' : ''}Replay Mode</button>
               </div>
@@ -3697,7 +3706,7 @@ function ChartsWorkspaceBoard() {
           )}
 
           {gridMode && (
-            <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
+            <button type="button" className={styles.toolbarBtn} data-guide="workspace.exitGrid" onClick={mc.exitGrid}>
               Workspace
             </button>
           )}

@@ -23,6 +23,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 vi.mock('../pages/charts/WorkspaceContext', () => ({ useWorkspace: () => ({ chartsTheme: null, chartApiById: H.api }) }))
 vi.mock('../components/StockChart', () => ({
   default: (props) => {
+    if (H.crashOn && props.tf === H.crashOn) throw new Error('boom: a chart that cannot draw this')
     H.chartProps[props.chartId] = props
     props.onDateNavApi?.(H.nav)
     return <div data-testid={`canvas-${props.chartId}`}>{props.sym}</div>
@@ -51,11 +52,12 @@ import AgentPanel from './AgentPanel'
 import useMultiChartState from '../pages/charts/grid/useMultiChartState'
 import MultiChartGrid from '../pages/charts/grid/MultiChartGrid'
 import { buildWorkspaceHost, buildCellSync, gridPositionWord, scopeHostToGrid } from './host'
-import { screenGridOps, GRID_BOARD_REFUSAL, GRID_HIDDEN_REFUSAL } from './gridMode'
+import { watchGridSync, screenGridOps, GRID_BOARD_REFUSAL, GRID_HIDDEN_REFUSAL } from './gridMode'
 import { cellPatch, cellStored, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
 import { peekDrawings, removeDrawing } from '../components/chart/drawingsStore'
 import { guideState, endGuide } from './guide/guideStore'
 import { asSubjectWords } from './useAgent'
+import { noteChartFault } from '../pages/charts/chartFaults'
 
 registerBuiltins()
 
@@ -255,6 +257,57 @@ describe('Multi Chart: which chart', () => {
     await say('make the one you just changed weekly')
     await waitFor(() => expect(transcript()).toMatch(/Which chart/))
     expect(tfs()).toBe('DDMD')
+  }, 30000)
+  // the browser's own order: a real click on a cell's control presses inside the cell first, which also selects that cell
+  const realClick = (el) => { fireEvent.pointerDown(el); fireEvent.mouseDown(el); fireEvent.pointerUp(el); fireEvent.mouseUp(el); fireEvent.click(el) }
+  const handReal = (id) => {
+    const bar = document.querySelector(`[data-grid-cell-id="${id}"] [data-guide="chart.timeframe"]`)
+    act(() => { realClick([...bar.querySelectorAll('button')].find(b => b.textContent === '1M')) })
+  }
+  it('"the one you just changed" with only a real click by the member is asked: the click selected that cell, the words did not name it', async () => {
+    const { say } = mount()
+    handReal('c2')
+    expect(at('c2').tf).toBe('M')
+    envelopes.push(plan('chart.setTimeframe', { timeframe: 'W' }, 2))
+    await say('make the one you just changed weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    expect(tfs()).toBe('DDMD')
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+  it('...and the same when the model reads those words: its plan on the clicked cell is asked about, never run', async () => {
+    const { say } = mount()
+    handReal('c2')
+    envelopes.push(plan('chart.setType', { type: 'bars' }, 2))
+    await say('turn the one you just changed into plain bars for me please')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    expect(at('c2').settings).toBeUndefined()
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+  it('"the one I just changed" with nothing changed and a clicked cell is asked too', async () => {
+    const { say } = mount()
+    click('c1')
+    envelopes.push(plan('chart.setTimeframe', { timeframe: 'W' }, 1))
+    await say('make the one I just changed weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    expect(tfs()).toBe('DDDD')
+  }, 30000)
+  it('a several-part request naming the one you just changed is not run on the clicked cell either', async () => {
+    const { say } = mount()
+    handReal('c2')
+    envelopes.push(plan('chart.setTimeframe', { timeframe: 'W' }, 2))
+    await say('make the one you just changed weekly and switch it to bars')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    expect(tfs()).toBe('DDMD')
+  }, 30000)
+  it('the answer to that question runs on the picked cell', async () => {
+    const { say } = mount()
+    handReal('c2')
+    envelopes.push(plan('chart.setTimeframe', { timeframe: 'W' }, 2))
+    await say('make the one you just changed weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Which chart/))
+    const pick = [...document.querySelectorAll('button')].filter(b => /AMD|top-right/i.test(b.textContent)).at(-1)
+    act(() => { fireEvent.click(pick) })
+    await waitFor(() => expect(tfs()).toBe('DWMD'))
   }, 30000)
   it('a model plan aimed at the clicked chart when the words name the one just changed is asked, not run', async () => {
     const { say } = mount()
@@ -458,12 +511,49 @@ describe('Multi Chart: what does not carry over', () => {
     expect(screenGridOps([{ action: 'layout.open', target: 'layouts', args: {} }], {}).refuse).toBe(GRID_BOARD_REFUSAL)
     expect(screenGridOps([{ action: 'layout.list', target: 'layouts', args: {} }], {})).toBe(null)
   })
-  it('time-range sync: a date jump says the other charts follow', () => {
-    const on = { charts: { grid: () => ({ groupsMode: () => false, syncTimeRange: () => true }) } }
-    const off = { charts: { grid: () => ({ groupsMode: () => false, syncTimeRange: () => false }) } }
+  describe('time-range sync: a date jump reports what moved, read back after it', () => {
     const op = [{ action: 'chart.goToDate', target: 'c0', args: { date: '2024-03-01' } }]
-    expect(screenGridOps(op, on).note).toMatch(/other charts in this grid follow that view/)
-    expect(screenGridOps(op, off)).toBe(null)
+    const hostOf = (edges, sync = true) => ({ charts: {
+      grid: () => ({ groupsMode: () => false, syncTimeRange: () => sync }),
+      list: () => [{ ref: 'c0', symbol: 'NVDA' }, { ref: 'c1', symbol: 'AMD' }, { ref: 'c2', symbol: 'TSLA' }, { ref: 'c3', symbol: null }],
+      read: (r) => ({ view: { rightMs: edges[r] } }),
+    } })
+    it('promises nothing up front', () => { expect(screenGridOps(op, hostOf({}))).toBe(null) })
+    it('sync off: nothing to watch', () => { expect(watchGridSync(op, hostOf({}, false))).toBe(null) })
+    it('only a date jump is watched', () => { expect(watchGridSync([{ action: 'chart.setTimeframe', target: 'c0', args: {} }], hostOf({}))).toBe(null) })
+    const DAY = 86400000
+    const NOW = Date.UTC(2026, 10, 5), THEN = Date.UTC(2025, 5, 2)
+    it('every cell arrived', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN; e.c1 = THEN; e.c2 = THEN - 3 * DAY
+      expect(await done()).toMatch(/other charts in this grid moved with it/)
+    })
+    it('no cell moved: says so, and an empty cell is not counted', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN
+      expect(await done()).toBe('Time-range sync is on, but the other charts stayed where they were.')
+    })
+    it('one arrived, one did not: each is named', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN; e.c1 = THEN
+      expect(await done()).toBe('Time-range sync is on: AMD moved with it, TSLA stayed where it was.')
+    })
+    it('a live chart scrolling by itself is not reported as following', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN; e.c1 = THEN; e.c2 = NOW + DAY
+      expect(await done()).toBe('Time-range sync is on: AMD moved with it, TSLA stayed where it was.')
+    })
+    it('a cell that arrives a little later still counts', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN; e.c1 = THEN
+      setTimeout(() => { e.c2 = THEN }, 120)
+      expect(await done()).toMatch(/moved with it/)
+    })
   })
 })
 
@@ -517,6 +607,44 @@ describe('Multi Chart: the Style picker', () => {
     expect(next.chartType).toBe('hollow')
     expect(next.settings).toBe(null)
   })
+})
+
+describe('Multi Chart: a chart that crashes after its change', () => {
+  afterEach(() => { H.crashOn = null })
+  const crash = () => { vi.spyOn(console, 'error').mockImplementation(() => {}); H.crashOn = 'W' }
+  it('the receipt stops claiming success, the panel says what happened, the rest of the grid stays', async () => {
+    crash()
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(transcript()).toMatch(/hit an error after that change/))
+    expect(receipts().at(-1).getAttribute('data-status')).toBe('failed')
+    expect(transcript()).toMatch(/Top-right chart \(AMD\)/)
+    expect(screen.getByTestId('canvas-c0')).toBeTruthy()
+    expect(document.querySelector('[data-grid-cell-id="c1"]').textContent).toMatch(/hit an error/)
+  }, 30000)
+  it('Undo takes it back and the chart returns, because a cell is still there to change', async () => {
+    crash()
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Say “undo”/))
+    await say('undo')
+    await waitFor(() => expect(screen.getByTestId('canvas-c1')).toBeTruthy())
+    expect(tfs()).toBe('DDDD')
+  }, 30000)
+  it('a chart nobody changed crashing says nothing on this receipt', async () => {
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    act(() => { noteChartFault('c2') })
+    expect(receipts()[0].getAttribute('data-status')).toBe(null)
+    expect(transcript()).not.toMatch(/hit an error/)
+  }, 30000)
+  it('a healthy chart: the receipt stands', async () => {
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    expect(receipts()[0].getAttribute('data-status')).toBe(null)
+  }, 30000)
 })
 
 describe('Multi Chart: time-range sync', () => {
@@ -622,7 +750,7 @@ describe('Multi Chart: grid truth, unit by unit', () => {
     expect(asSubjectWords('make the one I just changed weekly', null, changed)).toEqual({ text: 'make it weekly', subject: 'c1', changed: true })
     expect(asSubjectWords('make the one you just changed weekly', null, changed).subject).toBe('c2')
     expect(asSubjectWords('make the one we just changed weekly', null, changed).subject).toBe('c3')
-    expect(asSubjectWords('make the one you just changed weekly', null, () => null).subject).toBe(null)
+    expect(asSubjectWords('make the one you just changed weekly', null, () => null)).toEqual({ text: 'make the one you just changed weekly', subject: null, changed: true })
     expect(asSubjectWords('make the one I just changed weekly', null, null).subject).toBe(null)
   })
 })

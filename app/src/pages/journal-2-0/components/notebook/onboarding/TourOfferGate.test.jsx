@@ -334,13 +334,22 @@ describe('it never stacks -- it waits', () => {
   })
 })
 
-describe('the card stylesheet stays in flow', () => {
-  it('no position: fixed | absolute | sticky (it must never float over a control)', async () => {
+// VIS-4 (audit 2026-11-05, visual issue 11): the card was IN FLOW by ruling (W14-C2: "it takes page
+// space, so it can never cover a control"). Measured, that space arrived late and pushed the page 74 px
+// -- the largest layout shift on the Notebook. The audit's fix is a toast: out of flow, in the --z-toast
+// layer, parked where no control lives (above the orb's corner on desktop; left of the floating "+" on a
+// phone). So the rail inverts: it must be FIXED, so its arrival can never move the page.
+describe('the card is a toast: out of flow, so its arrival moves nothing', () => {
+  it('position: fixed, in the --z-toast layer (never absolute or sticky, never in flow)', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const css = fs.readFileSync(path.resolve(__dirname, 'TourOfferPrompt.module.css'), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')                               // the header comment names the rule
-    expect(css).not.toMatch(/position\s*:\s*(fixed|absolute|sticky)/)
+    const card = css.slice(css.indexOf('.card {'), css.indexOf('}', css.indexOf('.card {')))
+    expect(card).toMatch(/position\s*:\s*fixed/)
+    expect(card).toMatch(/z-index\s*:\s*var\(--z-toast\)/)
+    expect(card).not.toMatch(/margin\s*:\s*\d+px \d+px 0/)            // the in-flow margin is gone
+    expect(css).not.toMatch(/position\s*:\s*(absolute|sticky)/)
     expect(css).toMatch(/var\(--tap-min\)/)
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/)              // tokens only
   })

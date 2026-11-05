@@ -21,6 +21,7 @@ vi.mock('../lib/offline/invalidateNoteViews', async (importOriginal) => ({
   invalidateNoteViews: (...args) => viewsSpy(...args),
 }))
 import TickerResearchWorkspace from '../components/notebook/TickerResearchWorkspace'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
@@ -28,7 +29,7 @@ afterEach(() => { cleanup(); __resetNotebookFlags() })
 async function openNewNoteSheet() {
   render(<Providers route="/journal/notebook?view=all"><NotebookTab /></Providers>)
   await settle()
-  fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+  pressToolbar('Templates')
   const sheet = await screen.findByRole('dialog', { name: 'New note' })
   // Task 7.4: the sheet's picker is a lazy chunk, so the control waits for it
   expect((await within(sheet).findAllByText('Blank note', {}, { timeout: 10000 })).length).toBeGreaterThan(0)   // control

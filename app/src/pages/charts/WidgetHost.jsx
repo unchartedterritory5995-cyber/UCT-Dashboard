@@ -26,6 +26,7 @@ import WidgetHeader from './WidgetHeader'
 import { effectiveGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import ErrorBoundary from '../../components/ErrorBoundary'
+import { noteChartFault } from './chartFaults'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import {
@@ -134,7 +135,7 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // resets a tripped boundary if the widget's identity changes under it (a tab
   // swap reusing the same DOM slot), so a stale error state can't outlive its cause.
   return (
-    <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={type} />}>
+    <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={type} />} onError={type === 'chart' ? () => noteChartFault(String(groupId).replace(':', '~')) : undefined}>
       <Suspense fallback={<div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}>
         <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
       </Suspense>

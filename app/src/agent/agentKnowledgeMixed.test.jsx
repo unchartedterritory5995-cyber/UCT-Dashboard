@@ -56,7 +56,7 @@ describe('review #768: a mixed chart change + knowledge plan', () => {
     fireEvent.change(box, { target: { value: 'make it bars and what is a VCP?' } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(document.body.textContent).toMatch(/From UCT's knowledge base/), { timeout: 8000 })
-    await waitFor(() => expect(document.body.textContent).not.toMatch(/is typing/), { timeout: 8000 })
+    await waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull(), { timeout: 8000 })
     const t = document.body.textContent
     expect(refOf(turnBodies[0], 'playbook')).toBeTruthy()                       // the knowledge capability was offered
     expect(t).toMatch(/Bars/)                                                   // the change's own receipt

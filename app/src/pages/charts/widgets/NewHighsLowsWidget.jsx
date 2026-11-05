@@ -256,7 +256,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
       <div className={styles.toolbar}>
         {/* Universe TAB strip (switch / delete) + a ＋ that opens the grouped menu —
             identical to the Market Map widget. */}
-        <div className={styles.uniTabs}>
+        <div className={styles.uniTabs} data-guide="nhnl.universes">
           {universes.map((u, i) => (
             <span key={`${u.key}:${i}`}
               className={`${styles.uniTab}${i === activeIdx ? ' ' + styles.uniTabActive : ''}`}
@@ -279,7 +279,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           type="button"
           className={`${styles.gear} ${settingsOpen ? styles.gearOn : ''}`}
           onClick={() => setSettingsOpen(o => !o)}
-          title="New Highs / Lows settings"
+          data-guide="widget.settings" title="New Highs / Lows settings"
           aria-label="New Highs / Lows settings"
         >
           <UIcon name="gear" size={13} gold={false} />

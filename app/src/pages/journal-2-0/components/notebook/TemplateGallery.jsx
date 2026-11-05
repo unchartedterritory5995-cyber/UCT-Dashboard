@@ -134,7 +134,7 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
   const openAdopt = async () => {
     try {
       const mod = await import('./library/openAdoptSheet')
-      mod.openAdoptSheet({ galleryId: item.id, kind: adoptKind })
+      mod.openAdoptSheet({ galleryId: item.id, kind: adoptKind, ...(adoptKind === 'template' ? { name: item.title } : {}) })
     } catch {
       onMessage?.({ tone: 'error', text: doorLostSentence() })
     }
@@ -165,8 +165,8 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
               <UIcon name="eye" size={13} gold={false} /> Preview
             </button>
             <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onUse(item)} disabled={busy}
-              aria-label={`Use template ${item.title}`}>
-              Use template
+              aria-label={`Add ${item.title} to my templates`}>
+              Add to my templates
             </button>
           </>
         )}
@@ -283,7 +283,7 @@ function MySubmissions({ onMessage }) {
             <div className={styles.actions} role="group" aria-label={`Unpublish ${item.title}?`}>
               <span className={styles.note}>
                 {item.itemType === EXAMPLE_NOTE_TYPE
-                  ? `Withdraw the example “${item.title}”? It will no longer show on your style.`
+                  ? `Withdraw the example “${item.title}”? It will no longer show on your template.`
                   : <>Take “{item.title}” out of the gallery?</>}
               </span>
               <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={working}
@@ -310,7 +310,7 @@ function MySubmissions({ onMessage }) {
   )
 }
 
-export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '', backLabel = 'Back to templates' }) {
+export default function TemplateGallery({ onBack, onUseNow, busy = false, initialType = '', backLabel = 'Back to templates', landNote = null }) {
   const uid = useId()
   const headingRef = useRef(null)
   const wrapRef = useRef(null)
@@ -441,7 +441,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
 
   const cardProps = {
     libraryOn, layoutSharing, isAdmin, busy: busy || using, onPreview: openPreview, onStylePreview: openStylePreview,
-    onUse: use, onChanged: refresh, onMessage: setMessage, onOpenAuthor: openAuthor,
+    onUse: use, onChanged: refresh, onMessage: setMessage, onOpenAuthor: openAuthor, landNote,
   }
   const card = (item) => <LibraryCard key={item.id} {...cardProps} item={item} />
   // No `onAdopted` refresh here: adoptStyle already revalidates every library view once
@@ -454,14 +454,14 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
         <button type="button" className={styles.btn} onClick={onBack}>
           {backLabel}
         </button>
-        <h3 className={styles.heading} ref={headingRef} tabIndex={-1} id={`${uid}-heading`}>Community gallery</h3>
+        <h3 className={styles.heading} ref={headingRef} tabIndex={-1} id={`${uid}-heading`}>Template library · From members</h3>
       </div>
       <p className={styles.note}>
         Templates other members shared, reviewed by UCT before they are listed. Using one copies it into Your
         templates; it is yours to change.
       </p>
 
-      <div className={styles.viewRow} role="group" aria-label="Community gallery view">
+      <div className={styles.viewRow} role="group" aria-label="Template library view">
         {[['browse', 'Browse'], ['mine', 'Your submissions'], ...(isAdmin ? [['review', 'Review queue']] : []),
           ...(libraryOn ? [['following', 'Following']] : [])]
           .map(([key, label]) => (
@@ -515,8 +515,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
               className={styles.search}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search the community gallery…"
-              aria-label="Search the community gallery"
+              placeholder="Search the Template library…"
+              aria-label="Search the Template library"
             />
             {libraryOn && (
               <div className={styles.chipRow} role="group" aria-label="Filter by type" data-tour="library-types">
@@ -557,8 +557,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
             </label>
           </div>
 
-          {listError && <p className={styles.error} role="alert">Couldn't load the community gallery.</p>}
-          {loading && <p className={styles.note}>Loading the community gallery…</p>}
+          {listError && <p className={styles.error} role="alert">Couldn't load the Template library.</p>}
+          {loading && <p className={styles.note}>Loading the Template library…</p>}
           {nothing && (
             <p className={styles.note} role="status">
               {filtered ? 'No templates match.' : 'Nothing has been shared yet.'}
@@ -573,7 +573,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
           )}
           {community.length > 0 && (
             <section className={styles.section} aria-labelledby={`${uid}-community`}>
-              <h4 className={styles.sectionLabel} id={`${uid}-community`}>Community</h4>
+              <h4 className={styles.sectionLabel} id={`${uid}-community`}>From members</h4>
               {renderCards(community)}
             </section>
           )}
@@ -586,7 +586,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
         ) : feed.isLoading && !feed.templates.length ? (
           <p className={styles.note}>Loading what the authors you follow listed…</p>
         ) : !feed.templates.length ? (
-          <p className={styles.note} role="status">Follow an author to see their new styles here.</p>
+          <p className={styles.note} role="status">Follow an author to see their new templates here.</p>
         ) : (
           <section className={styles.section} aria-labelledby={`${uid}-following`}>
             <h4 className={styles.sectionLabel} id={`${uid}-following`}>From authors you follow</h4>

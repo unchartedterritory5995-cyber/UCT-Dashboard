@@ -256,7 +256,9 @@ describe('ONE ticker control', () => {
 describe('keyboard order: title, then the details toggle, then the body', () => {
   const TABBABLE = 'input, button, select, textarea, [contenteditable="true"], a[href], [tabindex]'
   const reachable = (el) => !el.closest('[hidden]') && !el.disabled && el.getAttribute('tabindex') !== '-1'
-  it('collapsed, the only stop between the title and the body is the toggle', async () => {
+  // S10 (audit 2026-11-05, M4): the folder moved from the header to the start of this line ("Semis · #swing · Add
+  // details"), so it is the one other stop: title, folder, the toggle, the body.
+  it('collapsed, the only stops between the title and the body are the folder and the toggle', async () => {
     NOTE = thesisNote()
     PROPERTIES = NVDA_PROPERTIES
     const { container } = await renderEditor()
@@ -266,7 +268,7 @@ describe('keyboard order: title, then the details toggle, then the body', () => 
     const between = stops.slice(stops.indexOf(title) + 1, stops.indexOf(body))
     expect(stops.indexOf(title)).toBeGreaterThanOrEqual(0)
     expect(stops.indexOf(body)).toBeGreaterThan(stops.indexOf(title))
-    expect(between).toEqual([toggle()])
+    expect(between).toEqual([screen.getByRole('combobox', { name: 'Folder' }), toggle()])
   })
 })
 

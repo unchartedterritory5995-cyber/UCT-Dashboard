@@ -10,7 +10,7 @@
 //
 // ⛔ jsdom applies no CSS. The RENDERED half below proves the route decides the fold,
 // the disclosure is wired (aria-expanded / aria-controls to the element it reveals),
-// Log Trade stays outside the fold, and More still works inside it. The STRUCTURAL half
+// Log Trade folds inside it (S12, V4), and More still works inside it. The STRUCTURAL half
 // proves the phone-only rules exist where they apply at 390 and not at 820.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -122,7 +122,10 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(root(container)).not.toHaveAttribute('data-tools-open')
   })
 
-  it('aria-controls names the element that holds ?, account, report, settings and More -- and NOT Log Trade', () => {
+  // S12 + VIS-4 (audit 2026-11-05, V4 / issue 14): "Log Trade" FOLDS into the disclosure on the Notebook, so the
+  // phone's first screen is notes (the first note card sat at y=603 of 844). ⚰️ D2 kept it outside the fold as
+  // "the primary write affordance"; on the Notebook the primary write is "+ New", and Log Trade is one tap away.
+  it('aria-controls names the element that holds Log Trade, ?, account, report, settings and More', () => {
     renderAt('/journal/notebook')
     const tools = document.getElementById(toggle().getAttribute('aria-controls'))
     expect(tools).not.toBeNull()
@@ -132,9 +135,8 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(w.getByRole('button', { name: 'Generate report' })).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'Open Portfolio Settings' })).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'More' })).toBeInTheDocument()
-    // Log Trade is the primary write affordance: never folded away.
     const log = screen.getByRole('button', { name: /log trade/i })
-    expect(tools.contains(log)).toBe(false)
+    expect(tools.contains(log)).toBe(true)
   })
 
   it('tapping the disclosure opens and closes it (aria-expanded and the root marker move together)', () => {
@@ -156,8 +158,9 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(within(menu).getByRole('link', { name: /accounts/i })).toBeInTheDocument()
   })
 
-  it('the Log Trade split menu still opens on the folded header', () => {
+  it('the Log Trade split menu still opens from inside the fold', () => {
     renderAt('/journal/notebook')
+    fireEvent.click(toggle())
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
     const menu = screen.getByRole('menu', { name: 'Log a trade' })
     expect(within(menu).getAllByRole('menuitem').length).toBe(2)
@@ -172,10 +175,11 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(document.getElementById('journal-header-tools').contains(strip)).toBe(false)
   })
 
-  it('⭐ CONTROL -- off the Notebook there is no fold and no disclosure', () => {
+  it('⭐ CONTROL -- off the Notebook there is no fold and no disclosure, and Log Trade sits in the row', () => {
     const { container } = renderAt('/journal/trades')
     expect(root(container)).not.toHaveAttribute('data-compact-header')
     expect(toggle()).toBeNull()
+    expect(document.getElementById('journal-header-tools').contains(screen.getByRole('button', { name: /log trade/i }))).toBe(false)
   })
 })
 

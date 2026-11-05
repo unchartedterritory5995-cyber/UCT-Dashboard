@@ -1,18 +1,17 @@
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
-import { mutate as globalMutate } from 'swr'
+import { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import { applyTargetToParams } from '../lib/searchNavigation'
 import { passageNavigationState } from '../lib/openCitation'
 import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
-import NotesTableView from '../components/notebook/NotesTableView'
 import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
-import { NewNoteCaret } from '../components/notebook/NewNoteMenu'
+import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -84,6 +83,8 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 // the first open. `OTHER_TOURS` is one frozen module-level array (tourRegistry.js), so the
 // gate's own effects see a stable list.
 import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
+import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
+import { holdImageForNote } from '../lib/pendingImageInsert'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
@@ -144,6 +145,8 @@ const TemplatePicker = lazyView(() => import('../components/notebook/TemplatePic
 // its status read lands, so it loads after first paint with nothing in its place (`null` fallback).
 const NoteConnectorsTrustStrip = lazyView(() => import('../components/connectors/NoteConnectorsTrustStrip'), 'connected apps status', null)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+// Tier 1a bytes (perf-budgets.md): the table view mode, fetched on its first use like every other view mode.
+const NotesTableView = lazyView(() => import('../components/notebook/NotesTableView'), 'table')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
 const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
@@ -191,6 +194,11 @@ const PublishFolderSheet = lazyDialog(() => import('../components/notebook/Publi
 // rendered only while a voice note is in progress, so each start mounts it afresh.
 const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
 // Notebook P1: the Journal styles manager, fetched the first time it is opened (a creating door, gated below).
+const NOOP = () => {}
+// S12 (B13), fix round 1: the folders sheet inside a note on a phone, on its first open through `lazyDialog`.
+const FolderSheet = lazyDialog(() => import('../components/notebook/FolderSheet'), 'folders')
+// S12 (M9): the phone "+" sheet, on its first open through `lazyDialog` (fix round 1: first-open bytes).
+const NotebookPlusSheet = lazyDialog(() => import('../components/notebook/NotebookPlusSheet'), 'add')
 const StylesManager = lazyDialog(() => import('../components/notebook/styles/StylesManager'), 'journal styles')
 // Task 7.6: the "Save view" name prompt, fetched the first time a member opens it (before that, a closed
 // Sheet renders nothing, which is what lazyDialog renders).
@@ -478,7 +486,7 @@ export default function NotebookTab() {
   const { propertyDefs, error: propertyDefsError, refresh: refreshPropertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
-  // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
+  // false | true | 'kinds' (Notebook P1: "From a template" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked,
@@ -590,6 +598,24 @@ export default function NotebookTab() {
     try { localStorage.setItem('uct.j2.nb.sidebarOpen', next ? '1' : '0') } catch { /* private mode */ }
     return next
   })
+  // S12 (audit 2026-11-05, B13): on a phone, inside a note, Folders opens the folders panel as a bottom SHEET. ⚰️ It
+  // flipped `sidebarOpen` while the note-open rule kept the panel hidden, so the button vanished and nothing showed.
+  // Fix round 1 (review Important 6): the sheet is the repo's Sheet (FolderSheet, on demand) around the same
+  // FolderSidebar, opened from a Folders button that stays on screen; it never touches the stored sidebar choice.
+  const [folderSheet, setFolderSheet] = useState(false)
+  const folderSheetBtnRef = useRef(null)
+  // Fix round 2 (re-review N1): the sheet is a PHONE thing. On a tablet or desktop the panel itself is on screen beside
+  // a note, so Folders expands it. Read at the press (the width the member is looking at; this file's other phone
+  // checks read `innerWidth` the same way, and a media hook can be stale at first paint).
+  const openFolders = () => {
+    if (noteId && typeof window !== 'undefined' && window.innerWidth <= 640) { setFolderSheet(true); return }
+    if (!sidebarOpen) toggleSidebar()
+  }
+  useEffect(() => { setFolderSheet(false) }, [noteId])
+  const closeSheetThen = (fn) => (...args) => { setFolderSheet(false); fn?.(...args) }
+  // S12: the phone "+" and its sheet (NotebookPlusSheet, on demand).
+  const [plusOpen, setPlusOpen] = useState(false)
+  const plusRef = useRef(null)
 
   // Lane KEYS: the command palette's "Search Notebook" arrives with `#search`
   // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
@@ -836,27 +862,17 @@ export default function NotebookTab() {
           : tag ? `Notes tagged ${tag}`
             : folderId ? 'Notes in this folder'
               : 'All notes'
-  // A one-shot INSTRUCTION, applied then stripped (the same arrive-and-strip
-  // pattern as `?folder=`/`?ticker=` above): it selects the mode the URL named
-  // and becomes the explicit All-notes state, so the switcher, a reload and
-  // Back behave exactly as they do for every other mode. A saved view pins
-  // its own mode, so this door clears it.
-  // ⛔ A2R-03: used to check ONLY `viewParam === 'tasks'`. Any other VIEW_MODES
-  // id (table/board/calendar/graph/timeline) was silently ignored here too —
-  // the `viewAll` fix above keeps `isHome` from firing on the FIRST render,
-  // but without this the mode itself would never actually switch. `'list'` is
-  // excluded: it is already the state's own default, and rewriting
-  // `?view=list` to `?view=all` on every load would be a pointless URL churn.
+  // S11 (audit 2026-11-05): the view LIVES in the address. `?view=board` opens the board, the View
+  // menu writes the mode it picks back here (`chooseViewMode`), and a reload or Back opens the same view
+  // again. ⚰️ This used to be a one-shot instruction, applied then rewritten to `?view=all`, so a reload
+  // always came back as the list. A saved view pins its own mode, so a NEW `?view=` clears it.
+  // ⛔ A2R-03: every VIEW_MODES id is recognised here, never only `tasks` (the reminder's link), or a
+  // graph/board/calendar URL would land on Research Home.
   useEffect(() => {
-    if (!VIEW_MODES.some((m) => m.id === viewParam) || viewParam === 'list') return
+    if (!VIEW_MODES.some((m) => m.id === viewParam)) return
     setViewMode(viewParam)
     setActiveView(null)
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.set('view', 'all')
-      return next
-    }, { replace: true })
-  }, [viewParam, setSearchParams])
+  }, [viewParam])
   // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit
   // `?view=all` on a genuinely empty notebook render two different "you have
   // no notes" screens for the identical fact. Attempted a route-into-
@@ -1139,9 +1155,11 @@ export default function NotebookTab() {
   // grid, no filter" from bare-root Research Home -- both otherwise look
   // identical (folderId=null, tag=null, no activeView). Selecting any real
   // folder/tag/saved-view leaves that explicit-all-notes state.
+  // S11: a VIEW MODE in the address (`?view=board`) is the member's view, not the All-notes flag, so it
+  // stays -- the folder or tag narrows the board, and a reload still opens the board.
   const clearViewAllParam = () => setSearchParams((prev) => {
     const next = new URLSearchParams(prev)
-    next.delete('view')
+    if (!VIEW_MODES.some((m) => m.id === next.get('view'))) next.delete('view')
     return next
   }, { replace: false })
   const selectAllNotes = () => {
@@ -1151,7 +1169,8 @@ export default function NotebookTab() {
     setTickerFilter(null)
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      next.set('view', 'all')
+      // S11: keep a view mode the address already names (`?view=board`); otherwise the explicit All-notes flag
+      if (!VIEW_MODES.some((m) => m.id === next.get('view'))) next.set('view', 'all')
       next.delete('note')
       next.delete(SIDE_PARAM)
       return next
@@ -1222,7 +1241,14 @@ export default function NotebookTab() {
     // quiet, which is why the server's SAVEABLE_VIEW_TYPES and this set are
     // pinned against each other by a test.
     setViewMode(SAVEABLE_VIEW_MODES.has(view.viewType) ? view.viewType : 'list')
-    clearViewAllParam()
+    // Fix round 1 (review Important 2): a saved view pins its OWN mode, so the address keeps no `?view=<mode>`
+    // (a stale `?view=board` reopened the board on reload and dropped the saved view). Writing the view's type there
+    // instead would trip the URL effect, which clears a saved view by design.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('view')
+      return next
+    }, { replace: false })
     if (noteId) clearNoteParam()
   }
   const handleQuickFilter = (propertyId, value) => {
@@ -1819,6 +1845,12 @@ export default function NotebookTab() {
     }
     landCreatedNote(created, { fresh: true, ...openOptions })
   }
+  // S9 (audit 2026-11-05): a Template library Use names the note itself ("{Template} · {Ddd, Mon D}"), so the caret goes
+  // to the note's first field, never the title it already has.
+  // Fix round 1 (review finding 10): only a note the Use NAMED skips the title; an untitled one (a members' gallery
+  // template made without a name) opens in its title, as every picked note did before.
+  const landTemplateNote = (created) => landPickedNote(created,
+    typeof created?.title === 'string' && created.title.trim() ? { to: 'field' } : {})
   const landCreatedNote = (created, openOptions) => {
     globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
     // Instant: put it in the tree now, then reconcile from the server.
@@ -1829,7 +1861,7 @@ export default function NotebookTab() {
     openNote(created, null, openOptions)
   }
   const createNote = async ({
-    title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId,
+    title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId, onCreated,
   } = {}) => {
     setCreating(true)
     setPickerOpen(false)
@@ -1894,6 +1926,8 @@ export default function NotebookTab() {
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
       // A styled note is not blank either: the server composed its body (its outline).
+      // S12: a door that hands the new note something to place (the "+" sheet's photo) does it BEFORE it opens.
+      if (created?.id) onCreated?.(created)
       landPickedNote(created, { blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
@@ -2096,6 +2130,71 @@ export default function NotebookTab() {
   const fromStyle = stylesOn ? () => setPickerOpen('kinds') : null
   const recordVoiceNote = voiceOn ? () => startVoiceNote('record') : null
 
+  // VIS-5: the empty folder names its folder. Read from the folders list FolderSidebar already fetched
+  // (the same SWR key, never a second request); a folder not in it yet reads as "this folder".
+  const { cache: swrCache } = useSWRConfig()
+  const activeFolderName = (folderId
+    && swrCache.get('/api/j2/note-folders')?.data?.folders?.find((f) => f.id === folderId)?.name) || 'this folder'
+  // "Move notes…": back to All notes, where every note can be selected and moved with the bulk bar's Move.
+  const moveNotesHere = () => {
+    const name = activeFolderName
+    // Fix round 1 (review Important 3): selectAllNotes sets the explicit All-notes flag (`view=all`). A bare
+    // setFolderId(null) left neither a filter nor the flag, so the member landed on Research Home.
+    selectAllNotes()
+    setBulkNotice({ message: `Select the notes you want, then choose Move to put them in ${name}.`, tone: 'info' })
+  }
+
+  // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
+  // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
+  const viewMenu = useMenuButton()
+  const newMenu = useMenuButton()
+  const moreMenu = useMenuButton()
+  const currentView = VIEW_MODES.find((m) => m.id === viewMode) || VIEW_MODES[0]
+  // The view goes in the address (`?view=board`), so a reload or a shared link opens it again. The URL
+  // effect above reads the same param, so this is one fact in one place, not a second store.
+  const chooseViewMode = (id) => {
+    setViewMode(id)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', id)
+      return next
+    }, { replace: true })
+  }
+  const viewMenuItems = [
+    ...VIEW_MODES.map(({ id, icon, short }) => ({
+      key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id),
+    })),
+    // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
+    // nothing of its own to store, so a "saved" graph view would reopen as a plain Graph click -- a silent
+    // trap (competitive audit UX #18, 2026-09-22). A saved view in use disables the whole menu.
+    ...(viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) ? [
+      { key: 'sep', separator: true },
+      { key: 'save', label: 'Save view', icon: 'plus', run: () => setSaveViewOpen(true) },
+    ] : []),
+  ]
+  const newMenuItems = [
+    { key: 'blank', label: 'Blank', icon: 'document', run: () => createNote() },
+    // Fix round 1 (review Minor 11): with the template switch on, the ▾ carries BOTH of Home's doors -- "From an
+    // outline" (the sheet, search first) and "From a template" (the same sheet, focus on the first note type, the old
+    // list caret's door). With it off there are no note types, and "From a template" is the plain sheet.
+    fromStyle && { key: 'outline', label: 'From an outline', icon: 'document', run: openNewNoteSheet },
+    { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet },
+    recordVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote },
+    { key: 'import', label: 'Import', icon: 'upload', run: openImport },
+  ].filter(Boolean)
+  // On a phone "+ New" and Today give way to the floating "+" (S12), so ⋯ carries them there (CSS shows
+  // `phoneOnlyItem` rows at <=640px only): every toolbar action stays reachable at every width.
+  const phoneOnly = styles.phoneOnlyItem
+  const moreMenuItems = [
+    { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
+    { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
+    { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
+    toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
+    // S7 (one vocabulary): the journal styles manager is where a member manages templates.
+    stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
+  ].filter(Boolean)
+
   // A successful import can create notes AND folders — refresh both. Notes
   // come back through useJ2Notes' own refresh(); folders live behind
   // FolderSidebar's own useJ2NoteFolders() hook with no exposed handle up
@@ -2163,6 +2262,35 @@ export default function NotebookTab() {
     }, { replace: true })
   }, [setSearchParams])
 
+  // One FolderSidebar's props, for the panel and for the phone note's folders sheet (fix round 1, Important 6).
+  const folderSidebarProps = {
+    notes: allNotes,
+    notesTotal: allNotesTotal,
+    activeFolderId: folderId,
+    onSelectFolder: handleSelectFolder,
+    activeTag: tag,
+    onSelectTag: handleSelectTag,
+    onOpenNote: openNote,
+    activeNoteId: noteId,
+    onToggleSidebar: toggleSidebar,
+    sidebarOpen: sidebarOpen,
+    searchRequest: searchRequest,
+    searchSeed: searchSeed,
+    onSearchModeChange: setSidebarSearching,
+    savedViews: savedViews,
+    activeViewId: activeView?.id ?? null,
+    onSelectView: handleSelectView,
+    onRenameView: onRenameView,
+    onDeleteView: onDeleteViewRequest,
+    onAddStarterViews: addStarterThesisViews,
+    isHome: isHome,
+    onSelectAllNotes: selectAllNotes,
+    onRenameTag: onRenameTag,
+    extraFolderActions: extraFolderActions,
+    // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
+    // failure is said in the panel with the panel's own reads.
+    extraLoadFailures: [{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }],
+  }
   return (
     // Wave 6 item 7: the split-view door for everything below — the sidebar's
     // Ctrl/Cmd+click and every note link inside either editor (lib/splitView.js).
@@ -2170,6 +2298,7 @@ export default function NotebookTab() {
     <div
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
+      data-list-toolbar={!noteId && !isHome ? '' : undefined}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
       // D2 (design finding D-1): a phone stacks the folder panel ABOVE the notes,
       // so a `?note=` link painted the folder panel first and put the note's title
@@ -2299,6 +2428,16 @@ export default function NotebookTab() {
       )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
+      {/* B13: inside a note on a phone the panel is hidden by the note-open rule, so THIS is Folders there (phone only,
+          CSS): it opens the folders sheet and stays on screen, so focus can come back to it. */}
+      {noteId && (
+        <button type="button" ref={folderSheetBtnRef} className={`${styles.sidebarToggle} ${styles.noteFoldersBtn}`}
+          onClick={openFolders} aria-label="Show folders" title="Show folders" aria-haspopup="dialog"
+          aria-expanded={folderSheet}>
+          <SidebarToggleIcon />
+          <span className={styles.sidebarToggleLabel} aria-hidden="true">Folders</span>
+        </button>
+      )}
       {!sidebarOpen && (
         <button
           type="button"
@@ -2317,37 +2456,9 @@ export default function NotebookTab() {
           mounted (so reopening loses nothing), and without `inert` Tab and a screen reader still
           walked its folder tree, All notes and Trash -- controls nobody can see (desktop crawl,
           2026-10-09). */}
-      <div className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined} data-tour-reveal="notebook-sidebar">
+      <div id="notebook-folders-panel" className={styles.sidebarSlot} inert={!sidebarOpen || folderSheet ? true : undefined} data-tour-reveal="notebook-sidebar">
         <div className={styles.sidebarInner}>
-          <FolderSidebar
-            key={folderRefreshKey}
-            notes={allNotes}
-            notesTotal={allNotesTotal}
-            activeFolderId={folderId}
-            onSelectFolder={handleSelectFolder}
-            activeTag={tag}
-            onSelectTag={handleSelectTag}
-            onOpenNote={openNote}
-            activeNoteId={noteId}
-            onToggleSidebar={toggleSidebar}
-            sidebarOpen={sidebarOpen}
-            searchRequest={searchRequest}
-            searchSeed={searchSeed}
-            onSearchModeChange={setSidebarSearching}
-            savedViews={savedViews}
-            activeViewId={activeView?.id ?? null}
-            onSelectView={handleSelectView}
-            onRenameView={onRenameView}
-            onDeleteView={onDeleteViewRequest}
-            onAddStarterViews={addStarterThesisViews}
-            isHome={isHome}
-            onSelectAllNotes={selectAllNotes}
-            onRenameTag={onRenameTag}
-            extraFolderActions={extraFolderActions}
-            // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
-            // failure is said in the panel with the panel's own reads.
-            extraLoadFailures={[{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }]}
-          />
+          <FolderSidebar {...folderSidebarProps} key={folderRefreshKey} />
         </div>
       </div>
 
@@ -2368,7 +2479,7 @@ export default function NotebookTab() {
             place for the skip link and for focus when a delete leaves no row
             after it. Visually hidden until it takes focus. */}
         {!noteId && (
-          <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
+          <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading} data-focus-fallback="">{paneHeading}</h2>
         )}
         {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
             note / Research Home / notes-list branches. They used to be inside the notes-list
@@ -2572,6 +2683,40 @@ export default function NotebookTab() {
         <div className={styles.toolbar} role="toolbar" aria-label="Notes list tools"
           ref={listToolbar.ref} onKeyDown={listToolbar.onKeyDown} onFocus={listToolbar.onFocus}>
           {isArchiveView && <span className={styles.trashLabel}>Archived</span>}
+          {/*
+            S11 + VIS-4 (audit 2026-11-05, V2): ONE row, in this order -- a labelled View menu (every mode,
+            and Save view inside it), sort, Today, "+ New" with its ▾ (Blank · From a template · Voice note ·
+            Import) as the ONLY solid primary, and ⋯ (Export, My tools, Manage templates). It replaced eight
+            44 px buttons, seven unlabelled view icons and a Save view link. Every action that was on the row
+            is still one menu away: NotebookTab.toolbar.test.jsx enumerates them. The three menus run the ONE
+            menu-button engine (`useMenuButton`, NewNoteMenu.jsx); each trigger is a literal <button> here so
+            its tour anchor stays a literal attribute (tourAnchors.test.js).
+          */}
+          {/* S12 (V4): on a phone the folders drawer's door joins this row as a labelled dropdown (CSS shows it
+              at <=640px and hides the standalone toggle above), so folders, view and sort are ONE 44 px row. */}
+          {!sidebarOpen && (
+            // Review Minor 17: it discloses the folders panel, and says so.
+            <button type="button" className={`btn btn-secondary btn-sm ${styles.phoneFolders}`} onClick={toggleSidebar}
+              aria-expanded={sidebarOpen} aria-controls="notebook-folders-panel">
+              <span className="sr-only">Folder: </span>{folderId ? activeFolderName : 'All notes'}
+              <UIcon name="chevronDown" size={12} gold={false} />
+            </button>
+          )}
+          {!isShelfView && (
+            <div className={styles.menuSlot}>
+              <button {...viewMenu.triggerProps} type="button" className={`btn btn-secondary btn-sm ${styles.toolBtn}`}
+                disabled={Boolean(activeView)} data-tour="view-switcher">
+                {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
+                View: {currentView.short}
+                <UIcon name="chevronDown" size={12} gold={false} />
+              </button>
+              {viewMenu.open && (
+                <div {...viewMenu.menuProps} aria-label="View">
+                  <MenuRows menu={viewMenu} items={viewMenuItems} />
+                </div>
+              )}
+            </div>
+          )}
           {isTrashView ? (
             // Trash view sort is fixed (most recently deleted first) — the
             // toolbar's Recently-updated/Recently-created/Title options are
@@ -2605,7 +2750,7 @@ export default function NotebookTab() {
           {(folderId || tag || activeView || propertyFilter || tickerFilter) && (
             <button
               type="button"
-              className={styles.clear}
+              className={`btn btn-ghost btn-sm ${styles.toolBtn}`}
               onClick={() => {
                 setFolderId(null); setTag(null)
                 setActiveView(null); setPropertyFilter(null); setPropertySort(null)
@@ -2615,165 +2760,52 @@ export default function NotebookTab() {
               Clear filter
             </button>
           )}
-          {!isShelfView && (
-            <div className={styles.viewModeWrap} data-tour="view-switcher">
-              {/*
-                ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
-                five hand-written blocks and every one of them was missing
-                aria-pressed, so a screen reader heard five identical icon
-                buttons and could not say which view was on. The active state
-                lived only in a CSS class, which is invisible to it by
-                definition. Written once, the attribute cannot be on four of
-                them and off the fifth.
-
-                ⛔⛔ FX2 (wave 10, proof-walk item 2): `aria-pressed` alone was not
-                enough — it was on buttons sitting in a bare `<div>`, and a
-                labelled `[role=group]`/`[role=radiogroup]`/`[role=tablist]`/
-                `[role=toolbar]` ancestor is what actually turns "pressed" into
-                "the currently active one of a related set" for assistive tech
-                (and is what this program's own dead-click instrument's
-                `current`-state check requires, `CONTROLS_JS` in
-                `tools/notebook_proof_walk.py`). A screen-reader user heard
-                seven identical "pressed"/"not pressed" buttons with no signal
-                they were one control. Each button already behaves like an
-                independent toggle (Tab visits each one, Enter/Space fires it) —
-                the WAI-ARIA "group of toggle buttons" pattern, which needs no
-                roving-tabindex change — so the fix is the missing group role
-                and its label, not new keyboard behaviour.
-              */}
-              <div className={styles.viewModeGroup} role="group" aria-label="View">
-                {VIEW_MODES.map(({ id, icon, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
-                    onClick={() => setViewMode(id)}
-                    disabled={Boolean(activeView)}
-                    aria-pressed={viewMode === id}
-                    aria-label={label}
-                    title={label}
-                  >
-                    <UIcon name={icon} size={14} gold={false} />
-                  </button>
-                ))}
-              </div>
-              {/*
-                P0.11: on a phone the seven icon buttons above say nothing to a member who has
-                not learned the glyphs, so the stylesheet swaps them for this labelled select
-                (<=640px; desktop keeps the buttons). It is the SAME state under the SAME
-                saved-view lock, not a second authority: both doors call setViewMode.
-              */}
-              <label className={styles.viewSelectWrap}>
-                <span className="sr-only">View</span>
-                <select
-                  className={styles.viewSelect}
-                  aria-label="View"
-                  value={viewMode}
-                  onChange={(e) => setViewMode(e.target.value)}
-                  disabled={Boolean(activeView)}
-                >
-                  {VIEW_MODES.map(({ id, short }) => <option key={id} value={id}>{short}</option>)}
-                </select>
-              </label>
-              {/*
-                ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
-                DIFFERENT reason than this comment used to give. The server's
-                SAVEABLE_VIEW_TYPES (note_properties.py) now accepts "graph",
-                and the client's SAVEABLE_VIEW_MODES mirrors it -- so a save no
-                longer 400s, it silently SUCCEEDS and produces a named view
-                that captures nothing: handleSaveCurrentView only
-                special-cases board/calendar state, graph has no
-                filter/sort/groupBy of its own to store, and NoteGraphView
-                takes no filter/sort props at all (always fetches the whole
-                notebook). Reopening that "saved" view is indistinguishable
-                from clicking Graph fresh -- a silent trap, not a loud
-                refusal. Excluding it here is still the honest choice until a
-                real design decision gives a saved graph view something to
-                actually mean (e.g. a local-graph scope) -- competitive audit
-                finding UX #18, 2026-09-22.
-              */}
-              {/* Wave 6: a mode the table marks `saveable: false` (Tasks) offers no Save either. */}
-              {!activeView && viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) && (
-                <button
-                  type="button"
-                  className={styles.saveViewBtn}
-                  onClick={() => setSaveViewOpen(true)}
-                  title="Save this view"
-                >
-                  <UIcon name="plus" size={12} gold={false} />
-                  Save view
-                </button>
-              )}
-            </div>
-          )}
           <div className={styles.newWrap}>
             <button
               type="button"
-              className={styles.importBtn}
-              onClick={openImport}
-              aria-haspopup="dialog"
-              data-tour="import"
-            >
-              <UIcon name="upload" size={16} gold={false} />
-              <span className={styles.actionLabel}>Import</span>
-            </button>
-            {stylesOn && (
-              <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
-                <UIcon name="sliders" size={16} gold={false} />
-                <span className={styles.actionLabel}>Styles</span>
-              </button>
-            )}
-            {toolsOn && (
-              <button type="button" className={styles.importBtn} onClick={openTools} aria-haspopup="dialog">
-                <UIcon name="wrench" size={16} gold={false} />
-                <span className={styles.actionLabel}>My tools</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className={styles.exportBtn}
-              onClick={() => setExportOpen(true)}
-              aria-haspopup="dialog"
-            >
-              <UIcon name="download" size={16} gold={false} />
-              <span className={styles.actionLabel}>Export</span>
-            </button>
-            <button
-              type="button"
-              className={styles.templatesBtn}
+              className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.todayBtn}`}
               onClick={openToday}
               title="Open today's daily note (Ctrl+Alt+D)"
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
-              <UIcon name="sun" size={16} gold={false} />
-              <span className={styles.actionLabel}>Today</span>
+              <UIcon name="sun" size={14} gold={false} />
+              Today
             </button>
-            <button
-              type="button"
-              className={styles.templatesBtn}
-              onClick={openNewNoteSheet}
-              disabled={creating}
-              aria-haspopup="dialog"
-              data-tour="templates"
-            >
-              <UIcon name="library" size={16} gold={false} />
-              <span className={styles.actionLabel}>Templates</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => createNote()}
-              disabled={creating}
-              data-tour="new-note"
-              data-guide="journal.newNote"
-            >
-              + New note
-            </button>
-            {/* P1 follow-up: Home's caret beside it (spec P1.4), the SAME handlers Home is handed above */}
-            {stylesOn && (
-              <NewNoteCaret onFromOutline={openNewNoteSheet} onFromStyle={fromStyle}
-                onVoice={recordVoiceNote} onToday={openToday} />
-            )}
+            {/* "+ New" makes a blank note in one press; its ▾ lists every way in. The group carries the
+                base tour's Import step: Import lives in this ▾ now (tourCopy.js says so). */}
+            <div className={styles.newSplit} data-tour="import">
+              <button
+                type="button"
+                className={`btn btn-primary btn-sm ${styles.toolBtn} ${styles.newMain}`}
+                onClick={() => createNote()}
+                disabled={creating}
+                data-tour="new-note"
+                data-guide="journal.newNote"
+              >
+                + New
+              </button>
+              <button {...newMenu.triggerProps} type="button"
+                className={`btn btn-primary btn-sm ${styles.toolBtn} ${styles.newCaret}`}
+                aria-label="More ways to start a note" data-tour="templates">
+                <UIcon name="chevronDown" size={12} gold={false} />
+              </button>
+              {newMenu.open && (
+                <div {...newMenu.menuProps} aria-label="Start a note">
+                  <MenuRows menu={newMenu} items={newMenuItems} />
+                </div>
+              )}
+            </div>
+            <div className={styles.menuSlot}>
+              <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
+                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button">
+                <UIcon name="more" size={16} gold={false} />
+              </button>
+              {moreMenu.open && (
+                <div {...moreMenu.menuProps} aria-label="More notebook actions">
+                  <MenuRows menu={moreMenu} items={moreMenuItems} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2860,6 +2892,25 @@ export default function NotebookTab() {
               Deleted notes stay here for 30 days before they're gone for good.
             </p>
           </div>
+        ) : notes.length === 0 && folderId ? (
+          // VIS-5 (audit 2026-11-05, issue 15): an EMPTY FOLDER says so, by name, with the two things a member
+          // does next. ⚰️ It used to say "Your notebook is empty." and render the whole template gallery
+          // (536 text nodes) inside a folder of a notebook that was not empty at all.
+          <div className={styles.empty} data-empty="folder">
+            {/* Fix round 1 (review Minor 18): with a tag, ticker or property filter on too, the folder may hold notes. */}
+            <p>{tag || tickerFilter || propertyFilter
+              ? `No notes match these filters in ${activeFolderName}`
+              : `No notes in ${activeFolderName} yet`}</p>
+            <div className={styles.emptyActions}>
+              {/* Review Minor 10: secondary -- the toolbar's "+ New" is the screen's one solid primary (VIS-3). */}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => createNote()} disabled={creating}>
+                New note here
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={moveNotesHere}>
+                Move notes…
+              </button>
+            </div>
+          </div>
         ) : notes.length === 0 ? (
           <div className={styles.empty}>
             <p>Your notebook is empty.</p>
@@ -2873,7 +2924,7 @@ export default function NotebookTab() {
                 </p>
                 <button
                   type="button"
-                  className={`${styles.importBtn} ${styles.importBtnEmphasized}`}
+                  className="btn btn-outline"
                   onClick={openImport}
                   aria-haspopup="dialog"
                 >
@@ -2885,7 +2936,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landPickedNote} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (
@@ -3066,20 +3117,20 @@ export default function NotebookTab() {
           {voiceOn && (
             <div className={styles.voiceStarts} role="group" aria-label="Start from audio">
               <span className={styles.voiceStartsLabel}>Start from audio</span>
-              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('record')}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => startVoiceNote('record')}>
                 <UIcon name="mic" size={15} gold={false} /> Voice note
               </button>
-              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('upload')}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => startVoiceNote('upload')}>
                 <UIcon name="upload" size={15} gold={false} /> Upload recording
               </button>
-              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('desk')}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => startVoiceNote('desk')}>
                 <UIcon name="desk" size={15} gold={false} /> From a Desk session
               </button>
             </div>
           )}
           {canvasOn && (
             <div className={styles.canvasStart} role="group" aria-label="Plan a trade">
-              <button type="button" className={styles.templatesBtn} onClick={createCanvas} disabled={creating}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={createCanvas} disabled={creating}>
                 <UIcon name="board" size={15} gold={false} /> Trade-plan canvas
               </button>
               <span className={styles.canvasStartHint}>
@@ -3090,7 +3141,7 @@ export default function NotebookTab() {
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
               mount above (the picker at the empty-notebook branch) must never steal focus from a
               page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landPickedNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
         </Sheet>
 
         {voiceNote && voiceOn && (
@@ -3118,6 +3169,25 @@ export default function NotebookTab() {
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
+      {/* S12 (M9): the phone Notebook's one floating "+" (phone only, CSS). Its rows are this tab's own doors; the
+          sheet is fetched on its first open (lazyDialog), so the first open pays only for the button. */}
+      {noteId && (
+        <FolderSheet open={folderSheet} onClose={() => setFolderSheet(false)} returnFocusTo={folderSheetBtnRef}>
+          {/* Fix round 2 (N4): every choice in the sheet CLOSES it first, then acts -- a folder or a note leaves this
+              note, which unmounts the sheet and its trigger; closing first lets the Sheet release its lock and hand
+              focus back in order. (N3: the in-page panel is `inert` meanwhile.) */}
+          <FolderSidebar {...folderSidebarProps} sidebarOpen onToggleSidebar={() => setFolderSheet(false)}
+            onSearchModeChange={NOOP}
+            onSelectFolder={closeSheetThen(handleSelectFolder)} onSelectTag={closeSheetThen(handleSelectTag)}
+            onOpenNote={closeSheetThen(openNote)} onSelectView={closeSheetThen(handleSelectView)}
+            onSelectAllNotes={closeSheetThen(selectAllNotes)} />
+        </FolderSheet>
+      )}
+      <NotebookPlusFab ref={plusRef} open={plusOpen} onOpen={() => setPlusOpen(true)} />
+      <NotebookPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} returnFocusTo={plusRef}
+        onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
+        onPhoto={(file) => createNote({ title: 'Chart screenshot', onCreated: (c) => holdImageForNote(c.id, file) })}
+        askAi={auth?.isPaid === true} busy={creating} />
     </div>
     </SplitViewContext.Provider>
   )
