@@ -22,7 +22,7 @@ import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
 import GuideOverlay from './guide/GuideOverlay'
-import { onGuideDoIt } from './guide/guideStore'
+import { onGuideDoIt, guideState, endGuide } from './guide/guideStore'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
@@ -499,6 +499,8 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
+              // the panel stops its keys reaching the board, so the guide's own Escape can't hear this box, and focus sits here after asking
+              if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && guideState()) endGuide('exit')
             }}
           />
           <span className={styles.micSlot}>

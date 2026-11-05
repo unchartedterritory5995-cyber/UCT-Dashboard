@@ -51,9 +51,10 @@ control.
   control disappears mid-walkthrough, the guide stops and says why.
 - **Does not interfere:** the ring has `pointer-events: none`, the card is non-modal (`data-escape-layer`), the
   overlay never takes focus, and it cleans up every timer and listener on unmount.
-- **Escape:** ends the guide wherever focus is (the card never takes focus). It is declared in the shortcut registry
-  (`agent.guideEscape`), bound only while a walkthrough is on screen, and never consumed: a sheet, the palette, an
-  inline form or the chart's own keys still answer the same press.
+- **Escape:** one press does one thing. The guide listens last and ends only when nothing else answers: a text field's
+  Escape is the field's, an open sheet, palette or dialog owns the press, a menu the press closed had it, and a press
+  something prevented or stopped is left alone. It is declared in the shortcut registry (`agent.guideEscape`, with the
+  `agent.guideEscapeGate` observer) and bound only while a walkthrough is on screen. The card's × always ends it.
 
 ## Instant indicator explanations (owner decision 2026-10-29)
 
@@ -144,7 +145,6 @@ So 26 of 40 are proved instant on first sight, and 10 of 40 are unproved until a
 ### Limits
 
 - The Agent refuses every request in Multi Chart mode, so no walkthrough can start there.
-- Escape ends the walkthrough even when it was pressed to close a menu or window (`agent.guideEscape`, never consumed).
 - Right-click menus, legend chip menus and pane dividers have no `data-guide`, so they are not taught.
 - The bell's popover overflows the left edge on a narrow chart. That is a layout defect in the popover, not in the guide.
 
