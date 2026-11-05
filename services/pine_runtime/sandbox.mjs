@@ -73,14 +73,10 @@ export const L1_TOKENS = Object.freeze([
 ])
 
 /** Lines allowed to hold a token, matched on their exact trimmed text, each with its reason. */
-export const L1_ALLOWLIST = Object.freeze([
-  { token: 'network', line: 'return fetch(url, { credentials: "include" }).then((r) => {',
-    why: 'serverCompute.js, reachable through the registry until W5-T2 cuts the edge (H4); fetch is deleted in the worker (L3)' },
-  { token: 'network', line: 'Promise.resolve(fetch(RUNTIME_KILL_PATH, { credentials: "include", cache: "no-store" })).then((r) => r && r.ok ? r.json() : null).then((d) => {',
-    why: 'runtimeKill.js, browser-only (guarded by typeof window); W5-T2 cuts the edge (H4)' },
-  { token: 'network', line: 'Promise.resolve(fetch(RUNTIME_PERMISSION_RECHECK_PATH, { credentials: "include", cache: "no-store" })).then((r) => r && r.ok ? r.json() : null).then((d) => {',
-    why: 'lib/runtimePanePermission.js, browser-only (guarded by typeof window); W5-T2 cuts the edge (H4)' },
-])
+// train (W5-T7 x W5-T2): the three `network` lines this list excused (serverCompute.js, runtimeKill.js,
+// lib/runtimePanePermission.js) were each marked "until W5-T2 cuts the edge (H4)"; W5-T2 cut it, the bundle no
+// longer holds them, and a stale entry must leave the list (sandbox.test.mjs). The list is empty: no token is excused.
+export const L1_ALLOWLIST = Object.freeze([])
 
 /** L1 scan: `{ hits: [{token, line, text}], stale: [allowlist entries matching nothing] }`. */
 export function scanBundle(text, allowlist = L1_ALLOWLIST) {
