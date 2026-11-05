@@ -88,8 +88,10 @@ import { AGENT_FLAG_KEY, AGENT_OPEN_KEY } from '../../agent/agentFlag'
 
 let turns
 let turnReply
+let records          // the Agent's outcome rows (/api/agent/record) — one per change the runtime actually applied
 beforeEach(() => {
   turns = []
+  records = []
   turnReply = null
   try { localStorage.clear() } catch { /* jsdom's own storage, this file only */ }
   localStorage.setItem(AGENT_FLAG_KEY, '1')
@@ -101,7 +103,7 @@ beforeEach(() => {
       turns.push(body)
       return json({ conversationId: 'ac_1', envelope: turnReply(body), usage: {} })
     }
-    if (String(url).startsWith('/api/agent/record')) return json({ conversationId: 'ac_1' })
+    if (String(url).startsWith('/api/agent/record')) { try { records.push(JSON.parse(init.body)) } catch { /* */ } return json({ conversationId: 'ac_1' }) }
     if (String(url).startsWith('/api/watchlists')) return json([])
     // the cross-tab guard's server read is railed in its own suites; unreadable = unchecked here
     if (String(url).startsWith('/api/auth/preferences')) return new Response('', { status: 503 })
@@ -134,6 +136,11 @@ async function say(text) {
   await act(async () => { fireEvent.keyDown(box, { key: 'Enter' }) })
 }
 const receipts = () => screen.queryAllByText(/Switched timeframe to Weekly/)
+// DUP-RECEIPT (11-05): a receipt CARD per change (data-testid agent-receipt). A card may say its change twice — its one-liner
+// and, for a change NOT saved (this suite's server read is unreadable), the record word for word under Details — so the
+// text count above is not the receipt count; the card count and the applied outcome rows are
+const receiptCards = () => screen.queryAllByTestId('agent-receipt').filter(n => /Switched timeframe to Weekly/.test(n.textContent))
+const applied = (action) => records.filter(r => String(r.outcomeData?.kind || '').startsWith('applied') && (r.outcomeData?.actions || []).includes(action))
 
 test('click the LEFT chart, "switch this chart to weekly": only the left chart changes — no question, no model', async () => {
   mount()
@@ -262,7 +269,10 @@ test('MODEL path: the selected chart is in the context, and a plan on ANOTHER ch
   await waitFor(() => expect(tfOf('c-left')).toBe('W'), { timeout: 15000 })
   expect(tfOf('c-right')).toBe('D')
   expect(turns).toHaveLength(1)                                           // the pick resumed the plan: no second model call
-  await waitFor(() => expect(receipts().length).toBe(1), { timeout: 15000 })
+  await waitFor(() => expect(receiptCards()).toHaveLength(1), { timeout: 15000 })   // ONE receipt for ONE change
+  expect(applied('chart.setTimeframe')).toHaveLength(1)                   // the op ran ONCE (never a second execution)
+  expect(receiptCards()[0].querySelectorAll('[data-testid="agent-receipt-summary"]')).toHaveLength(1)
+  expect(screen.queryAllByTestId('agent-receipt')).toHaveLength(1)        // and no other receipt at all
 }, 45000)
 
 test('MODEL path: a plan on the selected chart runs as planned', async () => {
