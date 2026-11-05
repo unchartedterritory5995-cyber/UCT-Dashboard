@@ -162,6 +162,11 @@ beforeEach(() => {
     if (String(url) === '/api/j2/telemetry') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })
     }
+    // S5 (B3): a template create also records the Get started step (a preference write) --
+    // a side channel too, never "the" POST under test.
+    if (String(url).startsWith('/api/auth/preferences')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, prefs: {} }) })
+    }
     if (opts?.method === 'POST') {
       lastPostBody = JSON.parse(opts.body)
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'new1' } }) })

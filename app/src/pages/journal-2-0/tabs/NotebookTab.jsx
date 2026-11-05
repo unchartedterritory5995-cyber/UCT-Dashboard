@@ -61,6 +61,7 @@ import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
+import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
@@ -1795,6 +1796,19 @@ export default function NotebookTab() {
   // sheet open over the note with focus trapped in it.
   const landPickedNote = (created, openOptions = {}) => {
     setPickerOpen(false)
+    // ⛔ Audit 2026-11-05, spec S5 (B3): "Start a note from a template" never ticked. Its evidence
+    // was the template's closing walkthrough in the note's `bodyPlain` -- but Research Home's read
+    // cuts every summary at 400 characters (notes._LIST_PLAIN_CHARS) and the walkthrough is the
+    // LAST block of every template, so it was never in view. The door the member used says it: a
+    // note landed from the New note sheet that is not blank came from a template, a style or the
+    // Template library. A step never unticks, so a write already recorded writes nothing.
+    // Best-effort: a preference that cannot be written (not read yet, offline) never stops the note.
+    if (!openOptions.blank) {
+      try {
+        const p = setPrefMerged?.('notebook_getting_started', (current) => withDone(current, ['template']))
+        p?.catch?.(() => {})
+      } catch { /* the step ticks next time; the note still lands */ }
+    }
     landCreatedNote(created, { fresh: true, ...openOptions })
   }
   const landCreatedNote = (created, openOptions) => {
@@ -2028,7 +2042,7 @@ export default function NotebookTab() {
   // Wave 6 (item 4): Today — open the member's note for today's ET date,
   // making it the first time (the server keeps it to one per day). The daily
   // template is the member's own preference.
-  const { prefs } = usePreferences()
+  const { prefs, setPrefMerged } = usePreferences()
   const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
   const openingTodayRef = useRef(false)
   const openToday = async () => {

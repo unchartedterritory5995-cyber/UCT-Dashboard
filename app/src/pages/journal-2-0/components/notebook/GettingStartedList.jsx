@@ -41,7 +41,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { startTour } from './onboarding/learnTours'
 import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, checklistClosed, checklistEnabled,
-  closedAs, deriveChecklistItems, recordedDone, withDone,
+  closedAs, countedItems, deriveChecklistItems, recordedDone, withDone,
 } from './onboarding/gettingStarted'
 import {
   GETTING_STARTED_HEADING_ID, useMarkGettingStartedShowing, focusFirstRunHeadingIfLost,
@@ -79,8 +79,11 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
     canAddSample: !hasAnyNotes && typeof onAddSample === 'function',
     flag: notebookFlag,
   })
-  const doneCount = items.filter((i) => i.done).length
-  const allDone = items.length > 0 && doneCount === items.length
+  // S5 (B3): ONE list, and the counted part of it is the total (the optional sample is shown, not
+  // counted), so "n of N" can never change its N under the member.
+  const counted = countedItems(items)
+  const doneCount = counted.filter((i) => i.done).length
+  const allDone = counted.length > 0 && doneCount === counted.length
 
   // ⛔ A STEP NEVER UNTICKS. The first time the evidence shows a step done, its id joins
   // the recorded done-set, which deriveChecklistItems honours from then on -- so evidence
@@ -186,7 +189,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
       }}>
       <div className={styles.header}>
         <h3 id={titleId} tabIndex={-1} className={styles.title}>{CHECKLIST_COPY.title}</h3>
-        <span className={styles.progress} aria-live="polite">{CHECKLIST_COPY.progress(doneCount, items.length)}</span>
+        <span className={styles.progress} aria-live="polite">{CHECKLIST_COPY.progress(doneCount, counted.length)}</span>
         <button type="button" className={styles.hide} onClick={dismiss} aria-label={CHECKLIST_COPY.hideLabel}>
           {CHECKLIST_COPY.hide}
         </button>
