@@ -3706,8 +3706,9 @@
      "refuse.other-one.ambiguous-four",
      "followup.other-one.two-charts",
      "followup.other-charts.plural-four",
-     "GW-02.empty-board-honest",
-     "GW-18.live-emas-already-present"
+     "followup.it-on-chart.two",
+     "followup.it-on-chart.four",
+     "GW-02.empty-board-honest"
     ],
     "permission": [],
     "undo": [

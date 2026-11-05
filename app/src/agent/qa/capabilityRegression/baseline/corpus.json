@@ -10821,6 +10821,124 @@
           }
         }
       ]
+    },
+    {
+      "id": "followup.it-on-chart.two",
+      "source": "IT-ON-THAT-CHART (11-04, v1 with NLM-1 off): an explicit chart phrase narrows a pronoun to THAT chart's instance; an ambiguous one asks — never several (live: RSI on two charts, \"make it orange on that chart\" recoloured both) — 2 charts",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "TWO",
+      "steps": [
+        {
+          "say": "add rsi to both charts",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "make it orange on that chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make it orange on the AMD chart",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "chart": 1,
+              "find": {
+                "defId": "rsi"
+              },
+              "colour": {
+                "key": "inputs.color",
+                "family": "orange"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "chart": 1,
+              "find": {
+                "defId": "rsi"
+              },
+              "has": {
+                "inputs.color": "#7b68ee"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.it-on-chart.four",
+      "source": "IT-ON-THAT-CHART (11-04, v1 with NLM-1 off): an explicit chart phrase narrows a pronoun to THAT chart's instance; an ambiguous one asks — never several (live: RSI on two charts, \"make it orange on that chart\" recoloured both) — 4 charts (\"the left one\" is two charts)",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to all four charts",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "make it orange on that chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make it orange on the left one",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make it orange on the top left one",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "chart": 0,
+              "find": {
+                "defId": "rsi"
+              },
+              "colour": {
+                "key": "inputs.color",
+                "family": "orange"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "chart": 0,
+              "find": {
+                "defId": "rsi"
+              },
+              "has": {
+                "inputs.color": "#7b68ee"
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
