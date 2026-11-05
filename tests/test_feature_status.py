@@ -224,14 +224,7 @@ def test_the_real_ledger_produces_no_UNKNOWN_with_everything_on(clean_env):
     assert fs["measured"] is True
     states = {f["id"]: f["state"] for f in fs["features"]}
     assert len(states) == len(DECLARED) + len(RETIRED_DECLARED), states
-    # Every live declaration, switched on, is released. A retired one is released when its key is
-    # on the payload and "not measured" when it never was (NOTEBOOK_EXAMPLE_NOTES_ENABLED, server-only):
-    # the retiring commit kept that answer exactly as before, and the rail below pins it per entry.
-    live = {_payload_key(n, mf) for n, mf in DECLARED.items()}
-    assert {k: s for k, s in states.items() if k in live and s != "released"} == {}, states
-    for name, mf in RETIRED_DECLARED.items():
-        key = _payload_key(name, mf)
-        assert states[key] == ("released" if key in auth.NOTEBOOK_ALWAYS_ON_KEYS else "unknown"), (name, states[key])
+    assert set(states.values()) == {"released"}, states
 
 
 def test_a_capability_retired_as_always_on_is_listed_released_whatever_its_old_variable(monkeypatch):
@@ -247,10 +240,7 @@ def test_a_capability_retired_as_always_on_is_listed_released_whatever_its_old_v
         feats = _features(auth._access_payload(MEMBER, "pro"))
         for name, mf in RETIRED_DECLARED.items():
             key = _payload_key(name, mf)
-            # A retired gate that was never on the payload (NOTEBOOK_EXAMPLE_NOTES_ENABLED was server-only)
-            # stays "not measured", exactly as before; every other one is released.
-            want = "released" if key in auth.NOTEBOOK_ALWAYS_ON_KEYS else "unknown"
-            assert feats.get(key, {}).get("state") == want, (name, raw, feats.get(key))
+            assert feats.get(key, {}).get("state") == "released", (name, raw, feats.get(key))
             assert feats[key]["label"] == mf["label"]
 
 
