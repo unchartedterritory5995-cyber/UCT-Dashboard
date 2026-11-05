@@ -24,8 +24,15 @@ import { starterPacksEnabled } from '../../../lib/starterPacksFlag'
 import { PACKS, STARTER_PACK_PREF, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
 import { logIfUnexpected } from './styleErrors'
 import { FIRST_RUN_MARKS, useFirstRunShowing } from '../../../lib/firstRun'
-import { TIPS_PREF, seenTips } from '../../../lib/notebookTips'
 import styles from './StarterPackOffer.module.css'
+
+/** Whether the account has seen the 60-second first run (its `first-run` mark in `notebook_tips`). Parsed here, with
+ *  no hook helper: this module is read by suites that stub the preferences hook. */
+export function firstRunSeenIn(raw) {
+  let v = raw
+  if (typeof v === 'string') { try { v = JSON.parse(v) } catch { return false } }
+  return Boolean(v && Array.isArray(v.seen) && v.seen.includes(FIRST_RUN_MARKS.shown))
+}
 
 export const OFFER_TITLE = 'How do you trade?'
 export const OFFER_LINE = 'Pick one and we will add three templates you can change.'
@@ -78,7 +85,7 @@ export function useStarterPackOffer(data, active = true) {
   // Tier 3a fix round 1 (review I3): once the member has SEEN the first run, it (or Home's inline ask after a Skip)
   // is the ONE place that asks. This card no longer opens by itself for them; Manage templates' own "Starter packs"
   // link still opens it on request.
-  const firstRunSeen = seenTips(prefs?.[TIPS_PREF]).has(FIRST_RUN_MARKS.shown)
+  const firstRunSeen = firstRunSeenIn(prefs?.notebook_tips)
   const eligible = on && ready && !readFailed && !owed && !firstRunShowing && !firstRunSeen
     && readStarterPackState(prefs) === null
     && !(data.styles || []).some((s) => !s.builtin)
