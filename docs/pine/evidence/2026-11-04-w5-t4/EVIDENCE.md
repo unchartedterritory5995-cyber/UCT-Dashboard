@@ -257,8 +257,9 @@ lock `dsk/heavy-final3.lock`, code tip `5397a30c6a`, tested on master `5d95103c8
 
 ## Round r2: HP-1 reports the named trig cases only when the V8 moved (review B1)
 Review B1: the HP-1 vitest rail runs `--check` under the local Node; under Node 20 (production and CI)
-it was red on the two trig cases. Fix: ported W5-T19's change (`b6c5668922`) verbatim, so T19's later
-merge is a no-op in these files: `checkAgainst` reports a `reportOnly`-listed case ONLY when
+it was red on the two trig cases. Fix: W5-T19's change (`b6c5668922`), but with ONE rule: `checkAgainst`
+REUSES `classifyDiffs` (the HP-3 function; it gained an optional `describe` argument to word the line)
+instead of copying its rule, and T19 can drop its own copy. `checkAgainst` reports a `reportOnly`-listed case ONLY when
 `got.recordedOn.v8 != expected.recordedOn.v8` (both present) AND its sole difference is the digest;
 on the recording V8 it is gated like every other case. `hp1Summary` counts REPORTED apart. New rail
 file `hostParity.v8.rail.test.js` (T19's, identical; 9 tests): same-V8 listed diff is RED, other-V8 is
@@ -267,11 +268,11 @@ REPORTED, unlisted is RED either way, status/guards/warm-up diffs are RED, a mis
 
 Node 20.18.0 (V8 11.3, portable zip in a scratch dir), `--host node --check`:
 `HP-1 GREEN: 164/166 cases equal the committed digests; 2 REPORTED, not gated (V8 differs from the recording V8)`,
-rc 0. Node 24.13.1: `HP-1 GREEN: 166/166`. Log `runs/w5t4r2/n20.log`.
+rc 0. Node 24.13.1: `HP-1 GREEN: 166/166`. Log `runs/w5t4r2/n20.log` (re-run after the classifyDiffs refactor).
 
-Mutations (`muts-r4.json`, `runs/w5t4r2/mut.log`, lock `dsk/heavy-mut.lock`): 7 of 7 killed, control survived:
-always-moved, never-moved, missing-v8-moves, any-field-reported, any-case-reported, summary-uncounted,
-reported-not-printed (each by the named test in hostParity.v8.rail.test.js).
+Mutations (`muts-r4.json`, `runs/w5t4r2/mut.log`, lock `dsk/heavy-mut.lock`): 9 of 9 killed, control survived (re-run on the refactored code, `mut2.log`):
+always-moved, never-moved, missing-v8-moves, list-ignores-moved, any-field-reported, any-case-reported,
+summary-uncounted, reported-not-printed, describe-ignored (each by the named test in hostParity.v8.rail.test.js).
 
 **Process (review N1): every SCRIPT_ENGINE_VERSION bump must run
 `node tools/pine_runtime_host_parity.mjs --host node --write` in the same merge**, or HP-1 and

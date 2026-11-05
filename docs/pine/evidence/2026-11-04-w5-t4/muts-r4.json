@@ -2,8 +2,8 @@
  [
   "control:noop-comment",
   "../tools/pine_runtime_host_parity.mjs",
-  "// W5-T19: HP-1 on a V8 other than",
-  "// W5-T19 (noop): HP-1 on a V8 other than"
+  "// ONE rule: classifyDiffs (HP-3",
+  "// ONE rule (noop): classifyDiffs (HP-3"
  ],
  [
   "v8:always-moved",
@@ -24,16 +24,22 @@
   "const v8Moved = v8Was !== v8Now"
  ],
  [
+  "v8:list-ignores-moved",
+  "../tools/pine_runtime_host_parity.mjs",
+  "v8Moved ? reportOnlyOf(corpus) : new Map()",
+  "reportOnlyOf(corpus)"
+ ],
+ [
   "v8:any-field-reported",
   "../tools/pine_runtime_host_parity.mjs",
-  "if (ro.has(name) && ds.every((d) => d.field === 'digest')) {\n        reportedLines",
-  "if (ro.has(name)) {\n        reportedLines"
+  "if (reportOnly.has(name) && ds.every((d) => d.field === 'digest')) {",
+  "if (reportOnly.has(name)) {"
  ],
  [
   "v8:any-case-reported",
   "../tools/pine_runtime_host_parity.mjs",
-  "if (ro.has(name) && ds.every((d) => d.field === 'digest')) {\n        reportedLines",
-  "if (ds.every((d) => d.field === 'digest')) {\n        reportedLines"
+  "if (reportOnly.has(name) && ds.every((d) => d.field === 'digest')) {",
+  "if (ds.every((d) => d.field === 'digest')) {"
  ],
  [
   "v8:summary-uncounted",
@@ -46,5 +52,11 @@
   "../tools/pine_runtime_host_parity.mjs",
   "  lines.push(...reportedLines)\n",
   "  \n"
+ ],
+ [
+  "v8:describe-ignored",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (describe) { reported.push",
+  "if (false) { reported.push"
  ]
 ]
