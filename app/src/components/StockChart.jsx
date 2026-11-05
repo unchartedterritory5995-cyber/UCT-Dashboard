@@ -198,7 +198,7 @@ import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
-import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
+import { shouldApplyRange, rangeFitsBars, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
 // The engine's "nothing to draw" answer. Module-scope and frozen so a chart with
 // no instances allocates nothing per paint and nobody can mutate the "no engine"
 // answer into a "some engine" one.
@@ -2614,11 +2614,11 @@ export default function StockChart({
   // ── Optional multi-chart sync hooks (additive — all behavior unchanged when absent) ──
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
   onChartTap = null,        // (payload: {time, price, point}) => void — the library's click, which a TOUCH TAP also raises (a hover-based crosshair read never sees a tap on a phone: Study workbench, 2026-11-03). `price` is the cursor's level via coordinateToPrice; null off the candle series.
-  onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
+  onTimeRangeChange = null, // (payload: {from, to}, { memberMoved }) => void — fires when visible time range changes; memberMoved says a member moved this chart, not a load or a re-frame
   onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
   subscribeCrosshair = null, // optional (cb) => unsubscribe — IMPERATIVE sync channel. Preferred over externalCrosshair: the parent hands crosshair payloads straight to this chart with no React state in between, so a linked crosshair glides instead of stepping once per re-render.
-  externalTimeRange = null, // {from, to} | null — apply external time range from sync context
+  subscribeTimeRange = null, // optional (cb) => unsubscribe — IMPERATIVE range sync, the same channel as subscribeCrosshair: a linked chart follows a drag with no React render per move
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
   disablePatterns: disablePatternsProp = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
@@ -5208,11 +5208,16 @@ export default function StockChart({
   // Same pattern as applyingExternalRef, but for the time-range sync bus
   // (Task 3 of Groups phase 3): true while WE are applying an externally-synced
   // visible range, so the resulting subscribeVisibleTimeRangeChange event
-  // doesn't echo a re-broadcast back to the bus. lastAppliedRangeRef feeds the
-  // epsilon gate (shouldApplyRange) so near-identical ranges from a chart with
-  // different bar spacing don't cause the bus to oscillate forever.
+  // doesn't echo a re-broadcast back to the bus. lastAppliedRangeRef is the range
+  // this chart really landed on, so the same range arriving after the latch has
+  // released is still recognised as ours (shouldApplyRange's epsilon) and a chart
+  // with different bars can't start the bus oscillating.
   const applyingExternalRangeRef = useRef(false)
   const lastAppliedRangeRef = useRef(null)
+  // True through the pass that frames a new symbol/timeframe, up to where it clears
+  // userViewMovedRef. setData moves the range first, and reading the range fires the
+  // subscribers there and then, so that move would otherwise pass for the member's.
+  const framingViewRef = useRef(false)
   // Refs mirror rapidly-changing values so the crosshair handler can read
   // current data without forcing a tear-down+resubscribe on every tick.
   // Without this, useRealtimeBars updates → bars change → indicatorData
@@ -11260,6 +11265,7 @@ export default function StockChart({
     // switch changes `zoomKey`, so the pin stops owning them on the very pass that
     // re-frames the new chart and the band lands normally.
     const zoomKey = `${sym}_${resolvedTf}_${replayCutoff ?? ''}`
+    framingViewRef.current = zoomKeyRef.current !== zoomKey
     const _pinOwnsMargins = !!priceManualRef.current && zoomKeyRef.current === zoomKey
 
     // ── Capture the OUTGOING ticker's vertical candle placement (proportional lock) ──
@@ -14036,6 +14042,7 @@ export default function StockChart({
       // where keeping it latched is exactly what stops the settling/pinned-right guards
       // from snapping the locked view back to present on the next data commit.
       if (!_replayLocked) userViewMovedRef.current = false
+      framingViewRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -16186,41 +16193,63 @@ export default function StockChart({
   // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'
   // subscribeVisibleTimeRangeChange so we report in time-space (not logical-space),
   // which means cells with differing bar counts can still align.
+  // The chart is created LAZILY, after its bars arrive, so `chartReady` is a dep: a
+  // handler handed over at mount (sync already on when the grid opens) has no chart
+  // to subscribe to yet, and without it this effect never ran again.
   useEffect(() => {
     if (!chartRef.current || typeof onTimeRangeChange !== 'function') return
     const ts = chartRef.current.timeScale()
     const handler = (range) => {
       // Bail while WE are applying an external range — otherwise setVisibleRange
       // below re-fires this handler and the bus oscillates across every chart.
-      if (range && !applyingExternalRangeRef.current) {
-        onTimeRangeChange({ from: range.from, to: range.to })
-      }
+      if (!range || applyingExternalRangeRef.current) return
+      // The latch lasts one frame; an echo that lands later is still our own range.
+      if (!shouldApplyRange(range, lastAppliedRangeRef.current)) return
+      lastAppliedRangeRef.current = null
+      onTimeRangeChange({ from: range.from, to: range.to }, {
+        memberMoved: userViewMovedRef.current && !framingViewRef.current
+          && viewMostlyBars(ts.getVisibleLogicalRange(), filteredBarsRef.current?.length),
+      })
     }
     try { ts.subscribeVisibleTimeRangeChange(handler) } catch { return }
     return () => {
       try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch {}
     }
-  }, [onTimeRangeChange])
+  }, [onTimeRangeChange, chartReady])
 
-  // ── Multi-chart sync: apply external time range from parent (Task 5 Step 4) ──
-  // No-op when externalTimeRange is null. Wrapped in try/catch because
+  // ── Multi-chart sync: follow another chart's time range (Task 5 Step 4) ──
+  // Off the sync bus, imperatively (see subscribeCrosshair). Compared against what
+  // this chart shows NOW, not what it last applied: the member may have moved it
+  // since, and the same range must then still land. Wrapped in try/catch because
   // setVisibleRange will throw if the range falls outside the loaded data.
   useEffect(() => {
-    if (!chartRef.current || !externalTimeRange) return
-    if (!shouldApplyRange(externalTimeRange, lastAppliedRangeRef.current)) return
-    applyingExternalRangeRef.current = true
-    try {
-      chartRef.current.timeScale().setVisibleRange({
-        from: externalTimeRange.from,
-        to: externalTimeRange.to,
-      })
-      lastAppliedRangeRef.current = { from: externalTimeRange.from, to: externalTimeRange.to }
-    } catch {}
-    // Clear on the next frame — mirrors the crosshair applier's rAF release, so
-    // the subscribeVisibleTimeRangeChange fired by setVisibleRange is swallowed.
-    const raf = requestAnimationFrame(() => { applyingExternalRangeRef.current = false })
-    return () => { cancelAnimationFrame(raf); applyingExternalRangeRef.current = false }
-  }, [externalTimeRange])
+    if (typeof subscribeTimeRange !== 'function' || !chartRef.current) return undefined
+    const ts = chartRef.current.timeScale()
+    let raf = null
+    const off = subscribeTimeRange((range) => {
+      const bars = filteredBarsRef.current
+      if (!bars?.length || !rangeFitsBars(range, adjustTime(bars[0].t), adjustTime(bars[bars.length - 1].t))) return
+      applyingExternalRangeRef.current = true
+      try {
+        if (!shouldApplyRange(range, ts.getVisibleRange())) return
+        ts.setVisibleRange({ from: range.from, to: range.to })
+        // A followed view is a held view: the pinned-right net that corrects drift
+        // would otherwise pull this chart back on its next commit and broadcast that.
+        userViewMovedRef.current = true
+        lastAppliedRangeRef.current = ts.getVisibleRange()
+      } catch {} finally {
+        // Clear on the next frame — mirrors the crosshair applier's rAF release, so
+        // the subscribeVisibleTimeRangeChange fired by setVisibleRange is swallowed.
+        if (raf != null) cancelAnimationFrame(raf)
+        raf = requestAnimationFrame(() => { raf = null; applyingExternalRangeRef.current = false })
+      }
+    })
+    return () => {
+      off?.()
+      if (raf != null) cancelAnimationFrame(raf)
+      applyingExternalRangeRef.current = false
+    }
+  }, [subscribeTimeRange, adjustTime, chartReady])
 
   // -- Multi-chart sync: render an external crosshair on THIS chart ----------
   // Uses Lightweight Charts v5's setCrosshairPosition / clearCrosshairPosition.
@@ -18555,6 +18584,7 @@ export default function StockChart({
       const ts = chartRef.current?.timeScale()
       const bars = filteredBarsRef.current
       if (!ts || !bars || bars.length < 2 || !Number.isFinite(targetMs)) return false
+      userViewMovedRef.current = true   // a jump is the member moving the view, same as a pan
       let idx = barIdxAtOrBefore(bars, targetMs)
       if (idx < 0) idx = 0   // target predates our history → clamp to the first bar
       const cur = ts.getVisibleLogicalRange()
@@ -18570,6 +18600,7 @@ export default function StockChart({
       const ts = chartRef.current?.timeScale()
       const bars = filteredBarsRef.current
       if (!ts || !bars || bars.length < 2 || !Number.isFinite(year)) return false
+      userViewMovedRef.current = true   // a jump is the member moving the view, same as a pan
       const yStart = Date.UTC(year, 0, 1)
       const yEnd = Date.UTC(year, 11, 31, 23, 59, 59)
       let fromIdx = barIdxAtOrAfter(bars, yStart)   // first trading day of the year
