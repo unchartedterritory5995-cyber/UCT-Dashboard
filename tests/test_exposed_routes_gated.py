@@ -963,7 +963,7 @@ def test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid(app)
 #: only two correct responses to it going red.
 #:
 #: ⭐ RAISED 174 → 187 (W9d.1, 2026-08-26) — AND THAT IS THE POINT OF THE FIX,
-#: not a side effect of it. The `paid` rung can now see the 12 routes gated by
+#: not a side effect of it. The `paid` rung can now see the 11 routes gated by
 #: `require_plan(list(PAID_PLANS))`, so deleting `_paid` from `broker_sync.py`
 #: or `note_sync.py` drops this count by 6 and reds this ratchet. Before today
 #: that deletion moved NO number in this file at all.
@@ -1115,7 +1115,7 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
     # ⭐ AND THE SECOND SPELLING OF THE SAME RUNG, OR IT IS RANKED ON HALF ITS
     # DOORS. A `require_plan(list(PAID_PLANS))` product now reports `paid`, so
     # its admit-set has to be measured HERE too. Collected from the SERVED APP
-    # rather than from `GATED` on purpose: those 12 routes are not in the table,
+    # rather than from `GATED` on purpose: those 11 routes are not in the table,
     # and being invisible to the table is the exact defect this rung was widened
     # to fix — sourcing them from it would inherit the blindness.
     factory_gates = {d for r in _table(app).values()
@@ -1638,6 +1638,7 @@ def test_the_AI_DOOR_ITSELF_enforces_the_bound_not_just_the_helper(
 # `tests/test_note_sync_router.py` (5), which is why this section drives all
 # twelve rather than the four: a rail that covers only today's gap is the same
 # hand-list, one iteration later.
+# It became 11 on 2026-11-04 via de6629419c.
 #
 # ⛔ SO THE ROUTE SET IS DERIVED FROM THE APP, NEVER LISTED. A hand-written list
 # covers the routes that existed the day it was typed, which is the shape the
@@ -1682,7 +1683,7 @@ def test_the_census_can_SEE_a_gate_that_has_no_name_at_the_call_site(app):
     """⭐ THE FIX ITSELF: `_klass_of` now reports `paid` for a factory gate.
 
     Before this, `Depends(_paid)` reported `session` at best — so a `session`
-    claim would have satisfied any of these 12 routes and a downgrade would have
+    claim would have satisfied any of these 11 routes and a downgrade would have
     been invisible, which is door 1 of this file's history reached through door 3.
 
     ⛔ AND THE READER MUST BE ABLE TO SAY *NOT* A PLAN GATE. A detector that
@@ -1722,7 +1723,7 @@ def test_DELETING_the_FACTORY_gate_reds_the_paid_class_it_reports(app):
     """🔴 THE MUTATION, ALWAYS ARMED — the door, not the label.
 
     `test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid`
-    cuts by the NAME `require_paid`, which is precisely the name these 12 routes
+    cuts by the NAME `require_paid`, which is precisely the name these 11 routes
     do not have, so it walks straight past them. This is that control for door 3:
     the factory gate is stripped off the SERVED app's own `route.dependant` — the
     same object `_klass_of` reads — and the route must stop reporting `paid`.
