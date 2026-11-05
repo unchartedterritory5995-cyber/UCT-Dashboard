@@ -1023,6 +1023,310 @@
       ]
     },
     {
+      "id": "GW-25.scan-conversation",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings: screen, sector, price, sort, watchlist, charts, undo",
+      "capabilities": [
+        "screener.run",
+        "watchlist.add",
+        "widget.addCharts",
+        "agent.undo"
+      ],
+      "board": "SCAN",
+      "steps": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*dist_52w_high_pct.*vol_ratio"
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "only tech",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "sector",
+                      "op": "in",
+                      "value": null,
+                      "max": null,
+                      "values": [
+                        "technology"
+                      ]
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "refine",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"sector\".*Technology"
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "drop anything under $10",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "price",
+                      "op": "gte",
+                      "value": 10,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "refine",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"sector\".*\"key\":\"price\""
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "sort them by 3-month performance",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [],
+                  "sort_field": "chg_pct_3m",
+                  "sort_dir": "desc",
+                  "mode": "refine",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*\"sector\".*\"key\":\"price\".*\"sort\":\\{\"key\":\"chg_pct_3m\",\"dir\":\"desc\"\\}"
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "add those to my Momentum list",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "watchlist.add",
+                "target": "$watchlists[0]",
+                "args": {
+                  "symbols": {
+                    "from": "lastScreen",
+                    "top": null
+                  }
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "unchanged": true
+          },
+          "approve": true,
+          "afterApprove": {
+            "watchlist": {
+              "name": "Momentum",
+              "include": [
+                "T01",
+                "T12",
+                "NVDA",
+                "TSLA"
+              ]
+            },
+            "receipt": true,
+            "reads": [
+              "^POST /api/screener/scan .*\"sector\".*\"sort\":\\{\"key\":\"chg_pct_3m\""
+            ]
+          }
+        },
+        {
+          "say": "chart the top 3",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "widget.addCharts",
+                "target": "$workspace",
+                "args": {
+                  "symbols": {
+                    "from": "lastScreen",
+                    "top": 3
+                  },
+                  "timeframe": null,
+                  "chart_type": null,
+                  "exact": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "unchanged": true
+          },
+          "approve": true,
+          "afterApprove": {
+            "charts": {
+              "count": 4,
+              "symbolSet": [
+                "NVDA",
+                "T01",
+                "T02",
+                "T03"
+              ]
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "charts": {
+              "count": 1,
+              "symbols": [
+                "NVDA"
+              ]
+            },
+            "restored": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "watchlist": {
+              "name": "Momentum",
+              "include": [
+                "NVDA",
+                "TSLA"
+              ],
+              "exclude": [
+                "T01",
+                "T12"
+              ]
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-26.history-questions",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings: event studies, a dark kind (history.eventStudy)",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "how does SPY do after new 50-day highs",
+          "expect": {
+            "reads": [
+              "history\\.eventStudy.*\"symbol\":\"SPY\".*pct_from_high"
+            ],
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "what happens to AMD after it crosses above its 50-day",
+          "expect": {
+            "reads": [
+              "history\\.eventStudy.*\"symbol\":\"AMD\".*pct_from_sma"
+            ],
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "how does SPY do after breadth thrusts",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "noCalls": [
+              "history\\.eventStudy"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "id": "GW-27.indicator-package-draft-to-delete",
       "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — the whole lifecycle in one conversation, each committed step undone",
       "capabilities": [

@@ -107,11 +107,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "history.afterEvent": {
-   "owner": "agent-qa (capreg) — group data",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "indicator.openCreate": {
    "owner": "agent-qa (capreg) — group indicators",
    "since": "2026-11-04",

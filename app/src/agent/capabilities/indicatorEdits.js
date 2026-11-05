@@ -29,6 +29,7 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
 import { savedReferent } from './indicatorAuthoring'
+import { colorName } from './chart'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -280,7 +281,7 @@ export function extReceiptLine(receipt, name, where) {
   switch (receipt.op) {
     case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
     case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
-    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${c.after}.`
+    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${colorName(c.after)}.`
     case 'setVisibility': return c.after === 'All timeframes' ? `${name}${where} shows on all timeframes again (was ${showWord(c.before)}).` : `${name}${where} now shows on ${showWord(c.after)} only (was ${showWord(c.before)}).`
     case 'setDisplayTarget': return `Moved ${name} ${placeWord(c.after)}${where}${(c.guests || []).length ? ` — ${c.guests.map(g => g.name).join(', ')} moved with it` : ''}.`
     case 'movePane': return `Moved the ${name} pane${where} — now ${paneOrderWord(c.after, c.paneKey)}.`

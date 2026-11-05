@@ -17,6 +17,12 @@ export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily'
 export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company', 'knowledge.search', 'setup.playbook', 'setup.record',
   'index.quote', 'commodity.quote', 'crypto.quote']
 
+/** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
+ *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry
+ *  runs under PROD_KINDS. */
+export const kindsFor = (entry) => (entry?.kinds === 'ALL' ? ALL_KINDS : PROD_KINDS)
+export const isDark = (entry) => entry?.kinds === 'ALL'
+
 /** The /api/agent/config answer for a kinds list (coach on only for the whole catalog). */
 export const configFor = (kinds) => ({ stream: false, nl1: false, data: true, scan: kinds.includes('screen.run'), data_kinds: kinds, news: true,
   planner: 'v1', coach: kinds === ALL_KINDS })

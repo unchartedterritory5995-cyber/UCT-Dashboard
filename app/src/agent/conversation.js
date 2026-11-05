@@ -51,10 +51,17 @@ const IND_NOUN = '(?:one|indicator|line|ema|sma|wma|hma|ma|average|moving averag
 const IND_NOUNS = '(?:ones|indicators|lines|emas|smas|mas|averages|moving averages|studies)'
 const R_PLURAL = new RegExp(`^(?:them|those|these|both|both of (?:them|those)|them both|them all|those all|all of (?:them|those)|all (?:the |those |these |of the |of those )?${IND_NOUNS}|(?:the|those|these) (?:two|three|four|2|3|4)(?: ${IND_NOUNS})?|(?:those|these|the) (?:new )?${IND_NOUNS}|the (?:ones|indicators) (?:i|you) (?:just )?added)$`)
 // (the shared normaliser drops the word "indicator": "that indicator I just added" arrives as "that i just added")
-const R_IT = new RegExp(`^(?:it|that|this|that one|this one|(?:that|this|the) (?:new )?(?:indicator|line|study)|the new one|(?:the|that|this) (?:one |indicator |line )?(?:i|you) (?:just )?(?:added|put on)|what (?:i|you) (?:just )?added|the last (?:one|indicator )?(?:i|you) added)$`)
+const R_IT = new RegExp(`^(?:it|that|this|that one|this one|(?:that|this|the) (?:new )?(?:indicator|study)|the new one|(?:the|that|this) (?:one |indicator )?(?:i|you) (?:just )?(?:added|put on)|what (?:i|you) (?:just )?added|the last (?:one|indicator )?(?:i|you) added)$`)
+// BROWSER-QA-1 #3: "the line" / "that line" NAMES A DRAWING (a horizontal line, a trendline, a ray) — an object of another
+// type than an indicator, so it never binds to one (it used to be read as "it": "make the line red" with no drawing on the
+// chart recoloured the SMA 50). With a line drawing there, the drawing readers / the model decide; with none, it is said.
+const R_LINE = /^(?:the|that|this) (?:new )?line$|^(?:the|that|this) line (?:i|you) (?:just )?(?:added|put on|drew)$/
+const LINE_DRAWING = /line|ray|horizontal|vertical/i
 const R_ORD = new RegExp(`^the (first|second|third|fourth|1st|2nd|3rd|4th|last|top|bottom|other)(?: ${IND_NOUN})?$`)
 const R_SPEED = new RegExp(`^the (fast|faster|fastest|quick|quicker|short|shorter|shortest|slow|slower|slowest|long|longer|longest)(?: ${IND_NOUN})?$`)
 const R_LEN = /^(?:the )?(\d{1,4})(?: (ema|sma|wma|hma|ma|moving average|line|one|day|period))?$/
+// the indicator's own displayed name, type first: "the SMA 50", "the ema 9" (BROWSER-QA-1 #2: "hide the SMA 50 on the NVDA chart")
+const R_LEN2 = /^(?:the )?(ema|sma|wma|hma) (\d{1,4})$/
 const PRONOUN = /^(?:it|that|this|that one|this one|them|those|these|both|them both|them all)$/
 /** Was the last committed change about indicators? (a pronoun then points at them) */
 // NLM1-G2: "add a chart for AMD and put the 50 SMA on it" → "make it orange" — the turn also CREATED the chart the indicator
@@ -127,6 +134,21 @@ function homeChart(host, memory, epoch, live) {
   if (charts.length === 1) return charts[0]
   return subjectChart(host, memory, epoch)?.ref || null
 }
+// "the line" (BROWSER-QA-1 #3): the chart it is about (the clause's named chart, else the conversation's / the selected
+// one, else the only chart) — a line drawing there → null (not an indicator reference: the drawing path decides);
+// none → said, nothing changed. Drawings belong to a SYMBOL (every chart on it shows them).
+function noLineDrawing(host, memory, epoch, live) {
+  const charts = chartsOf(host)
+  const ref = live?.[0]?.chart || subjectChart(host, memory, epoch)?.ref || selectedChart(host) || (charts.length === 1 ? charts[0].ref : null)
+  const scope = ref ? charts.filter(c => c.ref === ref) : charts
+  const syms = new Set(scope.map(c => c.drawSym || c.symbol).filter(Boolean))
+  let entries = []
+  try { entries = host?.drawings?.list?.() || [] } catch { entries = [] }
+  const lines = entries.filter(e => syms.has(e.symbol)).flatMap(e => e.drawings || []).filter(d => d && !d.deleted && LINE_DRAWING.test(String(d.type || '')))
+  if (lines.length) return null
+  const where = scope.length === 1 && scope[0].symbol ? `the ${scope[0].symbol} chart` : 'this board'
+  return { say: `There's no line drawing on ${where} — nothing changed. To change an indicator, name it (“the 50 SMA”).` }
+}
 function rowsOnChart(host, chartRef) {
   const c = chartSnap(host, chartRef)
   return c ? indicatorRowsOf(c.cs).map(r => ({ chart: chartRef, chartLabel: c.label, instanceId: r.instanceId, defId: r.defId, name: r.name, len: lenOf(r), type: typeOf(r), placement: r.displayTarget || r.placement, hidden: r.hidden === true })) : []
@@ -146,6 +168,12 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
   if (!isReferentWords(w)) return null
   // the member already picked which one (a local "which one?") — a singular reference means exactly that one
   if (pinned && !R_PLURAL.test(w)) return { list: [pinned] }
+  if (R_LINE.test(w)) {
+    // said only where it could have been MISREAD as an indicator (the conversation is about indicators, or the clause
+    // named a chart with indicators on it); otherwise it is not this reader's — the drawing path / the model, as before
+    const r = noLineDrawing(host, memory, epoch, live)
+    return r?.say && !(live?.length || aboutIndicators(memory, epoch) || liveIndicators(host, memory, epoch).length) ? null : r
+  }
   const set0 = live || liveIndicators(host, memory, epoch)
   // ⛔ a bare PRONOUN ("it", "that", "them", "those") means the conversation's indicators only while the
   // conversation is ABOUT them — the last change was an indicator change ("make it weekly" after a chart change
@@ -240,6 +268,7 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
     return { list: hit }
   }
   m = R_LEN.exec(w)
+  if (!m) { const m2 = R_LEN2.exec(w); if (m2) m = [m2[0], m2[2], m2[1]] }
   if (m) {
     const n = Number(m[1])
     const type = m[2] && /^(?:ema|sma|wma|hma)$/.test(m[2]) ? m[2] : null
@@ -270,7 +299,7 @@ const DRY = Object.freeze({ chart: null, instanceId: null, defId: null, name: 'i
 /** Do these words name an indicator by reference or description (not: are they on the board)? */
 export function isReferentWords(w) {
   const s = String(w || '').trim()
-  return R_PLURAL.test(s) || R_IT.test(s) || R_ORD.test(s) || R_SPEED.test(s) || R_LEN.test(s)
+  return R_PLURAL.test(s) || R_IT.test(s) || R_LINE.test(s) || R_ORD.test(s) || R_SPEED.test(s) || R_LEN.test(s) || R_LEN2.test(s)
     || !!defIdOfWords(s.replace(/^(?:the|my) /, '').replace(/ (?:pane|indicator|line)$/, ''))
 }
 // a local question whose choices ARE the indicators (each choice fills the op's `instance`; all on one chart)
@@ -477,7 +506,31 @@ function verblessPairs(t) {
   }
   return out.length >= 1 && !rest.replace(/[,;]|\band\b|\bthen\b/g, ' ').trim() ? out : null
 }
+// BROWSER-QA-1 #2: a clause that NAMES its chart — "hide the 50 sma on the NVDA chart", "remove the 200 sma from the
+// bottom-left chart". Structural, not a phrase list: the target phrase ("<prep> [the|my] <words> chart") is resolved to
+// ONE chart by the same reader every chart phrase uses (oneChart: a symbol, a position, an ordinal, "this chart"), taken
+// out of the clause, and the clause is read by the existing readers on THAT chart's indicators. A phrase that names no
+// chart on this board (e.g. "the price chart") is left in place — the clause reads exactly as before.
+const ON_CHART = /^(.+?) (?:on|from|off of|off|in) ((?:the |my )?(?:[a-z0-9.$-]+ ){0,2}chart)\b(.*)$/
+function scopedToChart(t, ctx) {
+  const m = ON_CHART.exec(t)
+  if (!m) return null
+  const rest = `${m[1]}${m[3]}`.replace(/\s+/g, ' ').trim()
+  if (!rest) return null
+  if (ctx.dry) return isChartWords(m[2]) ? { t: rest, ctx } : null
+  const ref = oneChart(m[2], chartsOf(ctx.host), ctx.host)
+  if (!ref) return null
+  return { t: rest, ctx: { ...ctx, live: rowsOnChart(ctx.host, ref), working: null } }
+}
 function indicatorClauses(t, ctx) {
+  const scoped = scopedToChart(t, ctx)
+  if (scoped) {
+    const r = indicatorClausesOn(scoped.t, scoped.ctx)
+    if (r) return r
+  }
+  return indicatorClausesOn(t, ctx)
+}
+function indicatorClausesOn(t, ctx) {
   const whole = indicatorClause(t, ctx)
   if (whole) return whole
   const pairs = verblessPairs(t)

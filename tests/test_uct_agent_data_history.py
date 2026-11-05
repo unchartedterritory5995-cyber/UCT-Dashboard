@@ -239,6 +239,39 @@ def test_rsi_and_pct_from_sma_conditions_run_through_the_same_adapter(world):
     assert out["status"] in ("ok", "unavailable")
 
 
+def _spike_bars():
+    """Flat closes at 100 with two one-session closing highs (sessions 60 and 150): two N-day breakouts, nothing else."""
+    out = []
+    for i, d in enumerate(S):
+        c = 110.0 if i == 60 else 120.0 if i == 150 else 100.0
+        out.append({"t": d, "o": c, "h": c + 1, "l": c - 1, "c": c, "v": 1000})
+    return out
+
+
+def test_pct_from_high_is_the_close_vs_the_prior_n_day_closing_high(world):
+    """PKG2: "after N-day breakouts" — the close against the highest close of the N sessions BEFORE it (never itself)."""
+    world["bars"] = _spike_bars()
+    spec, err = sa.describe({"kind": "technical", "symbol": "QQQ", "indicator": "pct_from_high", "period": 20})
+    assert err is None and spec["label"] == "QQQ close vs its prior 20-day closing high (%)" and spec["domain"] == "signed"
+    loaded = sa.load(spec)
+    assert loaded["status"] == "ok" and loaded["rows"][0][0] == S[20]          # the first N sessions have no prior high
+    by = dict(loaded["rows"])
+    assert by[S[59]] == pytest.approx(0.0) and by[S[60]] == pytest.approx(10.0)
+    assert by[S[61]] == pytest.approx(100 / 110 * 100 - 100) and by[S[81]] == pytest.approx(0.0)
+    for bad in (None, 4, 253):
+        _s, e = sa.describe({"kind": "technical", "symbol": "QQQ", "indicator": "pct_from_high", "period": bad})
+        assert e["reason"] == "bad_period"
+
+
+def test_a_breakout_study_counts_each_new_n_day_closing_high_once(world):
+    world["bars"] = _spike_bars()
+    out = _read({"symbol": "QQQ", "indicator": "pct_from_high", "period": 20, "op": "cross_above", "threshold": 0, "horizons": [5]})
+    assert out["status"] == "ok", out["notes"]
+    assert out["data"]["summary"]["events_used"] == 2
+    assert out["data"]["summary"]["series_label"] == "QQQ close vs its prior 20-day closing high (%)"
+    assert hes.validate({"symbol": "QQQ", "indicator": "pct_from_high", "op": "cross_above", "threshold": 0}) == "`period` must be a positive whole number"
+
+
 # ── (3) local-only on the server ──────────────────────────────────────────────────────────────────────
 
 def test_history_afterEvent_is_local_only_and_replays_as_a_value_free_note():

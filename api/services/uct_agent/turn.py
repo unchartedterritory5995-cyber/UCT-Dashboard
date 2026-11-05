@@ -2370,7 +2370,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
              reference: dict | None = None, headline: dict | None = None, answer_only: bool = False,
-             v2: dict | None = None) -> dict:
+             v2: dict | None = None, _e1: bool | str = False) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `v2` (Wave 1 A-04; the router passes it ONLY when UCT_AGENT_PLANNER=v2 and the turn streams): the planner v2
     arguments {wait_step, turn_token[, resume, resume_result]} — the turn is served by turn_v2.run_turn_v2, the
@@ -2393,7 +2393,18 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     back to the model once, in this request, if a call is left; the result passes every check as usual.
     `headline` (News -> Agent, news.py): ONE stored UCT News headline the SERVER read by its id, shown to the
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
-    writes is dropped -- the turn can only answer."""
+    writes is dropped -- the turn can only answer.
+    `_e1` (internal): this call is E-1's own planner call (knowledge/evidence.py). While Brain is on, every other
+    request is classified there FIRST and reaches the planner only through it, with playbook.* removed. "gate" (a
+    chart / none turn): #768's knowledge-first backstop stays on although no playbook.* capability is offered;
+    "gate_kn": and E-1's own word check (evidence.playbook_worded) found the message playbook-worded."""
+    if not _e1:
+        _args = dict(locals())
+        from api.services.uct_agent.knowledge import evidence as _evidence
+        if _evidence.active(context, v2):
+            return _evidence.serve(run_turn, _args)
+        if _evidence.resume_active(context, v2):
+            return _evidence.serve_resume(run_turn, _args)
     if v2 is not None:
         # W3 review C1: a COACH turn never takes the v2 step loop (it has no coach block and no coach guard): it is
         # served on this v1 path, where the coach prompt, the no-streaming rule and the server guard all apply.
@@ -2505,8 +2516,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # review #768: knowledge first (see KNOWLEDGE_NOT_RETRIEVED). Only when a playbook.* capability is in the validated
     # manifest (the knowledge flag is on); a coach turn has its own guard (agent_coach.guard_envelope).
     kn_caps = {n for n in cap_names if _kn_frame().is_knowledge_action(n)}
-    kn_on = bool(kn_caps) and not coach_turn          # a knowledge capability is offered (the flag is on)
-    kn_turn = kn_on and _kn_frame().wants_knowledge(msg) and not _kn_frame().about_a_symbol(
+    kn_on = (bool(kn_caps) or _e1 in ("gate", "gate_kn")) and not coach_turn   # knowledge offered, or E-1 chart / none
+    # E-1 chart / none turns: E-1's own word check (evidence.playbook_worded, which exempts UCT feature help) decides
+    kn_words = (_e1 == "gate_kn") if _e1 in ("gate", "gate_kn") else _kn_frame().wants_knowledge(msg)
+    kn_turn = kn_on and kn_words and not _kn_frame().about_a_symbol(
         msg, [str(c.get("symbol") or "") for c in ((context or {}).get("charts") or []) if isinstance(c, dict)])
     kn_ref = next((str(r.get("ref")) for r in ((context or {}).get("playbook") or [])
                    if isinstance(r, dict) and str(r.get("ref") or "") in valid_refs), None) if kn_caps else None

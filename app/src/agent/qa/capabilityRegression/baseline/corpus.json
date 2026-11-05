@@ -6428,6 +6428,1250 @@
       ]
     },
     {
+      "id": "bqa1.hide.named-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#2: the chart named in the clause)",
+      "capabilities": [
+        "indicator.hide"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicator.hide"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.hide",
+            "args": {
+              "instance": "ovl:2"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.hide",
+            "target": "$indicatorEdits[2]",
+            "args": {
+              "instance": "ovl:2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "chart": 2,
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "hidden": true
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "hide the 50 sma on the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "hide the SMA 50 on the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "turn off the 50 sma on the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "hide the 50 sma on the bottom-left chart",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "bqa1.remove.named-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#2: the chart named in the clause)",
+      "capabilities": [
+        "indicator.remove"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicator.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.remove",
+            "args": {
+              "instance": "ovl:3"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.remove",
+            "target": "$indicatorEdits[2]",
+            "args": {
+              "instance": "ovl:3"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicators": {
+          "chart": 2,
+          "exclude": [
+            "movingAverage(200 sma)"
+          ],
+          "include": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        {
+          "text": "remove the 200 sma from the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "remove the SMA 200 from the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "delete the 200 sma off the NVDA chart",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "bqa1.colour.named-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#4: the receipt names the colour; #2: the named chart)",
+      "capabilities": [
+        "indicatorStyle.set"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicatorStyle.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.set",
+            "args": {
+              "property": "color"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.set",
+            "target": "$indicatorEdits[2]",
+            "args": {
+              "instance": "ovl:1",
+              "property": "color",
+              "value": "#df4646",
+              "output": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "chart": 2,
+          "find": {
+            "inputs.period": 20,
+            "inputs.maType": "ema"
+          },
+          "colour": {
+            "key": "inputs.color",
+            "family": "red"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "make the 20 ema on the NVDA chart red",
+          "det": "required"
+        },
+        {
+          "text": "make the EMA 20 on the NVDA chart red",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "scan.owner-momentum",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "chg_pct_1m",
+                  "op": "gte",
+                  "value": 20,
+                  "max": null,
+                  "values": null
+                },
+                {
+                  "field": "dist_52w_high_pct",
+                  "op": "gte",
+                  "value": -5,
+                  "max": null,
+                  "values": null
+                },
+                {
+                  "field": "vol_ratio",
+                  "op": "gt",
+                  "value": 1,
+                  "max": null,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*dist_52w_high_pct.*vol_ratio"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "find stocks up 20% this month near 52-week highs with volume above average",
+        "scan for names up 20%+ over the last month, near their 52 week highs, with above average volume",
+        "show me stocks that are up 20% in a month, close to 52-week highs, volume above average",
+        "which stocks are up 20% this month and near their 52-week high with above-average volume"
+      ]
+    },
+    {
+      "id": "scan.refine.sector",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "sector",
+                  "op": "in",
+                  "value": null,
+                  "max": null,
+                  "values": [
+                    "technology"
+                  ]
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "refine",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"sector\".*Technology"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "only tech",
+        "now just technology stocks",
+        "keep only the tech names",
+        "narrow it down to technology"
+      ]
+    },
+    {
+      "id": "scan.refine.price",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "price",
+                  "op": "gte",
+                  "value": 10,
+                  "max": null,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "refine",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"key\":\"price\""
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "drop anything under $10",
+        "exclude stocks below $10",
+        "get rid of anything under 10 dollars",
+        "no stocks under $10"
+      ]
+    },
+    {
+      "id": "scan.refine.sort",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [],
+              "sort_field": "chg_pct_3m",
+              "sort_dir": "desc",
+              "mode": "refine",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"sort\":\\{\"key\":\"chg_pct_3m\",\"dir\":\"desc\"\\}"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "sort them by 3-month performance",
+        "rank those by three month change",
+        "order the results by 3 month performance, best first"
+      ]
+    },
+    {
+      "id": "scan.to-watchlist",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "watchlist.add"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.add"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "watchlist.add",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": {
+                "from": "lastScreen",
+                "top": null
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true,
+        "noCalls": [
+          "/api/watchlists?/.*(?:POST|PUT)"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "T01",
+            "T12",
+            "NVDA"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "add those to my Momentum list",
+        "put all of them on the Momentum watchlist",
+        "add the results to Momentum"
+      ]
+    },
+    {
+      "id": "scan.to-new-watchlist",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "watchlist.create",
+        "watchlist.add"
+      ],
+      "board": "SCAN",
+      "needs": [
+        "watchlist.create",
+        "watchlist.add"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "watchlist.create",
+            "target": "$watchlistLibrary",
+            "args": {
+              "name": "Leaders",
+              "as": "new1"
+            }
+          },
+          {
+            "action": "watchlist.add",
+            "target": "new1",
+            "args": {
+              "symbols": {
+                "from": "lastScreen",
+                "top": null
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlistNames": {
+          "include": [
+            "Leaders",
+            "Momentum"
+          ]
+        },
+        "watchlist": {
+          "name": "Leaders",
+          "include": [
+            "T01",
+            "T12"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "put these in a new watchlist called Leaders",
+        "make a new list called Leaders with these",
+        "create a watchlist named Leaders from those results"
+      ]
+    },
+    {
+      "id": "scan.chart-top",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": {
+                "from": "lastScreen",
+                "top": 3
+              },
+              "timeframe": null,
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "charts": {
+          "count": 4,
+          "symbolSet": [
+            "NVDA",
+            "T01",
+            "T02",
+            "T03"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "chart the top 3",
+        "open charts for the top three",
+        "put the first 3 on new charts"
+      ]
+    },
+    {
+      "id": "history.breakout",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "pct_from_high",
+              "period": 50,
+              "op": "cross_above",
+              "threshold": 0
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "pct_from_high",
+              "period": 50,
+              "op": "cross_above",
+              "threshold": 0,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"pct_from_high\",\"period\":50,\"op\":\"cross_above\",\"threshold\":0"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "how does SPY do after new 50-day highs",
+          "det": "required"
+        },
+        {
+          "text": "what happens to SPY after a 50-day breakout",
+          "det": "required"
+        },
+        {
+          "text": "how has SPY performed after making a new 50-day high",
+          "det": "required"
+        },
+        {
+          "text": "how did SPY do after 50 day breakouts",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.gap",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "NVDA",
+              "indicator": "gap_pct",
+              "period": null,
+              "op": "above",
+              "threshold": 5
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "indicator": "gap_pct",
+              "period": null,
+              "op": "above",
+              "threshold": 5,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"gap_pct\",\"period\":null,\"op\":\"above\",\"threshold\":5"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "how has NVDA behaved after 5%+ gaps",
+          "det": "required"
+        },
+        {
+          "text": "what happens to NVDA after a 5% gap up",
+          "det": "required"
+        },
+        {
+          "text": "how did NVDA react after 5% earnings gaps",
+          "det": "required"
+        },
+        {
+          "text": "how has NVDA traded after gaps",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.ma-cross",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "AMD",
+              "indicator": "pct_from_sma",
+              "period": 50,
+              "op": "cross_above",
+              "threshold": 0
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "AMD",
+              "indicator": "pct_from_sma",
+              "period": 50,
+              "op": "cross_above",
+              "threshold": 0,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"pct_from_sma\",\"period\":50,\"op\":\"cross_above\",\"threshold\":0"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "what happens to AMD after it crosses above its 50-day",
+          "det": "required"
+        },
+        {
+          "text": "how has AMD done after crossing above the 50 day moving average",
+          "det": "required"
+        },
+        {
+          "text": "how did AMD trade after it closed above its 50-day sma",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.rsi",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "NVDA",
+              "indicator": "rsi",
+              "period": 14,
+              "op": "cross_below",
+              "threshold": 30
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "indicator": "rsi",
+              "period": 14,
+              "op": "cross_below",
+              "threshold": 30,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"rsi\",\"period\":14,\"op\":\"cross_below\",\"threshold\":30"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "how has NVDA done after RSI drops below 30",
+          "det": "required"
+        },
+        {
+          "text": "what happens to NVDA after its RSI falls under 30",
+          "det": "required"
+        },
+        {
+          "text": "how did NVDA do after rsi goes below 30",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.model-planned",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "indicator": "gap_pct",
+              "period": null,
+              "op": "above",
+              "threshold": 8,
+              "horizons": [
+                5,
+                10,
+                21
+              ],
+              "since": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"threshold\":8.*\"horizons\":\\[5,10,21\\]"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what has NVDA historically done in the weeks after gapping up 8% or more",
+        "NVDA after 8%+ gap ups: how did it do over the next 1, 2 and 4 weeks",
+        "historically, after NVDA gaps up 8% or more, what happened over the following weeks"
+      ]
+    },
+    {
+      "id": "asset.commodity-decline",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.quote"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.quote"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.quote",
+            "target": "$stockData",
+            "args": {
+              "symbols": [
+                "gold"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*commodity\\.quote.*\"asset\":\"gold\""
+        ],
+        "noCalls": [
+          "\"kind\":\"quotes?\""
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "what's the price of gold",
+        "gold price",
+        "how much is gold"
+      ]
+    },
+    {
       "id": "indicator.create-human-name",
       "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups",
       "capabilities": [
@@ -8596,6 +9840,179 @@
       ]
     },
     {
+      "id": "refuse.bqa1.full-board-new-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#1: a full board — the new chart is never placed off-screen; said honestly, nothing changes, nothing to undo)",
+      "capabilities": [
+        "widget.add"
+      ],
+      "board": "FOUR_DEFAULT",
+      "steps": [
+        {
+          "say": "open AMD on a new chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "charts": {
+              "count": 4
+            },
+            "modelTurns": 0,
+            "refusedAction": "widget.add"
+          }
+        },
+        {
+          "say": "open AMD on a new chart and switch it to the weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "charts": {
+              "count": 4
+            },
+            "modelTurns": 0,
+            "refusedAction": "widget.add"
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ],
+      "refuses": [
+        "widget.add"
+      ]
+    },
+    {
+      "id": "refuse.bqa1.full-board-new-chart.model",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#1, the model's plan: the same placement check refuses it)",
+      "capabilities": [
+        "widget.add",
+        "chart.setSymbol"
+      ],
+      "board": "FOUR_DEFAULT",
+      "steps": [
+        {
+          "say": "could you squeeze one more chart in for AMD",
+          "model": {
+            "ops": [
+              {
+                "action": "widget.add",
+                "target": "$workspace",
+                "args": {
+                  "type": "chart",
+                  "as": "new1"
+                }
+              },
+              {
+                "action": "chart.setSymbol",
+                "target": "new1",
+                "args": {
+                  "symbol": "AMD"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "charts": {
+              "count": 4
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.bqa1.line-noun-no-drawing",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#3: “the line” names a drawing — never an indicator; with no line drawing it is said, nothing changes; the Undo after it takes back the member's last REAL change)",
+      "capabilities": [
+        "indicator.hide"
+      ],
+      "board": "FOUR_DEFAULT",
+      "steps": [
+        {
+          "say": "hide the 50 sma on the NVDA chart",
+          "expect": {
+            "receipt": true,
+            "instance": {
+              "chart": 2,
+              "find": {
+                "inputs.period": 50,
+                "inputs.maType": "sma"
+              },
+              "has": {
+                "hidden": true
+              }
+            }
+          }
+        },
+        {
+          "say": "make the line red",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "color that line red",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.history.breadth-thrust",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "how does SPY do after breadth thrusts",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "receipt": false,
+            "noCalls": [
+              "history\\.eventStudy"
+            ]
+          }
+        },
+        {
+          "say": "what happened to SPY after a Zweig breadth thrust",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "receipt": false,
+            "noCalls": [
+              "history\\.eventStudy"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "id": "refuse.undo-after-indicator-save",
       "capabilities": [
         "agent.undo"
@@ -8689,7 +10106,7 @@
     {
       "id": "refuse.other-chart-ambiguous",
       "capabilities": [
-        "indicatorCopy.copyTo"
+        "indicator.draft"
       ],
       "board": "AUTHOR_FOUR",
       "seed": {
