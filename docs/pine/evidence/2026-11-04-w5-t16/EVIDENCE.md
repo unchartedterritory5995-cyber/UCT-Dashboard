@@ -95,3 +95,8 @@ passes). The runtime shape lives once, `_runtime_key_re()`, derived from `runtim
 `tests/`): test_definition_record_runtime.py, test_runtime_server_lane.py, test_semantics_consumers.py (plus the
 existing test_definition_record.py); all four go in final-tip. The router refuses non-ast docs by name (400)
 before any regex, so runtime records are unreachable through it (out of scope).
+
+r2 final-tip (tree f0226daf9c, tested-on-master 9bfd567837, heavy-final3.lock, log dsk/w5t16r2-final.log): gate pytest 46
+passed; hygiene clean; rails pytest 191 passed (test_definition_record_runtime, test_definition_record,
+test_runtime_server_lane, test_semantics_consumers); vitest 2 failed (baselines settingsScope.rail,
+pollingSites.rail) | 1333 passed | 27 skipped.
