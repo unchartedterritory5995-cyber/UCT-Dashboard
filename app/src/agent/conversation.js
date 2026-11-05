@@ -310,6 +310,8 @@ function askOne(list, text) {
 
 // ── chart sets ────────────────────────────────────────────────────────────────────────────────────────
 const NUMW = '(?:two|three|four|five|six|2|3|4|5|6)'
+// the SINGULAR forms: "the other one", "the other chart", "the other" — one chart, never a set
+const R_OTHER_ONE = /^(?:the |my |our )?other(?: (?:one|chart))?$/
 const R_OTHERS = new RegExp(`^(?:all )?(?:of )?(?:my |the |our )?(?:${NUMW} )?other(?: ${NUMW})?(?: (?:charts?|ones?))?$|^(?:the )?others$|^(?:all )?the rest(?: of (?:them|the charts|my charts|the board))?$|^every other chart$|^everything else$|^all the others$`)
 const R_ALL = new RegExp(`^(?:all(?: of)? (?:my |the |these |those )?charts|all (?:of )?(?:them|those|these)|(?:all )?(?:${NUMW}) (?:of them|charts)|all ${NUMW}(?: of them| charts)?|every chart|each chart|each of them|every one of them|everywhere|everything|every single chart|both(?: charts| of them)?|the whole board|my whole board)$`)
 
@@ -325,8 +327,16 @@ export function chartSet(phrase, { host, sources = [] } = {}) {
   if (R_OTHERS.test(p)) {
     const src = new Set(sources)
     if (!src.size) return null                                   // "the others" — other than what? → the model
-    const refs = charts.filter(c => !src.has(c.ref)).map(c => c.ref)
-    return refs.length ? { refs } : { say: 'There are no other charts on this board.' }
+    const others = charts.filter(c => !src.has(c.ref))
+    if (!others.length) return { say: 'There are no other charts on this board.' }
+    // GRID-REUSE #2 (live, a 4-chart board: "same for the other one" changed ALL THREE other charts): a SINGULAR
+    // referent means exactly ONE chart — the only other one, else a question; never several
+    if (R_OTHER_ONE.test(p)) {
+      if (others.length === 1) return { refs: [others[0].ref] }
+      const names = others.map(c => (c.symbol ? `the ${c.symbol} chart` : c.label || 'a chart'))
+      return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “The other one” could be any of these ${others.length} — say it by name. Nothing has changed.` }
+    }
+    return { refs: others.map(c => c.ref) }
   }
   if (R_ALL.test(p)) {
     if (/^both/.test(p) && charts.length !== 2) return { say: `There are ${charts.length} charts here, not two — say “all charts” or name the ones you mean. Nothing has changed.` }

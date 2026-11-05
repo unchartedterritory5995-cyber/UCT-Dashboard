@@ -3581,6 +3581,76 @@
      "modes": {}
     }
    }
+  },
+  "grid.add-count.reuses-one": {
+   "digest": "70f2a00e08ea5b00",
+   "phrasings": {
+    "add a 2x2 of SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add SPY, QQQ, IWM and DIA on four charts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add four charts for SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "grid.add-count.reuses-two": {
+   "digest": "ca0b596a2127cd12",
+   "phrasings": {
+    "add a 2x2 of SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add SPY, QQQ, IWM and DIA on four charts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add four charts for SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "grid.add-new.adds": {
+   "digest": "30bc7f44f9389d75",
+   "phrasings": {
+    "add two new charts for SPY and QQQ": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "open two more charts: SPY and QQQ": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add another two charts for SPY and QQQ": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -3756,6 +3826,21 @@
   },
   "refuse.other-chart-ambiguous": {
    "digest": "095c7550f735d4c4",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.other-one.ambiguous-four": {
+   "digest": "6f133e79e02712a5",
+   "gap": false,
+   "mode": null
+  },
+  "followup.other-one.two-charts": {
+   "digest": "e9df744e1077fe3c",
+   "gap": false,
+   "mode": null
+  },
+  "followup.other-charts.plural-four": {
+   "digest": "b88f595574307c6f",
    "gap": false,
    "mode": null
   }
