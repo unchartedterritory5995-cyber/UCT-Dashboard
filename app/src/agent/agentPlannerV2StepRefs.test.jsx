@@ -10,7 +10,7 @@ import { registerCatalog } from './qa/capabilityRegression/testing/registry'
 import { pinClock } from './qa/capabilityRegression/testing/clock'
 import { mountCase, chartsOf, boardState } from './qa/capabilityRegression/testing/harness'
 import { _resetAgentConfig, loadAgentConfig } from './agentClient'
-import { bindInstanceRef } from './steps'
+import { bindInstanceRef, groupOutcomes, NOT_RUN } from './steps'
 
 pinClock()
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -170,12 +170,14 @@ describe('planner v2: an indicator a step added is a result the next step can na
       ] }),
       { reply: '' },
     ])
-    // the premise: the group's second EMA 21 added nothing (its own result: not run), the chart keeps ONE EMA 21
+    // the premise: the group's second EMA 21 added nothing — the chart keeps ONE EMA 21
     expect(ema21Count(m)).toBe(1)
-    expect(m.srv.results.map(r => r.status)).toEqual(['done', 'done', 'refused'])
-    expect(said()).not.toMatch(/all 3 checked steps/)            // the false success receipt is gone
-    expect(said()).not.toMatch(/step 3 .*in place|Already there before, so nothing was added: step 3/)
-    expect(said()).toMatch(/all 2 checked steps that ran here are in place/)
+    // its OWN outcome (by index, the executor's duplicate screen): an explicit no-op, "already there" — never "Added …"
+    expect(m.srv.results.map(r => r.status)).toEqual(['done', 'done', 'done'])
+    expect(m.srv.results[2].receipt).toMatch(/EMA 21 is already on Chart \(NVDA\) — not added again/)
+    // read back as ALREADY THERE (its own explicit no-op), never as added; no false success
+    expect(said()).toMatch(/Already there before, so nothing was added: step 3/)
+    expect(said()).not.toMatch(/Added EMA 21[^.]*\.\s*Added EMA 21/)
   }, 60000)
 
   it('an explicit no-op step on its own (the indicator already there) is read back as already there, never as added', async () => {
@@ -186,6 +188,41 @@ describe('planner v2: an indicator a step added is a result the next step can na
     ])
     expect(said()).toMatch(/already on Chart \(NVDA\)/i)           // the step's own result: nothing to add
     expect(said()).toMatch(/Already there before, so nothing was added: step 2/)
+  }, 60000)
+
+  // ⛔ follow-up (#782 crediting by action NAME): a group [EMA 21 already there, RSI] — two indicator.add — gave the EMA step
+  // RSI's "Added RSI" and reported RSI as not run. The already-there adds are now credited BY INDEX.
+  it('unit: groupOutcomes credits the already-there adds by index; the rest by the commit records', () => {
+    const done = { status: 'done', receipt: 'Added RSI (14) on Chart (NVDA).' }
+    const ops = [{ action: 'indicator.add' }, { action: 'indicator.add' }]
+    const bodies = [{ outcome: 'Added RSI (14) on Chart (NVDA).', outcomeData: { kind: 'applied', actions: ['indicator.add'] } }]
+    // without the per-index evidence (#782 as it was): by name, the FIRST add takes the record — the wrong step
+    expect(groupOutcomes(bodies, ops, done).map(o => o.status)).toEqual(['done', 'refused'])
+    const got = groupOutcomes(bodies, ops, done, new Map([[0, 'EMA 21 is already on Chart (NVDA) — not added again.']]))
+    expect(got[0]).toEqual({ status: 'done', receipt: 'EMA 21 is already on Chart (NVDA) — not added again.' })
+    expect(got[1]).toEqual(done)
+    expect(got.some(o => o.refusal === NOT_RUN)).toBe(false)
+    // not done (a card, a refusal): every member gets the final outcome, as before
+    expect(groupOutcomes(bodies, ops, { status: 'proposed' }, new Map([[0, 'x']])).map(o => o.status)).toEqual(['proposed', 'proposed'])
+  })
+
+  it('review probe (D): a group [EMA 21 already there, RSI] — each step gets ITS own outcome and receipt line', async () => {
+    const { m, said } = await v2('ONE', [
+      (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: MA21 }),
+      (c) => ({ group: [
+        { action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: MA21 },
+        { action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: { defId: 'rsi', inputs: null } },
+      ] }),
+      { reply: '' },
+    ])
+    const r = m.srv.results
+    expect(r.map(x => x.status)).toEqual(['done', 'done', 'done'])
+    expect(r[1].receipt).toMatch(/EMA 21 is already on Chart \(NVDA\) — not added again/)   // the EMA step: already there
+    expect(r[1].receipt).not.toMatch(/RSI/)
+    expect(r[2].receipt).toMatch(/Added RSI/)                                                // the RSI step: added
+    expect(briefOf(m, 'NVDA')).toEqual(expect.arrayContaining(['movingAverage(21 ema)', 'rsi(14)']))
+    expect(said()).toMatch(/Already there before, so nothing was added: step 2/)
+    expect(said()).toMatch(/all 3 checked steps that ran here are in place/)
   }, 60000)
 
   it('kill switch: the v2 runner is exactly as before — no ind refs, no read-back', async () => {

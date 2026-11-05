@@ -22,6 +22,7 @@ import { agentTurnV2, agentResumeV2, agentStepResult } from './agentClient'
 import { bindSourceRefs } from './compose'
 import { translateRefs, withModelRefs, BARE_ACK, scopeChartOps } from './useAgent'
 import { screenModelOps, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
+import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { routingV2Active } from './nlm1/flag'
 import { snapshotInstances, addedInstance, readBackStepPlan } from './nlm1/stepPlans'
 import { indicatorEditsRef, chartOfIndicatorEdits } from './capabilities/indicatorEdits'
@@ -247,7 +248,19 @@ export function resumedTurn(p, deps) {
  *  outcome is not done (a card, a refusal, a failure), it is every member's — nothing of the plan ran. */
 const DONE_KINDS = new Set(['applied', 'noop', 'applied-unsaved'])
 export const NOT_RUN = 'UCT did not run this part of the plan (the reply above says why); the rest of the plan ran'
-export function groupOutcomes(bodies, ops, final) {
+export function groupOutcomes(bodies, ops, final, dups = null) {
+  // review (v2 step refs, #782 follow-up): a group [EMA 21 already there, RSI] holds two indicator.add — by action NAME the
+  // EMA step took RSI's "Added RSI" and RSI read as not run. The adds the executor screens as already there are known BY
+  // INDEX before it runs (screenDuplicateAdds, the executor's own screen): each gets its own no-op receipt, and only the
+  // other ops are matched against the commit records.
+  if (dups?.size && ops.length > 1 && final.status === 'done') {
+    const rest = ops.map((op, i) => ({ op, i })).filter(x => !dups.has(x.i))
+    const restOut = rest.length ? groupOutcomes(bodies, rest.map(x => x.op), final) : []
+    const out = ops.map(() => null)
+    rest.forEach((x, k) => { out[x.i] = restOut[k] })
+    for (const [i, receipt] of dups) if (i < ops.length) out[i] = { status: 'done', receipt }
+    return out
+  }
   if (ops.length <= 1 || final.status !== 'done') return ops.map(() => final)
   const done = (bodies || []).filter(b => DONE_KINDS.has(String(b?.outcomeData?.kind || '')))
   if (!done.length || done.some(b => !Array.isArray(b.outcomeData.actions))) return ops.map(() => final)
@@ -345,6 +358,19 @@ export function createStepRunner() {
       const mode = run.some(r => r.ev.mode === 'propose') && !explicitIndicatorCreate(bound) ? 'propose' : 'apply'
       if (!bodies && !bound.length) bodies = [{ outcome: 'UCT dropped that step before it ran (see above)', outcomeData: { kind: 'refused', actions: ops.map(o => o.action) } }]
       const pre = active.stepRefs && !bodies ? snapshotInstances(host) : null
+      // the adds the executor will find ALREADY on their chart (its own screen: model path, unless the member asked for
+      // another copy) — known by op INDEX, so each step gets its own outcome (groupOutcomes)
+      const dups = new Map()
+      if (!bodies && bound.length === run.length && run.length > 1 && !wantsCopy(active.text)) {
+        try {
+          for (const t of screenDuplicateAdds(bound, host).reused) {
+            const i = bound.indexOf(t.op)
+            let where = ''
+            try { where = host?.charts?.read?.(t.chartRef)?.label || '' } catch { where = '' }
+            if (i >= 0) dups.set(i, `${t.name || 'That indicator'} is already on ${where || 'that chart'} — not added again.`)
+          }
+        } catch { /* no per-op evidence: groupOutcomes as before */ }
+      }
       if (!bodies) {
         tapRef.current = []
         try {
@@ -377,7 +403,7 @@ export function createStepRunner() {
           undoBefore: active.undoBefore, changeSteps: active.changeSteps }
         tapRef.current = []
       }
-      const each = groupOutcomes(bodies, ops, res)
+      const each = groupOutcomes(bodies, ops, res, dups)
       if (active.stepRefs) {
         // each step from its OWN result (never the group's): ran = its own status is done; an explicit no-op is known only
         // for a step that was its group alone (a group's records do not say which op found nothing to do)
@@ -386,7 +412,8 @@ export function createStepRunner() {
           if (getCapability(r.op.action)?.query) return
           const real = bound.length === run.length ? bound[i] : (translateRefs([r.op], active.refMap)[0] || r.op)
           const ran = each[i]?.status === 'done'
-          active.stepLog.push({ action: real.action, target: real.target, args: real.args || {}, ...(ran ? {} : { refused: true }), ...(ran && run.length === 1 && lastKind === 'noop' ? { noop: true } : {}) })
+          const noop = ran && (dups.has(i) || (run.length === 1 && lastKind === 'noop'))
+          active.stepLog.push({ action: real.action, target: real.target, args: real.args || {}, ...(ran ? {} : { refused: true }), ...(noop ? { noop: true } : {}) })
         })
       }
       let addedSent = false
