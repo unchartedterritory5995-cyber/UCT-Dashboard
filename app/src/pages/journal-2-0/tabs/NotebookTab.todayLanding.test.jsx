@@ -49,7 +49,7 @@ beforeEach(() => {
   __setTodayLandingForTests(true)
   setCurrentAccountId('acct-A')
   Element.prototype.scrollIntoView = vi.fn()
-  prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first_run'] }) }
+  prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
   prefsGate = null
   global.fetch = vi.fn(async (url) => {
     const u = String(url)
