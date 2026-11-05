@@ -77,7 +77,8 @@ export function showFeature(f, host, words = '') {
   startGuide({ ...f, title: titleFor(f, words) }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
-  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
+  const note = asked?.note ? `${asked.note} ` : ''
+  return `${note}I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
 }
 
 /**
