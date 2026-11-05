@@ -321,6 +321,25 @@ def release_member_call(rowid: int, ticker: str) -> None:
         logger.exception("[cost_guard] release failed; the row keeps its worst case")
 
 
+def charge_unreported_call(market_date: str, ticker: str, model: str, request: dict,
+                           exc: BaseException) -> float:
+    """⛔ A CALL THAT RAISED MAY STILL BE A BILLED CALL. A timeout or a dropped connection
+    reports no usage, so these lanes used to record nothing, and the caps never saw it.
+    The worst case for `request` is charged instead, the rule the concierge doors and the
+    call recap already follow. An HTTP error response generated nothing and is free, and
+    with no API key nothing was sent. Returns the cost. Never raises."""
+    try:
+        from api.services.uct_agent import budget
+        if budget._is_provider_error_response(exc) or not os.environ.get("ANTHROPIC_API_KEY"):
+            return 0.0
+        return record(market_date, ticker, model,
+                      budget.request_bytes(request) + budget.FRAMING_TOKENS,
+                      int(request.get("max_tokens") or 0))
+    except Exception:                               # noqa: BLE001
+        logger.exception("[cost_guard] could not charge a failed call for %s", ticker)
+        return 0.0
+
+
 def record(market_date: str, ticker: str, model: str,
            input_tokens: int, output_tokens: int,
            was_cached: bool = False, search_requests: int = 0,
