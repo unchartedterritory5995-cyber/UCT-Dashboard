@@ -50,6 +50,10 @@ export function tidy(text) {
 const IND_NOUN = '(?:one|indicator|line|ema|sma|wma|hma|ma|average|moving average|study)'
 const IND_NOUNS = '(?:ones|indicators|lines|emas|smas|mas|averages|moving averages|studies)'
 const R_PLURAL = new RegExp(`^(?:them|those|these|both|both of (?:them|those)|them both|them all|those all|all of (?:them|those)|all (?:the |those |these |of the |of those )?${IND_NOUNS}|(?:the|those|these) (?:two|three|four|2|3|4)(?: ${IND_NOUNS})?|(?:those|these|the) (?:new )?${IND_NOUNS}|the (?:ones|indicators) (?:i|you) (?:just )?added)$`)
+// C1-103: words that shape-match R_PLURAL but point at nothing earlier: "all indicators", "all the studies", "the indicators".
+// They stand alone, so they are a request about the chart, never a follow-up: this module leaves them to the fast path and
+// the model, whatever the conversation has done. ("those", "them", "the two" do point back, and stay R_PLURAL's.)
+const R_STANDS_ALONE = new RegExp(`^(?:all (?:the |of the |my )?|the )${IND_NOUNS}$`)
 // (the shared normaliser drops the word "indicator": "that indicator I just added" arrives as "that i just added")
 const R_IT = new RegExp(`^(?:it|that|this|that one|this one|(?:that|this|the) (?:new )?(?:indicator|study)|the new one|(?:the|that|this) (?:one |indicator )?(?:i|you) (?:just )?(?:added|put on)|what (?:i|you) (?:just )?added|the last (?:one|indicator )?(?:i|you) added)$`)
 // BROWSER-QA-1 #3: "the line" / "that line" NAMES A DRAWING (a horizontal line, a trendline, a ray) — an object of another
@@ -116,6 +120,7 @@ export function liveIndicators(host, memory, epoch, { prior = false } = {}) {
 }
 // a description means what the member can SEE: a hidden indicator counts only when no visible one fits
 const visibleFirst = (list) => { const v = list.filter(i => !i.hidden && !i.none); return v.length ? v : list.filter(i => !i.none) }
+const liveAtAll = (host, memory, epoch) => liveIndicators(host, memory, epoch).length > 0
 /** Every indicator the latest turn acted on (any change), still on its chart, in order. */
 export function liveMentions(host, memory, epoch) {
   const list = memory?.mentioned?.(epoch) || null
@@ -166,6 +171,8 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
   // `dry`: is this a reference at all? (a multi-step request is read in full before anything runs — compound.js)
   if (dry) return isReferentWords(w) ? { list: [DRY] } : null
   if (!isReferentWords(w)) return null
+  // a chart phrase beside them ("… on this chart") or nothing of the conversation's left: not ours to refuse or to narrow
+  if (R_STANDS_ALONE.test(w) && !pinned && !working && (scope || !liveAtAll(host, memory, epoch))) return null
   // the member already picked which one (a local "which one?") — a singular reference means exactly that one
   if (pinned && !R_PLURAL.test(w)) return { list: [pinned] }
   if (R_LINE.test(w)) {
@@ -605,6 +612,7 @@ function indicatorClauses(t, ctx) {
   if (scoped) {
     const r = indicatorClausesOn(scoped.t, scoped.ctx)
     if (r) return r
+    if (namesWholeSet(scoped.t)) return null                        // never re-read below with its chart phrase ignored
   }
   return indicatorClausesOn(t, ctx)
 }
@@ -847,6 +855,8 @@ export function followUpShape(text) {
   return !!indicatorClauses(t, { dry: true })?.ops
 }
 
+const R_WHOLE_SET = new RegExp(`(?:^| )(?:all (?:the |of the |my )?|the )${IND_NOUNS}$`)
+const namesWholeSet = (t) => R_WHOLE_SET.test(t)
 const CHART_POINTER = /\s(?:on|to|onto|in|from|off|off of)\s+(?:(this|that|my|the|our)\s+(?:active |current |open |main )?chart|(?:it|there|here))$/
 /**
  * A follow-up about what this conversation did. → null (not one this module reads: the fast path / the model
@@ -865,6 +875,9 @@ export function resolveFollowUp(text, { host, memory, epoch = null, working = nu
   const ptr = CHART_POINTER.exec(String(raw).toLowerCase().replace(/[.!?]+$/, '').trim())
   const pointed = ptr && !/\bchart$/.test(t0) ? readOnce(`${t0} on ${ptr[1] === 'this' ? 'this' : 'that'} chart`, ctx) : null
   if (pointed) return pointed
+  // "hide all indicators on this chart" must not fall back to "hide all indicators" with its chart dropped: that reads
+  // the conversation's indicators, wherever they are
+  if (ptr && namesWholeSet(t0)) return null
   const exact = readOnce(t0, ctx)
   if (exact) return exact
   let variants = null
