@@ -112,5 +112,21 @@ def report(doc: Optional[dict] = None) -> dict[str, Any]:
             "held_out": coverage(i for i in items if i["split"] == "held_out")}
 
 
+def before_after(doc: Optional[dict] = None) -> dict[str, Any]:
+    """Coverage at the frozen baseline against now, per split. Held-out figures stay separate."""
+    doc = doc or load()
+    base = json.loads(CORPUS.with_name("composition_baseline.json").read_text(encoding="utf-8"))["items"]
+    out: dict[str, Any] = {}
+    for split in ("design", "held_out"):
+        items = [i for i in doc["items"] if i["split"] == split]
+        n = len(items)
+        counts = {c: sum(1 for i in items if base[i["id"]] == c) for c in CLASSES}
+        spec = counts[FLAT] + sum(1 for i in items if base[i["id"]] == NARROWER and not i.get("needs"))
+        out[split] = {"before": {**counts, "total": n, "spec_exists": spec, "spec_exists_pct": round(100 * spec / n, 1),
+                                 "flat_pct": round(100 * counts[FLAT] / n, 1)},
+                      "after": coverage(items)}
+    return out
+
+
 if __name__ == "__main__":
-    print(json.dumps(report(), indent=1))
+    print(json.dumps(before_after(), indent=1))

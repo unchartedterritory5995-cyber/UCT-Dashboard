@@ -116,3 +116,25 @@ def test_the_baseline_is_frozen_and_nothing_regressed():
     for cid, before in BASELINE["items"].items():
         if before in (C.FLAT, C.HIDDEN):
             assert now[cid] == before, cid
+
+
+def test_corrections_are_explained():
+    for cid, why in BASELINE["corrections"].items():
+        assert cid in BASELINE["items"] and len(why) > 30
+
+
+def test_the_held_out_set_is_reported_on_its_own():
+    r = C.before_after()
+    assert set(r) == {"design", "held_out"}
+    for split in r.values():
+        assert split["after"]["spec_exists"] >= split["before"]["spec_exists"]
+        assert split["after"]["f16_hidden"] == split["before"]["f16_hidden"]
+        assert split["after"]["total"] == split["before"]["total"]
+
+
+def test_what_a_gold_spec_cannot_claim_stays_a_recorded_gap():
+    """A request the primitives only approximate keeps its reason, rather than a near-enough spec."""
+    still = {i["text"] for i in ITEMS if i.get("reason") == C.MISSING}
+    assert "first close above the 20 ema after 10 days below" in still
+    assert "stocks that broke above their 20 day high this week and held" in still
+    assert "weekly RSI above 60" in still

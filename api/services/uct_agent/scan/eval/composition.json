@@ -1770,473 +1770,750 @@
    "id": "x107",
    "split": "design",
    "text": "price above the 9 EMA",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema9_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x108",
    "split": "design",
    "text": "pulling back to the 9 ema in an uptrend",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema9_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "between",
+      "min": -1,
+      "max": 2
+     },
+     {
+      "key": "candle_trend",
+      "op": "in",
+      "values": [
+       "up"
+      ]
+     }
+    ]
+   }
   },
   {
    "id": "x109",
    "split": "design",
    "text": "within 1% of the 9 EMA and above the 50 day",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema9_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "between",
+      "min": -1,
+      "max": 1
+     },
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x110",
    "split": "design",
    "text": "more than 8% above the 9 ema",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema9_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "gt",
+      "min": 8
+     }
+    ]
+   }
   },
   {
    "id": "x111",
    "split": "design",
    "text": "closed below the 9 ema with volume",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema9_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "lt",
+      "max": 0
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     }
+    ]
+   }
   },
   {
    "id": "x112",
    "split": "held_out",
    "text": "riding the 10 ema, within 2 percent",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema10_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema10",
+      "op": "between",
+      "min": -2,
+      "max": 2
+     }
+    ]
+   }
   },
   {
    "id": "x113",
    "split": "design",
    "text": "undercut the 10 EMA today",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ema10_distance"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema10",
+      "op": "lt",
+      "max": 0
+     }
+    ]
+   }
   },
   {
    "id": "x114",
    "split": "design",
    "text": "more than 25% above the 50 day moving average",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "gt",
+      "min": 25
+     }
+    ]
+   }
   },
   {
    "id": "x115",
    "split": "design",
    "text": "within 3% of the 50 SMA",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "between",
+      "min": -3,
+      "max": 3
+     }
+    ]
+   }
   },
   {
    "id": "x116",
    "split": "design",
    "text": "below the 50 day by at least 15 percent",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "lte",
+      "max": -15
+     }
+    ]
+   }
   },
   {
    "id": "x117",
    "split": "design",
    "text": "holding the 50 day, less than 2% above it",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "between",
+      "min": 0,
+      "max": 2
+     }
+    ]
+   }
   },
   {
    "id": "x118",
    "split": "held_out",
    "text": "above the 200 day moving average",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x119",
    "split": "held_out",
    "text": "price above both the 50 and 200 day",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x120",
    "split": "design",
    "text": "within 2% of the 200 day",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "between",
+      "min": -2,
+      "max": 2
+     }
+    ]
+   }
   },
   {
    "id": "x121",
    "split": "design",
    "text": "more than 50 percent above the 200 SMA",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 50
+     }
+    ]
+   }
   },
   {
    "id": "x122",
    "split": "design",
    "text": "below the 200 day in the S&P 500",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "lt",
+      "max": 0
+     },
+     {
+      "key": "index_sp500",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x123",
    "split": "design",
    "text": "reclaiming the 200 from below, within 1% above it",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "between",
+      "min": 0,
+      "max": 1
+     },
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 5
+     }
+    ]
+   }
   },
   {
    "id": "x124",
    "split": "design",
    "text": "the 50 day is above the 200 day",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200",
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x125",
    "split": "held_out",
    "text": "20 sma above the 50 sma",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma20_sma50",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x126",
    "split": "design",
    "text": "50 day below the 200 day in a downtrend",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "pct_vs_sma200",
-    "pct_vs_sma50"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "lt",
+      "max": 0
+     },
+     {
+      "key": "candle_trend",
+      "op": "in",
+      "values": [
+       "down"
+      ]
+     }
+    ]
+   }
   },
   {
    "id": "x127",
    "split": "held_out",
    "text": "golden cross in the last 10 days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 10
+     }
+    ]
+   }
   },
   {
    "id": "x128",
    "split": "design",
    "text": "death cross this week",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": -5,
+      "max": -1
+     }
+    ]
+   }
   },
   {
    "id": "x129",
    "split": "design",
    "text": "50 day crossed above the 200 day within the last month",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 21
+     }
+    ]
+   }
   },
   {
    "id": "x130",
    "split": "held_out",
    "text": "9 ema crossed above the 20 ema in the last 3 bars",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_ema9_ema20",
+      "op": "between",
+      "min": 1,
+      "max": 3
+     }
+    ]
+   }
   },
   {
    "id": "x131",
    "split": "design",
    "text": "9 EMA crossing under the 20 EMA today",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_ema9_ema20",
+      "op": "eq",
+      "value": -1
+     }
+    ]
+   }
   },
   {
    "id": "x132",
    "split": "design",
    "text": "20 sma crossed over the 50 sma in the last 5 sessions",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma20_sma50",
+      "op": "between",
+      "min": 1,
+      "max": 5
+     }
+    ]
+   }
   },
   {
    "id": "x133",
    "split": "design",
    "text": "crossed back above the 50 day today",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x134",
    "split": "held_out",
    "text": "crossed above the 200 day in the last 2 weeks",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 10
+     }
+    ]
+   }
   },
   {
    "id": "x135",
    "split": "design",
    "text": "price fell through the 50 day yesterday or today",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "between",
+      "min": -2,
+      "max": -1
+     }
+    ]
+   }
   },
   {
    "id": "x136",
    "split": "design",
    "text": "reclaimed the 20 ema within the last 3 days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_ema20",
+      "op": "between",
+      "min": 1,
+      "max": 3
+     }
+    ]
+   }
   },
   {
    "id": "x137",
    "split": "design",
    "text": "lost the 200 day in the last 5 days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": -5,
+      "max": -1
+     }
+    ]
+   }
   },
   {
    "id": "x138",
    "split": "design",
    "text": "bullish 9/20 cross on heavy volume above the 200 day",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "ma_cross"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_ema9_ema20",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x139",
    "split": "design",
    "text": "volume has been rising for three days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
   },
   {
    "id": "x140",
    "split": "held_out",
    "text": "volume increasing over the last 5 days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 4
+     }
+    ]
+   }
   },
   {
    "id": "x141",
    "split": "held_out",
    "text": "volume picking up compared to last month",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_trend_pct",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x142",
    "split": "design",
    "text": "volume contraction over the last two weeks",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "avg_volume_10d",
+      "op": "lt_col",
+      "other": "avg_volume_50d"
+     }
+    ]
+   }
   },
   {
    "id": "x143",
    "split": "design",
    "text": "volume declining into the pullback",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_down_run",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "pullback_depth_pct",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
   },
   {
    "id": "x144",
    "split": "design",
    "text": "5 day average volume at least 50% over the 20 day average",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_trend_pct",
+      "op": "gte",
+      "min": 50
+     }
+    ]
+   }
   },
   {
    "id": "x145",
    "split": "held_out",
    "text": "10 day average volume below the 50 day average volume",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "avg_volume_10d",
+      "op": "lt_col",
+      "other": "avg_volume_50d"
+     }
+    ]
+   }
   },
   {
    "id": "x146",
    "split": "design",
    "text": "volume drying up while price is within 5% of the high",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_nweek_low",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -5
+     }
+    ]
+   }
   },
   {
    "id": "x147",
    "split": "held_out",
    "text": "three days of rising volume and rising price",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "consecutive_up",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
   },
   {
    "id": "x148",
    "split": "design",
    "text": "average volume trending higher, stock above 50 day",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "volume_trend"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_trend_pct",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x149",
    "split": "design",
    "text": "breaking out of a 20 day range today",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     }
+    ]
+   }
   },
   {
    "id": "x150",
    "split": "design",
    "text": "20 day breakout on 1.5x volume",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     }
+    ]
+   }
   },
   {
    "id": "x151",
    "split": "design",
    "text": "closing above the 50 day high",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 50
+     }
+    ]
+   }
   },
   {
    "id": "x152",
    "split": "design",
    "text": "breaking out to a 3 month high",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 63
+     }
+    ]
+   }
   },
   {
    "id": "x153",
    "split": "design",
    "text": "broke out in the last 3 days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "breakout_20d_age",
+      "op": "lte",
+      "max": 2
+     }
+    ]
+   }
   },
   {
    "id": "x154",
@@ -2245,28 +2522,37 @@
    "spec": null,
    "reason": "engine_primitive_missing",
    "needs": [
-    "breakout"
-   ]
+    "breakout_held"
+   ],
+   "note": "breakout_20d_age says when, but nothing says the close is still above the level it broke"
   },
   {
    "id": "x155",
    "split": "design",
    "text": "55 day channel breakout",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 55
+     }
+    ]
+   }
   },
   {
    "id": "x156",
    "split": "design",
    "text": "breaking down below the 20 day low",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_low_lookback",
+      "op": "gte",
+      "min": 20
+     }
+    ]
+   }
   },
   {
    "id": "x157",
@@ -2275,19 +2561,28 @@
    "spec": null,
    "reason": "engine_primitive_missing",
    "needs": [
-    "breakout",
     "lookback_52w_high_age"
-   ]
+   ],
+   "note": "needs the age of the PREVIOUS 52-week high; high_52w_age is 0 on the day itself"
   },
   {
    "id": "x158",
    "split": "design",
    "text": "high tight breakouts, 20 day high with ADR over 5",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "breakout"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     },
+     {
+      "key": "adr_pct",
+      "op": "gt",
+      "min": 5
+     }
+    ]
+   }
   },
   {
    "id": "x159",
@@ -2333,31 +2628,43 @@
    "id": "x163",
    "split": "design",
    "text": "closed above the 50 day for 10 straight days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "days_above_ma"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "gte",
+      "min": 10
+     }
+    ]
+   }
   },
   {
    "id": "x164",
    "split": "held_out",
    "text": "has held above the 200 day for 6 months",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "days_above_ma"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "gte",
+      "min": 126
+     }
+    ]
+   }
   },
   {
    "id": "x165",
    "split": "design",
    "text": "under the 20 ema for 5 days in a row",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "days_above_ma"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_ema20",
+      "op": "lte",
+      "max": -5
+     }
+    ]
+   }
   },
   {
    "id": "x166",
@@ -2367,7 +2674,8 @@
    "reason": "engine_primitive_missing",
    "needs": [
     "days_above_ma"
-   ]
+   ],
+   "note": "needs the length of the run BEFORE the current one"
   },
   {
    "id": "x167",
@@ -2383,21 +2691,29 @@
    "id": "x168",
    "split": "design",
    "text": "made a new 52 week high in the last 10 days",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "lookback_52w_high_age"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "high_52w_age",
+      "op": "lte",
+      "max": 9
+     }
+    ]
+   }
   },
   {
    "id": "x169",
    "split": "design",
    "text": "hit a 52 week low within the past month",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "lookback_52w_low_age"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "low_52w_age",
+      "op": "lte",
+      "max": 20
+     }
+    ]
+   }
   },
   {
    "id": "x170",
@@ -2453,31 +2769,43 @@
    "id": "x175",
    "split": "held_out",
    "text": "20 sma is sloping up",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "sma_slope"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "sma20_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x176",
    "split": "design",
    "text": "200 day is rising",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "sma_slope"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x177",
    "split": "design",
    "text": "50 day has been rising for a month",
-   "spec": null,
-   "reason": "engine_primitive_missing",
-   "needs": [
-    "sma_slope"
-   ]
+   "spec": {
+    "filters": [
+     {
+      "key": "sma50_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
   },
   {
    "id": "x178",
