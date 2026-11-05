@@ -479,13 +479,15 @@ describe('W4 T0: the census peel removes a LOGICAL statement, not one physical l
   })
 
   it('a function whose only statement is refused: the emptied function goes (no empty body)', () => {
-    // `log.info(…)` is the runtime lane's wall; blanking it alone left `note(a) =>` with a
+    // (train, W4-T0 x W4-T15: `log.*` is SERVED on the runtime lane since W4-T15, so the refused
+    // statement here is now `ticker.new(…)`, a builtin the runtime lane still refuses as `pine:builtin`)
+    // that statement is the runtime lane's wall; blanking it alone left `note(a) =>` with a
     // body of no statements, which the next door call refused as `runtime:function`
     const src = [...FIXTURE_HEAD,
       'arr = array.new_float(0)',   // the host lane refuses a collection; the runtime lane takes it
       'array.push(arr, close)',
       'note(a) =>',
-      '    log.info("x")',
+      '    ticker.new("NASDAQ", "AAPL")',
       'note(close)',
       'v = array.get(arr, 0)',
       'plot(close + v)',
@@ -503,16 +505,16 @@ describe('W4 T0: the census peel removes a LOGICAL statement, not one physical l
       'arr = array.new_float(0)',   // the host lane refuses a collection; the runtime lane takes it
       'array.push(arr, close)',
       'if close > open',
-      '    log.info("up")',
+      '    ticker.new("NASDAQ", "AAPL")',
       'else',
-      '    log.info("down")',
+      '    ticker.new("NYSE", "IBM")',
       'v = array.get(arr, 0)',
       'plot(close + v)',
     ].join(LF)
     const row = underLane(true, () => census(src, 8, { rtOn: true }))
     const walls = row.steps.map((st) => wallOfStep(st, true))
     expect(row.reachedAfterPeel, JSON.stringify(walls)).toBe(true)
-    // ONE peel removes the whole if/else: the else's own `log.info` is never a second wall
+    // ONE peel removes the whole if/else: the else's own refused call is never a second wall
     expect(row.peelSteps, JSON.stringify(walls)).toBe(1)
   })
 })
