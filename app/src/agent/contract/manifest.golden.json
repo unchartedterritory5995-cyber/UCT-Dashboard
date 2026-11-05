@@ -5645,6 +5645,14 @@
      "feature": {
       "type": "string",
       "enum": [
+       "drawingEdit",
+       "indicatorManage",
+       "alertAction",
+       "panelAction",
+       "compareAction",
+       "chartMenu",
+       "chartView",
+       "legendChip",
        "indicatorColor",
        "indicatorEdit",
        "alertIndicator",

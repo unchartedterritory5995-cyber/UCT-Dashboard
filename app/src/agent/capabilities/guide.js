@@ -45,17 +45,18 @@ function guideChart(host) {
   try { sel = host?.charts?.selected?.() || null } catch { sel = null }
   return charts.find(c => c.ref === sel) || charts[0]
 }
-const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' && (t.startsWith('chart.') || t.startsWith('widget.')))
-const needsChart = (f) => f.steps.some(s => scoped(s.target))
+const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : !!t?.id && scoped(t.id))
 
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
-  const chart = needsChart(f) ? guideChart(host) : null
-  if (needsChart(f) && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
+  const steps = stepsFor(f, words)
+  const needsChart = steps.some(s => scoped(s.target))
+  const chart = needsChart ? guideChart(host) : null
+  if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
   // an optional opening step (the board's own watchlist) only when it is there
-  const all = stepsFor(f, words).filter(s => !s.optional || s.late || findTarget(s.target, { chartRef }))
+  const all = steps.filter(s => !s.optional || s.late || findTarget(s.target, { chartRef }))
   // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
   // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
   // walkthrough starts — never "open the gear" when the settings are already open. The steps before it stay in the list.
