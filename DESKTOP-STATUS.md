@@ -499,3 +499,12 @@ Merging to master is still not authorized in this file; the owner approves it di
 - 2026-11-05 13:24 OWNER APPROVED the train merge and production deploy, in chat ("approve do it all"). PR #857 integ/pine-train-2026-11-05 -> master opened; CI running.
 - 2026-11-05 13:24 W9-T3 r1 45def73c2f: GO-WITH-NOTES. B1 fixed (5000-vs-100000 now INCONCLUSIVE). Note for the W9-T2 brief: scripts with no literal settings always read INCONCLUSIVE, and T2 must not block them on that.
 - 2026-11-05 13:33 MERGED: PR #857, the landing train, is on master as be5fd05ea2 (19:32Z, owner-approved). The gh token lacks the workflow scope, so the owner directed a merge via the GitHub web UI in the owner's browser. Master deploy gate and production promotion are running; engine 17 on master.
+- 2026-11-05 15:45 ON PRODUCTION: origin/production = 6fe0577df8, which contains the train be5fd05ea2 (engine 17).
+  - The first gate run failed on the agent-scan screener pin guard. It was fixed by PR #862, which moved the pin per the guard's own rule.
+  - The promotion skipped during the 15:30-16:15 ET freeze, then landed.
+  - Next wave started:
+    - post-landing verify (deploy check, adx re-grade, W0 re-measure on engine 17);
+    - W6-T3a final-tip re-run;
+    - W6-T3b (Opus);
+    - W9-T14a then T2 (Sonnet).
+  - Claude Code reaped the background watchers on low memory; they were not restarted.
