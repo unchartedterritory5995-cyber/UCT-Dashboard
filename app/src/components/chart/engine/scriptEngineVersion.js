@@ -95,7 +95,8 @@
 /** 11 = W4-T9 (train): offsets bounded by simple values and frame parameters are served */
 /** 12 = W4-T8 (train): series int window lengths (v5 and v6) are served on the runtime lane */
 /** 13 = W4-T10 (train): state kernels over runtime values (ta.cum, 3-arg pivothigh/low, ta.stoch, ta.vwap(source)) are served */
-export const SCRIPT_ENGINE_VERSION = 13
+/** 14 = W4-T11 (train): runtime text values are served on the runtime lane */
+export const SCRIPT_ENGINE_VERSION = 14
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
