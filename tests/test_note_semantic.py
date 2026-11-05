@@ -592,15 +592,27 @@ def test_pending_count_is_cached_per_member_and_bounded(db_path, on_noop, monkey
     assert ns.pending_count(U) == 1                     # capped
 
 
-def test_N4_a_zero_is_never_cached(db_path, on_noop):
-    """Fix round 2 (re-review N4): a cached 0 hid the waiting line for up to a minute right after the
-    member wrote a note -- exactly the B18 moment. Only a non-zero count is kept."""
+def test_R2_2_a_zero_is_cached_briefly_and_a_count_for_the_full_minute(db_path, on_noop, monkeypatch):
+    """Fix round 3 (re-review 2, R2-2): a 0 is cached, but only for PENDING_ZERO_TTL_S (10 s) -- an
+    empty search does not re-count every keystroke, and a note written a moment later still shows up
+    within seconds (the B18 moment). A non-zero count keeps the full minute."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(ns, "_now", lambda: clock["t"])
     ns.clear_pending_cache()
     _note(U, "One", "words one")
     ns.index_member(U)
     assert ns.pending_count(U) == 0
     _note(U, "Two", "words two")                        # just written
-    assert ns.pending_count(U) == 1                     # seen at once, no cached 0 in the way
+    clock["t"] += 5
+    assert ns.pending_count(U) == 0                     # the 0 is still cached at 5 s
+    clock["t"] += ns.PENDING_ZERO_TTL_S
+    assert ns.pending_count(U) == 1                     # past 10 s: counted again
+    _note(U, "Three", "words three")
+    clock["t"] += ns.PENDING_ZERO_TTL_S + 1
+    assert ns.pending_count(U) == 1                     # a non-zero count keeps its minute
+    clock["t"] += ns.PENDING_CACHE_TTL_S
+    assert ns.pending_count(U) == 2
+    assert ns.PENDING_ZERO_TTL_S == 10
 
 
 def test_N4_the_cap_is_said_as_a_floor(db_path, on_noop, monkeypatch):

@@ -447,6 +447,9 @@ _MEMBERS_WITH_WORK_SQL = (
 #: Fix round 1 (review finding 18): the waiting count is a status line, not a measurement -- one
 #: read per member a minute (the sweep runs every 15), and it stops counting at this many.
 PENDING_CACHE_TTL_S = 60
+#: Fix round 3 (re-review 2, R2-2): a 0 is kept only this long -- enough that an empty search does
+#: not re-count on every keystroke, short enough that a note written a moment later shows up.
+PENDING_ZERO_TTL_S = 10
 PENDING_COUNT_CAP = 1000
 _pending_cache: dict[str, tuple[float, int]] = {}
 
@@ -471,8 +474,10 @@ def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
     if not semantic_enabled():
         return None
     hit = _pending_cache.get(user_id)
-    if hit and PENDING_CACHE_TTL_S > 0 and (_now() - hit[0]) < PENDING_CACHE_TTL_S:
-        return hit[1]
+    if hit and PENDING_CACHE_TTL_S > 0:
+        ttl = PENDING_CACHE_TTL_S if hit[1] else PENDING_ZERO_TTL_S
+        if (_now() - hit[0]) < ttl:
+            return hit[1]
     provider = provider or get_provider()
     owned = conn is None
     conn = conn or get_connection()
@@ -494,12 +499,9 @@ def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
             " LIMIT ?)",
             (user_id, provider.name, int(PENDING_COUNT_CAP))).fetchone()
         n = int(r[0] or 0) if r else 0
-        # A 0 is never kept (N4): it would hide the line for a minute right after the member wrote
-        # a note -- the very moment B18 is about. Only a non-zero count is rate-limited.
-        if n:
-            _pending_cache[user_id] = (_now(), n)
-        else:
-            _pending_cache.pop(user_id, None)
+        # A 0 keeps only PENDING_ZERO_TTL_S (R2-2): a minute-long cached 0 would hide the line right
+        # after the member wrote a note -- the very moment B18 is about.
+        _pending_cache[user_id] = (_now(), n)
         if len(_pending_cache) > 5000:            # bounded: drop the oldest half
             for k, _ in sorted(_pending_cache.items(), key=lambda kv: kv[1][0])[:2500]:
                 _pending_cache.pop(k, None)
