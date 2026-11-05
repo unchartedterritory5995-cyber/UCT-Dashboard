@@ -71,6 +71,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
@@ -96,6 +97,8 @@
   border-color: transparent;
   color: var(--text-muted, #9aa0a6);
   font-size: 12px;
+  padding-inline: 6px;
+  white-space: nowrap;
 }
 
 .ghost + .ghost {

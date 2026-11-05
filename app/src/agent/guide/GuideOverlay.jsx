@@ -33,11 +33,11 @@
 //   • leaving Charts or closing the Agent unmounts it: the walkthrough ends, every timer and listener with it
 //   • the card is announced politely (aria-live) and never takes focus from what the member is doing
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt } from './guideStore'
 import { findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
-import { POLL_MS, LOST_MS, LATE_MS, PAUSE_MS, sameRect, placeCard } from './placement'
+import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
 import { registerShortcuts } from '../../pages/command/shortcutRegistry'
 import styles from './GuideOverlay.module.css'
 
@@ -71,12 +71,15 @@ export default function GuideOverlay() {
     let lostSince = null
     let shown = false
     let cancelled = false
-    let clicked = false
+    let clicked = 0     // when the member last pressed this step's control: it only explains a disappearance right after it
     // returned to by Back: a `waitFor` still met from last time is not a new event — wait until it has gone once
     // (and a result that is something ENDING has to have begun first)
     let armed = !st.back && !step.waitFor?.not
     const tick = () => {
       if (cancelled) return
+      // the card's real height, so placeCard can keep it off the control whatever the sentence's length
+      const h = cardRef.current?.offsetHeight
+      if (h) setCardH(h)
       if (step.waitFor) {
         const met = findTarget(step.waitFor, st)
         if (met && armed) { nextStep(); return }
@@ -96,7 +99,7 @@ export default function GuideOverlay() {
         return
       }
       // the member's own click took it away (a menu item, the last click): that step is done, not lost
-      if (clicked) { clicked = false; if (step.endsOnClick) endGuide('done'); else nextStep(); return }
+      if (clicked && Date.now() - clicked < CLICK_MS) { clicked = 0; if (step.endsOnClick) endGuide('done'); else nextStep(); return }
       setFound(prev => (prev.key === stepKey && prev.rect === null && prev.paused === (lostSince != null && Date.now() - lostSince >= LOST_MS) ? prev
         : { key: stepKey, rect: null, holder: null, why: null, paused: lostSince != null && Date.now() - lostSince >= LOST_MS }))
       const now = Date.now()
@@ -113,8 +116,10 @@ export default function GuideOverlay() {
     // capture, passive: the guide only notes that the member's click landed on the control; it never touches the event
     const onDown = (e) => {
       const el = findTarget(step.target, st)
+      if (el && el.contains?.(e.target)) clicked = Date.now()
+      // the step's other way of being done: its control stays on screen, so the click itself is the finish
       const also = step.also ? findTarget(step.also, st) : null
-      if ((el && el.contains?.(e.target)) || (also && also.contains?.(e.target))) clicked = true
+      if (also && also.contains?.(e.target)) setTimeout(() => { if (!cancelled) endGuide('done') }, POLL_MS)
     }
     document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('mousedown', onDown, true)
@@ -145,12 +150,6 @@ export default function GuideOverlay() {
     el.addEventListener('pointerdown', stop)
     return () => { el.removeEventListener('mousedown', stop); el.removeEventListener('pointerdown', stop) }
   }, [active])
-
-  // the card's real height, so placeCard can keep it off the control whatever the sentence's length
-  useLayoutEffect(() => {
-    const h = cardRef.current?.offsetHeight
-    if (h && h !== cardH) setCardH(h)
-  })
 
   if (typeof document === 'undefined') return null
   if (!st || !step) {

@@ -78,7 +78,7 @@ export const GUIDE_FEATURES = [
   // ── ⭐ GUIDE SYSTEM: the nested, multi-step Charts families ──
   {
     // the Inspector of one indicator (components/chart/ChartSettingsIndicators.jsx), and its colour panel (ChartSettingsModal)
-    id: 'indicatorColor', slots: ['ind'], terms: ['indicator colour', 'indicator color'], control: 'the chart’s settings gear', title: 'Changing the colour of {ind.say}', titleAny: 'Changing an indicator’s colour', topic: 'indicators',
+    id: 'indicatorColor', slots: ['ind'], except: /\b(prev|prior|previous)[- ]?day\b|\b(crosshair|grid|watermark|background)\b/, terms: ['indicator colour', 'indicator color'], control: 'the chart’s settings gear', title: 'Changing the colour of {ind.say}', titleAny: 'Changing an indicator’s colour', topic: 'indicators',
     words: [/\bindicators?\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\bindicators?\b/, /\b(line|plot|moving average|average)\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\b(line|plot|moving average|average)\b/],
     match: (q) => /\b(re)?colou?r\w*\b/.test(q) && !!readIndicator(q),
     caps: ['indicatorStyle.set'],
@@ -96,7 +96,7 @@ export const GUIDE_FEATURES = [
     // the same Inspector, one field of it
     id: 'indicatorEdit', slots: ['ind', 'field'], terms: ['indicator settings'], control: 'the chart’s settings gear', title: 'Changing {ind.say}’s settings', titleAny: 'Changing an indicator’s settings', topic: 'indicators',
     words: [/\b(change|edit|set|adjust|configure|modify|tweak)\w*\b.*\bindicators?\b/, /\bindicators?\b.*\b(settings?|period|length|style|width|source|inputs?)\b/],
-    match: (q) => /\b(period|length|lookback|source|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) && !!readIndicator(q),
+    match: (q) => /\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) && !!readIndicator(q),
     caps: ['indicator.update'],
     explain: 'Every indicator’s own settings are in the chart’s settings: the gear, the Indicators tab, then click the indicator. Its period, source, type, timeframe, pane, visibility and line style are all there.',
     steps: [
@@ -126,7 +126,7 @@ export const GUIDE_FEATURES = [
   },
   {
     // pages/charts/widgets/AlertsWidget.jsx — the widget's quick-add row; the widget comes off Widgets ▾ when it isn't on the board
-    id: 'alertPrice', terms: ['price alert', 'price alerts', 'alerts widget'], control: 'the Alerts widget', title: 'Setting a price alert', topic: 'alerts',
+    id: 'alertPrice', except: /\bwidget\b.*\b(settings?|gear|appearance|look)\b/, terms: ['price alert', 'price alerts', 'alerts widget'], control: 'the Alerts widget', title: 'Setting a price alert', topic: 'alerts',
     words: [/\balerts?\b/, /\bnotify me\b/],
     caps: ['alert.create'],
     explain: 'The Alerts widget sets a price alert on any ticker: type the ticker, choose Above or Below, type the price, click Set. Add the widget from Widgets ▾ → Alerts. On a chart, Alt+N sets one at the cursor.',
@@ -285,7 +285,7 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Say “add a chart tab” and I’ll do it.' },
   },
   {
-    id: 'chartThemes', terms: ['chart themes', 'uct chart themes'], control: 'the chart’s settings gear', title: 'Applying a chart theme', topic: 'chartSettings',
+    id: 'chartThemes', except: /\bwatermark\b/, terms: ['chart themes', 'uct chart themes'], control: 'the chart’s settings gear', title: 'Applying a chart theme', topic: 'chartSettings',
     words: [/\b(chart )?themes?\b/],
     caps: ['chart.applyTheme'],
     explain: 'Chart Settings → UCT Chart Themes gives a chart a ready-made look in one click, on this chart or on all of them.',
@@ -316,7 +316,7 @@ export const GUIDE_FEATURES = [
     steps: [
       GEAR,
       { target: 'chartSettings.tab.price', name: 'the Price Style tab', text: 'Open Price Style.', waitFor: { id: 'chartSettings.tab.price', on: true } },
-      { target: [{ within: 'chartSettings', label: 'Chart Type' }, { within: 'chartSettings', label: 'Style' }, 'chartSettings.tab.price'], name: 'the chart type', text: 'Choose how price is drawn here.', altText: 'The chart type is at the top of this tab.' },
+      { target: [{ within: 'chartSettings', label: 'Type' }, 'chartSettings.tab.price'], name: 'the chart type', text: 'Choose how price is drawn here.', altText: 'The chart type is at the top of this tab.' },
     ],
     doIt: { say: 'Tell me which — for example “make it a line chart”.' },
   },
@@ -354,7 +354,7 @@ export const GUIDE_FEATURES = [
     steps: [
       GEAR,
       { target: 'chartSettings.tab.{setting.tab}', name: 'the {setting.tabLabel} tab', text: 'Open {setting.tabLabel}.', waitFor: { id: 'chartSettings.tab.{setting.tab}', on: true } },
-      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.', altText: 'It’s on this tab, under {setting.where}. Scroll down for it.' },
+      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.', altText: 'It’s on this tab: scroll down for {setting.label}.' },
     ],
     doIt: { say: 'Tell me the change — for example “hide the grid” or “make the crosshair dashed”.' },
   },
@@ -510,7 +510,7 @@ export const GUIDE_FEATURES = [
     // components/chart/ChartToolbar.jsx — the eye toggles hideDrawings for this chart; greyed out with no drawings
     explain: 'The eye on the chart’s drawing toolbar hides every drawing on that chart without deleting any of them; click it again to show them. It is greyed out while the chart has no drawings.',
     steps: [
-      { target: 'chart.drawingsHide', text: 'This eye hides all the drawings on this chart — nothing is deleted. Click it again to show them.' },
+      { target: 'chart.drawingsHide', text: 'This eye hides all the drawings on this chart — nothing is deleted. Click it again to show them.', off: 'This eye hides all the drawings on this chart. It’s greyed out now because this chart has none yet.' },
     ],
     doIt: { say: 'I can hide every drawing on this symbol for you — say “hide all my drawings” (nothing is deleted, and Undo shows them again).' },
   },

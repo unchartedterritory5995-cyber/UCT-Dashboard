@@ -4,6 +4,8 @@
 export const POLL_MS = 120
 /** How long a step's control may be gone before the walkthrough ends (or an optional step is skipped). */
 export const LOST_MS = 2000
+/** How soon after the member's press a control's going away counts as that press's doing. */
+export const CLICK_MS = 1500
 /** How long a `late` step (one that may simply not apply) is looked for. */
 export const LATE_MS = 700
 /** How long a walkthrough waits, paused, for a control that went away with no earlier step to return to (a layout switch,
