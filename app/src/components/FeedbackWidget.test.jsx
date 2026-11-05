@@ -8,7 +8,7 @@ import { useRef, useState } from 'react'
 import NotebookPlusFab from '../pages/journal-2-0/components/notebook/NotebookPlusFab'
 import NotebookPlusSheet from '../pages/journal-2-0/components/notebook/NotebookPlusSheet'
 import { openFeedback, registerHelpHost, registerShortcutsHost } from './feedbackDoor'
-import { HELP_SEARCH_HREF, HELP_WALKTHROUGHS_HREF, QUICK_ANSWERS_HREF } from './helpAnchors'
+import { HELP_SEARCH_HREF, HELP_WALKTHROUGHS_HREF, NEW_TICKET_HREF, QUICK_ANSWERS_HREF } from './helpAnchors'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }))
@@ -149,7 +149,7 @@ describe('the feedback door from the "+" returns focus to the "+" (N2)', () => {
 describe('the one Help menu (S14)', () => {
   function Where() {
     const loc = useLocation()
-    return <span data-testid="where">{loc.pathname}{loc.hash}</span>
+    return <span data-testid="where" data-search={loc.search}>{loc.pathname}{loc.hash}</span>
   }
   function mountAt(extra = null) {
     render(
@@ -192,6 +192,20 @@ describe('the one Help menu (S14)', () => {
     fireEvent.click(screen.getByRole('menuitem', { name }))
     expect(screen.getByTestId('where').textContent).toBe(href)
     expect(screen.queryByRole('menu', { name: 'Help' })).toBeNull()
+  })
+
+  // Tier 2 fix round 1 (review Important 3): a ticket is two named activations away -- Send feedback, then
+  // "Open a support ticket" -- and lands on the new-ticket form.
+  it('Send feedback carries "Need a reply? Open a support ticket", which opens the new-ticket form', () => {
+    mountAt()
+    fireEvent.click(screen.getByRole('button', { name: 'Help & Feedback' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Send feedback' }))
+    const link = screen.getByRole('link', { name: 'Need a reply? Open a support ticket' })
+    expect(link).toHaveAttribute('href', NEW_TICKET_HREF)
+    fireEvent.click(link)
+    expect(screen.getByTestId('where').textContent).toBe('/support')
+    expect(screen.getByTestId('where').getAttribute('data-search')).toBe('?view=new')
+    expect(screen.queryByLabelText('Feedback message')).toBeNull()
   })
 
   it('Arrow keys walk the rows and wrap', () => {

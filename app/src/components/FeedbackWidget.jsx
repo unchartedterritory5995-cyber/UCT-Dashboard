@@ -9,7 +9,7 @@ import Textarea from './ui/Textarea'
 import {
   OPEN_FEEDBACK_EVENT, helpHostMounted, markFeedbackMenuMounted, shortcutsHostOpen, subscribeHelpHosts,
 } from './feedbackDoor'
-import { HELP_SEARCH_HREF, HELP_WALKTHROUGHS_HREF, QUICK_ANSWERS_HREF } from './helpAnchors'
+import { HELP_SEARCH_HREF, HELP_WALKTHROUGHS_HREF, NEW_TICKET_HREF, QUICK_ANSWERS_HREF } from './helpAnchors'
 
 /** S14 (audit 2026-11-05): the ONE Help menu's rows, in the spec's order. `shortcuts` is offered only where the page
  *  has a keyboard-shortcut sheet (a registered shortcuts host). */
@@ -72,6 +72,7 @@ const S = {
     borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
   },
   success: { color: '#4ade80', fontSize: 12, textAlign: 'center', padding: 14 },
+  ticketLink: { color: '#c9a84c', fontSize: 12, textDecoration: 'underline' },
 }
 
 export default function FeedbackWidget() {
@@ -264,6 +265,12 @@ export default function FeedbackWidget() {
               >
                 {sending ? 'Sending...' : 'Send'}
               </button>
+              {/* Tier 2 fix round 1 (review Important 3): feedback is not answered; a ticket is. The menu keeps the
+                  spec's five rows, and this is the labelled door to a reply. */}
+              <a href={NEW_TICKET_HREF} style={S.ticketLink} data-help-ticket=""
+                onClick={(e) => { e.preventDefault(); close(); returnToRef.current = null; navigate(NEW_TICKET_HREF) }}>
+                Need a reply? Open a support ticket
+              </a>
             </>
           )}
         </div>

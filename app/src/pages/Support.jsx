@@ -14,7 +14,7 @@ import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import { SkipLinkPortal } from '../components/skipLinks'
 import { tourProgress, TOUR_PROGRESS } from './journal-2-0/components/notebook/onboarding/tourProgress'
 import {
-  ANSWER_PREFIX, HELP_SEARCH_ID, QUICK_ANSWERS_ID, WALKTHROUGHS_ID,
+  ANSWER_PREFIX, HELP_SEARCH_ID, NEW_TICKET_HREF, QUICK_ANSWERS_ID, WALKTHROUGHS_ID,
 } from '../components/helpAnchors'
 import styles from './Support.module.css'
 
@@ -1013,7 +1013,10 @@ function QuickAnswers({ faqs, votes, onVote }) {
         />
       </div>
       <p role="status" className={styles.helpSearchStatus}>
-        {query.trim().length >= 3 && shown.length === 0 ? 'No answer matches that. Try other words, or open a ticket.' : ''}
+        {/* Review Important 3: the sentence that says "open a ticket" is the door to one. */}
+        {query.trim().length >= 3 && shown.length === 0
+          ? <>No answer matches that. Try other words, or <Link to={NEW_TICKET_HREF}>open a ticket</Link>.</>
+          : ''}
       </p>
       {shown.map((f) => (
         <div key={f.id} id={`${ANSWER_PREFIX}${f.id}`} className={styles.faqItem}>
