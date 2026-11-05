@@ -139,7 +139,7 @@ export function addedInstance(host, step, before, { chart = null, claimed = null
       hits.push({ instanceId: String(r.instanceId), chart: String(c.ref) })
     }
   }
-  if (claimed && hits.length) { claimed.add(`${chartKey(hits[0].chart)}|${hits[0].instanceId}`); return { ok: true, ...hits[0] } }
+  if (claimed && hits.length === 1) { claimed.add(`${chartKey(hits[0].chart)}|${hits[0].instanceId}`); return { ok: true, ...hits[0] } }
   if (hits.length === 1) return { ok: true, ...hits[0] }
   return { ok: false, why: hits.length ? 'more than one indicator like it was added' : 'it did not take effect' }
 }
@@ -194,6 +194,7 @@ export async function readBackStepPlan(plan, host, { reached = false } = {}) {
   let ok = 0
   const touched = new Set()
   const claimed = new Set()
+  const already = []                               // steps whose indicator was already there (their own result said so)
   plan.steps.forEach((s, i) => {
     if (s.refused) return                          // never ran: its refusal was said where it happened
     const n = (s.index ?? i) + 1
@@ -203,9 +204,13 @@ export async function readBackStepPlan(plan, host, { reached = false } = {}) {
       if (s.alias) verdict = !!s.aliasRef
       else if (s.action === 'chart.setSymbol') verdict = !!ref && String(host.charts.read(ref)?.symbol || '').toUpperCase() === String(s.args?.symbol || '').toUpperCase()
       else if (s.action === 'chart.setTimeframe') verdict = !!ref && String(host.charts.read(ref)?.tf || '') === String(s.args?.timeframe || '')
-      // the postcondition is the indicator ON that chart: the instance this step added, or — a step that found it already
-      // there ("nothing to add") — the one already on it
-      else if (s.action === 'indicator.add') verdict = addedInstance(host, s, plan.before, { chart: ref, claimed }).ok || hasInstanceLike(host, s, ref)
+      // the postcondition is the instance THIS step added on its chart. Only a step whose OWN result was an explicit no-op
+      // ("already on the chart, nothing to add": s.noop) is checked by presence — and reported as already there, not added
+      else if (s.action === 'indicator.add') {
+        if (addedInstance(host, s, plan.before, { chart: ref, claimed }).ok) verdict = true
+        else if (s.noop && hasInstanceLike(host, s, ref)) { verdict = true; already.push(`step ${n} (${getCapability(s.action)?.title || s.action})`) }
+        else verdict = false
+      }
     } catch { verdict = false }
     if (verdict == null) return
     checked++
@@ -222,6 +227,7 @@ export async function readBackStepPlan(plan, host, { reached = false } = {}) {
     lines.push(missing.length
       ? `Checked on your board: ${ok} of ${checked} checked steps${reached ? ' that ran here' : ''} are in place. Not in place: ${missing.join(', ')}.`
       : `Checked on your board: all ${checked} checked steps${reached ? ' that ran here' : ''} are in place.`)
+    if (already.length) lines.push(`Already there before, so nothing was added: ${already.join(', ')}.`)
   }
   // a step that changes what an earlier step adds and was never reached (the batch stopped before it): say so
   const notRun = plan.steps.filter(s => typeof s.args?.instance === 'string' && STEP_REF.test(s.args.instance) && !s.reached)

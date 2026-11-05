@@ -157,6 +157,37 @@ describe('planner v2: an indicator a step added is a result the next step can na
     expect(one.said()).not.toMatch(/more than one indicator like it|Not in place/)
   }, 60000)
 
+  // ⛔ review 2 (72fdec3b2d): an add that added NOTHING inside an otherwise-successful group, on a chart that already has an
+  // EMA 21, read back as "in place" (the group's status + presence). Each step is now judged by its OWN result and by the
+  // instance IT added; presence counts only for a step whose own result was an explicit "already there" no-op.
+  const ema21Count = (m) => rowsOf(m, 'NVDA').filter(r => !r.deleted && r.defId === 'movingAverage' && String(r.inputs?.period) === '21' && r.inputs?.maType === 'ema').length
+  it('review probe: an add that added nothing, in a group, on a chart that already had an EMA 21 → never read back as in place', async () => {
+    const { m, said } = await v2('ONE', [
+      (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: MA21 }),
+      (c) => ({ group: [
+        { action: 'chart.setTimeframe', target: ctxRef(c, 'charts'), args: { timeframe: 'W' } },
+        { action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: MA21 },
+      ] }),
+      { reply: '' },
+    ])
+    // the premise: the group's second EMA 21 added nothing (its own result: not run), the chart keeps ONE EMA 21
+    expect(ema21Count(m)).toBe(1)
+    expect(m.srv.results.map(r => r.status)).toEqual(['done', 'done', 'refused'])
+    expect(said()).not.toMatch(/all 3 checked steps/)            // the false success receipt is gone
+    expect(said()).not.toMatch(/step 3 .*in place|Already there before, so nothing was added: step 3/)
+    expect(said()).toMatch(/all 2 checked steps that ran here are in place/)
+  }, 60000)
+
+  it('an explicit no-op step on its own (the indicator already there) is read back as already there, never as added', async () => {
+    const { said } = await v2('ONE', [
+      (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: { defId: 'rsi', inputs: null } }),
+      (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: { defId: 'rsi', inputs: null } }),
+      { reply: '' },
+    ])
+    expect(said()).toMatch(/already on Chart \(NVDA\)/i)           // the step's own result: nothing to add
+    expect(said()).toMatch(/Already there before, so nothing was added: step 2/)
+  }, 60000)
+
   it('kill switch: the v2 runner is exactly as before — no ind refs, no read-back', async () => {
     const script = [
       (c) => ({ action: 'indicator.add', target: ctxRef(c, 'indicatorEdits'), args: MA21 }),

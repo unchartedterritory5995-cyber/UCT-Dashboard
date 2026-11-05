@@ -369,7 +369,6 @@ export function createStepRunner() {
         if (added.length) res.added = added
         for (const r of run) bindAlias(active, r.al, added)
       }
-      if (active.stepRefs) for (const op of bound.length ? bound : ops) if (!getCapability(op.action)?.query) active.stepLog.push({ action: op.action, target: op.target, args: op.args || {}, ...(res.status === 'done' ? {} : { refused: true }) })
       for (const r of run) if (r.al?.source && (res.status === 'query' || res.status === 'done')) active.sources[r.al.alias] = r.al.source
       if (res.status === 'proposed') {
         // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
@@ -379,6 +378,17 @@ export function createStepRunner() {
         tapRef.current = []
       }
       const each = groupOutcomes(bodies, ops, res)
+      if (active.stepRefs) {
+        // each step from its OWN result (never the group's): ran = its own status is done; an explicit no-op is known only
+        // for a step that was its group alone (a group's records do not say which op found nothing to do)
+        const lastKind = String((bodies || []).filter(b => b?.outcomeData?.kind).pop()?.outcomeData?.kind || '')
+        run.forEach((r, i) => {
+          if (getCapability(r.op.action)?.query) return
+          const real = bound.length === run.length ? bound[i] : (translateRefs([r.op], active.refMap)[0] || r.op)
+          const ran = each[i]?.status === 'done'
+          active.stepLog.push({ action: real.action, target: real.target, args: real.args || {}, ...(ran ? {} : { refused: true }), ...(ran && run.length === 1 && lastKind === 'noop' ? { noop: true } : {}) })
+        })
+      }
       let addedSent = false
       run.forEach((r, i) => {
         const o = each[i]
