@@ -214,11 +214,90 @@ describe('through the REAL panel with routing v2 on: a control request carries i
     await say('undo')
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 40000)
-  it('⛔ the F-16 screen claim is not widened: "only show calls on the options flow" stays its honest refusal, with no model call, even with the widget on the board', async () => {
+  const CALLS_WORDINGS = ['only show calls on the options flow', 'calls only on the options flow', 'filter the options flow to calls', 'show just calls in options flow',
+    'only calls in the option flow', 'just the calls on the options-flow', 'keep only calls on the options flow', 'show me only calls on options flow']
+  it.each(CALLS_WORDINGS)('owner exception, "%s": the widget\'s visible Calls filter through its own control, and no data read', async (message) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, { filters: { type: 'SWEEP' } })], syms)
+    const before = JSON.stringify(board.state.widgets)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'of', key: 'callPut', value: 'Calls' })]))
+    const out = await say(message)
+    expect(p.turns()).toBe(1)
+    expect(firstTurn().context.widgetControls[0].controls.optionsflow).toContain('callPut(')
+    expect(out).toMatch(/callPut is now Calls/)
+    expect(optsOf(board, 'of').filters).toEqual({ type: 'SWEEP', cp: 'C' })   // the chip's own writer, nothing else
+    expect(p.st.calls.filter(c => /\/api\/(?:screener\/scan|agent\/data)/.test(c[1]))).toEqual([])
+    await say('undo')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it.each(['only show calls on the flow widget', 'calls only please', 'set the flow to calls only'])('"%s" names no hidden field, so it was never claimed: the model reaches the same control', async (message) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'of', key: 'callPut', value: 'calls' })]))
+    await say(message)
+    expect(p.turns()).toBeGreaterThanOrEqual(1)
+    expect(optsOf(board, 'of').filters).toEqual({ cp: 'C' })
+  }, 40000)
+  it.each([['only show puts on the options flow', 'Puts'], ['filter the options flow to puts', 'Puts'], ['just sweeps on the options flow', 'Sweep'], ['only show bears on the options flow', 'Bear']])('⛔ the approval names the Calls filter: "%s" says plainly that only Calls Only is supported, and changes nothing', async (message, chip) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    const before = JSON.stringify(board.state.widgets)
+    const out = await say(message)
+    expect(out).toMatch(/The only Options Flow filter I can set is Calls Only/)
+    expect(out).toContain(chip)
+    expect(p.turns()).toBe(0)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it.each(['only show balls on the options flow', 'only show falls on the options flow', 'filter the options flow to cells'])('⛔ "%s" does not mean calls: the refusal, no model call, nothing changes', async (message) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    const before = JSON.stringify(board.state.widgets)
+    expect(await say(message)).toMatch(/can't screen on options-flow/)
+    expect(p.turns()).toBe(0)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it.each(CALLS_WORDINGS.filter(m => !m.startsWith('calls only')))('⛔ no flow widget on the board, "%s": the refusal, no model call, nothing run', async (message) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }], syms)
+    expect(await say(message)).toMatch(/can't screen on options-flow/)
+    expect(p.turns()).toBe(0)
+    expect(p.st.calls.filter(c => /\/api\/screener\/scan/.test(c[1]))).toEqual([])
+  }, 40000)
+  it('⛔ no flow widget and the model tries the control anyway: refused, nothing written', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }], syms)
+    const before = JSON.stringify(board.state.widgets)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'of', key: 'callPut', value: 'Calls' })]))
+    expect(await say('calls only on the options flow')).toMatch(/no widget “of”/)   // not screen-shaped, so the model gets it
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it.each([
+    ['no such widget on the board', 'only show calls on the options flow', false],
+    ['a universe of stocks', 'only show stocks with calls on the options flow', true],
+    ['no control word', 'only show the options flow leaders', true],
+    ['a rating', 'only show calls with a high rs rank', true],
+    ['dark pool, which no control shows', 'only show calls with dark pool prints', true],
+    ['another hidden flow phrase', 'only show calls with bullish premium', true],
+  ])('⛔ F-16 holds: %s → the screen refusal, no model call, nothing run', async (_why, message, onBoard) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, ...(onBoard ? [w('of', 'optionsflow', 18, 0, {})] : [])], syms)
+    expect(await say(message)).toMatch(/can't screen on/)
+    expect(p.turns()).toBe(0)
+    expect(p.st.calls.filter(c => /\/api\/screener\/scan/.test(c[1]))).toEqual([])
+  }, 40000)
+  it('⛔ another widget earns no exception: the label of a widget with controls does not step the claim aside', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, w('nw', 'news', 18, 0, {})], syms)
+    expect(await say('only show calls on the options flow in the news')).toMatch(/can't screen on/)
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it('⛔ a screen on a hidden field stays refused on the model path too: nothing is scanned', async () => {
     const [[chart], syms] = ONE('NVDA')
     const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    p.st.envelopes.push((b) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops: [{ action: 'screener.run', target: b.context.screener[0].ref,
+      args: { filters: [{ field: 'opt_net_premium_1d', op: 'gte', value: 0, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null } }] }))
     expect(await say('only show calls on the options flow')).toMatch(/can't screen on options-flow/)
-    expect(p.turns()).toBe(0)
+    expect(p.st.calls.some(c => c[1].startsWith('/api/screener/scan'))).toBe(false)
   }, 40000)
   it('a turn that does not touch widgets carries no list, on the same board', async () => {
     const [[chart], syms] = ONE('NVDA')
