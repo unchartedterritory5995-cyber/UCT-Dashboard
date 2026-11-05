@@ -112,6 +112,13 @@ MAX_TOKENS: int = 8192
 #: the byte bound `budget.worst_case_usd` uses for text does not apply to it.
 IMAGE_TOKENS_WORST: int = 4784
 
+#: The most this call's fixed prompt can bill: its 33,166 bytes (system, tool schema, framing of the user
+#: turn) at 3 bytes a token, plus `budget.FRAMING_TOKENS`. Counting a token per byte, as the generic bound
+#: does, reserved $0.467 for a call that cannot pass about $0.30. A byte count, not a provider count: no
+#: paid or live call is made to pin it. `tests/test_vision_spend_containment.py` fails if the prompt
+#: outgrows it.
+PROMPT_TOKENS_WORST: int = 15_100
+
 #: One member's share of the $4 interactive lane: $1 a day. Without it, one member's timeouts could drain
 #: the lane for everyone. A quarter is the smallest share that still leaves room for ordinary use: the
 #: room needed to start a read is its worst case, so a smaller share would allow only one or two a day.
@@ -486,13 +493,12 @@ def _confidence(value: Any) -> int:
 
 
 def worst_case_usd(note: str = "") -> float:
-    """The most one call may bill: `budget.worst_case_usd`'s bound on the prompt and
-    every output token, plus the picture at its ceiling, priced as a cache write."""
+    """The most one call may bill: the pinned prompt, the member's note at a token per byte, the
+    picture at its ceiling and every output token. Plain input rates: this call asks for no cache,
+    so nothing in it can bill as a cache write."""
     from api.services.uct_agent import budget
-    return budget.worst_case_usd(dict(
-        model=MODEL, max_tokens=MAX_TOKENS, system=system_prompt(), tools=[anthropic_tool()],
-        tool_choice={"type": "tool", "name": TOOL_NAME},
-        messages=user_turn(b"", "image/png", note))) + budget._price(MODEL, cache_write=IMAGE_TOKENS_WORST)
+    tokens_in = PROMPT_TOKENS_WORST + len((note or "").encode("utf-8")) + IMAGE_TOKENS_WORST
+    return budget._price(MODEL, input=tokens_in, output=MAX_TOKENS)
 
 
 # --------------------------------------------------------------------------- #

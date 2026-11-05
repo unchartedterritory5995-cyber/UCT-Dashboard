@@ -296,3 +296,43 @@ def test_a_share_refusal_makes_no_ledger_row(real):
 
 def test_a_caller_with_no_share_is_unchanged(real):
     assert real.guard.reserve_member_call(real.day, "concierge:x", real.svc.MODEL, 0.5).get("id")
+
+
+# ═══ the honest worst case ═══════════════════════════════════════════════════════════════════════
+def _request(svc, note=""):
+    return dict(model=svc.MODEL, max_tokens=svc.MAX_TOKENS, system=svc.system_prompt(), tools=[svc.anthropic_tool()],
+                tool_choice={"type": "tool", "name": svc.TOOL_NAME}, messages=svc.user_turn(b"", "image/png", note))
+
+
+def test_the_worst_case_is_about_30_cents_not_47(real):
+    from api.services.uct_agent import budget
+    assert 0.28 <= real.svc.worst_case_usd() <= 0.31
+    assert budget.worst_case_usd(_request(real.svc)) > 0.40           # what the byte bound charges for the same call
+
+
+def test_the_pinned_prompt_covers_the_prompt_as_it_stands(real):
+    """Fails when the prompt or schema grows: re-measure it, or a reservation stops being a bound."""
+    from api.services.uct_agent import budget
+    assert budget.request_bytes(_request(real.svc)) / 3 + budget.FRAMING_TOKENS <= real.svc.PROMPT_TOKENS_WORST
+
+
+def test_this_call_asks_for_no_cache_so_plain_input_rates_are_the_ceiling(real):
+    import json
+    assert "cache_control" not in json.dumps(_request(real.svc), default=str)
+
+
+def test_a_note_counts_at_a_token_per_byte(real):
+    from api.services.uct_agent import budget
+    note = "n" * real.svc.NOTE_MAX
+    extra = real.svc.worst_case_usd(note) - real.svc.worst_case_usd()
+    assert extra == pytest.approx(budget._price(real.svc.MODEL, input=len(note)))
+
+
+def test_a_timeout_settles_at_the_honest_figure(real):
+    ask(real, Client(lambda: (_ for _ in ()).throw(Timeout())))
+    assert interactive(real) == pytest.approx(real.svc.worst_case_usd()) and interactive(real) <= 0.31
+
+
+def test_the_lane_is_no_larger_because_the_reservation_is_smaller(real):
+    assert real.guard.interactive_limit_usd() == 4.0
+    assert real.svc.MEMBER_LANE_SHARE == 0.25
