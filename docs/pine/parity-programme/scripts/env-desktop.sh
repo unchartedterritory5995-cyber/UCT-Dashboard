@@ -20,3 +20,23 @@ hl() {
   echo "[hl] $(date +%T) free RAM $(freeram) MB before '$label'"
   "$UCT_PY" "$HEAVY_LOCK" run --label "$label" --timeout 43200 -- "$@"
 }
+# Lane-scoped helpers:  lane_env <lane>  sets RUN and the per-lane heavy-lock paths.
+#   RUN=$UCT_RESUME/runs/<lane>/ (created); LOCK_MUT, LOCK_MP2, LOCK_MP3, LOCK_FINAL2, LOCK_FINAL3
+#   = $UCT_RESUME/dsk/heavy-<kind>-<lane>.lock. Use them as:  "$UCT_PY" "$HEAVY_LOCK" run --path "$LOCK_FINAL2" -- ...
+# Refuses (return 1, nothing exported) if any path resolves under C:/Users/Patrick/.claude/ (a lock there
+# lands in the agent config tree and gets swept or synced).
+lane_env() {
+  local lane=${1:-}
+  case "$lane" in ""|*[!A-Za-z0-9._-]*) echo "lane_env: need a lane name [A-Za-z0-9._-]" >&2; return 1;; esac
+  local run="$UCT_RESUME/runs/$lane/" d="$UCT_RESUME/dsk" k p bad=""
+  for p in "$run" "$d"; do
+    local n; n=$(cygpath -m "$p" 2>/dev/null || echo "$p"); n=$(echo "$n" | tr 'A-Z' 'a-z')
+    case "$n/" in c:/users/patrick/.claude/*|/c/users/patrick/.claude/*) bad=$p;; esac
+  done
+  [ -n "$bad" ] && { echo "lane_env: refusing, $bad is under C:/Users/Patrick/.claude/" >&2; return 1; }
+  mkdir -p "$run" "$d" || return 1
+  export RUN="$run"
+  for k in MUT MP2 MP3 FINAL2 FINAL3; do
+    export "LOCK_$k=$d/heavy-$(echo $k | tr 'A-Z' 'a-z')-$lane.lock"
+  done
+}
