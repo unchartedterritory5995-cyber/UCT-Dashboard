@@ -79,3 +79,5 @@ returns False; with M8 applied the composition rail is 39 passed. Re-run after t
 `tests/test_pine_runtime_composition.py` + `tests/test_user_definitions.py` 90 passed. The other 14
 mutations are unaffected. Final-tip re-run last on the final tree: see the numbers in the r1 report
 (logs `runs/w5t17r1/`).
+
+r1 final-tip on 3c0e41e14c (final code tree), label w5t17r1-final, logs runs/w5t17r1/: gate 46 passed, hygiene clean, rails pytest 567 passed 0 failed, vitest 1332 passed / 2 failed (baselines pollingSites.rail and settingsScope.rail, StudyChart.jsx:32).
