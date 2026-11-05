@@ -29,7 +29,7 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
 import { savedReferent } from './indicatorAuthoring'
-import { colorName } from './chart'
+import { colorName, liftedLine } from './chart'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -363,7 +363,6 @@ async function setHideAll(host, chartRef, hidden, ms = 5000) {
   while (!shown() && Date.now() - t0 < ms) await afterRender()
   if (!shown()) throw fail('the chart did not confirm the change, so it is not done')
 }
-const LIFT_LINE = (label) => `Brought back every indicator and Volume on ${label}: they were all hidden, and hide-all covers the whole chart.`
 
 export const indicatorEditsKind = {
   name: 'indicatorEdits',
@@ -394,7 +393,8 @@ export const indicatorEditsKind = {
     await setHideAll(host, chartRef, hidden)
     // hide-all alone: lifted by a "show", put back by that show's Undo. Nothing in the settings changes.
     if (hidden && !patch.undo) return { lines: [`Hid every indicator and Volume on ${cur.label} again.`], undoData: null }
-    if (!hidden && !patch.change) return { lines: [LIFT_LINE(cur.label)], undoData: { lifted: true, token: null } }
+    const lifted = () => liftedLine(host.charts.read(chartRef)?.cs, cur.label)
+    if (!hidden && !patch.change) return { lines: [lifted()], undoData: { lifted: true, token: null } }
     let res
     try {
       res = await indicatorEditsKind.mutate(host, ref, patch)
@@ -402,7 +402,7 @@ export const indicatorEditsKind = {
       if (!e?.unreverted) await setHideAll(host, chartRef, !hidden).catch(() => {})
       throw e
     }
-    return hidden ? res : { lines: [...res.lines, LIFT_LINE(cur.label)], undoData: { lifted: true, token: res.undoData } }
+    return hidden ? res : { lines: [...res.lines, lifted()], undoData: { lifted: true, token: res.undoData } }
   },
   // A change, or an Undo — both through the Indicators interface, then the chart's own
   // persist, then the authoritative read-back.

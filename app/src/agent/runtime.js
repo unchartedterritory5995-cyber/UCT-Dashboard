@@ -101,7 +101,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   for (const p of real) {
     const kind = getTargetKind(p.kind)
     let res
-    try { res = await kind.commit(host, p.ref, p.patch) } catch (e) {
+    try { res = await kind.commit(host, p.ref, p.patch, { lines: p.lines }) } catch (e) {
       // A step that threw part-way says what it had already made (`e.created`) so it
       // is taken back too, and whether it left a write it could not undo (`e.unreverted`)
       // — the receipt never claims "nothing was left changed" when that is not so.

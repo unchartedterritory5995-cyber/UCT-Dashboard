@@ -43,6 +43,8 @@ import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
+import { instancesOf } from '../../components/chart/builder/agentSeams'
+import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -222,7 +224,18 @@ function fastSetting(text) {
 // ⛔ A chart under hide-all (Alt+Shift+I) shows nothing over its candles, whatever each item's own flag says: a request to show
 // one of them has work to do, and the receipt says it brought everything back, because that is what the chart does.
 export const liftHideAll = (st) => (st.view?.indicatorsHidden === true ? { ...st, viewDo: { op: 'setIndicatorsHidden', arg: false } } : st)
-export const HIDE_ALL_LIFTED = 'Brought back every indicator and Volume on this chart'
+export const HIDE_ALL_LIFTED = 'Turned off hide-all on this chart'
+const MAX_NAMED = 6
+const namesOf = (rows) => (rows.length <= MAX_NAMED ? rows.map(r => r.name).join(', ') : `${rows.slice(0, MAX_NAMED).map(r => r.name).join(', ')} and ${rows.length - MAX_NAMED} more`)
+/** ⛔ AUDIT review of #866: what a lift put on screen, from the chart's settings as they now read. Hide-all covers what the member hid
+ *  one by one too, so those stay hidden and are named as such: never "every indicator and Volume". */
+export function liftedLine(cs, where) {
+  let rows = []
+  try { rows = instancesOf(cs, nativeRegistry) } catch { rows = [] }
+  const back = rows.filter(r => !r.hidden), kept = rows.filter(r => r.hidden)
+  const parts = [...(back.length ? [`${namesOf(back)} ${back.length === 1 ? 'is' : 'are'} showing again`] : []), ...(kept.length ? [`${namesOf(kept)} ${kept.length === 1 ? 'stays' : 'stay'} hidden`] : [])]
+  return `Turned off hide-all on ${where}${parts.length ? `: ${parts.join('; ')}` : ''}.`
+}
 
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
@@ -302,7 +315,7 @@ export const chartKind = {
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
-  async commit(host, ref, patch) {
+  async commit(host, ref, patch, { lines = [] } = {}) {
     const { goto, replay, volPanePref, viewDo, ...rest } = patch
     let ok = true
     // ⛔ AUDIT review of #866: hide-all goes before a setting is written ("show volume" under it does both). A chart that does not
@@ -337,6 +350,12 @@ export const chartKind = {
         if (viewAt(host.charts.read(ref)?.view, goto)) break
         await new Promise(r => setTimeout(r, 150))
       }
+    }
+    if (ok && lines.includes(HIDE_ALL_LIFTED)) {
+      // the settings written above reach the chart on its next render: the line reads them after that
+      const t0 = Date.now()
+      while ('settings' in rest && Date.now() - t0 < 2000 && !sameJson(host.charts.read(ref)?.stored, rest.settings)) await new Promise(r => setTimeout(r, 50))
+      return { lines: lines.map(l => (l === HIDE_ALL_LIFTED ? liftedLine(host.charts.read(ref)?.cs, 'this chart') : l)) }
     }
     return ok
   },
