@@ -9,6 +9,8 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { computeRuntimeColumns } from '../runtimeColumns.js'
+import { PineRuntimeError } from '../collections.js'
 
 const N = 6
 const BARS = Array.from({ length: N }, (_, i) => (
@@ -142,5 +144,48 @@ describe('str.format_time: New York, literal pattern', () => {
 describe('CONTROL: unserved str.* still refuses by name', () => {
   it('str.match', () => {
     expect(refusalOf(cond('"abcd"', 'str.match(s, "b+") == "b"')).message).toMatch(/str\.match/)
+  })
+})
+
+// ⭐⭐ B1 (review W4-T11): the error is the ONE `PineRuntimeError`, so the pane pipeline STOPS the
+// script. A plain Error here was retried by the objects wrapper WITHOUT drawings and the plots
+// were drawn where TradingView shows the error. Through the real `computeRuntimeColumns`.
+describe('a str.* runtime error stops the whole script through the pane pipeline', () => {
+  const ROWS = BARS.map((b) => ({ ...b }))
+  const doc = (src) => ({
+    id: 'w4t11-stop',
+    compute: { kind: 'runtime', fn: 'runtime:w4t11-stop', source: head + src, outputs: { v: 0 }, objects: true },
+  })
+  const OVER = 'string s = "!none"\nif close > open\n    s := "abc"\nplot(close)\n'
+  const stopOf = (src) => {
+    let err = null
+    let out = null
+    try { out = computeRuntimeColumns(doc(src), ROWS, { tf: 'D' }) } catch (e) { err = e }
+    return { err, out }
+  }
+  it('str.substring reached only by a LABEL stops the script, nothing is plotted', () => {
+    const { err, out } = stopOf(OVER + 'label.new(bar_index, high, str.substring(s, 0, 9))\n')
+    expect(out, 'the plots must not be drawn').toBe(null)
+    expect(err).toBeInstanceOf(PineRuntimeError)
+    expect(err.name).toBe('runtime.error')
+    expect(err.guard).toBe('runtime:runtime.error')
+  })
+  it('str.replace with an empty target stops it the same way', () => {
+    const { err, out } = stopOf(OVER + 'label.new(bar_index, high, str.replace(s, "", "x"))\n')
+    expect(out).toBe(null)
+    expect(err && err.guard).toBe('runtime:runtime.error')
+  })
+  it('a fractional position and a fractional occurrence stop it the same way', () => {
+    for (const call of ['str.substring(s, 0.5, 2)', 'str.replace(s, "a", "x", 0.5)', 'str.replace(s, "a", "x", -1)']) {
+      const { err, out } = stopOf(OVER + `label.new(bar_index, high, ${call})
+`)
+      expect(out, call).toBe(null)
+      expect(err && err.guard, call).toBe('runtime:runtime.error')
+    }
+  })
+  it('CONTROL: an in-range substring draws the plot and the label', () => {
+    const { err, out } = stopOf(OVER + 'label.new(bar_index, high, str.substring(s, 0, 2))\n')
+    expect(err).toBe(null)
+    expect(out).not.toBe(null)
   })
 })

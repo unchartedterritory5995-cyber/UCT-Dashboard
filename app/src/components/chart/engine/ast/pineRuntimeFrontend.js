@@ -6155,6 +6155,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // answers; any other zone or pattern is refused BY NAME, never approximated.
         if (node.name === 'str.format_time') {
           const at = locate(node.tok)
+          objectDoorRefuses('`str.format_time` over a value the run computes', at)
           if ((node.args || []).some((a) => a && a.name)) {
             throw new RuntimeRefusal('runtime:statement', 'a named argument on `str.format_time`', at)
           }
@@ -6181,6 +6182,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         if (Object.prototype.hasOwnProperty.call(TEXT_FNS, node.name)) {
           const spec = TEXT_FNS[node.name]
+          if (spec.afterDoor === true) {
+            objectDoorRefuses('`' + node.name + '` over a value the run computes', locate(node.tok))
+          }
           for (const arg of node.args) {
             if (arg && arg.name) {
               throw new RuntimeRefusal('runtime:statement',

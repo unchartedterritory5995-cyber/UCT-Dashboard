@@ -27,11 +27,12 @@
 
 import { formatNumber } from '../objectRuntime.js'
 import { timestampMs, instantField, INSTANT_FIELDS } from './clockFns.js'
-
-/** A Pine runtime error, as TradingView raises one: the script stops here. */
-export class TextRuntimeError extends Error {
-  constructor(message) { super(message); this.name = 'TextRuntimeError' }
-}
+// ⭐ ONE AUTHORITY for "a Pine runtime error, the script stops here": `collections.js`'s
+// `PineRuntimeError` (name 'runtime.error', guard 'runtime:runtime.error'). The pane
+// pipeline (`runtimeColumns.js`) tells a reached runtime error from an engine failure by
+// exactly that name; a second class here would be retried WITHOUT drawings and draw the
+// plots where TradingView stops the script.
+import { PineRuntimeError } from './collections.js'
 
 // ⭐⭐ W4-T11 INDEX RULES, ONE PLACE. Pine's `str.substring` is 0-BASED with an
 // EXCLUSIVE end (`begin_pos` is the first character kept, `end_pos - 1` the last).
@@ -41,10 +42,10 @@ export class TextRuntimeError extends Error {
 // whether the error is raised or `na` returned for each bad position.
 function substringOf(s, begin, end) {
   if (!Number.isInteger(begin) || !Number.isInteger(end)) {
-    throw new TextRuntimeError(`\`str.substring\` takes whole-number positions, got ${begin} and ${end}`)
+    throw new PineRuntimeError(`\`str.substring\` takes whole-number positions, got ${begin} and ${end}`)
   }
   if (begin < 0 || end < begin || end > s.length) {
-    throw new TextRuntimeError(
+    throw new PineRuntimeError(
       `\`str.substring\` positions ${begin}..${end} are outside a text of length ${s.length}; Pine stops the script here`)
   }
   return s.slice(begin, end)
@@ -56,9 +57,9 @@ function substringOf(s, begin, end) {
 // time by name rather than answered with JavaScript's insert-at-0.
 function replaceNth(s, target, replacement, n) {
   if (!Number.isInteger(n) || n < 0) {
-    throw new TextRuntimeError(`\`str.replace\` takes a whole-number occurrence from 0, got ${n}`)
+    throw new PineRuntimeError(`\`str.replace\` takes a whole-number occurrence from 0, got ${n}`)
   }
-  if (target === '') throw new TextRuntimeError('`str.replace` cannot find an empty target')
+  if (target === '') throw new PineRuntimeError('`str.replace` cannot find an empty target')
   let at = -1
   let from = 0
   for (let k = 0; k <= n; k += 1) {
@@ -125,7 +126,7 @@ const FMT_FIELD = { y: 'year', M: 'month', d: 'dayofmonth', H: 'hour', m: 'minut
 function formatTimeNy(ms, fmt) {
   if (!Number.isFinite(ms)) return ''
   const toks = compileTimeFormat(fmt)
-  if (toks === null) throw new TextRuntimeError(`\`str.format_time\` does not read the pattern "${fmt}"`)
+  if (toks === null) throw new PineRuntimeError(`\`str.format_time\` does not read the pattern "${fmt}"`)
   let o = ''
   for (const t of toks) {
     if (t.lit !== undefined) { o += t.lit; continue }
@@ -192,19 +193,23 @@ export const TEXT_FNS = Object.freeze({
   'str.length': { args: ['string'], returns: 'number', fn: (s) => s.length },
 
   // ── W4-T11: positions, parts and numbers over RUNTIME text ──
+  // `afterDoor: true` = added after master 685b5e91d7: the front end asks `objectDoorRefuses`
+  // before lowering it, so the C18 object door keeps master's answer (objectDoorGate.test.js).
   // `variants` maps a GIVEN argument count below `args.length` to the entry that
   // answers it (`WS_TEXT_FNS`): Pine's optional trailing arguments, one arity per
   // entry because the VM checks arity against the declaration.
   'str.substring': {
     args: ['string', 'number', 'number'], returns: 'string', fn: substringOf,
+    afterDoor: true,
     variants: { 2: 'str.substring/from' },
   },
   'str.replace': {
     args: ['string', 'string', 'string', 'number'], returns: 'string', fn: replaceNth,
+    afterDoor: true,
     variants: { 3: 'str.replace/first' },
   },
-  'str.tonumber': { args: ['string'], returns: 'number', fn: toNumber },
-  'str.pos': { args: ['string', 'string'], returns: 'number', fn: posOf },
+  'str.tonumber': { args: ['string'], returns: 'number', fn: toNumber, afterDoor: true },
+  'str.pos': { args: ['string', 'string'], returns: 'number', fn: posOf, afterDoor: true },
 })
 
 /** The shorter spellings of the optional-argument entries above, and the

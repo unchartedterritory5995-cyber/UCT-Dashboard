@@ -128,3 +128,43 @@ describe('⭐⭐⭐ the object door builds what master 685b5e91d7 builds; the ru
     expect(doorRun(src)).toEqual({ ok: true, labels: ['9'] })
   })
 })
+
+// ⭐⭐ W4-T11 — the text builtins added after master 685b5e91d7 (str.substring, str.replace,
+// str.tonumber, str.pos, str.format_time) ask `objectDoorRefuses` first, like every capability
+// since. Over a MUTATING text (the runtime shape), the door keeps master's answer (refused, no
+// label), the pane serves it, and the same pane build at the door refuses BY NAME. The control
+// is `str.length` over the same text: master served it, the door still builds it.
+describe('⭐⭐ W4-T11 text builtins are gated at the object door', () => {
+  const TXT = 'string s = "!none"\nstring z = "!none"\nif close > open\n    s := "abcdef"\n    z := "12"\n'
+  // name -> [a NUMBER over the text (plotted on the pane), the label text for the door run]
+  const SHAPES_T = {
+    substring: ['str.length(str.substring(s, 1, 3))', 'str.substring(s, 1, 3)'],
+    substring2: ['str.length(str.substring(s, 1))', 'str.substring(s, 1)'],
+    replace: ['str.length(str.replace(s, "b", "XX"))', 'str.replace(s, "b", "XX")'],
+    replace4: ['str.length(str.replace(s, "b", "XX", 0))', 'str.replace(s, "b", "XX", 0)'],
+    tonumber: ['str.tonumber(z)', 'str.tostring(str.tonumber(z))'],
+    pos: ['str.pos(s, "c")', 'str.tostring(str.pos(s, "c"))'],
+    format_time: ['str.format_time(1709985600000, "yyyy") == "2024" ? 1 : 0', 'str.format_time(1709985600000, "yyyy")'],
+  }
+  const asLabel = (expr) => H + TXT + 'if barstate.islast\n    label.new(bar_index, high, ' + expr + ')\n'
+  const asPlot = (expr) => H + TXT + 'plot(' + expr + ')\n'
+  for (const [name, [num, txt]] of Object.entries(SHAPES_T)) {
+    it(`${name}: the door draws nothing new (master: refused, no label)`, () => {
+      expect(doorRun(asLabel(txt))).toEqual({ ok: false, labels: null })
+    })
+    it(`${name}: the runtime pane builds it`, () => {
+      const b = paneBuild(asPlot(num))
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the same build at the object door refuses BY NAME`, () => {
+      const b = paneBuild(asPlot(num), { objectDoor: true })
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:object-door')
+      expect(b.refusal.message).toMatch(/runtime pane only/)
+    })
+  }
+  it('CONTROL: str.length over the same text is master\'s and builds at the door', () => {
+    const b = paneBuild(H + TXT + 'plot(str.length(s))\n', { objectDoor: true })
+    expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+  })
+})
