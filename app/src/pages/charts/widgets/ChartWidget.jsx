@@ -285,7 +285,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   agentRef.current = {
     chartId, tabId: isMainTab ? null : (activeExtra?.id || null),
     opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
-    symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings,
+    symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings, chartsTheme,
   }
   useEffect(() => {
     if (!chartApiById) return undefined
@@ -314,6 +314,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           return {
             chartId: r.chartId, tabId: r.tabId, groupKey: r.activeColor,
             symbol: r.symbol, tf: r.tf, cs: r.cs, stored: r.stored ?? null,
+            watermarkPos: r.opts?.watermarkPos ?? null, canvasTheme: r.chartsTheme ?? null,
           }
         },
         // The Time Navigator's own read-out and jump (ChartPane → StockChart date-nav API):
@@ -334,15 +335,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         clearAuthoringPreview: () => !!paneRef.current?.clearAuthoringPreview?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
+        // `watermarkPos` is the widget's own (every tab shows it), in the shape endWatermarkAdjust / resetWatermark write.
         commit: (patch) => {
           const r = agentRef.current
           const tabPatch = {}
           if ('settings' in patch) tabPatch.settings = patch.settings
           if ('tf' in patch) tabPatch.tf = patch.tf
-          if (Object.keys(tabPatch).length) {
+          const widgetPatch = 'watermarkPos' in patch ? { watermarkPos: patch.watermarkPos } : {}
+          if (Object.keys(tabPatch).length || 'watermarkPos' in patch) {
             const o = r.opts || {}
-            if (r.isMainTab) r.onOptsChange?.({ ...o, ...tabPatch })
-            else if (r.activeExtra) r.onOptsChange?.(patchChartTab(o, r.activeExtra.id, tabPatch))
+            if (r.isMainTab || !Object.keys(tabPatch).length) r.onOptsChange?.({ ...o, ...(r.isMainTab ? tabPatch : {}), ...widgetPatch })
+            else if (r.activeExtra) r.onOptsChange?.({ ...patchChartTab(o, r.activeExtra.id, tabPatch), ...widgetPatch })
             else return false
           }
           if (patch.symbol) r.setGroupSym?.(r.activeColor, patch.symbol)
