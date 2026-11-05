@@ -225,7 +225,10 @@ export default function NoteCalendarView({
         ) : null}
       </div>
 
-      <div className={styles.grid} role="grid" aria-label={monthLabel(cursor.year, cursor.month)}>
+      {/* VIS-7 (audit 2026-11-05, axe scrollable-region-focusable): on a phone the month scrolls sideways (min-width
+          520 px), and with no note on it nothing inside could take focus, so a keyboard member could not scroll it.
+          The grid itself is a Tab stop, named by its month. */}
+      <div className={styles.grid} role="grid" aria-label={monthLabel(cursor.year, cursor.month)} tabIndex={0}>
         <div className={styles.dowRow} role="row">
           {dowLabels().map((d) => (
             <div key={d} className={styles.dow} role="columnheader">{d}</div>

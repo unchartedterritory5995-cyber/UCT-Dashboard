@@ -66,6 +66,11 @@ const box = {
   color: 'var(--text, #c9d1d9)', fontSize: 12, lineHeight: 1.4, boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
 }
 const head = { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', cursor: 'pointer', userSelect: 'none' }
+// The head's toggle: a real button that looks like the row it replaced (it fills the row up to the close).
+const toggleBtn = {
+  display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, padding: 0, margin: 0, border: 0, background: 'none',
+  color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer',
+}
 const tag = { fontWeight: 700, color: 'var(--gold, #e3b341)', whiteSpace: 'nowrap' }
 const sub = { color: 'var(--text-muted, #8b949e)', fontSize: 11 }
 
@@ -121,17 +126,21 @@ export default function ChartIqPanel({ data, loading, error, layers, onLayer, on
   const status = error ? errorText(error) : loading && !data ? 'Chart IQ is reading the chart...' : ''
   return (
     <div style={box} data-testid="chart-iq-panel" onPointerDown={(e) => e.stopPropagation()}>
-      <div style={head} onClick={() => setOpen((v) => !v)} role="button" aria-expanded={open} tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v) } }}>
-        <span style={tag}>Chart IQ</span>
-        {data?.asof ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-asof"
-          title={`This read uses prices through the ${data.asof} close`}>{closeLabel(data.asof)}</span> : null}
-        {weekly ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-weekly"
-          title="The daily read's price levels on the weekly chart. Trendlines and day markers are on the daily chart.">weekly: levels</span> : null}
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>
-          {status || (open ? '' : firstSentence(data?.thesis))}
-        </span>
-        <span style={sub} aria-hidden="true">{open ? 'less' : 'more'}</span>
+      {/* VIS-7 (audit 2026-11-05, axe nested-interactive): the head was a `div[role=button]` holding the
+          "Turn Chart IQ off" button. The head is now a plain row; the toggle is a REAL button covering everything
+          but the close, so every place a member clicked before still toggles, and the close stays its own button. */}
+      <div style={{ ...head, cursor: 'default' }} data-chart-iq-head="">
+        <button type="button" style={toggleBtn} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          <span style={tag}>Chart IQ</span>
+          {data?.asof ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-asof"
+            title={`This read uses prices through the ${data.asof} close`}>{closeLabel(data.asof)}</span> : null}
+          {weekly ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-weekly"
+            title="The daily read's price levels on the weekly chart. Trendlines and day markers are on the daily chart.">weekly: levels</span> : null}
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>
+            {status || (open ? '' : firstSentence(data?.thesis))}
+          </span>
+          <span style={sub} aria-hidden="true">{open ? 'less' : 'more'}</span>
+        </button>
         {onClose ? (
           <button type="button" aria-label="Turn Chart IQ off" onClick={(e) => { e.stopPropagation(); onClose() }}
             style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', fontSize: 14, padding: '0 2px' }}>×</button>
