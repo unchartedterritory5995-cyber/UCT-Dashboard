@@ -163,7 +163,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
 
   return (
     <div className={shell.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={c.card} role="dialog" aria-label="Compare Symbols">
+      <div className={c.card} role="dialog" aria-label="Compare Symbols" data-guide="compare.panel">
         <div className={c.head}>
           <span className={c.headTitle}>Compare Symbols</span>
           {!nothing && <button type="button" className={c.clear} onClick={clearAll} title="Remove all comparisons">Clear all</button>}

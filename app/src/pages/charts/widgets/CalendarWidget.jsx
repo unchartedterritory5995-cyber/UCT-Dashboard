@@ -458,7 +458,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="UCT Terminal widget settings"
         ><UIcon name="gear" size={13} /></button>
         <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />

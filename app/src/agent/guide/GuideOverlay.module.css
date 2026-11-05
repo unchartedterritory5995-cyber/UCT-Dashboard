@@ -91,6 +91,18 @@
   background: var(--bg-hover, rgba(255, 255, 255, 0.06));
 }
 
+.ghost {
+  margin-right: auto;
+  border-color: transparent;
+  color: var(--text-muted, #9aa0a6);
+  font-size: 12px;
+}
+
+.ghost + .ghost {
+  margin-right: auto;
+  margin-left: -8px;
+}
+
 .primary {
   border-color: var(--ut-gold, #c9a84c);
   color: var(--ut-gold, #c9a84c);

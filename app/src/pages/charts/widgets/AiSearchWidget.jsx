@@ -1119,7 +1119,7 @@ export default function AiSearchWidget({
           type="button"
           className={styles.gearBtn}
           onClick={() => setSettingsOpen(o => !o)}
-          title="AI Search settings"
+          data-guide="widget.settings" title="AI Search settings"
           aria-label="AI Search settings"
         ><UIcon name="gear" size={13} /></button>
       )}

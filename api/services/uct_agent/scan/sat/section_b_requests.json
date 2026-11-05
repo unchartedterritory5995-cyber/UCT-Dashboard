@@ -4587,13 +4587,37 @@
     "domain": "guide",
     "target": "guide",
     "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-    "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). Other pages, only there: screenerScreens (screener), screenerColumns (screener), screenerFilters (screener), breadthViews (breadth), breadthTable (breadth), calendarNextReport (calendar), journalNewNote (journal). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+    "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
     "args": {
      "type": "object",
      "properties": {
       "feature": {
        "type": "string",
        "enum": [
+        "indicatorColor",
+        "indicatorEdit",
+        "alertIndicator",
+        "alertPrice",
+        "multiChart",
+        "widgetResize",
+        "widgetMove",
+        "widgetHeader",
+        "widgetSettings",
+        "widgetAdd",
+        "widgetMerge",
+        "compare",
+        "replay",
+        "periodSort",
+        "goToDate",
+        "chartTab",
+        "chartThemes",
+        "chartTemplate",
+        "chartType",
+        "timeframeCustom",
+        "watchlistAddSymbol",
+        "chartSetting",
+        "layoutSave",
+        "watchlistCreate",
         "canvas",
         "link",
         "symbol",
@@ -4613,10 +4637,17 @@
         "calendarNextReport",
         "journalNewNote"
        ]
+      },
+      "detail": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
-      "feature"
+      "feature",
+      "detail"
      ],
      "additionalProperties": false
     },

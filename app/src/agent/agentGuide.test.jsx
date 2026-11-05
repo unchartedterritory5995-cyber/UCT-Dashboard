@@ -12,7 +12,7 @@ import { screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react
 import { registerBuiltins } from './builtins'
 import { setupPanel, ONE, TWO } from './testing/panelHarness'
 import { _resetGuide } from './guide/guideStore'
-import { LOST_MS } from './guide/placement'
+import { LOST_MS, PAUSE_MS } from './guide/placement'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -153,11 +153,11 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     // the member clicks the gear: Chart settings opens (as ChartSettingsModal renders it)
     const modal = document.createElement('div')
     modal.setAttribute('data-guide', 'chartSettings')
-    modal.innerHTML = '<button data-guide="chartSettings.tab.indicators">Indicators</button>'
+    modal.innerHTML = '<button role="tab" aria-selected="false" data-guide="chartSettings.tab.indicators">Indicators</button>'
     act(() => { root.appendChild(modal) })
     await waitFor(() => expect(cardText()).toMatch(/Open the Indicators tab/), { timeout: 3000 })
-    // …and the Indicators tab: its search box appears
-    act(() => { modal.insertAdjacentHTML('beforeend', '<input aria-label="Search indicators" />') })
+    // …and the Indicators tab: it is selected and its search box appears (no indicator selected: no ＋ Add to Chart step)
+    act(() => { modal.querySelector('button').setAttribute('aria-selected', 'true'); modal.insertAdjacentHTML('beforeend', '<input aria-label="Search indicators" />') })
     await waitFor(() => expect(cardText()).toMatch(/Search for an indicator and add it/), { timeout: 3000 })
     expect(p.turns()).toBe(0)
   }, 30000)
@@ -166,7 +166,7 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     const root = controls(['c'])
     const modal = document.createElement('div')
     modal.setAttribute('data-guide', 'chartSettings')
-    modal.innerHTML = '<button data-guide="chartSettings.tab.indicators">Indicators</button><input aria-label="Search indicators" />'
+    modal.innerHTML = '<button role="tab" aria-selected="true" data-guide="chartSettings.tab.indicators">Indicators</button><input aria-label="Search indicators" />'
     root.appendChild(modal)
     const { say } = p.mount(...ONE())
     const out = await say('how do I add an indicator?')
@@ -174,13 +174,26 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     await waitFor(() => expect(cardText()).toMatch(/Search for an indicator and add it/))
   }, 30000)
 
-  it('S5 the control disappears mid-walkthrough → the guide stops and says why (never points at nothing)', async () => {
+  it('S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing)', async () => {
     const root = controls(['c'])
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    act(() => { root.querySelector('[data-widget-id="c"]').remove() })
-    await waitFor(() => expect(card()).toBeNull(), { timeout: LOST_MS + 3000 })
+    const cell = root.querySelector('[data-widget-id="c"]')
+    act(() => { cell.remove() })
+    await waitFor(() => expect(cardText()).toMatch(/I can’t see the timeframe control right now/), { timeout: LOST_MS + 3000 })
+    expect(screen.getByRole('button', { name: 'Restart' })).toBeTruthy()
+    // the chart comes back (a layout switched and back): the walkthrough carries on, on the same step
+    act(() => { root.appendChild(cell) })
+    await waitFor(() => expect(cardText()).toMatch(/These buttons switch this chart’s timeframe/), { timeout: 3000 })
+    // it goes again, and stays gone
+    act(() => { cell.remove() })
+    await waitFor(() => expect(cardText()).toMatch(/right now/), { timeout: LOST_MS + 3000 })
+    const real = Date.now
+    Date.now = () => real() + PAUSE_MS + 1
+    try {
+      await waitFor(() => expect(card()).toBeNull(), { timeout: 3000 })
+    } finally { Date.now = real }
     expect(screen.getByTestId('guide-notice').textContent).toMatch(/I can’t see that control on screen any more/)
   }, 30000)
 
@@ -196,8 +209,8 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'Exit the guide' }), { key: 'Escape' })   // from inside the card
     await waitFor(() => expect(card()).toBeNull())
     await say('how do i draw a trendline')
-    await waitFor(() => expect(cardText()).toMatch(/drawing tools for this chart/))
-    await say('how do I save my layout')
+    await waitFor(() => expect(cardText()).toMatch(/Click Trendline on the drawing toolbar/))
+    await say('how do I switch layouts')
     await waitFor(() => expect(cardText()).toMatch(/Your saved layouts/))
     fireEvent.click(screen.getByRole('button', { name: 'Exit the guide' }))
     await waitFor(() => expect(card()).toBeNull())

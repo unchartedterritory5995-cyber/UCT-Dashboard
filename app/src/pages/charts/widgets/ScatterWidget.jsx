@@ -520,7 +520,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
         </button>
         <span className={chrome.spacer} />
         <button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
           <UIcon name="gear" size={13} gold={false} />
         </button>
       </div>

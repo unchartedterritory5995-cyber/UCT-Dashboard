@@ -360,12 +360,12 @@ describe('WL · Exit and Escape, at any step', () => {
 })
 
 describe('WL · a control that disappears', () => {
-  it('the widget is closed while ＋ New is highlighted → the guide stops with the existing notice', async () => {
+  it('the widget is closed while ＋ New is highlighted → it returns to Widgets ▾ rather than stopping', async () => {
     await start()
     await toPicker()
     fireEvent.click(screen.getByTestId('remove-new0'))
-    await waitFor(() => expect(card()).toBeNull(), { timeout: LOST_MS + 3000 })
-    expect(notice().textContent).toMatch(/I can’t see that control on screen any more/)
+    await onIt(/Open Widgets ▾/, widgetsBtn)
+    expect(notice()).toBeNull()
   }, 30000)
   it('the widget is closed on the name step: no earlier control left to return to but Widgets ▾, so it returns there', async () => {
     await start()

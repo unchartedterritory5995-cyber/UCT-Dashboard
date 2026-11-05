@@ -22,6 +22,7 @@ import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
 import GuideOverlay from './guide/GuideOverlay'
+import { onGuideDoIt } from './guide/guideStore'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
@@ -366,6 +367,9 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     el.classList.remove(styles.flash); void el.offsetWidth; el.classList.add(styles.flash)
   }, [searchOpen, historyOpen, agent.items])
+
+  // the walkthrough card's "Do it for me": the same words, down the same path, as typing them here
+  useEffect(() => onGuideDoIt(() => { if (!agent.busy) agent.send('do it for me') }), [agent])
 
   const submit = () => {
     const t = text.trim()

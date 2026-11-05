@@ -5,12 +5,27 @@
 // itself when what it waits for appears.
 //
 //   • the ring and the dim are pointer-events: none — the chart, its menus and trading controls work as always
+//   • the card is never placed on the control (placement.placeCard, with the card's measured height), and stays off the
+//     menu or window the control sits in whenever there is room
 //   • the target is re-found every POLL_MS (scrolling, resizing, a panel opening or closing); the ring follows it
-//   • a target that is gone for LOST_MS ends the walkthrough and says so (an `optional` step is skipped instead; a
-//     `retreat` step — a menu that closed, a form cancelled — returns to the nearest earlier step still on screen) —
-//     the card never points at nothing and never claims a control is visible when it is not
+//   • a step's `waitFor` already met is a step already done: it moves on at once (a menu already open, a tab already
+//     selected), including while the walkthrough is running
+//   • a control the member just clicked that then goes away (a menu item, a last click) is the step DONE, not a lost
+//     control: it moves on, or finishes, without a word
+//   • any other target gone for LOST_MS: an `optional` step is skipped; otherwise it returns to the nearest earlier step
+//     still on screen (a menu that closed, a form cancelled — the member reopens it and carries on)
+//   • with nothing earlier on screen it PAUSES (a layout switched, a panel closed): the card says so and offers Restart,
+//     and the walkthrough carries on by itself the moment the control is back. After PAUSE_MS it stops and says why
+//   • a control that is there but out of reach says so: greyed out (the step's own `off` sentence), or behind an open
+//     window. The card never points at nothing and never claims a control is visible when it is not
+//   • a control a narrow row has clipped (the gear, with the Agent panel open) is slid into view for its step and put back
+//   • Next / Skip go to the next step the member can actually reach. A step that depends on this one stays closed until
+//     this one is done: the card says what to do instead of walking off the end of the walkthrough
 //   • Back goes to the nearest earlier step whose control is on screen, and a `waitFor` already met does not bounce it
 //     forward again; the step moves on by itself once what it waits for goes away and comes back
+//   • Restart goes back to the start, from where the member stands now
+//   • Do it for me hands over to the Agent (guideStore.requestGuideDoIt → the panel → doItForMe): the feature's EXISTING
+//     capability, planner, policy, receipt and Undo. The guide has no writer of its own
 //   • Escape ends it wherever focus is (the card never takes focus, so a key on the card alone would almost never
 //     fire). Declared in the shortcut registry (`agent.guideEscape`), bound only while a walkthrough is on screen, and
 //     never consumed: a sheet, the palette, an inline form or the chart's own keys still answer the same press. The
@@ -18,38 +33,48 @@
 //   • leaving Charts or closing the Agent unmounts it: the walkthrough ends, every timer and listener with it
 //   • the card is announced politely (aria-live) and never takes focus from what the member is doing
 
-import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
-import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget } from './guideStore'
-import { findTarget, rectOf, reveal } from './targets'
-import { POLL_MS, LOST_MS, sameRect, placeCard } from './placement'
+import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt } from './guideStore'
+import { findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
+import { POLL_MS, LOST_MS, LATE_MS, PAUSE_MS, sameRect, placeCard } from './placement'
 import { registerShortcuts } from '../../pages/command/shortcutRegistry'
 import styles from './GuideOverlay.module.css'
 
-/** The nearest step before this one whose control is on screen → its index, or null. */
-function earlierStep(st) {
-  for (let i = st.index - 1; i >= 0; i--) if (findTarget(st.steps[i].target, st)) return i
-  return null
+const COVERED = 'That control is behind the window that’s open. Close the window, and I’ll carry on from here.'
+const OFF = 'This control is greyed out right now, so it can’t be clicked yet.'
+const FIRST = 'This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.'
+
+// the menu or window a control sits in: the card keeps off it when there is room
+const holderRect = (el) => {
+  const box = el?.closest?.('[role="dialog"],[role="menu"],[data-guide$="Menu"],[data-guide="chartSettings"]')
+  return box && box !== el ? rectOf(box, 0) : null
 }
+const hasDoIt = (feature) => !!feature?.doIt
 
 export default function GuideOverlay() {
   const { state: st, notice } = useSyncExternalStore(subscribeGuide, guideSnapshot, guideSnapshot)
-  // the rectangle found for ONE step (keyed, so a new step never shows the last step's ring)
-  const [found, setFound] = useState({ key: null, rect: null })
+  // what was found for ONE step (keyed, so a new step never shows the last step's ring)
+  const [found, setFound] = useState({ key: null, rect: null, holder: null, why: null, paused: false })
+  const [hint, setHint] = useState(null)   // { key, text } — the step the member tried to Skip past
+  const [cardH, setCardH] = useState(undefined)
   const cardRef = useRef(null)
   const titleId = useId()
   const step = st ? st.steps[st.index] : null
   const stepKey = st ? `${st.id}:${st.index}` : null
   const rect = found.key === stepKey ? found.rect : null
+  const paused = found.key === stepKey && found.paused
 
-  // follow the target; advance on `waitFor`; end (or skip) when it is gone — every update from a timer
+  // follow the target; advance on `waitFor`; move on, go back, or pause when it is gone — every update from a timer
   useEffect(() => {
     if (!st || !step) return undefined
     let lostSince = null
     let shown = false
     let cancelled = false
+    let clicked = false
     // returned to by Back: a `waitFor` still met from last time is not a new event — wait until it has gone once
-    let armed = !st.back
+    // (and a result that is something ENDING has to have begun first)
+    let armed = !st.back && !step.waitFor?.not
     const tick = () => {
       if (cancelled) return
       if (step.waitFor) {
@@ -57,28 +82,50 @@ export default function GuideOverlay() {
         if (met && armed) { nextStep(); return }
         if (!met) armed = true
       }
-      const el = findTarget(step.target, st)
+      const el = findTarget(step.target, st) || (unclip(step.target, st) ? findTarget(step.target, st) : null)
       if (el) {
         lostSince = null
         if (!shown) { shown = true; reveal(el) }
         if (step.pin) pinWidget(el.closest?.('[data-widget-id]')?.getAttribute('data-widget-id'))
         const r = rectOf(el)
-        setFound(prev => (prev.key === stepKey && sameRect(prev.rect, r) ? prev : { key: stepKey, rect: r }))
+        const holder = holderRect(el)
+        const alt = step.altText && Array.isArray(step.target) && !findTarget(step.target[0], st) ? step.altText : null
+        const why = isDisabled(el) ? (step.off || OFF) : coveredBy(el) ? COVERED : alt
+        setFound(prev => (prev.key === stepKey && sameRect(prev.rect, r) && prev.why === why && !prev.paused && (sameRect(prev.holder, holder) || (!prev.holder && !holder))
+          ? prev : { key: stepKey, rect: r, holder, why, paused: false }))
         return
       }
-      setFound(prev => (prev.key === stepKey && prev.rect === null ? prev : { key: stepKey, rect: null }))
+      // the member's own click took it away (a menu item, the last click): that step is done, not lost
+      if (clicked) { clicked = false; if (step.endsOnClick) endGuide('done'); else nextStep(); return }
+      setFound(prev => (prev.key === stepKey && prev.rect === null && prev.paused === (lostSince != null && Date.now() - lostSince >= LOST_MS) ? prev
+        : { key: stepKey, rect: null, holder: null, why: null, paused: lostSince != null && Date.now() - lostSince >= LOST_MS }))
       const now = Date.now()
       if (lostSince == null) lostSince = now
+      // a step that may simply not apply (no Place box on a board with room): a moment's look, then on
+      if (step.late && now - lostSince >= LATE_MS) { nextStep(); return }
       if (now - lostSince >= LOST_MS) {
-        const back = step.retreat ? earlierStep(st) : null
-        if (step.optional) nextStep()
-        else if (back != null) prevStep(back)
-        else endGuide('lost')
+        if (step.optional) { nextStep(); return }
+        const back = step.retreat === false ? null : earlierOnScreen(st.steps, st.index, st)
+        if (back != null) { prevStep(back); return }
+        if (now - lostSince >= PAUSE_MS) endGuide('lost')
       }
     }
+    // capture, passive: the guide only notes that the member's click landed on the control; it never touches the event
+    const onDown = (e) => {
+      const el = findTarget(step.target, st)
+      const also = step.also ? findTarget(step.also, st) : null
+      if ((el && el.contains?.(e.target)) || (also && also.contains?.(e.target))) clicked = true
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('mousedown', onDown, true)
     const first = setTimeout(tick, 0)
     const t = setInterval(tick, POLL_MS)
-    return () => { cancelled = true; clearTimeout(first); clearInterval(t) }
+    return () => {
+      cancelled = true; clearTimeout(first); clearInterval(t)
+      restoreClipped()
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('mousedown', onDown, true)
+    }
   }, [st, step, stepKey])
 
   // closing the Agent / leaving Charts ends the walkthrough
@@ -88,15 +135,46 @@ export default function GuideOverlay() {
   const active = !!st
   useEffect(() => (active ? registerShortcuts({ 'agent.guideEscape': () => endGuide('exit') }) : undefined), [active])
 
+  // a press on the card is not a click outside whatever the walkthrough is pointing at: a popover that closes on an outside
+  // press stays open. Native, on the card itself, so the board's document-level listeners never hear it
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return undefined
+    const stop = (e) => e.stopPropagation()
+    el.addEventListener('mousedown', stop)
+    el.addEventListener('pointerdown', stop)
+    return () => { el.removeEventListener('mousedown', stop); el.removeEventListener('pointerdown', stop) }
+  }, [active])
+
+  // the card's real height, so placeCard can keep it off the control whatever the sentence's length
+  useLayoutEffect(() => {
+    const h = cardRef.current?.offsetHeight
+    if (h && h !== cardH) setCardH(h)
+  })
+
   if (typeof document === 'undefined') return null
   if (!st || !step) {
     return notice ? createPortal(<div className={styles.notice} role="status" data-testid="guide-notice">{notice}</div>, document.body) : null
   }
   const vw = window.innerWidth || 1280
   const vh = window.innerHeight || 800
-  const pos = placeCard(rect, { vw, vh })
+  const why = found.key === stepKey ? found.why : null
+  const pos = placeCard(rect, { vw, vh, cardH, avoid: found.key === stepKey && found.holder ? [found.holder] : [] })
   const last = st.index === st.steps.length - 1
   const waiting = !!step.waitFor
+  const shownHint = hint?.key === stepKey ? hint.text : null
+  const control = step.name || st.feature.control || 'that control'
+  const text = !rect
+    ? (paused ? `I can’t see ${control} right now. Bring it back and I’ll carry on from here, or start again.` : 'Looking for it on your screen…')
+    : (why || shownHint || step.text)
+  const onNext = () => {
+    if (last) { endGuide('done'); return }
+    const to = reachableAfter(st.steps, st.index, st)
+    if (to == null) { setHint({ key: stepKey, text: step.first || FIRST }); return }
+    goToStep(to)
+  }
+  const onBack = () => prevStep(earlierOnScreen(st.steps, st.index, st) ?? st.index - 1)
+  const onRestart = () => restartGuide(startIndex(st.steps, st))
   return createPortal(
     <>
       {rect && <div className={styles.ring} data-testid="guide-ring" aria-hidden="true" style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }} />}
@@ -107,6 +185,8 @@ export default function GuideOverlay() {
         aria-modal="false"
         aria-labelledby={titleId}
         data-escape-layer=""
+        data-chart-portal-popup=""
+        data-sheet-keep-live="9601"
         data-testid="guide-card"
         style={{ top: pos.top, left: pos.left, width: pos.width }}
         // Escape from inside the card ends it (no window-level key listener: the board's own keys are untouched)
@@ -117,12 +197,16 @@ export default function GuideOverlay() {
           <span className={styles.count}>{st.steps.length > 1 ? `${st.index + 1} of ${st.steps.length}` : ''}</span>
           <button type="button" className={styles.close} aria-label="Exit the guide" onClick={() => endGuide('exit')}>×</button>
         </div>
-        <p className={styles.text} aria-live="polite" data-testid="guide-text">{rect ? step.text : 'Looking for it on your screen…'}</p>
+        <p className={styles.text} aria-live="polite" data-testid="guide-text">{text}</p>
         <div className={styles.actions}>
-          {st.index > 0 && !step.noBack && <button type="button" className={styles.btn} onClick={() => prevStep(earlierStep(st) ?? st.index - 1)}>Back</button>}
-          <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={nextStep}>
-            {last ? 'Done' : step.nextLabel || (waiting ? 'Skip' : 'Next')}
-          </button>
+          {hasDoIt(st.feature) && <button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={requestGuideDoIt}>Do it for me</button>}
+          {(st.index > 0 || paused) && <button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={onRestart}>Restart</button>}
+          {st.index > 0 && !step.noBack && <button type="button" className={styles.btn} onClick={onBack}>Back</button>}
+          {!paused && (
+            <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={onNext}>
+              {last ? 'Done' : step.nextLabel || (waiting ? 'Skip' : 'Next')}
+            </button>
+          )}
         </div>
       </div>
     </>,

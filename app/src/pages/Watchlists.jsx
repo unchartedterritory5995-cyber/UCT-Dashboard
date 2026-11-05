@@ -2993,6 +2993,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               <button
                 ref={settingsBtnRef}
                 className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
+                data-guide="widget.settings"
                 onClick={() => setSettingsOpen(o => !o)}
                 title="Watchlist settings"
               ><UIcon name="gear" size={14} /></button>
