@@ -94,3 +94,6 @@ an unreadable value is returned unchanged so the client refuses it by name. The 
 - Mutations (`heavy-mut.lock`, 5/5 killed): UTC midnight; fixed 14:30 UTC offset; YYYYMMDD not
   normalised; wrong tf; unrecognised value guessed as 0.0. Script/log: `_resume-2026-11-01/runs/w5t15/`.
 - Tests: 26 passed in `test_screener_backtest_runtime.py`.
+- final-tip r1 (tree `69761bfa87`, `heavy-final3.lock`, 45.8 min): gate pytest 46 passed; hygiene clean;
+  8 backtest pytest files 175 passed; vitest chart+hooks 2 failed | 1333 passed | 27 skipped (baselines
+  `settingsScope.rail`, `pollingSites.rail`). Log: `_resume-2026-11-01/runs/w5t15/w5t15-final.out`.
