@@ -48,7 +48,9 @@
 //                    canvas always comes from its own settings blob).
 //
 // ── Params layer (journal embeds) ───────────────────────────────────────────
-// - paramsSchema   — declarative field descriptors for the widget's FROZEN
+// - paramsSchema   — (`live: true` on a field = the mounted widget reads it back from `opts`, so UCT Agent's
+//                    widget.setOption may write it; agent/settingsLiveness.test.js proves the read)
+//                    declarative field descriptors for the widget's FROZEN
 //                    params: what an embedded snapshot stores in the notebook
 //                    doc and re-renders from. Types: 'symbol' | 'tf' | 'ts' |
 //                    'string' | 'number' | 'boolean' | 'enum' (options) |
@@ -243,6 +245,9 @@ export function validatePanelManifest(id, manifest) {
         problems.push(`${at}.type ${JSON.stringify(f.type)} is not one of ${PARAM_FIELD_TYPES.join('|')}`)
       } else if (f.type === 'enum' && !(Array.isArray(f.options) && f.options.length > 0)) {
         problems.push(`${at} is an enum and needs a non-empty options array`)
+      }
+      if (f.live !== undefined && !(f.live === true && ['enum', 'boolean', 'number'].includes(f.type))) {
+        problems.push(`${at}.live is true or absent, on an enum, boolean or number field`)
       }
     })
   }
@@ -474,7 +479,7 @@ const PANEL_MANIFESTS = {
       { key: 'symbol', type: 'symbol', required: true },
       // Freeze the EFFECTIVE view — the widget silently falls annual↔quarterly
       // when a dataset is missing, and the capture must show what was shown.
-      { key: 'view', type: 'enum', options: ['annual', 'quarterly', 'analyst', 'ownership'], default: 'quarterly' },
+      { key: 'view', type: 'enum', options: ['annual', 'quarterly', 'analyst', 'ownership'], default: 'quarterly', live: true },
       { key: 'company', type: 'string' },
       { key: 'settings', type: 'json' },        // GLOBAL fundamentals_settings — merged copy
       // The captured table itself ({annual[], quarterly[]}) — owner-approved
@@ -622,7 +627,7 @@ const PANEL_MANIFESTS = {
     themeFollow: true,
     paramsSchema: [
       { key: 'symbol', type: 'symbol', required: true },
-      { key: 'filter', type: 'enum', options: ['all', 'up', 'down'], default: 'all' },
+      { key: 'filter', type: 'enum', options: ['all', 'up', 'down'], default: 'all', live: true },
       { key: 'company', type: 'string' },
       { key: 'settings', type: 'json' },
       // The captured feed itself — owner-approved payload freeze: headlines
@@ -695,7 +700,7 @@ const PANEL_MANIFESTS = {
     paramsSchema: [
       // The widget renders ONE DAY (the week is only the fetch granularity).
       { key: 'date', type: 'string', required: true },       // 'YYYY-MM-DD'
-      { key: 'econStars', type: 'number', default: 3, min: 1, max: 3, integer: true },   // the widget's own [1, 2, 3] (CalendarWidget)
+      { key: 'econStars', type: 'number', default: 3, min: 1, max: 3, integer: true, live: true },   // the widget's own [1, 2, 3] (CalendarWidget)
       { key: 'selectedSym', type: 'symbol' },
       { key: 'tbdOpen', type: 'boolean', default: false },
       { key: 'sections', type: 'json' },        // {bmo,amc} × {sortBy,sortDir,showAll} — child-local state, lifted at capture
@@ -726,8 +731,8 @@ const PANEL_MANIFESTS = {
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
-      { key: 'lead', type: 'enum', options: ['tape', 'biggest', 'sentiment'], default: 'tape' },
-      { key: 'scope', type: 'enum', options: ['market', 'symbol'], default: 'market' },
+      { key: 'lead', type: 'enum', options: ['tape', 'biggest', 'sentiment'], default: 'tape', live: true },
+      { key: 'scope', type: 'enum', options: ['market', 'symbol'], default: 'market', live: true },
       { key: 'symbol', type: 'symbol' },        // only meaningful when scope==='symbol'
       { key: 'filters', type: 'json' },         // {minPrem, cp, type, dir}
       { key: 'settings', type: 'json' },
@@ -799,7 +804,7 @@ const PANEL_MANIFESTS = {
       { key: 'minRvol', type: 'number', default: 2 },
       { key: 'minMove', type: 'number', default: 0.25 },
       { key: 'minDollarK', type: 'number' },   // $-vol/min floor ($thousands); blank = session-aware auto
-      { key: 'showLogos', type: 'boolean', default: false },   // company logos next to tickers (off by default)
+      { key: 'showLogos', type: 'boolean', default: false, live: true },   // company logos next to tickers (off by default)
       { key: 'settings', type: 'json' },
     ],
     plainText: () => '[volume surge]',

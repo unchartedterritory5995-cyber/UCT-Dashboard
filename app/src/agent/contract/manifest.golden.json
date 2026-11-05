@@ -3127,8 +3127,8 @@
    "name": "widget.setOption",
    "domain": "widget",
    "target": "board",
-   "summary": "Change ONE option of a widget on the board — what its own settings control writes (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope, the Terminal's star filter…). Undo puts the previous value back.",
-   "hints": "target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — themes: period (1d|1w|1m|3m|1y|ytd), sortDir (asc|desc); fundamentals: view (annual|quarterly|analyst|ownership); breadth: tileStyle (values|spark|area|ghost); news: filter (all|up|down); calendar: econStars (1–3), tbdOpen (on/off); optionsflow: lead (tape|biggest|sentiment), scope (market|symbol); nhnl: minCount (1–260); volumescan: showLogos (on/off). A widget type not listed has no options here.",
+   "summary": "Change ONE option of a widget on the board — what its own settings control writes (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar's star filter, Volume Scan logos…). Undo puts the previous value back.",
+   "hints": "target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — fundamentals: view (annual|quarterly|analyst|ownership); news: filter (all|up|down); calendar: econStars (1–3); optionsflow: lead (tape|biggest|sentiment), scope (market|symbol); volumescan: showLogos (on/off). A widget type not listed has no options here.",
    "args": {
     "type": "object",
     "properties": {

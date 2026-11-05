@@ -887,11 +887,16 @@ export function registerBoardCapabilities() {
   // bookkeeping (a notebook stamp's fields). A NUMBER only with a declared range (`min`/`max` on the schema entry — the
   // product's own bound); an unbounded number is refused, never written. Everything else — lists, blobs, symbols, keys —
   // has its own capability or none.
+  // ⛔ A RECEIPT FOLLOWS A REAL CHANGE. paramsSchema describes what a Notebook stamp FREEZES, which is not what a live
+  // widget reads back from opts (a Theme Tracker's period is its own tab state). Offered ONLY when the field is marked
+  // `live: true` — default-deny, so a new schema field is never settable by accident — and settingsLiveness.test.js
+  // fails a `live` field whose widget does not read it from opts. A declared field that is not live refuses in words.
   const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
   const bounded = (f) => f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min < f.max)
   // marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
   const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
-  const optionsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key) && bounded(f))
+  const scalarsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key) && bounded(f))
+  const optionsOf = (type) => scalarsOf(type).filter(f => f.live === true)
   const TRUE_WORDS = ['true', 'on', 'yes', 'show', 'enabled'], FALSE_WORDS = ['false', 'off', 'no', 'hide', 'disabled']
   /** The value in the option's own type, or a refusal. */
   const coerceOption = (f, raw) => {
@@ -915,13 +920,14 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.setOption',
-    summary: 'Change ONE option of a widget on the board — what its own settings control writes (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope, the Terminal\'s star filter…). Undo puts the previous value back.',
+    summary: 'Change ONE option of a widget on the board — what its own settings control writes (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar\'s star filter, Volume Scan logos…). Undo puts the previous value back.',
     hints: `target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — ${OPTION_HINT}. A widget type not listed has no options here.`,
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
     check(st, { widget, key, value }) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
       const opts = optionsOf(t.type)
+      if (scalarsOf(t.type).some(f => f.key === String(key) && !f.live)) return `I can't change “${key}” on the ${label(t.type)}: the widget doesn't read a saved value for it, so nothing would change. Use the control on the widget itself.`
       if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
       const f = opts.find(o => o.key === String(key))
       if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`
