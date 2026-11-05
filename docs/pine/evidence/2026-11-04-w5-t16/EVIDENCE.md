@@ -82,5 +82,8 @@ No. Python service only; no engine file touched.
   def_hash stripped, shape refuses namespace, column length, runtime check, withheld uncaught, lane
   record->alert, zero-evaluated written, forward-only origin off.
 - Tests: `tests/test_definition_record_runtime.py` 35 passed (+ `test_runtime_server_lane.py`: 78 together).
-- final-tip: numbers in the following docs-only commit; log `dsk/w5t16r1-final.log`.
+- final-tip (tree `d7d3b1c07c`, tested-on-master `9bfd567837`, heavy-final3.lock): gate pytest 46 passed; hygiene
+  clean; rails pytest 165 passed (3 named files); full chart+hooks vitest 2 failed | 1333 passed | 27 skipped,
+  the failures being the declared baselines `settingsScope.rail` and `pollingSites.rail`. Log `dsk/w5t16r1-final.log`.
+  (This line is the only change after the tested tree.)
 - Engine bump: no.
