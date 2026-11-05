@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
@@ -9,10 +9,11 @@ import { MemoryRouter } from 'react-router-dom'
  * which a member who chose Research Home must never get from a flash of the page they opted out of).
  * Through the real NotebookTab; the homes themselves are stand-ins (each has its own suite).
  */
+const H = vi.hoisted(() => ({ total: 3, todayChunk: [] }))
 vi.mock('../hooks/useJ2Notes', () => ({
   default: () => ({
-    notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(),
-    total: 3, hasMore: false, loadMore: vi.fn(), isLoadingMore: false,
+    notes: [], isLoading: false, error: null, refresh: () => {}, mutate: () => {},
+    total: H.total, hasMore: false, loadMore: () => {}, isLoadingMore: false,
   }),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
@@ -26,19 +27,21 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div da
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
-vi.mock('../components/notebook/TodayHome', () => ({
-  default: (p) => (
-    <div data-testid="today-home">
+vi.mock('../components/notebook/TodayHome', () => {
+  H.todayChunk.push(Date.now())          // the chunk was asked for
+  return { default: (p) => (
+    <div data-testid="today-home" data-read={p.todayRead}>
       <button type="button" onClick={p.onOpenResearchHome}>Research home →</button>
       <button type="button" onClick={p.onSelectAllNotes}>All notes</button>
     </div>
-  ),
-}))
+  ) }
+})
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
 import { __setTodayLandingForTests } from '../lib/todayHome'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
+import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
 const T = { timeout: 20000 }
 vi.setConfig({ testTimeout: 40000 })
@@ -47,6 +50,7 @@ let prefs
 let prefsGate
 beforeEach(() => {
   __setTodayLandingForTests(true)
+  H.total = 3
   setCurrentAccountId('acct-A')
   Element.prototype.scrollIntoView = vi.fn()
   prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
@@ -62,7 +66,7 @@ beforeEach(() => {
     return ok({})
   })
 })
-afterEach(() => { setCurrentAccountId(null) })
+afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 const at = (path) => render(<MemoryRouter initialEntries={[path]}><NotebookTab /></MemoryRouter>)
 
@@ -120,5 +124,40 @@ describe('the Notebook opens on Today (S15)', () => {
     __setTodayLandingForTests(false)
     at('/journal')
     await screen.findByTestId('research-home', {}, T)
+  })
+})
+
+// Fix round 1 (I9) + fix round 2 (R1-B): Today's read is `make` (make the day's note if missing), `hold` (make=0: the
+// first run IS due or on screen) or `wait` (no read yet: it cannot be decided). Only a member who can still get the
+// first run ever waits or holds; an established member's one read is `make`, at once.
+describe('the first run and the day note (I9, R1-B)', () => {
+  beforeEach(() => { latchNotebookFlags({ notebook_starter_packs_enabled: true }) })
+
+  it('a brand-new member (no notes, first run not yet seen): hold (make=0)', async () => {
+    H.total = 0
+    prefs = {}
+    at('/journal?view=today')
+    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('hold')
+  })
+
+  it('first run not yet seen and the notes count unknown: wait -- no read at all (never make=0, then make=1)', async () => {
+    H.total = undefined
+    prefs = {}
+    at('/journal?view=today')
+    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('wait')
+  })
+
+  it('R1-B: an ESTABLISHED member (first run recorded) reads with make at once, even with the notes count unknown', async () => {
+    H.total = undefined
+    prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
+    at('/journal?view=today')
+    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('make')
+  })
+
+  it('CONTROL: a member who has seen the first run, with notes, reads with make', async () => {
+    H.total = 3
+    prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
+    at('/journal?view=today')
+    await waitFor(() => expect(screen.getByTestId('today-home').getAttribute('data-read')).toBe('make'), T)
   })
 })

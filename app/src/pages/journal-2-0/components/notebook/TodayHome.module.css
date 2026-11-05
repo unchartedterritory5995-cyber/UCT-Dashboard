@@ -50,13 +50,28 @@
   border-radius: var(--radius-md, 6px);
 }
 .wide { grid-column: 1 / -1; }
-/* The reserved heights: each card's usual size, held while it loads. */
-.card_plan { min-height: 196px; border-color: rgba(220, 187, 94, 0.45); }
-.card_recap { min-height: 120px; border-color: rgba(220, 187, 94, 0.45); }
-.card_setups,
-.card_names { min-height: 188px; }
-.card_yesterday,
-.card_onThisDay { min-height: 132px; }
+/* Tier 3b fix round 2 (R1-A): only a SKELETON reserves height, at a card's TYPICAL filled height; a filled card takes
+   its own height. A skeleton and the card that replaces it are different nodes, and the Layout Instability API scores
+   only nodes that existed before and moved, so the cards themselves cannot shift. Every half-width skeleton reserves
+   the same height, so the session's order fills the same space. (Fix round 1 put the CAPPED height on the filled
+   cards and left large blank areas; S17: never reserve blank space.) Rail: TodayHome.layout.test.js. */
+.today {
+  --today-row-h: 44px;
+  --today-plan-h: 220px;
+  --today-half-h: 240px;
+  --today-recap-h: 130px;
+}
+.card_plan,
+.card_recap { border-color: rgba(220, 187, 94, 0.45); }
+.skeleton.card_plan { min-height: var(--today-plan-h); }
+.skeleton.card_recap { min-height: var(--today-recap-h); }
+.skeleton.card_setups,
+.skeleton.card_names,
+.skeleton.card_yesterday,
+.skeleton.card_onThisDay { min-height: var(--today-half-h); }
+.unavailable { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+/* The inline first-run ask's slot, below the cards, holding its height while its chunk loads. */
+.firstRunSlot { min-height: 420px; }
 
 .cardHead {
   display: flex;
@@ -100,7 +115,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--today-row-h);
   padding: 6px 8px;
   background: transparent;
   border: 1px solid transparent;
@@ -126,7 +141,7 @@ button.row:hover { background: var(--bg-hover); border-color: rgba(220, 187, 94,
   flex-direction: column;
   gap: 4px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--today-row-h);
   padding: 6px 8px;
   background: transparent;
   border: 1px solid transparent;

@@ -442,5 +442,11 @@ describe('the header folds from the first paint on the list address', () => {
     expect(f('/journal/notebook', '?view=nope')).toBe(false)        // an unknown view opens Home
     expect(f('/journal/notebook', '?view=all&note=n1')).toBe(false) // a note
     expect(f('/journal/notebook/research/NVDA', '?view=all')).toBe(false)
+    // Tier 3b M10: the bare address is the list for a member whose chosen landing is All notes -- and only then.
+    const g = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids, { landingAll: true })
+    expect(g('/journal/notebook', '')).toBe(true)
+    expect(g('/journal/notebook', '?view=today')).toBe(false)
+    expect(g('/journal/notebook', '?view=home')).toBe(false)
+    expect(g('/journal/notebook', '?note=n1')).toBe(false)
   })
 })

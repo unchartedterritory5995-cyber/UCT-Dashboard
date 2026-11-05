@@ -212,7 +212,8 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
     }
     try {
       const tid = typeof prefs?.[DAILY_TEMPLATE_PREF] === 'string' && prefs[DAILY_TEMPLATE_PREF] ? prefs[DAILY_TEMPLATE_PREF] : undefined
-      const { note, created = false } = await openDailyNote({ templateId: tid })
+      // Tier 3b fix round 1 (I9): the day's note starts with the Today home's plan, names included.
+      const { note, created = false } = await openDailyNote({ templateId: tid, seedToday: true })
       invalidateNoteViews()
       out.plan = { ok: Boolean(note?.id), note, created }
     } catch {

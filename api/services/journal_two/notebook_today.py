@@ -41,6 +41,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 from datetime import date, datetime, timedelta
 from typing import Any, Callable
@@ -81,22 +82,36 @@ def _now_et(now: datetime | None) -> datetime:
     return now.astimezone(ET)
 
 
+def _close_hm(day: date) -> tuple[int, int]:
+    """The session's close on `day`, ET: 13:00 on a half-day (the market calendar), else 16:00."""
+    try:
+        from api.services import session_calendar
+        ct = session_calendar.close_time(day)
+        if ct is not None:
+            return (ct.hour, ct.minute)
+    except Exception:  # noqa: BLE001 -- no calendar: the regular close
+        pass
+    return CLOSE_AT
+
+
 def session_of(now: datetime) -> dict[str, Any]:
-    """{day, phase, minutesToOpen, recap} for an ET instant. `phase` is `premarket` (a session day before 09:30),
-    `open` (09:30 to 16:00), `after_close` (from 16:00) or `closed` (not a session day). `recap` is True on a
-    session day from 16:05 (S18)."""
+    """{day, phase, minutesToOpen, recap, recapFrom} for an ET instant. `phase` is `premarket` (a session day before
+    09:30), `open` (09:30 to the close), `after_close` (from the close: 16:00, or 13:00 on a half-day) or `closed`
+    (not a session day). `recap` is True on a session day from five minutes after the close (S18: 16:05)."""
     from api.services.journal_two import trading_days
     day = now.date()
     try:
         session_day = trading_days.is_session(day)
     except Exception:  # noqa: BLE001 -- no calendar: a weekday is a session
         session_day = day.weekday() < 5
+    close = _close_hm(day) if session_day else CLOSE_AT
+    recap_from = divmod(close[0] * 60 + close[1] + 5, 60)
     hm = (now.hour, now.minute)
     if not session_day:
         phase = "closed"
     elif hm < OPEN_AT:
         phase = "premarket"
-    elif hm < CLOSE_AT:
+    elif hm < close:
         phase = "open"
     else:
         phase = "after_close"
@@ -108,7 +123,8 @@ def session_of(now: datetime) -> dict[str, Any]:
         "weekday": day.strftime("%A"),
         "phase": phase,
         "minutesToOpen": to_open,
-        "recap": bool(session_day and hm >= RECAP_FROM),
+        "recap": bool(session_day and hm >= recap_from),
+        "recapFrom": f"{recap_from[0]:02d}:{recap_from[1]:02d}" if session_day else None,
     }
 
 
@@ -208,8 +224,24 @@ def _live_ticks(symbols: list[str]) -> dict[str, dict]:
 
 # ── the sections ───────────────────────────────────────────────────────────────────────────
 
+class SectionUnavailable(Exception):
+    """A section that is not this member's to see (or not held), with a reason code -- not an error."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+#: Why a paid-only figure is withheld from a session without a paid plan (fix round 1, I6). They are the figures
+#: whose own routers are `require_paid`: the setups board, the earnings window and expected move (earnings prep),
+#: and the market line.
+PLAN_REASON = "plan"
+
+
 def market_section(ctx: dict) -> dict[str, Any]:
     """The dashboard's own regime and breadth, from the HELD wire payload. Nothing held: every field null."""
+    if not ctx["paid"]:
+        raise SectionUnavailable(PLAN_REASON)
     from api.services import engine
     from api.services.journal_two import regime as regime_service
     from api.services.journal_two.trader_blocks import readings_from
@@ -235,7 +267,7 @@ def setups_section(ctx: dict) -> dict[str, Any]:
     """The setups board's answer, the member's own cards only (an example card is never one of their setups)."""
     from api.services.journal_two import setups_board
     if not ctx["paid"]:
-        raise SectionUnavailable("paid_plan")
+        raise SectionUnavailable(PLAN_REASON)
     conn = ctx["conn"]
     board = setups_board.build_cards(conn, ctx["user_id"], today=ctx["day"])
     own = [c for c in board.get("cards") or [] if not c.get("example")]
@@ -269,7 +301,8 @@ def _held_earnings_window(day: date) -> tuple | None:
 
 
 def _buzz_counts(symbols: list[str], now: datetime) -> dict[str, int] | None:
-    """{SYM: mentions in the room today}, or None when the room's store is not on this pod."""
+    """{SYM: mentions in the room today}, or None when the room's store is not on this pod. Asked for the rows
+    SHOWN only (fix round 1, I5)."""
     from api.services import buzz_boards, buzz_store
     if not symbols or not os.path.exists(buzz_store.db_path()):
         return None
@@ -278,17 +311,47 @@ def _buzz_counts(symbols: list[str], now: datetime) -> dict[str, int] | None:
     return {s: int(buzz_store.count(s, start, end, chans)) for s in symbols}
 
 
+def own_names(conn: sqlite3.Connection, user_id: str) -> list[str]:
+    """The member's own names -- every list they own (Flagged is one of them), never the prebuilt index lists --
+    each once, in list order (lists by creation, items by their own order). ONE query: the card never needs the
+    positions and UCT20 sources `member_interest` also reads (fix round 1, I5). A read that fails RAISES, so the
+    card says it could not read the names instead of asking a member who has names for three (M7)."""
+    rows = conn.execute(
+        "SELECT wi.sym FROM watchlist_items wi JOIN watchlists w ON w.id = wi.watchlist_id"
+        " WHERE w.user_id = ? AND COALESCE(w.is_prebuilt, 0) = 0"
+        " ORDER BY w.created_at, w.id, wi.sort_order, wi.added_at, wi.id",
+        (user_id,)).fetchall()
+    out: list[str] = []
+    seen: set[str] = set()
+    for r in rows:
+        sym = str(r[0] or "").strip().upper()
+        if sym and sym not in seen:
+            seen.add(sym)
+            out.append(sym)
+    return out
+
+
 def names_section(ctx: dict) -> dict[str, Any]:
-    """Your names: the member's watchlist and flagged names, each with what UCT already holds about it."""
-    from api.services import calendar_personalization
+    """Your names: the member's own names, each with what UCT already holds about it.
+
+    ⛔ BOUNDED (fix round 1, I5): the rows are PICKED FIRST, on what costs nothing per symbol -- reporting today (a
+    lookup in the held window) first, then list order -- and cut to `NAMES_SHOWN`. Only then are the bars, the live
+    tick, the room's mentions and the expected move read, for those rows alone. A 400-name list costs what an
+    8-name list costs.
+    ⛔ PAID (I6): the earnings date, its timing and the expected move are earnings prep's figures, a paid route;
+    without a paid plan they are left out (`earnings: null`, `earningsWithheld: true`)."""
     from api.services.journal_two import earnings_prep
-    sets = calendar_personalization.get_user_ticker_sets(ctx["user_id"]) or {}
-    symbols = sorted({str(s).upper() for k in ("watchlist", "flagged") for s in (sets.get(k) or ()) if s})
+    symbols = own_names(ctx["conn"], ctx["user_id"])
     day = date.fromisoformat(ctx["day"])
-    window = _held_earnings_window(day) if symbols else None
+    paid = ctx["paid"]
+    window = _held_earnings_window(day) if (symbols and paid) else None
     dates, timing = ({}, {}) if window is None else (window[0] or {}, window[1] or {})
+    today_iso = day.isoformat()
+    reporting = [s for s in symbols if dates.get(s) == today_iso]
+    first = set(reporting)
+    shown = (reporting + [s for s in symbols if s not in first])[:NAMES_SHOWN]
     try:
-        buzz = _buzz_counts(symbols, ctx["now"])
+        buzz = _buzz_counts(shown, ctx["now"])
     except Exception:  # noqa: BLE001 -- the room's count is a nicety, never the card
         log.info("[today] buzz counts unreadable", exc_info=True)
         buzz = None
@@ -311,84 +374,203 @@ def names_section(ctx: dict) -> dict[str, Any]:
             move = None
         return {"date": d, "daysAway": days_away, "timing": timing.get(sym), "expectedMovePct": move}
 
-    def rank(r: dict) -> tuple:
-        e = r.get("earnings")
-        return (0 if e and e["daysAway"] == 0 else 1 if e else 2, -(r.get("mentions") or 0), r["symbol"])
-
-    shown_syms = symbols
-    live = _live_ticks(shown_syms)
+    live = _live_ticks(shown)
     rows = []
-    for sym in shown_syms:
+    for sym in shown:
         q = _quote(sym, ctx["day"], live.get(sym))
-        rows.append({"symbol": sym, **q, "earnings": earnings_of(sym),
-                     "mentions": (buzz or {}).get(sym) if buzz is not None else None})
-    rows.sort(key=rank)
-    for r in rows:
-        r["buzzHigh"] = bool(r["mentions"] is not None and r["mentions"] >= BUZZ_HIGH)
+        mentions = (buzz or {}).get(sym) if buzz is not None else None
+        rows.append({"symbol": sym, **q, "earnings": earnings_of(sym), "mentions": mentions,
+                     "buzzHigh": bool(mentions is not None and mentions >= BUZZ_HIGH)})
     return {
         "count": len(symbols),
-        "rows": rows[:NAMES_SHOWN],
-        "more": max(0, len(rows) - NAMES_SHOWN),
+        "rows": rows,
+        "more": max(0, len(symbols) - len(shown)),
         # True: the earnings calendar is not held right now, so a blank earnings cell is unknown, not "none".
-        "earningsUnknown": bool(symbols) and (window is None or bool(window[2])),
+        "earningsUnknown": bool(symbols) and paid and (window is None or bool(window[2])),
+        "earningsWithheld": bool(symbols) and not paid,
         "buzzKnown": buzz is not None,
         "reportingToday": [r["symbol"] for r in rows if r.get("earnings") and r["earnings"]["daysAway"] == 0],
+        # The first few names, for the plan line that names them (I9: the member's names reach today's plan).
+        "first": symbols[:5],
     }
 
 
-def _plan_seed(ctx: dict, market: dict | None, setups: dict | None, names: dict | None) -> list[dict]:
-    """S18's tomorrow's plan, made at the first open of the day: a "Today's plan" checklist from what this read
-    already holds. Empty when nothing is held (the note is then exactly the member's template)."""
+# ── S18: tomorrow's plan ───────────────────────────────────────────────────────────────────
+
+#: ⛔ The seeded lines are recognised by their OWN WORDING, never by a node attribute: TipTap drops an attribute
+#: its schema does not declare the first time the editor loads the note, so a mark on the node would be gone after
+#: the member's first edit. A line the member edits no longer matches and is theirs (fix round 1, I4).
+#: ⛔ ONE TABLE (fix round 2, N3): `SEED_FORMATS` is the only place a line's wording lives. The writer
+#: (`_plan_lines`) fills its slots with `str.format`; the matcher is DERIVED from the same strings, the literal parts
+#: escaped and each slot replaced by the pattern of the values the writer can put there. A new wording cannot be
+#: written without being matched, and the matcher cannot drift to something the writer never says.
+_TK = r"[A-Z][A-Z0-9.\-]{0,9}"
+SEED_FORMATS: tuple[tuple[str, str], ...] = (
+    ("market", "Check the market: {regime} regime, {pct}% above the 50-day"),
+    ("market", "Check the market: {regime} regime"),
+    ("market", "Check the market: {pct}% above the 50-day"),
+    ("near", "Review the {n} {setups} within {near}% of entry"),
+    ("below", "Review {sym}: below stop"),
+    ("triggered", "{sym} triggered: check the entry"),
+    ("earnings", "Prep ${sym} earnings ({when})"),
+    ("earnings_tomorrow", "Prep ${sym} earnings (tomorrow before the open)"),
+    ("names", "Check your names: {syms}"),
+)
+#: The values each slot can hold, as patterns. `regime` is the member-facing regime words (regime.regime_words).
+_EARNINGS_WHEN = {"bmo": "before the open", "amc": "after the close"}
+_SLOTS = {
+    "pct": r"\d+(?:\.\d+)?",
+    "n": r"\d+",
+    "setups": r"setups?",
+    "near": r"\d+(?:\.\d+)?",
+    "sym": _TK,
+    "when": "(?:" + "|".join(re.escape(w) for w in (*_EARNINGS_WHEN.values(), "today")) + ")",
+    "syms": rf"{_TK}(?:, {_TK})*",
+}
+PLAN_HEADING = "Today's plan"
+_SLOT_RE = re.compile(r"\{(\w+)\}")
+_matchers: list[re.Pattern] | None = None
+
+
+def _fmt(kind: str, **slots: Any) -> str:
+    """The first SEED_FORMATS line of `kind` whose slots are exactly `slots`, filled in."""
+    for k, f in SEED_FORMATS:
+        if k == kind and set(_SLOT_RE.findall(f)) == set(slots):
+            return f.format(**slots)
+    raise KeyError((kind, sorted(slots)))
+
+
+def _seed_matchers() -> list[re.Pattern]:
+    global _matchers
+    if _matchers is None:
+        from api.services.journal_two.regime import regime_words
+        slots = {**_SLOTS, "regime": "(?:" + "|".join(re.escape(w) for w in regime_words().values()) + ")"}
+        out = []
+        for _kind, f in SEED_FORMATS:
+            parts, pos = [], 0
+            for m in _SLOT_RE.finditer(f):
+                parts.append(re.escape(f[pos:m.start()]))
+                parts.append(slots[m.group(1)])
+                pos = m.end()
+            parts.append(re.escape(f[pos:]))
+            out.append(re.compile("^" + "".join(parts) + "$"))
+        _matchers = out
+    return _matchers
+
+
+def is_seed_line(text: Any) -> bool:
+    """Is this checklist line one Today wrote (and the member has not changed)?"""
+    t = " ".join(str(text or "").split())
+    return any(p.match(t) for p in _seed_matchers())
+
+
+def _plan_lines(ctx: dict, market: dict | None, setups: dict | None, names: dict | None, *,
+                cap: int = PLAN_ITEMS_SHOWN) -> list[str]:
     lines: list[str] = []
     if market and (market.get("regimeWord") or market.get("pctAbove50") is not None):
-        bits = []
+        slots = {}
         if market.get("regimeWord"):
-            bits.append(f"{market['regimeWord']} regime")
+            slots["regime"] = market["regimeWord"]
         if market.get("pctAbove50") is not None:
-            bits.append(f"{market['pctAbove50']:g}% above the 50-day")
-        lines.append("Check the market: " + ", ".join(bits))
+            slots["pct"] = f"{market['pctAbove50']:g}"
+        lines.append(_fmt("market", **slots))
     if setups:
         n = int(setups.get("nearCount") or 0)
         if n:
-            lines.append(f"Review the {n} {'setup' if n == 1 else 'setups'} within {NEAR_PCT:g}% of entry")
+            lines.append(_fmt("near", n=n, setups="setup" if n == 1 else "setups", near=f"{NEAR_PCT:g}"))
         for sym in (setups.get("belowStop") or [])[:3]:
-            lines.append(f"Review {sym}: below stop")
+            lines.append(_fmt("below", sym=sym))
         for sym in (setups.get("triggered") or [])[:3]:
-            lines.append(f"{sym} triggered: check the entry")
+            lines.append(_fmt("triggered", sym=sym))
     if names:
         day = date.fromisoformat(ctx["day"])
-        tomorrow = day + timedelta(days=1)
-        window = _held_earnings_window(day)
-        dates, timing = ({}, {}) if window is None else (window[0] or {}, window[1] or {})
-        words = {"bmo": "before the open", "amc": "after the close"}
+        tomorrow = (day + timedelta(days=1)).isoformat()
         for r in names.get("rows") or []:
-            sym = r["symbol"]
-            d = dates.get(sym)
-            t = timing.get(sym)
-            if d == day.isoformat():
-                lines.append(f"Prep ${sym} earnings ({words.get(t, 'today')})")
-            elif d == tomorrow.isoformat() and t == "bmo":
-                lines.append(f"Prep ${sym} earnings (tomorrow before the open)")
-    lines = lines[:PLAN_ITEMS_SHOWN]
+            e = r.get("earnings") or {}
+            if e.get("date") == day.isoformat():
+                lines.append(_fmt("earnings", sym=r["symbol"], when=_EARNINGS_WHEN.get(e.get("timing"), "today")))
+            elif e.get("date") == tomorrow and e.get("timing") == "bmo":
+                lines.append(_fmt("earnings_tomorrow", sym=r["symbol"]))
+        first = [s for s in (names.get("first") or []) if re.fullmatch(_TK, s)]
+        if first:
+            lines.append(_fmt("names", syms=", ".join(first)))
+    return lines[:cap]
+
+
+def _plan_seed(ctx: dict, market: dict | None, setups: dict | None, names: dict | None) -> list[dict]:
+    """S18's tomorrow's plan, made at the first open of the day: a "Today's plan" heading and checklist from what
+    this read already holds. Empty when nothing is held (the note is then exactly the member's template).
+    `note_daily` puts the checklist under the template's own "Today's plan" heading when it has one (M9)."""
+    lines = _plan_lines(ctx, market, setups, names)
     if not lines:
         return []
     items = [{"type": "taskItem", "attrs": {"checked": False},
               "content": [{"type": "paragraph", "content": [{"type": "text", "text": t}]}]} for t in lines]
     return [
-        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Today's plan"}]},
+        {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": PLAN_HEADING}]},
         {"type": "taskList", "content": items},
     ]
 
 
-RECAP_HEADING_PREFIXES = ("Today's recap — ", "Recap — ")
+def plan_seed_for(user_id: str, *, paid: bool, now: datetime | None = None) -> list[dict]:
+    """The same seed for a door that MAKES the day's note outside this read (the first run's Build, Today's "Start
+    a fresh one"): the market, setups and names sections, each best-effort, then `_plan_seed`."""
+    now_et = _now_et(now)
+    conn = get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        ctx = {"user_id": str(user_id), "paid": bool(paid), "now": now_et, "day": now_et.date().isoformat(),
+               "conn": conn}
+        got: dict[str, Any] = {}
+        for key, fn in (("market", market_section), ("setups", setups_section), ("names", names_section)):
+            try:
+                got[key] = fn(ctx)
+            except Exception:  # noqa: BLE001 -- a part that cannot be read is left out of the plan
+                got[key] = None
+        return _plan_seed(ctx, got["market"], got["setups"], got["names"])
+    finally:
+        conn.close()
+
+
+# ── today's note ───────────────────────────────────────────────────────────────────────────
+
+def _recap_headings(day: date) -> tuple[str, str]:
+    """The two headings `reviewDrafts.js recapHeading` writes for `day` ("Today's recap — Nov 5")."""
+    short = f"{day.strftime('%b')} {day.day}"
+    return (f"Today's recap — {short}", f"Recap — {short}")
+
+
+def _trashed_daily_id(conn: sqlite3.Connection, user_id: str, day: str) -> str | None:
+    row = conn.execute(
+        "SELECT id FROM j2_notes WHERE user_id = ? AND daily_date = ? AND deleted_at IS NOT NULL"
+        " ORDER BY deleted_at DESC LIMIT 1", (user_id, day)).fetchone()
+    return row[0] if row else None
+
+
+def _no_note(**state: Any) -> dict[str, Any]:
+    return {"id": None, "trashed": False, "missing": False, "created": False, "items": [], "itemCount": 0,
+            "openCount": 0, "recapWritten": False, **state}
 
 
 def today_note_section(ctx: dict, seed: Callable[[], list[dict]]) -> dict[str, Any]:
-    """Today's daily note, made the first time today through the daily note door, with the member's template."""
+    """Today's daily note: OPENED when it exists; MADE (through the daily note door, with the member's template and
+    the seed) only when none exists, nothing of today's sits in the Trash, and the caller allows it.
+
+    ⛔ A TRASHED day's note is never replaced by a page view (fix round 1, I3): the answer is `{trashed: true}` and
+    the card offers Restore and "Start a fresh one" (the POST door, on that press only).
+    ⛔ `make=False` (the first run is pending or open, I9): nothing is made; the answer is `{missing: true}`."""
     from api.services.journal_two import note_daily, note_tasks
+    from api.services.journal_two import notes as notes_service
     from api.services.journal_two.note_personal_api import _daily_template_id
-    template_id = _daily_template_id(ctx["user_id"])
-    out = note_daily.open_daily_note(ctx["user_id"], ctx["day"], template_id, seed_blocks=seed)
+    conn, uid, day = ctx["conn"], ctx["user_id"], ctx["day"]
+    if not notes_service.find_daily_note_id(uid, day, conn):
+        trashed = _trashed_daily_id(conn, uid, day)
+        if trashed:
+            return _no_note(id=trashed, trashed=True)
+        if not ctx.get("make", True):
+            return _no_note(missing=True)
+    template_id = _daily_template_id(uid)
+    out = note_daily.open_daily_note(uid, day, template_id, seed_blocks=seed)
     note = out.get("note") or {}
     body = note.get("bodyJson") if isinstance(note.get("bodyJson"), dict) else {}
     try:
@@ -400,16 +582,18 @@ def today_note_section(ctx: dict, seed: Callable[[], list[dict]]) -> dict[str, A
     if template_id and not out.get("templateMissing"):
         try:
             from api.services.journal_two import note_templates
-            tpl = note_templates.get_template(ctx["user_id"], template_id)
+            tpl = note_templates.get_template(uid, template_id)
             template_name = (tpl or {}).get("name") or None
         except Exception:  # noqa: BLE001
             template_name = None
-    headings = _heading_texts(body)
+    recap = _recap_headings(date.fromisoformat(day))
     return {
         "id": note.get("id"),
         "title": note.get("title") or "",
         "updatedAt": note.get("updatedAt"),
         "created": bool(out.get("created")),
+        "trashed": False,
+        "missing": False,
         "templateMissing": bool(out.get("templateMissing")),
         "templateName": template_name,
         "items": [{"index": t["index"], "text": " ".join(str(t["text"]).replace("\u0000", " ").split()),
@@ -417,12 +601,14 @@ def today_note_section(ctx: dict, seed: Callable[[], list[dict]]) -> dict[str, A
         "openCount": len(open_tasks),
         "itemCount": len(tasks),
         "snippet": None if tasks else (_plain_text(body) or None),
-        "recapWritten": any(h.startswith(RECAP_HEADING_PREFIXES) for h in headings),
+        # Today's own recap heading (M6), never an older day's "Recap — ..." pasted in.
+        "recapWritten": any(h in recap for h in _heading_texts(body)),
     }
 
 
 def open_from_yesterday_section(ctx: dict) -> dict[str, Any]:
-    """The open checklist items in the most recent earlier daily note, then tasks due on or before today."""
+    """The open checklist items the MEMBER wrote or kept in the most recent earlier daily note (never a line Today
+    wrote that nobody touched, I4), then tasks due on or before today."""
     from api.services.journal_two import note_tasks
     conn, uid, day = ctx["conn"], ctx["user_id"], ctx["day"]
     lo = (date.fromisoformat(day) - timedelta(days=YESTERDAY_LOOKBACK_DAYS)).isoformat()
@@ -440,12 +626,12 @@ def open_from_yesterday_section(ctx: dict) -> dict[str, Any]:
         except (ValueError, TypeError, RecursionError):
             body = {}
         for t in note_tasks.extract_tasks(body):
-            if t["checked"]:
-                continue
             seen.add((row["id"], t["index"]))
+            text = " ".join(str(t["text"]).replace("\u0000", " ").split())
+            if t["checked"] or is_seed_line(text):
+                continue
             items.append({"noteId": row["id"], "noteTitle": row["title"] or "", "index": t["index"],
-                          "text": " ".join(str(t["text"]).replace("\u0000", " ").split()), "due": t["due"],
-                          "from": "yesterday"})
+                          "text": text, "due": t["due"], "from": "yesterday"})
     due = note_tasks.list_tasks(uid, "open", now=ctx["now"], conn=conn)
     today_note_id = ctx.get("todayNoteId")
     for t in due.get("tasks") or []:
@@ -461,50 +647,57 @@ def open_from_yesterday_section(ctx: dict) -> dict[str, Any]:
             "more": max(0, len(items) - OPEN_ITEMS_SHOWN), "priorDaily": prior}
 
 
+#: How many earlier years "on this day" looks back, and the rows read per year (M2: bounded per year).
+ON_THIS_DAY_YEARS = 10
+ON_THIS_DAY_PER_YEAR = 20
+
+
 def on_this_day_section(ctx: dict) -> dict[str, Any]:
-    """Notes created on this ET calendar date in earlier years, newest year first. Never a sample note."""
+    """Notes created on this ET calendar date in earlier years, newest year first. Never a sample note.
+
+    ⛔ One BOUNDED range per earlier year (M2): `created_at` from the day before to two days after this date in
+    that year (string bounds, so a stamp in any ISO spelling falls inside), then each stamp is dated in New York.
+    This year's notes are never read, so a busy today cannot crowd out the years before it."""
     from api.services.journal_two import sample_marker
     from api.services.journal_two.trading_days import et_day_of
     conn, uid = ctx["conn"], ctx["user_id"]
     d = date.fromisoformat(ctx["day"])
     md = ctx["day"][5:]
-    # A stored stamp is UTC, so the ET date can be the UTC date or the day before it: read both, then date each
-    # note in New York.
-    nxt = (d + timedelta(days=1)).isoformat()[5:]
-    rows = conn.execute(
-        "SELECT id, title, ticker, created_at, body_json FROM j2_notes WHERE user_id = ?"
-        " AND deleted_at IS NULL AND archived_at IS NULL AND " + sample_marker.not_sample_sql() +
-        " AND substr(created_at, 6, 5) IN (?, ?) AND substr(created_at, 1, 4) < ?"
-        " ORDER BY created_at DESC LIMIT 50",
-        (uid, md, nxt, str(d.year + 1))).fetchall()
     out = []
-    for r in rows:
-        et = et_day_of(r["created_at"])
-        if not et or et[5:] != md or int(et[:4]) >= d.year:
-            continue
+    for y in range(d.year - 1, d.year - ON_THIS_DAY_YEARS - 1, -1):
         try:
-            body = json.loads(r["body_json"] or "{}")
-        except (ValueError, TypeError, RecursionError):
-            body = {}
-        out.append({"noteId": r["id"], "title": r["title"] or "", "ticker": r["ticker"], "day": et,
-                    "yearsAgo": d.year - int(et[:4]), "snippet": _plain_text(body) or None})
+            then = d.replace(year=y)
+        except ValueError:          # Feb 29 in a year without one
+            continue
+        lo = (then - timedelta(days=1)).isoformat()
+        hi = (then + timedelta(days=2)).isoformat()
+        rows = conn.execute(
+            "SELECT id, title, ticker, created_at, body_json FROM j2_notes WHERE user_id = ?"
+            " AND deleted_at IS NULL AND archived_at IS NULL AND " + sample_marker.not_sample_sql() +
+            " AND created_at >= ? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
+            (uid, lo, hi, ON_THIS_DAY_PER_YEAR)).fetchall()
+        for r in rows:
+            et = et_day_of(r["created_at"])
+            if not et or et[5:] != md or int(et[:4]) != y:
+                continue
+            try:
+                body = json.loads(r["body_json"] or "{}")
+            except (ValueError, TypeError, RecursionError):
+                body = {}
+            out.append({"noteId": r["id"], "title": r["title"] or "", "ticker": r["ticker"], "day": et,
+                        "yearsAgo": d.year - y, "snippet": _plain_text(body) or None})
+        if len(out) >= ON_THIS_DAY_SHOWN:
+            break
     return {"count": len(out), "items": out[:ON_THIS_DAY_SHOWN]}
 
 
 # ── the one read ───────────────────────────────────────────────────────────────────────────
 
-class SectionUnavailable(Exception):
-    """A section that is not this member's to see (or not held), with a reason code -- not an error."""
-
-    def __init__(self, reason: str):
-        super().__init__(reason)
-        self.reason = reason
-
-
-def get_today(user_id: str, *, paid: bool = True, now: datetime | None = None,
+def get_today(user_id: str, *, paid: bool = True, make: bool = True, now: datetime | None = None,
               conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     """The Today home's one answer. Every section is independent: a section that raises is `null`, with its reason
-    in `reasons` (`error`, or a `SectionUnavailable` code such as `paid_plan`)."""
+    in `reasons` (`error`, or a `SectionUnavailable` code such as `plan`). `make=False` never makes the day's note
+    (the first run is pending, I9)."""
     now_et = _now_et(now)
     session = session_of(now_et)
     owned = conn is None
@@ -514,7 +707,7 @@ def get_today(user_id: str, *, paid: bool = True, now: datetime | None = None,
     except Exception:  # noqa: BLE001
         pass
     ctx: dict[str, Any] = {"user_id": str(user_id), "paid": bool(paid), "now": now_et, "day": session["day"],
-                           "conn": conn}
+                           "conn": conn, "make": bool(make)}
     out: dict[str, Any] = {"day": session["day"], "session": session}
     reasons: dict[str, str] = {}
 
@@ -538,9 +731,11 @@ def get_today(user_id: str, *, paid: bool = True, now: datetime | None = None,
         market = run("market", lambda: market_section(ctx))
         setups = run("setups", lambda: setups_section(ctx))
         names = run("names", lambda: names_section(ctx))
+        if names is not None and names.get("earningsWithheld"):
+            reasons["namesEarnings"] = PLAN_REASON
         note = run("todayNote", lambda: today_note_section(
             ctx, lambda: _plan_seed(ctx, market, setups, names)))
-        ctx["todayNoteId"] = (note or {}).get("id")
+        ctx["todayNoteId"] = (note or {}).get("id") if not (note or {}).get("trashed") else None
         run("openFromYesterday", lambda: open_from_yesterday_section(ctx))
         run("onThisDay", lambda: on_this_day_section(ctx))
     finally:

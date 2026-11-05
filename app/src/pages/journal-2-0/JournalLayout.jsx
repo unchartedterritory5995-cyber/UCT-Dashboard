@@ -35,6 +35,8 @@ import {
 } from './lib/journalToolsDoor'
 import { VIEW_MODES } from './lib/savedViewModes'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
+import usePreferences from '../../hooks/usePreferences'
+import { LANDING_PREF, resolveLanding } from './lib/todayHome'
 import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
@@ -164,7 +166,11 @@ export default function JournalLayout() {
   const toolsDoor = useSyncExternalStore(subscribeJournalToolsDoor, journalToolsDoorMounted, () => false)
   const toolsToggleRef = useRef(null)
   // ...and from the FIRST paint on the list's own address, before the list has mounted (no fold after a paint).
-  const onListAddress = isNotebookListAddress(pathname, location.search, NOTEBOOK_PATH, VIEW_MODE_IDS)
+  // Tier 3b fix round 1 (M10): a member whose chosen landing is All notes opens the LIST at the bare address, so it
+  // folds from the first paint there too (read from the shared preferences cache; nothing more is fetched).
+  const { prefs: jlPrefs } = usePreferences()
+  const landingAll = resolveLanding(jlPrefs?.[LANDING_PREF], { on: true }) === 'all'
+  const onListAddress = isNotebookListAddress(pathname, location.search, NOTEBOOK_PATH, VIEW_MODE_IDS, { landingAll })
   // Tier 2 re-review R1-1: the first-paint fold is a PROMISE that the list's ⋯ will offer "Journal tools". When the
   // page under it has rendered and offers no door (an error state, a missing list, anything without the list
   // toolbar), the promise is released for this address, so the tools are never stranded (ListDoorProbe, below).
