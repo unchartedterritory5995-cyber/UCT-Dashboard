@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
-import { buildContext, getCapability, refreshContext, shapeError } from './capabilities'
+import { buildContext, getCapability, manifestFor, refreshContext, shapeError } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { makeBoard } from './__fixtures__/board'
@@ -15,6 +15,8 @@ import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { widgetControls } from '../widgets/widgetControls'
 import { allControls } from './widgetNames'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
+import { fastParse } from './fastPath'
+import { FLOW_FIELDS, RATING_FIELDS } from './capabilities/scanHidden'
 import { routingV2Active } from './nlm1/flag'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -301,6 +303,41 @@ describe('through the REAL panel with routing v2 on: a control request carries i
     expect(await say('only show calls on the options flow')).toMatch(/can't screen on options-flow/)
     expect(p.st.calls.some(c => c[1].startsWith('/api/screener/scan'))).toBe(false)
   }, 40000)
+  it('⛔ no hidden field reaches the model: the Calls request carries only the widget control, never a hidden key', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'of', key: 'callPut', value: 'Calls' })]))
+    await say('only show calls on the options flow')
+    const sent = JSON.stringify(firstTurn())
+    for (const k of [...FLOW_FIELDS, ...RATING_FIELDS].filter(x => x.includes('_'))) expect(sent, k).not.toContain(k)   // one-word keys are ordinary words
+    const spec = firstTurn().capabilities.find(c => c.name === 'widget.setOption')
+    expect(Object.keys(spec.args.properties).sort()).toEqual(['key', 'value', 'widget'])
+  }, 40000)
+  it('⛔ no control, no reach: off the Charts board the capability is not offered, and the exception cannot fire with no board', () => {
+    const args = { widget: 'of', key: 'callPut', value: 'Calls' }
+    for (const surface of ['breadth', 'screener', 'calendar', 'journal']) {
+      expect(manifestFor({ surface }).map(c => c.name), surface).not.toContain('widget.setOption')
+      expect(shapeError('widget.setOption', args, { surface }), surface).toMatch(/can't “widget.setOption” here/)
+    }
+    const hit = fastParse('only show calls on the options flow', { host: {} })
+    expect(hit?.ops?.[0]?.action).toBe('screener.run')                                  // the F-16 claim: buildSpec refuses it, in its words
+    expect(hit?.ops?.[0]?.args.filters[0].field).toBe('opt_net_premium_1d')
+  })
+  it('⛔ no control, no reach: a flow widget floating or popped out is off the grid, so the Agent is refused and writes nothing', async () => {
+    const { host, state } = makeBoard([w('ch', 'chart', 0, 0, {}), w('of', 'optionsflow', 12, 0, {})], {})
+    const real = host.widgets.snapshot
+    host.widgets.snapshot = () => { const x = real(); return { ...x, visible: x.raw.filter(y => y.id !== 'of') } }
+    const before = JSON.stringify(state.widgets)
+    expect((await plan(host, [op({ widget: 'of', key: 'callPut', value: 'Calls' })])).p.refusals[0]?.reason).toMatch(/floating or popped out/)
+    expect(JSON.stringify(state.widgets)).toBe(before)
+  })
+  it('⛔ a value the control does not have is refused: the Agent cannot set more than the chips', async () => {
+    const { host, state } = makeBoard([w('of', 'optionsflow', 0, 0, {})], {})
+    const before = JSON.stringify(state.widgets)
+    expect((await plan(host, [op({ widget: 'of', key: 'callPut', value: 'opt_net_premium_1d' })])).p.refusals[0]?.reason).toMatch(/“callPut” can be all, Calls, Puts/)
+    expect((await plan(host, [op({ widget: 'of', key: 'filters', value: 'x' })])).p.refusals[0]?.reason).toMatch(/has no option “filters”/)
+    expect(JSON.stringify(state.widgets)).toBe(before)
+  })
   it('a turn that does not touch widgets carries no list, on the same board', async () => {
     const [[chart], syms] = ONE('NVDA')
     const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)

@@ -327,7 +327,7 @@ function capabilityPhrases(text, host, typed = text) {
   let verb = null
   for (const c of clauses) {
     // "add VWAP and RSI": a bare follow-on clause takes the previous clause's verb
-    const op = matchClause(c, host) || (verb && !VERB_LEAD.test(canon(c)) ? matchClause(`${verb} ${c}`, host) : null)
+    const op = matchClause(c, host, typed) || (verb && !VERB_LEAD.test(canon(c)) ? matchClause(`${verb} ${c}`, host, typed) : null)
     if (!op) return null
     const v = VERB_LEAD.exec(canon(c))
     if (v) verb = v[1]
