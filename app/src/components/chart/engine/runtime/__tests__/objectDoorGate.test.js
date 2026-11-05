@@ -68,6 +68,11 @@ const SHAPES = {
   // The same join as the argument of a C47 `switch` over a parameter: the door keeps master's refusal
   // (`runtime:block-value`), the pane picks the arm the joined text selects.
   sw_join: ['', false, 'ma(src, m) =>\n    switch m\n        "WMA" => ta.wma(src, 3)\n        "HMA" => ta.hma(src, 3)\n        => ta.sma(src, 3)\n', 'v = ma(close + k * 0, "W" + "MA")\n'],
+  // ⭐ W4-T2 `simple` folding (a widened fold, so the door keeps master's refusal): a
+  // reassignment under an invariant test, a never-reassigned `var`, arithmetic over an input.
+  t2_if: ['', false, 'len = 10\nif timeframe.isintraday\n    len := 5\n', 'v = ta.sma(close + k * 0, len)\n'],
+  t2_var: ['', false, 'var L = 7\n', 'v = ta.sma(close + k * 0, L)\n'],
+  t2_arith: ['', false, 'n = input.int(4, "N")\n', 'v = ta.sma(close + k * 0, n + 2)\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
