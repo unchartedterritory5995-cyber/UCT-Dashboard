@@ -72,7 +72,10 @@ describe('screenDeicticOps (model plans)', () => {
   const op = (target) => ({ action: 'chart.setTimeframe', target, args: { timeframe: 'W' } })
   it('a plan on another chart → asked; on the selected chart → passes; no deictic words → passes', () => {
     const { host } = makeHost({ selected: 'L' })
-    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put this stock on weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'make it weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    // a true "this" with a click re-aims; the same plan with "the stock" is still asked about (AUDIT N1)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put the stock on weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put this stock on weekly', getTargetKind, getCapability }).aim[0].target).toBe('L')
     expect(screenDeicticOps({ host, ops: [op('L')], text: 'put this stock on weekly', getTargetKind, getCapability })).toBeNull()
     expect(screenDeicticOps({ host, ops: [op('R')], text: 'put the right one on weekly', getTargetKind, getCapability })).toBeNull()
   })

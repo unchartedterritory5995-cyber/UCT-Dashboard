@@ -25,7 +25,8 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord } from './deixis'
+import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
@@ -581,6 +582,13 @@ export const SAVE_WAIT_MS = 90000
 const withinSaveWait = (p) => new Promise((resolve) => {
   const t = setTimeout(() => resolve({ ok: false, reason: 'slow', late: p }), SAVE_WAIT_MS)
   p.then((v) => { clearTimeout(t); resolve(v) })
+})
+
+// one ticker search for a word in a chart's place: bounded, because it holds the turn. No answer in time is an unread word (the gates ask)
+export const NAME_SEARCH_MS = 1500
+const nameSearch = (word) => new Promise((resolve) => {
+  const t = setTimeout(resolve, NAME_SEARCH_MS)
+  groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
 
 // the server's stage timings (ms only) for the turn trace
@@ -2190,7 +2198,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
       const subj = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
-      const refText = subj.text
+      // "make this one weekly" with a chart clicked is "this chart"; no model call is needed to say so
+      const refText = selectedChart(host) ? subj.text.replace(/\bthis one\b/gi, 'this chart') : subj.text
       const memNow = withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
       const subjHost = subj.changed ? { ...host, charts: { ...host.charts, selected: () => null } } : host
@@ -2778,6 +2787,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
+      // "the nvidia chart": the ticker search says which chart a company's name means, before the gates read the sentence
+      {
+        const nameWord = chartNameWord(text, host?.charts?.list?.() || [])
+        if (nameWord && !lexiconFor(host).words.has(nameWord.toLowerCase())) await nameSearch(nameWord)      // "price" is a word, not a name
+      }
       // Context & Awareness 1B: a deictic request ("this chart", "this stock", "make it weekly") runs
       // only on the chart the member selected — never on a chart the model picked by itself. Nothing
       // executes before the member answers; their pick resumes THIS plan (no second model call).
@@ -2805,6 +2819,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
         : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+      if (deictic?.aim) screened.ops = deictic.aim
+      if (deictic?.refuse) {
+        const said = `I didn't change anything: ${deictic.refuse}`
+        push({ role: 'refusal', text: said })
+        record({ member: null, outcome: said, outcomeData: { kind: 'refused', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+        return
+      }
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
