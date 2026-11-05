@@ -69,3 +69,13 @@ Mutation log: lock heavy-mut, label w5t17-mut.
 - Step 6/7 (service run, transport) belong to T11/T13; callers of `consumer_refusal` in T13/T14
   files still pass no `definition` (they will use `server_lane_composition`).
 - `server_lanes` for `ast` rows deliberately absent (per-plot gates have no row-level answer).
+
+## r1 (review note N1)
+`_awaits_retranslation` had dropped `compute.kind == "ast"`, so a non-ast, non-runtime document could
+disagree with the browser's `isScriptDocument`. The kind check is restored; the explicit runtime
+branch stays as a documented guard. **M8 (runtime branch removed) is now an EQUIVALENT survivor**:
+a runtime document's `compute.kind` is "runtime", so the restored `kind == "ast"` check already
+returns False; with M8 applied the composition rail is 39 passed. Re-run after the change:
+`tests/test_pine_runtime_composition.py` + `tests/test_user_definitions.py` 90 passed. The other 14
+mutations are unaffected. Final-tip re-run last on the final tree: see the numbers in the r1 report
+(logs `runs/w5t17r1/`).

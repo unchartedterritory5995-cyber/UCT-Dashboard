@@ -2626,7 +2626,7 @@ def _awaits_retranslation(row: Mapping, current: int) -> bool:
     if runtime_definitions.is_runtime(d):
         return False
     compute, meta = d.get("compute"), d.get("meta")
-    if not (isinstance(compute, Mapping)
+    if not (isinstance(compute, Mapping) and compute.get("kind") == "ast"
             and isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == "pine"):
         return False
     stamp = engine_stamp_of(d)
