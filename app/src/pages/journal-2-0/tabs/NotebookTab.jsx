@@ -52,6 +52,7 @@ import useGridRoving from '../lib/useGridRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { openJournalTools, registerJournalToolsDoor } from '../lib/journalToolsDoor'
 import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
@@ -863,6 +864,10 @@ export default function NotebookTab() {
   const viewParam = searchParams.get('view')
   const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
+  // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
+  const listToolbarShown = !noteId && !isHome
+  useEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'
@@ -2198,6 +2203,9 @@ export default function NotebookTab() {
     { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
     { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
+    // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
+    { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
@@ -2808,7 +2816,8 @@ export default function NotebookTab() {
             </div>
             <div className={styles.menuSlot}>
               <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
-                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button">
+                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button"
+                data-journal-tools-door="">
                 <UIcon name="more" size={16} gold={false} />
               </button>
               {moreMenu.open && (

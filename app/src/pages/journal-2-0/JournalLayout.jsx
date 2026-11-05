@@ -22,7 +22,7 @@
  * once").
  */
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
@@ -30,6 +30,9 @@ import {
   feedbackMenuMounted, openFeedback, registerHelpHost, registerShortcutsHost,
 } from '../../components/feedbackDoor'
 import { SUPPORT_PATH } from '../../components/helpAnchors'
+import {
+  OPEN_JOURNAL_TOOLS_EVENT, journalToolsDoorMounted, subscribeJournalToolsDoor,
+} from './lib/journalToolsDoor'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
 import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
@@ -143,6 +146,19 @@ export default function JournalLayout() {
 
   const openSettings = useCallback(() => setShowSettings(true), [])
 
+  // Tier 2 fix round 1 (review Important 1): while the Notebook list offers "Journal tools" in its own ⋯ menu, the
+  // folded phone header takes no row (lib/journalToolsDoor.js); that row opens the tools here, focus on the toggle.
+  const toolsDoor = useSyncExternalStore(subscribeJournalToolsDoor, journalToolsDoorMounted, () => false)
+  const toolsToggleRef = useRef(null)
+  useEffect(() => {
+    const onOpen = () => {
+      setToolsOpen(true)
+      requestAnimationFrame(() => toolsToggleRef.current?.focus())
+    }
+    window.addEventListener(OPEN_JOURNAL_TOOLS_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_JOURNAL_TOOLS_EVENT, onOpen)
+  }, [])
+
   // S14: the header's Help button is THE Help button on Journal pages, and this page's shortcut sheet is what the
   // menu's "Keyboard shortcuts" row opens.
   const helpBtnRef = useRef(null)
@@ -234,6 +250,7 @@ export default function JournalLayout() {
       className={styles.root}
       data-compact-header={compactHeader ? 'true' : undefined}
       data-tools-open={toolsOpen ? 'true' : undefined}
+      data-tools-door={compactHeader && toolsDoor ? 'true' : undefined}
     >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
@@ -294,18 +311,19 @@ export default function JournalLayout() {
           {compactHeader && (
             <button
               type="button"
+              ref={toolsToggleRef}
               className={styles.toolsToggle}
-              onClick={() => setToolsOpen((x) => !x)}
+              onClick={() => {
+                // Closed with the door on screen, the folded header takes no row: focus goes back to the door's ⋯.
+                if (toolsOpen && toolsDoor) requestAnimationFrame(() => document.querySelector('[data-journal-tools-door]')?.focus())
+                setToolsOpen((x) => !x)
+              }}
               aria-expanded={toolsOpen}
               aria-controls="journal-header-tools"
               data-journal-tools-toggle=""
             >
-              {/* Tier 2 (production check of Tier 1b, 390 px): folded, the toggle is a tools icon at the end of the section
-                  strip (no row of its own); its words stay its name. Open, it reads "Journal tools" as before. */}
-              <UIcon name="wrench" size={16} gold={false} aria-hidden="true" className={styles.toolsIcon} />
-              <span className={styles.toolsLabel}>Journal tools</span>
-              <UIcon name={toolsOpen ? 'chevronUp' : 'chevronDown'} size={14} gold={false} aria-hidden="true"
-                className={styles.toolsChevron} />
+              Journal tools
+              <UIcon name={toolsOpen ? 'chevronUp' : 'chevronDown'} size={14} gold={false} aria-hidden="true" />
             </button>
           )}
           {/* `display: contents` everywhere except a folded phone header, so the
