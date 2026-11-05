@@ -529,7 +529,7 @@ const UNSAVED_NOTE = {
   conflict: 'Shown on this screen but NOT saved: your workspace was changed in another window or device. Reload to see the current workspace (reloading discards this change).',
   'not-saved': 'Shown on this screen, but the save was not confirmed — it is not saved yet.',
   'not-synced': 'Drawn on this device, but syncing it to your account was not confirmed yet — keep this tab open a few seconds; closing it now may lose the change.',
-  slow: 'On your screen. The save is taking longer than usual; this updates when it answers. Until then “undo” can’t take this change back.',
+  slow: 'On your screen. The save is taking longer than usual; this updates when it answers. Until then, “undo” would take back your change before this one, not this one.',
 }
 // Drawings reach the account through the tracings sync, not the board save: wait for the server's
 // copy of each touched symbol to match (host.drawings.confirm). Same rule as a board change: until
@@ -656,18 +656,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // ⛔ A late save's Undo entry waits for the running request to end: that request tells its own changes from the entries that
   // appear while it runs (groupFresh, a step's "undo that"), so an entry landing mid-request would be taken for one of its own
   const lateUndoRef = useRef([])
+  // ⛔ The ONE way the lock opens (a click's request here, a typed one in send): whatever a request held back lands as it ends
+  const releaseLock = useCallback(() => {
+    lockRef.current = false
+    for (const e of lateUndoRef.current.splice(0)) undoRef.current = atCommitOrder(undoRef.current, e)
+    setBusy(false)
+  }, [])
   const exclusive = useCallback((fn) => async (...args) => {
     if (lockRef.current) return undefined
     lockRef.current = true
     const traced = turnStart('click')
     setBusy(true)
-    try { return await fn(...args) } finally {
-      lockRef.current = false
-      for (const e of lateUndoRef.current.splice(0)) undoRef.current = atCommitOrder(undoRef.current, e)
-      setBusy(false)
-      if (traced) turnEnd()
-    }
-  }, [])
+    try { return await fn(...args) } finally { releaseLock(); if (traced) turnEnd() }
+  }, [releaseLock])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
   noteConversation(conversationRef.current)   // W1-C C-01: the chat restored from localStorage counts from the first render
@@ -2953,12 +2954,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       for (const t of notDoneRef.current || []) push({ role: 'refusal', text: t })
       if (notDoneRef.current?.length) record({ member: null, outcome: notDoneRef.current.join(' '), outcomeData: { kind: 'not-done' }, telemetry: { path: 'model', voice } })
       notDoneRef.current = null
-      lockRef.current = false
-      setBusy(false)
+      releaseLock()
       setActivity(null)
       turnEnd()
     }
-  }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
+  }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine, releaseLock])
 
   // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
   // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is

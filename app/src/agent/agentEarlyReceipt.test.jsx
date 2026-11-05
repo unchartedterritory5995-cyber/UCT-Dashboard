@@ -141,9 +141,55 @@ describe('the receipt follows the read-back, not the save', () => {
       expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
       expect(rows().filter(r => r.kind === 'save-late')[0]).toMatchObject({ ok: false, reason: 'conflict' })
     }, 30000)
-    it('the slow note says Undo is not there yet', async () => {
+    it('the slow note says what "undo" would do meanwhile', async () => {
       await pastDeadline()
-      expect(lastReceipt().textContent).toMatch(/can’t take this change back/)
+      expect(lastReceipt().textContent).toMatch(/“undo” would take back your change before this one, not this one/)
+    }, 30000)
+    const tf = (b) => b.state.widgets[0].opts.tf || 'D'
+    const undoes = async (say, b, ...want) => { for (const w of want) { await say('undo'); expect(tf(b)).toBe(w) } }
+    it('AUDIT H1: a late save answering during a typed request keeps its Undo: two undos take back both changes', async () => {
+      const { answer, held, say, board } = await pastDeadline()
+      send('make this monthly')
+      await waitFor(() => expect(held.answers.length).toBeGreaterThan(1), { timeout: 4000 })
+      answer({ ok: true })                                                 // the weekly save answers inside the typed turn
+      await waitFor(() => expect(receipts()[0].getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
+      p.st.persist = async () => ({ ok: true })
+      answer({ ok: true })
+      await p.idle()
+      await waitFor(() => expect(receipts()[0].getAttribute('data-undoable')).toBe('true'), { timeout: 4000 })
+      await undoes(say, board, 'W', 'D')
+    }, 30000)
+    it('AUDIT H1: two late saves answering during one typed request both keep their Undo, in order', async () => {
+      const { answer, held, say, board } = await pastDeadline()
+      send('make this monthly')
+      await waitFor(() => expect(held.answers.length).toBe(2), { timeout: 4000 })
+      await vi.advanceTimersByTimeAsync(SAVE_WAIT_MS + 50)
+      await p.idle()
+      send('make this hourly')
+      await waitFor(() => expect(held.answers.length).toBe(3), { timeout: 4000 })
+      answer({ ok: true }); answer({ ok: true })
+      await waitFor(() => expect(receipts().slice(0, 2).map(r => r.getAttribute('data-saving'))).toEqual([null, null]), { timeout: 4000 })
+      p.st.persist = async () => ({ ok: true })
+      answer({ ok: true })
+      await p.idle()
+      await undoes(say, board, 'M', 'W', 'D')
+    }, 30000)
+    it('AUDIT H3: a typed request whose model call throws still lets the late entry land', async () => {
+      const { answer, say, board } = await pastDeadline()
+      const inner = globalThis.fetch
+      globalThis.fetch = vi.fn(async (url, init) => {
+        if (url !== '/api/agent/turn') return inner(url, init)
+        answer({ ok: true })                                               // the late answer lands mid-turn
+        for (let i = 0; i < 50; i++) await Promise.resolve()
+        throw new Error('the model call failed')
+      })
+      send('what do you make of the tape today')
+      await waitFor(() => expect(receipts()[0].getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
+      await p.idle()
+      globalThis.fetch = inner
+      p.st.persist = async () => ({ ok: true })
+      await waitFor(() => expect(receipts()[0].getAttribute('data-undoable')).toBe('true'), { timeout: 4000 })
+      await undoes(say, board, 'D')
     }, 30000)
     it('AUDIT L1: a late save keeps its place in Undo: the newer change comes back first, then this one', async () => {
       const { answer, say, board } = await pastDeadline()
