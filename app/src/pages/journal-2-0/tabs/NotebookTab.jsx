@@ -280,6 +280,13 @@ const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'renameTag', 'trash', 'res
 // (the member's own, page-bounded, selection).
 const RENAME_TAG_CHUNK_SIZE = 500
 
+/** The phone fold rule (one authority for the seed and the effect): at <=640 px, on a list or Home (not a note, not
+ *  the `#search` door, which opens the panel on purpose), the folders panel is folded. Exported for its rail. */
+export function phoneArrivalFolds(noteId, hash) {
+  if (typeof window === 'undefined' || window.innerWidth > 640) return false
+  return !noteId && hash !== NOTEBOOK_SEARCH_HASH
+}
+
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -581,6 +588,11 @@ export default function NotebookTab() {
 
   // Folders panel: open/closed + width, persisted locally so it survives reloads.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Tier 2 (production check of Tier 1b, phone CLS 0.30): on a phone the panel is a drawer that folds on arrival
+    // (the effect below). Seeded OPEN from the stored choice, it painted the whole folder tree above the notes for
+    // one frame and the fold then moved the notes pane up by the tree's height -- one layout shift of 0.3035, the
+    // whole phone CLS. It now STARTS folded wherever that effect would fold it, so no frame ever paints it open.
+    if (phoneArrivalFolds(noteId, location.hash)) return false
     try { return localStorage.getItem('uct.j2.nb.sidebarOpen') !== '0' } catch { return true }
   })
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -760,10 +772,7 @@ export default function NotebookTab() {
   // the labelled "Folders" button (`.sidebarToggle`, un-hidden at phone) reopens it. Never on the
   // `#search` door, which opens the panel on purpose for its search box.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.innerWidth > 640) return
-    if (noteId) return
-    if (location.hash === NOTEBOOK_SEARCH_HASH) return
+    if (!phoneArrivalFolds(noteId, location.hash)) return
     setSidebarOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, folderId, tag, noteId])
@@ -2739,8 +2748,10 @@ export default function NotebookTab() {
               // "combo box, Recently updated" with nothing saying what it orders.
               aria-label="Sort notes"
             >
-              <option value="updated">Recently updated</option>
-              <option value="created">Recently created</option>
+              {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
+                  of its own. Compact words; the control's NAME ("Sort notes") says what they order. */}
+              <option value="updated">Updated</option>
+              <option value="created">Created</option>
               <option value="title">Title</option>
             </select>
           )}
