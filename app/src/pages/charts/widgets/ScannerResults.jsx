@@ -323,6 +323,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         // flagged in BOTH. WatchlistWidget and ThemesWidget always passed both. 2026-08-29.
         activeRef={activeWatchlistRef}
         widgetKey={widgetId}
+        listView={{ type: 'scanner', color, key: scanKey }}
         colStorageKey={colStorageKey}
         scanEmptyText={scanEmptyText}
         defaultColCfg={defaultColCfg}

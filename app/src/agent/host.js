@@ -16,6 +16,8 @@ import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/char
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 import * as drawingsStore from '../components/chart/drawingsStore'
+import { readFlagged, writeFlagged } from '../hooks/flaggedStore'
+import { mountedListViews } from '../pages/watchlist/watchlistViews'
 // ⭐ W1-B B-03 (announced to Indicators): the indicator-alert product's OWN writers, called — never modified
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
@@ -308,6 +310,63 @@ export function buildLayoutSource(getLayouts) {
 }
 
 /**
+ * The Flagged set — the SAME store every star, Shift+F and useFlagged reads (hooks/flaggedStore.js: this browser's copy is
+ * the truth, and every mounted star follows its event), then the same whole-set route useFlagged's sync posts. Awaited
+ * here, where the star's sync is fire-and-forget: a save the server refuses is taken back and the Agent says so.
+ */
+export function buildFlaggedSource({ request = (u, o) => fetch(u, { credentials: 'include', ...o }) } = {}) {
+  return {
+    read: () => [...readFlagged()],
+    async write(symbols) {
+      const before = readFlagged()
+      writeFlagged(symbols)
+      try {
+        const r = await request('/api/watchlists/flagged/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols }) })
+        if (!r.ok) throw new Error(`saving the flags failed (${r.status})`)
+      } catch (e) { writeFlagged(before); throw e }
+    },
+  }
+}
+
+/**
+ * The Watchlist and Scanner widgets ON THIS BOARD, as drawn (pages/watchlist/watchlistViews.js): each mounted widget
+ * publishes what it shows and its own writers. Keeps nothing; a widget that is not on the visible board is not a target.
+ */
+export function buildListViewSource({ getWidgets }) {
+  function views() {
+    const widgets = getWidgets() || []
+    const seen = new Map()
+    const out = []
+    for (const v of mountedListViews()) {
+      const live = v.live()
+      if (!live) continue
+      const same = widgets.filter(w => w.type === v.type && (v.type === 'watchlist' ? w.opts?.watchKey === v.key : w.opts?.scanKey === v.key))
+      if (!same.length) continue
+      const w = same.find(x => x.color === v.color) || same[0]
+      const base = `${v.type}:${v.color}:${v.key}`
+      const n = (seen.get(base) || 0) + 1
+      seen.set(base, n)
+      out.push({ v, live, w, ref: n > 1 ? `${base}#${n}` : base, siblings: widgets.filter(x => x.type === v.type) })
+    }
+    return out
+  }
+  return {
+    snapshot: () => views().map(({ v, live, w, ref, siblings }) => {
+      const name = live.name || w.opts?.watchName || w.opts?.scanName || 'this list'
+      return {
+        ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
+        label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
+        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+      }
+    }),
+    /** Is a widget showing this saved list sorted by a column? (No rows are read: this runs per list, per turn.) */
+    columnSorted: (listId) => views().some(({ v, live }) => v.type === 'watchlist' && v.key === `user:${listId}` && !!live.sort),
+    saveCols(ref, cfg) { views().find(x => x.ref === ref)?.live.saveCols(cfg) },
+    select(ref, sym) { views().find(x => x.ref === ref)?.live.select(sym) },
+  }
+}
+
+/**
  * The member's OWN saved watchlists — the DATA, not the Watchlist widget. Read from the
  * same `/api/watchlists` the Watchlists page reads; written ONLY through the same REST
  * routes the page and the ticker menu call (bulk add, delete-by-item, add, reorder,
@@ -579,7 +638,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     return a ? `${a.scope}:${a.id}` : 'unsaved'
   } : null
   return {
-    ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
+    ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
     indicatorAlerts: buildIndicatorAlertSource(),

@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { readSuccessBody } from '../lib/responseBody'
+import { FLAGGED_STORAGE_KEY as STORAGE_KEY, FLAGGED_SYNC_EVENT as SYNC_EVENT, readFlagged as read, writeFlagged as write } from './flaggedStore'
 
-const STORAGE_KEY = 'uct_flagged'
-const SYNC_EVENT  = 'uct:flagged-changed'
 const DEBOUNCE_MS = 300
 
 // Module-level dedupe — every useFlagged instance shares these. Without them
@@ -13,16 +12,6 @@ const DEBOUNCE_MS = 300
 // for unrelated requests on the page.
 let _flaggedGetInflight = null   // shared Promise for /api/watchlists/flagged
 let _initialSyncSent = false     // initial syncToServer fires at most once per page
-
-function read() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') }
-  catch { return [] }
-}
-
-function write(arr) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr))
-  window.dispatchEvent(new Event(SYNC_EVENT))
-}
 
 export function useFlagged() {
   const [flagged, setFlagged] = useState(read)
