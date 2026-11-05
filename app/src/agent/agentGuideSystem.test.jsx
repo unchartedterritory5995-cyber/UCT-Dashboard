@@ -230,6 +230,21 @@ describe('the overlay', () => {
     go([{ target: ['tool', 'plot'], text: 'Click the tool.', altText: 'Too narrow.' }])
     await waitFor(() => expect(text()).toBe('Too narrow.'))
   })
+  it('Do it for me while the Agent is busy says so on the card, and a later press goes through', async () => {
+    let busy = true
+    const did = vi.fn(() => { if (busy) return false; return true })
+    dom('<button data-guide="a"></button>')
+    onGuideDoIt(did)
+    go([{ target: 'a', text: 'A' }])
+    await waitFor(() => expect(text()).toBe('A'))
+    fireEvent.click(screen.getByRole('button', { name: 'Do it for me' }))
+    expect(did).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(text()).toBe('I’m still working on your last request. Press Do it for me again when I’ve finished.'))
+    busy = false
+    fireEvent.click(screen.getByRole('button', { name: 'Do it for me' }))
+    expect(did).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(text()).toBe('A'))
+  })
   it('Do it for me asks the panel, and the card stays out of the way of its own listeners', async () => {
     dom('<button data-guide="a"></button>')
     const did = vi.fn()

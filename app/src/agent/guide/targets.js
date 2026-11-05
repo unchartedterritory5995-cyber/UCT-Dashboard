@@ -134,6 +134,8 @@ export function unclip(target, ctx) {
     const by = r.right > box.right ? r.right - box.right + 6 : r.left < box.left ? r.left - box.left - 6 : 0
     if (by) { slid.push({ node: p, left: p.scrollLeft }); p.scrollLeft += by }
   }
+  // below the fold of a long window (the formula box in the builder): bring it up
+  if (!findTarget(target, ctx)) reveal(el)
   return !!findTarget(target, ctx)
 }
 /** Put back every row `unclip` slid. */
