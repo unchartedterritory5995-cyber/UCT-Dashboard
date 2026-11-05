@@ -77,6 +77,11 @@ deployments API for this; read commit statuses and check-run annotations.
 - Discord's composer ignores text inserted by script; type it as keystrokes, keep it under 2,000 characters, send from
   a fresh tab.
 - The mark's own throb animation owns its transform: centre it with a wrapper, never on the mark.
+- A pod-side `study_store.review(..., "fix")` parks the item in DRAFT for a second look, by design: a script that
+  rewrites text on approved items must re-approve them in the same run, or they fall off the member path unnoticed
+  (the 2026-10-25 definition refresh did this to 114 lessons; found and repaired 2026-11-05).
+- Predict an import's `kept` count from EVERY apply script's fix calls (each fix bumps the pod version), not from one
+  script, and read the pod back (a read-only readback script, the owner's `!` command) before saying what changed.
 
 ## The owner's own words (calibrate on these)
 - 2026-11-04, on the live site before round 16: "it looks nothing like the work we did in the local host the charts
