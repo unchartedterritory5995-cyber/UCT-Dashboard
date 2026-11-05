@@ -279,3 +279,10 @@ summary-uncounted, reported-not-printed, describe-ignored (each by the named tes
 `test_hp6_the_committed_digests_were_recorded_under_todays_engine` go red. Canonical V8 for `--write`
 is the recording V8 (13.6, Node 24.13.x): `--write` on another V8 would re-record the two trig digests.
 Review N2 (not done): report-only is not bounded to column p3.
+
+### r2 final-tip
+`bash $S/final-tip.sh pine-dsk-w5t4 dsk-w5t4r2-final tests/test_pine_runtime_engine_identity.py tests/test_script_engine_version_gate.py tests/test_pine_runtime_codec.py`,
+lock `dsk/heavy-final3.lock`, code tip `da8da64717`, run LAST on the final tree, after the Node 20 check in the same job
+(`runs/w5t4r2/n20.log`, `final.log`). Gate pytest 46 passed; hygiene clean (34729 tracked files); rails pytest 222 passed;
+full chart+hooks vitest: Test Files 1 failed | 1337 passed | 27 skipped (1365); the only failure is
+`src/hooks/pollingSites.rail.test.js`, the desktop baseline. `hostParity.rail.test.js` and `hostParity.v8.rail.test.js` passed inside the run.
