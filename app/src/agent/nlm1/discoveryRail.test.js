@@ -7,7 +7,7 @@ import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { routedNames } from '../qa/capabilityRegression/testing/route'
 import { GROUPS, V1_ONLY_WORDS, groupOfAction, selectGroups } from '../routing'
 import { MANIFEST_CONTRACT, manifestFor } from '../capabilities'
-import { buildIndex, capabilityScores, capabilityTokens, resolveTokens, stem } from './capabilityIndex'
+import { buildIndex, capabilityScores, capabilityTokens, compoundReading, resolveTokens, stem } from './capabilityIndex'
 import { routeManifestV2, selectGroupsV2 } from './routingV2'
 
 await registerCatalog()
@@ -87,6 +87,38 @@ describe('the cases this work exists for reach the first request', () => {
     ['reset the view', 'chartSetup.resetView'], ['hide every indicator', 'chartSetup.setIndicatorsHidden'],
     ['hide all the moving averages', 'chartSetup.setMovingAverages'], ['show all indicators again', 'chartSetup.setIndicatorsHidden'],
   ])('%s → %s', (text, name) => expect(sent(text, name)).toBe(true))
+})
+
+describe('capability evidence adds, it never displaces', () => {
+  const sent = (text, name, opts = {}) => routedNames(text, { v2: true, ...opts }).names.includes(name)
+  // each lost its capability when capability evidence was packed ahead of the group scores, or when a better stem read a message
+  // as decisive and dropped the groups v1's soft vocabulary names
+  it.each([
+    ['warn me when AAPL trades above 240', 'alert.create'],
+    ['anything new on tesla', 'news.latest'],
+    ['small caps that gapped up today', 'screener.run'],
+    ['close the AMD chart', 'widget.remove'],
+  ])('%s keeps %s', (text, name) => expect(sent(text, name)).toBe(true))
+  it('a capability that shares one word of a long request names nothing', () => {
+    const manifest = manifestOn('charts')
+    expect(selectGroupsV2('warn me when AAPL trades above 240', { manifest }).capNamed).not.toContain('layouts')
+    expect(selectGroupsV2('hide all indicators on this chart', { manifest }).capLead).toContain('chartSetup')
+  })
+})
+
+describe('scanning intent reads from screener.run\'s own description', () => {
+  it('names the screener with every phrase layer off', () => {
+    const manifest = manifestOn('charts')
+    expect(withoutPhrases(() => selectGroupsV2('what\'s breaking out today', { manifest }).capNamed)).toContain('screener')
+  })
+  it.each([['what\'s breaking out today'], ['volatility contraction patterns'], ['scan for a setup'], ['any breakouts on volume']])('%s reaches screener.run', (text) => {
+    expect(routedNames(text, { v2: true }).names).toContain('screener.run')
+  })
+  it('a phrasal verb reads as its compound noun', () => {
+    expect(compoundReading('what is breaking out today')).toContain('breakout')
+    expect(compoundReading('names pulling back')).toContain('pullback')
+    expect(compoundReading('add rsi')).toBe('add rsi')
+  })
 })
 
 describe('the words are the capabilities\' own', () => {

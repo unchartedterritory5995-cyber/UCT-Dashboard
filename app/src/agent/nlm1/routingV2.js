@@ -32,7 +32,7 @@
 
 import { GROUPS, ROUTING_VERSION, V1_ONLY_WORDS, groupOfAction, selectGroups, wordsSelect, routeManifest } from '../routing'
 import { manifestFor } from '../capabilities'
-import { buildIndex, lexicalScores, capabilityScores, capabilityTokens, resolveTokens, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
+import { buildIndex, lexicalScores, capabilityScores, capabilityTokens, compoundReading, resolveTokens, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
 
 export const ROUTING_V2_VERSION = 1
 // tuned on the capreg corpus + nlm1 dev paraphrases (never on the held-out set); a frozen object — tests read it
@@ -58,6 +58,8 @@ export const TUNING = Object.freeze({
   // Discovery: a group is named by its best CAPABILITY's description, so a big group's one specific action counts in full
   CAP_FLOOR: 6.0,       // the least capability score that names its group
   CAP_REL: 0.8,         // …and this fraction of the best capability's score
+  CAP_COVER: 0.4,       // …and the capability must account for this share of the message's known evidence
+  CAP_LEAD: 0.7,        // a capability accounting for this much of the message IS the request: its group leads v2's own guesses
   CAP_GROUPS: 3,        // at most this many groups named this way
   PHRASES: true,        // false (rail only): routing from the capabilities' own descriptions, no regex and no vocabulary
 })
@@ -81,15 +83,19 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
   const qTokens = [...own]
   const entities = new Set(entityTokens(raw).map(stem).filter(t => !ownSet.has(t)))
   for (const t of entities) { qTokens.push(t); weights.set(t, ENTITY_W) }
+  // a phrasal verb read as its compound noun, only where the registry uses that word: as sure as the words typed, not a guess
+  const reading = compoundReading(raw)
+  const compounds = tokens(reading).filter(t => !ownSet.has(t) && index.capIdf.has(t))
+  qTokens.push(...compounds)
   for (const c of corrected) for (const t of tokens(c)) if (!ownSet.has(t) && !weights.has(t)) { qTokens.push(t); weights.set(t, k.CORRECTED_W) }
   const lex = lexicalScores(index, qTokens, weights)
   // the message's own words against each capability's own description (entity types are too weak to name one capability)
   const capWords = capabilityTokens(raw).filter(t => !tick.has(t))
-  const capQuery = [...capWords, ...qTokens.filter(t => weights.has(t) && !entities.has(t))]
+  const capQuery = [...capWords, ...compounds, ...qTokens.filter(t => weights.has(t) && !entities.has(t))]
   const caps = capabilityScores(index, resolveTokens(index, capQuery), weights)
   const vocab = {}
   const terms = new Set()
-  for (const [text, f] of [[raw, 1], ...corrected.map(c => [c, k.CORRECTED_W])]) {
+  for (const [text, f] of [[raw, 1], ...(compounds.length ? [[reading, 1]] : []), ...corrected.map(c => [c, k.CORRECTED_W])]) {
     const v = vocabularyHits(text)
     v.terms.forEach(x => terms.add(x))
     for (const [g, w] of Object.entries(v.groups)) vocab[g] = Math.max(vocab[g] || 0, w * f)
@@ -135,11 +141,19 @@ export function selectGroupsV2(message, opts = {}) {
   const ranked = rank(boosted)
   const strong = lexRanked.filter(([g, s]) => s >= k.STRONG || (s >= k.STRONG_FLOOR && (s >= k.REL_STRONG * top || related.has(g)))).map(([g]) => g)
   // DISCOVERY: the groups the best-described capabilities belong to. They only ADD: `top` and `uncertain` below read the
-  // group scores alone, so a message that was in doubt keeps every safety of being in doubt (charts, the fill)
+  // group scores alone, and routeManifestV2 packs them after everything the group scores chose, so a message keeps what it had.
+  // A capability names its group only by accounting for much of the message: sharing one word of a request names nothing
   const capBest = new Map()
-  for (const [name, s] of sc.caps) { const g = groupOfAction(name); if (g && !capBest.has(g)) capBest.set(g, s) }
-  const capTop = sc.caps.length ? sc.caps[0][1] : 0
+  const capWhole = new Set()
+  for (const [name, s, cover] of sc.caps) {
+    const g = groupOfAction(name)
+    if (!g || cover < k.CAP_COVER) continue
+    if (!capBest.has(g)) capBest.set(g, s)
+    if (cover >= k.CAP_LEAD && s >= k.CAP_FLOOR) capWhole.add(g)
+  }
+  const capTop = capBest.size ? Math.max(...capBest.values()) : 0
   const capNamed = [...capBest].filter(([g, s]) => known.has(g) && !always.includes(g) && s >= k.CAP_FLOOR && s >= k.CAP_REL * capTop).slice(0, k.CAP_GROUPS).map(([g]) => g)
+  const capLead = capNamed.filter(g => capWhole.has(g))
   // D1.1: a short request LED by a ticker that names nothing else ("ARM", "lemme peek at UBER") is a chart symbol request
   // — what typing a ticker on the chart does
   if (!strong.length && sc.tickers > 0 && sc.words <= k.TICKER_WORDS && known.has('charts')) strong.push('charts')
@@ -152,7 +166,7 @@ export function selectGroupsV2(message, opts = {}) {
   const uncertain = !v1.matched && matched && top < k.STRONG
   // D1.1: ANY undo signal (its words, its vocabulary, its index) offers Undo — add-only, one action (#766's rule)
   const undoSignal = known.has('undo') && ((sc.vocab.undo || 0) > 0 || (sc.lex.undo || 0) >= k.STRONG_FLOOR || (k.PHRASES && wordsSelect('undo', message)))
-  const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong, capNamed,
+  const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong, capNamed, capLead,
     v1: v1.matched ? v1Own : null, v1Matched: v1.matched, v1Soft: v1.soft || [], uncertain, undoSignal }
   if (!matched) return { ...v1, ...diag }
   const priority = [...new Set([...always, ...followUps, ...(uncertain ? ['charts'] : []), ...v1Own, ...strong, ...capNamed, ...(undoSignal ? ['undo'] : [])])]
@@ -220,11 +234,11 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   })()
   const evidenceOf = (g) => (scoreOf.get(g) || 0) + (entEvidence.has(g) ? k.STRONG : 0)
   const v1Order = v1Fits ? [...v1Own].sort(bySize) : [...v1Own].sort((a, b) => (evidenceOf(b) - evidenceOf(a)) || bySize(a, b))
-  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...capNamed, ...lead]
-    : [...v1Order,
+  const capLead = (sel.capLead || []).filter(id => !pinned.includes(id))
+  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...capLead, ...lead]
+    : [...v1Order, ...capLead,
       // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD
-      // DISCOVERY: a group a capability's description named comes first of those: it names one action, a group score many
-      ...capNamed, ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
+      ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
   // 4. weak
   const weak = sel.ranked.filter(([, s]) => s >= k.WEAK).map(([g]) => g)
   // 5. context
@@ -257,7 +271,10 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   //     right after v2's own groups (23 of the 55-action budget); alerts / data ride with tickers and prices (LIKELY).
   //     D1.2: only while v2's evidence is NOT decisive (CRITICAL_WHEN)
   const critical = (k.CRITICAL_WHEN === 'uncertain' ? doubt : v1Fill) ? k.CRITICAL.filter(g => known.has(g)) : []
-  const needed = [...new Set([...pinned, ...own, ...critical, ...likely, ...after])]
+  // v1's soft vocabulary names a group on a message v1 did not recognise, however decisive v2's own reading: it stays with the
+  // message. Then the groups capabilities named: last of what the message asked for, so they add and never displace
+  const named = [...(sel.v1Soft || []), ...capNamed]
+  const needed = [...new Set([...pinned, ...own, ...critical, ...likely, ...after, ...named])]
   // v1's fill goes BEFORE v2's weak / context tiers: on an unrecognised-by-v1 message v1's order is the safer one
   const order = fillOn ? [...new Set([...needed, ...(doubt ? evidenced : []), ...fill, ...weak, ...context])]
     : [...new Set([...needed, ...weak, ...context])]

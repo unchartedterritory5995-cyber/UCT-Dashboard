@@ -416,6 +416,35 @@ Per phrasing against pristine v2, on all four sets: 0 lost, 13 gained (9 held-ou
 
 **Kill switches:** v1 at `ca3315ffee` hashed `9527df1d…` over 4,920 routed answers (corpus, collisions, golden, dev and held-out × 4 contexts). This branch gives the same hash directly, through `pickRouter` with the server switch off, and through `pickRouter` with the browser switch `'0'`.
 
+### After AUDIT's sealed result on `bdaf76c767`
+
+Sealed (317, scored by AUDIT): master v2 raw 97.8, own 95.9, fallback 0.6. Discovery raw 97.5, own 96.5, fallback 0.6, average bytes +24% vs v1 against master's +16%, and `stock.profile` below v1 (75 vs 100). The sealed phrasing is not shared, and no variant of mine reproduced that exact loss on `stock.profile`. The same class did reproduce on other capabilities, including `news.latest` in the same group.
+
+**Causes, all from this branch:** capability evidence packed AHEAD of the group scores, so `warn me when AAPL trades above 240` lost `alerts` to `layouts`. Separating `news` from `new` removed an accidental route for `anything new on tesla`. Better stems flipped doubt to decisive, so `small caps that gapped up today` dropped its fill.
+
+**Fixes (ranking only; no phrase rule, `vocabulary.json` unchanged):**
+- Capability evidence packs after everything the group scores chose. Letting it displace a group lost a needed capability in all three forms tried, so it does not.
+- A capability names its group only if it accounts for at least `CAP_COVER` (0.4) of the message's known evidence. At `CAP_LEAD` (0.7) it leads v2's own guesses, still after v1's own hits.
+- v1's soft vocabulary stays with the message however decisive v2's reading is.
+- A phrasal verb also reads as its compound noun (`breaking out` / `breakout`), only where the registry uses that word.
+- `screener.run`'s summary gains one quoted usage. Its hints are at 982 of the 1000-character limit, so they could not take it, and one word at summary weight cannot reach `CAP_FLOOR`: the quoted field is what carries it. This changes model-facing text on both routers, and v1's routing is unchanged.
+
+**Results, against `ca3315ffee`'s router as the proxy for master's** (recall@manifest; average request vs v1):
+
+| Set | v1 | Pristine v2 | `bdaf76c767` | This commit | Bytes pristine → here |
+|---|---|---|---|---|---|
+| Held-out (298) | 74.8 | 89.9 | 92.6 | **93.0** | +9.4% → +16.1% |
+| Tuning (97) | 72.2 | 95.9 | 99.0 | 96.9 | +12.3% → +15.0% |
+| Dev (162, no boards; with boards `bdaf76c767` 99.4 → here 98.8) | 87.0 | 98.1 | not measured here | 98.1 | +9.3% → +12.8% |
+| Capreg (660, no boards) | 96.7 | 97.3 | not measured here | 97.1 | +25.2% → +33.9% |
+| NL unsealed (390) | 90.8 | 90.0 | not measured here | 92.6 | +12.2% → +18.3% |
+
+Held-out own-groups is 91.9 (92.3 at `bdaf76c767`), and held-out scans rise 88.9 → 96.3. **Byte growth is not back to master's:** this keeps most of `bdaf76c767`'s size. Reducing it further lost needed capabilities, so it stops here.
+
+`what's breaking out today` names the screener with every phrase layer off. `volatility contraction patterns` reaches `screener.run` in the first request, but through the fill: on description it ranks second at 5.3, under `CAP_FLOOR` 6. Lowering the floor to 5 added 1-2% to average bytes and named no new set of phrasings worth that.
+
+**Still below pristine v2:** only in follow-up contexts on a tight budget, mostly a message the two v1-only regexes carried (`put this chart back to its default view`, `hide all indicators on this chart`) when a prior action pins more groups. `agent/pl/v1-superset` (`e740c1fd41`) holds the shelved superset sweep. It is not for release.
+
 ## 5. Commits
 
 | Head | What |

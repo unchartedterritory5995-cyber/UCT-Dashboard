@@ -240,17 +240,28 @@ export function resolveTokens(index, qTokens) {
   return [...new Set(out)]
 }
 
-/** BM25 of each capability for query tokens: [[name, score], …], best first. Reads only the postings of the query's tokens. */
+/**
+ * BM25 of each capability for query tokens: [[name, score, coverage], …], best first. `coverage` is the share of the query's
+ * known evidence (idf) this capability accounts for: a capability that shares one word of a long request has little of it.
+ * Reads only the postings of the query's tokens.
+ */
 export function capabilityScores(index, qTokens, weights = null) {
   const scores = new Map()
+  const covered = new Map()
+  let known = 0
   for (const t of new Set(qTokens)) {
     const list = index.capPostings.get(t)
     if (!list) continue
     const w = (weights?.get(t) ?? 1) * index.capIdf.get(t)
-    for (const [name, tf] of list) scores.set(name, (scores.get(name) || 0) + w * tf)
+    known += w
+    for (const [name, tf] of list) { scores.set(name, (scores.get(name) || 0) + w * tf); covered.set(name, (covered.get(name) || 0) + w) }
   }
-  return [...scores].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  return [...scores].map(([name, s]) => [name, s, covered.get(name) / known]).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
 }
+
+const PARTICLE = /\b([a-z]{3,}) (out|up|back|down|off)\b/g
+/** A phrasal verb is its compound noun: "breaking out" also reads as "breakout", "pulling back" as "pullback". */
+export const compoundReading = (text) => String(text || '').toLowerCase().replace(PARTICLE, (_, verb, particle) => stem(verb) + particle)
 
 let MEMO = { key: null, index: null }
 

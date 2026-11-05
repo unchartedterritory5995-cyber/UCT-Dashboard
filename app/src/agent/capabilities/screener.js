@@ -791,7 +791,7 @@ export function registerScreenerCapabilities() {
     target: 'screener', query: true, surfaces: ['*'],
     // tried on the WHOLE message first, so "rank them by RS" is the screener's, never read as a plural chart target
     fastWhole: true,
-    summary: 'Run a stock screen on UCT\'s Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for "show me / find stocks with …".',
+    summary: 'Run a stock screen or scan on UCT\'s Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for "show me / find stocks with …" and "scan for a setup, a chart pattern or breakouts".',
     hints: 'target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. '
       + 'Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). '
       + 'yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member\'s own words (["software"]) — UCT matches the real values; value/max null. '
