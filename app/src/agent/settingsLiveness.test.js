@@ -38,6 +38,8 @@ describe('chart.setSetting: nothing the chart does not read', () => {
     expect(read('components/chart/pane/paneLook.js')).toMatch(/volumePaneHeightPct: paneVolumePct\(prefs\)/)
     expect(read('pages/charts/widgets/ChartWidget.jsx')).toMatch(/watermarkX: wmPos\?\.x \?\? null/)
     expect(read('components/StockChart.jsx')).toMatch(/textColor: axisAuto\.ink/)
+    // the pane height is a prop of `updateChart`: without this dependency a new height draws nothing until something else re-runs it
+    expect(read('components/StockChart.jsx')).toMatch(/\}, \[volumePaneHeightPct, filteredBars,/)
   })
 })
 

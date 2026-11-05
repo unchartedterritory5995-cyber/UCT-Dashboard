@@ -5058,6 +5058,112 @@
    "shape": null
   },
   {
+   "name": "chartSetup.setRange",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Show ONE chart over a set date range: the range bar's buttons (3M, 6M, YTD, 1Y, 5Y, Origin; Origin = from the first bar). A view change: every bar stays on the chart, nothing is drawn or removed, and the chart keeps this window on the next ticker until it is panned or reset.",
+   "hints": "range = one of 3M, 6M, YTD, 1Y, 5Y, Origin. \"One year\" = 1Y, \"year to date\" = YTD, \"five years\" = 5Y, \"since IPO\" = Origin. Other spans have no button: use chart.goToDate, or say which ranges exist.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "range": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "range"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.resetView",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Reset ONE chart's view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched.",
+   "hints": "target = the chart. For a chart's SETTINGS use chart.resetDefaults.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.setIndicatorsHidden",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Hide or bring back EVERYTHING drawn over the candles on ONE chart at once (Alt+Shift+I): every indicator, every moving average and Volume. Temporary: a reload brings them back, nothing is removed or saved. To hide just the moving averages use chartSetup.setMovingAverages; for one indicator, indicator.hide.",
+   "hints": "hidden = true to hide them all, false to bring them back.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "hidden": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "hidden"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.setMovingAverages",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Hide or show EVERY moving average on ONE chart at once (Ctrl+M). They stay on the chart, hidden, and this is saved. Other indicators are untouched. Undo puts each one back as it was.",
+   "hints": "visible = false to hide them all, true to show them all.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "visible": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "visible"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartSetup.saveTemplate",
    "domain": "chartSetup",
    "target": "chartTemplates",

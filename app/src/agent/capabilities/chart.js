@@ -219,6 +219,13 @@ function fastSetting(text) {
 
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
+// Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
+export function viewDone(meta, { op, arg }) {
+  if (!meta) return false
+  if (op === 'applyRange') return meta.activeRange === arg
+  if (op === 'resetView') return meta.atDefaultView === true
+  return meta.indicatorsHidden === arg
+}
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
 export function viewAt(meta, target) {
@@ -269,7 +276,7 @@ export const chartKind = {
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
   stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay,
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
-    canvasTheme: snap.canvasTheme ?? null }),
+    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
@@ -279,13 +286,14 @@ export const chartKind = {
     if (after.replay !== before.replay) p.replay = after.replay ?? null
     if (after.watermarkPos !== before.watermarkPos) p.watermarkPos = after.watermarkPos
     if (after.volPanePref !== before.volPanePref) p.volPanePref = after.volPanePref
+    if (after.viewDo != null) p.viewDo = after.viewDo
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -296,6 +304,12 @@ export const chartKind = {
     }
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
+    // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
+    if (viewDo && ok) {
+      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
+      const t0 = Date.now()
+      while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+    }
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
       const t0 = Date.now()
@@ -315,6 +329,7 @@ export const chartKind = {
     if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
     if ('watermarkPos' in patch && !sameJson(snap.watermarkPos ?? null, patch.watermarkPos)) return false
     if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
+    if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     return true
   },
   undoPatch(item) {
@@ -329,6 +344,11 @@ export const chartKind = {
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
+    // A range or a reset has no exact way back (the zoom and the view lock it replaced are not restorable): `undoNote` says so
+    if ('viewDo' in item.patch) {
+      if (item.patch.viewDo.op !== 'setIndicatorsHidden') return null
+      p.viewDo = { op: 'setIndicatorsHidden', arg: !!item.before.view?.indicatorsHidden }
+    }
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
@@ -339,7 +359,8 @@ export const chartKind = {
     // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
     ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : []),
     ...('watermarkPos' in (item?.patch || {}) ? [snap.watermarkPos ?? null] : []),
-    ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : [])]),
+    ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
+    ...('viewDo' in (item?.patch || {}) ? [!!snap.view?.indicatorsHidden] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.

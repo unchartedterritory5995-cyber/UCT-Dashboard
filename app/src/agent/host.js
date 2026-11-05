@@ -163,6 +163,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
       e.api.agent.goToDate(ms)
       return true
     },
+    // The chart's own view controls (range bar, Reset view, hide all indicators); chart.js waits for the read-back.
+    viewDo: (ref, op, arg) => !!entries().find(x => x.ref === ref)?.api.agent.viewDo?.(op, arg),
   }
 }
 

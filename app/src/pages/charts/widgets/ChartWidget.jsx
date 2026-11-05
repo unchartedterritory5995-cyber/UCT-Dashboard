@@ -323,6 +323,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // the symbol StockChart keys its drawings by (the handed-off `sym` it is rendered with)
         drawSym: () => symRef.current,
         goToDate: (ms) => paneRef.current?.goToDate?.(ms),
+        viewDo: (op, arg) => !!paneRef.current?.viewDo?.(op, arg),
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),
