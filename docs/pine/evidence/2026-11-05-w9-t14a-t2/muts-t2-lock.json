@@ -1,0 +1,80 @@
+[
+ [
+  "CONTROL no-op comment",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "// It is NOT imported by the bundle.",
+  "// It is NOT imported by the bundle (control)."
+ ],
+ [
+  "L1 lookup is exact-version, not greatest <= version (case 2 red)",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "keys.filter((k) => k <= version)",
+  "keys.filter((k) => k === version)"
+ ],
+ [
+  "L2 drop the sha comparison (case 1 green)",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "lock[String(governing)] !== sha256(resolvedText)",
+  "false"
+ ],
+ [
+  "L3 drop the older-entries digest (case 4)",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "olderEntriesDigest(lockText, sha256) !== olderDigest",
+  "false"
+ ],
+ [
+  "L4 drop the out-of-order check (case 5)",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "if (!(keys[i] > keys[i - 1]))",
+  "if (false)"
+ ],
+ [
+  "L5 drop the canonical-form check",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "canonicalJson(parsed) !== resolvedText",
+  "false"
+ ],
+ [
+  "L6 drop the future-entry check",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "if (keys.some((k) => k > version))",
+  "if (false)"
+ ],
+ [
+  "L7 order read from the parsed object, not the file text",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "const fileKeys = lockKeysInFileOrder(lockText)",
+  "const fileKeys = Object.keys(lock)"
+ ],
+ [
+  "S1 scanner never reports a site",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "if (comma) sites.push",
+  "if (false) sites.push"
+ ],
+ [
+  "S2 scanner scans test files too",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "/(^|[\\\\/])__tests__([\\\\/]|$)/.test(path) || ",
+  ""
+ ],
+ [
+  "S3 scanner counts the definition as a call",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "if (/function\\s*$/.test(before)) continue",
+  ""
+ ],
+ [
+  "P1 pinned() ignores the explicit set",
+  "src/components/chart/engine/runtime/brokerPins.js",
+  "explicitPinSet === undefined ? RESOLVED.rules : explicitPinSet",
+  "RESOLVED.rules"
+ ],
+ [
+  "P2 ledger changed without a bump (a rule appears in the committed ledger)",
+  "src/components/chart/engine/runtime/brokerPins.resolved.json",
+  "{\"rules\":{},\"schema\"",
+  "{\"rules\":{\"B-PATH\":[\"fx\"]},\"schema\""
+ ]
+]
