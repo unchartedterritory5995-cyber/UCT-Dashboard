@@ -160,7 +160,7 @@ function rowsOnChart(host, chartRef) {
  */
 // `taken`: the indicators an EARLIER part of the same instruction already named ("make the fast one green and the other
 // one yellow" — "the other one" is the one that is left)
-export function resolveReferent(words, { host, memory, epoch = null, live = null, pinned = null, dry = false, working = null, taken = null } = {}) {
+export function resolveReferent(words, { host, memory, epoch = null, live = null, pinned = null, dry = false, working = null, taken = null, scope = null } = {}) {
   const w = String(words || '').trim()
   if (!w) return null
   // `dry`: is this a reference at all? (a multi-step request is read in full before anything runs — compound.js)
@@ -173,6 +173,14 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
     // named a chart with indicators on it); otherwise it is not this reader's — the drawing path / the model, as before
     const r = noLineDrawing(host, memory, epoch, live)
     return r?.say && !(live?.length || aboutIndicators(memory, epoch) || liveIndicators(host, memory, epoch).length) ? null : r
+  }
+  // IT-ON-THAT-CHART: a POINTING word ("it", "that", "them") read on ONE named chart means the conversation's indicator(s)
+  // ON that chart — never another chart's, and never every indicator of that chart
+  if (scope && (PRONOUN.test(w) || R_IT.test(w) || R_PLURAL.test(w))) {
+    const mine = [...liveIndicators(host, memory, epoch), ...liveMentions(host, memory, epoch)].filter((i, k, a) => i.chart === scope && a.findIndex(x => x.chart === i.chart && x.instanceId === i.instanceId) === k)
+    const label = chartSnap(host, scope)?.symbol ? `the ${chartSnap(host, scope).symbol} chart` : 'that chart'
+    if (!mine.length) return { say: `Nothing I changed in this conversation is on ${label} — name the indicator (“the RSI”). Nothing has changed.` }
+    live = mine
   }
   const set0 = live || liveIndicators(host, memory, epoch)
   // ⛔ a bare PRONOUN ("it", "that", "them", "those") means the conversation's indicators only while the
@@ -547,19 +555,53 @@ function verblessPairs(t) {
 // ONE chart by the same reader every chart phrase uses (oneChart: a symbol, a position, an ordinal, "this chart"), taken
 // out of the clause, and the clause is read by the existing readers on THAT chart's indicators. A phrase that names no
 // chart on this board (e.g. "the price chart") is left in place — the clause reads exactly as before.
-const ON_CHART = /^(.+?) (?:on|from|off of|off|in) ((?:the |my )?(?:[a-z0-9.$-]+ ){0,2}chart)\b(.*)$/
+// IT-ON-THAT-CHART: the noun may be "chart" or "one" ("on the left one", "on that one"), and the phrase is resolved to
+// its CANDIDATE charts (chartCandidates): exactly one → the clause is read on that chart (a pronoun — "it", "that" — then
+// means the conversation's indicator ON that chart, never every chart's); several → "which chart?", nothing changes;
+// none → the phrase names no chart here and the clause reads as before.
+const ON_CHART = /^(.+?) (?:on|from|off of|off|in) ((?:the |my )?(?:[a-z0-9.$-]+ ){0,2}(?:chart|one))\b(.*)$/
 function scopedToChart(t, ctx) {
   const m = ON_CHART.exec(t)
   if (!m) return null
   const rest = `${m[1]}${m[3]}`.replace(/\s+/g, ' ').trim()
   if (!rest) return null
   if (ctx.dry) return isChartWords(m[2]) ? { t: rest, ctx } : null
-  const ref = oneChart(m[2], chartsOf(ctx.host), ctx.host)
-  if (!ref) return null
-  return { t: rest, ctx: { ...ctx, live: rowsOnChart(ctx.host, ref), working: null } }
+  const hits = chartCandidates(m[2], ctx)
+  if (!hits.length) return null
+  if (hits.length > 1) {
+    // asked only for a clause this reader reads (its SHAPE: an indicator change) — "alert me when … on the TSLA chart" is
+    // another reader's, and its own ambiguity is its own
+    if (!indicatorClausesOn(rest, { dry: true })?.ops) return null
+    const names = hits.map(c => (c.symbol ? `the ${c.symbol} chart` : c.label || 'a chart'))
+    return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “${m[2]}” could be any of these ${hits.length} — say it by name. Nothing has changed.` }
+  }
+  return { t: rest, ctx: { ...ctx, live: rowsOnChart(ctx.host, hits[0].ref), scope: hits[0].ref, working: null } }
+}
+/** The charts a chart phrase can mean (0, 1 or several) — the readers every chart phrase uses: "that chart / that one"
+ *  (the chart(s) this conversation last changed), "this chart" (the selected one), an ordinal, a position, a symbol. */
+function chartCandidates(p, { host, memory, epoch }) {
+  const charts = chartsOf(host)
+  const s = String(p || '').replace(/^(?:on|to|onto|for|in) /, '').replace(/^(?:the|my) /, '')
+  // ("that chart" arrives as "the chart" — the shared normaliser, fastPath canon — so the bare noun is the same pointer)
+  if (/^(?:that|that chart|that one|chart)$/.test(s)) {
+    const touched = new Set((memory?.lastTurn?.(epoch)?.charts || []).map(c => String(c).replace(/^ixe:/, '')))
+    const last = charts.filter(c => touched.has(c.ref))
+    if (last.length) return last
+    const subj = subjectChart(host, memory, epoch)
+    return subj ? [subj] : charts.length === 1 ? charts : []
+  }
+  if (/^(?:this|this chart|this one|the selected chart)$/.test(s)) { const sel = selectedChart(host); return charts.filter(c => c.ref === sel) }
+  const ord = ordinalChart(`the ${s}`, charts)
+  if (ord?.ref) return charts.filter(c => c.ref === ord.ref)
+  const pos = /^(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)(?: (?:chart|one|side))?$/.exec(s)
+  if (pos) return matchPosition(charts, pos[1].replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom'))
+  const sym = /^\$?([a-z][a-z0-9.]{0,9})(?: chart| one)?$/.exec(s)
+  if (sym) return charts.filter(c => String(c.symbol || '').toLowerCase() === sym[1])
+  return []
 }
 function indicatorClauses(t, ctx) {
   const scoped = scopedToChart(t, ctx)
+  if (scoped?.say) return scoped
   if (scoped) {
     const r = indicatorClausesOn(scoped.t, scoped.ctx)
     if (r) return r
@@ -805,6 +847,7 @@ export function followUpShape(text) {
   return !!indicatorClauses(t, { dry: true })?.ops
 }
 
+const CHART_POINTER = /\s(?:on|to|onto|in|from|off|off of)\s+(?:(this|that|my|the|our)\s+(?:active |current |open |main )?chart|(?:it|there|here))$/
 /**
  * A follow-up about what this conversation did. → null (not one this module reads: the fast path / the model
  * decide, exactly as before) | { kind: 'ops', ops, pick? } | { kind: 'say', text } | { kind: 'ask', text, choices, words }
@@ -814,7 +857,15 @@ export function resolveFollowUp(text, { host, memory, epoch = null, working = nu
   const raw = String(text || '')
   if (!raw.trim() || raw.length > 200) return null
   const ctx = { host, memory, epoch, working }
-  const exact = readOnce(tidy(raw), ctx)
+  // IT-ON-THAT-CHART: the shared normaliser (fastPath canon) DROPS a trailing "on that / this / the chart" ("… on it") —
+  // right for a one-chart board, but it is the member's TARGET: "make it orange on that chart" with RSI on two charts
+  // recoloured both. The pointer is put back as the clause's chart phrase (scopedToChart resolves it: one chart → that
+  // chart's instance; several → "which chart?"); a reading that does not use it falls back to the words as before.
+  const t0 = tidy(raw)
+  const ptr = CHART_POINTER.exec(String(raw).toLowerCase().replace(/[.!?]+$/, '').trim())
+  const pointed = ptr && !/\bchart$/.test(t0) ? readOnce(`${t0} on ${ptr[1] === 'this' ? 'this' : 'that'} chart`, ctx) : null
+  if (pointed) return pointed
+  const exact = readOnce(t0, ctx)
   if (exact) return exact
   let variants = null
   try { variants = correctTypos(raw, lexiconFor(host)) } catch { variants = null }
