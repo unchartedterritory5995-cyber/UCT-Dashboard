@@ -130,6 +130,29 @@ describe('T3 · "on four charts, all the same size"', () => {
     expect(h.charts.read('c1').symbol).toBe('NVDA')
     expect(receipts()).toHaveLength(0)
   }, 30000)
+  // ⛔ DELIBERATE CHANGE (Multi Chart task, 2026-11-05): the guard used to refuse this continuation because the sentence has
+  // no word "tab". A tab added by the last change means the follow-up carries the tab on, so the same action now runs.
+  it('"and a weekly one" right after a tab was added continues that request: the follow-up runs, without the word "tab"', async () => {
+    const { board, say } = mount(...FULL())
+    envelopes.push(b => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: 'D', name: 'Daily' } }]))
+    await say('give this chart another tab called Daily please, thanks a lot')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    envelopes.push(b => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: 'W', name: 'Weekly' } }]))
+    await say('and a weekly one')
+    await waitFor(() => expect(receipts()).toHaveLength(2))
+    expect(transcript()).not.toMatch(/a chart tab, which you didn’t ask for/)
+    expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1').opts)).toMatch(/Weekly/)
+  }, 30000)
+  it('a tab the last change did NOT add is still refused when the member never said "tab"', async () => {
+    const { h, say } = mount(...FULL())
+    envelopes.push(b => env('apply', [{ action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } }]))
+    await say('put this chart on the weekly timeframe for me please')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    envelopes.push(b => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: 'D', name: 'Daily' } }]))
+    await say('and a daily one over here as well if you could')
+    await waitFor(() => expect(transcript()).toMatch(/a chart tab, which you didn’t ask for/))
+    expect(h.charts.read('c1').tf).toBe('W')
+  }, 30000)
   it('a tab the member DID ask for still runs (the guard reads the member\'s own word "tab")', async () => {
     const { board, say } = mount(...FULL())
     envelopes.push(b => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: null, name: 'Swing' } }]))
