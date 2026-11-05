@@ -33,17 +33,23 @@ const TEMPLATES = [
   { prefix: 'chartSettings.tab.', attr: 'data-guide={`chartSettings.tab.${id}`}', ids: () => ['price', 'canvas', 'indicators', 'header', 'markers'] },
 ]
 function targetsOf(f) {
-  return f.steps.flatMap(s => [s.target, s.waitFor]).filter(Boolean)
+  return f.steps.flatMap(s => [s.target, s.waitFor]).flat().filter(Boolean)
 }
 
 describe('every walkthrough points at a real control', () => {
   for (const f of GUIDE_FEATURES) {
     it(`${f.id}: each target is rendered by the product`, () => {
       for (const t of targetsOf(f)) {
-        if (typeof t === 'object' && t.widgetType) { expect(source).toContain('data-widget-type={w.type}'); continue }
+        if (typeof t === 'object' && t.widgetType) {
+          expect(source).toContain('data-widget-type={w.type}')
+          if (t.guide) expect(source, t.guide).toContain(`data-guide="${t.guide}"`)
+          continue
+        }
+        if (typeof t === 'object' && t.inWidget) { expect(source, t.inWidget).toContain(`data-guide="${t.inWidget}"`); continue }
         if (typeof t === 'object' && t.within) {
           expect(source, t.within).toContain(`data-guide="${t.within}"`)
-          expect(source, t.aria).toContain(`aria-label="${t.aria}"`)
+          // PickerHeader names its ＋ New button from the picker's `newTitle` (aria-label={newTitle})
+          expect(source.includes(`aria-label="${t.aria}"`) || source.includes(`newTitle="${t.aria}"`), t.aria).toBe(true)
           continue
         }
         const tpl = TEMPLATES.find(x => t.startsWith(x.prefix))
@@ -90,6 +96,7 @@ describe('the registry is not a second source of truth', () => {
     ['how do i change the symbol', 'symbol'],
     ['how do I add another chart', 'charts'],
     ['how do i use watchlists', 'watchlists'],
+    ['show me how to create a watchlist', 'watchlistCreate'],
     ['how do I save my layout', 'layouts'],
     ['how do I draw a trendline', 'drawing'],
     ['where are the chart settings', 'settings'],

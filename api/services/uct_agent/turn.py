@@ -334,8 +334,22 @@ def _tolerance_of(name: str, args: dict, c: dict) -> dict:
 STRICT_OP_VARIANTS_MAX = 10
 
 
+# ⭐ CONSTANT SCHEMA (owner 2026-11-05; docs/agent/LATENCY.md). Production: a call whose schema the provider had not
+# seen took ~7 s, one it had compiled in the last 24 h took 2-3 s, and routing made nearly every schema new (173 phrasings,
+# 57 schemas). So the model-facing schema no longer depends on the request: compact ops always, `action` a plain string,
+# `need_groups` always present. Nothing is lost to safety: the schema was never the gate. expand_compact_ops refuses an
+# action outside the request's manifest and checks args against the capability's own schema; sanitize_envelope drops
+# unknown groups; the browser's planner re-validates everything. UCT_AGENT_CONSTANT_SCHEMA=0 restores the routed schema
+# and the single-block prompt exactly.
+CONSTANT_SCHEMA_ENV = "UCT_AGENT_CONSTANT_SCHEMA"
+
+
+def constant_schema() -> bool:
+    return os.environ.get(CONSTANT_SCHEMA_ENV, "").strip().lower() not in ("0", "false", "off", "no")
+
+
 def compact_ops(capabilities: list[dict], force: bool = False) -> bool:
-    return force or len(capabilities) > STRICT_OP_VARIANTS_MAX
+    return force or constant_schema() or len(capabilities) > STRICT_OP_VARIANTS_MAX
 
 
 # The model API refuses some embedded-args schemas outright (HTTP 400, nothing generated, no cost):
@@ -357,7 +371,7 @@ def _compact_op_schema(capabilities: list[dict]) -> dict:
     return {
         "type": "object",
         "properties": {
-            "action": {"type": "string", "enum": [a["name"] for a in capabilities]},
+            "action": {"type": "string"} if constant_schema() else {"type": "string", "enum": [a["name"] for a in capabilities]},
             "target": {"type": "string"},
             "args_json": {"type": "string"},
         },
@@ -638,7 +652,8 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
             continue
         cap = by_name.get(o.get("action"))
         try:
-            args = json.loads(o.get("args_json") or "{}")
+            # an op already in the embedded shape takes the same checks below (the routed schema's strict variants)
+            args = o["args"] if isinstance(o.get("args"), dict) and "args_json" not in o else json.loads(o.get("args_json") or "{}")
         except (TypeError, ValueError):
             _unreadable("args_json", action=o.get("action"), size=len(str(o.get("args_json") or "")))
         if cap is not None and isinstance(args, dict):
@@ -771,11 +786,9 @@ def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = No
         # NL-1: the model says the member asked for an explanation (instead of UCT matching "why"/"explain")
         schema["properties"]["wants_explanation"] = {"type": "boolean"}
         schema["required"].append("wants_explanation")
-    if unselected:
-        schema["properties"]["need_groups"] = {"anyOf": [
-            {"type": "null"},
-            {"type": "array", "items": {"type": "string", "enum": [g["id"] for g in unselected]}},
-        ]}
+    if unselected or constant_schema():
+        items = {"type": "string"} if constant_schema() else {"type": "string", "enum": [g["id"] for g in unselected]}
+        schema["properties"]["need_groups"] = {"anyOf": [{"type": "null"}, {"type": "array", "items": items}]}
         schema["required"].append("need_groups")
     return schema
 
@@ -821,6 +834,7 @@ When <research_results> are provided, answer from them, mention sources briefly 
 
 FOLLOW-UPS
 When the screener entry in <workspace_context> has a `lastScreen` and the member narrows, re-sorts or refers to its results ("now only above $20", "sort those by…", "exclude ETFs", "the first four", "those", "put the top 15 into…"), that last screen is what they mean: refine it (screener.run mode refine) or use {"from": "lastScreen", "top": N}. Do not ask which screen unless the conversation shows another result set that fits equally well.
+A request that names its own stocks and conditions and does not point at the earlier results is a NEW screen (screener.run mode new), even right after a screen. Never copy `lastScreen` filters into it.
 <workspace_context> may carry `conversation_memory`, written by UCT (never by you): `recent_results` are tickers UCT showed this chat, `symbols_in_order` in the order the member saw them — "the third one" is the third ticker of the latest set, "the others" the rest of it; `subject_chart` is the chart ref this chat last changed — "it" for a chart when none is `selected`; `last_change` names the actions of the last change ("do the same on the right one"); `recent_corrections` are the member's own corrections — follow them. `recent_indicators` are the indicators UCT's latest adding change put on charts, in that order (`target` = that chart's indicatorEdits ref, `id` = the instance): "the first one" / "the second one" follow that order, "the fast one" is the shortest length, "those" / "them" are all of them. "My other charts", "the others", "the rest" mean every chart in <workspace_context> except the one(s) this conversation is about. A ticker taken from `recent_results` is used exactly as listed. If a reference does not fit what is there (no such position, an expired set), clarify. `question_set_aside: true` means the member did NOT answer your last question and moved on (LT-6): read this message as a NEW request on its own — never as the answer to, or a continuation of, that question.
 "It", "that list", "the watchlist you just made" and similar mean what the latest [UCT executed] lines name (e.g. Created the watchlist “X”): find X in <workspace_context> by that name and act on it — do not ask which one.
 If <pending_proposal> is present and the member adjusts it ("leave Volume", "only the left one"), return a new propose with the adjusted ops; return apply only if they clearly approved the adjusted version. Approving a proposal as-is ("do it") never reaches you.
@@ -829,6 +843,7 @@ STYLE
 Concise, trader to trader, plain text (short paragraphs or "- " bullets, no headings, no markdown tables). Educational, not personalized buy/sell advice.
 Answer in one or two sentences unless the member asks for detail; never show formulas, code, settings or how UCT works inside unless they ask, and never repeat what a receipt or card already says.
 DATA ANSWERS. When a plan reads data (stock.*, news.*, a screen), `reply` states no figures, dates, estimates, beats or misses: UCT's card shows them, and you have not seen them.
+HISTORICAL / STATISTICAL MARKET QUESTIONS ("how does SPY do after new highs", "what usually happens after a gap", win rates, typical returns, pullback sizes, seasonality): answer ONLY by planning an action that reads UCT's data (an event study, price history, breadth history, a screen). With no such action, say in one line that you can't answer it from UCT's data yet — never give figures, ranges, typical moves or tendencies from general knowledge.
 Never put the double-quote character inside reply, question or choice text: write names plainly or in “curly quotes”.
 
 NEVER A FALSE LIMITATION. Never tell the member that something is unavailable, not possible, or "not yet" from here when an action under AVAILABLE ACTIONS (or MORE AVAILABLE ACTIONS, or an action group named below as not listed) does it: indicator alerts (an EMA / SMA cross, RSI, MACD…), price alerts, drawings, layouts, watchlists, screens, templates, replay. Plan it with that action, ask for its group, or clarify the one thing you need (which chart, which indicator, which level). If <validation_error> says an action IS available, plan with it or clarify — never repeat the claim.
@@ -853,6 +868,20 @@ def system_prompt(capabilities: list[dict], unselected: list[dict] | None = None
     if nl1:
         return "".join(nl1_system_texts(capabilities, unselected, stable))
     return _system_prompt_core(capabilities, compact) + _routing_note(unselected)
+
+
+_ACTIONS_HEADING = "AVAILABLE ACTIONS (ops[].action, with args exactly as the schema says)\n"
+
+
+def system_parts(capabilities: list[dict], unselected: list[dict] | None = None, compact: bool | None = None) -> list[str]:
+    """The system prompt as its cache blocks. Constant schema: [the rules, the same on every request, so they stay a cached
+    prefix whichever actions routing picked] [this request's actions + the groups it was not given]. Otherwise one block."""
+    if not constant_schema():
+        return [system_prompt(capabilities, unselected, compact)]
+    head, heading, _ = _SYSTEM_HEAD.partition(_ACTIONS_HEADING)
+    catalog = "\n".join(_catalog_lines(capabilities)) if capabilities else "(none available here -- answer, clarify or say unsupported)"
+    return [head + _SYSTEM_TAIL.lstrip("\n") + "\n" + _COMPACT_OPS_RULE + "\n",
+            heading + catalog + "\n" + _routing_note(unselected)]
 
 
 def nl1_system_texts(capabilities: list[dict], unselected: list[dict] | None = None, stable: set[str] | None = None) -> list[str]:
@@ -2468,7 +2497,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         texts = nl1_system_texts(caps, unselected, nl1_stable_names(routing, capabilities))
         parts = texts[:1] + ([ref_block] if ref_block else []) + texts[1:]
     else:
-        parts = [system_prompt(caps, unselected, compact)]
+        parts = system_parts(caps, unselected, compact)
     if headline is not None:
         from api.services.uct_agent import news as agent_news
         parts = parts + [agent_news.RULES + (agent_news.ANSWER_ONLY if answer_only else "")]
@@ -2505,7 +2534,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              "research_calls": 0, "model_calls": 0, "citations": [],
              # STAGE TIMINGS (ms only — never words or values): request build, each model call, research
              "stages": {"build": _ms(t_build), "model": [], "research": 0},
-             "cache_read_tokens": 0, "cache_write_tokens": 0, **({"interpreter": "nl1"} if nl1 else {})}
+             "cache_read_tokens": 0, "cache_write_tokens": 0, "schema_mode": "constant" if constant_schema() else "routed",
+             **({"interpreter": "nl1"} if nl1 else {})}
     cap_names = {c["name"] for c in caps}
     if looks_like_nonsense(msg) and headline is None:
         # ⭐ W1.1 R-03 (LT-10): a keyboard run ("asdf qwer") is not a request. It is answered with a clarify and
@@ -2791,12 +2821,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if not answer_only and not research_read:
             env = promote_talk_reads(env, msg, cap_names)
-        if isinstance(env, dict) and env.get("disposition") in MUTATING:
-            env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
-            # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote
+            # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote. Before the op check: an op
+            # it should never have written costs the op, not the member's answer.
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
+        if isinstance(env, dict) and env.get("disposition") in MUTATING:
+            env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim")),
                                                              knowledge_no_web=kn_no_web,

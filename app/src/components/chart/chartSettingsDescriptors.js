@@ -23,10 +23,23 @@
 //   'known'                — a real member-facing setting the Agent can describe but not change yet
 //   'internal'             — bookkeeping / no member control (never offered)
 // `id` ending in `.*` classifies a whole sub-object (free-form maps such as colour tables).
+//
+// ⛔ A RECEIPT FOLLOWS A REAL CHANGE. A row whose stored value does not reach what /charts draws is not a row
+// the Agent may "succeed" on. These fields say what the chart really does with an eligible row:
+//   `store`  — the value does NOT live in the settings blob: 'volumePanePref' (the member's charts_vol_pane_pct,
+//              what dragging the separator writes) or 'watermarkPos' (the chart's opts.watermarkPos, what
+//              right-click → Move watermark writes). chart.js writes and reads back THAT state.
+//   `inert`  — why /charts ignores this row whatever it holds: `settingUnavailable` refuses with exactly that.
+//   `scope`  — 'member' when one value applies to all of the member's charts (the receipt says so).
+//   `fixedBy`— canvases that ignore this row: 'sunrise' (the workspace's Sunrise theme), 'light' (the Shift+T palette).
+//   `drawnOn`— the timeframes that draw it. Elsewhere the value is saved and the receipt says it can't be seen here.
+//   `refuseValue(v)` — why one VALUE of this row would not be what the chart shows.
+// ⛔ `agent/settingsLiveness.test.js` fails any eligible row whose key the render path does not read, unless `inert` says so.
 
 import { CROSSHAIR_MODES, crosshairModeOf } from './crosshairMode'
 import { LEGEND_MODES, legendModeOf } from './legendMode'
 import { CHART_DEFAULTS } from './chartDefaults'
+import { PANE_LOOK, paneWatermarkOpacity } from './pane/paneLook'
 
 export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
 
@@ -69,7 +82,10 @@ const WHEN_EARNINGS = { setting: 'markers.earnings', value: true, why: 'Turn ear
 const whenPdl = (k) => ({ setting: `prevDayLevels.${k}.enabled`, value: true, why: `Turn the ${k} prev-day line on first — its style only applies while it is shown.` })
 // ⭐ W1-B (Wave 1, 2026-11-02; owner-approved, announced to Charts): the prerequisites of the rows promoted below
 const WHEN_GRADIENT = { setting: 'bgMode', value: 'gradient', why: 'Switch the background to Gradient first — the gradient colors only apply then.' }
-const WHEN_VOL_PANE = { setting: 'volume.separatePane', value: true, why: 'Put Volume in its own pane first — the pane height only applies then.' }
+const WHEN_VOL_SHOWN = [
+  { setting: 'volume.visible', value: true, why: 'Show Volume first — the pane height only applies while it is on the chart.' },
+  { setting: 'volume.removed', not: true, why: 'Volume was removed from this chart — add it back first; the pane height only applies then.' },
+]
 const WHEN_IPO = { setting: 'markers.ipo', value: true, why: 'Turn the IPO marker on first — its color only applies while it is shown.' }
 const WHEN_DARKPOOL = { setting: 'darkPool.enabled', value: true, why: 'Turn dark-pool levels on first — their colors only apply while they are shown.' }
 const vals = (xs) => xs.map(x => (Array.isArray(x) ? x[0] : (x && typeof x === 'object' ? x.val : x)))
@@ -113,7 +129,9 @@ const ELIGIBLE = [
   E('swingLabels.downColor', 'markers', 'Swing-low color', 'color', { ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING_TINT }),
   E('markers.earningsBeat', 'markers', 'Earnings beat color', 'color', { ui: 'Chart Settings → Markers → Earnings → Beat color', requires: WHEN_EARNINGS }),
   E('markers.earningsMiss', 'markers', 'Earnings miss color', 'color', { ui: 'Chart Settings → Markers → Earnings → Miss color', requires: WHEN_EARNINGS }),
-  E('textColor', 'canvas', 'Scale text color', 'color', { ui: 'Chart Settings → Canvas → Scale text' }),
+  // ⛔ layout.textColor is `axisAuto.ink`: the axes follow the canvas (owner request 2026-07-23), never this setting
+  E('textColor', 'canvas', 'Scale text color', 'color', { ui: 'Chart Settings → Canvas → Scale text',
+    inert: 'The price and date scales pick their text color from the chart background automatically, so this setting wouldn’t change them.' }),
   E('watermark.sizeScale', 'watermark', 'Watermark size', 'enum', { options: WM_SIZES, ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
   E('watermark.weight', 'watermark', 'Watermark weight', 'enum', { options: vals(WM_WEIGHTS), ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
   // ── Charts operator P1: the watermark's colour (the dialog's picker writes it with the opacity beside it, unchanged) ──
@@ -144,28 +162,50 @@ const ELIGIBLE = [
   E('volume.upColor', 'volume', 'Volume up color', 'color', { ui: 'Chart Settings → Indicators → Volume' }),
   E('volume.downColor', 'volume', 'Volume down color', 'color', { ui: 'Chart Settings → Indicators → Volume' }),
   E('volume.hvcEnabled', 'volume', 'Highest-volume-candle marking', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['highest volume candle', 'hvc'] }),
-  E('volume.separatePane', 'volume', 'Volume in its own pane', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['separate volume pane', 'volume in its own pane'] }),
-  N('volume.paneHeightPct', 'volume', 'Volume pane height (% of the chart)', { ui: 'drag the pane separator', min: 8, max: 45, integer: true, requires: WHEN_VOL_PANE }),
+  // ⛔ D1: every /charts chart passes `volumeSeparatePane` (paneLook.js PANE_LOOK), and that prop beats this setting. DERIVED from the prop.
+  E('volume.separatePane', 'volume', 'Volume in its own pane', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['separate volume pane', 'volume in its own pane'],
+    ...(PANE_LOOK.volumeSeparatePane ? { inert: 'Charts always draws Volume in its own pane, so this setting changes nothing here. You can resize that pane, or hide Volume.' } : {}) }),
+  // ⛔ D1: /charts sizes the pane from the member's charts_vol_pane_pct (paneVolumePct → `volumePaneHeightPct`), never from the blob.
+  N('volume.paneHeightPct', 'volume', 'Volume pane height (% of the chart)', { ui: 'drag the pane separator', min: 8, max: 45, integer: true, requires: WHEN_VOL_SHOWN, store: 'volumePanePref', scope: 'member' }),
   E('volume.labelVisible', 'volume', 'Volume label', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['volume label'] }),
   E('volume.labelColor', 'volume', 'Volume label color', 'color', { ui: 'Chart Settings → Indicators → Volume' }),
   N('volume.maPeriod', 'volume', 'Volume moving-average period (0 = none)', { ui: 'Chart Settings → Indicators → Volume', min: 0, max: 500, integer: true }),
   E('volume.maColor', 'volume', 'Volume moving-average color', 'color', { ui: 'Chart Settings → Indicators → Volume', alpha: true }),
   E('volume.maLineWidth', 'volume', 'Volume moving-average width', 'enum', { options: PDL_WIDTHS, ui: 'Chart Settings → Indicators → Volume' }),
-  E('volume.maLineStyle', 'volume', 'Volume moving-average style', 'enum', { options: vals(LINE_STYLES), ui: 'Chart Settings → Indicators → Volume' }),
+  // ⛔ StockChart draws the volume MA with a colour and a width only; nothing reads this style
+  E('volume.maLineStyle', 'volume', 'Volume moving-average style', 'enum', { options: vals(LINE_STYLES), ui: 'Chart Settings → Indicators → Volume',
+    inert: 'The volume moving average is always drawn solid — its line style isn’t something the chart applies. I can change its color or width.' }),
   E('volume.barStyle', 'volume', 'Volume bar style', 'enum', { options: VOLUME_BAR_STYLES, ui: 'Chart Settings → Indicators → Volume → Columns / Histogram' }),
-  N('watermark.opacity', 'watermark', 'Watermark opacity (0 to 1)', { ui: 'Chart Settings → Canvas → Watermark → Color & opacity', min: 0, max: 1, requires: WHEN_WATERMARK }),
-  N('watermark.x', 'watermark', 'Watermark horizontal position (0 = left, 1 = right)', { ui: 'right-click → Move watermark', min: 0, max: 1, requires: WHEN_WATERMARK }),
-  N('watermark.y', 'watermark', 'Watermark vertical position (0 = top, 1 = bottom)', { ui: 'right-click → Move watermark', min: 0, max: 1, requires: WHEN_WATERMARK }),
+  N('watermark.opacity', 'watermark', 'Watermark opacity (0 to 1)', { ui: 'Chart Settings → Canvas → Watermark → Color & opacity', min: 0, max: 1, requires: WHEN_WATERMARK,
+    // paneWatermarkOpacity treats the faint default as "unset" and draws its strong look instead
+    refuseValue: (v) => (paneWatermarkOpacity({ watermark: { opacity: v } }) !== v ? `Charts treats ${v} as “not set” and draws the watermark at its strong default instead. Try a value just above or below it.` : null) }),
+  // ⛔ D2: a moved watermark is `opts.watermarkPos` (ChartWidget), which beats `cs.watermark.x/y`
+  N('watermark.x', 'watermark', 'Watermark horizontal position (0 = left, 1 = right)', { ui: 'right-click → Move watermark', min: 0, max: 1, requires: WHEN_WATERMARK, store: 'watermarkPos' }),
+  N('watermark.y', 'watermark', 'Watermark vertical position (0 = top, 1 = bottom)', { ui: 'right-click → Move watermark', min: 0, max: 1, requires: WHEN_WATERMARK, store: 'watermarkPos' }),
   E('markers.ipo', 'markers', 'IPO marker', 'bool', { ui: 'Chart Settings → Markers', words: ['ipo marker', 'ipo markers', 'ipo badge'] }),
   E('markers.ipoColor', 'markers', 'IPO marker color', 'color', { ui: 'Chart Settings → Markers', requires: WHEN_IPO }),
   E('darkPool.enabled', 'markers', 'Dark-pool levels', 'bool', { ui: 'Chart Settings → Markers → Dark pool', words: ['dark pool', 'dark pool levels', 'dark pool bars', 'dark pool prints'] }),
   E('darkPool.barColor', 'markers', 'Dark-pool bar color', 'color', { ui: 'Chart Settings → Markers → Dark pool', alpha: true, requires: WHEN_DARKPOOL }),
   E('darkPool.labelColor', 'markers', 'Dark-pool label color', 'color', { ui: 'Chart Settings → Markers → Dark pool', alpha: true, requires: WHEN_DARKPOOL }),
-  E('heikinAshi', 'priceStyle', 'Heikin Ashi candles', 'bool', { ui: 'a chart setting read on other chart surfaces (not drawn on /charts)', words: ['heikin ashi', 'heiken ashi', 'heikin-ashi'] }),
+  E('heikinAshi', 'priceStyle', 'Heikin Ashi candles', 'bool', { ui: 'a chart setting with no button on /charts (the chart draws it once set)', words: ['heikin ashi', 'heiken ashi', 'heikin-ashi'] }),
   E('showChartIq', 'tools', 'Chart IQ pattern recognition', 'bool', { ui: 'Chart toolbar → Chart IQ (server-gated: drawn only where Chart IQ is served)', words: ['chart iq', 'pattern recognition', 'patterns'] }),
   N('positionCalc.accountSize', 'tools', 'Position calculator account size', { ui: 'Position Calculator', min: 0, max: 1e9 }),
   N('positionCalc.riskPct', 'tools', 'Position calculator risk per trade (%)', { ui: 'Position Calculator', min: 0, max: 100 }),
 ]
+
+// What StockChart's themeColors ignores (a Sunrise canvas has no grid and its own colors; the light palette has its own)
+const FIXED_BY = {
+  'grid.visible': ['sunrise'], 'grid.color': ['sunrise', 'light'], 'crosshair.color': ['sunrise', 'light'],
+  bgMode: ['sunrise', 'light'], 'bgGradient.top': ['sunrise', 'light'], 'bgGradient.bottom': ['sunrise', 'light'],
+}
+for (const d of ELIGIBLE) {
+  if (FIXED_BY[d.id]) d.fixedBy = FIXED_BY[d.id]
+  // StockChart's own gates: `_isDWM` (swing labels), `pdlIntraday`, `countdownTfSec`, CHART_IQ_TFS
+  if (d.id.startsWith('swingLabels.')) d.drawnOn = 'dailyUp'
+  if (d.id.startsWith('prevDayLevels.')) d.drawnOn = 'intraday'
+  if (d.id === 'countdown') d.drawnOn = 'countdown'
+  if (d.id === 'showChartIq') d.drawnOn = 'chartIq'
+}
 
 // ── specialized: an Agent capability with its own rules already owns the write ──
 const S = (id, cap) => ({ id, agent: `specialized:${cap}` })
@@ -176,7 +216,7 @@ const SPECIALIZED = [
   S('background', 'chart.setBackground'),
   ...['upColor', 'downColor', 'upBorder', 'downBorder', 'upWick', 'downWick', 'oneColor'].map(k => S(`candles.${k}`, 'chart.setCandleColors')),
   S('volume.visible', 'volume.setState'), S('volume.removed', 'volume.setState'),
-  S('comparisonSymbols', 'chart.setSymbol'), S('compareHideBase', 'chart.setSymbol'),
+  S('comparisonSymbols', 'chart.compare'), S('compareHideBase', 'chartSetup.compareDisplay'),
 ]
 
 // ── owned by another project (Indicator Intelligence) — never written by chart.setSetting ──
@@ -200,9 +240,7 @@ const KNOWN = [
   K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header → Chart Legend'),
   K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header'),
   K('volume.plotStyle', 'volume', 'Volume plot style (declared, not yet honoured)', 'Chart Settings → Indicators → Volume'),
-  K('watermark.lines.*', 'watermark', 'Watermark lines (ticker/company/sector…)', 'Chart Settings → Canvas → Watermark'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
-  K('hideDrawings', 'drawings', 'Hide all drawings', 'not on /charts (other chart surfaces)'),
   K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
 ]
 
@@ -211,6 +249,7 @@ const I = (id, why) => ({ id, agent: 'internal', why })
 const INTERNAL = [
   I('settingsVersion', 'schema version'), I('preset', 'set to "custom" by every manual write'),
   I('header.legendLayout', 'dead data — nothing reads it'), I('showPatterns', 'control disabled in the product'),
+  I('hideDrawings', 'right-click → Hide all drawings; the Agent hides drawings per drawing, through drawing.setAllVisible'),
   I('signature.*', 'not a member control on /charts')
 ]
 
@@ -307,8 +346,31 @@ export function coerceSettingValue(d, raw) {
   return { ok: false, why: `${d.label} has no supported type` }
 }
 
+/** Why this chart's canvas ignores a color change right now (`fixedBy` = which canvases to ask about), or null. */
+export function canvasLock(settings, canvasTheme, fixedBy = ['sunrise', 'light']) {
+  if (canvasTheme === 'sunrise' && fixedBy.includes('sunrise')) return 'Charts is on the Sunrise theme, which sets its own canvas, grid and candle colors, so this would change nothing. Switch the Charts theme back first.'
+  if (settings?.theme === 'light' && fixedBy.includes('light')) return 'This chart is on the light palette (Shift+T), which sets its own canvas, grid and crosshair colors, so this would change nothing. Switch it back to dark first.'
+  return null
+}
+
+const DRAWN_ON = {
+  dailyUp: { on: ['D', 'W', 'M'], word: 'daily, weekly and monthly charts' },
+  intraday: { on: ['1', '5', '15', '30', '60'], word: 'the 1, 5, 15, 30 and 60 minute charts' },
+  countdown: { on: ['1', '5', '15', '30', '60', 'D'], word: 'intraday and daily charts' },
+  chartIq: { on: ['D', 'W'], word: 'daily and weekly charts' },
+}
+/** The clause a receipt owes when this timeframe does not draw the row (saved, but nothing changes on screen), or ''. */
+export function settingHiddenNote(d, tf, value) {
+  const gate = DRAWN_ON[d?.drawnOn]
+  if (!gate || value === false || gate.on.includes(String(tf))) return ''
+  return ` — saved, but it only shows on ${gate.word}, so you won't see it on this chart at this timeframe`
+}
+
 /** The UI-unavailable reason for this setting on this chart, or null (the same prerequisites the dialog enforces). */
-export function settingUnavailable(d, settings) {
+export function settingUnavailable(d, settings, { canvasTheme = null } = {}) {
+  if (d?.inert) return d.inert
+  const lock = d?.fixedBy ? canvasLock(settings, canvasTheme, d.fixedBy) : null
+  if (lock) return lock
   if (Array.isArray(d?.requires)) {
     for (const one of d.requires) { const why = settingUnavailable({ requires: one }, settings); if (why) return why }
     return null

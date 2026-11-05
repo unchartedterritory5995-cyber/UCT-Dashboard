@@ -7,7 +7,7 @@
 // keypress propagation (the Create Indicator panel's measured lesson — chart
 // shortcuts listen at the document and would otherwise eat "B", "W", Delete…).
 
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import useAgent from './useAgent'
 import { AuthContext } from '../context/AuthContext'
@@ -16,12 +16,14 @@ import { quickReplies } from './quickReplies'
 import { continues } from './chatTime'
 import { searchChat, snippet } from './chatSearch'
 import { agentConversations } from './agentClient'
+import { isWorking, subscribeWorking } from './trace'
 import AgentHistory from './AgentHistory'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
 import GuideOverlay from './guide/GuideOverlay'
+import { guideState, endGuide } from './guide/guideStore'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
@@ -300,6 +302,7 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
   const [firstTime] = useState(() => readLocal(welcomedKey(member.id)) !== '1')
   const firstName = member.name === 'User' ? '' : member.name.split(/\s+/)[0]
   const agent = useAgent({ host, gridMode, surface })
+  const working = useSyncExternalStore(subscribeWorking, isWorking)   // a website write is in flight (agent/trace.js)
   const [text, setText] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -414,10 +417,12 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
         <span className={styles.avatar} aria-hidden="true"><img src={compassMark} alt="" /><i className={styles.online} /></span>
         <span className={styles.contactText}>
           <span className={styles.contactName}>UCT Agent</span>
-          <span className={styles.contactStatus} aria-live="polite">
-            {(agent.busy || greetingTyping)
-              ? <span className={styles.typingNow}>typing<i /><i /><i /></span>
-              : <span className={styles.onlineWord}>Online</span>}
+          <span className={styles.contactStatus} aria-live="polite" data-testid="agent-status">
+            {working
+              ? <span className={styles.typingNow}>UCT Agent is working<i /><i /><i /></span>
+              : (agent.busy || greetingTyping)
+                ? <span className={styles.typingNow}>typing<i /><i /><i /></span>
+                : <span className={styles.onlineWord}>Online</span>}
           </span>
         </span>
         <span className={styles.headSpacer} />
@@ -481,7 +486,7 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
         {typing && (
           <div className={styles.typingLine} role="status" aria-live="polite" data-testid="agent-typing">
             <span className={styles.typingDots} aria-hidden="true"><i /><i /><i /></span>
-            <span><b>UCT Agent</b> {agent.activity === 'research' ? 'is looking that up on the web…' : 'is typing…'}</span>
+            <span><b>UCT Agent</b> {working ? 'is working' : agent.activity === 'research' ? 'is looking that up on the web…' : 'is typing…'}</span>
           </div>
         )}
         <div className={styles.bar}>
@@ -495,6 +500,8 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
+              // the panel stops its keys reaching the board, so the guide's own Escape can't hear this box, and focus sits here after asking
+              if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && guideState()) endGuide('exit')
             }}
           />
           <span className={styles.micSlot}>

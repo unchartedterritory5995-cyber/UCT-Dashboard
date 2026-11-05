@@ -71,7 +71,43 @@ def main() -> int:
     print("path|first_action|n|p50_ms|p95_ms")
     for (path, act), lat in sorted(by_action.items(), key=lambda kv: -len(kv[1]))[:40]:
         print(f"{path}|{act}|{len(lat)}|{pct(lat, .5)}|{pct(lat, .95)}")
+    speed_report(c, since)
     return 0
+
+
+def speed_report(c, since: int) -> None:
+    """Constant schema vs routed: the same turn's model time, cache use, cost and failures, and the browser's two times."""
+    cols = {r[1] for r in c.execute("PRAGMA table_info(agent_telemetry)").fetchall()}
+    if "schema_mode" not in cols:
+        return
+    q = ("SELECT schema_mode, latency_ms, cost_usd, cache_read_tokens, cache_write_tokens, model_calls, research_calls "
+         "FROM agent_telemetry WHERE created_at >= ? AND schema_mode IS NOT NULL AND path != 'failed'")
+    by = defaultdict(list)
+    for r in c.execute(q, (since,)):
+        by[r[0]].append(r)
+    print("schema_mode|turns|model_p50_ms|model_p90_ms|cache_read_share|cache_read_p50|cache_write_p50|calls_per_turn|cost_mean_usd|failed_unreadable")
+    for mode, rs in sorted(by.items()):
+        lat = [r[1] for r in rs if isinstance(r[1], int) and not r[6]]
+        cost = [r[2] for r in rs if isinstance(r[2], (int, float))]
+        failed = c.execute("SELECT COUNT(*) FROM agent_telemetry WHERE created_at >= ? AND path = 'failed' AND schema_mode = ?", (since, mode)).fetchone()[0]
+        calls = [r[5] for r in rs if isinstance(r[5], int)]
+        print(f"{mode}|{len(rs)}|{pct(lat, .5)}|{pct(lat, .9)}|{round(sum(1 for r in rs if r[3]) / len(rs), 3)}|"
+              f"{pct([r[3] or 0 for r in rs], .5)}|{pct([r[4] or 0 for r in rs], .5)}|"
+              f"{round(sum(calls) / len(calls), 2) if calls else None}|{round(sum(cost) / len(cost), 5) if cost else None}|{failed}")
+    q = ("SELECT path, visible_ms, verified_ms, disposition, refused FROM agent_telemetry WHERE created_at >= ? "
+         "AND (visible_ms IS NOT NULL OR verified_ms IS NOT NULL)")
+    rows = c.execute(q, (since,)).fetchall()
+    br = defaultdict(list)
+    for r in rows:
+        br[r[0] or "?"].append(r)
+    print("path|turns|visible_p50_ms|visible_p90_ms|verified_p50_ms|verified_p90_ms")
+    for path, rs in sorted(br.items(), key=lambda kv: -len(kv[1])):
+        vis = [r[1] for r in rs if isinstance(r[1], int)]
+        ver = [r[2] for r in rs if isinstance(r[2], int)]
+        print(f"{path}|{len(rs)}|{pct(vis, .5)}|{pct(vis, .9)}|{pct(ver, .5)}|{pct(ver, .9)}")
+    spent = c.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM agent_telemetry WHERE created_at >= ?", (since,)).fetchone()[0]
+    done = sum(1 for r in rows if r[3] == "apply" and not r[4])
+    print(f"cost_per_verified_change_usd={round(spent / done, 5) if done else None} (all model spend / changes read back and saved: {done})")
 
 
 if __name__ == "__main__":

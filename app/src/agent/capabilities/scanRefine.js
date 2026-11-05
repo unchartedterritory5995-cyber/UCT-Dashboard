@@ -58,10 +58,11 @@ export function refineRefusalForText(text) {
 /**
  * SC-2 §3: the refined wire spec from the last one and the follow-up's parts. Pure (the server mirror is
  * refine.compose). `add` / `post` replace by key (add, narrow); a list filter on sector/industry replaces the whole
- * universe slot; `sort` replaces only the sort. → { spec } | { error }
+ * universe slot; `sort` replaces only the sort. A group stays: a new one is ANDed onto it, so a refinement can only narrow
+ * the group, never lose it. One order at a time: a `sort` clears a rank and a `rank` clears the sort. → { spec } | { error }
  */
-export function composeRefine(last, { wire = [], post = [], sort = null } = {}) {
-  const why = refineRefusal([...wire.map(f => f.key), ...post.map(f => f.key), ...(sort ? [sort.key] : [])])
+export function composeRefine(last, { wire = [], post = [], sort = null, logic = null, rank = null } = {}) {
+  const why = refineRefusal([...wire.flatMap(f => [f.key, f.other]), ...post.map(f => f.key), ...(sort ? [sort.key] : []), ...(rank?.criteria || []).map(c => c.key)])
   if (why) return { error: why }
   const universe = wire.filter(f => UNIVERSE_KEYS.includes(f.key))
   const mine = new Set([...wire, ...post].map(f => f.key))
@@ -69,12 +70,16 @@ export function composeRefine(last, { wire = [], post = [], sort = null } = {}) 
   if (universe.length) filters = filters.filter(f => !UNIVERSE_KEYS.includes(f.key))
   filters = [...filters, ...wire]
   const measures = [...(last?.post || []).filter(f => !mine.has(f.key)), ...post]
-  return { spec: { filters, post: measures, sort: sort || last?.sort || null } }
+  const group = last?.logic && logic ? { all: [last.logic, logic] } : (logic || last?.logic || null)
+  const keptRank = !sort && !rank ? last?.rank : null
+  return { spec: { filters, post: measures, sort: rank ? null : (sort || last?.sort || null), ...(rank || keptRank ? { rank: rank || keptRank } : {}), ...(group ? { logic: group } : {}) } }
 }
 
 // ── persistence (fire-and-forget writes; one read per conversation switch) ──
 const slim = (last) => ({
-  spec: { filters: (last.spec?.filters || []).map(f => { const o = { ...f }; delete o.pending; return o }), post: last.spec?.post || [], sort: last.spec?.sort || null },
+  // ⛔ the group and the rank are the screen: a restored spec without them would refine a LOOSER screen than the one shown
+  spec: { filters: (last.spec?.filters || []).map(f => { const o = { ...f }; delete o.pending; return o }), post: last.spec?.post || [], sort: last.spec?.sort || null,
+    ...(last.spec?.logic ? { logic: last.spec.logic } : {}), ...(last.spec?.rank ? { rank: last.spec.rank } : {}) },
   symbols: (last.symbols || []).slice(0, ROW_CAP), total: Number.isFinite(last.total) ? last.total : null,
   asOf: last.asOf || null, name: last.name || null, savedId: last.savedId != null ? String(last.savedId) : null,
 })
@@ -91,7 +96,8 @@ export async function restoreLastScreen() {
   const r = await agentConversationState(id, STATE_KEY).catch(() => null)
   const v = r && r.ok ? r.data?.value : null
   if (!v || typeof v !== 'object' || !v.spec || !Array.isArray(v.spec.filters)) return null
-  return { spec: { filters: v.spec.filters, post: Array.isArray(v.spec.post) ? v.spec.post : [], sort: v.spec.sort || null },
+  return { spec: { filters: v.spec.filters, post: Array.isArray(v.spec.post) ? v.spec.post : [], sort: v.spec.sort || null,
+    ...(v.spec.logic ? { logic: v.spec.logic } : {}), ...(v.spec.rank ? { rank: v.spec.rank } : {}) },
     name: v.name || null, savedId: v.savedId || null, total: Number.isFinite(v.total) ? v.total : 0, asOf: v.asOf || null,
     live: null, symbols: Array.isArray(v.symbols) ? v.symbols : [], ms: 0, restored: true, conversation: id }
 }

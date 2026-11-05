@@ -7,7 +7,6 @@ import { passageNavigationState } from '../lib/openCitation'
 import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
-import NotesTableView from '../components/notebook/NotesTableView'
 import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -146,6 +145,8 @@ const TemplatePicker = lazyView(() => import('../components/notebook/TemplatePic
 // its status read lands, so it loads after first paint with nothing in its place (`null` fallback).
 const NoteConnectorsTrustStrip = lazyView(() => import('../components/connectors/NoteConnectorsTrustStrip'), 'connected apps status', null)
 const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+// Tier 1a bytes (perf-budgets.md): the table view mode, fetched on its first use like every other view mode.
+const NotesTableView = lazyView(() => import('../components/notebook/NotesTableView'), 'table')
 // Notebook P1 (spec P1.4): the kind picker at the top of the New-note sheet. Lazy; gate off = never rendered.
 const KindSection = lazyView(() => loadStyle('KindSection'), 'kinds')
 const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')

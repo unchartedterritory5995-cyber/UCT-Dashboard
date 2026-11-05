@@ -83,7 +83,7 @@ describe('R-01 — normalizeArgs reads what the live planner sends (the browser 
     expect(shapeError('chart.replay', normalizeArgs('chart.replay', { date: false }).args, CTX)).toMatch(/wrong kind/)
   })
   it('screener.run: a sort-only refinement without filters, with a nested sort object, with "descending"', () => {
-    const want = { filters: [], sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'refine', show: null, as: null, within: null }
+    const want = { filters: [], sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'refine', show: null, as: null, within: null, logic: null, rank: null }
     ok('screener.run', { sort_field: 'chg_pct_3m', sort_dir: 'descending', mode: 'refine' }, want)
     ok('screener.run', { sort: { field: 'chg_pct_3m', dir: 'DESC' }, mode: 'Refine', filters: null }, want)
     ok('screener.run', { sort_by: 'chg_pct_3m', order: 'high to low', mode: 'refinement', limit: '10' }, { ...want, show: 10 })

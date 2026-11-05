@@ -188,6 +188,7 @@ def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int |
             api_key=api_key,
             timeout=llm_timeouts.seconds("TRANSCRIPT_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH),
+            max_retries=0,
         )
 
         quarter_label = f"Q{quarter} {year}" if quarter and year else "recent quarter"

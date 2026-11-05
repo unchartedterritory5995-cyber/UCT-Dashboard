@@ -220,6 +220,14 @@ def _record_cost(model: str, usage: dict | None, surface: str) -> float | None:
     except Exception:
         return None
 
+# ⛔ THE DAILY LIMIT COUNTS LEDGER ROWS, so a call that may have been billed and
+# wrote no row is invisible to it. Timeouts, and 200 replies with an empty or
+# unusable answer, write a row through this. An HTTP error status writes none:
+# nothing was generated, and a provider outage must not eat the morning's budget.
+def _record_unanswered(model: str, usage: dict | None, surface: str) -> None:
+    _record_cost(model, usage, surface)
+
+
 # Retry budget for transient upstream failures (429 / 5xx) on the blocking
 # path: up to 3 retries (4 attempts total), exponential backoff. Bounded so
 # the request path can never stack unboundedly; auth errors (4xx other than
@@ -562,6 +570,7 @@ def web_search(
             # never spin — an unbounded retry on a blocking call is the
             # threadpool surface behind the 524. Exponential backoff between
             # attempts (0.5s, 1s, 2s).
+            _record_unanswered(model, None, cost_surface)
             if attempt < _MAX_RETRIES:
                 time.sleep(_retry_pause(attempt))
                 continue
@@ -594,6 +603,7 @@ def web_search(
         answer = _strip_think(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError) as e:
         _log.warning("perplexity unexpected response shape: %s", e)
+        _record_unanswered(model, data.get("usage") if isinstance(data, dict) else None, cost_surface)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="unexpected response")
         return {"answer": "", "citations": [], "error": "unexpected response",
                 "mode": resolved_mode, "model": model}
@@ -602,6 +612,7 @@ def web_search(
     # completion) must NOT be cached for the full TTL — return an error so the
     # caller can fall back, and don't poison the cache with 30 min of blank.
     if not answer:
+        _record_unanswered(model, data.get("usage"), cost_surface)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="empty answer")
         return {"answer": "", "citations": [], "error": "empty answer",
                 "mode": resolved_mode, "model": model}
@@ -818,6 +829,7 @@ async def stream_search(
                             yield {"type": "delta", "text": visible}
     except Exception as e:  # timeout / network / protocol — caller falls back
         _log.warning("perplexity stream failed: %s", e)
+        _record_unanswered(model, usage, cost_surface)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="stream failed")
         yield {"type": "error", "error": "stream failed"}
         return
@@ -827,6 +839,7 @@ async def stream_search(
         yield {"type": "delta", "text": tail}
     answer = _strip_think("".join(answer_parts))
     if not answer:
+        _record_unanswered(model, usage, cost_surface)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="no answer")
         yield {"type": "error", "error": "no answer"}
         return

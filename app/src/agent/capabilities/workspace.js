@@ -34,7 +34,7 @@ import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import { mark } from '../trace'
 import { afterRender } from '../frames'
 import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
-import { isPronounToken } from '../nl/tickers'
+import { isPronounToken, isReservedWord } from '../nl/tickers'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -84,11 +84,11 @@ export function newChartTicker(raw) {
 export function newChartRequest(raw) {
   const m = NEW_CHART_TICKER.exec(String(raw || '').trim())
   const w = m ? null : IN_NEW_CHART.exec(String(raw || '').trim())
-  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) ? { symbol: w[1], timeframe: null } : null
+  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) && !isReservedWord(String(raw).includes(`$${w[1]}`) ? `$${w[1]}` : w[1]) ? { symbol: w[1], timeframe: null } : null
   const t = m ? (m[2] || m[4]) : null
   // ⛔ a pronoun is never a ticker — "OPEN A CHART OF IT" typed in capitals is still "it"
   const typed = t && String(raw).includes(`$${t}`) ? `$${t}` : t       // "$IT" is explicitly a ticker
-  if (!(t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw))) return null
+  if (!(t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw) && !isReservedWord(typed))) return null
   const timeframe = TF_OF_WORD(m[1] || m[3])
   return timeframe === undefined ? null : { symbol: t, timeframe }
 }

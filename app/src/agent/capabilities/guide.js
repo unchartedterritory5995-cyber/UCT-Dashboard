@@ -53,7 +53,9 @@ export function showFeature(f, host) {
   if (needsChart(f) && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
   // an optional opening step (the board's own watchlist) only when it is there
-  const all = f.steps.filter(s => !s.optional || findTarget(s.target, { chartRef }))
+  // ⭐ Multi Chart: a cell has no "more timeframes" menu or drawing strip, so a chart step past the first goes unless it is there
+  const absentOnCell = (s, i) => host?.multiChart && i > 0 && String(s.target).startsWith('chart.')
+  const all = f.steps.filter((s, i) => !(s.optional || absentOnCell(s, i)) || findTarget(s.target, { chartRef }))
   // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
   // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
   // walkthrough starts — never "open the gear" when the settings are already open.
@@ -65,6 +67,8 @@ export function showFeature(f, host) {
   const steps = all.slice(from)
   const first = steps[0]
   if (!first || !findTarget(first.target, { chartRef })) {
+    // ⭐ Multi Chart: a cell carries its ticker and timeframe controls only; the rest of a chart's header is not on it
+    if (host?.multiChart) return `That control isn’t on a Multi Chart cell, so I can’t point at it here — exit Multi Chart to see it. ${f.explain}`
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
   }
   if (guideState()) endGuide('replaced')
@@ -170,8 +174,12 @@ export function registerGuideCapabilities() {
     fast: ({ raw, host }) => {
       const q = String(raw || '').trim()
       if (!SHOW.test(q)) return null
-      const f = matchFeature(q, null, host?.surface || 'charts')
-      return f ? { feature: f.id } : null
+      const here = host?.surface || 'charts'
+      const f = matchFeature(q, null, here)
+      if (f) return { feature: f.id }
+      // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
+      const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
+      return charts?.everyPage ? { feature: charts.id } : null
     },
     answer: (_snap, { feature }, host, ctx) => {
       const f = guideFeature(feature)

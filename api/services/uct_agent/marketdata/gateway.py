@@ -41,7 +41,9 @@ log = logging.getLogger("uct_agent.data")
 DATA_ENV = "UCT_AGENT_DATA"
 SCAN_ENV = "UCT_AGENT_SCAN"
 #: Model-isolated kinds (ADR-005) are DORMANT unless this is on: refused server-side for EVERY purpose,
-#: so their security never rests on the browser-supplied `purpose` alone. Activation is a separate
+#: so their security never rests on the browser-supplied `purpose` alone. ⛔ `turn_id` is browser-supplied too, so the
+#: per-turn counts here bound one honest turn, not a caller: research.company's paid web lookup is bounded by the
+#: member request budget.latest_request finds (research/rs1.py), never by this id. Activation is a separate
 #: owner decision that also needs ADR-005 layers L2-L7 in place.
 ISOLATED_ENV = "UCT_AGENT_ISOLATED"
 #: Per-kind activation allowlist: a comma list of kind names (e.g. "quote"). Read only while UCT_AGENT_DATA is
