@@ -2,8 +2,8 @@
  [
   "control:noop-comment",
   ".github/workflows/master-deploy-gate.yml",
-  "      # \u2500\u2500 PINE RUNTIME SERVICE (W5-T19, 2026-11-04)",
-  "      # (control) \u2500\u2500 PINE RUNTIME SERVICE (W5-T19, 2026-11-04)"
+  "  # \u2500\u2500 PINE RUNTIME SERVICE (W5-T19, 2026-11-04)",
+  "  # (control) \u2500\u2500 PINE RUNTIME SERVICE (W5-T19, 2026-11-04)"
  ],
  [
   "step2:drop-hp4-control",

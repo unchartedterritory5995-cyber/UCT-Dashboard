@@ -10,7 +10,7 @@ def m(n, f, o, nw):
     M.append([n, f, o, nw])
 
 
-m("control:noop-comment", W, "      # ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04)", "      # (control) ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04)")
+m("control:noop-comment", W, "  # ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04)", "  # (control) ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04)")
 m("step2:drop-hp4-control", W, "          node tools/pine_runtime_host_parity.mjs --host node --mutation-control\n", "")
 m("step2:drop-check", W, "          node tools/pine_runtime_host_parity.mjs --host node --check\n", "")
 m("step2:add-chromium-half", W, "          node tools/pine_runtime_host_parity.mjs --host node --mutation-control\n",
@@ -52,26 +52,4 @@ m("runbook:drop-columnDigest", RB, "`runtime/columnDigest.js`", "`runtime/x.js`"
 m("deploywindows:drop-pointer", "docs/runbooks/deploy-windows.md", "Runbook and gate: `docs/runbooks/pine-runtime-service.md`.", "Runbook and gate: elsewhere.")
 json.dump(M, open("docs/pine/evidence/2026-11-04-w5-t19/muts-py.json", "w"), indent=1)
 
-V = []
-P = "../tools/pine_runtime_host_parity.mjs"
-
-
-def v(n, o, nw):
-    V.append([n, P, o, nw])
-
-
-v("control:noop-comment", "// W5-T19: HP-1 on a V8 other", "// (control) W5-T19: HP-1 on a V8 other")
-v("v8:always-moved", "const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)", "const v8Moved = true")
-v("v8:compare-dropped", "const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)", "const v8Moved = Boolean(v8Was && v8Now)")
-v("v8:missing-counts-as-moved", "const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)", "const v8Moved = !(v8Was && v8Now && v8Was === v8Now)")
-v("v8:unlisted-reported", "if (ro.has(name) && ds.every((d) => d.field === 'digest')) {\n        reportedLines", "if (ds.every((d) => d.field === 'digest')) {\n        reportedLines")
-v("v8:any-field-reported", "if (ro.has(name) && ds.every((d) => d.field === 'digest')) {\n        reportedLines", "if (ro.has(name)) {\n        reportedLines")
-v("v8:report-line-not-emitted", "  lines.push(...reportedLines)\n", "")
-v("v8:report-line-loses-recorded-v8", "digest differs from the one recorded on V8 ${v8Was}; this run is V8 ${v8Now}; ${ro.get(name)}", "digest differs; ${ro.get(name)}")
-v("v8:report-line-loses-reason", "this run is V8 ${v8Now}; ${ro.get(name)}`)", "this run is V8 ${v8Now}`)")
-v("v8:diffs-not-narrowed", "    diffs = keep\n", "")
-v("summary:rep-not-subtracted", "${n - rep}/${n} cases equal", "${n}/${n} cases equal")
-v("summary:no-reported-suffix", "${rep ? `; ${rep} REPORTED, not gated (V8 differs from the recording V8)` : ''}", "")
-v("summary:code-2-as-red", "return r.code === 2 ? 'HP-1 INCONCLUSIVE' : 'HP-1 RED'", "return 'HP-1 RED'")
-json.dump(V, open("docs/pine/evidence/2026-11-04-w5-t19/muts-vitest.json", "w"), indent=1)
-print(len(M), len(V))
+print(len(M))

@@ -129,3 +129,20 @@ This supersedes the first run's rails failure above.
 - Whether `tools/pine_runtime_service_smoke.py` is present inside the web image, for running the smoke from the private network, is unverified.
 - The service's `ENV_ALLOWLIST` may not list every variable Railway injects; the first boot log is the proof (runbook step 7).
 - The Python steps in CI use `/tmp/prodvenv`, which the earlier agent step installs pytest and httpx into; if that step is ever reordered after these, they break (the rail pins the order).
+
+## Round r1 (independent review NO-GO @b6c5668922: B1, B2, B3)
+**Merge order (hard): T1, T3, T6, T7, T10, T11, T17, T2, T4 r2, THEN T19.** T19's own diff is only the gate job, the runbook, the rail and these docs;
+until those lanes are on master, this branch carries them in (it is stacked on them).
+- **B1**: merged origin/master `ceee4597a0` (conflict in `master-deploy-gate.yml`, resolved by taking master's file whole and adding). The Pine steps
+  are now their OWN job `pine-runtime` (own checkout, setup-python, setup-node '20', `npm ci` in `app/`, own `/tmp/prodvenv`), added to `verdict.needs`
+  and to the verdict's success condition. The only master lines touched are those three `verdict` lines; `gate`, `agent-browser` and `agent-browser-union` are untouched
+  (the rail asserts none mentions Pine). Rail rewritten to parse the job: steps contiguous and ordered after the job's own `npm ci`; the job has no `if`/`needs`/`continue-on-error`;
+  `verdict.needs` holds it AND the others, `verdict.if == always()`, and the verdict tests `needs.pine-runtime.result`; exactly one `setup-node` in the job and every other job's
+  Node pin equals the image's major. 27 tests.
+- **B2**: merged W5-T4 r2 `da8da64717`. `tools/pine_runtime_host_parity.mjs` is now byte-for-byte T4's (no diff against `origin/feat/pine-w5-t4-host-parity`); my copy of the V8 rule is gone and the rule lives in
+  T4's `classifyDiffs` (one authority). My `hostParity.v8.rail.test.js` (9 tests) is kept as an independent rail on T4's behaviour and passes against T4's tool. Its former mutation table is withdrawn (T4 r2 carries the mutations of that code).
+- **B3**: step 6 names `tests/test_pine_runtime_composition.py` (design section 8); the rail asserts it. The file is W5-T17's: on this branch it does not exist, so step 6 is red until T17 is on master (merge order above).
+- N2 done (runbook: no Shared Variables, `VITE_*` ARGs unset, W5-INT cross-reference). N1 (`corpus.json` reason text) is T4's file; not touched here.
+- Mutation re-run (`runs/w5t19r1/mut2.out`, lock `heavy-mut`): **34 of 34 real mutations killed, control survived** (new rows: job conditional, job missing from `verdict.needs`, verdict not testing the result,
+  composition dropped from step 6, non-production dependency set, a second setup-node, another job's Node pin moved, install step ordering).
+- Node 20 and the earlier tested-on-master numbers above predate the restructure; the new-master final-tip is below.
