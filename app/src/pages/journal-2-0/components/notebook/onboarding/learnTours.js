@@ -41,8 +41,8 @@ export const LEARN_GROUPS = Object.freeze(['Write', 'Organize', 'Live data', 'Tr
 /** Which heading each registered, replayable tour sits under. */
 export const GROUP_OF = Object.freeze({
   'notebook-basics': 'Write', 'template-gallery': 'Write', 'image-docx-import': 'Write', 'voice-notes': 'Write',
-  'formulas-rollups': 'Write', 'journal-styles': 'Write',
-  'meaning-search': 'Organize', 'task-reminders': 'Organize', 'publish-share': 'Organize', 'style-library': 'Organize',
+  'formulas-rollups': 'Write', 'journal-styles': 'Write', 'style-library': 'Write',   // R-P5-6: the two template tours together
+  'meaning-search': 'Organize', 'task-reminders': 'Organize', 'publish-share': 'Organize',
   'ta-fingerprint': 'Live data', 'earnings-prep': 'Live data', 'transcript-capture': 'Live data', 'setups-board': 'Live data',
   'plan-grading': 'Trading tools', 'entry-context': 'Trading tools', 'my-playbook': 'Trading tools',
   'chart-plan-basics': 'Trading tools', 'chart-plan-replay': 'Trading tools', 'visual-playbook': 'Trading tools',
