@@ -85,6 +85,28 @@ describe('delete and Undo', () => {
     const { id: _b, ...now } = peek('NVDA')[0]
     expect(now).toEqual(was)
   })
+  it('Undo of a delete restores the EXACT id, so an earlier change to that drawing still finds it', async () => {
+    const m = quad({ selected: 'bl' })
+    await m.say('draw a trendline', (c) => [TREND(c, 'NVDA')])
+    await waitFor(() => expect(peek('NVDA')).toHaveLength(1))
+    const { id } = peek('NVDA')[0]
+    await m.say('delete it', (c) => [REMOVE(c, 'NVDA')])
+    await waitFor(() => expect(peek('NVDA')).toEqual([]))
+    await m.say('undo')
+    await waitFor(() => expect(peek('NVDA').map(d => d.id)).toEqual([id]))
+  })
+  it('KNOWN LIMIT, pinned: Undo does not restore stacking order; the restored drawing comes back on top', async () => {
+    const m = quad({ selected: 'bl' })
+    await m.say('draw a trendline', (c) => [TREND(c, 'NVDA')])
+    await m.say('and a horizontal line at 200', (c) => [LINE(c, 'NVDA')])
+    await waitFor(() => expect(peek('NVDA').map(d => d.type)).toEqual(['trendline', 'horizontal']))
+    const first = peek('NVDA')[0].id
+    await m.say('delete the trendline', (c) => [REMOVE(c, 'NVDA', first)])
+    await waitFor(() => expect(peek('NVDA').map(d => d.type)).toEqual(['horizontal']))
+    await m.say('undo')
+    await waitFor(() => expect(peek('NVDA').map(d => d.type)).toEqual(['horizontal', 'trendline']))
+    expect(peek('NVDA')[1].id).toBe(first)
+  })
   it('add → restyle → delete → Undo three times walks all the way back to nothing', async () => {
     const m = quad({ selected: 'bl' })
     await m.say('draw a line at 200', (c) => [LINE(c, 'NVDA')])
