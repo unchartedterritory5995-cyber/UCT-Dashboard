@@ -9,6 +9,8 @@ import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { AuthContext } from '../context/AuthContext'
 import { commitPlan } from './runtime'
+import { _resetAgentConfig } from './agentClient'
+import { _resetKnowledgeForTest } from './capabilities/knowledge'
 import { isWorking, mark, subscribeWorking, traceEnd, traceStart, turnEnd, turnStart, _resetTurns } from './trace'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -95,6 +97,63 @@ function holdSave(h) {
   return { at: () => held.length, finish: (r = { ok: true }) => held.shift().res(r), fail: (e) => held.shift().rej(e) }
 }
 const tf = (board) => board.state.widgets.find(w => w.id === 'c1').opts.tf
+
+const KB = { contract: 'MD-1.0', kind: 'knowledge.search', params_echo: {}, status: 'ok', freshness: 'periodic',
+  as_of: '2026-11-01T02:00:00Z', fetched_at: '2026-11-03T05:00:00Z', delay_s: null, stale: false, source: 'uct-brain-pack',
+  coverage: { pack_ts: 1761962400, policy_version: 3 }, provider_calls: 0, notes: [],
+  data: { method: 'fts', passages: [{ kb_id: 2, title: 'UCT team playbook: VCP', category: 'SETUP', trader: 'UCT Team',
+    source: 'the UCT team playbook (distilled, unattributed)', licence: 'team_owned', excerpt: 'Tightening pullbacks on drying volume.' }] } }
+
+/** A scripted model turn: `reply(body)` gives the envelope, or throws for a failed request. No model call. */
+function scriptTurn(reply) {
+  const real = globalThis.fetch
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+    const u = String(url)
+    if (u === '/api/agent/config') return json({ stream: false, nl1: false, data: true, scan: false, data_kinds: ['knowledge.search'] })
+    if (u === '/api/agent/data') return json(KB)
+    if (u === '/api/agent/turn') {
+      const envelope = { reply: '', question: null, ops: [], unsupported_category: null, ...reply(JSON.parse(init.body)) }
+      return json({ conversationId: 'ac_1', envelope, usage: { research_calls: 0, citations: [] } })
+    }
+    return real(url, init)
+  })
+}
+const chartRef = (b) => b.context.charts[0].ref
+const weekly = (b, tf = 'W') => ({ action: 'chart.setTimeframe', target: chartRef(b), args: { timeframe: tf } })
+const explain = (b) => ({ action: 'playbook.explain', target: b.context.playbook[0].ref, args: { question: 'what is a VCP' } })
+
+describe('the status clears on every path', () => {
+  beforeEach(() => { _resetAgentConfig(); _resetKnowledgeForTest() })
+  afterEach(() => { _resetAgentConfig(); _resetKnowledgeForTest() })
+
+  it.each([
+    ['success', (b) => ({ disposition: 'apply', ops: [weekly(b)] }), { wrote: true, tf: 'W', receipts: 1 }],
+    ['mixed change + knowledge', (b) => ({ disposition: 'apply', ops: [weekly(b), explain(b)] }), { wrote: true, tf: 'W', receipts: 1, says: /UCT KB #2/ }],
+    ['knowledge only', (b) => ({ disposition: 'apply', ops: [explain(b)] }), { wrote: false, tf: 'D', receipts: 0, says: /UCT KB #2/ }],
+    ['refusal', (b) => ({ disposition: 'apply', ops: [weekly(b, '7')] }), { wrote: false, tf: 'D', receipts: 0 }],
+    ['approval pending', (b) => ({ disposition: 'propose', reply: 'Here is the plan.', ops: [weekly(b)] }), { wrote: false, tf: 'D', receipts: 0, card: true }],
+    ['the turn request failing', () => { throw new Error('offline') }, { wrote: false, tf: 'D', receipts: 0 }],
+  ])('%s', async (_, reply, want) => {
+    const seen = []
+    const off = subscribeWorking(() => seen.push(isWorking()))
+    scriptTurn(reply)
+    const { board, send } = await mount()
+    await waitFor(() => expect(globalThis.fetch.mock.calls.some(c => String(c[0]) === '/api/agent/config')).toBe(true))
+    await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false))
+    send('set this up for swing trading')
+    await waitFor(() => expect(globalThis.fetch.mock.calls.some(c => String(c[0]) === '/api/agent/turn')).toBe(true), { timeout: 8000 })
+    await idle()
+    off()
+    expect(isWorking()).toBe(false)
+    expect(seen).toEqual(want.wrote ? [true, false] : [])
+    expect(screen.queryByTestId('agent-typing')).toBeNull()
+    expect(tf(board)).toBe(want.tf)
+    expect(screen.queryAllByTestId('agent-receipt')).toHaveLength(want.receipts)
+    if (want.says) expect(transcript()).toMatch(want.says)
+    if (want.card) expect(screen.getByRole('button', { name: 'Apply' }).disabled).toBe(false)
+  }, 20000)
+})
 
 describe('working signal (agent/trace.js)', () => {
   it('follows the commit and Undo marks with no trace or turn open, and tells subscribers once per change', () => {
