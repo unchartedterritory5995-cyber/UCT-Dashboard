@@ -26,29 +26,38 @@
 import { mutate as globalMutate } from 'swr'
 
 export const NOTE_TAGS_PREFIX = '/api/j2/notes/tags'
+const NOTES = '/api/j2/notes'
 
-const TITLE_VIEW_PREFIXES = [
-  '/api/j2/notes/by-folders',
-  '/api/j2/notes/recents',
-  '/api/j2/notes/favorites',
-  '/api/j2/notes/graph',
-]
-const COUNT_VIEW_KEYS = [
-  '/api/j2/notes/folder-counts',
-  '/api/j2/note-folders',
-  '/api/j2/notes/sector-theme-facets',
-]
+/** ⛔ Fix round 1 (review finding 2): THE RULE IS INVERTED. The first cut was an allow-list of view
+ *  keys, and it left out views the old `refreshSidebarCounts` reached (every `/api/j2/notes*` key):
+ *  the Tasks view, the research page's summary, by-trade-ref, backlinks -- a trash left its tasks
+ *  listed until a reload. Now EVERY `/api/j2/notes*` key is a view, except ONE NOTE's own key and
+ *  its sub-resources (`/api/j2/notes/{id}`, `/api/j2/notes/{id}/...`). A path segment after
+ *  `/api/j2/notes/` is a view word when it names a collection route; otherwise it is a note id.
+ *  The words below are every `GET /notes/<word>` route the server mounts (railed against
+ *  api/routers/journal_two.py, so a new one cannot be missed), plus the write-side collections the
+ *  client keys (connectors, import, media, daily, batch, search, enrichment). */
+export const NOTE_VIEW_WORDS = new Set([
+  'attachments', 'backlinks', 'by-folders', 'by-trade-ref', 'documents', 'excerpts', 'export',
+  'favorites', 'folder-counts', 'graph', 'import', 'link-targets', 'recents', 'research',
+  'sector-theme-facets', 'switcher', 'tag-members', 'tags', 'tasks',
+  'connectors', 'media', 'daily', 'batch', 'search', 'enrichment',
+])
+/** The counts a title cannot move, and the tag cloud (opt-in: the most expensive read). */
+const COUNT_WORDS = new Set(['folder-counts', 'sector-theme-facets'])
+const TAG_WORDS = new Set(['tags', 'tag-members'])
 
-/** Is `key` one of the Notebook's note VIEWS (see the header)? */
+/** Is `key` one of the Notebook's note VIEWS (see the header and the rule above)? */
 export function isNoteViewKey(key, { tags = false, titleOnly = false } = {}) {
   if (typeof key !== 'string') return false
-  if (key === '/api/j2/notes' || key.startsWith('/api/j2/notes?')) return true
-  if (TITLE_VIEW_PREFIXES.some((p) => key === p || key.startsWith(`${p}?`))) return true
-  if (titleOnly) return false
-  if (COUNT_VIEW_KEYS.some((p) => key === p || key.startsWith(`${p}?`))) return true
-  if (tags && (key === NOTE_TAGS_PREFIX || key.startsWith(`${NOTE_TAGS_PREFIX}?`) || key.startsWith(`${NOTE_TAGS_PREFIX}/`)
-    || key.startsWith('/api/j2/notes/tag-members?'))) return true
-  return false
+  if (key === '/api/j2/note-folders' || key.startsWith('/api/j2/note-folders?')) return !titleOnly
+  if (key !== NOTES && !key.startsWith(`${NOTES}?`) && !key.startsWith(`${NOTES}/`)) return false
+  if (key === NOTES || key.startsWith(`${NOTES}?`)) return true
+  const word = key.slice(NOTES.length + 1).split(/[/?#]/, 1)[0]
+  if (!NOTE_VIEW_WORDS.has(word)) return false           // one note's own key, or its sub-resource
+  if (TAG_WORDS.has(word)) return tags && !titleOnly
+  if (titleOnly && COUNT_WORDS.has(word)) return false
+  return true
 }
 
 /** Revalidate every note view. `mutate` defaults to SWR's global one (tests pass their own). */

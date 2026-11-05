@@ -6,7 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { SWRConfig, mutate as globalMutate } from 'swr'
 import useJ2Notes, { useJ2NoteFolderCounts, useJ2Recents } from '../../hooks/useJ2Notes'
-import { invalidateNoteViews, isNoteViewKey } from './invalidateNoteViews'
+import { invalidateNoteViews, isNoteViewKey, NOTE_VIEW_WORDS } from './invalidateNoteViews'
+import NoteTasksView from '../../components/notebook/NoteTasksView'
+import { MemoryRouter } from 'react-router-dom'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { latchNotebookFlags, __resetNotebookFlags } from './notebookFlags'
 
 // The server: a set of notes, each in a folder (null = Unfiled).
@@ -133,5 +137,51 @@ describe('the counts and the lists agree after every door (S6)', () => {
     // a title cannot move a count, so the counts were not asked again
     const asked = global.fetch.mock.calls.slice(before).map(([u]) => String(u))
     expect(asked.some((u) => u.startsWith('/api/j2/notes/folder-counts'))).toBe(false)
+  })
+})
+
+// ⛔ Fix round 1 (review finding 2): the first cut was an ALLOW-list, and it left out views the old
+// `refreshSidebarCounts` reached -- the Tasks view, the research page's summary, by-trade-ref and
+// backlinks -- so a trash left its tasks listed until a reload. The rule is inverted now: every
+// `/api/j2/notes*` key is a view EXCEPT one note's own key and its sub-resources.
+describe('fix round 1: every view the old refresh reached is still reached', () => {
+  it('tasks, research, by-trade-ref, backlinks, link targets and the switcher are views', () => {
+    for (const k of ['/api/j2/notes/tasks?status=open', '/api/j2/notes/research/NVDA/summary',
+      '/api/j2/notes/by-trade-ref?ref=t1&type=trade', '/api/j2/notes/backlinks?symbol=NVDA&limit=5',
+      '/api/j2/notes/link-targets?q=x', '/api/j2/notes/switcher']) {
+      expect(isNoteViewKey(k), k).toBe(true)
+    }
+  })
+
+  it("one note's own key and its sub-resources are never views, whatever its id looks like", () => {
+    for (const k of ['/api/j2/notes/n1', '/api/j2/notes/7f3a9c2e-1b4d-4e8f-9a6b-0c1d2e3f4a5b',
+      '/api/j2/notes/abcdef/properties', '/api/j2/notes/n1/thesis-summary', '/api/j2/notes/n1/documents']) {
+      expect(isNoteViewKey(k), k).toBe(false)
+    }
+  })
+
+  it('every GET /notes/<word> route the server mounts is a known view word (derived, never typed here)', () => {
+    const REPO = join(__dirname, '..', '..', '..', '..', '..', '..')
+    // every router mounted at /api/j2 (journal_two.py, notebook_insights.py's /notes/tasks, ...)
+    const dir = join(REPO, 'api', 'routers')
+    const src = readdirSync(dir).filter((f) => f.endsWith('.py'))
+      .map((f) => readFileSync(join(dir, f), 'utf8'))
+      .filter((s) => /APIRouter\(prefix="\/api\/j2"/.test(s)).join(' ')
+    const words = [...src.matchAll(/@router\.get\("\/notes\/([a-z][a-z-]*)/g)].map((m) => m[1])
+    expect(words.length).toBeGreaterThan(10)             // non-vacuity
+    expect(words.filter((w) => !NOTE_VIEW_WORDS.has(w))).toEqual([])
+  })
+
+  it("a trash removes the note's tasks from the Tasks view without a reload", async () => {
+    SERVER.notes = [{ id: 'a', title: 'Alpha', folderId: null }, { id: 'b', title: 'Beta', folderId: null }]
+    const tasksOf = () => ({ tasks: SERVER.notes.map((n, i) => ({ noteId: n.id, index: 0, text: `Task in ${n.title}`, noteTitle: n.title, checked: false, due: null })), today: '2026-11-05' })
+    global.fetch = vi.fn((url) => (String(url).startsWith('/api/j2/notes/tasks') ? answer(tasksOf()) : serverFetch(url)))
+    render(<SWRConfig value={{ dedupingInterval: 0 }}><MemoryRouter><NoteTasksView onOpenTask={() => {}} /></MemoryRouter></SWRConfig>)
+    expect(await screen.findByText('Task in Alpha')).toBeInTheDocument()
+    // the trash door (NotebookTab.refreshSidebarCounts after a single or bulk trash)
+    SERVER.notes = SERVER.notes.filter((n) => n.id !== 'a')
+    await act(async () => { await invalidateNoteViews({ tags: true }) })
+    await waitFor(() => expect(screen.queryByText('Task in Alpha')).toBeNull())
+    expect(screen.getByText('Task in Beta')).toBeInTheDocument()
   })
 })
