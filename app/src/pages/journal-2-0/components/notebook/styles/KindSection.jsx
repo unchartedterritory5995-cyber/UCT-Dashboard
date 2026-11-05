@@ -13,7 +13,7 @@ import { useId, useRef, useState } from 'react'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { defaultStyleFor, stylesOfKind, previewJournalStyle } from '../../../lib/journalStyles'
-import { kindIcon } from '../../../lib/noteKinds'
+import { BUILTIN_NOTE_KINDS, kindIcon } from '../../../lib/noteKinds'
 import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
 import { familyLabel, slotFamily, slotLabel, slotNamesOf } from '../../../lib/templateSlots'
 import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
@@ -56,6 +56,36 @@ const labelled = (n, names = {}) => {
   return Array.isArray(n?.content) ? { ...n, content: n.content.map((c) => labelled(c, names)) } : n
 }
 
+/** The loading state, at the settled section's shape (see KindSection). Inert: nothing to press until it loads. */
+function KindSectionLoading({ headingId }) {
+  return (
+    <section className={styles.wrap} aria-labelledby={headingId} aria-busy="true" data-kind-section-loading="">
+      <p className="sr-only" role="status">Loading kinds of note…</p>
+      <h3 id={headingId} className={styles.h}>Start from a template</h3>
+      {styleLibraryEnabled() && (
+        <button type="button" className={styles.libraryDoor} disabled tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}>
+          <UIcon name="community" size={14} gold={false} /><span>Browse the Template library</span>
+        </button>
+      )}
+      <div className={styles.grid} aria-hidden="true">
+        {BUILTIN_NOTE_KINDS.map((k) => (
+          <div key={k.id} className={styles.kind}>
+            {/* Real (disabled, unfocusable) buttons, so each card's box is the settled card's box. */}
+            <button type="button" className={styles.kindBtn} disabled tabIndex={-1} data-kind-placeholder="">
+              <UIcon name={iconOf(k)} size={16} gold={false} />
+              <span className={styles.kindName}>{k.name}</span>
+              <span className={styles.kindStyle}>…</span>
+            </button>
+            <button type="button" className={styles.another} disabled tabIndex={-1} style={{ visibility: 'hidden' }}>
+              Choose another template
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function KindSection({ onCreate, busy = false, autoFocusFirst = false }) {
   const headingId = useId()
   const focusedRef = useRef(false)
@@ -64,7 +94,12 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   const [preview, setPreview] = useState(null)   // { style, loading, body, ticker, error }
   const offer = useStarterPackOffer(data)
 
-  if (isLoading) return <p className={styles.status} role="status">Loading kinds of note…</p>
+  // Tier 2 fix round 1 (review Important 4, measured 0.2257 CLS on a phone's empty notebook): the loading line was
+  // 21 px and the section that replaced it 1,055 px, pushing the gallery below it down. While loading, the section
+  // is drawn at its SETTLED shape -- its heading, the library door, and one card per BUILT-IN kind (a code constant,
+  // lib/noteKinds.js, the same list the server starts every member's kinds with), inert -- so arriving moves nothing.
+  // Only a member's own extra kinds can still add rows. Rail: KindSection.loadingShape.test.jsx.
+  if (isLoading) return <KindSectionLoading headingId={headingId} />
   if (error || !data) return <p className={styles.status} role="alert">Couldn't load your templates.</p>
 
   const showPreview = async (style) => {
