@@ -17,10 +17,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useContext, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { AuthProvider } from '../../context/AuthContext'
 import { renderWithProviders, screen, fireEvent, act } from '../../test-utils'
 import FloatingOrb from './FloatingOrb'
-import { VoiceContext } from '../../context/VoiceContext'
+import { VoiceContext, VoiceProvider } from '../../context/VoiceContext'
 import { registerFirstRunSlot, claimFirstRunStage } from '../firstRun/firstRunStage'
 
 vi.mock('../../hooks/useRealtimeSession', () => ({
@@ -286,14 +287,33 @@ describe('"Meet Compass" waits on the phone Notebook', () => {
   })
 })
 
-// Review Minors 9 + 19: the phone Notebook hides the cluster unless `data-in-session` is on it. Rendered, not read from
-// source: a live call carries it, and so does a call that fell into ERROR (its error glyph and label are how the member
-// learns the call failed); an idle orb does not.
-describe('the cluster says when a call is live or failing (data-in-session)', () => {
-  it.each([
-    ['connected', true], ['error', true], ['idle', false],
-  ])('voice mode c, status %s -> data-in-session %s', (status, on) => {
-    const { container } = renderWithProviders(<VoiceOverride voice={{ mode: 'c', status }}><FloatingOrb /></VoiceOverride>)
+// Review Minors 9 + 19, fix round 2 (re-review N6): the phone Notebook hides the cluster unless `data-in-session` is
+// on it, and the "+" steps up while <html> carries `data-orb-in-session`. Both are set for a live call, and for a call
+// that STARTED and then fell into error (its glyph says it failed) -- never for an error with no call behind it (a
+// denied microphone), so neither the orb nor the raised "+" lingers. The <html> attribute is cleared on unmount.
+describe('the orb says when a call is live or failing (data-in-session, html[data-orb-in-session])', () => {
+  const html = () => document.documentElement.hasAttribute('data-orb-in-session')
+  function Driven({ status }) {
+    return <VoiceOverride voice={{ mode: 'c', status }}><FloatingOrb /></VoiceOverride>
+  }
+  it.each([['connected', true], ['idle', false]])('status %s -> %s', (status, on) => {
+    const { container } = renderWithProviders(<Driven status={status} />)
     expect(cluster(container).hasAttribute('data-in-session')).toBe(on)
+    expect(html()).toBe(on)
+  })
+
+  it('an error with no call behind it (the connect never started) sets neither', () => {
+    const { container } = renderWithProviders(<Driven status="error" />)
+    expect(cluster(container).hasAttribute('data-in-session')).toBe(false)
+    expect(html()).toBe(false)
+  })
+
+  it('a call that started and then failed keeps both; back to idle clears them; unmount clears <html>', () => {
+    const view = renderWithProviders(<Driven status="connected" />)
+    view.rerender(<MemoryRouter><AuthProvider><VoiceProvider><Driven status="error" /></VoiceProvider></AuthProvider></MemoryRouter>)
+    expect(cluster(view.container).hasAttribute('data-in-session')).toBe(true)
+    expect(html()).toBe(true)
+    view.unmount()
+    expect(html()).toBe(false)
   })
 })

@@ -61,11 +61,11 @@
     min-height: var(--tap-min);
   }
 }
-/* Review Minor 9: the orb stays on the phone Notebook during a live or failing call (data-in-session), in the same
-   bottom-right corner -- the "+" steps up above it then, so neither covers the other. (:has is inside the iOS >= 16
-   floor.) */
+/* Review Minor 9: the orb stays on the phone Notebook during a live or failing call, in the same bottom-right corner --
+   the "+" steps up above it then, so neither covers the other. Fix round 2 (N6): keyed on the attribute FloatingOrb
+   writes on <html> while a call is showing (cleared on unmount), not a document-wide has-selector. */
 @media (max-width: 640px) {
-  :global(html:has([data-in-session])) .fab {
+  :global(html[data-orb-in-session]) .fab {
     bottom: calc(100px + env(safe-area-inset-bottom, 0px));
   }
 }

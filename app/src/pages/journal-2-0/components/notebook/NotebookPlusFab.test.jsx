@@ -89,7 +89,8 @@ describe('the stylesheets: phone-only, and the five floating buttons give way on
     const fab = css('pages/journal-2-0/components/notebook/NotebookPlusFab.module.css')
     expect(fab).toMatch(/^\.fab \{\s*display: none;\s*\}/m)
     expect(fab).toMatch(/@media \(max-width: 640px\) \{\s*\.fab \{\s*position: fixed;/)
-    expect(fab).toMatch(/:global\(html:has\(\[data-in-session\]\)\) \.fab \{\s*bottom: calc\(100px/)
+    expect(fab).toMatch(/:global\(html\[data-orb-in-session\]\) \.fab \{\s*bottom: calc\(100px/)
+    expect(fab).not.toMatch(/:has\(/)   // fix round 2 (N6): no document-wide :has()
   })
   it('the orb cluster gives way on the phone Notebook unless a call is live or failing', () => {
     expect(css('components/voice/FloatingOrb.module.css'))
