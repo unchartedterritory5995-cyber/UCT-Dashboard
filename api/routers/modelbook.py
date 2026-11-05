@@ -794,8 +794,14 @@ def _generate_descriptions(symbol, company, year, gain_pct):
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
-            except Exception:
+            except Exception as e:
                 text = None
+                # An HTTP error generated nothing, so re-asking is free. A timeout or a
+                # dropped connection may have run and billed: stop, and let the durable
+                # attempt stamp decide when this name is tried again.
+                from api.services.uct_agent import budget
+                if not budget._is_provider_error_response(e):
+                    break
             if text:
                 obj = _parse_desc_json(text)
                 if obj is not None:
@@ -2026,7 +2032,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
     # reasoning), and small max_tokens. With web search OFF (the default) this is a
     # single fast call (~15-25s, no server-tool loop). With web search ON, allow a
     # couple of pause_turn resumes for the server-side search loop.
-    bounded = client.with_options(timeout=90.0, max_retries=1)
+    bounded = client.with_options(timeout=90.0, max_retries=0)
     use_effort = True  # toggled off if the installed SDK predates output_config
 
     def _call(msgs):

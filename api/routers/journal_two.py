@@ -441,6 +441,20 @@ def _take_compass_door(door, user_id: str) -> None:
         raise HTTPException(status_code=429, detail=door.sentence)
 
 
+def _replace_coach_output(output_id: str, user_id: str, generate):
+    """Forget the output, then generate its replacement (generation is idempotent on
+    a live row). A failed generation puts the old one back: dropping it would leave the
+    member with nothing but another paid generate to get it back."""
+    coach_service.forget_review(review_id=output_id, user_id=user_id)
+    try:
+        return generate()
+    except Exception as e:
+        coach_service.restore_review(output_id, user_id=user_id)
+        if isinstance(e, RuntimeError):
+            raise HTTPException(status_code=503, detail=str(e))
+        raise
+
+
 def _reject_unified_for_per_trade(account_id: str) -> None:
     """Pre-trade verdict / trade-review / onboarding endpoints are inherently
     per-account in v1. Reject the unified sentinel with a friendly 400."""
@@ -5117,6 +5131,8 @@ def generate_coach_weekly_review(
     _require_compass_enabled(user["id"], account_id)
 
     week_start = (payload or {}).get("weekStart") or _most_recent_closed_monday()
+    if coach_service.replaces_forgotten(user["id"], account_id, "weekly_review", "week_start", week_start):
+        _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     try:
         return coach_service.generate_weekly_review(
             user_id=user["id"], account_id=account_id, week_start=week_start,
@@ -5140,14 +5156,9 @@ def regenerate_coach_weekly_review(
     # Charged BEFORE the forget below, so a refusal never drops the review.
     _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     # v1: forget the existing, then regenerate. Caller treats as replacement.
-    coach_service.forget_review(review_id=review_id, user_id=user["id"])
-    try:
-        return coach_service.generate_weekly_review(
-            user_id=user["id"], account_id=account_id,
-            week_start=week_start,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    return _replace_coach_output(review_id, user["id"], lambda: coach_service.generate_weekly_review(
+        user_id=user["id"], account_id=account_id, week_start=week_start,
+    ))
 
 
 @router.post("/accounts/{account_id}/coach/weekly-reviews/{review_id}/feedback")
@@ -5218,6 +5229,8 @@ def generate_coach_eod_recap(
     from zoneinfo import ZoneInfo
     et = ZoneInfo("America/New_York")
     day = (payload or {}).get("day") or _dt.now(et).date().isoformat()
+    if coach_service.replaces_forgotten(user["id"], account_id, "eod_recap", "day", day):
+        _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
     try:
         return coach_service.generate_eod_recap(
             user_id=user["id"], account_id=account_id, day=day,
@@ -5237,13 +5250,9 @@ def regenerate_coach_eod_recap(
         raise HTTPException(status_code=404, detail="Recap not found")
     day = (existing.get("metadata") or {}).get("day")
     _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
-    coach_service.forget_review(review_id=recap_id, user_id=user["id"])
-    try:
-        return coach_service.generate_eod_recap(
-            user_id=user["id"], account_id=account_id, day=day,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    return _replace_coach_output(recap_id, user["id"], lambda: coach_service.generate_eod_recap(
+        user_id=user["id"], account_id=account_id, day=day,
+    ))
 
 
 @router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/feedback")
@@ -5547,6 +5556,8 @@ def generate_trade_review(
     trade_id = (payload or {}).get("trade_id")
     if not trade_id:
         raise HTTPException(status_code=400, detail="trade_id required")
+    if tr.replaces_forgotten(user["id"], trade_id):
+        _take_compass_door(compass_daily_caps.TRADE_REVIEW_REGENERATE, user["id"])
     return tr.generate_review(
         user_id=user["id"], account_id=account_id, trade_id=trade_id,
     )
