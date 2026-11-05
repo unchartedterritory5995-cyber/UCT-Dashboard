@@ -313,8 +313,6 @@ def my_plan_vs_actual(user_id: str, params: dict, now: datetime) -> dict:
     """One owned closed trade against its frozen plan: Entry, Stop, Target, R."""
     now_dt = _utc(now)
     p = clean_params(KIND_PLAN_VS_ACTUAL, params)
-    if not plan_grading.enabled():                 # W10-R38: before any read
-        return {**_not_available(now_dt), "lines": [S_NOT_AVAILABLE_NOW]}
     tid = p.get("tradeId")
     if not tid:
         return _not_available(now_dt)

@@ -383,6 +383,12 @@ def _value_of(address: str) -> ValueFn:
 # 691,195 recorded fires.
 EVENT_ADDRESSES: tuple[str, ...] = ("sar.priceCrossedSar", "sar.trendFlipped")
 PRICE_ADDRESSES: tuple[str, ...] = ("close",)
+# ⭐ 2026-11-04 — THE CROSS PARTITION: a RELATION between two lines of one
+# definition (`ma_cross` = fast MA − slow MA, judged against a DECLARED zero). It
+# is not a level a user thresholds, and — the measured reason, the same one
+# `sar` and `close` gave — a key in `INDICATOR_FUNCS` would move the frozen
+# replay grid (`tools/alert_replay.py::build_alert_grid` iterates it in order).
+CROSS_ADDRESSES: tuple[str, ...] = ("ma_cross",)
 
 _ALL_VALUE_FUNCS: AddressFuncs = {
     address: _value_of(address) for address in alert_series.SERIES_FUNCS
@@ -397,6 +403,7 @@ _ALL_VALUE_FUNCS: AddressFuncs = {
 INDICATOR_FUNCS: AddressFuncs = {
     address: fn for address, fn in _ALL_VALUE_FUNCS.items()
     if address not in EVENT_ADDRESSES and address not in PRICE_ADDRESSES
+    and address not in CROSS_ADDRESSES
 }
 
 # ─── PHASE C TASK 3: EVENT ADDRESSES — A COLUMN THAT IS NOT A LEVEL ──────────
@@ -423,6 +430,20 @@ EVENT_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in EVENT_ADDRESSES}
 # refusal is NARROWED, not deleted — see `_PRICE_ALIASES` there.
 PRICE_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in PRICE_ADDRESSES}
 
+# ─── 2026-11-04: THE CROSS ADDRESS — `ma_cross` ──────────────────────────────
+#
+# Fast vs slow moving average (EMA or SMA), crossing above or below, judged on
+# COMPLETED candles only. See `docs/alerts/MA-CROSS-DESIGN.md`.
+CROSS_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in CROSS_ADDRESSES}
+
+# ⛔ ADDRESSES THAT ARE JUDGED ON THE CLOSED BAR WHATEVER `eval_mode()` SAYS.
+# The rollback lever (`ALERT_EVAL_MODE=forming`) moves every legacy address back
+# to the forming lane, which is what a rollback means for them. An MA-cross alert
+# was BORN with completed-candle confirmation (`confirm: "close"`) and has no
+# forming-lane history to roll back to, so pulling the lever must never make one
+# fire intrabar. `_lane_for` is the one reader.
+CLOSED_ONLY_ADDRESSES: frozenset = frozenset(CROSS_ADDRESSES)
+
 # The vocabularies, named. Read by `alert_catalog`, by `_evaluate_one`, and by
 # `test_sar_has_no_fixed_threshold_address_and_says_why` — which asserts
 # membership of one and absence from the other, so neither can be answered twice.
@@ -436,7 +457,7 @@ THRESHOLD_ADDRESSES: tuple[str, ...] = tuple(INDICATOR_FUNCS)
 # the same dict the bug was in*. A third partition is exactly when that happens
 # again, so there is now one list and the rails iterate IT.
 ADDRESS_PARTITIONS: tuple[AddressFuncs, ...] = (
-    INDICATOR_FUNCS, EVENT_FUNCS, PRICE_FUNCS,
+    INDICATOR_FUNCS, EVENT_FUNCS, PRICE_FUNCS, CROSS_FUNCS,
 )
 
 # ─── PHASE D TASK 12: THE FOURTH PARTITION, AND WHY IT IS NOT ABOVE ──────────
@@ -531,6 +552,11 @@ THRESHOLD_OPERAND: dict[tuple[str, str], dict] = {
     ("bb", "touch_lower"): {"kind": "address", "address": "bb.lower"},
     ("sar.priceCrossedSar", "above"): {"kind": "const", "value": 0.5},
     ("sar.trendFlipped", "above"): {"kind": "const", "value": 0.5},
+    # 2026-11-04 — the fast−slow spread crossing ZERO is the fast line crossing
+    # the slow one. Declared, so the member types no level and `check_condition`
+    # keeps its verbatim branches (`prev <= 0 < cur` / `prev >= 0 > cur`).
+    ("ma_cross", "cross_above"): {"kind": "const", "value": 0.0},
+    ("ma_cross", "cross_below"): {"kind": "const", "value": 0.0},
 }
 
 
@@ -754,6 +780,14 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     # `THRESHOLD_OPERAND` row per band — i.e. a product decision about which
     # band "price touches the band" means, which nobody has made.
     "close": _OSCILLATOR_CONDITIONS,
+    # ── 2026-11-04: the CROSS address ────────────────────────────────────────
+    # Exactly the two crossings, no level (the zero is declared in
+    # `THRESHOLD_OPERAND`). `above`/`below` are NOT offered: "fast is above slow"
+    # is a state, not the crossover the member asked for.
+    "ma_cross": [
+        {"value": "cross_above", "label": "Fast MA crosses above slow MA", "needs_threshold": False},
+        {"value": "cross_below", "label": "Fast MA crosses below slow MA", "needs_threshold": False},
+    ],
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -798,6 +832,8 @@ ALERT_LABELS: dict[str, str] = {
     "sar.trendFlipped": "SAR trend flip",
     # ── PHASE C TASK 10: the PRICE address ──
     "close": "Price (Close)",
+    # ── 2026-11-04: the CROSS address ──
+    "ma_cross": "MA Cross",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -890,6 +926,14 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
     as the bare label, which is also what every existing surface already shows.
     """
     base = ALERT_LABELS.get(address, address)
+    # ⭐ 2026-11-04 — a column function may name its own instance (`ma_cross` →
+    # "EMA(9) vs EMA(20)"); the generic form would read `MA Cross(ema, 9, 20)`.
+    describe = getattr(alert_series.series_function(address), "describe", None)
+    if callable(describe):
+        try:
+            return describe(params or {})
+        except Exception:  # noqa: BLE001 - a label must never break a surface
+            pass
     defaults = alert_series.address_inputs(address)
     if not defaults:
         return base
@@ -907,6 +951,62 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
         else:
             parts.append(str(value))
     return f"{base}({', '.join(parts)})"
+
+
+def _plot_extras(address: str) -> dict:
+    """The optional catalog keys a column function declares (none for most)."""
+    fn = alert_series.series_function(address)
+    out = {}
+    options = getattr(fn, "input_options", None)
+    if options:
+        out["input_options"] = {k: list(v) for k, v in options.items()}
+    defs = getattr(fn, "instance_defs", None)
+    if defs:
+        out["instance_defs"] = list(defs)
+    return out
+
+
+def params_refusal(address: Optional[str], condition: Optional[str],
+                   params: Optional[dict]) -> Optional[str]:
+    """Why these PARAMS (or this rule) can never be a valid alert on `address`.
+
+    ⭐ DECLARED ON THE COLUMN FUNCTION (`fn.validate`), read here — no table of
+    "which address checks what". Today only `ma_cross` declares one (fast < slow,
+    ema|sma, confirm 'close', direction agreeing with the condition), so every
+    other address answers `None` and its create path is unchanged.
+
+    ⛔ A DECLARING ADDRESS ACCEPTS ONLY ITS OWN OFFERED RULES. `refusal_for`
+    checks a rule against the union of every address's conditions; for an address
+    that validates its own shape, a rule its catalog entry does not offer (an
+    `above` level on the MA spread) is refused here rather than armed.
+    """
+    resolved = resolve_address(address)
+    fn = alert_series.series_function(resolved)
+    validate = getattr(fn, "validate", None)
+    if not callable(validate):
+        return None
+    offered = [c["value"] for c in ALERT_CONDITIONS.get(resolved, [])]
+    if condition not in offered:
+        return (f"{ALERT_LABELS.get(resolved, resolved)} offers {', '.join(offered)} "
+                f"— not {condition!r}.")
+    return validate(params or {}, condition)
+
+
+def normalize_params(address: Optional[str], params: Optional[dict]) -> Optional[dict]:
+    """`params` in the column's stored spelling (`fn.normalize`), else unchanged."""
+    fn = alert_series.series_function(resolve_address(address))
+    normalize = getattr(fn, "normalize", None)
+    if params is None or not callable(normalize):
+        return params
+    return normalize(params)
+
+
+def _lane_for(address: Optional[str], mode: Optional[str]) -> str:
+    """The lane an address is judged in: ``mode`` (or `eval_mode()`), except a
+    CLOSED-ONLY address, which is always ``"closed"`` (`CLOSED_ONLY_ADDRESSES`)."""
+    if resolve_address(address) in CLOSED_ONLY_ADDRESSES:
+        return "closed"
+    return mode if mode is not None else eval_mode()
 
 
 def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
@@ -979,6 +1079,11 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
                 # parameters", which is a real answer and not a missing one.
                 "inputs": alert_series.address_inputs(address),
                 "instance_label": instance_label(address),
+                # ⭐ 2026-11-04 — ONLY on a plot whose column declares them, so
+                # every existing entry is byte-unmoved: a closed vocabulary for a
+                # knob (`ma_type`: ema | sma) and the chart definition(s) whose
+                # instances the address reads (`movingAverage`).
+                **_plot_extras(address),
             }
             for address in addresses
         ]
@@ -1059,6 +1164,13 @@ def bars_needed_for_alert(alert: dict) -> int:
             lookback = declared_lookback
         else:
             from api.services import alert_series
+            # ⭐ 2026-11-04 — a column function may DECLARE its own lookback
+            # (`ma_cross`: an EMA needs a convergence prefix of ~6×slow, which
+            # summing the knobs cannot know). Absent everywhere else.
+            own = alert_series.address_lookback(
+                resolve_address(alert.get("indicator")), params)
+            if own is not None:
+                return bars_wanted(own)
             declared = alert_series.address_inputs(
                 resolve_address(alert.get("indicator")))
             resolved = dict(declared)
@@ -1190,7 +1302,7 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
     makes "`eval_mode()` secretly returns closed" a mutation that dies rather
     than one every explicit-mode test rides straight past.
     """
-    resolved_mode = mode if mode is not None else eval_mode()
+    resolved_mode = _lane_for(alert.get("indicator"), mode)
     if resolved_mode == "closed":
         value, triggered, _bar_index = _evaluate_one_closed(
             alert, bars, now_epoch=now_epoch)
@@ -2405,7 +2517,7 @@ def _evaluate_for_cycle(alert: dict, bars: list[dict], *,
     ordering would name the wrong bar the moment the rollback lever is pulled.
     Left `None`, `mode` asks `eval_mode()`, the module's only reader.
     """
-    resolved = mode if mode is not None else eval_mode()
+    resolved = _lane_for(alert.get("indicator"), mode)
     if resolved == "closed":
         return _evaluate_one_closed(alert, bars, now_epoch=now_epoch)
     value, triggered = _evaluate_one(alert, bars=bars, mode="forming",

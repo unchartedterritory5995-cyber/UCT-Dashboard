@@ -117,6 +117,14 @@ class NoteProvider(ABC):
     #: pass reads exactly as it did.
     follow_up_on_rate_limit: bool = False
 
+    #: L1 fix round 1 (2026-11-03): True when the provider's complete listing is AUTHORITATIVE:
+    #: a path missing from it is gone at the source, never a listing that came back short (an API
+    #: page cap, a search index lag, a permission blip). Only then does delete detection skip its
+    #: <50% guard on a small source (`engine.DELETE_GUARD_MIN_KNOWN`). Obsidian's manifest is the
+    #: plugin's own walk of the vault, refused by staging when empty or padded: True there. Every
+    #: API-listed provider keeps the full guard at any size. Default False.
+    enumeration_is_authoritative: bool = False
+
     def listing_revision(self, ref: RemoteRef) -> str | None:
         """Fix round 1 (D1): the note revision the LISTING reported for `ref`, when the
         provider has a real one (the same field its `fetch` stores as the note's revision), else
@@ -570,16 +578,13 @@ async def guarded_media_stream(
     allowed_host: str | None = None,
 ) -> tuple[bytes, httpx.Response]:
     """STREAMED sibling of `guarded_media_get`, added for the msgraph
-    fix-round-1 review (Important #2): `guarded_media_get` calls
-    `client.get(...)`, which httpx fully buffers into memory BEFORE the
-    caller ever gets a chance to check its size -- fine for a small note
-    body, but OneDrive's PRIMARY content path (both `fetch()`'s note bodies
-    and same-drive `fetch_media`) routes every download through the guarded
-    helper, so an ordinary large synced file would buffer whole and could
-    OOM the single web pod. This function bounds memory to `max_bytes`
-    (REQUIRED, no default -- every caller must be explicit about its cap,
-    mirroring `dropbox.py`'s own `_MAX_FILE_BYTES` usage) the same way
-    `DropboxProvider._download_streamed` already does: reject via
+    fix-round-1 review (Important #2; OneDrive, its first caller, was
+    archived 2026-11-04 -- Notion media and `guarded_media_get` itself use it
+    now): `guarded_media_get` calls `client.get(...)`, which httpx fully
+    buffers into memory BEFORE the caller ever gets a chance to check its
+    size, so an ordinary large file would buffer whole and could OOM the
+    single web pod. This function bounds memory to `max_bytes` (REQUIRED, no
+    default -- every caller must be explicit about its cap): reject via
     `Content-Length` BEFORE reading any body bytes when the server supplies
     one, and unconditionally via a running total while streaming (the
     backstop regardless of whether Content-Length was present/honest).
@@ -608,8 +613,7 @@ async def guarded_media_stream(
     callers do with THEIR returned response. Raises `NoteConnUnsupported`
     on either size trip (never returns a partial or oversized buffer) and
     `NoteConnTransient` on a network-level failure -- same taxonomy members
-    `guarded_media_get` and `DropboxProvider._download_streamed` already
-    use for the equivalent conditions, so no call site's error handling
+    `guarded_media_get` already uses for the equivalent conditions, so no call site's error handling
     needs a new branch.
 
     ⚠️ Inherits `guarded_media_get`'s NOT-rebinding-proof caveat identically

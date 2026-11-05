@@ -350,11 +350,3 @@ def test_the_pattern_read_is_the_routes_confirmed_only_branch_and_touches_no_det
         assert forbidden not in called, forbidden
     assert not any(m.split(".")[0] in ("anthropic", "openai") for m in imported), imported
 
-
-def test_the_flag_defaults_off_and_is_on_the_payload_table(monkeypatch):
-    from api.routers import auth as auth_router
-    assert auth_router.NOTEBOOK_FLAGS[tfp.FLAG] is False
-    monkeypatch.delenv(tfp.FLAG, raising=False)
-    assert tfp.enabled() is False
-    monkeypatch.setenv(tfp.FLAG, "1")
-    assert tfp.enabled() is True

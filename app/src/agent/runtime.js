@@ -214,7 +214,12 @@ export async function undoEntry(host, entry) {
   for (const it of entry.items) {
     const kind = getTargetKind(it.kind)
     const cur = kind.read(host, it.ref)
-    if (!cur) return { ok: false, lines: [], reason: `${it.label} is no longer on the workspace, so I can't undo that.` }
+    if (!cur) {
+      // PACKAGE 3: a kind that knows what became of it says so (a SAVED indicator draft), else the generic sentence
+      let why = null
+      try { why = typeof kind.goneReason === 'function' ? kind.goneReason(host, it.ref) : null } catch { why = null }
+      return { ok: false, lines: [], reason: why || `${it.label} is no longer on the workspace, so I can't undo that.` }
+    }
     if (fpOf(kind, host, cur, it) !== it.afterFp) {
       return { ok: false, lines: [], reason: `${it.label} has changed since I made that change, so undoing it would overwrite your newer edits. Nothing was undone.` }
     }
@@ -231,7 +236,9 @@ export async function undoEntry(host, entry) {
       const done = restores.map(r => r.it.label)
       return {
         ok: false, lines: [], partial: done.length > 0,
-        reason: `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
+        // PACKAGE 3: a kind's own complete sentence (it already says what happened) is said as it is
+        reason: e?.complete && e?.message && !done.length ? e.message
+          : `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
       }
     }
     restores.push({ it, kind, patch, lines: Array.isArray(res?.lines) ? res.lines : null })

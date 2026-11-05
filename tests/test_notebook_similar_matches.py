@@ -191,7 +191,7 @@ def conn():
 
 @pytest.fixture
 def on(monkeypatch):
-    monkeypatch.setenv(sm.FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 def _universe():
@@ -207,11 +207,6 @@ def _stored(c, uid="u1"):
         "SELECT note_id, embed_key, as_of, rank, symbol, score, distance, coverage, reasons_json,"
         " template_symbol, template_as_of FROM j2_similar_matches WHERE user_id = ?"
         " ORDER BY note_id, embed_key, rank", (uid,))]
-
-
-def test_the_nightly_job_is_inert_while_off(conn, monkeypatch):
-    monkeypatch.delenv(sm.FLAG, raising=False)
-    assert sm.run_nightly(conn=conn, universe=_universe()) == {"ran": False, "reason": "flag_off"}
 
 
 def test_the_nightly_job_writes_ten_matches_a_tagged_chart_and_is_idempotent(conn, on):
@@ -345,14 +340,7 @@ def _seed_member(uid="m1"):
         c.close()
 
 
-def test_every_similar_route_is_404_while_off_even_signed_out(client, monkeypatch):
-    monkeypatch.delenv(sm.FLAG, raising=False)
-    for path in ("/templates", "/n/e-1"):
-        assert client.get("/api/j2/similar-names" + path).status_code == 404
-
-
 def test_a_free_plan_is_refused(client, monkeypatch):
-    monkeypatch.setenv(sm.FLAG, "1")
     as_user(client, "m1", FREE)
     assert client.get("/api/j2/similar-names/templates").status_code == 402
 
@@ -376,7 +364,6 @@ def _arm_universe_tripwires(monkeypatch):
 
 
 def test_the_request_path_only_reads_precomputed_rows_never_the_universe(client, monkeypatch):
-    monkeypatch.setenv(sm.FLAG, "1")
     n = _seed_member()
     _arm_universe_tripwires(monkeypatch)
     as_user(client, "m1")
@@ -392,7 +379,6 @@ def test_the_request_path_only_reads_precomputed_rows_never_the_universe(client,
 
 
 def test_a_tagged_chart_with_no_run_yet_is_pending_and_another_members_note_is_404(client, monkeypatch):
-    monkeypatch.setenv(sm.FLAG, "1")
     from api.services import auth_db
     c = auth_db.get_connection()
     try:

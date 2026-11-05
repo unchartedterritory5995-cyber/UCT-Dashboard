@@ -500,6 +500,13 @@ describe('SourceRow — a background sync', () => {
     expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_progress/)
   })
 
+  it('reads "queued" with a neutral dot while the pass waits for a slot (D4-2)', () => {
+    const { container } = renderRow(makeSource({ queued: true, syncing: false }))
+    expect(screen.getByText(/^queued$/i, { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText(/syncing now/i)).not.toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_neutral/)
+  })
+
   it('a started background press says so, never an error', async () => {
     const onSync = vi.fn().mockResolvedValue({ status: 'started', removalCheck: null })
     render(<SourceRow source={makeSource()} onSync={onSync} onTogglePause={noop} onDisconnect={noop} />)

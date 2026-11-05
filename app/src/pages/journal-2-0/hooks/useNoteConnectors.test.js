@@ -4,8 +4,7 @@ import { SWRConfig } from 'swr'
 import React from 'react'
 import useNoteConnectors, {
   normalizeSyncResult, normalizeLogRows, normalizeSource, BUSY_DETAIL,
-  normalizeStatus, normalizeFolders, NOTE_CONNECTOR_PROVIDERS, FOLDER_PICKER_PROVIDERS,
-  FOLDER_PICKER_ROOT_REMOTE_ID,
+  normalizeStatus, NOTE_CONNECTOR_PROVIDERS,
 } from './useNoteConnectors'
 
 describe('normalizeStatus — obsidianAttachments (final review I3)', () => {
@@ -67,7 +66,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
       sources: [{
         id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
-        lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null, syncing: false,
+        lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null, syncing: false, queued: false,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
@@ -108,7 +107,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
       sources: [{
         id: 's2', provider: 'craft', displayName: 'My Space', remoteId: 'link-1',
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
-        lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null, syncing: false,
+        lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null, syncing: false, queued: false,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
@@ -121,29 +120,38 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
 
   // Task 12b: read the shipped router (`api/routers/note_sync.py`, commit
   // 20f0e828c) instead of guessing further — `"connected": connector is not
-  // None` is CONNECTOR-level and computed independently of `sources`. The
-  // Dropbox OAuth callback deliberately creates the connector WITHOUT a
-  // source ("Dropbox needs a FOLDER before a source can exist"), so
-  // connected:true + zero sources is a real, intended state — the exact
-  // state the original `sources.length > 0` guess made unreachable.
+  // None` is CONNECTOR-level and computed independently of `sources`, so
+  // connected:true + zero sources stays a representable state (it was the
+  // folder-picker providers' normal state until they were archived).
   it('`connected` is read directly off the raw payload — NEVER re-derived from sources.length', () => {
     const connectedNoSources = normalizeStatus({
-      providers: { dropbox: { configured: true, connected: true, sources: [] } },
+      providers: { notion: { configured: true, connected: true, sources: [] } },
     })
-    expect(connectedNoSources.providers.dropbox.connected).toBe(true)
-    expect(connectedNoSources.providers.dropbox.sources).toHaveLength(0)
+    expect(connectedNoSources.providers.notion.connected).toBe(true)
+    expect(connectedNoSources.providers.notion.sources).toHaveLength(0)
 
     const notConnectedWithGarbageSources = normalizeStatus({
-      providers: { dropbox: { configured: true, connected: false, sources: [{ id: 'x', provider: 'dropbox' }] } },
+      providers: { notion: { configured: true, connected: false, sources: [{ id: 'x', provider: 'notion' }] } },
     })
     // Pathological/inconsistent raw payload — normalizeStatus must still
     // trust the `connected` flag the router sent, not infer from sources.
-    expect(notConnectedWithGarbageSources.providers.dropbox.connected).toBe(false)
+    expect(notConnectedWithGarbageSources.providers.notion.connected).toBe(false)
+  })
+
+  it('drops a provider key the roster does not name (Dropbox, OneNote, OneDrive: archived 2026-11-04)', () => {
+    const out = normalizeStatus({
+      providers: Object.fromEntries(['dropbox', 'onenote', 'onedrive'].map((k) => [
+        k, { configured: true, connected: true, sources: [] }])),
+    })
+    for (const gone of ['dropbox', 'onenote', 'onedrive']) {
+      expect(out.providers[gone]).toBeUndefined()
+      expect(NOTE_CONNECTOR_PROVIDERS.some((p) => p.key === gone)).toBe(false)
+    }
   })
 
   it('a missing provider key in the raw payload still yields a safe not-configured, not-connected entry (no crash)', () => {
     const out = normalizeStatus({ providers: { roam: { configured: true, connected: true, sources: [] } } })
-    expect(out.providers.dropbox).toEqual({
+    expect(out.providers.notion).toEqual({
       configured: false, connected: false, connectKind: null, accountLabel: null, status: null, sources: [],
     })
   })
@@ -154,34 +162,6 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
     })
     expect(out.providers.roam.sources).toHaveLength(1)
     expect(out.providers.roam.sources[0].id).toBe('ok')
-  })
-})
-
-describe('FOLDER_PICKER_PROVIDERS (Task 7: widened from dropbox-only to {dropbox, onedrive})', () => {
-  it('contains dropbox and onedrive, and nothing else', () => {
-    expect(FOLDER_PICKER_PROVIDERS.has('dropbox')).toBe(true)
-    expect(FOLDER_PICKER_PROVIDERS.has('onedrive')).toBe(true)
-    expect(FOLDER_PICKER_PROVIDERS.size).toBe(2)
-  })
-
-  it('excludes onenote — whole-account, never a folder-picker provider', () => {
-    expect(FOLDER_PICKER_PROVIDERS.has('onenote')).toBe(false)
-  })
-
-  it('excludes the token providers and notion', () => {
-    expect(FOLDER_PICKER_PROVIDERS.has('roam')).toBe(false)
-    expect(FOLDER_PICKER_PROVIDERS.has('craft')).toBe(false)
-    expect(FOLDER_PICKER_PROVIDERS.has('notion')).toBe(false)
-  })
-})
-
-describe('FOLDER_PICKER_ROOT_REMOTE_ID (fix-round item #2: the "sync whole account" root affordance)', () => {
-  it('gives Dropbox its own "/" root sentinel — safe end-to-end (Dropbox\'s own API + provider already treat "/" as root)', () => {
-    expect(FOLDER_PICKER_ROOT_REMOTE_ID.dropbox).toBe('/')
-  })
-
-  it('has NO onedrive entry — OneDrive\'s whole-drive delta is a different, unwired Graph endpoint, so the UI requires drilling to a real folder instead', () => {
-    expect(FOLDER_PICKER_ROOT_REMOTE_ID.onedrive).toBeUndefined()
   })
 })
 
@@ -198,51 +178,6 @@ describe('normalizeStatus — enabled (final-review Item B: status.enabled had n
 
   it('reads an explicit `enabled: true` through unchanged', () => {
     expect(normalizeStatus({ enabled: true, providers: {} }).enabled).toBe(true)
-  })
-})
-
-describe('normalizeFolders — the provider-neutral folder contract (Task 12b, fixed in the fix-round: dropbox+onedrive disagreed on the raw key)', () => {
-  it('translates Dropbox\'s {folders:[{path_lower,name}]} into {name,remoteId,drillPath}, both keyed off path_lower', () => {
-    const out = normalizeFolders({
-      folders: [
-        { path_lower: '/team notes', name: 'Team Notes' },
-        { path_lower: '/journal', name: 'Journal' },
-      ],
-    })
-    expect(out).toEqual([
-      { name: 'Team Notes', remoteId: '/team notes', drillPath: '/team notes' },
-      { name: 'Journal', remoteId: '/journal', drillPath: '/journal' },
-    ])
-  })
-
-  it('translates OneDrive\'s {folders:[{id,name}]} into {name,remoteId,drillPath}, both keyed off id — NEVER an empty pathLower fallback', () => {
-    // This is the exact shape the fix-round CRITICAL bug was found in: the
-    // old normalizeFolder only ever read pathLower/path_lower, so every
-    // OneDrive folder (which carries `id`, never `path_lower`) normalized
-    // to `pathLower: ''` -- every row collapsed to the SAME empty key.
-    const out = normalizeFolders({
-      folders: [
-        { id: 'item-1', name: 'Trading Notes' },
-        { id: 'item-2', name: 'Journal' },
-      ],
-    })
-    expect(out).toEqual([
-      { name: 'Trading Notes', remoteId: 'item-1', drillPath: 'item-1' },
-      { name: 'Journal', remoteId: 'item-2', drillPath: 'item-2' },
-    ])
-    // Never the old, broken fallback.
-    expect(out.some((f) => f.remoteId === '')).toBe(false)
-  })
-
-  it('returns an empty array for a missing/empty payload rather than crashing', () => {
-    expect(normalizeFolders(undefined)).toEqual([])
-    expect(normalizeFolders({})).toEqual([])
-    expect(normalizeFolders({ folders: [] })).toEqual([])
-  })
-
-  it('drops null/garbage entries', () => {
-    const out = normalizeFolders({ folders: [null, { path_lower: '/x', name: 'X' }] })
-    expect(out).toEqual([{ name: 'X', remoteId: '/x', drillPath: '/x' }])
   })
 })
 
@@ -356,6 +291,16 @@ describe('normalizeSource — syncing (fix round 1, I3)', () => {
     expect(normalizeSource({ id: 's', syncing: true }).syncing).toBe(true)
     expect(normalizeSource({ id: 's', syncing: false }).syncing).toBe(false)
     expect(normalizeSource({ id: 's' }).syncing).toBe(false)
+  })
+})
+
+describe('normalizeSource — queued (D4-2: a pass waiting for a shared pass slot)', () => {
+  it('reads the server flag, defaulting to false', () => {
+    expect(normalizeSource({ id: 's', queued: true }).queued).toBe(true)
+    expect(normalizeSource({ id: 's' }).queued).toBe(false)
+  })
+  it('polls while a source is queued', () => {
+    expect(connectorsRefreshInterval({ providers: { evernote: { sources: [{ id: 'a', queued: true }] } } })).toBe(10000)
   })
 })
 

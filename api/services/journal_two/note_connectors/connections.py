@@ -22,6 +22,7 @@ and then re-raises so the immediate caller still sees the failure.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -494,6 +495,124 @@ def set_sync_state(
     """The source's small JSON engine state (`sync_state`, fix round 1): the learned pacing
     interval (D3) and an import's progress record (I10). `None` clears it."""
     return _update_source_fields(user_id, source_id, {"sync_state": raw}, conn)
+
+
+_STATE_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# The stored state as a JSON object, whatever is there now: unreadable or non-object text reads as
+# an empty object, so a patch never fails on (or keeps) a corrupt value.
+_STATE_OBJECT_SQL = ("(CASE WHEN json_valid(sync_state) AND json_type(sync_state) = 'object' "
+                     "THEN sync_state ELSE '{}' END)")
+
+
+def _state_path(key: str) -> str:
+    if not isinstance(key, str) or not _STATE_KEY_RE.match(key):
+        raise ValueError(f"sync_state key {key!r} is not a plain identifier")
+    return f"$.{key}"
+
+
+def patch_sync_state(
+    user_id: str, source_id: str, *, set_keys: dict[str, Any] | None = None,
+    remove_keys: list[str] | tuple[str, ...] | set[str] | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """NEW-5: change single top-level keys of `sync_state` in ONE `UPDATE` (SQLite `json_set` /
+    `json_remove`), never a read-modify-write of the whole blob. Two writers that touch different
+    keys (a pass's `importing`/`pace`, the follow-up job's `followUpErrors`, the nightly pass's
+    `fullPending`) can then never lose each other's update. An empty object is stored as NULL."""
+    set_keys = dict(set_keys or {})
+    remove = [k for k in (remove_keys or ()) if k not in set_keys]
+    if not set_keys and not remove:
+        return False
+    expr = _STATE_OBJECT_SQL
+    params: list[Any] = []
+    if set_keys:
+        parts = []
+        for key, value in set_keys.items():
+            parts.append(f"'{_state_path(key)}', json(?)")
+            params.append(json.dumps(value, sort_keys=True))
+        expr = f"json_set({expr}, {', '.join(parts)})"
+    if remove:
+        expr = f"json_remove({expr}, {', '.join(repr(_state_path(k)) for k in remove)})"
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            f"UPDATE j2_note_sources SET sync_state = NULLIF({expr}, '{{}}') "
+            "WHERE id = ? AND user_id = ?", (*params, source_id, user_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def bump_sync_state_counter(
+    user_id: str, source_id: str, key: str, conn: sqlite3.Connection | None = None,
+) -> int:
+    """NEW-5: add one to the integer `sync_state[key]` atomically (one `UPDATE`, then a read in
+    the SAME write transaction) and return the new value; 0 when the source is gone."""
+    path = _state_path(key)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute(
+            f"UPDATE j2_note_sources SET sync_state = json_set({_STATE_OBJECT_SQL}, '{path}', "
+            f"COALESCE(CAST(json_extract({_STATE_OBJECT_SQL}, '{path}') AS INTEGER), 0) + 1) "
+            "WHERE id = ? AND user_id = ?", (source_id, user_id))
+        value = 0
+        if cur.rowcount > 0:
+            row = conn.execute(
+                f"SELECT json_extract(sync_state, '{path}') FROM j2_note_sources "
+                "WHERE id = ? AND user_id = ?", (source_id, user_id)).fetchone()
+            value = int(row[0] or 0) if row else 0
+        conn.commit()
+        return value
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def clear_follow_up(
+    user_id: str, source_id: str, *, full_pending_at: str,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Clear the follow-up stamp, unless `sync_state.fullPending` is set (D4-3: a nightly full
+    pass that found no free slot): then the stamp becomes `full_pending_at`, so the pool still
+    runs that full pass. One `UPDATE`, so a flag booked a moment ago is never cleared with it."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE j2_note_sources SET warming_until = CASE "
+            f"WHEN json_extract({_STATE_OBJECT_SQL}, '$.fullPending') THEN ? ELSE NULL END "
+            "WHERE id = ? AND user_id = ?", (full_pending_at, source_id, user_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def book_follow_up_no_later_than(
+    user_id: str, source_id: str, at_iso: str, conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Stamp a follow-up for `at_iso`, or keep an EARLIER stamp already there (one `UPDATE`)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE j2_note_sources SET warming_until = CASE "
+            "WHEN warming_until IS NULL OR warming_until > ? THEN ? ELSE warming_until END "
+            "WHERE id = ? AND user_id = ?", (at_iso, at_iso, source_id, user_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
 
 
 def list_follow_up_due(

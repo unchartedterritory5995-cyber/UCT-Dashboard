@@ -50,7 +50,7 @@ export const RAIL_W = 6
 // board's own Undo puts every removed widget back whole (capabilities/board.js commitGrid / undoGrid). Never set by the
 // planner on its own: only from the member's pick, and chartGrid.set with `replace` is always a proposal (confirmIf).
 export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null, replace = false }) {
-  const syms = (symbols || []).map(s => String(s || '').trim().toUpperCase()).filter(Boolean)
+  let syms = (symbols || []).map(s => String(s || '').trim().toUpperCase()).filter(Boolean)
   const n = syms.length
   if (!n) return { ok: false, reason: 'Which tickers?' }
   if (new Set(syms).size !== n) return { ok: false, reason: 'Each chart needs a different ticker — one of them is named twice.' }
@@ -61,11 +61,19 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
   let railMove = null
   if (replace) {
     if (newCharts) return { ok: false, reason: 'Replacing the board reuses its charts — ask without “new”.' }
-    const keep = new Set(onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder).slice(0, n).map(w => String(w.id)))
+    // live train 4: replace = 'charts' — only the board's CHARTS are replaced (every other widget stays); the charts that
+    // already show a named ticker are the ones kept (their ticker unchanged), then the rest in reading order
+    const chartsOnly = replace === 'charts'
+    const allCharts = onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder)
+    const symOf = (w) => String(charts.get(String(w.id))?.symbol || '').toUpperCase()
+    const keepList = []
+    if (chartsOnly) for (const s of syms) { const hit = allCharts.find(w => symOf(w) === s && !keepList.includes(w)); if (hit) keepList.push(hit) }
+    for (const w of allCharts) if (keepList.length < n && !keepList.includes(w)) keepList.push(w)
+    const keep = new Set(keepList.slice(0, n).map(w => String(w.id)))
     const list = rail ? onGrid.find(w => w.type === rail.type) : null
     if (list) railMove = String(list.id)
-    for (const w of onGrid) if (!keep.has(String(w.id)) && String(w.id) !== railMove) remove.push(String(w.id))
-    onGrid = onGrid.filter(w => keep.has(String(w.id)))
+    for (const w of onGrid) if (!keep.has(String(w.id)) && String(w.id) !== railMove && (!chartsOnly || w.type === 'chart')) remove.push(String(w.id))
+    onGrid = onGrid.filter(w => keep.has(String(w.id)) || (chartsOnly && w.type !== 'chart'))
     board = board.filter(w => !remove.includes(String(w.id)) && String(w.id) !== railMove)
   }
   // the rail: cleared of charts first, then held by a stand-in so the tiling below grows nothing into it
@@ -85,6 +93,15 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     if (!railMove) railAdd = { type: rail.type, rect: { x: rx, y: 0, w: rw, h: rows } }
   }
   const chartWs = onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder)
+  // live train 4: a kept chart that already shows one of the tickers keeps it (no ticker swapped between charts)
+  if (replace === 'charts') {
+    const own = chartWs.slice(0, n).map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase())
+    const placed = own.map(s => (syms.includes(s) ? s : null))
+    const dup = new Set()
+    for (let i = 0; i < placed.length; i++) { if (placed[i] && dup.has(placed[i])) placed[i] = null; else if (placed[i]) dup.add(placed[i]) }
+    const restSyms = syms.filter(s => !placed.includes(s))
+    syms = Array.from({ length: n }, (_, i) => placed[i] || restSyms.shift())
+  }
   // the charts that take a cell: the first n (reused for the tickers), or with newCharts every chart (kept as they are)
   const reuseWs = newCharts ? chartWs : chartWs.slice(0, n)
   const k = reuseWs.length

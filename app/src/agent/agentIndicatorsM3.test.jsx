@@ -554,7 +554,7 @@ describe('⭐ several drafts — the member chooses; nothing is picked for them'
     const amb = draftAmbiguity(h, [say(a, 'Okay, also require RSI to be above 50.')])
     expect(amb.text).toBe('You have 2 indicator drafts open — which one do you mean?')
     expect(amb.choices.map(c => c.ref).sort()).toEqual([a, b].sort())
-    expect(amb.choices.map(c => c.label)).toEqual(expect.arrayContaining(['“EMA 9 · EMA 20” (draft)']))
+    expect(amb.choices.map(c => c.label)).toEqual(expect.arrayContaining(['“EMA trend candles” (draft)']))
     for (const action of ['indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft']) {
       expect(draftAmbiguity(h, [{ action, target: a, args: {} }]), action).not.toBe(null)
     }

@@ -15,7 +15,7 @@
 // execution path. Every real outcome (receipt, refusal, undo) is recorded to the
 // conversation, so the model's next turn remembers what UCT DID.
 
-import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected } from './protectedLayouts'
+import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -24,18 +24,26 @@ import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
-import { screenNewChart } from './capabilities/workspace'
+import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
-import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
-import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
+import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+import { bindCreated } from './createdBinding'
+import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
+import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnEnd } from './trace'
-import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
+import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
+import { UNDO_ACTION } from './capabilities/about'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
-import { routeManifest, routingEnabled, routingNames } from './routing'
+import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
+import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
+import { nlm1Rewrite, createReferents } from './nlm1/followups'   // NLM-1 D2/D3 (same two keys)
+import { planCreatedReference } from './nlm1/plans'                 // NLM-1 D2 (same two keys), on Track A's bindCreated
+import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupOps'   // NLM-1 D2/D3.1 (same two keys)
+import { isStepPlan, prepareStepPlan, snapshotInstances, resolveResultRefs, readBackStepPlan } from './nlm1/stepPlans'   // NLM-1 step plans (same two keys)
 import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
@@ -50,6 +58,8 @@ import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConf
 import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
+import { KNOWLEDGE_REF } from './coach/brain'
+import { isCoachMessage } from './capabilities/coach'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
@@ -116,20 +126,214 @@ export function translateRefs(ops, refMap) {
     return out
   })
 }
+// hotfix 2026-11-03: tab-adding actions — only when the member's own words say "tab"
+const TAB_ADDS = new Set(['chart.addTab', 'widget.addTab'])
+// hotfix 2026-11-03: a planned "change …, then undo it" whose change committed nothing undoable
+// review F3: the refusal wording that would claim nothing changed
+const DIDNT_CHANGE = /^I didn['’]t change anything/
+const UNDO_HELD = 'I didn’t change or undo anything: that change needs your approval (or an answer) first, so I can’t make it and undo it in one request. Ask for the change on its own; once it has run, say “undo”.'
+const UNDO_AFTER_NOTHING = 'I didn’t undo anything: the change before the Undo didn’t make a change I could take back (see above), so nothing was undone.'
 // "undo that <noun> …" — the target kinds each noun names (F14)
 const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['chart'], widget: ['board', 'workspace'], drawing: ['drawing'], layout: ['layouts'] }
 // ⭐ PHASE 3: "undo just the colour change" — a DESCRIPTION of the newest change, checked against what its receipt says
 const UNDO_SAYS = { colour: /\bcolou?r|\bcolou?red\b/i, style: /\bstyle|dashed|dotted|solid|thick|thin|width/i, timeframe: /\btimeframe\b/i, symbol: /\bsymbol\b|\bticker\b/i,
   pane: /\bpane\b/i, layout: /\blayout\b/i, theme: /\btheme\b/i, resize: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, size: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, move: /\bmov(?:e|ed)\b/i, rename: /\brenam/i, link: /\blink/i }
+// review F2 + #766 nit 1: a board / workspace write is a CHART change when what it STRUCTURALLY touched is a chart widget —
+// a chart grid, charts added, a chart widget moved / resized / removed / restored — read from the entry's own patch and the
+// board as it was before (never from the receipt's wording: "moved News next to the Chart" is a News change)
+const typeOfIn = (raw, id) => (raw || []).find(w => String(w.id) === String(id))?.type || null
+export function touchesCharts(it) {
+  if (!it) return false
+  if (it.kind === 'chart') return true
+  const p = it.patch || {}
+  if (it.kind === 'workspace') return (p.add || []).some(a => a?.type === 'chart')
+  if (it.kind !== 'board') return false
+  if (p.grid) return true
+  if ((p.add || []).some(a => a?.type === 'chart')) return true
+  const raw = it.before?.raw || []
+  if ((p.restore || []).some(w => w?.type === 'chart')) return true
+  return [...(p.remove || []), ...Object.keys(p.set || {})].some(id => typeOfIn(raw, id) === 'chart')
+}
+// W2 audit (live 2026-11-04): members call a grid / an arrangement of their widgets their LAYOUT — "undo the change you
+// made to my layout" after a 2×2 grid was refused as "not a layout change". A board write that placed, re-tiled, added
+// or removed widgets (structurally: its patch) is a layout change; a widget's settings / link colour alone is not.
+const GEOM_KEYS = ['x', 'y', 'w', 'h']
+export function arrangesBoard(it) {
+  if (!it) return false
+  const p = it.patch || {}
+  if (it.kind === 'workspace') return (p.add || []).length > 0
+  if (it.kind !== 'board') return false
+  if (p.grid || (p.add || []).length || (p.remove || []).length || (p.restore || []).length) return true
+  return Object.values(p.set || {}).some(d => d && GEOM_KEYS.some(k => k in d))
+}
 const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
+  || (about === 'chart' && entry.items.some(touchesCharts))
+  || (about === 'layout' && entry.items.some(arrangesBoard))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
+// ⭐ W2: words for the chart the conversation just made / last changed. "that one" / "that chart" always mean the subject
+// (references.IT_WORDS); "the new one", "the chart you just added" only right after a turn that CREATED a widget.
+const THAT_ONE = /\b(?:that one|that chart)\b/gi
+const NEW_ONE = /\b(?:the|that|this) new (?:one|chart)\b|\bthe (?:one|chart) (?:you )?just (?:added|made|created|opened)\b|\bthe (?:one|chart) (?:you )?(?:added|made|created|opened)\b/gi
+// → { text, subject }: `subject` = the chart "the new one" names (review #771: exactly ONE chart the latest committing request
+// created — `created`, never the conversation subject a later step of that request moved). Several or none → the words
+// are left alone (the instant path asks which chart; the model reads them).
+export function asSubjectWords(text, created = null) {
+  const t = String(text || '')
+  let out = t.replace(THAT_ONE, 'it')
+  let subject = null
+  NEW_ONE.lastIndex = 0
+  if (NEW_ONE.test(t)) {
+    NEW_ONE.lastIndex = 0
+    const refs = Array.isArray(created) ? created : []
+    if (refs.length === 1) { out = out.replace(NEW_ONE, 'it'); subject = refs[0] }
+  }
+  NEW_ONE.lastIndex = 0
+  return { text: out, subject }
+}
+// the session memory with "it" bound to `subject` for this one message (the created chart)
+const withSubject = (memory, subject) => (subject && memory
+  ? { ...memory, subject: (kind, epoch) => (kind === 'chart' ? { ref: subject, symbol: null, at: Date.now(), epoch } : memory.subject(kind, epoch)) }
+  : memory)
+// review #771 (6): what a part of a split request IS, from its plan — "a new chart for QQQ", "the change to Chart (SPY)"
+export function partLabel(ops, host) {
+  const list = ops || []
+  const adds = list.filter(o => getCapability(o?.action)?.creates?.(o.args || {}))
+  if (adds.length) {
+    const aliases = new Set(adds.map(o => String(getCapability(o.action).creates(o.args || {}).alias)))
+    const syms = list.filter(o => o?.action === 'chart.setSymbol' && aliases.has(String(o.target))).map(o => String(o.args?.symbol || '').toUpperCase()).filter(Boolean)
+    const types = [...new Set(adds.map(o => String(o.args?.type || 'widget')))]
+    const n = adds.length
+    const noun = types.length === 1 ? `${types[0]}${n > 1 ? 's' : ''}` : 'widgets'
+    return `${n === 1 ? 'a new' : `${n} new`} ${noun}${syms.length ? ` for ${syms.join(', ')}` : ''}`
+  }
+  const labels = []
+  for (const o of list) {
+    const kind = getTargetKind(getCapability(o?.action)?.target)
+    let label = null
+    try { label = kind?.read?.(host, o.target)?.label || null } catch { label = null }
+    if (!label) { try { label = host?.charts?.read?.(String(o.target))?.label || null } catch { label = null } }
+    if (label && !labels.includes(label)) labels.push(label)
+  }
+  return labels.length ? `the change to ${labels.join(' and ')}` : 'the change to your existing widgets'
+}
+// ⭐ W2 (receipts): every chart a committed plan touched, read AFTER the commit — { label, symbol, tf, isNew } — so the
+// receipt's one-liner names each chart with its symbol and timeframe (receiptView). Display only; never throws.
+function receiptCharts(host, plan, res) {
+  try {
+    const out = []
+    const seen = new Set()
+    for (const p of plan?.plans || []) {
+      const kind = getTargetKind(p.kind)
+      const ref = p.virtual ? res?.created?.[p.ref] : (p.kind === 'chart' ? p.ref : (kind?.groupOf ? kind.groupOf(p.ref) : null))
+      if (!ref || seen.has(ref) || (!p.virtual && p.kind !== 'chart' && !kind?.groupOf)) continue
+      const c = host?.charts?.read?.(String(ref))
+      if (!c?.symbol) continue
+      seen.add(ref)
+      out.push({ label: p.virtual ? null : (c.label || p.snap?.label || null), symbol: c.symbol, tf: c.tf || null, isNew: !!p.virtual })
+    }
+    return out.length ? out : null
+  } catch { return null }
+}
+// ⭐ W2 AUDIT (live 2026-11-04, train 3): an indicator alert is ONE chart's — the same instance id (the default EMA 9 is
+// "ovl:0" on every chart) is on every chart of the board. When the plan doesn't say which chart (`chart` null), the chart
+// is resolved here, deterministically and in this order: the chart the member SELECTED, a chart the member's words name
+// by its label ("Bottom-left chart (TSLA)" — a clicked choice), by its symbol (one chart), or by symbol + position. Still
+// ambiguous → left null, and the capability asks which chart. The model's own `chart` is never overridden.
+const CHART_SCOPED = new Set(['indicatorAlert.create'])
+export function scopeChartOps(ops, host, words) {
+  if (!(ops || []).some(o => CHART_SCOPED.has(o?.action) && o.args && o.args.chart == null)) return ops
+  let charts = []
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  if (charts.length < 2) return ops
+  const ref = (() => {
+    // review #771 delta M2: what the member NAMES outranks the last-clicked chart — its label, then its symbol (one chart,
+    // or symbol + position); a symbol on several charts with nothing else to tell them apart is ASKED, never the selection
+    const t = String(words || '')
+    const lower = t.toLowerCase()
+    const byLabel = charts.filter(c => c.label && lower.includes(String(c.label).toLowerCase()))
+    if (byLabel.length === 1) return byLabel[0].ref
+    const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const bySym = charts.filter(c => c.symbol && new RegExp(`(^|[^A-Za-z])\\$?${esc(c.symbol)}(?![A-Za-z])`, String(c.symbol).length >= 3 ? 'i' : '').test(t))   // a 1–2 letter ticker only in capitals ("on", "a")
+    if (bySym.length === 1) return bySym[0].ref
+    if (bySym.length > 1) {
+      const pos = bySym.filter(c => c.position && new RegExp(`\\b${esc(String(c.position).toLowerCase())}\\b`).test(lower))
+      if (pos.length === 1) return pos[0].ref
+      // several charts of the named symbol: the selected one only if it IS one of them, else asked
+      try { const s = host?.charts?.selected?.(); if (s && bySym.some(c => c.ref === s)) return s } catch { /* no selection */ }
+      return null
+    }
+    try { const s = host?.charts?.selected?.(); if (s && charts.some(c => c.ref === s)) return s } catch { /* no selection */ }
+    return null
+  })()
+  if (!ref) return ops
+  return ops.map(o => (CHART_SCOPED.has(o?.action) && o.args && o.args.chart == null ? { ...o, args: { ...o.args, chart: ref } } : o))
+}
+// review #771 delta H1/L3: a reply ANSWERS the model's open question only when it is a choice click, matches a choice, or
+// is short with no action of its own ("Chart c3", "the left one", "TSLA") — anything else is a new request, routed fresh
+const ANSWER_VERB = /\b(?:add|remove|delete|open|close|draw|put|make|change|switch|set|create|show|hide|move|alert|save|run|find|scan|undo|load|apply|swap|turn|give|rename|sort|copy|duplicate)\b/i
+export function isShortAnswer(text, choices = [], answering = false) {
+  if (answering) return true
+  const t = String(text || '').trim().toLowerCase()
+  if (!t) return false
+  if ((choices || []).some(c => c?.label && t.includes(String(c.label).toLowerCase()))) return true
+  return t.split(/\s+/).length <= 6 && !ANSWER_VERB.test(t)
+}
+// review gaps-5 (1): a message SETS ASIDE the open question only when it reads as a complete request of its OWN — an action
+// verb or a tool / indicator noun, WITH its own object (a ticker, a date, a level, an indicator, a widget) — that names
+// nothing the question offered or asked about. Anything that picks among the choices or the question's subject (a
+// position, a symbol, a timeframe, a length, "instead / rather / go with / use / not the …") ANSWERS it. When unclear: an answer.
+const REQUEST_VERB = /\b(?:add|remove|delete|open|draw|put|create|show|hide|move|alert|save|run|find|scan|swap|rename|sort|copy|duplicate|plot|load|apply|set up|set|build)\b/i
+const REQUEST_NOUN = /\b(?:trend ?lines?|avwap|anchored vwap|fib\w*|rays?|rectangles?|alerts?|watch ?lists?|screens?|scans?|layouts?|widgets?|rsi|macd|vwap|bollinger|ema|sma|moving averages?)\b/i
+// only an EXPLICIT pick ("instead", "go with", "the … one", "not the …") answers despite an action verb with new objects
+const PICK_WORDS = /\b(?:instead|rather|go with|the (?:\w+ )?one|not the)\b/i
+const sigTokens = (s) => new Set((String(s || '').toLowerCase().match(/[a-z0-9$.-]+/g) || [])
+  .filter(w => w.length > 1 && !/^(?:the|a|an|my|on|in|to|of|for|and|or|chart|charts|one|this|that|it|do|you|mean|which|what|from|at|with|please)$/.test(w)))
+export function isNewRequest(text, question = null) {
+  const t = String(text || '').trim()
+  if (!t) return false
+  const raw = t.replace(/[.,!?]+/g, ' ')
+  const tickers = (raw.match(/(?:^|\s)\$?([A-Z]{1,5})(?=\s|$)/g) || []).map(w => w.trim().replace('$', ''))
+    .filter(w => !['I', 'A', 'UCT', 'OK'].includes(w))
+  const lower = raw.toLowerCase()
+  const action = REQUEST_VERB.test(raw) || REQUEST_NOUN.test(raw)
+  if (!action) return false
+  // delta review (1): the reply's OWN objects — tickers, dates, levels / lengths, indicators and tools it names
+  const objects = new Set([
+    ...tickers.map(x => x.toLowerCase()),
+    ...(lower.match(/\b(?:nvda|tsla|aapl|amd|msft|amzn|meta|goog|googl|spy|qqq|iwm|nflx|avgo|mu|smci|pltr)\b/g) || []),
+    ...(lower.match(/\b\d{4}-\d{2}-\d{2}\b|\$?\d+(?:\.\d+)?\b/g) || []).map(x => x.replace('$', '')),
+    ...(lower.match(new RegExp(REQUEST_NOUN.source, 'gi')) || []).map(x => x.toLowerCase()),
+  ])
+  if (!objects.size) return false
+  // gaps-5 nit: "set it at 70" / "draw it from 2026-10-10" — the reply's thing is a PRONOUN (the question's own subject) and
+  // it brings only a value or a date: no ticker, indicator or tool of its own → it answers ("At what RSI level…?")
+  const named = [...objects].filter(o => !/^(?:\d{4}-\d{2}-\d{2}|\d+(?:\.\d+)?)$/.test(o))
+  if (!named.length && /\b(?:it|that|this|them|those)\b/i.test(raw)) return false
+  // compared with the CHOICES only (what the question offered — never every word of the question, which names its topic)
+  const offered = sigTokens((question?.choices || []).map(c => c?.label || '').join(' '))
+  const fresh = [...objects].filter(o => !offered.has(o) && !o.split(/\s+/).every(w => offered.has(w)))
+  if (!fresh.length) return false                                  // it only names what was offered: an answer
+  if (PICK_WORDS.test(raw)) return false                           // an explicit pick among them
+  return true
+}
+// the groups a question is ABOUT: those its request's own words named (never the always-on / budget fill)
+const questionGroups = (words) => ROUTE_GROUPS.filter(g => !g.always && wordsSelect(g.id, words)).map(g => g.id)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
-function rememberChange(memory, host, ops, undoId = null) {
+// ⭐ W2 (context across turns): `created` = the commit's alias → real ref map. A widget this change CREATED is what its ops
+// were about — "add a QQQ chart" then "change it to weekly" / "add the 20 EMA to that one" means the chart just created, so
+// the creating op and every op aimed at its alias are remembered on the REAL chart (never on 'workspace' or the alias)
+function rememberChange(memory, host, ops, undoId = null, created = null) {
   try {
+    const real = (o) => {
+      if (!created) return o
+      const made = getCapability(o.action)?.creates?.(o.args || {})
+      if (made?.alias && created[made.alias]) return { ...o, target: created[made.alias] }
+      return typeof o.target === 'string' && created[o.target] ? { ...o, target: created[o.target] } : o
+    }
     const asChart = (o) => { const k = getTargetKind(getCapability(o.action)?.target); return k?.groupOf ? (k.groupOf(o.target) ?? o.target) : o.target }
-    const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(o => ({ ...o, target: asChart(o) }))
+    const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(real).map(o => ({ ...o, target: asChart(o) }))
     const refs = [...new Set(clean.map(o => o.target))]
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
@@ -211,6 +415,17 @@ function fanOutOf(ops) {
 // run, what the rest did STAYS (a new list is never deleted because it could not be opened) and
 // the member is told exactly that. Never a way around approval: they are on the same card.
 const isDeferred = (o) => !!getCapability(o?.action)?.deferred
+// ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
+export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
+/** True when a capability's answer carries nothing the member could see (no text, table, view, link or chart). */
+// (the keys are the ones present.js presentOf renders — text, table, present, link, chart — plus storedAs; a new visible
+// answer field added there must be added here too, or that answer would be replaced by NO_RESULT)
+export function emptyAnswer(a) {
+  if (a == null) return true
+  if (typeof a === 'string') return !a.trim()
+  if (typeof a !== 'object') return true
+  return !String(a.text || '').trim() && !a.table && !a.present && !a.link && !a.chart && !a.storedAs
+}
 // a model reply that only acknowledges (the receipt that follows is the real confirmation)
 export const BARE_ACK = /^(?:on it|sure(?: thing)?|ok(?:ay)?|got it|will do|doing (?:it|that)(?: now)?|right away|coming (?:right )?up|done|one moment|one sec)[.!…]*$/i
 // alias → the name a creator in these ops will give it (watchlist.create's `as`)
@@ -284,10 +499,18 @@ const selfSaved = (items) => {
   const changed = (items || []).filter(p => p && p.changed !== false)
   return changed.length > 0 && changed.every(p => getTargetKind(p.kind)?.persistsInCommit === true)
 }
+// W2 audit (live 2026-11-04): a change that touched ONLY the board's widgets (board / workspace kinds — a chart grid, adds,
+// arrangement) does not wait on unrelated preference writes (the new charts' own chart_settings writes as they load):
+// its receipt follows the board's own save. Any other kind waits exactly as before.
+const BOARD_ONLY = new Set(['board', 'workspace'])
 async function persistBoard(host, ops) {
   if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
   try {
-    const r = await host.persist()
+    // ops aimed at a widget this same change creates (a new chart born on its ticker) are part of the board write
+    const made = new Set(ops.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
+    const own = ops.filter(o => !made.has(String(o?.target)))
+    const boardOnly = kindsOf(own).length > 0 && kindsOf(own).every(k => BOARD_ONLY.has(k))
+    const r = await host.persist(boardOnly ? { settle: [] } : undefined)
     return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' }
   } catch {
     return { ok: false, reason: 'not-saved' }
@@ -307,6 +530,14 @@ function refusalText(refusals) {
     ? `I didn't change anything: ${reasons[0]}`
     : `I didn't change anything:\n${reasons.map(r => `- ${r}`).join('\n')}`
 }
+
+// NLM-1 all-or-nothing (#806): a step READ (not run) that would not run — no ops, a refusal, too many changes
+const stepUnread = (r) => !!r && !r.noop && (!!r.say || !r.ops?.length || r.ops.length > MAX_STEP_OPS)
+// the up-front check can judge only a step that stands on its own: one that refers back ("make it orange" after "…, add
+// the 21 ema") reads only once the step before it has run — the run itself (`whole`) is all or nothing for those
+const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new one|the new chart|the same)\b/i.test(String(t || ""))
+// (`read`: the panel's own step reader — the same one the run uses)
+const preUnread = (step, read) => step.kind !== 'undo' && !refersBack(step.text) && stepUnread(read(step, null))
 
 export default function useAgent({ host, gridMode = false, surface = 'charts' }) {
   // Create Indicator access — the button's own rule (Indicators' createIndicatorAccess: admin +
@@ -367,6 +598,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
+  const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
+  const undoneFirstRef = useRef(false)      // review F3: a planned Undo ran FIRST this turn — a later "didn't change anything" isn't true
+  const createdRef = useRef(null)           // review #771: { turn, refs } — the charts the latest committing request created
+  const referentsRef = useRef(null)         // NLM-1 D3 (dark): member turn id → the text it was read as (nlm1/followups.js)
+  const stepPlanRef = useRef(null)          // NLM-1 step plans (dark): the structured plan now running { ops, steps, before }
+  const readBackRef = useRef(null)          // NLM-1 step plans (dark): reads the plan back once it has run (set below)
+  if (!referentsRef.current) referentsRef.current = createReferents()
+  const questionSetAsideRef = useRef(false) // LT-5/6: this turn's message set the open question aside (a new request)
+  const askedGroupsRef = useRef(null)       // W2 AUDIT: the routing groups the model's open question was asked with
+  const lastRoutedRef = useRef(null)        // this turn's routed groups (legacy request), for a question it asks
+  const notDoneRef = useRef(null)           // W2 audit: this turn's fixed "Not done: …" sentences (notDone.js)
+  const lastUndoRef = useRef(null)          // review F5: how the last doUndo ended — 'ok' | 'unsaved' | 'refused' | 'none'
   const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
   // PLANNER v2 (Wave 1 A-05, agent/steps.js): null unless /api/agent/config says planner 'v2' — then every model
   // turn is the server's step loop, each step through the same `execute`. v2TapRef collects the record bodies of
@@ -395,12 +638,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // `at`: when the line joined the chat (the panel shows it beside the sender's name).
   // ⛔ Never an EMPTY Agent container: an agent / refusal / error line with nothing to show is not
   // added (a blank reply, an answer that came back empty). Cards and questions always carry content.
-  const push = useCallback((item) => {
+  const push = useCallback((item0) => {
+    // review F3: after this turn's planned Undo went through, a refusal of the REST never says nothing changed
+    const item = undoneFirstRef.current && ['refusal', 'error', 'agent'].includes(item0?.role) && DIDNT_CHANGE.test(String(item0.text || ''))
+      ? { ...item0, text: String(item0.text).replace(DIDNT_CHANGE, 'I undid my earlier change (above), but I didn’t make the rest of your request') }
+      : item0
     if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
         && !item.present && !item.table && !item.link) return
     if (item?.role && item.role !== 'member') turnOutput(item.role)
-    if (item?.role === 'question') lastQuestionRef.current = item
-    setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
+    const id = item?.id || nid()
+    if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
+    setItems(xs => [...xs, { at: Date.now(), ...item, id }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
   // ⛔ APPROVAL BINDING: a change that RAN (any write, or an Undo) withdraws a proposal still waiting —
@@ -505,7 +753,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
@@ -539,6 +787,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // Checked NOW against the board as it is (a new list's alias stands in for it). One that
     // cannot run is dropped and said up front — the rest of the request still runs.
     let deferredLines = []
+    // ⭐ MISSION 3: this request CREATES widgets and its deferred steps change widgets that already exist ("add a chart for
+    // AAPL and put the RSI on my NVDA chart") — its Undo entries are one group (execute)
+    let mixedDeferred = false
     if (deferred.length) {
       // each one on its own (they run one at a time, so they are checked one at a time)
       const okd = []
@@ -549,6 +800,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⭐ W1-B B-07: a step aimed at a target this request CREATES (a widget.add alias — "open two charts … with the 9 and
       // 20 ema on both") cannot be checked yet either: it is checked at its own turn, re-aimed at the real target (landDeferred)
       const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
+      mixedDeferred = creates.size > 0 && deferred.some(d => !creates.has(String(d.target)))
       for (const d of deferred) {
         const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
@@ -667,7 +919,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       for (const o of queries) {
         let a
         try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host, capCtx) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
-        answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
+        // ⛔ LT-15: never "announce work, then show nothing" — a query that came back with nothing to show (no text,
+        // no table, no view, no link) says so plainly instead of leaving an empty row (or none) after the reply
+        answers.push(emptyAnswer(a) ? { text: NO_RESULT } : (typeof a === 'string' ? { text: a } : a))
       }
       // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
       // shaped by the member's own request (concise by default, depth when asked).
@@ -678,16 +932,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const syms = getCapability(o.action)?.localOnly ? null : tickersOfAnswer(answers[i])
         if (syms) memoryRef.current.noteResults({ source: o.action, label: answers[i]?.title || null, symbols: syms })
       })
-      answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '' } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null }))
-      const text = answers.map(a => a.text).filter(Boolean).join('\n\n')
+      // ⭐ W3-4 `coach.next`: a capability's suggested next messages ride on the answer row as chips (≤ 3 short
+      // strings; a tap sends one as the member's own message). Never saved, never read into a model request.
+      const nextOf = (a) => (Array.isArray(a?.next) && a.next.length ? { next: a.next.slice(0, 3).map(s => String(s).slice(0, 120)) } : {})
+      answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '', ...nextOf(a) } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null, ...nextOf(a) }))
+      // ⛔ W3 review B3: an answer whose capability says `storedAs` (journal.reviewTrades) is SHOWN now but never
+      // stored as text or as a view — the transcript keeps only that capability's value-free marker
+      // (also an ANSWER's own `storedAs`: a coach answer led by UCT's approved knowledge stores a citation-only marker)
+      const markerOf = (i) => (typeof answers[i]?.storedAs === 'string' && answers[i].storedAs) || getCapability(queries[i]?.action)?.storedAs || null
+      const knowledgeLed = answers.some(a => typeof a?.storedAs === 'string' && a.storedAs.startsWith(KNOWLEDGE_REF))
+      const text = answers.map((a, i) => markerOf(i) || a.text).filter(Boolean).join('\n\n')
       // the member's transcript keeps the views (restored on reload); never read into a model request
-      const saved = compactViews(views.filter(Boolean))
+      const saved = compactViews(views.filter((v, i) => v && !markerOf(i)))
       // ⛔ LOCAL-RESULT BOUNDARY: the member's transcript keeps the answer; the row says it is LOCAL
       // ONLY (and what was asked — args, never values), so the server never replays it to a model.
       // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.
       const local = queries.filter(o => getCapability(o.action)?.localOnly)
       const localData = local.length ? { local: true, requests: local.map(o => o.args || {}) } : {}
-      record({ member, outcome: text || 'Answered.', outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData, ...(saved.length ? { views: saved } : {}) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+      record({ member, outcome: text || 'Answered.', outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData, ...(knowledgeLed ? { knowledge: true } : {}), ...(saved.length ? { views: saved } : {}) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
@@ -705,7 +967,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       for (const o of fan) {
         const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
-        const guard = one.ok ? protectionRefusal(host, one, [o]) : null
+        const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
         const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
         if (why) {
           refusalPush(why)
@@ -752,6 +1014,37 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     mark('planned')
     const actions = ops.map(o => o.action)
     if (!plan.ok) {
+      // ⭐ MISSION 3: refused ONLY as add + change-existing → two executions of this same runtime, in the member's order,
+      // ONE grouped Undo (execute runs them). Every part is planned, protection-checked and policy-checked HERE, before
+      // anything is written; any part that would not run at once keeps the request refused, with the two-step wording.
+      const mixedOnly = plan.refusals.length > 0 && plan.refusals.every(r => r.code === 'mixed')
+      if (mixedOnly) {
+        const why = await (async () => {
+          if (suggested !== 'apply' || composing || deferred.length || binding) return 'needs-approval'
+          const sp = splitMixedOps(ops)
+          if (!sp) return 'unsafe'
+          const pre = []
+          for (const part of sp.parts) {
+            const pp = planOps(collectTargets(host, kindsOf(part.ops)), part.ops, env, capCtx)
+            if (!pp.ok) return { text: refusalText(pp.refusals) }
+            const g = protectionRefusal(host, pp, pp.normalizedOps || part.ops)
+            if (g) return { text: `I didn't change anything: ${g}` }
+            if (decideMode('apply', pp) !== 'apply') return 'needs-approval'
+            pre.push({ ...part, lines: pp.lines.length ? pp.lines : pp.noops })
+          }
+          return { parts: pre }
+        })()
+        if (why?.parts) {
+          mark('split', why.parts.map(p => p.side).join('+'))
+          return { split: why.parts }
+        }
+        const text = why?.text || `I didn't change anything: ${why === 'needs-approval'
+          ? 'adding new widgets and changing existing ones in one request only works when both parts can run straight away, and part of this one needs your approval first. Ask in two steps: the new widgets first, then the change to the ones you already have.'
+          : plan.refusals[0].reason}`
+        refusalPush(text)
+        record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
+        return
+      }
       const text = refusalText(plan.refusals)
       refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
@@ -759,7 +1052,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // PROTECTED LAYOUTS (Main Trading…): checked after planning — so it covers a new request, a
     // proposal's Apply (which re-plans here) and a composed plan alike — and before anything writes.
-    const guarded = protectionRefusal(host, plan, ops)
+    const guarded = protectionRefusal(host, plan, plan.normalizedOps || ops)   // W1.1 review NB-3: the NORMALIZED ops
     if (guarded) {
       const text = `I didn't change anything: ${guarded}`
       refusalPush(text)
@@ -862,7 +1155,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
-        rememberChange(memoryRef.current, host, ops, null)
+        rememberChange(memoryRef.current, host, ops, null, res.created || null)
+        noteCreated(res.created)
         return
       }
       const next =[...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
@@ -871,14 +1165,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, charts: receiptCharts(host, plan, res), ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
       // with ITS Undo entry (pushed above only when the save was confirmed): a correction reverses
       // exactly this change or nothing (nl1/interpreter.correctionPlan)
-      rememberChange(memoryRef.current, host, ops, res.undo?.id || null)
-      if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}) }
+      rememberChange(memoryRef.current, host, ops, res.undo?.id || null, res.created || null)
+      noteCreated(res.created)
+      if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}), ...(mixedDeferred ? { mixed: true } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
       const text = res.failed.every(f => f.say) ? res.failed.map(f => f.say).join(' ')
@@ -973,12 +1268,62 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     turnPath(path)
     traceStart(`${path}:${suggested || 'apply'}`)
+    const idsBefore = undoRef.current.map(e => e.id)
     let out
     try {
       out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset })
     } finally { traceEnd('done') }
+    // ⭐ MISSION 3: an add + change-existing request, run as its parts in the member's order — each part the SAME
+    // executeInner (planning, protection, policy, board check, commit, persistence, receipt and its own Undo entry). A part
+    // that does not land stops the rest; the member is told exactly which part was made and which wasn't — never a
+    // success claim. The parts' Undo entries become ONE group: "undo" takes back the whole request (doUndo).
+    if (out?.split) {
+      const parts = out.split
+      // review #771 (6): each part is named from its PLAN (what it is), never its past-tense receipt line
+      const said = (p) => partLabel(p.ops, host)
+      const outer = tapRef.current
+      let done = 0
+      for (let i = 0; i < parts.length; i++) {
+        const kinds = []
+        tapRef.current = kinds
+        try {
+          traceStart(`${path}:part${i + 1}`)
+          let o
+          try { o = await executeInner(parts[i].ops, { path, mode: 'apply', member: i ? null : member, voice, onTarget: i ? null : onTarget, namePart: true }) } finally { traceEnd('done') }
+          await runFollowUps(o)
+        } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        const landed = kinds.includes('applied') || kinds.includes('noop')
+        if (!landed || kinds.some(k => k !== 'applied' && k !== 'noop')) {
+          const q = (xs) => xs.map(s => `“${s}”`).join(' and ')
+          const made = parts.slice(0, i).map(said)
+          const here = said(parts[i])
+          const later = parts.slice(i + 1).map(said)
+          const notStarted = later.length ? `, so I didn’t start ${q(later)}` : ''
+          // review #771 (2): a part that is ON SCREEN but not saved is said exactly so — it has no Undo of its own
+          const unsaved = kinds.includes('applied-unsaved')
+          const text = unsaved
+            ? `${made.length ? `I made ${q(made)} (above). ` : ''}${q([here])} is on your screen but wasn’t saved (see above)${notStarted}.${made.length ? ` Say “undo” to take back ${q(made)}.` : ''}`
+            : made.length
+              ? `I made ${q(made)} (above), then stopped: ${q([here])} didn’t go through (see above), so it isn’t on your board${notStarted}. Say “undo” to take back ${q(made)}.`
+              : `I stopped there: ${q([here])} didn’t go through (see above)${notStarted}. Nothing else was changed.`
+          push({ role: 'agent', text })
+          record({ member: null, outcome: text, outcomeData: { kind: 'split-stopped', step: i, of: parts.length }, telemetry: { path, refused: true, voice } })
+          break
+        }
+        done += 1
+      }
+      if (done === parts.length && groupFresh(idsBefore) > 1) push({ role: 'outcome', text: `Done in ${parts.length} steps (above) — say “undo” to take back the whole request.` })
+      return undefined
+    }
+    await runFollowUps(out)
+    // NLM-1 D2 (dark): a request whose sequential steps (an indicator change after a chart change) each made an entry is
+    // ONE Undo group as well, not only a mixed new + existing one
+    if (out?.mixed || routingV2Active()) groupFresh(idsBefore)
+    return undefined
+
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
+    async function runFollowUps(out) {
     const held = out?.held || null                    // a Save's receipt waiting to lead its chart add
     for (const { awaitDefinition, ...op } of out?.followUps || []) {
       if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
@@ -991,20 +1336,71 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member, outcome: text, outcomeData: { kind: 'refused', actions: [op.action] }, telemetry: { path: 'followup', refused: true, voice } })
         continue
       }
+      const { followNote, approvedStep, ...one0 } = op
+      // NLM-1 step plans (dark): a step that changes the indicator an EARLIER step added runs on that step's result — the
+      // instance it added, found by state; no result (failed, refused, dismissed, ambiguous) → this step does not run, said
+      let one = one0
+      if (stepPlanRef.current) {
+        const r = resolveResultRefs(one0, stepPlanRef.current, host)
+        if (r.skip) {
+          push({ role: 'refusal', text: r.skip })
+          record({ member, outcome: r.skip, outcomeData: { kind: 'refused-step-result', actions: [one0.action] }, telemetry: { path: 'followup', refused: true, voice } })
+          continue
+        }
+        one = r.op
+      }
       traceStart('followup:apply')
-      const { followNote, approvedStep, ...one } = op
       try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { traceEnd('done') }
     }
     // a held Save receipt is ALWAYS said — on its own if no step used it (never a silent save)
     if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
-    return undefined
+    }
   }, [executeInner, definitionListed, host, push, record])
 
-  const doUndo = useCallback(async (undoId, { member, voice, about = null } = {}) => {
+  // ⭐ W2 (review #771 HIGH): the charts the latest committing request CREATED — "the new one" / "the chart you just added"
+  // names exactly one of them (never the conversation's subject, which a later step of the same request may have moved)
+  // NLM-1 step plans (dark): read the plan back — or, while a card from it waits, say that instead of calling its steps missing
+  readBackRef.current = async () => {
+    const plan = stepPlanRef.current
+    if (!plan) return
+    if (pendingRef.current?.kind === 'proposal') {
+      push({ role: 'outcome', text: 'Part of this plan waits for your approval on the card above — it runs only if you approve it.' })
+      return
+    }
+    stepPlanRef.current = null
+    try {
+      const rb = await readBackStepPlan(plan, host)
+      for (const line of rb.lines) push({ role: 'outcome', text: line })
+    } catch { /* a read-back never breaks the panel; nothing is claimed */ }
+  }
+
+  function noteCreated(created) {
+    const turn = memoryRef.current?.currentTurn?.() ?? null
+    if (!createdRef.current || createdRef.current.turn !== turn) createdRef.current = { turn, refs: [] }
+    for (const r of Object.values(created || {})) {
+      try { if (host?.charts?.read?.(String(r)) && !createdRef.current.refs.includes(String(r))) createdRef.current.refs.push(String(r)) } catch { /* not a chart */ }
+    }
+  }
+
+  // ⭐ MISSION 3: the Undo entries ONE request committed on a mix of new and existing widgets become one GROUP (doUndo
+  // takes it back as a whole, newest first). → how many entries were grouped.
+  function groupFresh(idsBefore) {
+    const fresh = undoRef.current.filter(e => !idsBefore.includes(e.id)).map(e => e.id)
+    if (fresh.length < 2) return fresh.length
+    const gid = `g${fresh[0]}`
+    undoRef.current = undoRef.current.map(e => (fresh.includes(e.id) ? { ...e, group: gid } : e))
+    return fresh.length
+  }
+
+  // ONE Undo entry, exactly as before (the receipt's Undo). `doUndo` (below) is the entry point: it adds the turn-level
+  // GROUP (mission 3) on top of this, never a different check.
+  const doUndoOne = useCallback(async (undoId, { member, voice, about = null } = {}) => {
+    lastUndoRef.current = 'refused'
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     if (!entry) {
       const text = 'There is nothing of mine to undo in this session.'
+      lastUndoRef.current = 'none'
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
       return
@@ -1044,11 +1440,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         : { ok: true }
       if (saved.ok) saved = await confirmDrawings(host, entry.items.filter(it => it.kind === 'drawing').map(it => it.ref))
       if (!saved.ok) {
+        lastUndoRef.current = 'unsaved'
         push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true, unsaved: true, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']] })
         record({ member, outcome: `${res.lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'undo-unsaved' }, telemetry: { path: 'fast', undo: true, voice, refused: true } })
         rerender()
         return false
       }
+      lastUndoRef.current = 'ok'
       push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true })
       record({ member, outcome: res.lines.join(' · '), outcomeData: { kind: 'undo' }, telemetry: { path: 'fast', undo: true, voice } })
       rerender()
@@ -1060,23 +1458,74 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return false
   }, [host, push, record, withdrawPending])
 
+  // review F4: a planned "…, then undo it" whose change is now WAITING (an approval card, a which-chart question) never
+  // leaves that card or question behind — approving it later would commit the change with no Undo after it
+  // #766 nit 2: a QUESTION this plan raised (which chart? — with or without a pending pick) is WITHDRAWN too: its choices
+  // are taken away (status 'withdrawn'), so no click can later run something the member never asked for on its own
+  const dropHeldForUndo = (before) => {
+    const q = pendingRef.current
+    const asked = lastQuestionRef.current && lastQuestionRef.current !== before?.question ? lastQuestionRef.current : null
+    const heldNow = q && q !== before?.pending ? q : null
+    if (!heldNow && !asked) return false
+    if (heldNow) {
+      pendingRef.current = null
+      if (heldNow.kind === 'proposal' && heldNow.id) patchItem(heldNow.id, { status: 'replaced' })
+    }
+    if (asked?.id) { patchItem(asked.id, { status: 'withdrawn' }); lastQuestionRef.current = null }
+    push({ role: 'refusal', text: UNDO_HELD })
+    return true
+  }
+
   // ⭐ PHASE 3: "undo all of that" — every change the LAST request committed (memory.lastTurn's Undo entries), newest first,
   // each through doUndo (its own refusals: protected, another board, changed since). The first that can't be undone
   // stops it there, and the member is told exactly how many were taken back — never a partial Undo said as a whole one.
-  const undoTurn = useCallback(async ({ member, voice } = {}) => {
-    const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
-    if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
+  // newest first, each through doUndo (its refusals and receipt); stops at the first that can't be undone, said exactly.
+  // `rest` (#766 nit 3): the Undo was planned FIRST in a request with more to do — a partial Undo then says, in the SAME
+  // message, that the rest was not made (never "Took back 1 of 2" followed by a second "that Undo didn't go through")
+  const undoIds = useCallback(async (ids, { member, voice, rest = false, what = 'from your last request' } = {}) => {
     let done = 0
     for (const id of [...ids].reverse()) {
-      const ok = await doUndo(id, { member: done ? null : member, voice })
+      const ok = await doUndoOne(id, { member: done ? null : member, voice })
       if (!ok) break
       done += 1
     }
-    const text = done === ids.length ? `Took back all ${done} changes from your last request.`
-      : `Took back ${done} of the ${ids.length} changes from your last request, then stopped (above) — the other ${ids.length - done} ${ids.length - done === 1 ? 'is' : 'are'} still in place.`
+    if (done === 0) return false                    // doUndo's own refusal (above) says it — nothing was taken back
+    const left = ids.length - done
+    const text = !left ? `Took back all ${done} changes ${what}.`
+      : `Took back ${done} of the ${ids.length} changes ${what}, then stopped (above) — the other ${left} ${left === 1 ? 'is' : 'are'} still in place${rest ? ', so I didn’t make the rest of your request' : ''}.`
+    if (left) lastUndoRef.current = 'partial'
     push({ role: 'agent', text })
     record({ member: null, outcome: text, outcomeData: { kind: 'undo-turn', done, of: ids.length }, telemetry: { path: 'fast', undo: true, voice } })
-  }, [host, doUndo, push, record])
+    return !left
+  }, [doUndoOne, push, record])
+  // ⭐ MISSION 3 (turn-level Undo group): the steps of ONE grouped request (add + change existing, run in order) each keep
+  // their own Undo entry, tagged with the same `group`. A bare Undo (the words, or the receipt's Undo) of the newest of them
+  // takes back the WHOLE request, newest first, each entry through doUndoOne (every refusal unchanged); the first that can't
+  // be undone stops it there, said exactly. A described Undo ("undo the timeframe change") takes back only the steps of
+  // the group it describes. `single`: exactly the one entry (the group runner itself).
+  const doUndo = useCallback(async (undoId, { member, voice, about = null, rest = false, single = false } = {}) => {
+    const stack = undoRef.current
+    const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
+    // OWNER RULING (W2, 11-04: "undo" after "add the 9 and 20 EMAs" took back only one EMA): a PLAIN Undo of the newest
+    // change takes back the WHOLE last request when that request committed several changes — the same turn-level group
+    // as mission 3, newest first, each through doUndoOne (every refusal unchanged). A described Undo ("undo the colour
+    // change") and an Undo of a named entry stay exactly one entry.
+    if (!undoId && !about && !single && entry) {
+      const turnIds = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => stack.some(e => e.id === id))
+      if (turnIds.length > 1 && turnIds.includes(entry.id)) return await undoIds(turnIds, { member, voice, rest, what: 'from that request' })
+    }
+    const group = !single && entry?.group ? stack.filter(e => e.group === entry.group) : null
+    if (!group || group.length < 2) return await doUndoOne(undoId, { member, voice, about })
+    const ids = about ? group.filter(e => undoMatches(about, e)).map(e => e.id) : group.map(e => e.id)
+    if (!ids.length) return await doUndoOne(undoId, { member, voice, about })   // the mismatch refusal, as before
+    if (ids.length === 1) return await doUndoOne(ids[0], { member, voice })
+    return await undoIds(ids, { member, voice, rest, what: 'from that request' })
+  }, [host, doUndoOne, undoIds])
+  const undoTurn = useCallback(async ({ member, voice, rest = false } = {}) => {
+    const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
+    if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
+    return await undoIds(ids, { member, voice, rest })
+  }, [host, doUndo, undoIds])
 
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
     const p = pendingRef.current
@@ -1129,6 +1578,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     try {
       await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
     } finally { if (kinds) tapRef.current = null }
+    // NLM-1 step plans (dark): the plan this card belonged to is read back now that it has run
+    if (stepPlanRef.current) await readBackRef.current?.()
     // PLANNER v2: the card was a step of a paused turn — its outcome resumes the server's loop
     if (v2Ref.current?.paused()) { await v2Ref.current.afterCard(v2DepsRef.current()); return }
     if (!p.then) return
@@ -1149,6 +1600,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const text = 'Okay — nothing changed.'
     push({ role: 'outcome', text })
     record({ member, outcome: text, outcomeData: { kind: 'dismissed' }, telemetry: { path: 'fast' } })
+    // NLM-1 step plans (dark): a card dismissed mid-plan — what of the plan IS in place, read back (the rest never ran)
+    if (stepPlanRef.current) readBackRef.current?.()
     // PLANNER v2: a dismissed card resumes the paused turn with a refusal (the model is told; nothing ran)
     if (v2Ref.current?.paused()) return v2Ref.current.afterCard(v2DepsRef.current())
     return undefined
@@ -1163,6 +1616,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!p.draft && p.epoch !== epochOf(host)) {
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
+    }
+    if (p.gridChoice) {
+      // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
+      const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
+      if (!ops) return
+      lastActionsRef.current = ops.map(o => o.action)
+      if (p.gridThen?.length) {
+        // review t4 M5: the grid, then the per-chart changes — one request (runCompound; a card holds the rest until approved)
+        const grid = ops[0]?.args?.symbols || []
+        return await runCompoundRef.current?.([
+          { text: `set up the ${grid.join(', ')} charts`, kind: 'planned', ops, grid, resume: true, fresh: ref === 'grid:add' },
+          { text: 'the rest on those charts', kind: 'planned', each: p.gridThen },
+        ], { member: `${p.member || ''} → ${label}`, voice: p.voice })
+      }
+      return await execute(ops, { path: 'fast', mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
     }
     if (p.workspace) {
       // ⭐ PHASE 3 acceptance: replace the board, or build the whole workspace in a new layout — then the WHOLE request runs
@@ -1204,9 +1672,53 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // live board, each step through the ordinary execute (own plan, policy, receipt, Undo). A step that does not fully
   // land — refused, failed, asking, or waiting for approval — STOPS the request: what was done and what was not is
   // said plainly, never reported as the whole request.
-  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null }) => {
+  // How a step of a multi-step request is READ (no execution): the NLM-1 readers first (a step's own created chart, an
+  // ordinal among this request's new charts), then the ordinary resolver, then the NLM-1 follow-up mechanisms. Shared by
+  // runCompound and the NLM-1 whole-message pre-check (so the check reads each step exactly as the run would).
+  const readStepRef = useRef(null)
+  readStepRef.current = (step, working) => {
+    // ⭐ NLM-1 D2 (dark): a step that refers to the chart IT creates ("…, add a chart for AMD and put the 21 ema on it, …")
+    const made = routingV2Active() && step.kind === 'fast' ? planCreatedReference(step.text, host) : null
+    // D2.1 (dark): "…, then make the second one weekly" — counted among the charts this request's grid step made
+    const ord = !made?.ops && routingV2Active() ? rescopeOrdinal(step.text, { host, order: working || [] }) : null
+    let r = made?.ops ? { ops: made.ops } : ord?.ops ? { ops: ord.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
+    // D2.2 (dark): a step no reader takes ("…, add the 21 ema and make it orange": the indicator the step before added),
+    // read by the NLM-1 mechanisms over what THIS request has committed so far (memory's current turn)
+    if (routingV2Active() && (r.say || !r.ops?.length) && !r.noop) {
+      const fo = resolveFollowUpOps(step.text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })
+      if (fo?.ops) r = { ops: fo.ops }
+    }
+    return r
+  }
+
+  // `whole` (NLM-1 multi-step REWRITES only): the steps are NLM-1's reading of ONE message the member typed, so they run all
+  // or not at all — a step that is not read, or does not go through, never ends in "stopped at …": nothing run yet → the
+  // run returns { fallback: true } (the caller hands the member's ORIGINAL message to the planner, exactly as v1 does);
+  // steps already run → they are taken back first (this request's own Undo entries, newest first), then the same.
+  // A step that waits on an approval card or an answer is not a failure: it stops there as before.
+  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null, whole = false }) => {
+    const idsAtStart = undoRef.current.map(e => e.id)    // NLM-1 D2 (dark): the whole request's Undo entries, grouped at the end
     let working = working0
     let done = 0
+    const fallBack = async () => {
+      mark('nlm1:whole-fallback', String(done))
+      const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
+      if (!fresh.length) return { fallback: true, rolledBack: 0 }
+      // #806 LOW-1: the request's own entries are taken back as ONE group (newest first, each through its own exact Undo
+      // and checks; one receipt) — never entry by entry through the plain Undo, which already takes the whole request
+      // and then said "nothing of mine to undo" for the rest
+      const ok = fresh.length === 1 ? await doUndoOne(fresh[0], { member: null, voice }) : await undoIds(fresh, { member: null, voice, what: 'from the steps I had started' })
+      const left = fresh.filter(id => undoRef.current.some(e => e.id === id))
+      if (ok && !left.length && lastUndoRef.current !== 'unsaved') return { fallback: true, rolledBack: fresh.length }
+      // the take-back did not fully go through: the board is NOT as the member left it, so the planner is never asked
+      // to plan over it — said plainly, and nothing else runs
+      const text = left.length
+        ? `I couldn’t finish that request step by step, and ${left.length} of the changes I had started ${left.length === 1 ? 'is' : 'are'} still on your board (see above) — I couldn’t take ${left.length === 1 ? 'it' : 'them'} back. I stopped there and didn’t ask the model to try it, so nothing else will change. Check the board, then ask again.`
+        : 'I couldn’t finish that request step by step. I took back what I had started, but that couldn’t be saved (see above). I stopped there and didn’t ask the model to try it. Check the board, then ask again.'
+      push({ role: 'agent', text })
+      record({ member, outcome: text, outcomeData: { kind: 'compound-takeback-failed', left: left.length, of: fresh.length }, telemetry: { path: 'fast', refused: true, voice } })
+      return { done: true, takebackFailed: true }
+    }
     const stop = (i, why) => {
       const rest = steps.slice(i).map(s => `“${s.text}”`)
       const text = done
@@ -1215,10 +1727,27 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'agent', text })
       record({ member, outcome: text, outcomeData: { kind: 'compound-stopped', step: i, of: steps.length }, telemetry: { path: 'fast', refused: true, voice } })
     }
+    let prevIds = null                        // the Undo entries the step before committed (null = no step yet)
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
-      const r = resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
-      if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; continue }
+      // hotfix 2026-11-03: "change NVDA to weekly, then undo that" — the Undo of exactly what the step before committed,
+      // through doUndo (its refusals and receipt); a first-step Undo is the ordinary Undo of the newest change
+      if (step.kind === 'undo') {
+        const about = fastParse(step.text, { host })?.about || null
+        if (prevIds && !prevIds.length) { stop(i, 'the step before it didn’t make a change I could take back, so nothing was undone'); return }
+        let ok = true
+        if (!prevIds) ok = await doUndo(null, { member: null, voice, about })
+        else for (const id of [...prevIds].reverse()) { ok = await doUndo(id, { member: null, voice, about }); if (!ok) break }
+        if (!ok) { stop(i, lastUndoRef.current === 'unsaved' ? 'that Undo put things back but couldn’t be saved (see above)' : 'that Undo didn’t go through (see above)'); return }
+        done += 1
+        prevIds = []
+        continue
+      }
+      const idsBefore = undoRef.current.map(e => e.id)
+      const chartRefsBefore = (() => { try { return (host?.charts?.list?.() || []).map(c => c.ref) } catch { return [] } })()
+      const r = readStepRef.current(step, working)
+      if (whole && stepUnread(r)) return await fallBack()
+      if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
       if (r.ops.length > MAX_STEP_OPS) { stop(i, `that step would make ${r.ops.length} changes, and UCT makes at most ${MAX_STEP_OPS} in one step`); return }
@@ -1240,6 +1769,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           }
           return
         }
+        if (whole && !off.includes('proposed') && !off.some(k => k.startsWith('clarify'))) return await fallBack()
         const why = off.includes('proposed') ? 'that step needs your approval first — the card above'
           : off.some(k => k.startsWith('clarify')) ? 'that step needs your answer first'
             : 'that step didn’t fully go through (see above)'
@@ -1247,23 +1777,55 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return
       }
       done += 1
-      if (r.grid) working = chartsShowing(host, r.grid)
+      prevIds = undoRef.current.map(e => e.id).filter(id => !idsBefore.includes(id))
+      // review t4 M5: a grid that ADDED the charts beside others showing the same tickers ("Add 4 more") — the rest goes on the
+      // NEW charts only (the charts that were already there are never the target)
+      if (r.grid) {
+        const showing = chartsShowing(host, r.grid)
+        const added = showing.filter(ref => !(chartRefsBefore || []).includes(ref))
+        working = step.fresh && added.length ? added : showing
+      }
     }
     // one step ("put rsi underneath"): its own receipt says it all
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
-  }, [host, execute, push, record])
+    // ⭐ NLM-1 D2 (dark): every step of ONE request is ONE Undo group — "undo" takes the whole request back, newest first
+    // (doUndo's group path: each entry's own exact Undo and checks). Off: each step keeps its own entry, as before.
+    if (routingV2Active()) groupFresh(idsAtStart)
+    return { done: true }
+  }, [host, execute, push, record, doUndo, doUndoOne, undoIds])
   runCompoundRef.current = runCompound
   // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
-  v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef })
+  v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef,
+    // v2-readiness-2: a v2 agent.undo step runs the receipt's own Undo (steps.js runUndoStep)
+    doUndo, undoTurn, undoRef })
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
-    const text = String(raw || '').trim()
+    let text = String(raw || '').trim()       // NLM-1 D2/D3 may read it as its explicit form (below; dark)
     if (!text || lockRef.current) return
     lockRef.current = true
     turnStart('send')
     saidRef.current = text
-    const askedFor = askedForRef.current
+    const askedFor0 = askedForRef.current
+    // review #771 delta H1/L3: this message ANSWERS the model's open question (a choice, or a short reply) — else it is routed fresh
+    // review gaps-5: an unclear reply is an ANSWER — it keeps carrying the original request (only a set-aside one is fresh)
+    const carryAsked = !!askedFor0 && (answering || !isNewRequest(text, lastQuestionRef.current))
+    // ⭐ LT-5 / LT-6 (live 2026-11-03: "trendline on nvda from 2031-01-01 to today" typed while UCT still waited on its
+    // October-lows question was answered ABOUT October): a message that is not an answer to the open question is a NEW
+    // request. The question is WITHDRAWN (its choices go), nothing of it is carried (words, groups, a held plan), and the
+    // model is told it was set aside — never merged into the new request.
+    const qOpen = lastQuestionRef.current
+    const localOpen = pendingRef.current?.kind === 'target'
+    const setAside = !answering && (!!askedFor0 || localOpen) && isNewRequest(text, qOpen)
+    const askedFor = setAside ? null : askedFor0
     askedForRef.current = null
+    if (setAside) {
+      if (localOpen) pendingRef.current = null
+      pendingQuestionRef.current = null
+      askedGroupsRef.current = null
+      if (qOpen?.id) patchItem(qOpen.id, { status: 'withdrawn' })
+      lastQuestionRef.current = null
+      questionSetAsideRef.current = true
+    }
     push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
@@ -1277,6 +1839,78 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model
       memoryRef.current.seeBoard(visitOf(host))
+      // ⭐ NLM-1 D2/D3 (dark, two keys — nlm1/flag.js): an elliptical request ("same for QQQ", "now the right one too",
+      // "add a chart for AMD with RSI") is READ as its explicit form, made from the last committing message (the referent
+      // tracker); only when no reader reads it as typed, and only when a reader reads the explicit form. Everything after
+      // (readers, planner, policy, runtime, receipts, grouped Undo) is unchanged. The transcript keeps the member's words.
+      if (routingV2Active()) {
+        if (!answering && !pendingRef.current) {
+          // D2/D3.1: "make the first one weekly" right after a request that CREATED several charts — counted among them
+          const ord = rescopeOrdinal(text, { host, order: createdRef.current?.refs || [] })
+          if (ord?.ops) {
+            mark('nlm1:ordinal', ord.rule)
+            referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+            referentsRef.current.note(memoryRef.current.currentTurn(), text)
+            lastActionsRef.current = ord.ops.map(o => o.action)
+            return await execute(ord.ops, { path: 'fast', mode: 'apply', member: text, voice })
+          }
+          const last = memoryRef.current?.lastTurn?.(epochOf(host))
+          // read as the panel reads it: "the new one" is "it" bound to the chart just created (asSubjectWords)
+          const reads = (t0) => { const t = asSubjectWords(t0, createdRef.current?.refs || null).text; try { return [fastParse(t, { host }), multiChartPlan(t, { host }), planCompound(t, { host })].some(r => r && r.kind !== 'say') } catch { return false } }
+          const typed = reads(text)
+          // D3.3: an explicit form counts as read when a reader OR an NLM-1 mechanism (a created-chart plan, a command at a
+          // referent set, a swap, a follow-up over the request so far) takes it — "already read as typed" stays the readers only
+          const nlmTakes = (t) => { try { return !!(planCreatedReference(t, host)?.ops || resolveFollowUpOps(t, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })?.ops) } catch { return false } }
+          let nlm1FellBack = false
+          let rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: (t) => reads(t) || nlmTakes(t), originalClaimed: typed })
+          // ⛔ ALL OR NOTHING (AUDIT, #806): a reading made of STEPS is taken only when EVERY step reads on this board now —
+          // otherwise NLM-1 declines and the member's message goes on exactly as typed (to the planner, as v1 sends it).
+          // NLM-1 never stops a request v1 would have handed to the planner.
+          const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => preUnread({ kind: 'fast', text: x }, readStepRef.current)) : -1
+          if (unreadStep >= 0) { mark('nlm1:rewrite-declined', `${rw.rule}:${unreadStep}`); rw = null }
+          if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
+          // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
+          // the chart THAT part creates) — the ordinary multi-step run (runCompound): each part read, executed, receipted,
+          // one Undo group
+          if (rw?.steps?.length > 1) {
+            referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+            referentsRef.current.note(memoryRef.current.currentTurn(), rw.steps[rw.steps.length - 1])
+            const ran = await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice, whole: true })
+            if (!ran?.fallback) return ran
+            // a step did not go through after all (anything run was taken back): the member's ORIGINAL message, as v1 sends
+            // it — never through the NLM-1 mechanisms again (#806 LOW-2); the taken-back request is no referent
+            referentsRef.current.forget(memoryRef.current.currentTurn())
+            text = String(raw || '').trim()
+            nlm1FellBack = true
+          }
+          // D2/D3.1 (nlm1/followupOps.js): a follow-up no reader takes, as OPERATIONS — chart referent sets (positions,
+          // ordinals, quantifiers), repeat / additive copies of the last request, "back to" inversion from the snapshot
+          // taken before it, removal by position. Its ops go through the same execute (policy, runtime, receipts, Undo).
+          const conv = (() => { try { return resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochOf(host) }) } catch { return null } })()
+          // (D3.3: also when the message WAS rewritten to a form only an NLM-1 mechanism takes — "give AMD rsi" → "add rsi to
+          // AMD" — the readers would hand that to the model)
+          if (!nlm1FellBack && !(rw ? reads(text) : typed) && !conv) {
+            const fo = resolveFollowUpOps(text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [],
+              before: last ? referentsRef.current.stateBefore(last.id) : null })
+            if (fo?.say) {
+              referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+              push({ role: 'agent', text: fo.say })
+              record({ member: text, outcome: fo.say, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+              return
+            }
+            if (fo?.ops) {
+              mark('nlm1:followup-ops', fo.rule)
+              referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+              referentsRef.current.note(memoryRef.current.currentTurn(), text)
+              lastActionsRef.current = fo.ops.map(o => o.action)
+              return await execute(fo.ops, { path: 'fast', mode: 'apply', member: text, voice })
+            }
+          }
+        }
+        // the board as THIS message found it (the "back to …" inversion of a later message reads it)
+        referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+        referentsRef.current.note(memoryRef.current.currentTurn(), text)
+      }
       // ⭐ NL-1 (owner 2026-10-16; flag off by default): the MODEL reads the request. Only EXACT Undo /
       // Confirm / Cancel stay instant, and only when there is something for them to act on. Everything
       // else — references, corrections, a typed answer to a question — is read by the model (with the
@@ -1356,6 +1990,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      if (multi?.kind === 'ask') {
+        // live train 4: replace the board's charts, or add these beside them — the member decides (chooseTarget gridChoice)
+        pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), gridChoice: multi.options }
+        push({ role: 'question', text: multi.text, choices: [...multi.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
       if (multi?.kind === 'ops') {
         lastActionsRef.current = multi.ops.map(o => o.action)
         return await execute(multi.ops, { path: 'fast', mode: multi.mode, member: text, voice, onTarget: multi.note || null })
@@ -1373,10 +2014,23 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // "do the same on the others", "make all my charts match this one" — the conversation's indicators and charts,
       // re-checked on the live board. Tried FIRST when the words point back at the conversation (a fast phrase
       // would read "the first one" without it); otherwise only when nothing else read the message.
+      // W1.1 R-03 (LT-9): "rename <a protected layout> to …" is refused by name here — listed or not, 0 model calls
+      const protectedRename = answering ? null : protectedRenameRefusal(text)
+      if (protectedRename) {
+        const t = `I didn't change anything: ${protectedRename}`
+        push({ role: 'refusal', text: t })
+        record({ member: text, outcome: t, outcomeData: { kind: 'refused-protected', actions: ['layout.rename'] }, telemetry: { path: 'fast', refused: true, voice } })
+        return
+      }
       const followable = !answering && !memRef && !pendingRef.current && !peekAuthoringIntent()
       const followFirst = followable && FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
-      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow }), { host, memory: memoryRef.current, epoch: epochNow })
+      // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
+      // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
+      const subj = asSubjectWords(text, createdRef.current?.refs || null)
+      const refText = subj.text
+      const memNow = withSubject(memoryRef.current, subj.subject)
+      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host, memory: memNow, epoch: epochNow }), { host, memory: memNow, epoch: epochNow })
       const follow = followFirst || (followable && !fast0 && !FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null)
       if (follow?.kind === 'say') {
         push({ role: 'agent', text: follow.text })
@@ -1387,6 +2041,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), follow: { words: follow.words } }
         push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
         record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
+      // PACKAGE 3: a follow-up that needs ONE chart picked ("apply it to my other chart" with several): the pick runs its ops there
+      if (follow?.kind === 'askTarget') {
+        pendingRef.current = { kind: 'target', ops: follow.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host) }
+        push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
+        record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-target', actions: follow.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
         return
       }
       if (follow?.kind === 'ops') {
@@ -1446,11 +2107,38 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         lastActionsRef.current = fast.ops.map(o => o.action)
         return await execute(fast.ops, { path: 'fast', mode: 'apply', member: text, voice })
       }
+      // ⭐ NLM-1 D2 (dark): a plan that refers to the chart it creates ("add a chart for QQQ and put RSI on it / on both")
+      // on a board where no single target could be picked — Track A's bindCreated aims it at the new chart's alias
+      if (routingV2Active() && fast?.kind === 'ops' && !fast.ops.every(o => o.target)) {
+        // the binder reads the member's TYPED words (raw) when NLM-1 rewrote them — see nlm1/plans.js `said`
+        const typedRaw = String(raw || '').trim()
+        const made = planCreatedReference(refText, host, { said: typedRaw !== text ? typedRaw : null })
+        if (made?.ask) {
+          push({ role: 'agent', text: made.ask })
+          record({ member: text, outcome: made.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+          return
+        }
+        if (made?.ops) {
+          mark('nlm1:created-ref')
+          lastActionsRef.current = made.ops.map(o => o.action)
+          return await execute(made.ops, { path: 'fast', mode: 'apply', member: text, voice })
+        }
+      }
       // Phase 2: ops of SEVERAL kinds ("add VWAP and switch to 5 minutes") — each kind must name
       // exactly one target (after a position hint); otherwise the model decides.
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length > 1 && !fast.target?.all) {
+        // live train 4 (CG-37, binding v2): an UNTARGETED change after a create step in the same request goes on the chart
+        // that step creates (its alias → the committed widget's id) — decided before any default target is picked
+        // (createdBinding.js: plan structure; explicit existing references never re-targeted; ambiguous → asked)
+        const bound0 = fast.target ? null : bindCreated(fast.ops, text, host)
+        if (bound0?.ask) {
+          push({ role: 'agent', text: bound0.ask })
+          record({ member: text, outcome: bound0.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+          return
+        }
+        const fastOps = bound0?.ops || fast.ops
         const pick = {}
-        for (const k of kindsOf(fast.ops)) {
+        for (const k of kindsOf(fastOps)) {
           let list = getTargetKind(k)?.list(host) || []
           if (fast.target?.position && list.length > 1) list = matchPosition(list, fast.target.position)
           // P1: "on the second chart" — the kind's entry for THAT chart (a kind that is not chart-backed drops out → the model)
@@ -1458,8 +2146,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (fast.target?.ask) list = []
           if (list.length === 1) pick[k] = list[0].ref
         }
-        if (fast.ops.every(o => o.target || pick[getCapability(o.action)?.target])) {
-          const ops = fast.ops.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
+        if (fastOps.every(o => o.target || pick[getCapability(o.action)?.target])) {
+          const ops = fastOps.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
           lastActionsRef.current = ops.map(o => o.action)
           return await execute(ops, { path: 'fast', mode: 'apply', member: text, voice })
         }
@@ -1527,6 +2215,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
+        // W2-B3: the follow-up groups ride along after a lone-target fast op too ("describe this setup" → "and on the
+        // weekly?"), as every other fast branch above already records
+        lastActionsRef.current = fast.ops.map(o => o.action)
         return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice, onTarget: implicitTarget })
       }
 
@@ -1566,7 +2257,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: q, outcomeData: { kind: 'clarify-workspace' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
           return
         }
-        return await runCompound(compound.steps, { member: text, voice })
+        // ⛔ ALL OR NOTHING for NLM-1's rewrites (AUDIT, #806): a message NLM-1 re-worded that now reads as several steps
+        // runs only when EVERY step reads on this board now, and then all or nothing (runCompound `whole`); otherwise the
+        // member's ORIGINAL message goes on to the model, exactly as v1 sends it — never "stopped at …" where v1 would ask
+        const typed = String(raw || '').trim()
+        const reworded = text !== typed
+        const unread = reworded && compound.steps.some(st => preUnread(st, readStepRef.current))
+        if (!unread) {
+          const ran = await runCompound(compound.steps, { member: text, voice, whole: reworded })
+          if (!ran?.fallback) return ran
+        }
+        mark('nlm1:rewrite-declined', 'compound')
+        text = typed
       }
       } // ── end of the legacy instant path ──
       // ── model path ──
@@ -1580,7 +2282,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
       // PLANNER v2 (UCT_AGENT_PLANNER=v2 on the server): the step loop (agent/steps.js) — the v1 request below is untouched
-      if (!nl1 && serverPlanner() === 'v2') {
+      // (a COACH message stays on the v1 path: the server serves coach turns on v1 — review C1 — and only this path shows
+      // the coach's actions, not just its reply; pre-activation, v2 stays off)
+      if (!nl1 && serverPlanner() === 'v2' && !isCoachMessage(text)) {
         if (!v2Ref.current) v2Ref.current = createStepRunner()
         turnPath('model')
         await v2Ref.current.send({ text, voice, manageIndicators, pending: p?.kind === 'proposal' ? p : null }, v2DepsRef.current())
@@ -1653,7 +2357,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Gate B (0C): the member's live names and the lexicon's typo readings route too (routing.js)
       const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold,
         names: routingNames(host), correct: (t) => (correctTypos(t, lexiconFor(host)) || []).map(v => v.text) }
-      let routed = routeManifest(full, text, routeOpts)
+      // ⭐ W2 AUDIT (live 2026-11-04: "Bottom-left chart (TSLA)" — a click on the model's own "which TSLA chart?" — was routed by
+      // its own words, without indicatorAlerts, so the model had to ask need_groups and lost the thread): an ANSWER to the
+      // model's question keeps the groups the question was asked with (they ride along; the answer's words still route too)
+      // review #771 delta H1: ONLY the question's own groups, only for a short answer, packed AFTER this message's own groups
+      const askedGroups = carryAsked && askedGroupsRef.current ? askedGroupsRef.current : []
+      askedGroupsRef.current = null
+      if (askedGroups.length) routeOpts.after = askedGroups
+      const route = pickRouter()
+      let routed = route(full, text, routeOpts)
+      lastRoutedRef.current = routed.routing ? routed.routing.selected : null
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
       // action groups this message was routed to (a timeframe change no longer waits on alerts).
@@ -1673,8 +2386,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // follow-up the instant path could not read still reaches the model with its referent. Never values.
       const memoryFor = () => {
         const m = memoryRef.current.forModel()
-        if (!m) return null
-        return withModelRefs(m, back)
+        // LT-6: the model's last question was set aside by this message — it is a NEW request (turn.py OPEN QUESTION rule)
+        const aside = questionSetAsideRef.current ? { question_set_aside: true } : null
+        if (!m) return aside
+        return { ...withModelRefs(m, back), ...(aside || {}) }
       }
       const ask = (r, extra = {}) => {
         const mem = memoryFor()
@@ -1692,7 +2407,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
         // The groups the model needs come first; whatever no longer fits the budget is dropped
         // from THIS request (named, not sent). If a needed group itself cannot fit, stop honestly.
-        routed = routeManifest(full, text, routeOpts, need)
+        routed = route(full, text, routeOpts, need)
+        lastRoutedRef.current = routed.routing ? routed.routing.selected : null
         live.settle(null)
         if (!need.every(g => routed.routing?.selected?.includes(g) || !routed.routing)) {
           push({ role: 'agent', text: 'That touches too many parts of UCT for one request. Try asking for one part at a time.' })
@@ -1762,6 +2478,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       if (env.disposition === 'clarify') {
         pendingRef.current = p                     // a question doesn't drop a waiting proposal
+        // W2 AUDIT: the groups this question was asked with go with its answer (the legacy routed request above)
+        askedGroupsRef.current = questionGroups(`${askedFor || ''} ${text}`)
         push({ role: 'question', text: env.question?.text || env.reply, choices: clarifyChoices(env.question?.choices).map(c => ({ label: c.label })) })
         return
       }
@@ -1774,6 +2492,70 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: null, outcome: TOO_MANY_OPS, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
         return
       }
+      // ⭐ agent.undo (hotfix 2026-11-03): the planner asked for UCT's OWN Undo — the receipt's Undo (doUndo / undoTurn, with
+      // every one of its refusals). The model's words never say what was undone (only doUndo's receipt does). Alone → the
+      // Undo; FIRST in a plan → the Undo, then the rest only if it went through; LAST → the rest, then the Undo of exactly
+      // what the rest committed (nothing older); anywhere else → nothing runs, said plainly.
+      const undoOps = (env.ops || []).filter(o => o?.action === UNDO_ACTION)
+      if (undoOps.length) {
+        const all = env.ops
+        const rest = all.filter(o => o?.action !== UNDO_ACTION)
+        const at = all.findIndex(o => o?.action === UNDO_ACTION)
+        const u = normalizeArgs(UNDO_ACTION, undoOps[0].args && typeof undoOps[0].args === 'object' ? undoOps[0].args : {}).args || {}
+        const about = typeof u.about === 'string' ? u.about : null
+        mark('undo', rest.length ? (at === 0 ? 'first' : 'last') : 'alone')
+        lastActionsRef.current = all.map(o => o?.action)
+        if (undoOps.length > 1 || (rest.length && at !== 0 && at !== all.length - 1)) {
+          const t = 'I didn’t change or undo anything: I can undo before or after the other changes in one request, not in the middle of them. Ask for the change, then say “undo”.'
+          push({ role: 'refusal', text: t })
+          record({ member: null, outcome: t, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
+          return
+        }
+        if (!rest.length) {
+          if (u.scope === 'all') await undoTurn({ member: null, voice })
+          else await doUndo(null, { member: null, voice, about })
+          return
+        }
+        // review F4: a change that waits for an approval can't be made AND undone in one request (approving it later would
+        // commit it with no Undo after) — refused before anything runs
+        if (at !== 0 && env.disposition !== 'apply') {
+          push({ role: 'refusal', text: UNDO_HELD })
+          record({ member: null, outcome: UNDO_HELD, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
+          return
+        }
+        if (at === 0) {
+          const ok = u.scope === 'all' ? await undoTurn({ member: null, voice, rest: true }) : await doUndo(null, { member: null, voice, about, rest: true })
+          if (ok) undoneFirstRef.current = true
+          if (!ok && lastUndoRef.current === 'partial') {
+            // #766 nit 3: the partial Undo's own message already said what was taken back and that the rest wasn't made
+            undoneFirstRef.current = true
+            return
+          }
+          if (!ok) {
+            // review F5: an Undo that put things back but could not be saved says exactly that (its receipt is above)
+            const t = lastUndoRef.current === 'unsaved' ? 'That Undo put things back but couldn’t be saved (see above), so I didn’t make the rest of the change.'
+              : 'Because that Undo didn’t go through, I didn’t make the rest of the change either.'
+            push({ role: 'agent', text: t })
+            record({ member: null, outcome: t, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
+            return
+          }
+        } else {
+          undoAfterRef.current = { about, before: undoRef.current.map(e => e.id), held: { pending: pendingRef.current, question: lastQuestionRef.current } }
+        }
+        env = { ...env, ops: rest, reply: '' }
+      }
+      // ⭐ W2 audit (live 2026-11-04: "…to weekly and email me a screenshot of it" said only the weekly receipt): the parts
+      // of THIS request no planned action covers are said after whatever runs — fixed sentences (notDone.js), never prose
+      notDoneRef.current = (env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { actions: env.ops.map(o => o?.action) }) : []
+      // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
+      // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
+      // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
+      if ((env.ops || []).some(o => TAB_ADDS.has(o?.action)) && !/\btabs?\b/i.test(`${askedFor || ''} ${text}`)) {
+        const t = 'I didn’t change anything: my plan would have added a chart tab, which you didn’t ask for. Ask again — and say “tab” if a tab is what you want.'
+        push({ role: 'refusal', text: t })
+        record({ member: null, outcome: t, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+        return
+      }
       // apply / propose: translate the context refs back to real target refs
       // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
       // model's own words about it (the server blanks that reply too). The one exception is the
@@ -1782,13 +2564,41 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // OWNER 2026-10-12: a bare acknowledgement ("On it.") before an APPLY's receipt is a second message
       // that says nothing — the receipt is the confirmation. Anything substantive still shows.
       const bareAck = env.disposition === 'apply' && BARE_ACK.test(String(env.reply || '').trim())
-      if (env.reply && !bareAck && (!localPlan || env.local_notice === true)) push({ role: 'agent', text: env.reply, sources })
+      // W2 AUDIT (live 2026-11-04): a PROPOSAL's reply ("Alert you when the 9 EMA crosses above the 20…") describes what the
+      // card would do — when UCT then refuses the plan, the refusal REPLACES it (it is taken back below), never both
+      const replyId = env.reply && !bareAck && (!localPlan || env.local_notice === true) ? nid() : null
+      if (replyId) push({ id: replyId, role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
+      const bound1 = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
+      // binding v2: the model's UNTARGETED / unresolvable chart ops after a create go on the created chart (explicitly
+      // targeted ones never re-targeted) — or asked about
+      // ⭐ NLM-1 STRUCTURED STEP PLANS (dark, two keys; nlm1/stepPlans.js): a plan whose steps name earlier steps' RESULTS
+      // ("$step1.chart") is validated WHOLE before anything runs (refused whole, never partly run) and every target is
+      // explicit — so no binding re-aims anything (created-binding's structural rule)
+      let stepPlan = null
+      if (routingV2Active() && isStepPlan(bound1)) {
+        const sp = prepareStepPlan(bound1)
+        if (sp.error) {
+          const t = `I didn't run any of that plan: ${sp.error.join('; ')}.`
+          push({ role: 'refusal', text: t })
+          record({ member: null, outcome: t, outcomeData: { kind: 'refused-step-plan', actions: bound1.map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+          return
+        }
+        stepPlan = { ...sp, before: snapshotInstances(host) }
+        mark('nlm1:step-plan', String(sp.steps.length))
+      }
+      stepPlanRef.current = stepPlan
+      const created1 = stepPlan ? null : bindCreated(bound1, text, host)
+      if (created1?.ask) {
+        push({ role: 'agent', text: created1.ask })
+        record({ member: null, outcome: created1.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      const bound = created1?.ops || (stepPlan ? stepPlan.ops : bound1)
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
-      const screened = screenModelOps(host, bound, text, capCtx)
+      const screened = screenModelOps(host, scopeChartOps(bound, host, `${carryAsked ? askedFor || '' : ''} ${text}`), text, capCtx)
       if (screened.ask) {
         // a pick that fills one argument of the planned ops (a new draft's chart): chooseTarget runs them with it
         if (screened.ask.pick) pendingRef.current = { kind: 'target', ops: screened.ask.pick.ops, path: 'model', mode: env.disposition, member: text, voice, epoch: epochOf(host), pickArg: screened.ask.pick }
@@ -1800,7 +2610,25 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Context & Awareness 1B: a deictic request ("this chart", "this stock", "make it weekly") runs
       // only on the chart the member selected — never on a chart the model picked by itself. Nothing
       // executes before the member answers; their pick resumes THIS plan (no second model call).
-      const deictic = screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+      // ⭐ W2 (context across turns): "add the RSI to that one" / "make it weekly" right after a chart was made or changed —
+      // the conversation's SUBJECT chart (memory, the same referent the instant path uses) identifies the chart, so a plan
+      // whose every op is on exactly that chart is not asked about again. A clicked chart still outranks memory (S6).
+      const onSubject = (() => {
+        try {
+          if (host?.charts?.selected?.()) return false
+          const sw = asSubjectWords(text, createdRef.current?.refs || null)
+          if (sw.text === text && !/\bit\b/i.test(text)) return false
+          const s = sw.subject ? { ref: sw.subject } : memoryRef.current.subject('chart', epochOf(host))
+          if (!s?.ref || !screened.ops.length) return false
+          return screened.ops.every(o => {
+            const k = getTargetKind(getCapability(o?.action)?.target)
+            const snap = k?.list(host)?.find(x => x.ref === o.target)
+            return !!snap && chartRefOf(k, snap) === s.ref
+          })
+        } catch { return false }
+      })()
+      if (onSubject) mark('subject', 'memory')
+      const deictic = onSubject ? null : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -1821,7 +2649,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
-      const unnamed = screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
       if (unnamed?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -1841,7 +2669,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
       // ⭐ live test 2026-10-28: "N charts for these tickers" planned as adds + tickers → ONE chart grid (reuses
       // the board's charts, re-tiles to make room) — never "there isn't enough open space"
-      const gridded = screenChartGrid(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, text, host)
+      // W1.1 R-02 (LT-1): on an EMPTY board, chart ops the planner put on a target that is not a chart = one new chart on that symbol
+      const gridded = screenChartGrid(screenEmptyBoardChart(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, host).ops, text, host)
+      // review t4 M1: the SAME replace-or-add question as the instant reader, for the model's plan on every path (NL-1 too) —
+      // a grid of fewer tickers than the board's charts, with no new / add / replace in the member's words, is never guessed
+      const gridAsk0 = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
+      // a grid that could not run either way (an unknown ticker, no room) is never asked about — its refusal is said as before
+      const gridAsk = gridAsk0 && await (async () => {
+        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
+      })() ? gridAsk0 : null
+      if (gridAsk) {
+        // review t4 M5: "…charts, each with a 50 SMA" — the per-chart steps ride with BOTH choices (they run on the charts the
+        // picked grid leaves showing those tickers; behind the replace card, once it is approved)
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: gridAsk.options,
+          ...(gridded.then?.length && !env.correction ? { gridThen: gridded.then } : {}) }
+        push({ role: 'question', text: gridAsk.text, choices: [...gridAsk.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: gridAsk.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
       // ⭐ acceptance 2026-10-29: the plan also changes the charts the grid makes ("…, each with a 50sma") — the grid runs,
       // then those changes, on the charts that now show their tickers: two steps of one request (runCompound — each step
       // the same execute, policy, receipts and Undo; a step that does not land stops the rest, said plainly)
@@ -1874,8 +2719,43 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
       }
-      await execute(ops, { path: 'model', mode: disposition, member: null, voice })
+      {
+        const outer = tapRef.current
+        const kinds = []
+        tapRef.current = kinds
+        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        // ⭐ NLM-1 STEP PLANS (dark): each step's postcondition read back from the board (and the touched charts' saved copy)
+        // — one plain line: what is in place, what is not, what is not saved. A plan waiting on an approval card is read
+        // back when the card is decided (approve) — nothing of it has run yet
+        if (stepPlan) await readBackRef.current?.()
+        if (replyId && env.disposition === 'propose' && kinds.length && kinds.every(k => /^refused/.test(k))) setItems(xs => xs.filter(x => x.id !== replyId))
+      }
+      // agent.undo LAST: exactly what THIS plan committed (its new Undo entries, newest first) — through doUndo
+      const after = undoAfterRef.current
+      undoAfterRef.current = null
+      if (after) {
+        const fresh = undoRef.current.filter(e => !after.before.includes(e.id))
+        if (!fresh.length && dropHeldForUndo(after.held)) { /* review F4: said by dropHeldForUndo */ } else if (!fresh.length) {
+          const t = UNDO_AFTER_NOTHING
+          push({ role: 'agent', text: t })
+          record({ member: null, outcome: t, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'model', undo: true, voice } })
+        } else {
+          for (const e of [...fresh].reverse()) { if (!(await doUndo(e.id, { member: null, voice, about: after.about }))) break }
+        }
+      }
     } finally {
+      // a planned "…, then undo it" whose change never ran (a question, a card, a refusal): nothing was undone — said
+      if (undoAfterRef.current) {
+        const held = undoAfterRef.current.held
+        undoAfterRef.current = null
+        if (!dropHeldForUndo(held)) push({ role: 'agent', text: UNDO_AFTER_NOTHING })
+      }
+      undoneFirstRef.current = false
+      questionSetAsideRef.current = false
+      // W2 audit: a partly-possible request never reads as complete — what wasn't done is said last, in UCT's own words
+      for (const t of notDoneRef.current || []) push({ role: 'refusal', text: t })
+      if (notDoneRef.current?.length) record({ member: null, outcome: notDoneRef.current.join(' '), outcomeData: { kind: 'not-done' }, telemetry: { path: 'model', voice } })
+      notDoneRef.current = null
       lockRef.current = false
       setBusy(false)
       setActivity(null)

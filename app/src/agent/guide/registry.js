@@ -168,22 +168,113 @@ export const GUIDE_FEATURES = [
     ],
     doIt: { say: 'Tell me the change — for example “dark theme on this chart”, “hide the grid” or “candles to hollow”.' },
   },
+
+  // ── ⭐ W2-C2: the other pages (/screener, /breadth, /calendar, /journal) ──
+  // `surface` = the page a feature lives on (no surface = /charts). A feature is offered, matched and shown ONLY on
+  // its own page (guideFeatures / matchFeature), so nothing above changes on /charts. `doIt.kind` names the page's
+  // own target kind; a page with no writer for the thing says so and points at the control instead.
+  {
+    id: 'screenerScreens', surface: 'screener', terms: ['saved screen', 'saved screens', 'screen menu', 'starter screens'], control: 'the Screen menu', title: 'Opening a saved or starter screen', topic: 'savedScreens',
+    words: [/\b(saved|starter|my) (screens?|scans?)\b/, /\b(open|switch|load|change|pick)\b.*\b(screens?|scans?)\b/, /\bscreen menu\b/],
+    caps: ['screener.openSaved'],
+    // pages/screener/focus/ScreenMenu.jsx (Focus layout) · pages/screener/ScreensManager.jsx (classic) — the page's own Screen menu
+    explain: 'A screen is a saved set of filters. The Screen menu at the top of the Screener lists your saved screens and UCT’s starter screens — pick one to apply it to the page; Save changes, Save as new and Rename are in the same menu.',
+    steps: [
+      { target: 'screener.screens', text: 'This is the Screen menu — open it and pick one of your saved screens or a UCT starter to apply it here.' },
+    ],
+    doIt: { action: 'screener.openSaved', arg: 'screen', ask: 'Which screen?', kind: 'screenerPage', choicesFrom: 'savedScreens' },
+  },
+  {
+    id: 'screenerColumns', surface: 'screener', terms: ['columns', 'screener columns', 'column picker'], control: 'the Columns button', title: 'Choosing the Screener’s columns', topic: 'screener',
+    words: [/\bcolumns?\b/],
+    caps: ['screener.page'],
+    // pages/screener/shell/ShellToolbar.jsx — the Columns picker (the table view)
+    explain: 'The Columns button above the results table chooses which columns the table shows — tick the ones you want, start from a ready-made column layout, or reset to the default.',
+    steps: [
+      { target: 'screener.columns', text: 'Click Columns to choose which columns the table shows (or start from a ready-made layout).' },
+    ],
+    doIt: { say: 'I can’t change the Screener’s columns for you — the picker is the only place that does it. Click Columns and tick the ones you want.' },
+  },
+  {
+    id: 'screenerFilters', surface: 'screener', terms: ['filters', 'screener filters', 'filter rail'], control: 'the Filters', title: 'Adding and changing Screener filters', topic: 'screener',
+    words: [/\bfilters?\b/, /\bfilter(ing)? (by|for|on)\b/, /\bnarrow (down )?(the )?(results|list|screen)\b/],
+    caps: ['screener.page'],
+    // pages/screener/focus/FocusTopBar.jsx (the Filters button) · pages/screener/shell/FilterRail.jsx (the rail)
+    explain: 'Filters decide which stocks the screen keeps — price, volume, ADR, relative strength, sector and the rest. Open Filters (or use the filter rail beside the results), find one by name, set its range, and the matches update as you go.',
+    steps: [
+      { target: 'screener.filters', text: 'Your filters live here — find one by name, set its range, and the results update as you go.' },
+    ],
+    doIt: { say: 'I don’t change filters on the page — set them there, or tell me a saved screen to open (“open my Breakout screen”), or ask me to run a screen without changing the page.' },
+  },
+  {
+    id: 'breadthViews', surface: 'breadth', terms: ['breadth tabs', 'breadth views', 'customize breadth', 'breadth metrics'], control: 'the Breadth tabs', title: 'Breadth views and which metrics show', topic: 'breadth',
+    words: [/\b(tabs?|views?|customi[sz]e|heat ?map|overview|cot)\b/, /\b(hide|show|choose|pick)\b.*\b(metrics?|columns?)\b/],
+    caps: ['breadth.page'],
+    // pages/Breadth.jsx — BreadthTabs and the Customize button (the sheet's own CustomizePanel)
+    explain: 'The tabs along the top of Breadth switch between its views — the monitor sheet, the heat map, the overview and the others. On the sheet, Customize chooses which metrics show as columns.',
+    steps: [
+      { target: 'breadth.tabs', text: 'These tabs switch between Breadth’s views.' },
+      { target: 'breadth.customize', text: 'On the sheet, Customize chooses which metrics show.', optional: true },
+    ],
+    doIt: { say: 'Breadth is read only for me — switch the view with the tabs, and ask me what the sheet shows or for a breadth reading.' },
+  },
+  {
+    id: 'breadthTable', surface: 'breadth', terms: ['breadth table', 'breadth sheet', 'breadth monitor', 'monitor sheet'], control: 'the Breadth sheet', title: 'Reading the Breadth sheet', topic: 'breadth',
+    words: [/\b(table|sheet|monitor|rows?|readings?)\b/],
+    caps: ['breadth.page'],
+    // pages/Breadth.jsx — the monitor table (tableWrap)
+    explain: 'The Breadth sheet has one row per session, newest at the top, and one column per breadth metric — how many stocks are above their moving averages, up or down big, at new highs or lows. Colours mark how strong or weak each reading is.',
+    steps: [
+      { target: 'breadth.table', text: 'One row per session, newest at the top; each column is a breadth metric.' },
+    ],
+    doIt: { say: 'Breadth is read only for me — ask me what the sheet shows, or for a reading (“what’s breadth today?”).' },
+  },
+  {
+    id: 'calendarNextReport', surface: 'calendar', terms: ['next report', 'earnings date', 'calendar search'], control: 'the Calendar search', title: 'Finding when a stock reports', topic: 'calendar',
+    words: [/\b(report|reports|reporting|earnings( date)?)\b/, /\b(find|search|look up|jump to)\b.*\b(stock|ticker|symbol|company)\b/],
+    caps: ['calendar.nextReport'],
+    // pages/calendar/CalendarHeader.jsx — CalendarSearch (filters the week; Enter jumps to the report)
+    explain: 'Type a ticker or company in the Calendar’s search: it filters the week on screen, and picking a stock jumps to the week it next reports.',
+    steps: [
+      { target: 'calendar.search', text: 'Type a ticker here — the week filters as you type, and picking one jumps to when it reports.' },
+    ],
+    doIt: { say: 'Tell me the ticker — for example “when does NVDA report?” — and I’ll look it up.' },
+  },
+  {
+    id: 'journalNewNote', surface: 'journal', terms: ['new note', 'notes', 'notebook note'], control: 'the + New note button', title: 'Writing a new note', topic: 'journal',
+    words: [/\b(new|add|create|write|make|start)\b.*\bnotes?\b/, /\bnotes?\b/],
+    caps: ['journal.createNote'],
+    // pages/journal-2-0/tabs/NotebookTab.jsx (+ New note) · components/notebook/NewNoteMenu.jsx (Home's New note)
+    explain: '+ New note starts a blank note in your Notebook; the arrow beside it starts one from an outline or a template. Notes save as you type.',
+    steps: [
+      { target: 'journal.newNote', text: 'Click + New note to start a blank note — it saves as you type.' },
+    ],
+    doIt: { say: 'Tell me what it should say — for example “add a note: NVDA held its 21-day on earnings” — and I’ll add it (Undo moves it to Trash).' },
+  },
 ]
 
 const BY_ID = new Map(GUIDE_FEATURES.map(f => [f.id, f]))
 export const GUIDE_IDS = GUIDE_FEATURES.map(f => f.id)
 export const guideFeature = (id) => BY_ID.get(id) || null
 
-/** The features THIS member may be shown: every capability a feature names is in their manifest right now. */
+/** ⭐ W2-C2: the page a feature lives on (no `surface` = the Charts workspace). */
+export const surfaceOf = (f) => f?.surface || 'charts'
+/** The features of ONE page (no surface = every page — the rails' view). */
+export const featuresOn = (surface) => (surface ? GUIDE_FEATURES.filter(f => surfaceOf(f) === surface) : GUIDE_FEATURES)
+
+/** The features THIS member may be shown: on the page they are on, every capability a feature names is in their
+ *  manifest right now. */
 export function guideFeatures(ctx) {
   let names
   try { names = new Set(manifestFor(ctx).map(c => c.name)) } catch { names = new Set() }
-  return GUIDE_FEATURES.filter(f => f.caps.every(c => names.has(c)))
+  return featuresOn(ctx?.surface).filter(f => f.caps.every(c => names.has(c)))
 }
 
-/** The feature a request is about (its words), among the ones this member may be shown. */
-export function matchFeature(text, ctx) {
+/** The feature a request is about (its words), among the ones this member may be shown — on THIS page (`surface`,
+ *  else ctx.surface, else /charts): a page's words never match on the Charts workspace, nor a chart's on a page. */
+export function matchFeature(text, ctx, surface) {
   const q = String(text || '').toLowerCase()
-  const list = ctx ? guideFeatures(ctx) : GUIDE_FEATURES
+  const on = surface || ctx?.surface || 'charts'
+  const list = (ctx ? guideFeatures(ctx) : GUIDE_FEATURES).filter(f => surfaceOf(f) === on)
   return list.find(f => f.words.some(re => re.test(q))) || null
 }

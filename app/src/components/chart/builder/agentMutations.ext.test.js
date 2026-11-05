@@ -12,7 +12,7 @@ import * as registry from '../engine/nativeRegistry'
 import { mergeChartSettings } from '../chartDefaults'
 import {
   findInstance, withInstances, setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor,
-  setInstanceDisplayTarget, duplicateInstance, setInstanceInput,
+  setInstanceDisplayTarget, duplicateInstance, setInstanceInput, setInstanceVisibility,
 } from '../engine/instanceControls'
 import { movePane, movePaneTo } from '../engine/paneOrder'
 import { setPaneSize } from '../engine/paneSizes'
@@ -87,7 +87,7 @@ describe('the contract is additive', () => {
     expect(MUTATION_CONTRACT).toBe('uct.indicators.mutation/1')
     expect(MUTATION_OPS.slice(0, 4)).toEqual(['add', 'remove', 'setVisible', 'setInputs'])
     expect(MUTATION_OPS.slice(4)).toEqual([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
-    expect([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS]).toEqual(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
+    expect([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS]).toEqual(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
   })
   it('REASONS is exactly the frozen set — no new refusal codes', () => {
     expect(Object.values(REASONS).sort()).toEqual(['ambiguous', 'bad-input', 'bad-request', 'changed-while-working', 'dependent-exists', 'did-not-land',
@@ -196,6 +196,26 @@ describe('I-4 setDisplayTarget — the Inspector Display-in menu', () => {
     const back = run(moved.cs, { op: 'setDisplayTarget', instanceId: 'inst:movingAverage:9', target: 'auto' })
     expect(back.receipt.change).toMatchObject({ after: '@inst:rsi:1', automatic: true })
     expect(refusal(cs, { op: 'setDisplayTarget', instanceId: 'inst:rsi:1', target: 'pane' })).toMatchObject({ ok: false, reason: 'no-change' })
+  })
+})
+
+describe('I-14 setVisibility — the Inspector Show-on row (PACKAGE 3)', () => {
+  it('"only on the daily" = setInstanceVisibility byte for byte; the receipt says it in words; Undo restores exactly', () => {
+    const cs = chart()
+    const r = run(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: { preset: 'custom', tfs: ['D'] } })
+    expect(r.cs).toEqual(json(setInstanceVisibility(cs, 'inst:rsi:1', { preset: 'custom', tfs: ['D'] }, registry)))
+    expect(r.receipt.change).toMatchObject({ what: 'visibility', before: 'All timeframes', after: 'Daily only' })
+    const u = runUndo(r.cs, r.undo)
+    expect(readBack(u.cs).indicatorInstances).toEqual(readBack(cs).indicatorInstances)
+  })
+  it('a preset is stored as its word; "all" clears it; nonsense and no-ops are refused', () => {
+    const cs = chart()
+    const r = run(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: { preset: 'intraday' } })
+    expect(readBack(r.cs).indicatorInstances.find((i) => i.instanceId === 'inst:rsi:1').visibility).toEqual({ preset: 'intraday' })
+    const back = run(r.cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: 'all' })
+    expect('visibility' in readBack(back.cs).indicatorInstances.find((i) => i.instanceId === 'inst:rsi:1')).toBe(false)
+    expect(refusal(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: 'all' })).toMatchObject({ ok: false, reason: 'no-change' })
+    expect(refusal(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: { preset: 'sometimes' } })).toMatchObject({ ok: false, reason: 'bad-input' })
   })
 })
 

@@ -7,7 +7,7 @@
  * With `image_url` the body shows the image; otherwise the player shows the chart.
  * Answer: {choice} (lower-cased: take | pass | watch)
  */
-import ChoiceList from './ChoiceList'
+import ChoiceList, { revealLabels } from './ChoiceList'
 import { barsWord, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
 
@@ -27,14 +27,14 @@ export function framingOf(item) {
            : 'Daily chart ending the night the call was made. The ticker is hidden until you answer.'
 }
 
-export function Body({ item, state, setState, locked }) {
+export function Body({ item, state, setState, locked, reveal }) {
   const p = item?.prompt_json || {}
   return (
     <div>
       {p.image_url && (
         <img className={styles.image} src={p.image_url} alt={p.image_alt || 'Chart from the issue, ticker hidden'} />
       )}
-      <ChoiceList
+      <ChoiceList {...revealLabels(reveal, state)}
         choices={choicesOf(item)}
         value={state?.choice ?? null}
         onChange={(choice) => setState({ choice })}

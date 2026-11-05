@@ -9,8 +9,6 @@ ONE AUTHORITY PER NUMBER. This router composes `review_drafts.py`; it never comp
 itself. No model is called anywhere on this path (no background drafts, no LLM narrative).
 
 The rules (mirroring 13A/13B's routers):
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_REVIEW_DRAFTS_ENABLED` off answers the one 404 for
-    every route before the session is read.
   * MEMBER-SCOPED: every read is keyed on the session member's id; `accountId` only narrows the
     member's OWN trades.
   * READ-ONLY: no route here writes a trade, a note or a table. The note itself is created by the
@@ -29,24 +27,9 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import review_drafts
 from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
 
-FLAG = review_drafts.FLAG
-
-
-def enabled() -> bool:
-    """The gate, read per call through the one parser (unset = OFF)."""
-    return review_drafts.enabled()
-
-
-def _require_enabled() -> None:
-    """Router-level: an off gate reads no session."""
-    if not enabled():
-        raise HTTPException(status_code=404, detail="Not Found")
-
-
 router = APIRouter(
     prefix="/api/j2/review-drafts",
     tags=["journal-2-0", "notebook-review-drafts"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:

@@ -66,6 +66,13 @@ const NAMED = {
   'light gray': '#e5e5e5', 'light grey': '#e5e5e5', charcoal: '#17181a', teal: '#26a69a',
   orange: '#f59e0b', yellow: '#facc15', purple: '#7c3aed', pink: '#ec4899',
 }
+// BROWSER-QA-1 #4: a receipt says a colour by its NAME where the Agent has one ("to orange", not "to #f59e0b");
+// any other value (a custom hex, a token, rgba) is said exactly as written.
+const NAME_OF = Object.entries(NAMED).reduce((m, [name, hex]) => (m[hex] ? m : { ...m, [hex]: name }), {})
+export function colorName(v) {
+  const s = typeof v === 'string' ? v.trim().toLowerCase() : null
+  return (s && NAME_OF[s]) || v
+}
 export function normalizeColor(raw) {
   if (typeof raw !== 'string') return null
   const s = raw.trim().toLowerCase()
@@ -168,9 +175,10 @@ const SETTING_HINTS = (() => {
     ranges.set(key, [...(ranges.get(key) || []), d.id])
   }
   const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
-  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. '
+  // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
+  return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
     + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
-    + 'Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.'
+    + 'Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
 const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))
@@ -574,7 +582,7 @@ const CAPABILITIES = [
       if (st.cs.background === c && st.cs.bgMode !== 'gradient') return st
       return { ...st, cs: set(st.cs, { background: c, bgMode: 'solid' }) }
     },
-    describe: (b, a) => (b.cs.background === a.cs.background && b.cs.bgMode === a.cs.bgMode ? null : `Changed background to ${a.cs.background}`),
+    describe: (b, a) => (b.cs.background === a.cs.background && b.cs.bgMode === a.cs.bgMode ? null : `Changed background to ${colorName(a.cs.background)}`),
     noop: (b, a) => `Background is already ${a.cs.background}`,
   },
   {
@@ -647,6 +655,12 @@ const CAPABILITIES = [
       value: { type: ['string', 'number', 'boolean'] },
     }, required: ['setting', 'value'], additionalProperties: false },
     fast: ({ lower, core }) => fastSetting(lower) || fastSetting(core),
+    // W1.1 R-01 (LT-3): what the live planner sent for the promoted rows — a differently named key for `setting`
+    // (the value's own typing — "off", "90%" — is read by coerceSettingValue, as the dialog reads it)
+    argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },
+    shape: 'args {"setting": <one id from the list>, "value": …} — "turn the gradient off" = {"setting":"bgMode","value":"solid"}, '
+      + '"gradient on" = {"setting":"bgMode","value":"gradient"}, "hide the grid" = {"setting":"grid.visible","value":false}. Never invent '
+      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported.',
     check(st, { setting, value }) {
       const d = settingDescriptor(setting)
       if (!d || d.agent !== 'eligible') return `“${setting}” isn't a chart setting UCT Agent can change.`
@@ -739,6 +753,12 @@ const CAPABILITIES = [
     summary: 'Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).',
     hints: 'date = YYYY-MM-DD (or the member\'s date word: "last friday", "oct 15") for the cutoff; null = exit replay. "As of <date>" / "replay from <date>" / "go back to <date> and hide what came after" = this; "scroll to <date>" with every bar kept = chart.goToDate.',
     args: { type: 'object', properties: { date: { type: ['string', 'null'] } }, required: ['date'], additionalProperties: false },
+    // W1.1 R-01 (LT-3, live "exit replay" refused as off-schema): the cutoff under another key, and the exit said as a word
+    argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
+    // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
+    coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
+    shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
+      + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
     check(st, { date }) {
       if (st.replay === undefined) return 'Replay Mode isn\'t reachable from here.'
       if (date == null) return null

@@ -39,8 +39,6 @@ def _app(tmp_path, monkeypatch, role: str) -> TestClient:
     monkeypatch.setenv("PUSH_SECRET", "test-push-secret")
     monkeypatch.setenv("EVERNOTE_CLIENT_ID", "evernote-test-client")
     monkeypatch.setenv("NOTE_SYNC_EVERNOTE_ENABLED", "admin")
-    monkeypatch.delenv("DROPBOX_APP_KEY", raising=False)
-    monkeypatch.delenv("DROPBOX_APP_SECRET", raising=False)
     monkeypatch.setattr(ns, "_start_initial_sync", lambda *_a, **_k: None)
 
     user = {"id": "u1", "role": role}
@@ -239,14 +237,9 @@ def test_callback_access_denied_without_plan_description_keeps_the_raw_reason(cl
     assert "reason=access_denied" in loc and "evernote_plan" not in loc
 
 
-def test_callback_never_falls_into_the_dropbox_branch(client_admin, monkeypatch):
-    from api.services.journal_two.note_connectors.providers import dropbox as dbx
-
-    async def boom(*_a, **_k):
-        raise AssertionError("evernote callback reached the Dropbox exchange")
-
-    monkeypatch.setattr(dbx, "_exchange_authorization_code", boom)
-    monkeypatch.setattr(dbx, "authorize_url", lambda *_a, **_k: "https://www.dropbox.com/oauth2/authorize")
+def test_callback_takes_the_evernote_branch_end_to_end(client_admin, monkeypatch):
+    """Written as "never falls into the Dropbox branch"; Dropbox was archived on 2026-11-04, so
+    what is left to pin is that connect and callback both take Evernote's own PKCE path."""
     _fake_exchange(monkeypatch)
     _fake_validate(monkeypatch)
 
@@ -502,7 +495,19 @@ def test_status_says_which_sources_are_syncing(client_admin, monkeypatch):
     monkeypatch.setattr(engine, "is_source_busy", lambda sid: sid == src["id"])
     body = client_admin.get(f"{BASE}/status").json()
     [row] = body["providers"]["evernote"]["sources"]
-    assert row["syncing"] is True
+    assert row["syncing"] is True and row["queued"] is False
+
+
+def test_status_says_queued_not_syncing_while_a_pass_waits_for_a_slot(client_admin, monkeypatch):
+    # D4-2: a pass waiting for one of the shared pass slots holds the source's in-flight lock but
+    # is not running: the row reads "queued", never "syncing now".
+    from api.services.journal_two.note_connectors import engine
+    src = _seed_evernote_source()
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: sid == src["id"])
+    monkeypatch.setattr(engine, "is_source_queued", lambda sid: sid == src["id"])
+    body = client_admin.get(f"{BASE}/status").json()
+    [row] = body["providers"]["evernote"]["sources"]
+    assert row["queued"] is True and row["syncing"] is False
 
 
 def test_the_background_choice_reads_follow_up_on_rate_limit_and_nothing_else(monkeypatch):

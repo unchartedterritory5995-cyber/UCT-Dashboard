@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS agent_telemetry (
 CREATE TABLE IF NOT EXISTS agent_conversation_state (
   conversation_id TEXT NOT NULL,
   user_id         TEXT NOT NULL,
-  key             TEXT NOT NULL,          -- STATE_KEYS: lastScreen (W1-C C-01)
+  key             TEXT NOT NULL,          -- STATE_KEYS: lastScreen (W1-C C-01), coachConsent (W3-3)
   value_json      TEXT NOT NULL,
   updated_at      INTEGER NOT NULL,
   PRIMARY KEY (conversation_id, key)
@@ -277,7 +277,9 @@ def delete_conversation(user_id: int, conversation_id: str) -> bool:
 # One row per (conversation, key); owner-scoped like every read here; a foreign or deleted conversation
 # is never written into. The VALUE is the browser's (validated by the route before it gets here); it
 # holds a screener spec and tickers, never a model's text and never a market value.
-STATE_KEYS = ("lastScreen",)
+#: W3-3 (w3-a, 2026-11-03): `coachConsent` = {granted: bool, at: iso} -- the member's per-conversation consent to the
+#: coach using their journal (services/uct_agent/coach.validate_consent); routed only while UCT_AGENT_COACH is on.
+STATE_KEYS = ("lastScreen", "coachConsent")
 STATE_MAX_CHARS = 20000
 
 

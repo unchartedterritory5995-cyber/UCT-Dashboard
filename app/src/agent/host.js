@@ -11,6 +11,7 @@
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
+import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
@@ -168,6 +169,27 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
  * = handleRemoveWidget). `fits[type]` is planPlacement's own verdict: true when
  * the type lands in empty space without resizing anything.
  */
+/** A widget's opts as the stale-Undo check (workspace.js fingerprintFor) and the layout approval binding (layout.js
+ *  approvalState) compare them. A null-valued key is the same widget as an absent one — an Undo that restores a chart's
+ *  never-persisted settings writes `settings: null` — and opts that are absent, `{}` or only null keys all sign as
+ *  "null", so none of them ever reads as a later edit. Any real value (including one that BECOMES null from a value)
+ *  still changes the signature. Top-level keys only: a nested null is content and stays significant. */
+export function optsSignature(opts) {
+  if (!opts || typeof opts !== 'object') return JSON.stringify(null)
+  const kept = Object.entries(opts).filter(([, v]) => v != null)
+  return JSON.stringify(kept.length ? Object.fromEntries(kept) : null)
+}
+
+// The board's grid as planPlacement places on it (its defaults: 24 columns × the viewport-locked FIXED_ROWS).
+const PLACE_COLS = 24
+/** A planned rect is on the visible board and overlaps no widget already there. */
+export function onBoardAndFree(p, widgets) {
+  if (!p || ![p.x, p.y, p.w, p.h].every(Number.isFinite)) return false
+  if (p.x < 0 || p.y < 0 || p.w < 1 || p.h < 1 || p.x + p.w > PLACE_COLS || p.y + p.h > FIXED_ROWS) return false
+  return !(widgets || []).some(w => [w.x, w.y, w.w, w.h].every(Number.isFinite)
+    && w.x < p.x + p.w && p.x < w.x + w.w && w.y < p.y + p.h && p.y < w.y + w.h)
+}
+
 export function buildWidgetSource({ widgetOps, getWidgets }) {
   return {
     snapshot() {
@@ -191,6 +213,11 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
           let plan
           try { plan = planPlacement(board, types[i]) } catch { return false }
           if (!plan || !plan.place || (plan.mutations || []).length) return false
+          // BROWSER-QA-1 #1: "no mutations" is not "empty space" — planPlacement's last resort returns a place that
+          // OVERLAPS the board (a full board: x 0, y rows−h) with no mutations, and the grid then pushes the newcomer
+          // below the visible rows (off-screen, unreachable). It lands in empty space only when the rect is ON the
+          // board and overlaps nothing — checked geometrically, never assumed.
+          if (!onBoardAndFree(plan.place, board)) return false
           board = [...board, { id: `__sim${i}`, type: types[i], ...plan.place }]
         }
         return true
@@ -206,7 +233,10 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         ref: 'workspace', label: 'Workspace',
         widgets: all.map(w => ({
           id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, color: w.color,
-          optsSig: JSON.stringify(w.opts ?? null),
+          optsSig: optsSignature(w.opts),
+          // NLM1-G1: the opts WITHOUT the timeframe — the stale-Undo check compares the EFFECTIVE timeframe instead
+          // (configOf: an absent tf IS 'D'), so an exact Undo that writes back tf 'D' never reads as a later edit
+          optsSigNoTf: optsSignature(w.opts && typeof w.opts === 'object' ? { ...w.opts, tf: undefined } : w.opts),
         })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
         count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
@@ -560,7 +590,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(widgetOps ? { widgetInSync: buildWidgetSync({ readLayout, localLayout: () => widgetOps.layout() }) } : {}),
     // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the
     // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
-    ...(widgetOps?.persist ? { persist: () => widgetOps.persist() } : {}),
+    ...(widgetOps?.persist ? { persist: (opts) => widgetOps.persist(opts) } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
     // The member's own preferences, through the Settings page's writer: read() → the
     // current values; write(key, value) → true only once the server accepted it.

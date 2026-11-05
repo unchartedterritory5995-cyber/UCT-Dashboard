@@ -112,7 +112,15 @@ class EvernoteProvider(NoteProvider):
     follow_up_on_rate_limit = True
 
     PAGE_SIZE = 100
-    CURSOR_OVERLAP_S = 120
+    # NEW-2a (slot scheduling fix round 2): 30 minutes, was 120 s. Evernote's search index can
+    # lag an edit by longer than two minutes (measured on the owner's account 2026-11-03: a
+    # listed note still carried its old updatedAt), and an edit landing inside the overlap of a
+    # cursor that moved past it was simply never listed again. The cost is a re-listing (and,
+    # since the D1 rule of the same round, a refetch) of the notes edited in the last 30 minutes
+    # on each incremental pass: a handful of `get_note` calls, which `import_confirm`'s hash
+    # check turns into no-op writes. A lag longer than this is caught by the nightly revision
+    # sweep (`engine.NIGHTLY_REVISION_SWEEP_MAX`): at most a day late, never lost.
+    CURSOR_OVERLAP_S = 1800
     ATTACHMENT_HOST = "storage.googleapis.com"
 
     def __init__(self, *, user_id: str | None = None,
@@ -243,8 +251,10 @@ class EvernoteProvider(NoteProvider):
             if start == 0:
                 first_total = page.get("totalResultCount")
                 size = getattr(client, "size_listing", None)
-                if size is not None and isinstance(first_total, (int, float))                         and not isinstance(first_total, bool):
-                    size(max(1, -(-int(first_total) // self.PAGE_SIZE)))
+                if (size is not None and isinstance(first_total, (int, float))
+                        and not isinstance(first_total, bool)):
+                    # NEW-3: the server's count is clamped to what this pager will ever read.
+                    size(min(_MAX_PAGES, max(1, -(-int(first_total) // self.PAGE_SIZE))))
             elif page.get("totalResultCount") != first_total:
                 raise _ListingMoved()
             hits = []

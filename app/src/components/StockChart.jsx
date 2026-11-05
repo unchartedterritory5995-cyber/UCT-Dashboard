@@ -2613,6 +2613,7 @@ export default function StockChart({
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
   // ── Optional multi-chart sync hooks (additive — all behavior unchanged when absent) ──
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
+  onChartTap = null,        // (payload: {time, price, point}) => void — the library's click, which a TOUCH TAP also raises (a hover-based crosshair read never sees a tap on a phone: Study workbench, 2026-11-03). `price` is the cursor's level via coordinateToPrice; null off the candle series.
   onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
   onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
@@ -17870,6 +17871,27 @@ export default function StockChart({
 
   // ── News marker click handler ──
   // Lightweight Charts doesn't expose a direct marker-click event, so we
+  // ── A chart tap for a lesson (Study): the library's click, which fires for a mouse click AND a touch tap ──
+  const onChartTapRef = useRef(onChartTap)
+  onChartTapRef.current = onChartTap
+  useEffect(() => {
+    const chart = chartRef.current
+    // keyed on chartReady as well: the chart is created in a later effect than this one on first mount (and again
+    // after a recreate), so an effect keyed on the prop alone would subscribe to nothing and a tap would be silent
+    if (!chart || !chartReady || !onChartTap) return undefined
+    const handler = (param) => {
+      const fn = onChartTapRef.current
+      if (typeof fn !== 'function' || !param) return
+      let price = null, logical = null
+      try { if (candleSeriesRef.current && param.point) { const v = candleSeriesRef.current.coordinateToPrice(param.point.y); price = Number.isFinite(v) ? v : null } } catch { /* series mid-swap */ }
+      // the logical index under the cursor: a tap in the blank space right of the newest candle has no `time`, but it
+      // still has a position, and a lesson wants the nearest bar, not silence (owner's click, 2026-11-04)
+      try { if (param.point) { const l = chart.timeScale().coordinateToLogical(param.point.x); logical = Number.isFinite(l) ? l : null } } catch { /* no scale yet */ }
+      fn({ time: param.time ?? null, price, point: param.point || null, logical })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch { /* gone */ } }
+  }, [onChartTap, chartReady])
   // subscribe to all clicks and match the clicked time against news markers
   // with a tolerance of half a bar. On match → open the article URL.
   useEffect(() => {

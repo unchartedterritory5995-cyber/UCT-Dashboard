@@ -7,8 +7,6 @@ The service is `api/services/journal_two/earnings_prep.py`; the client is
   member  POST  /api/j2/earnings-prep/{symbol}/draft    paid  the facts a prep note opens with
 
 The rules (the template gallery's, `notebook_template_gallery.py`):
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_EARNINGS_PREP_ENABLED` off answers the one 404
-    for every route before the session or the plan is read.
   * PAID: both routes read paid calendar and earnings data (the Calendar's own routes are
     `require_paid`), so both take this router's own `require_paid`.
   * NO NOTE IS WRITTEN HERE. The draft returns facts; the member's click creates the note
@@ -29,20 +27,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import daily_counters
 from api.services.journal_two import earnings_prep as prep
-from api.services.journal_two import public_note_payload as public
-
-
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies: an off gate reads no
-    session, checks no plan, and answers the one not-found."""
-    if not prep.enabled():
-        raise public.not_found()
 
 
 router = APIRouter(
     prefix="/api/j2/earnings-prep",
     tags=["journal-2-0", "notebook-earnings-prep"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

@@ -52,9 +52,6 @@ from api.services.journal_two import plan_extract, sample_marker, sample_size
 # importable from here for this file's own callers and tests.
 from api.services.journal_two.sample_size import band as sample_band, rate_stat, wilson  # noqa: F401
 from api.services.journal_two.trade_refs import trade_ref_for_row
-from api.services.notebook_flags import flag_on
-
-FLAG = "NOTEBOOK_PLAN_GRADING_ENABLED"
 
 # ── THE CONSTANTS (rulings R3, R4, P4). ONE block; tests pin every value. ────────────────────
 CONSTANTS = MappingProxyType({
@@ -99,11 +96,6 @@ SOURCE_LABELS = {
 }
 
 SAMPLE_WORDING = sample_size.WORDING
-
-
-def enabled() -> bool:
-    """The gate, read per call through the one parser (unset = OFF)."""
-    return flag_on(FLAG, False)
 
 
 # ── time ─────────────────────────────────────────────────────────────────────────────────────

@@ -107,6 +107,11 @@ reversible; section 6 is the rollback.
    listens dual-stack on `PORT`, default 8080.
 6. **Variables on `pine-runtime`: exactly one**, `PINE_RUNTIME_SERVICE_SECRET` = the value from step 1. No
    volume. Sleep-when-idle OFF. One replica.
+   Also check that no project-level Shared Variable is attached to `pine-runtime` (Railway can inject
+   shared variables without a duplication). The image's `VITE_*` build ARGs (including
+   `VITE_CHART_RENDER_TOKEN` and `VITE_PICOVOICE_ACCESS_KEY`, `services/pine_runtime/Dockerfile`) must stay UNSET
+   on this service; the W5-INT bundle fix is the lane that removes them from the build, cross-reference it
+   before the first deploy.
 7. **First deploy: read the log before anything else.** Expected, one line:
    `[pine-runtime] boot engine=<..> bundle=<sha12> node=v20.18.0 workers=N port=8080`. If the log says
    "refuses to start: N variable(s) outside its allowlist", the names are listed; the platform injected a

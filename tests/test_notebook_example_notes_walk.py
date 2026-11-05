@@ -23,10 +23,10 @@ def test_set_env_pops_the_ocr_switch(monkeypatch):
     env = dict(os.environ)
     env[w.OCR_FLAG] = "1"
     monkeypatch.setattr(os, "environ", env)
-    on = w.set_env({"c1": [], "all_names": []})
+    on = w.set_env({"c1": ["NOTEBOOK_ONBOARDING_ENABLED"], "all_names": []})
     assert w.OCR_FLAG not in os.environ
     assert w.OCR_FLAG not in on
-    assert os.environ[w.EXAMPLE_FLAG] == "1"     # control: set_env still arms what it should
+    assert os.environ["NOTEBOOK_ONBOARDING_ENABLED"] == "1"     # control: set_env still arms what it should
 
 
 def test_an_empty_viewport_list_refuses_before_any_boot(tmp_path, capsys):

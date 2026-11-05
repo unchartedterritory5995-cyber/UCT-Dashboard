@@ -132,3 +132,13 @@
 }
 .ghost:hover { background: var(--bg-hover); }
 .ghost:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+
+/* the mark above the ring: on fire for a perfect set, happy otherwise */
+.mark { margin-bottom: var(--space-xs); }
+
+/* the workbench end card: the ring and the mark side by side with the medal and chest on a perfect set */
+.artRow { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.ringWrap { position: relative; }
+/* the mark's own throb owns ITS transform, so the centring lives on this wrapper */
+.ringMark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; pointer-events: none; }
+.score.score { margin: 0; }

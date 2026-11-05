@@ -73,7 +73,8 @@ describe('the core', () => {
   it('off the Charts surface the available catalog fits one request: it is sent whole, unrouted', () => {
     const f = manifestFor({ surface: 'dashboard' })
     expect(f.length).toBeLessThanOrEqual(NL1_BUDGET)
-    const s = selectNl1(f, { text: 'add AMD to momentum' })
+    // W2-C1: the everywhere-queries are offered off /charts; a message nothing routes sends them whole
+    const s = selectNl1(f, { text: 'hello there' })
     expect(s.routing).toBe(null)
     expect(names(s.manifest)).toEqual(names(f))
   })

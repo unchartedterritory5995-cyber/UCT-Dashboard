@@ -1,0 +1,266 @@
+{
+ "about": "The capability-regression BACKLOG: registered capabilities with no corpus intent or golden workflow yet. inventory.test.js fails for a capability that is in neither (a NEW capability must ship with a regression entry); an entry added after `initial` needs a \"### BACKLOG:<name>\" decision in docs/agent/COMPATIBILITY-DECISIONS.md. A covered capability must leave this list.",
+ "initial": "2026-11-04",
+ "entries": {
+  "agent.capabilities": {
+   "owner": "agent-qa (capreg) — group agent",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "app.open": {
+   "owner": "agent-qa (capreg) — group settings",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "breadth.page": {
+   "owner": "agent-qa (capreg) — group breadth",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "calendar.day": {
+   "owner": "agent-qa (capreg) — group none",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "calendar.nextReport": {
+   "owner": "agent-qa (capreg) — group none",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chart.applyThemeAll": {
+   "owner": "agent-qa (capreg) — group charts",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chart.linkTab": {
+   "owner": "agent-qa (capreg) — group charts",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chart.resetDefaults": {
+   "owner": "agent-qa (capreg) — group charts",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chart.selectTab": {
+   "owner": "agent-qa (capreg) — group charts",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chartSetup.compareDisplay": {
+   "owner": "agent-qa (capreg) — group chartSetup",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chartSetup.copyLook": {
+   "owner": "agent-qa (capreg) — group chartSetup",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chartSetup.favoriteTimeframe": {
+   "owner": "agent-qa (capreg) — group chartSetup",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "chartSetup.removeTimeframe": {
+   "owner": "agent-qa (capreg) — group chartSetup",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "coach.consent": {
+   "owner": "agent-qa (capreg) — group coach",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "coach.explain": {
+   "owner": "agent-qa (capreg) — group coach",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "definition.describe": {
+   "owner": "agent-qa (capreg) — group definitions",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "definition.duplicate": {
+   "owner": "agent-qa (capreg) — group definitions",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "drawing.lock": {
+   "owner": "agent-qa (capreg) — group drawings",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "drawing.setVisible": {
+   "owner": "agent-qa (capreg) — group drawings",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "guide.explain": {
+   "owner": "agent-qa (capreg) — group guide",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "guide.show": {
+   "owner": "agent-qa (capreg) — group guide",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "indicator.openCreate": {
+   "owner": "agent-qa (capreg) — group indicators",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "indicator.undoDraft": {
+   "owner": "agent-qa (capreg) — group indicators",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "journal.createNote": {
+   "owner": "agent-qa (capreg) — group coach",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "journal.listNotes": {
+   "owner": "agent-qa (capreg) — group coach",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "journal.proposeNote": {
+   "owner": "agent-qa (capreg) — group coach",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "journal.reviewTrades": {
+   "owner": "agent-qa (capreg) — group coach",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "layout.current": {
+   "owner": "agent-qa (capreg) — group layouts",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "layout.saveCurrent": {
+   "owner": "agent-qa (capreg) — group layouts",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "pane.move": {
+   "owner": "agent-qa (capreg) — group indicatorSetup",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "pane.resize": {
+   "owner": "agent-qa (capreg) — group indicatorSetup",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "playbook.explain": {
+   "owner": "agent-qa (capreg) — group playbook",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "playbook.record": {
+   "owner": "agent-qa (capreg) — group playbook",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "playbook.setup": {
+   "owner": "agent-qa (capreg) — group playbook",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "research.ask": {
+   "owner": "agent-qa (capreg) — group data",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "screener.openSaved": {
+   "owner": "agent-qa (capreg) — group screener",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "screener.page": {
+   "owner": "agent-qa (capreg) — group screener",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "screener.state": {
+   "owner": "agent-qa (capreg) — group screener",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "settings.setWatchlistDigest": {
+   "owner": "agent-qa (capreg) — group settings",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "settings.show": {
+   "owner": "agent-qa (capreg) — group settings",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "stock.themes": {
+   "owner": "agent-qa (capreg) — group data",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "watchlist.open": {
+   "owner": "agent-qa (capreg) — group lists",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "watchlist.show": {
+   "owner": "agent-qa (capreg) — group lists",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.addTab": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.closeTab": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.move": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.renameTab": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.resize": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.selectTab": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.setOption": {
+   "owner": "agent-qa (capreg) — group boardEdit",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.showList": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  },
+  "widget.showScan": {
+   "owner": "agent-qa (capreg) — group workspace",
+   "since": "2026-11-04",
+   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
+  }
+ }
+}

@@ -340,7 +340,36 @@ DEFAULT_THRESHOLDS = {
     # a fresh quote still reads ask-side, else relabel neutral. Closes the stale/
     # per-exchange NBBO inversions (COIN sold-put->Bear, META sold-call->Bull).
     "side_confirm_enabled": True,
-    "side_confirm_max_age_ms": 2000,    # consolidated quote must be this fresh
+    "side_confirm_max_age_ms": 2000,    # LIVE-path quote must be this fresh
+    # Confirm against the NBBO as it stood AT THE FILL (the quote just before the
+    # trade), not a live quote now (2026-11-03). A clean at-ask print on a thin,
+    # slow-quoting LEAP then still confirms, while an inside-the-spread fill does
+    # not (CBRS 2026-11-02: $32.20 inside $31.10/$32.30 => ambiguous => suppress).
+    "side_confirm_use_fill_nbbo": True,
+    # The pre-fill quote must be at most this fresh to be TRUSTED for a directional
+    # label. A stale book on a thin LEAP is unreliable for BOTH sides, so anything
+    # older abstains -> suppresses (DASH 2026-11-04: a 25s-stale 29.70/30.00 book
+    # confirmed a 29.50 below-bid print as "bear"; a 6.8s-stale 29.75/31.25 book hid
+    # a genuine 30.00 ask-lift). 2.5s keeps clean prints on slow-quoting names while
+    # dropping stale-book guesses. Was 30000 (too loose) until 2026-11-04.
+    "side_confirm_fill_lookback_ms": 2500,  # pre-fill quote must be this fresh to trust
+    "side_confirm_ask_tol": 0.005,      # fill within this of ask(bid) = clean at-ask
+    # When the side can't be confirmed: True = SUPPRESS the push entirely (only
+    # directional flow goes out — owner directive 2026-11-02); False = fall back
+    # to the old behavior of pushing a neutral "Large Ask Build (Unverified)".
+    "side_unconfirmed_suppress": True,
+    # ── Dark-pool-paired BLOCK = hedge, not a directional bet (2026-11-04) ──
+    # An options BLOCK (not a sweep) that prints alongside a large dark-pool
+    # equity block on the SAME underlying within the pairing window is a hedge
+    # package, not conviction (PINS 2026-11-04: 6000 ATM puts @ ask + a 246k-share
+    # dark-pool block, same second). One Massive REST equity-trades call at push
+    # time; fail-closed. Default: neutralize to a "Hedge Block" card (matches the
+    # heavy_block_premium precedent). block_darkpool_hedge_suppress=True drops it
+    # entirely instead. Only BLOCK candidates reach the call (sweeps/ML skip it).
+    "block_darkpool_hedge_enabled": True,
+    "block_dp_window_ms": 3000,        # dark-pool print within +/- this of the block fill
+    "block_dp_min_shares": 50000,      # a single dark-pool print this big = a real block
+    "block_darkpool_hedge_suppress": False,  # False = neutral Hedge card; True = suppress
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
     # red bear fill, amber opposing side) on CONFIRMED directional cards. False
@@ -422,6 +451,21 @@ DEFAULT_THRESHOLDS = {
     # neutral Size row instead — real size shouldn't vanish on an uncertain side
     # (UW's own doc: a fill at the bid is "not necessarily a sell"). 0 disables.
     "keep_sizeless_min_premium": 1000000,
+    # REST side-recovery (2026-11-04). A big print's Side is written BLANK at
+    # ingest and only filled in later by the worker's NBBO re-pass once the Q-pool
+    # re-covers the contract — which can lag the 10-min auto-push window. So a
+    # genuine directional print (MU 700C 11/4: a $73.7M ask SWEEP) sits side-less
+    # while it could still fire: it never counts in the net-flow split, and its
+    # real side ('A') lands only AFTER the window closed — the owner had to push it
+    # by hand. When a blank-Side print this big appears, resolve the side NOW from
+    # the CONSOLIDATED REST NBBO as it stood at the fill (the same source the
+    # side-confirm gate uses) instead of waiting for the re-pass, so it is
+    # directional in-window. Today's prints only; memoized. A fresh at/through ask
+    # -> 'A', at/through bid -> 'BB'; inside-the-spread / no fresh quote stays
+    # neutral (unchanged). 0 floor / enabled=false disables.
+    "rest_side_recover_enabled": True,
+    "rest_side_recover_min_premium": 1000000,  # only resolve a blank Side this big
+    "rest_side_recover_max_age_ms": 2500,      # pre-fill quote must be this fresh
     # Heavy-block hedge de-direction (2026-07-26). A single BLOCK of this premium
     # or larger is treated as a dark-pool hedge / structural print, not a
     # directional bet: its Bull/Bear is dropped so it surfaces as a neutral
@@ -1827,6 +1871,7 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     lottery, spread legs) is still dropped. Side accuracy itself is a separate,
     worker-side fix; here we just stop the broken sides from hiding real repeats.
     """
+    row = dict(row)   # local copy: REST side-recovery below may set row["Side"]
     cp_full = row["CallPut"]
     cp_short = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
     side = row["Side"] or ""
@@ -1835,6 +1880,31 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     spot = _parse_float(row["Spot"])
     money_pct, money_label = _moneyness(strike, spot, cp_full)
     premium = _parse_int(row["Premium"])
+
+    # REST side-recovery (2026-11-04): a blank Side on a big print means the NBBO
+    # re-pass hasn't caught up (Q-pool churn). Resolve it from the consolidated
+    # REST NBBO-at-fill NOW so the print is directional IN the auto-push window and
+    # counts in the net-flow split, instead of waiting for the re-pass (which
+    # lagged past the window on MU 700C 11/4 — a $73.7M ask SWEEP that never
+    # auto-fired). Today's prints only (no REST storm when browsing history);
+    # memoized. Runs BEFORE _derive_direction so every downstream guard (deep-ITM,
+    # heavy-block) still applies to the recovered side.
+    if not (side or "").strip():
+        try:
+            _rs_thr = _load_thresholds()
+            _rs_on = _rs_thr.get("rest_side_recover_enabled", True)
+            _rs_floor = _rs_thr.get("rest_side_recover_min_premium", 1_000_000)
+        except Exception:
+            _rs_thr, _rs_on, _rs_floor = DEFAULT_THRESHOLDS, True, 1_000_000
+        _type_up_rs = (row.get("Type", "") or "").upper().strip().strip("/")
+        _aggr_rs = ("SWEEP" in _type_up_rs or "ISO" in _type_up_rs or "BLOCK" in _type_up_rs
+                    or _type_up_rs in ("BLK", "BL", "BT", "S", "SW", "IS"))
+        if (_rs_on and _aggr_rs and premium and _rs_floor and premium >= _rs_floor
+                and str(row.get("CreatedDate") or "") == _today_mdyyyy()):
+            _rs = _rest_side_recover(row, _rs_thr)
+            if _rs:
+                side = _rs
+                row["Side"] = _rs
 
     direction = _derive_direction(cp_full, side, row.get("Type", ""),
                                   vol=_parse_int(row.get("Volume")), oi=_parse_int(row.get("OI")))
@@ -6033,31 +6103,132 @@ def _massive_rest(path: str, params: dict, timeout: float = 4.0):
         return None
 
 
-def _consolidated_nbbo(occ: str):
-    """(bid, ask, quote_age_ms) for the current consolidated NBBO, or None."""
-    now_ns = int(time.time() * 1e9)
-    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": now_ns, "order": "desc", "limit": 1})
+def _nbbo_le(occ: str, ts_ns: int):
+    """Raw (bid, ask, quote_sip_ns) for the latest consolidated quote at/before
+    ts_ns, or None. Shared by the live and fill-time confirm paths."""
+    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": ts_ns, "order": "desc", "limit": 1})
     res = (r or {}).get("results") or []
     if not res:
         return None
     q = res[0]
-    return (q.get("bid_price"), q.get("ask_price"),
-            (now_ns - (q.get("sip_timestamp") or now_ns)) / 1e6)
+    return (q.get("bid_price"), q.get("ask_price"), q.get("sip_timestamp"))
+
+
+def _consolidated_nbbo(occ: str):
+    """(bid, ask, quote_age_ms) for the CURRENT consolidated NBBO (age vs now)."""
+    now_ns = int(time.time() * 1e9)
+    nb = _nbbo_le(occ, now_ns)
+    if not nb:
+        return None
+    bid, ask, qts = nb
+    return (bid, ask, (now_ns - (qts or now_ns)) / 1e6)
+
+
+def _nbbo_at(occ: str, ts_ns: int):
+    """(bid, ask, age_before_fill_ms) for the NBBO as it stood AT the fill — the
+    last consolidated quote at/before ts_ns. age = fill_ts - quote_ts."""
+    nb = _nbbo_le(occ, ts_ns)
+    if not nb:
+        return None
+    bid, ask, qts = nb
+    return (bid, ask, (ts_ns - (qts or ts_ns)) / 1e6)
+
+
+_RS_MEMO: dict = {}   # (occ, fill_epoch_sec) -> "A" | "BB" | None  (blank-Side REST recovery)
+
+
+def _rest_side_recover(row: dict, thr: dict):
+    """Resolve a BLANK Side from the CONSOLIDATED REST NBBO as it stood at the fill,
+    so a big directional print isn't held side-less while the worker's own NBBO
+    re-pass catches up (which can lag the auto-push window). Returns 'A' (clean
+    at/through ask), 'BB' (clean at/through bid), or None (no fresh quote / inside
+    the spread -> stays neutral). Memoized per (contract, fill-second); one Massive
+    REST quote call; fail-open to None on any gap."""
+    try:
+        sym = str(row.get("Symbol") or "").upper().strip()
+        exp = str(row.get("ExpirationDate") or "")
+        strike = _parse_strike(row.get("Strike"))
+        px = _parse_float(row.get("Price"))
+        cp_full = row.get("CallPut")
+        cp = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
+        if not (sym and exp and cp and strike > 0 and px and px > 0):
+            return None
+        em, ed, ey = exp.split("/")
+        occ = (f"O:{sym}{int(ey) % 100:02d}{int(em):02d}{int(ed):02d}"
+               f"{cp}{int(round(strike * 1000)):08d}")
+        ts = _ts_from_row(str(row.get("CreatedDate") or ""), str(row.get("CreatedTime") or ""))
+        if not ts:
+            return None
+    except (TypeError, ValueError, AttributeError):
+        return None
+    mkey = (occ, int(ts))
+    if mkey in _RS_MEMO:
+        return _RS_MEMO[mkey]
+    res = None
+    try:
+        nb = _nbbo_at(occ, int(ts * 1e9))
+        if nb:
+            bid, ask, age_ms = nb
+            max_age = float(thr.get("rest_side_recover_max_age_ms", 2500) or 0)
+            if age_ms is not None and (max_age <= 0 or age_ms <= max_age):
+                b = float(bid) if bid is not None else 0.0
+                a = float(ask) if ask is not None else 0.0
+                if a > 0 and b > 0 and a >= b:
+                    tol = float(thr.get("side_confirm_ask_tol", 0.005) or 0)
+                    if px >= a - tol:
+                        res = "A"
+                    elif px <= b + tol:
+                        res = "BB"
+    except (TypeError, ValueError):
+        res = None
+    if len(_RS_MEMO) > 100_000:
+        _RS_MEMO.clear()
+    _RS_MEMO[mkey] = res
+    return res
 
 
 def _side_confirms(a: dict, thr: dict) -> bool:
-    """True only if a FRESH consolidated NBBO still reads ask-side for the fill.
-    Abstains (False) on a missing / stale / unusable quote — the caller relabels."""
+    """True only if the NBBO confirms a CLEAN aggressive print in the claimed
+    direction. Default (side_confirm_use_fill_nbbo): classify the fill against the
+    consolidated NBBO as it stood AT THE FILL (the quote just before the trade),
+    not a live quote now — so a clean at-ask print on a thin, slow-quoting LEAP
+    still confirms, while an inside-the-spread fill does NOT (CBRS 2026-11-02:
+    $32.20 inside $31.10/$32.30). Clean = at or through the ask (ask-side, the push
+    population) / at or through the bid (bid-side), within side_confirm_ask_tol.
+    Abstains (False) on a missing / too-old / inside-the-spread quote — the caller
+    suppresses."""
     occ = _alert_occ(a)
     if not occ:
         return False
-    nb = _consolidated_nbbo(occ)
+    try:
+        fill = float(a.get("averageFillPrice"))
+    except (TypeError, ValueError):
+        return False
+    ts = a.get("timestamp") or a.get("last_ts")
+    if thr.get("side_confirm_use_fill_nbbo", True) and ts:
+        try:
+            nb = _nbbo_at(occ, int(float(ts) * 1e9))
+        except (TypeError, ValueError):
+            return False
+        max_age = float(thr.get("side_confirm_fill_lookback_ms", 30000) or 0)
+    else:
+        nb = _consolidated_nbbo(occ)
+        max_age = float(thr.get("side_confirm_max_age_ms", 2000) or 0)
     if not nb:
         return False
     bid, ask, age_ms = nb
-    if age_ms is None or age_ms > float(thr.get("side_confirm_max_age_ms", 2000) or 0):
+    if age_ms is None or age_ms > max_age:
         return False
-    return _classify_side_px(a.get("averageFillPrice"), bid, ask) in ("A", "AA")
+    try:
+        bid, ask = float(bid), float(ask)
+    except (TypeError, ValueError):
+        return False
+    if bid <= 0 or ask <= 0 or ask < bid:
+        return False
+    tol = float(thr.get("side_confirm_ask_tol", 0.005) or 0)
+    if (a.get("_side") or "").strip().upper() == "BB":   # bid-side (sold into bid)
+        return fill <= bid + tol
+    return fill >= ask - tol                              # ask-side (A/AA)
 
 
 def _next_ex_div(sym: str):
@@ -6127,6 +6298,51 @@ def _relabel_unverified(a: dict) -> dict:
     out["_sideUnconfirmed"] = True
     out["alertName"] = _UNVERIFIED_NAME
     out["_tierKey"] = "size"
+    return out
+
+
+def _darkpool_paired_block(a: dict, thr: dict) -> bool:
+    """True if a large dark-pool equity block on the underlying printed within the
+    pairing window of this options BLOCK — i.e. a hedge package, not a directional
+    bet (PINS 2026-11-04: 6000 ATM puts bought @ ask + a 246k-share dark-pool block,
+    151ms apart). One Massive REST equity-trades call; dark pool = a FINRA TRF print
+    (exchange 4/9) at/above block_dp_min_shares. Fail-closed (False) on any gap, so
+    a REST outage just lets the normal directional path run."""
+    ticker = str(a.get("ticker") or "").upper().strip()
+    if not ticker:
+        return False
+    ts = a.get("timestamp") or a.get("last_ts")
+    try:
+        fill_ns = int(float(ts) * 1e9)
+    except (TypeError, ValueError):
+        return False
+    win_ms = float(thr.get("block_dp_window_ms", 3000) or 0)
+    min_sh = float(thr.get("block_dp_min_shares", 50000) or 0)
+    lo = fill_ns - int(win_ms * 1e6)
+    hi = fill_ns + int(win_ms * 1e6)
+    r = _massive_rest(f"/v3/trades/{ticker}",
+                      {"timestamp.gte": lo, "timestamp.lte": hi, "order": "asc", "limit": 500})
+    for t in (r or {}).get("results") or []:
+        try:
+            sz = float(t.get("size") or 0)
+        except (TypeError, ValueError):
+            sz = 0.0
+        is_dp = t.get("exchange") in (4, 9) or (t.get("trf_id") is not None)
+        if is_dp and sz >= min_sh:
+            return True
+    return False
+
+
+def _relabel_dp_hedge(a: dict) -> dict:
+    """COPY with direction stripped, labeled a neutral Hedge Block — a dark-pool-
+    paired block renders as size, not a bull/bear lean. Original feed row untouched."""
+    out = dict(a)
+    out["_direction"] = None
+    out["_directionUnconfirmed"] = True
+    out["_sideUnconfirmed"] = True
+    out["alertName"] = "UCT Size - Hedge Block"
+    out["_tierKey"] = "size"
+    out["_dpHedge"] = True
     return out
 
 
@@ -6564,9 +6780,29 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                 _thr = _load_thresholds()
                 if _is_dividend_play(a, _thr):
                     continue   # dividend-capture arbitrage — never push
-                if (_thr.get("side_confirm_enabled", True)
+                # Dark-pool-paired BLOCK = a hedge package, not a directional bet
+                # (PINS 2026-11-04). Compute once (it makes one REST call). Takes
+                # precedence over the side-confirm below: whatever the side reads,
+                # a block tied to a coincident dark-pool equity block is not a bet.
+                _dp_hedge = (_thr.get("block_darkpool_hedge_enabled", True)
+                             and a.get("_direction") in ("Bull", "Bear")
+                             and "BLOCK" in (a.get("_type") or "").upper()
+                             and _darkpool_paired_block(a, _thr))
+                if _dp_hedge and _thr.get("block_darkpool_hedge_suppress", False):
+                    continue   # hedge — drop entirely
+                if _dp_hedge:
+                    push_alert = _relabel_dp_hedge(a)   # neutral Hedge Block card
+                elif (_thr.get("side_confirm_enabled", True)
                         and a.get("_direction") in ("Bull", "Bear")
                         and not _side_confirms(a, _thr)):
+                    # Side can't be freshly confirmed. Owner directive 2026-11-02:
+                    # post directional flow ONLY — so SUPPRESS rather than push a
+                    # neutral "Unverified" copy. Not claimed, so a later scan that
+                    # DOES confirm the side can still push it directionally within
+                    # the push window. Flip side_unconfirmed_suppress=false to
+                    # restore the neutral relabel-and-push behavior.
+                    if _thr.get("side_unconfirmed_suppress", True):
+                        continue
                     push_alert = _relabel_unverified(a)   # neutral card; feed row `a` untouched
                 elif a.get("_direction") in ("Bull", "Bear"):
                     _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
@@ -7056,6 +7292,9 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         # sweep_empty_side_as_ask above (missing 7/3 → 7/16).
         "direction_max_itm_pct",     # deep-ITM cap above which direction is dropped
         "keep_sizeless_min_premium", # premium floor to keep a direction-less print as neutral Size
+        "rest_side_recover_enabled",      # resolve a blank Side from REST NBBO instead of waiting for the re-pass
+        "rest_side_recover_min_premium",  # only recover a blank Side at/above this premium
+        "rest_side_recover_max_age_ms",   # pre-fill REST quote must be this fresh to recover a side
         "heavy_block_premium",       # $10M+ BLOCK => drop direction, show as neutral hedge Size
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated
@@ -7082,7 +7321,10 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
                                      # without a 400; the code no longer reads it.
         # Push-quality gates (2026-10-29): ex-dividend exclusion + side fresh-confirm.
         "dividend_excl_enabled", "dividend_excl_days", "dividend_extrinsic_buffer",
-        "side_confirm_enabled", "side_confirm_max_age_ms",
+        "side_confirm_enabled", "side_confirm_max_age_ms", "side_unconfirmed_suppress",
+        "side_confirm_use_fill_nbbo", "side_confirm_fill_lookback_ms", "side_confirm_ask_tol",
+        "block_darkpool_hedge_enabled", "block_dp_window_ms", "block_dp_min_shares",
+        "block_darkpool_hedge_suppress",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top

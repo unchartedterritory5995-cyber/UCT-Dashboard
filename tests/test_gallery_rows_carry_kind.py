@@ -48,14 +48,13 @@ _SELECT = re.compile(r"SELECT\s+(?P<cols>(?:(?!\bFROM\b).)+?)\s+FROM\s+(?:j2_tem
 
 @pytest.fixture
 def starter_off(monkeypatch):
-    monkeypatch.delenv("NOTEBOOK_STARTER_PACKS_ENABLED", raising=False)
     monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)     # wave 11 off: production's state
+    # (the starter-packs switch that also hid the firm rows was retired as always on, 2026-11-04)
 
 
 def test_the_state_under_test_is_the_firm_state(ex_on, starter_off):
     """Control: the switches below are exactly the state in which `_library_hides` reads `kind`."""
-    assert gallery._hidden_styles() == "firm+official"
-    assert gallery.example_enabled()
+    assert gallery._hidden_styles() == "official"
 
 
 def test_a_stranger_reads_an_example_its_style_and_its_image_with_starter_off(api, conn, ex_on, ocr, att,
@@ -64,7 +63,7 @@ def test_a_stranger_reads_an_example_its_style_and_its_image_with_starter_off(ap
     nid = _note_with_files(conn, att, files=(("a.png", b"listed-bytes"),))
     gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
     _approve(conn, gid)
-    assert gallery._hidden_styles() == "firm+official"              # library on, starter + wave 11 off: prod
+    assert gallery._hidden_styles() == "official"                   # wave 11 off: prod (firm rows always listed)
     _as(api, "stranger")
     example = api.get(f"{URL}/{gid}")                                 # _can_see -> _example_style_shown
     assert example.status_code == 200, example.text
@@ -160,7 +159,7 @@ def test_every_layout_door_answers_in_the_firm_state(conn, ex_on, starter_off, s
     """P4b final C1, behaviour: library on, starter packs off (`_library_hides` reads `kind`), examples on and layout
     sharing on. Each layout door a member, its author or an admin walks reads a row that reaches the rule; a narrow
     SELECT on any of them is an IndexError here."""
-    assert gallery._hidden_styles() == "firm+official" and gallery.layout_sharing_enabled()   # the state under test
+    assert gallery._hidden_styles() == "official" and gallery.layout_sharing_enabled()   # the state under test
     gid = _listed_layout(conn)
     assert gallery.get_item("stranger", gid, conn=conn)["itemType"] == "page_layout"
     assert gallery.adopt_layout("stranger", gid, version=1, conn=conn)["version"] == 1

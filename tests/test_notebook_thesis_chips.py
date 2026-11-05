@@ -2,8 +2,8 @@
 `api/routers/notebook_thesis_chips.py`).
 
 What each section proves:
-  * THE GATE: the route answers the one 404 while NOTEBOOK_THESIS_CHIPS_ENABLED is off,
-    signed in or not; a paid plan is required once it is on.
+  * ACCESS: a session and a paid plan are required (NOTEBOOK_THESIS_CHIPS_ENABLED was retired
+    as always on, 2026-11-04).
   * ONE BATCH QUERY: N requested symbols cost exactly one `conn.execute` call, never one
     per symbol.
   * THE LEVEL IS READ FROM `j2_note_levels`, NEVER RECOMPUTED: a chip's stop/target/entry
@@ -31,7 +31,6 @@ from fastapi.testclient import TestClient
 from api.middleware import auth_middleware as authmw
 
 REPO = Path(__file__).resolve().parents[1]
-FLAG = "NOTEBOOK_THESIS_CHIPS_ENABLED"
 A, B = "user-tc-a", "user-tc-b"
 PAID = {"plan": "pro"}
 FREE = {"plan": "free"}
@@ -63,7 +62,7 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def gate_on(monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 @pytest.fixture
@@ -147,16 +146,7 @@ def _chips(uid, symbols):
         c.close()
 
 
-# ── the gate ──────────────────────────────────────────────────────────────────────────
-
-def test_the_route_404s_while_the_flag_is_off_signed_in_or_not(app, client):
-    as_user(app, A)
-    r = client.post("/api/j2/thesis-chips", json={"symbols": ["NVDA"]})
-    assert r.status_code == 404
-    app.dependency_overrides.clear()
-    r = client.post("/api/j2/thesis-chips", json={"symbols": ["NVDA"]})
-    assert r.status_code == 404
-
+# ── access ──────────────────────────────────────────────────────────────────────────
 
 def test_the_route_requires_a_paid_plan_once_on(app, client, gate_on):
     as_user(app, A, FREE)
@@ -315,8 +305,3 @@ def test_thesis_chips_module_imports_no_plan_level_parser():
     forbidden = {m for m in names if m.endswith("plan_extract") or m.endswith("notebook_schema")}
     assert not forbidden, f"thesis_chips.py must not import a body parser: {forbidden}"
 
-
-def test_thesis_chips_reads_the_flag_through_the_one_parse_only():
-    src = (REPO / "api" / "services" / "journal_two" / "thesis_chips.py").read_text(encoding="utf-8")
-    assert "os.environ" not in src, "thesis_chips.py must read its flag through notebook_flags.flag_on only"
-    assert "flag_on(FLAG" in src or "flag_on(\"NOTEBOOK_THESIS_CHIPS_ENABLED\"" in src

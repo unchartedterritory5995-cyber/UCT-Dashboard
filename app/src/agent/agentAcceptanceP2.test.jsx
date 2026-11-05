@@ -50,7 +50,7 @@ describe('D1 · two EMAs and their colours, in one message', () => {
     await waitFor(() => expect(emas(board)).toEqual([[9, GREEN], [20, YELLOW]]), { timeout: 8000 })
     expect(p.turns()).toBe(0)
     expect(out).toMatch(/Added EMA 9 on Chart \(CYPH\).*Added EMA 20 on Chart \(CYPH\)/)
-    expect(out).toMatch(/Changed EMA 9's colour on Chart \(CYPH\) to #2faf68.*Changed EMA 20's colour on Chart \(CYPH\) to #facc15/)
+    expect(out).toMatch(/Changed EMA 9's colour on Chart \(CYPH\) to green.*Changed EMA 20's colour on Chart \(CYPH\) to yellow/)
     expect(out).toMatch(/All 2 steps done/)
   }, 30000)
 
@@ -66,9 +66,8 @@ describe('D1 · two EMAs and their colours, in one message', () => {
     const storedBefore = stored()
     await say('throw the 9 and 20 ema on my chart. make the fast one green and the other one yellow')
     await waitFor(() => expect(emas(board)).toHaveLength(2), { timeout: 8000 })
-    await say('undo')
-    expect(emas(board)).toEqual([[9, GREEN], [20, '#f0b90b']])                   // each change its own Undo: the newest first
-    await undoAll(say, () => !emas(board).length)
+    await say('undo')                                                           // OWNER RULING (W2 11-04): the whole request
+    await waitFor(() => expect(emas(board)).toEqual([]))
     expect(emas(board)).toEqual([])
     expect(drawn(board)).toBe(before)
     expect(stored()).toBe(storedBefore)                                         // and STORED exactly (Indicators #517 exact Undo)

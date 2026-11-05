@@ -1034,6 +1034,6 @@ def test_every_gate_the_sandbox_arms_is_a_real_gate():
     """An env var nobody reads looks exactly like a working switch (CLAUDE.md: never invent a
     flag). Every name the tool arms must be a key the app's one gate table declares."""
     real = _notebook_flag_names()
-    assert "NOTEBOOK_PLAYBOOK_ENABLED" in real          # the parser found the table
+    assert "NOTEBOOK_ONBOARDING_ENABLED" in real        # the parser found the table
     assert [n for n in w13q.FLAGS if n not in real] == []
     assert len(set(w13q.FLAGS)) == len(w13q.FLAGS)

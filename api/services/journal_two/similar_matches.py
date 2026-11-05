@@ -48,8 +48,8 @@ THE COST, AND ITS BOUNDS (measured numbers in docs/notebook/wave13-13j.md):
     Members are taken least-recently-matched first, so a deferred member is first next night;
   * each member's chart-block index is caught up first (`chart_blocks.catch_up`, which freezes
     at most `chart_blocks.FREEZE_BUDGET` new fingerprints).
-It runs on an APScheduler worker thread, off the event loop, mon-fri at `RUN_AT_ET`, and reads
-the flag per run, so it is inert while dark.
+It runs on an APScheduler worker thread, off the event loop, mon-fri at `RUN_AT_ET` (always on:
+`NOTEBOOK_FIND_SIMILAR_ENABLED` was retired 2026-11-04).
 
 Idempotent: a re-run for the same universe day replaces that day's rows with identical ones.
 Purged with the account (`account_purge._DIRECT_USER_TABLES`). No model call, no vendor call,
@@ -67,17 +67,8 @@ from typing import Any, Callable
 
 from api.services.journal_two import chart_blocks, sample_marker
 from api.services.journal_two import tech_fingerprint as tfp
-from api.services.notebook_flags import flag_on
 
 log = logging.getLogger(__name__)
-
-#: The enablement gate (unset = OFF; WAVE-13-PLAN section 3.6).
-FLAG = "NOTEBOOK_FIND_SIMILAR_ENABLED"
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(FLAG, False)
 
 
 # ── THE CONSTANTS. One block; tests/test_notebook_similar_matches.py pins every value. ─────────
@@ -375,9 +366,7 @@ def run_nightly(*, conn: sqlite3.Connection | None = None, universe: dict[str, A
                 pattern_field: Callable | None = None, compute: Callable | None = None,
                 member_cap: int = MEMBER_CAP, budget_s: float = RUN_BUDGET_S,
                 clock: Callable[[], float] = time.monotonic) -> dict[str, Any]:
-    """The nightly precompute. Reads the flag per run (inert while dark). Never raises."""
-    if not enabled():
-        return {"ran": False, "reason": "flag_off"}
+    """The nightly precompute. Never raises."""
     started = clock()
     try:
         uni = universe if universe is not None else load_universe()
@@ -428,8 +417,7 @@ def run_nightly_blocking() -> None:
 
 
 def install_scheduler_hook(scheduler: Any, cron_trigger: Any, tz: Any) -> bool:
-    """Register the nightly run (mon-fri, `RUN_AT_ET`). Inert while the flag is off (read per
-    run), so a flip needs no restart. Never raises."""
+    """Register the nightly run (mon-fri, `RUN_AT_ET`). Never raises."""
     try:
         scheduler.add_job(run_nightly_blocking,
                           trigger=cron_trigger(day_of_week="mon-fri", hour=RUN_AT_ET[0],

@@ -81,6 +81,7 @@ import { closeHistory, isHistoryTransaction } from '@tiptap/pm/history'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
+import SourceRemovedNotice, { noteIsSourceRemoved } from './SourceRemovedNotice'
 import NoteTagsField from './NoteTagsField'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../../lib/tagTree'
@@ -5665,6 +5666,8 @@ export default function NoteEditorPage({
             </button>
           </div>
         )}
+        {/* L3 (2026-11-03): removed at its source, so it no longer syncs; the copy is kept. */}
+        {noteIsSourceRemoved(note) && <SourceRemovedNotice importSource={note.importSource} />}
         {ytId ? (
           <>
             <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />

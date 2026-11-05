@@ -23,8 +23,9 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 WORKFLOW = REPO / ".github" / "workflows" / "master-deploy-gate.yml"
 IMAGE = REPO / "services" / "pine_runtime" / "Dockerfile"
 WEB = REPO / "Dockerfile.web"
-AGENT_BROWSER = "UCT Agent browser tests"
-FAILURE = "Explain a failure"
+JOB = "pine-runtime"
+INSTALL = "Install the app's dependencies (for the Pine runtime bundle)"
+DEPS = "Pine runtime - the production dependency set"
 
 NODE_STEP = "Pine runtime - this runner's Node is the image's Node"
 S1 = "Pine runtime - the server bundle builds and imports under bare Node"
@@ -34,11 +35,16 @@ S4 = "Pine runtime - the closure stays host-neutral"
 S5 = "Pine runtime - service unit rails"
 S6 = "Pine runtime - client, codec and composition rails"
 S7 = "Pine runtime - the image agrees with Dockerfile.web"
-ORDERED = [NODE_STEP, S1, S2, S3, S4, S5, S6, S7]
+ORDERED = [DEPS, NODE_STEP, S1, S2, S3, S4, S5, S6, S7]
+
+
+def _doc() -> dict:
+    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
 
 def _steps() -> list[dict]:
-    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["gate"]["steps"]
+    """The steps of the pine-runtime JOB (its own checkout, Node and npm ci), never of `gate`."""
+    return _doc()["jobs"][JOB]["steps"]
 
 
 def _names() -> list[str]:
@@ -61,14 +67,33 @@ def _pin(dockerfile: pathlib.Path) -> str:
     return m.group(1)
 
 
-def test_every_section_8_step_exists_after_the_npm_install_and_before_the_failure_explainer():
+def test_the_pine_runtime_job_exists_runs_unconditionally_and_the_verdict_waits_for_it():
+    doc = _doc()
+    job = doc["jobs"][JOB]
+    assert set(job) <= {"name", "runs-on", "timeout-minutes", "steps"}, set(job)   # no if:, no needs:, no continue-on-error
+    verdict = doc["jobs"]["verdict"]
+    assert JOB in verdict["needs"], "a pine-runtime red must reach the verdict job"
+    assert verdict["if"] == "always()"
+    text = " ".join(s.get("run", "") for s in verdict["steps"])
+    assert "needs.pine-runtime.result" in text and "pine-runtime=" in text
+    assert text.count("needs.pine-runtime.result") >= 2, "the verdict must test the result, not only print it"
+    assert "gate" in verdict["needs"] and "agent-browser" in verdict["needs"], "another team's job left the verdict"
+    assert "pine_runtime" not in json_dump(doc["jobs"]["gate"]) and "Pine runtime" not in json_dump(doc["jobs"]["agent-browser"])
+
+
+def json_dump(x) -> str:
+    import json
+    return json.dumps(x)
+
+
+def test_every_section_8_step_exists_after_the_npm_install_in_its_own_job():
     names = _names()
     for n in ORDERED:
         assert names.count(n) == 1, f"{n!r} appears {names.count(n)} times"
     idx = [names.index(n) for n in ORDERED]
     assert idx == sorted(idx), f"the pine-runtime steps are out of order: {[names[i] for i in sorted(idx)]}"
-    assert names.index(AGENT_BROWSER) < idx[0], "the steps need app/node_modules from the gate's npm ci"
-    assert idx[-1] < names.index(FAILURE)
+    assert names.index(INSTALL) < idx[0], "the steps need app/node_modules from this job's own npm ci"
+    assert _step(INSTALL)["run"].strip() == "npm ci" and _step(INSTALL)["working-directory"] == "app"
     assert names[idx[0]:idx[-1] + 1] == ORDERED, "another step sits between the pine-runtime steps"
 
 
@@ -76,6 +101,8 @@ def test_every_section_8_step_exists_after_the_npm_install_and_before_the_failur
 def test_no_pine_runtime_step_is_conditional_or_optional(name):
     st = _step(name)
     assert set(st) <= {"name", "run", "working-directory"}, f"{name!r} has {set(st)}"
+    if name == DEPS:
+        assert "-r requirements.txt" in st["run"] and "pytest httpx" in st["run"]
     assert "if" not in st and "continue-on-error" not in st
     run = st["run"]
     assert "|| true" not in run and "passWithNoTests" not in run and "set +e" not in run
@@ -122,13 +149,16 @@ def test_every_pine_runtime_test_file_is_named_by_a_gate_step():
     assert not unnamed, f"tests/test_pine_runtime_*.py not run by the gate: {unnamed}"
     assert "tests/test_pine_runtime_deploy_gate.py" in _step(S6)["run"], "this rail must run in the gate it guards"
     assert "tests/test_pine_runtime_dockerfile.py" in _step(S7)["run"]
+    # design section 8 step 6 names the composition rail (W5-T17). The step names it BEFORE T17 is on this
+    # branch, on purpose: one rule, and the merge order is T17 before T19.
+    assert "tests/test_pine_runtime_composition.py" in _step(S6)["run"]
 
 
 def test_a_python_step_uses_the_production_dependency_set():
     for n in (S3, S6, S7):
         assert "/tmp/prodvenv/bin/python -m pytest" in _step(n)["run"]
     names = _names()
-    assert names.index("The production dependency set imports and boots the server") < names.index(NODE_STEP)
+    assert names.index(DEPS) < names.index(NODE_STEP) < names.index(S3)
 
 
 # -- the Node pin: ONE authority, read, never retyped ---------------------------------
@@ -138,7 +168,12 @@ def test_the_gate_node_major_equals_the_images_pin_which_equals_dockerfile_web()
     major = _pin(IMAGE).split(".")[0]
     steps = _steps()
     setups = [s for s in steps if str(s.get("uses", "")).startswith("actions/setup-node")]
-    assert len(setups) == 1, "exactly one setup-node: two pins are two authorities"
+    assert len(setups) == 1, "exactly one setup-node in this job: two pins are two authorities"
+    # and every OTHER job that pins a Node (the Agent shards) pins the same major
+    for jid, j in _doc()["jobs"].items():
+        for st in j.get("steps", []):
+            if str(st.get("uses", "")).startswith("actions/setup-node"):
+                assert str(st["with"]["node-version"]) == major, f"job {jid} pins a Node other than the image's"
     assert str(setups[0]["with"]["node-version"]) == major
     assert steps.index(setups[0]) < _names().index(NODE_STEP)
 

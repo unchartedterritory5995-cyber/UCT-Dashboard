@@ -17,7 +17,7 @@
 //                                              targets resolved by the caller
 //   { kind: 'undo' } | { kind: 'confirm' } | { kind: 'dismiss' } | { kind: 'subset', count }
 
-import { allCapabilityNames, getCapability } from './capabilities'
+import { allCapabilityNames, getCapability, onSurface } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
 import { chartQualifier, ordinalChart, ORD_RE } from './deixis'
 
@@ -83,6 +83,9 @@ function matchClause(raw, host) {
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (typeof cap.fast !== 'function') continue
+    // ⭐ W2-C1: a page host names its surface; a phrase of a capability not offered there is not claimed
+    // (the Charts host names none = 'charts' → every Charts capability, exactly as before; a page-only one never)
+    if (!onSurface(cap, host?.surface || 'charts')) continue
     // `host` lets a phrase resolve against REAL state (a layout name in the member's
     // catalog); a capability that can't resolve it with certainty returns null.
     const args = cap.fast({ raw: raw.trim(), lower, core, host })
@@ -106,7 +109,10 @@ function matchWhole(text, host) {
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (!cap.fastWhole || typeof cap.fast !== 'function') continue
+    if (!onSurface(cap, host?.surface || 'charts')) continue
     const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
+    // PKG2: `__say` — the capability answers this whole sentence in its own FIXED words (an honest decline), no op, no model
+    if (args && typeof args.__say === 'string') { hits.push({ say: args.__say }); continue }
     if (args) {
       // `__explicit`: the capability read the member's OWN words as an explicit request (policy.js explicitOk)
       const { __target, __explicit, ...rest } = args
@@ -234,14 +240,42 @@ function fastParseExact(text, { host = null, controlWords = true } = {}) {
   return capabilityPhrases(text, host)
 }
 
+// hotfix 2026-11-03 (live: "Undo the last change you made to my charts" missed the anchored Undo words and reached a model
+// with no Undo): an Undo request's politeness and trailing qualifiers — "you (just) made", "to my charts", "for me" — say
+// nothing about WHICH change, so they are dropped before the Undo words are read. Only a sentence that STARTS with an
+// Undo verb is touched; what is left must still be one of the exact Undo shapes below, else nothing is read here.
+const UNDO_VERB = /^(?:undo|revert|reverse|roll back|take (?:that|it|them|everything|all of (?:that|it)) (?:all )?back|go back|put it back)\b/
+export function undoWords(t0) {
+  let t = String(t0 || '').replace(/^(?:(?:please|can you|could you|would you|will you|just|kindly),?\s+)+(?=(?:undo|revert|reverse|roll back|take|go back|put)\b)/, '')
+  if (!UNDO_VERB.test(t)) return t0
+  t = t.replace(/^roll back\b/, 'undo').replace(/^(undo|revert|reverse) (?:what|everything) (?:you|u) (?:just )?did\b/, (m, v) => (m.includes('everything') ? `${v} everything you just did` : `${v} that`))
+  // review F2: a NAMED target ("…to my layout", "…to my widgets") is never dropped: it becomes the change's kind, so the
+  // existing which-change check (useAgent doUndo `about`) refuses when the newest change was not one of those
+  let noun = null
+  for (let i = 0; i < 3; i++) {
+    t = t.replace(/,?\s+(?:for me|please|thanks|thank you|now|just now|again)$/, '')
+      .replace(/\s+(?:that |which )?(?:you|u) (?:just )?(?:made|did|applied|changed|added)(?: (?:just )?now)?(?=$|\s)/, '')
+      .replace(/\s+(?:to|on|in|from|for|of) (?:my|the|this|that|these|those) (charts?|board|workspace|layout|screen|widgets?)$/, (m, w) => {
+        noun = noun || (/^chart/.test(w) ? 'chart' : w === 'layout' ? 'layout' : w === 'screen' ? null : 'widget')
+        return ''
+      })
+  }
+  t = t.replace(/^(undo|revert|reverse) your\b/, '$1 my').trim()
+  const plain = /^(undo|revert|reverse)(?: (?:that|it|this)| (?:the|my|that) (?:last )?(?:change|edit|thing|one))?$/.exec(t)
+  return noun && plain ? `${plain[1]} my last ${noun} change` : t
+}
+
 /** undo / confirm / dismiss / "just the first N" — the universal control words, or null */
 function controlWord(t) {
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
-  const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, '')
+  const u = undoWords(t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, ''))
   // ⭐ PHASE 3: "undo all of that", "undo everything you just did", "take it all back" — EVERY change of the last request
   // (useAgent undoTurn: newest first, each through the same Undo; it stops at the first one that can't be undone)
   if (/^(?:undo|revert|reverse) (?:all (?:of )?(?:that|it|this|those|them|those changes|of those changes)|everything(?: (?:you|i) just (?:did|made|changed|asked for))?|that whole (?:thing|request|change|lot)|the whole (?:thing|request|lot)|all (?:the|those|your|my) (?:last )?changes)$|^take (?:it|that|them|everything) all back$|^take (?:everything|all of (?:that|it|them)) back$/.test(u)) return { kind: 'undo', all: true }
   if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
+  // W2 (CG-9): "put my layout back", "put the charts back (the way they were)" — the newest change, when it IS one of those
+  const back = /^(?:please |can you |could you )?put (?:my|the) (layout|board|workspace|charts?|widgets) back(?: (?:the way|how|as|like) (?:it|they) (?:was|were))?(?: please)?$/.exec(u)
+  if (back) return { kind: 'undo', about: /^chart/.test(back[1]) ? 'chart' : back[1] === 'layout' ? 'layout' : 'widget' }
   // "undo that indicator removal", "undo the last hide", "undo removing that" — the same Undo (the
   // newest change); the noun only describes it, it never picks a different entry. ⛔ F14: a NAMED
   // kind ("indicator", "chart"…) is passed on — when the newest change isn't one, nothing is undone
@@ -271,7 +305,7 @@ export const slashPairs = (s) => (ADD_LEAD.test(s) ? s.replace(/\b(\d{1,3})\/(\d
 /** Capability phrases: whole-sentence ones first, then clause by clause (all or nothing). */
 function capabilityPhrases(text, host) {
   const whole = matchWhole(text, host)
-  if (whole) return { kind: 'ops', ops: [whole], target: null }
+  if (whole) return whole.say ? { kind: 'say', text: whole.say } : { kind: 'ops', ops: [whole], target: null }
   const { text: rest0, target } = extractTarget(text, host)
   const rest = slashPairs(rest0)
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
