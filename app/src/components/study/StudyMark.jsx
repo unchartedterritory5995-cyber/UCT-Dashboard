@@ -9,7 +9,7 @@ import { canRender3D, STILL_SRC } from './studyMarkSupport'
 
 const StudyMark3D = lazy(() => import('./StudyMark3D'))
 
-/** @param {{ mood?: 'idle'|'think'|'happy'|'oops'|'fire', size?: number, className?: string }} props */
+/** @param {{ mood?: 'idle'|'live'|'think'|'happy'|'oops'|'fire', size?: number, className?: string }} props */
 export default function StudyMark({ mood = 'idle', size = 72, className = '' }) {
   const live = useMemo(() => canRender3D(), [])
   const still = <img src={STILL_SRC} width={size} height={size} alt="" aria-hidden="true" draggable={false} className={`${m.still} ${className}`} data-study-mark="still" />

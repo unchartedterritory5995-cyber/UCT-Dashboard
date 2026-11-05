@@ -1610,6 +1610,88 @@
           }
         }
       ]
+    },
+    {
+      "id": "GW-28.counted-others-four-charts",
+      "source": "Owner 11-05: a stated chart count is part of the target; a count that does not match the board changes nothing and says so, with no model call",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to the top right chart"
+        },
+        {
+          "say": "Actually, do the same for the other two.",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "do the same for the other three",
+          "expect": {
+            "modelTurns": 0,
+            "bySymbol": {
+              "SPY": {
+                "has": [
+                  "rsi"
+                ]
+              },
+              "NVDA": {
+                "has": [
+                  "rsi"
+                ]
+              },
+              "TSLA": {
+                "has": [
+                  "rsi"
+                ]
+              },
+              "QQQ": {
+                "has": [
+                  "rsi"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-29.counted-others-two-charts",
+      "source": "Owner 11-05: a stated chart count is part of the target; a count that does not match the board changes nothing and says so, with no model call",
+      "capabilities": [
+        "chart.setTimeframe"
+      ],
+      "board": "TWO",
+      "steps": [
+        {
+          "say": "make the left chart weekly"
+        },
+        {
+          "say": "do the same for the other three",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "do the same for the other one",
+          "expect": {
+            "modelTurns": 0,
+            "bySymbol": {
+              "NVDA": {
+                "tf": "W"
+              },
+              "AMD": {
+                "tf": "W"
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

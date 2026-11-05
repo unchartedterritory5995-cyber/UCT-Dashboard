@@ -54,3 +54,21 @@ export function studySettingsOverride(chartOpts, houseSettings = null, extras = 
   if (instances && instances.length) out = mergeSettingsOverride(out, { indicatorInstances: instances })
   return out
 }
+
+/**
+ * memberSettingsOverride(chartOpts, extras) — round 17 (owner, batch 16: "not our complete and perfect UCT charts
+ * that each user has in their settings in their widget in the charts tab?"): NO house look. StockChart merges the
+ * member's own global chart_settings underneath, so the drill chart is the member's Charts-tab chart with the study
+ * gates on top and the item's own averages / volume choice / engine lines, exactly as studySettingsOverride applies them.
+ */
+export function memberSettingsOverride(chartOpts, extras = null) {
+  const o = chartOpts || {}
+  let out = { ...STUDY_GATES }
+  if (Array.isArray(o.overlays)) out = { ...out, overlays: o.overlays }
+  else if (o.overlays === false) out = { ...out, overlays: CHART_DEFAULTS.overlays.map((ov) => ({ ...ov, enabled: false })) }
+  if (o.volume === false) out = mergeSettingsOverride(out, { volume: { visible: false } })
+  else if (o.volume === true) out = mergeSettingsOverride(out, { volume: { visible: true } })
+  const instances = extras && Array.isArray(extras.instances) ? extras.instances : null
+  if (instances && instances.length) out = mergeSettingsOverride(out, { indicatorInstances: instances })
+  return out
+}
