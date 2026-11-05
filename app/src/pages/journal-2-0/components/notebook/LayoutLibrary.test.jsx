@@ -211,7 +211,7 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
     expect(within(types).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(listCalls()[0].search).toContain('type=page_layout')               // control: it did start there
-    expect(screen.queryByText("Couldn't load the community gallery.")).not.toBeInTheDocument()
+    expect(screen.queryByText("Couldn't load the Template library.")).not.toBeInTheDocument()
   })
 
   it('choosing the chip sends library_viewed {type: page_layout, view: browse}', async () => {

@@ -2723,7 +2723,8 @@ export default function NotebookTab() {
             {stylesOn && (
               <button type="button" className={styles.importBtn} onClick={() => setStylesOpen(true)} aria-haspopup="dialog" data-tour="styles-button">
                 <UIcon name="sliders" size={16} gold={false} />
-                <span className={styles.actionLabel}>Styles</span>
+                {/* S7 (one vocabulary): the journal styles manager is where a member manages templates. */}
+                <span className={styles.actionLabel}>Manage templates</span>
               </button>
             )}
             {toolsOn && (

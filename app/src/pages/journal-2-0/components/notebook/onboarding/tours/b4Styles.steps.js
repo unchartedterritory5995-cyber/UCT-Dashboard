@@ -59,7 +59,7 @@ export const STYLE_LIBRARY_COPY = Object.freeze({
   },
   door: {
     title: 'Open the community gallery',
-    body: 'Browse the community gallery shows what other members shared. Select it to open the library.',
+    body: 'Browse the Template library shows what other members shared. Select it to open the library.',
   },
   types: {
     title: 'Outlines and styles',

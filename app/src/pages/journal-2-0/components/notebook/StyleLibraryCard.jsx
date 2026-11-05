@@ -59,7 +59,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
-  // Wave 11 (Task 11.16): the facts block replaces "Adopted by N" (a 0 read "Adopted by 0"; now "New"), the helpful
+  // Wave 11 (Task 11.16): the facts block replaces "Used by N" (a 0 read "Used by 0"; now "New"), the helpful
   // line (shown from 1 up) and the description. Wave 11 off: exactly as before.
   const w11 = widgetsWaveOn(11)
   // Ruling W11-R25: under wave 11, Adopt on a style that holds a family slot opens the adoption sheet (its choices and
@@ -116,7 +116,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         <span className={styles.meta}>
           {item.firm ? <span className={styles.firmBadge}>UCT</span> : item.authorHandle && onOpenAuthor ? (
             <button type="button" className={styles.authorBtn} data-author-door={item.authorHandle}
-              onClick={() => onOpenAuthor(item.authorHandle)} aria-label={`See styles by ${item.author}`}>
+              onClick={() => onOpenAuthor(item.authorHandle)} aria-label={`See templates by ${item.author}`}>
               {item.author}
             </button>
           ) : <>by {item.author}</>}
@@ -124,7 +124,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         </span>
         {!w11 && (
           <span className={styles.meta}>
-            Adopted by {Number(item.usedBy) || 0}{' · '}
+            Used by {Number(item.usedBy) || 0}{' · '}
             <span data-helpful-count="">{helpfulCount} found this helpful</span>
           </span>
         )}
@@ -140,8 +140,8 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         {!item.mine && (
           <button type="button" ref={adoptBtnRef} className={`${styles.btn} ${styles.primary}`}
             onClick={startAdopt} disabled={busy || checking}
-            aria-expanded={confirming} aria-label={`Adopt ${item.title}`} data-tour="library-adopt">
-            Adopt
+            aria-expanded={confirming} aria-label={`Use ${item.title}`} data-tour="library-adopt">
+            Use
           </button>
         )}
         {!item.mine && (
@@ -162,14 +162,14 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       {/* The 3-day sentence's live region exists before its text (fix round 1, M-3), so the change is announced. */}
       <p className={daysNote ? styles.note : styles.liveIdle} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>
       {confirming && (
-        <div className={styles.confirm} role="group" aria-label={`Adopt ${item.title}?`}>
+        <div className={styles.confirm} role="group" aria-label={`Use ${item.title}?`}>
           <label className={styles.check} htmlFor={`${uid}-notify`}>
             <input id={`${uid}-notify`} type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             <span>Notify me when the author updates</span>
           </label>
           <div className={styles.actions}>
             <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={adopt} disabled={adopting || busy}>
-              Adopt
+              Use
             </button>
             <button type="button" className={styles.btn} onClick={closeConfirm}>Cancel</button>
           </div>

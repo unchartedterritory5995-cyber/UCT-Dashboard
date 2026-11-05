@@ -27,7 +27,7 @@ export const COPY = Object.freeze({
   },
   door: {
     title: 'The community gallery',
-    body: 'Browse the community gallery shows templates other members shared. UCT reviews each one before it is listed, and UCT picks come first.',
+    body: 'Browse the Template library shows templates other members shared. UCT reviews each one before it is listed, and UCT picks come first.',
   },
   use: {
     title: 'Use template makes a copy',

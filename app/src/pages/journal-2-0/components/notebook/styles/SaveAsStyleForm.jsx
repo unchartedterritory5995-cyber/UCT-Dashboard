@@ -1,4 +1,4 @@
-// Notebook P1 (spec P1.4): "Save this note's setup as a style". The SERVER reads the note (its blocks, the
+// Notebook P1 (spec P1.4): "Save as template with blocks". The SERVER reads the note (its blocks, the
 // rest of the body as the outline, its property values), so the editor's pending words go first:
 // `onBeforeSave` is the editor's sendPendingEdits (the note menu's onBeforeTemplate). If words are still
 // unsent, nothing is copied. Lazy chunk (NoteMenuActions lazyChunk).
@@ -87,17 +87,17 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
   return (
     <form className={styles.form} onSubmit={submit}>
       <label className={styles.field}>
-        <span className={styles.label}>Style name</span>
+        <span className={styles.label}>Template name</span>
         <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_STYLE_NAME_CHARS} autoFocus autoComplete="off" />
       </label>
       <label className={styles.field}>
-        <span className={styles.label}>Kind of note</span>
+        <span className={styles.label}>Note type</span>
         <select className={styles.input} value={chosenKind} onChange={(e) => setPicked(e.target.value)}>
           {!defaultKind && <option value="">Choose a kind</option>}
           {kinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
         </select>
       </label>
-      <button type="submit" className={styles.btn} disabled={busy || cannotSave}>Save style</button>
+      <button type="submit" className={styles.btn} disabled={busy || cannotSave}>Save template</button>
       <button type="button" className={styles.btn} onClick={() => onDone?.(null)}>Cancel</button>
       {error && <span className={styles.error} role="alert">{error}</span>}
     </form>

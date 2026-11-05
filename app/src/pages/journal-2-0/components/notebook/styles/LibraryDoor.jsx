@@ -22,7 +22,7 @@ export default function LibraryDoor({ label, className, disabled = false }) {
         <span>{label}</span>
       </button>
       {open && (
-        <Sheet open onClose={() => setOpen(false)} title="Community styles" labelledByTitle variant="auto" maxWidth={960}>
+        <Sheet open onClose={() => setOpen(false)} title="Template library" labelledByTitle variant="auto" maxWidth={960}>
           <Suspense fallback={<p role="status">Loading the community library…</p>}>
             <TemplateGallery initialType="style" onBack={() => setOpen(false)} backLabel="Close the library" />
           </Suspense>

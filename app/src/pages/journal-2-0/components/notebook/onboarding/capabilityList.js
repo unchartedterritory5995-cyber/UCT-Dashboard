@@ -50,7 +50,7 @@ export const CAPABILITY_PREVIEW = Object.freeze([
   {
     id: 'setups-board',
     flag: 'notebook_setups_board_enabled',
-    label: 'Active setups board',
+    label: 'Setups board',
     line: 'Every setup you are watching on one board, sorted by how close it is to your entry.',
   },
   {

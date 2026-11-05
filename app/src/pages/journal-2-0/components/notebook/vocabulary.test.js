@@ -1,0 +1,157 @@
+// Audit 2026-11-05, spec S7: ONE VOCABULARY. The same object was called TEMPLATES, Template and styles, "Use" took
+// three names and two sheets, the note menu said Delete where the sidebar said Trash, and one page had three names.
+// The member now reads, everywhere:
+//
+//   Style · Journal style · Kind of note · Outline · Preset  ->  Template   ("Note type" only where a filter needs it)
+//   Adopt · "Use this template" + "Make it yours"            ->  Use
+//   Community styles · Community gallery                      ->  Template library
+//   "Save as template with blocks"                        ->  Save as template
+//   Delete (note menu) · Trash (sidebar)                       ->  Move to Trash
+//   Active setups · "Active setups and find more like this"   ->  Setups
+//
+// ⛔ AN INTERFACE NAMING LAYER ONLY: internal models, API fields and stored keys keep their names (journal styles,
+//    `styleId`, `kindId`, /api/j2/journal-styles ...). So this rail reads only what a member SEES: JSX text, and the
+//    string literals given to `aria-label`, `title`, `placeholder`, `label`, `alt` and a Sheet's `title`, in every
+//    component under components/notebook/** (the template library and the styles surfaces included) and NotebookTab.
+//    Module-level `const X = '...'` strings rendered as copy are read too when their name says they are words
+//    (`*_LABEL`, `*_TITLE`, `*_SENTENCE`, `*_WORDS`, `TITLE`, `LABEL`).
+//
+// Parsed (acorn + acorn-jsx, the tree the a11y rails use), never grepped: a comment or an identifier that says
+// "style" is not copy, and a regex over source cannot tell them apart.
+import { describe, it, expect } from 'vitest'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
+
+const J2 = join(process.cwd(), 'src', 'pages', 'journal-2-0')
+const ROOTS = [join(J2, 'components', 'notebook'), join(J2, 'tabs', 'NotebookTab.jsx')]
+const rel = (p) => relative(J2, p).split(sep).join('/')
+
+/** The retired words, as a member would read them. Each is a whole-word, case-insensitive match. */
+export const RETIRED = [
+  { re: /\bjournal styles?\b/i, now: 'Template' },
+  { re: /\bkind of note\b/i, now: 'Template (or "Note type" in a filter)' },
+  { re: /\bcommunity (styles|gallery)\b/i, now: 'Template library' },
+  { re: /\bmake it yours\b/i, now: 'Use' },
+  { re: /\buse this template\b/i, now: 'Use' },
+  { re: /\bsetup as a style\b/i, now: 'Save as template' },
+  { re: /\bactive setups\b/i, now: 'Setups' },
+  { re: /\badopt(ed|s)?\b/i, now: 'Use' },
+  { re: /\bstyles?\b/i, now: 'Template' },
+  { re: /\bpresets?\b/i, now: 'Template' },
+]
+
+/**
+ * ⛔ THE ALLOWLIST: copy that uses a retired word in ANOTHER meaning, each entry `file|exact text` with why. A new
+ * use of a retired word fails BY NAME until it is renamed or argued for here.
+ */
+const ALLOW = new Map([
+  // "Style" as a visual style, never the journal-style object.
+  ['components/notebook/TextColorMenu.jsx|*', 'text colour and highlight styles'],
+  ['components/notebook/TableToolbar.jsx|*', 'table cell styles'],
+  // "Trading style": how the member trades (swing, day, ...), a filter and a share field, never a template.
+  ['components/notebook/library/SharePreviewSheet.jsx|Trading style (optional)', 'how the member trades, not a template'],
+  ['components/notebook/library/SharePreviewSheet.jsx|No trading style', 'how the member trades, not a template'],
+  ['components/notebook/styles/ShareStyleForm.jsx|Trading style (optional)', 'how the member trades, not a template'],
+  ['components/notebook/styles/ShareStyleForm.jsx|No trading style', 'how the member trades, not a template'],
+  ['components/notebook/TemplateGallery.jsx|Filter by trading style', 'how the member trades, a filter, not a template'],
+  // "Preset" as a CHART preset (lib/notebookSets: a saved chart setup), never a note template.
+  ['components/notebook/widgets/SnapshotFrame.jsx|*', 'a chart widget preset (lib/notebookSets), not a note template'],
+  ['components/notebook/widgets/SetsDialog.jsx|*', 'chart sets and presets (lib/notebookSets), not note templates'],
+  ['components/notebook/WidgetPalette.jsx|*', 'chart presets in the widget palette (lib/notebookSets)'],
+  // The server's own recorded refusal, pinned word for word to the contract fixture: a server change, not this layer's.
+  ['components/notebook/styles/LibraryUpdateSheet.jsx|This style changed since you opened the update. Nothing was changed. Look again.',
+    "the server's recorded sentence (StyleLibraryDoors.test.jsx pins it to the contract)"],
+  ['components/notebook/NoteEditorPage.jsx|Insert a chart or preset — pick ticker and timeframe by clicking',
+    'the insert palette offers chart presets (lib/notebookSets), not note templates'],
+])
+
+function walk(p, out = []) {
+  if (statSync(p).isFile()) { out.push(p); return out }
+  for (const name of readdirSync(p)) {
+    if (name === '__fixtures__' || name === 'node_modules') continue
+    walk(join(p, name), out)
+  }
+  return out
+}
+const FILES = ROOTS.flatMap((r) => walk(r)).filter((p) => /\.jsx$/.test(p) && !/\.test\.jsx$/.test(p))
+
+const JsxParser = Parser.extend(jsx())
+const COPY_ATTRS = new Set(['aria-label', 'title', 'placeholder', 'label', 'alt', 'aria-description', 'confirmLabel', 'body'])
+const COPY_CONST = /(^|_)(LABEL|TITLE|SENTENCE|WORDS|HEADING|HINT)$|^(TITLE|LABEL)$/
+
+/** Every member-visible string in one file: `[{text, line}]`. */
+export function visibleStrings(src) {
+  const tree = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
+  const out = []
+  const push = (text, node) => { if (typeof text === 'string' && text.trim()) out.push({ text: text.trim(), line: node.loc.start.line }) }
+  const literalStrings = (node) => {
+    if (!node) return
+    if (node.type === 'Literal' && typeof node.value === 'string') push(node.value, node)
+    else if (node.type === 'TemplateLiteral') node.quasis.forEach((q) => push(q.value.cooked, q))
+    else if (node.type === 'ConditionalExpression') { literalStrings(node.consequent); literalStrings(node.alternate) }
+    else if (node.type === 'LogicalExpression') { literalStrings(node.left); literalStrings(node.right) }
+    else if (node.type === 'JSXExpressionContainer') literalStrings(node.expression)
+  }
+  const visit = (node, parent) => {
+    if (!node || typeof node.type !== 'string') return
+    if (node.type === 'JSXText') push(node.value, node)
+    if (node.type === 'JSXExpressionContainer' && parent?.type === 'JSXElement') literalStrings(node.expression)
+    if (node.type === 'JSXAttribute' && node.name?.type === 'JSXIdentifier' && COPY_ATTRS.has(node.name.name)) {
+      literalStrings(node.value)
+    }
+    if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier' && COPY_CONST.test(node.id.name)) {
+      literalStrings(node.init)
+    }
+    for (const key of Object.keys(node)) {
+      if (key === 'loc' || key === 'start' || key === 'end') continue
+      const v = node[key]
+      if (Array.isArray(v)) v.forEach((c) => visit(c, node))
+      else if (v && typeof v.type === 'string') visit(v, node)
+    }
+  }
+  visit(tree, null)
+  return out
+}
+
+function hits() {
+  const found = []
+  for (const file of FILES) {
+    const r = rel(file)
+    if (ALLOW.has(`${r}|*`)) continue
+    for (const { text, line } of visibleStrings(readFileSync(file, 'utf8'))) {
+      if (ALLOW.has(`${r}|${text}`)) continue
+      for (const { re, now } of RETIRED) {
+        if (re.test(text)) { found.push(`${r}:${line} "${text}" -> ${now}`); break }
+      }
+    }
+  }
+  return found
+}
+
+describe('S7: one vocabulary in everything a member reads', () => {
+  it('no retired word in member-visible copy (renamed, or argued for in ALLOW)', () => {
+    expect(hits()).toEqual([])
+  })
+
+  it('CONTROL: the reader finds copy in every place it looks, and skips what is not copy', () => {
+    const src = `
+      // A comment about journal styles is not copy.
+      const styleId = 'journal-style'
+      export const USE_LABEL = 'Use this template'
+      export default function X({ open }) {
+        return <div aria-label="Community styles" title={open ? 'Make it yours' : 'Fine'}>Kind of note {'Adopt'}</div>
+      }`
+    const seen = visibleStrings(src).map((s) => s.text)
+    expect(seen).toEqual(expect.arrayContaining(['Use this template', 'Community styles', 'Make it yours', 'Kind of note', 'Adopt']))
+    expect(seen).not.toContain('journal-style')
+    const caught = seen.filter((t) => RETIRED.some(({ re }) => re.test(t)))
+    expect(caught.length).toBe(5)
+  })
+
+  it('every allowlist entry still names a file that exists (a stale exemption fails by name)', () => {
+    const names = new Set(FILES.map(rel))
+    for (const key of ALLOW.keys()) expect(names.has(key.split('|')[0]), key).toBe(true)
+  })
+})

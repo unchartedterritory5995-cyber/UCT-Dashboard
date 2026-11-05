@@ -1,3 +1,5 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // app/src/pages/journal-2-0/a11y/styleLibrary.a11y.test.jsx
 //
 // P3a Task 9: the community STYLE library through 8A's axe harness (the ONE way a Notebook rail asks
@@ -73,8 +75,8 @@ describe('P3a surfaces (community style library)', () => {
     const user = renderGallery()
     await screen.findByRole('heading', { name: STYLE.title })
     screen.getByRole('group', { name: 'Filter by trading style' })
-    await user.click(screen.getByRole('button', { name: `Adopt ${STYLE.title}` }))
-    within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` }))
+    await user.click(screen.getByRole('button', { name: `Use ${STYLE.title}` }))
+    within(screen.getByRole('group', { name: `Use ${STYLE.title}?` }))
       .getByRole('checkbox', { name: 'Notify me when the author updates' })
     await settle()
   })
@@ -91,7 +93,7 @@ describe('P3a surfaces (community style library)', () => {
   axeSurface('style-library-author', async () => {
     const user = renderGallery()
     await screen.findByRole('heading', { name: STYLE.title })
-    await user.click(screen.getByRole('button', { name: `See styles by ${STYLE.author}` }))
+    await user.click(screen.getByRole('button', { name: `See templates by ${STYLE.author}` }))
     await screen.findByRole('heading', { name: PAGE.author.label })
     screen.getByRole('button', { name: `Follow ${PAGE.author.label}` })
     await settle()
@@ -146,9 +148,9 @@ describe('P3a surfaces (the styles/ doors, Task 11)', () => {
   axeSurface('style-library-door', async () => {
     stub()
     const user = userEvent.setup()
-    render(<Providers><LibraryDoor label="Community styles" /></Providers>)
-    await user.click(screen.getByRole('button', { name: 'Community styles' }))
-    await screen.findByRole('dialog', { name: 'Community styles' })
+    render(<Providers><LibraryDoor label="Template library" /></Providers>)
+    await user.click(screen.getByRole('button', { name: 'Template library' }))
+    await screen.findByRole('dialog', { name: 'Template library' })
     await screen.findByRole('heading', { name: STYLE.title })
     within(screen.getByRole('group', { name: 'Filter by type' })).getByRole('button', { name: 'Styles', pressed: true })
     await settle()

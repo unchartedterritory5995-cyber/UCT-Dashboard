@@ -1,3 +1,5 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // P5 Task 5: "How do you trade?", the starter pack offer (R-P5-5), through the REAL client
 // (lib/starterPacks.js, lib/journalStyles.js) with only the network and the preferences hook faked.
 // Server answers are the generated contract fixtures (__fixtures__/contract): the empty list (a member with no
@@ -89,11 +91,11 @@ describe('How do you trade? (R-P5-5)', () => {
   it('1. with the switch off there is no card and no Starter packs link', async () => {
     flags(false)
     const { unmount } = kindSection()
-    await screen.findByRole('group', { name: 'Start from a kind of note' })
+    await screen.findByRole('group', { name: 'Start from a template' })
     expect(card()).toBeNull()
     unmount()
     manager()
-    await screen.findByRole('button', { name: /New style/ })
+    await screen.findByRole('button', { name: /New template/ })
     expect(card()).toBeNull()
     expect(screen.queryByRole('button', { name: 'Starter packs' })).toBeNull()
   })
@@ -128,7 +130,7 @@ describe('How do you trade? (R-P5-5)', () => {
     manager()
     const inManager = await screen.findByRole('region', { name: TITLE })
     // at the top of the list column: before the New style button
-    const newStyle = screen.getByRole('button', { name: /New style/ })
+    const newStyle = screen.getByRole('button', { name: /New template/ })
     expect(inManager.compareDocumentPosition(newStyle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
@@ -136,7 +138,7 @@ describe('How do you trade? (R-P5-5)', () => {
     flags()
     prefsNow = { [STARTER_PACK_PREF]: JSON.stringify({ v: 1, state: 'installed', pack: 'day', at: '2026-10-18T00:00:00.000Z' }) }
     kindSection()
-    await screen.findByRole('group', { name: 'Start from a kind of note' })
+    await screen.findByRole('group', { name: 'Start from a template' })
     expect(card()).toBeNull()
   })
 
@@ -197,7 +199,7 @@ describe('How do you trade? (R-P5-5)', () => {
     expect(card()).toBeNull()
     unmount()
     kindSection()
-    await screen.findByRole('group', { name: 'Start from a kind of note' })
+    await screen.findByRole('group', { name: 'Start from a template' })
     expect(card()).toBeNull()
   })
 
@@ -349,12 +351,12 @@ describe('How do you trade? -- what the card says, and one card per page', () =>
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
     expect(cards()).toHaveLength(1)
     // the second section opened last, so it holds the card
-    const sections = screen.getAllByRole('group', { name: 'Start from a kind of note' }).map((g) => g.closest('section'))
+    const sections = screen.getAllByRole('group', { name: 'Start from a template' }).map((g) => g.closest('section'))
     expect(sections).toHaveLength(2)
     expect(sections[1].contains(cards()[0])).toBe(true)
     // the Styles manager opening over them takes the card; there is still one
     rerender(swr(<><KindSection onCreate={vi.fn()} /><KindSection onCreate={vi.fn()} /><StylesManager open onClose={vi.fn()} /></>))
-    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Journal styles' }).contains(cards()[0] || null)).toBe(true))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Manage templates' }).contains(cards()[0] || null)).toBe(true))
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
     expect(cards()).toHaveLength(1)
   })

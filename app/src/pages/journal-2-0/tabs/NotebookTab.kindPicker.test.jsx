@@ -102,7 +102,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
-    const [another] = await screen.findAllByLabelText('Choose another style for Trade plan', {}, T)
+    const [another] = await screen.findAllByLabelText('Choose another template for Trade plan', {}, T)
     fireEvent.click(another)
     fireEvent.click(screen.getAllByRole('button', { name: 'Use My plan' })[0])
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
@@ -160,7 +160,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
     await screen.findAllByRole('region', { name: 'Your templates' })
-    expect(screen.queryByRole('group', { name: 'Start from a kind of note' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Start from a template' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'New Trade plan' })).toBeNull()
     expect(screen.queryByText(/journal styles/i)).toBeNull()   // not even the picker's failure line
     expect(urls).not.toContain('/api/j2/journal-styles')

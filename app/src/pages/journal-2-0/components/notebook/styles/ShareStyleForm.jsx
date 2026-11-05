@@ -28,9 +28,9 @@ export const SHARE_NOTE = 'An admin reviews it before it is listed. Your own pro
 export const SENT_SENTENCE = 'Sent for review. It is listed once an admin approves it.'
 // M-7: sharing an ALREADY-LISTED style again holds the new version for review; the listed one stays (R-P3-3).
 export const REVISION_SENT_SENTENCE = 'Sent for review. The version listed now stays listed until an admin approves this update.'
-export const OUTLINE_GONE_SENTENCE = 'This style’s outline came from a template you deleted, so it will be shared without an outline.'
-const FAILED_SENTENCE = "Couldn't share that style. Nothing was sent."
-export const EXAMPLE_DOOR_HINT = 'Show other members this style in use with one of your notes. You see exactly what they will see before anything is sent.'
+export const OUTLINE_GONE_SENTENCE = 'This template’s outline came from one you deleted, so it will be shared without an outline.'
+const FAILED_SENTENCE = "Couldn't share that template. Nothing was sent."
+export const EXAMPLE_DOOR_HINT = 'Show other members this template in use with one of your notes. You see exactly what they will see before anything is sent.'
 // P3b: loaded on demand, so the door's chunk is named only inside this lazy chunk (AddExampleNoteDoor.jsx says why).
 const AddExampleNoteDoor = lazyChunk(() => import('./AddExampleNoteDoor'))
 const SharePreviewSheet = lazyChunk(() => import('../library/SharePreviewSheet'))

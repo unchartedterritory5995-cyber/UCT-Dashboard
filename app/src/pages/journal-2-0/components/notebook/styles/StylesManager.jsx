@@ -1,6 +1,6 @@
 // The Journal styles manager (Notebook P1, spec P1.4): Notebook > Styles, and the Settings door.
 // Lists styles by kind; create, edit, duplicate, rename, set as default, soft-delete with Undo; add,
-// rename and delete your own kinds; the one-shot "set Kind of note from Research Type" offer.
+// rename and delete your own kinds; the one-shot "set Note type from Research Type" offer.
 // ⛔ Everything here is a CREATING door: it renders nothing while journalStylesEnabled() is off, and the
 // hook fails closed on the same gate. A note that already holds a style's blocks is never affected.
 // ⛔ Offline (the list came from the saved copy): reading works, every write control is disabled.
@@ -23,7 +23,7 @@
 // ⛔ Share is not offered on any style that carries library provenance (`sourceGalleryId`): an adopted copy, its
 //    duplicate, or a style saved from a note made with one (rulings P3a-T10-R3/R5/R6; the server refuses them too).
 // P5 Task 5 (ruling P5-R-C12): "How do you trade?" (StarterPackOffer) sits at the top of the list column while
-//    R-P5-5 holds, and a quiet "Starter packs" button beside New style and Community opens it whenever the
+//    R-P5-5 holds, and a quiet "Starter packs" button beside New template and Community opens it whenever the
 //    starter-packs switch is on, whatever the member answered before.
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useInRouterContext, useSearchParams } from 'react-router-dom'
@@ -315,26 +315,26 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const notNow = () => { setPref('notebook_kind_mapping', 'dismissed') }
 
   return (
-    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }} data-tour="styles-manager">Journal styles</h2>}
+    <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }} data-tour="styles-manager">Manage templates</h2>}
       labelledByTitle variant="auto" maxWidth={960}>
       <div className={styles.wrap}>
         {open && libraryOn && inRouter && <LibraryUpdateParam onFound={setLinkedUpdate} />}
         <p className={styles.hint}>
-          A style is how a kind of note starts: its outline, its blocks and the properties it fills. Changing a style never changes a note you already made unless you choose to update it.
+          A template is how a note type starts: its outline, its blocks and the properties it fills. Changing a template never changes a note you already made unless you choose to update it.
         </p>
 
         <div className={styles.stickyTop} data-empty={undo || status || confirmDiscard ? undefined : 'true'}>
           <div role="status" aria-live="polite">
             {undo ? (
               <p className={styles.notice}>
-                <span>Style deleted.</span>
+                <span>Template deleted.</span>
                 <button type="button" ref={undoRef} className={styles.btn} onClick={restore} disabled={busy}>Undo</button>
               </p>
             ) : status ? <p className={styles.notice}>{status}</p> : null}
           </div>
           {confirmDiscard && (
             <section className={styles.notice} aria-label="Unsaved changes">
-              <span>Discard your unsaved changes to this style?</span>
+              <span>Discard your unsaved changes to this template?</span>
               <button type="button" ref={keepEditingRef} className={styles.btn}
                 onClick={() => { setConfirmDiscard(null); document.getElementById('js-name')?.focus() }}>Keep editing</button>
               <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={discard}>Discard changes</button>
@@ -343,18 +343,18 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
         </div>
         {problem && <p role="alert" className={styles.error}>{problem}</p>}
         {offline && (
-          <p className={styles.notice}>You are offline. These are the styles saved on this device. Making or changing a style needs a connection.</p>
+          <p className={styles.notice}>You are offline. These are the templates saved on this device. Making or changing a template needs a connection.</p>
         )}
 
         {showOffer && (
-          <section className={styles.notice} aria-label="Set Kind of note from Research Type">
-            <span>{`You have ${plural(offer.total, 'note', 'notes')} with a Research Type. Set their Kind of note to match?`}</span>
+          <section className={styles.notice} aria-label="Set Note type from Research Type">
+            <span>{`You have ${plural(offer.total, 'note', 'notes')} with a Research Type. Set their Note type to match?`}</span>
             <button type="button" className={styles.btn} onClick={applyOffer} disabled={locked}>Set kinds</button>
             <button type="button" className={styles.btn} onClick={notNow}>Not now</button>
           </section>
         )}
 
-        {isLoading && !data && <p className={styles.hint}>Loading your styles…</p>}
+        {isLoading && !data && <p className={styles.hint}>Loading your templates…</p>}
         {error && !data && (
           <p role="alert" className={styles.error}>
             {friendlyError(error)}{' '}
@@ -369,7 +369,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
               <div className={styles.rowActions}>
                 <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
                   onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
-                  <UIcon name="plus" size={14} gold={false} /> New style
+                  <UIcon name="plus" size={14} gold={false} /> New template
                 </button>
                 {starter.on && (
                   <button type="button" className={`${styles.btn} ${styles.quiet}`} onClick={starter.open}>Starter packs</button>
@@ -408,7 +408,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                     <h3 id={`js-kind-${k.id}`} className={styles.kindHead}>
                       <UIcon name={iconFor(k)} size={14} gold={false} />{k.name}
                     </h3>
-                    {list.length === 0 ? <p className={styles.hint}>No styles for this kind yet.</p> : (
+                    {list.length === 0 ? <p className={styles.hint}>No templates for this note type yet.</p> : (
                       <ul className={styles.styleList}>
                         {list.map((s) => (
                           <li key={s.id} className={styles.styleRow} tabIndex={-1}
@@ -468,7 +468,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                         </form>
                       ) : confirmKind === k.id ? (
                         <>
-                          <p className={styles.hint}>{`Delete the kind ${k.name}? Styles you deleted that used it are removed permanently.`}</p>
+                          <p className={styles.hint}>{`Delete the kind ${k.name}? Templates you deleted that used it are removed permanently.`}</p>
                           <div className={styles.rowActions}>
                             <button type="button" ref={confirmYesRef} className={`${styles.btn} ${styles.danger}`} disabled={locked}
                               onClick={() => removeKind(k)}>{`Yes, delete kind ${k.name}`}</button>
@@ -494,7 +494,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                     </li>
                   ))}
                 </ul>
-                <form className={styles.kindForm} onSubmit={addKind} aria-label="Add a kind of note">
+                <form className={styles.kindForm} onSubmit={addKind} aria-label="Add a note type">
                   <div className={styles.field}>
                     <label htmlFor="js-kind-name">New kind name</label>
                     <input id="js-kind-name" type="text" value={newKind.name} maxLength={MAX_KIND_NAME}
@@ -515,12 +515,12 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
             <div className={styles.editorCol}>
               {editing ? (
                 <>
-                  <h3 className={styles.kindHead} tabIndex={-1} ref={editorHeadRef}>{editing.style.id ? 'Edit style' : 'New style'}</h3>
+                  <h3 className={styles.kindHead} tabIndex={-1} ref={editorHeadRef}>{editing.style.id ? 'Edit template' : 'New template'}</h3>
                   <StyleEditor key={editing.seq} style={editing.style} kinds={kinds} offline={offline}
                     onSaved={saved} onCancel={closeEditor} onDirtyChange={setEditorDirty} />
                 </>
               ) : (
-                <p className={styles.hint}>Pick a style to edit, or make a new one.</p>
+                <p className={styles.hint}>Pick a template to edit, or make a new one.</p>
               )}
             </div>
           </div>

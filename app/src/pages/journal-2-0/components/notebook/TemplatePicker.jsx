@@ -364,7 +364,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   if (galleryOn && community) {
     return (
       <div className={styles.wrap}>
-        <Suspense fallback={<p role="status">Loading the community gallery…</p>}>
+        <Suspense fallback={<p role="status">Loading the Template library…</p>}>
           <TemplateGallery
             onBack={() => { setCommunity(false); setBackToDoor(true) }}
             onUseNow={onPickMember}
@@ -467,7 +467,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
             data-tour="template-gallery-door"
           >
             <UIcon name="community" size={14} gold={false} />
-            <span>Browse the community gallery</span>
+            <span>Browse the Template library</span>
           </button>
         )}
       </div>

@@ -70,7 +70,7 @@ describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {
     await settle()
     expect(offers()).toHaveLength(1)
     expect(dialog.contains(offers()[0])).toBe(true)
-    expect(screen.getAllByRole('group', { name: 'Start from a kind of note' })).toHaveLength(1)
+    expect(screen.getAllByRole('group', { name: 'Start from a template' })).toHaveLength(1)
   })
 
   // Item 9: the Community library tour's step 1 waits for this door, and moves on when it is a NEW element
@@ -95,7 +95,7 @@ describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {
     render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
     await screen.findByRole('region', { name: OFFER_TITLE }, T)
     fireEvent.click(document.querySelector('[data-tour="styles-button"]'))
-    const manager = await screen.findByRole('dialog', { name: 'Journal styles' }, T)
+    const manager = await screen.findByRole('dialog', { name: 'Manage templates' }, T)
     await waitFor(() => expect(offers().some((o) => manager.contains(o))).toBe(true), T)
     await settle()
     expect(offers()).toHaveLength(1)

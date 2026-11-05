@@ -23,10 +23,16 @@ vi.mock('../components/notebook/NoteEditorPage', async () => {
   return {
     default: function NoteEditorStub({ noteId, openFocus }) {
       const title = useRef(null)
-      useEffect(() => { if (openFocus === 'title') title.current?.focus() }, [openFocus])
+      const body = useRef(null)
+      // S9: 'field' is the note's first field, in the body (the real editor: lib/firstFieldPos.js).
+      useEffect(() => {
+        if (openFocus === 'title') title.current?.focus()
+        if (openFocus === 'field') body.current?.focus()
+      }, [openFocus])
       return (
         <div data-testid="note-editor" data-note-id={noteId} data-open-focus={openFocus || ''}>
           <input ref={title} aria-label="Title" />
+          <div ref={body} tabIndex={-1} aria-label="Body" role="textbox" />
         </div>
       )
     },
@@ -130,7 +136,7 @@ describe('creating from a member template', () => {
     fireEvent.click(await within(mine).findByRole('button', { name: 'Preview Weekly review' }))
     const dialog = await screen.findByRole('dialog', { name: 'Weekly review' })
     await within(dialog).findByText('What worked')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Use this template' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use' }))   // S7: "Use this template" is "Use"
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
     const reads = calls.filter((c) => c.url === '/api/j2/note-templates/t1' && c.method === 'GET')
     expect(reads).toHaveLength(1)
@@ -143,7 +149,9 @@ describe('creating from a member template', () => {
 
 // 11.20 walk D1 (major): "Use" from the Template library left the New note sheet open over the new note, focus trapped
 // in it, because the library's Use only navigated. It now lands the note through the SAME door a member template's
-// pick lands through (the sheet closes, the note opens with focus in its title).
+// pick lands through (the sheet closes, the note opens).
+// Audit 2026-11-05, spec S9: that Use is ONE press now (no "Make it yours" sheet), the note is already named, so focus
+// goes to its first field ('field'), never the title.
 // W11-R80 m-1: a real browser refuses focus to an element inside an `inert` subtree (jsdom does not implement that), so
 // these rails make jsdom refuse it too: focus() on an element with an inert ancestor does nothing.
 const realFocus = HTMLElement.prototype.focus
@@ -161,18 +169,15 @@ describe('using a Template library template (wave 11, walk D1)', () => {
     const sheet = await screen.findByRole('dialog', { name: 'New note' })
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
     const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
-    fireEvent.click(within(detail).getByRole('button', { name: 'Use this template' }))
-    const adopt = await screen.findByRole('dialog', { name: ADOPT_TITLE }, { timeout: 4000 })
-    const use = await within(adopt).findByRole('button', { name: 'Use' })
-    await waitFor(() => expect(use).not.toBeDisabled())
-    fireEvent.click(use)
+    fireEvent.click(within(detail).getByRole('button', { name: 'Use' }))
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'lib1'))
-    expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'title')
+    expect(screen.queryByRole('dialog', { name: ADOPT_TITLE })).toBeNull()        // no second sheet
+    expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'field')
     await waitFor(() => expect(newNoteSheet()).toBeNull())
     expect(calls.filter((c) => c.url.endsWith('/use-template'))).toHaveLength(1)
   })
 
-  it("m-1: focus ENDS in the new note's title, with no inert ancestor (the adoption sheet released the page first)", async () => {
+  it("m-1: focus ENDS in the new note's first field, with no inert ancestor (the detail sheet released the page first)", async () => {
     refuseFocusUnderInert()
     latchNotebookFlags({ notebook_widgets_w11_enabled: true })
     const appRoot = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' }))
@@ -182,13 +187,9 @@ describe('using a Template library template (wave 11, walk D1)', () => {
       const sheet = await screen.findByRole('dialog', { name: 'New note' })
       fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
       const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
-      fireEvent.click(within(detail).getByRole('button', { name: 'Use this template' }))
-      const adopt = await screen.findByRole('dialog', { name: ADOPT_TITLE }, { timeout: 4000 })
-      const use = await within(adopt).findByRole('button', { name: 'Use' })
-      await waitFor(() => expect(use).not.toBeDisabled())
-      fireEvent.click(use)
+      fireEvent.click(within(detail).getByRole('button', { name: 'Use' }))
       await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'lib1'))
-      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Title' })))
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Body' })))
       expect(document.activeElement.closest('[inert]')).toBeNull()
       expect(appRoot.hasAttribute('inert')).toBe(false)
     } finally {
