@@ -38,6 +38,30 @@ describe('NLM-1 multi-step rewrites: all steps read, or the whole ORIGINAL messa
     expect(r.turns).toEqual([text])                          // exactly one model call, with the member's own words
     expect(r.after).toBe(r.before)                           // nothing ran before it
     expect(r.said).not.toMatch(/stopped at|Nothing after it was started|Done \d+ of \d+/i)
+    // #806 LOW-1: what ran is taken back as ONE group — one receipt, never "nothing of mine to undo"
+    expect(r.said.match(/Took back all 2 changes from the steps I had started/g) || []).toHaveLength(1)
+    expect(r.said).not.toMatch(/nothing of mine to undo/i)
+  }, 30000)
+
+  it('1b · the take-back itself fails → said honestly (what is still on the board), and the planner is NOT asked', async () => {
+    const m = mountCase('TWO', { seed: { nlm1: true } })
+    await loadAgentConfig()
+    // the member (or another tab) edits the left chart while the steps run: its exact Undo must refuse to overwrite that
+    let n = 0
+    const persist = m.h.persist.bind(m.h)
+    m.h.persist = async (...a) => {
+      n += 1
+      const r = await persist(...a)
+      if (n === 2) { const w = chartsOf(m.board)[0]; m.board.state.widgets = m.board.state.widgets.map(x => (x.id === w.id ? { ...x, color: 'Q' } : x)) }
+      return r
+    }
+    await m.say('make the left chart weekly; then add rsi to it and make it orange')
+    await m.p.idle()
+    const said = String(m.p.transcript())
+    expect(turnsOf(m)).toEqual([])                           // never a plan over a partly reverted board
+    expect(said).toMatch(/1 of the changes I had started is still on your board/)
+    expect(said).toMatch(/didn’t ask the model to try it/)
+    expect(said).not.toMatch(/stopped at “/)
   }, 30000)
 
   it('2 · the clause rewrite with a clause that does not read → declined before anything runs; the planner gets the ORIGINAL text', async () => {

@@ -531,6 +531,14 @@ function refusalText(refusals) {
     : `I didn't change anything:\n${reasons.map(r => `- ${r}`).join('\n')}`
 }
 
+// NLM-1 all-or-nothing (#806): a step READ (not run) that would not run — no ops, a refusal, too many changes
+const stepUnread = (r) => !!r && !r.noop && (!!r.say || !r.ops?.length || r.ops.length > MAX_STEP_OPS)
+// the up-front check can judge only a step that stands on its own: one that refers back ("make it orange" after "…, add
+// the 21 ema") reads only once the step before it has run — the run itself (`whole`) is all or nothing for those
+const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new one|the new chart|the same)\b/i.test(String(t || ""))
+// (`read`: the panel's own step reader — the same one the run uses)
+const preUnread = (step, read) => step.kind !== 'undo' && !refersBack(step.text) && stepUnread(read(step, null))
+
 export default function useAgent({ host, gridMode = false, surface = 'charts' }) {
   // Create Indicator access — the button's own rule (Indicators' createIndicatorAccess: admin +
   // this browser's flag, or the server cohort). It makes indicator.openCreate available or not;
@@ -1682,11 +1690,6 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     return r
   }
-  const stepUnread = (r) => !!r && !r.noop && (!!r.say || !r.ops?.length || r.ops.length > MAX_STEP_OPS)
-  // the up-front check can judge only a step that stands on its own: one that refers back ("make it orange" after "…, add
-  // the 21 ema") reads only once the step before it has run — the run itself (`whole`) is all or nothing for those
-  const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new one|the new chart|the same)\b/i.test(String(t || ""))
-  const preUnread = (step) => step.kind !== "undo" && !refersBack(step.text) && stepUnread(readStepRef.current(step, null))
 
   // `whole` (NLM-1 multi-step REWRITES only): the steps are NLM-1's reading of ONE message the member typed, so they run all
   // or not at all — a step that is not read, or does not go through, never ends in "stopped at …": nothing run yet → the
@@ -1698,10 +1701,23 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     let working = working0
     let done = 0
     const fallBack = async () => {
-      const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
-      for (const id of fresh.reverse()) { if (!(await doUndo(id, { member: null, voice }))) break }
       mark('nlm1:whole-fallback', String(done))
-      return { fallback: true, rolledBack: fresh.length }
+      const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
+      if (!fresh.length) return { fallback: true, rolledBack: 0 }
+      // #806 LOW-1: the request's own entries are taken back as ONE group (newest first, each through its own exact Undo
+      // and checks; one receipt) — never entry by entry through the plain Undo, which already takes the whole request
+      // and then said "nothing of mine to undo" for the rest
+      const ok = fresh.length === 1 ? await doUndoOne(fresh[0], { member: null, voice }) : await undoIds(fresh, { member: null, voice, what: 'from the steps I had started' })
+      const left = fresh.filter(id => undoRef.current.some(e => e.id === id))
+      if (ok && !left.length && lastUndoRef.current !== 'unsaved') return { fallback: true, rolledBack: fresh.length }
+      // the take-back did not fully go through: the board is NOT as the member left it, so the planner is never asked
+      // to plan over it — said plainly, and nothing else runs
+      const text = left.length
+        ? `I couldn’t finish that request step by step, and ${left.length} of the changes I had started ${left.length === 1 ? 'is' : 'are'} still on your board (see above) — I couldn’t take ${left.length === 1 ? 'it' : 'them'} back. I stopped there and didn’t ask the model to try it, so nothing else will change. Check the board, then ask again.`
+        : 'I couldn’t finish that request step by step. I took back what I had started, but that couldn’t be saved (see above). I stopped there and didn’t ask the model to try it. Check the board, then ask again.'
+      push({ role: 'agent', text })
+      record({ member, outcome: text, outcomeData: { kind: 'compound-takeback-failed', left: left.length, of: fresh.length }, telemetry: { path: 'fast', refused: true, voice } })
+      return { done: true, takebackFailed: true }
     }
     const stop = (i, why) => {
       const rest = steps.slice(i).map(s => `“${s.text}”`)
@@ -1776,7 +1792,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // (doUndo's group path: each entry's own exact Undo and checks). Off: each step keeps its own entry, as before.
     if (routingV2Active()) groupFresh(idsAtStart)
     return { done: true }
-  }, [host, execute, push, record, doUndo])
+  }, [host, execute, push, record, doUndo, doUndoOne, undoIds])
   runCompoundRef.current = runCompound
   // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
   v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef,
@@ -1845,11 +1861,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           // D3.3: an explicit form counts as read when a reader OR an NLM-1 mechanism (a created-chart plan, a command at a
           // referent set, a swap, a follow-up over the request so far) takes it — "already read as typed" stays the readers only
           const nlmTakes = (t) => { try { return !!(planCreatedReference(t, host)?.ops || resolveFollowUpOps(t, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })?.ops) } catch { return false } }
+          let nlm1FellBack = false
           let rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: (t) => reads(t) || nlmTakes(t), originalClaimed: typed })
           // ⛔ ALL OR NOTHING (AUDIT, #806): a reading made of STEPS is taken only when EVERY step reads on this board now —
           // otherwise NLM-1 declines and the member's message goes on exactly as typed (to the planner, as v1 sends it).
           // NLM-1 never stops a request v1 would have handed to the planner.
-          const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => preUnread({ kind: 'fast', text: x })) : -1
+          const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => preUnread({ kind: 'fast', text: x }, readStepRef.current)) : -1
           if (unreadStep >= 0) { mark('nlm1:rewrite-declined', `${rw.rule}:${unreadStep}`); rw = null }
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
           // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
@@ -1860,8 +1877,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             referentsRef.current.note(memoryRef.current.currentTurn(), rw.steps[rw.steps.length - 1])
             const ran = await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice, whole: true })
             if (!ran?.fallback) return ran
-            // a step did not go through after all (anything run was taken back): the member's ORIGINAL message, as v1 sends it
+            // a step did not go through after all (anything run was taken back): the member's ORIGINAL message, as v1 sends
+            // it — never through the NLM-1 mechanisms again (#806 LOW-2); the taken-back request is no referent
+            referentsRef.current.forget(memoryRef.current.currentTurn())
             text = String(raw || '').trim()
+            nlm1FellBack = true
           }
           // D2/D3.1 (nlm1/followupOps.js): a follow-up no reader takes, as OPERATIONS — chart referent sets (positions,
           // ordinals, quantifiers), repeat / additive copies of the last request, "back to" inversion from the snapshot
@@ -1869,7 +1889,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           const conv = (() => { try { return resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochOf(host) }) } catch { return null } })()
           // (D3.3: also when the message WAS rewritten to a form only an NLM-1 mechanism takes — "give AMD rsi" → "add rsi to
           // AMD" — the readers would hand that to the model)
-          if (!(rw ? reads(text) : typed) && !conv) {
+          if (!nlm1FellBack && !(rw ? reads(text) : typed) && !conv) {
             const fo = resolveFollowUpOps(text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [],
               before: last ? referentsRef.current.stateBefore(last.id) : null })
             if (fo?.say) {
@@ -2242,7 +2262,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // member's ORIGINAL message goes on to the model, exactly as v1 sends it — never "stopped at …" where v1 would ask
         const typed = String(raw || '').trim()
         const reworded = text !== typed
-        const unread = reworded && compound.steps.some(preUnread)
+        const unread = reworded && compound.steps.some(st => preUnread(st, readStepRef.current))
         if (!unread) {
           const ran = await runCompound(compound.steps, { member: text, voice, whole: reworded })
           if (!ran?.fallback) return ran

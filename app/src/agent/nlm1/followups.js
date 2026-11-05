@@ -64,6 +64,8 @@ export function createReferents() {
       while (turns.size > MAX_TURNS) turns.delete(turns.keys().next().value)
     },
     textOf(turnId) { return turns.has(turnId) ? turns.get(turnId) : null },
+    // a request that was taken back is no referent: "same for QQQ" after it must not repeat what is no longer there
+    forget(turnId) { turns.delete(turnId); states.delete(turnId) },
     clear() { turns.clear(); states.clear() },
   }
 }
