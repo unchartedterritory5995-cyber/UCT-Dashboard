@@ -78,6 +78,27 @@ export const INDICATOR_FIELDS = [
 // types, so it is matched there and typed as the member said it.
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 let catalogCache = null
+const optionLabel = (input, value) => {
+  for (const o of input?.options || []) {
+    const [v, l] = Array.isArray(o) ? o : [o?.value, o?.label]
+    if (v === value) return String(l)
+  }
+  return null
+}
+// what a new instance is called before anyone changes it, for a definition named after its own inputs: a new Moving Average
+// is "SMA 5", whichever kind the member asked for. Read from the definition's defaults (meta.nameFrom), never a hand list.
+function freshInstance(r) {
+  let def = null
+  try { def = nativeRegistry.getDefinition(r.id) } catch { def = null }
+  const from = def?.meta?.nameFrom
+  const inputs = def?.inputs || r.inputs || []
+  if (!from) return null
+  const stem = inputs.find(i => i.key === from.stem)
+  const length = inputs.find(i => i.key === (from.params || [])[0])
+  const stemLabel = optionLabel(stem, stem?.default)
+  if (!stemLabel || length?.default == null) return null
+  return { stem: stemLabel, stemField: stem.label || 'Type', length: String(length.default), lengthField: length.label || 'Period' }
+}
 function catalog() {
   if (catalogCache) return catalogCache
   let rows = []
@@ -85,10 +106,11 @@ function catalog() {
   const out = []
   for (const r of rows) {
     const say = r.shortName || r.name
-    for (const w of new Set([r.name, r.shortName].filter(Boolean))) out.push({ word: w, id: r.id, name: r.name, say })
+    const fresh = freshInstance(r)
+    for (const w of new Set([r.name, r.shortName].filter(Boolean))) out.push({ word: w, id: r.id, name: r.name, say, fresh })
     for (const i of r.inputs || []) {
       if (i?.type !== 'enum' || !/type/i.test(`${i.key} ${i.label}`)) continue
-      for (const o of i.options || []) if (/^[A-Z]{2,5}$/.test(String(o.label))) out.push({ word: o.label, id: r.id, name: r.name, say: o.label, perLength: true })
+      for (const o of i.options || []) if (/^[A-Z]{2,5}$/.test(String(o.label))) out.push({ word: o.label, id: r.id, name: r.name, say: o.label, perLength: true, fresh })
     }
   }
   // the longest name first: "Stochastic RSI" is not "RSI"
@@ -103,6 +125,21 @@ function lengthIn(q, word) {
     || new RegExp(`(?:^|[^a-z0-9])${w}[ (-]*(\\d{1,3})(?:$|[^0-9.])`).exec(q)
   return m ? m[1] : null
 }
+// what the add walkthrough may say once it is done: the instance that really went on, and what is left for the member to set.
+// It never claims a type or a length that was not applied.
+function afterAdding(hit, q) {
+  const f = hit.fresh
+  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colours and pane.' }
+  const addedSay = `${f.stem} ${f.length}`
+  const n = lengthIn(q, hit.word)
+  const sets = [
+    ...(hit.perLength && hit.say !== f.stem ? [`${f.stemField} to ${hit.say}`] : []),
+    ...(n && n !== f.length ? [`${f.lengthField} to ${n}`] : []),
+  ]
+  return { addedSay, addedRow: addedSay, addNext: sets.length
+    ? ` That’s what a new one starts as. Click it here, then set ${sets.join(' and ')}.`
+    : ' Click it here to change its settings, colours and pane.' }
+}
 /** The one catalog indicator the words name → { id, name, say, label, labelName } | null. `say` is what to search for, and
  *  `label` is the one on the chart: "EMA 20" when the words give its length, so the EMA 9 above it is not taken for it. */
 export function readIndicator(text) {
@@ -111,8 +148,7 @@ export function readIndicator(text) {
   if (!hit) return null
   const n = hit.perLength ? lengthIn(q, hit.word) : null
   const label = n ? `${hit.say} ${n}` : hit.say
-  // a new one starts at its default length, so the walkthrough that adds it says how to reach the one asked for
-  return { ...hit, label, labelName: n ? label : hit.name, lengthNote: n ? ` It starts at its default length: set it to ${n} under Period.` : '' }
+  return { ...hit, label, labelName: n ? label : hit.name, ...afterAdding(hit, q) }
 }
 
 // widgets/registry.js: the product's own menu, and its own words for each widget
