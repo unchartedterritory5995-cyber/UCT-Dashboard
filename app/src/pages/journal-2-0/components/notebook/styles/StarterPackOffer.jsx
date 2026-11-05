@@ -23,7 +23,8 @@ import { STYLES_URL } from '../../../lib/journalStyles'
 import { starterPacksEnabled } from '../../../lib/starterPacksFlag'
 import { PACKS, STARTER_PACK_PREF, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
 import { logIfUnexpected } from './styleErrors'
-import { useFirstRunShowing } from '../../../lib/firstRun'
+import { FIRST_RUN_MARKS, useFirstRunShowing } from '../../../lib/firstRun'
+import { TIPS_PREF, seenTips } from '../../../lib/notebookTips'
 import styles from './StarterPackOffer.module.css'
 
 export const OFFER_TITLE = 'How do you trade?'
@@ -74,7 +75,11 @@ export function useStarterPackOffer(data, active = true) {
   // Audit 2026-11-05, S16: the 60-second first run asks "How do you trade?" itself; while it is on screen no card
   // asks it again (one ask per page). A Skip closes it, and the card may then ask here, inline (S17).
   const firstRunShowing = useFirstRunShowing()
-  const eligible = on && ready && !readFailed && !owed && !firstRunShowing
+  // Tier 3a fix round 1 (review I3): once the member has SEEN the first run, it (or Home's inline ask after a Skip)
+  // is the ONE place that asks. This card no longer opens by itself for them; Manage templates' own "Starter packs"
+  // link still opens it on request.
+  const firstRunSeen = seenTips(prefs?.[TIPS_PREF]).has(FIRST_RUN_MARKS.shown)
+  const eligible = on && ready && !readFailed && !owed && !firstRunShowing && !firstRunSeen
     && readStarterPackState(prefs) === null
     && !(data.styles || []).some((s) => !s.builtin)
   // The answer an install made for THIS member could not write (see unwrittenAnswers), written now that they are

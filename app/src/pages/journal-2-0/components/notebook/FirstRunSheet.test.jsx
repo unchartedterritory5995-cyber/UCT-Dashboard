@@ -91,7 +91,7 @@ describe('when it shows', () => {
   it('CONTROL: not for a member with notes, not once seen, not while the counts load, not with the packs off', () => {
     expect(firstRunIsDue({ enabled: true, prefsReady: true, tipsRaw: null, notesKnown: true, hasAnyNotes: false })).toBe(true)
     expect(firstRunIsDue({ enabled: true, prefsReady: true, tipsRaw: null, notesKnown: true, hasAnyNotes: true })).toBe(false)
-    expect(firstRunIsDue({ enabled: true, prefsReady: true, tipsRaw: { v: 1, seen: ['first_run'] }, notesKnown: true, hasAnyNotes: false })).toBe(false)
+    expect(firstRunIsDue({ enabled: true, prefsReady: true, tipsRaw: { v: 1, seen: ['first-run'] }, notesKnown: true, hasAnyNotes: false })).toBe(false)
     expect(firstRunIsDue({ enabled: true, prefsReady: true, tipsRaw: null, notesKnown: false, hasAnyNotes: false })).toBe(false)
     expect(firstRunIsDue({ enabled: true, prefsReady: false, tipsRaw: null, notesKnown: true, hasAnyNotes: false })).toBe(false)
     expect(firstRunIsDue({ enabled: false, prefsReady: true, tipsRaw: null, notesKnown: true, hasAnyNotes: false })).toBe(false)
@@ -100,7 +100,7 @@ describe('when it shows', () => {
   })
 
   it('Settings opens it again for anyone, once (the request is dropped from the history entry)', async () => {
-    P.prefs = { notebook_tips: { v: 1, seen: ['first_run', 'first_run_built'] } }
+    P.prefs = { notebook_tips: { v: 1, seen: ['first-run', 'first-run-built'] } }
     const onOpenNote = vi.fn()
     render(
       <MemoryRouter initialEntries={[{ pathname: '/journal/notebook', state: { [FIRST_RUN_STATE]: true } }]}>
@@ -274,7 +274,7 @@ describe('Skip', () => {
     render(<MemoryRouter><FirstRunInlineSlot /></MemoryRouter>)
     expect(screen.queryByRole('region')).toBeNull()
     cleanup()
-    P.prefs = { notebook_tips: { v: 1, seen: ['first_run', 'first_run_skipped', 'first_run_built'] } }
+    P.prefs = { notebook_tips: { v: 1, seen: ['first-run', 'first-run-skipped', 'first-run-built'] } }
     render(<MemoryRouter><FirstRunInlineSlot /></MemoryRouter>)
     expect(screen.queryByRole('region')).toBeNull()
   })
@@ -293,5 +293,69 @@ describe('one "How do you trade?" at a time', () => {
     act(() => setFirstRunShowing(false))
     render(<Probe />)
     await waitFor(() => expect(offer.show).toBe(true))                  // CONTROL: the card itself still works
+  })
+})
+
+describe('Tier 3a fix round 1', () => {
+  it('minor 7: Escape while Build runs neither closes the sheet nor records a Skip', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    const real = global.fetch
+    global.fetch = vi.fn((url, opts) => (String(url) === '/api/j2/notes/daily' ? gate.then(() => real(url, opts)) : real(url, opts)))
+    mount()
+    const d = await screen.findByRole('dialog', { name: FIRST_RUN_COPY.title })
+    await fillAndBuild(d)
+    await waitFor(() => expect(within(d).getByRole('button', { name: FIRST_RUN_COPY.building })).toBeDisabled())
+    fireEvent.keyDown(document.activeElement || d, { key: 'Escape' })
+    fireEvent.keyDown(d, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: FIRST_RUN_COPY.title })).toBeInTheDocument()
+    release()
+    await within(d).findByRole('list', { name: 'What was built' })
+    expect(seen().has(FIRST_RUN_MARKS.skipped)).toBe(false)
+    expect(telemetry().some((t) => t.event === 'first_run_skipped')).toBe(false)
+  })
+
+  it('minor 8: a double press on Undo removes each template once', async () => {
+    window.matchMedia = vi.fn((q) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }))
+    mount()
+    const d = await screen.findByRole('dialog', { name: FIRST_RUN_COPY.title })
+    await fillAndBuild(d)
+    const undo = await within(d).findByRole('button', { name: 'undo' })
+    act(() => { undo.click(); undo.click() })
+    await within(d).findByText('Templates removed. They are in Recently deleted if you want them back.')
+    expect(S.calls.filter((c) => c.method === 'DELETE')).toHaveLength(3)
+  })
+
+  it('minor 12: the tickers question names its group, and step 2 takes focus on its heading with a live list', async () => {
+    window.matchMedia = vi.fn((q) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }))
+    mount()
+    const d = await screen.findByRole('dialog', { name: FIRST_RUN_COPY.title })
+    expect(within(d).getByRole('group', { name: "Three tickers you're watching right now" })).toBeInTheDocument()
+    await fillAndBuild(d)
+    const head = await within(d).findByRole('heading', { name: 'Step 2 of 2' })
+    await waitFor(() => expect(document.activeElement).toBe(head))
+    expect(within(d).getByRole('list', { name: 'What was built' })).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('minor 6: when a race made a second "My names", names go to the OLDEST', async () => {
+    const { addMyNames } = await import('../../lib/myNames')
+    // Another device made one in the same moment: this tab's read saw none, its create is the second.
+    let reads = 0
+    const real = global.fetch
+    global.fetch = vi.fn((url, opts = {}) => {
+      const u = String(url)
+      if (u.startsWith('/api/watchlists?')) {
+        reads += 1
+        const lists = reads === 1 ? [] : [{ id: 'twin', name: 'My names', created_at: '2026-11-05T10:00:01Z', items: [] },
+          { id: 'first', name: 'My names', created_at: '2026-11-05T10:00:00Z', items: [] }]
+        return json(200, lists)
+      }
+      if (u === '/api/watchlists' && opts.method === 'POST') return json(200, { id: 'twin', name: 'My names' })
+      return real(url, opts)
+    })
+    S.lists = [{ id: 'first', name: 'My names', items: [] }]
+    const out = await addMyNames(['NVDA'])
+    expect(out.listId).toBe('first')
+    expect(S.calls.some((c) => c.url === '/api/watchlists/first/items/bulk')).toBe(true)
   })
 })

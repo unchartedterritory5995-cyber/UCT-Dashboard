@@ -4,23 +4,23 @@
 // ⛔ PER ACCOUNT, never per device. The first run's marks ride the Notebook's one-time-tips preference
 // (`notebook_tips` = {v:1, seen:[ids]}, lib/notebookTips.js, Tier 2), written through `setPrefMerged`, so a phone and
 // a desktop agree. Its server allow-list row already exists (api/routers/auth.py `notebook_tips`). The ids:
-//   first_run          the sheet was SHOWN (recorded when it shows, so a reload or a second tab never reopens it);
-//   first_run_skipped  the member pressed Skip: Home then asks the same two things inline (S17);
-//   first_run_built    Build landed: nothing asks again;
-//   first_run_inline   the member closed the inline ask on Home.
+//   first-run          the sheet was SHOWN (recorded when it shows, so a reload or a second tab never reopens it);
+//   first-run-skipped  the member pressed Skip: Home then asks the same two things inline (S17);
+//   first-run-built    Build landed: nothing asks again;
+//   first-run-inline   the member closed the inline ask on Home.
 //
 // ⛔ WHO IT IS FOR: a member on their first Notebook visit -- no notes yet (the same "is this member new?" NotebookTab
 // derives once for the tour) -- while the starter packs are on (they are the "How do you trade?" it asks; always on
 // in production since 2026-11-04). Settings opens it again for anyone ("Set up my Notebook"), with
 // `location.state.openFirstRun`.
 import { useSyncExternalStore } from 'react'
-import { seenTips } from './notebookTips'
+import { TIP_IDS, seenTips } from './notebookTips'
 
 export const FIRST_RUN_MARKS = Object.freeze({
-  shown: 'first_run',
-  skipped: 'first_run_skipped',
-  built: 'first_run_built',
-  inlineClosed: 'first_run_inline',
+  shown: TIP_IDS.firstRun,
+  skipped: TIP_IDS.firstRunSkipped,
+  built: TIP_IDS.firstRunBuilt,
+  inlineClosed: TIP_IDS.firstRunInline,
 })
 
 /** The navigation state Settings sends to open the first run again. */

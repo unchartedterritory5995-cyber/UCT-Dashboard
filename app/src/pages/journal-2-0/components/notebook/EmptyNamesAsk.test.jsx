@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EmptyNamesAsk, { IMPORT_LABEL, NAMES_ASK } from './EmptyNamesAsk'
 import { __resetMyNamesQueue, MY_NAMES_LIST } from '../../lib/myNames'
 import MyWatchlistTodayEmbed from './widgets/MyWatchlistTodayEmbed'
-import { FIRST_LIVE_WIDGET_KEY, __setFirstLiveWidgetForTests } from '../../lib/notebookTelemetry'
 
 const S = { lists: [], calls: [] }
 const json = (status, body) => Promise.resolve({ ok: status < 300, status, json: () => Promise.resolve(body) })
@@ -121,23 +120,5 @@ describe('My watchlist today with no names (S17)', () => {
     render(<MyWatchlistTodayEmbed attrs={full} height={300} />)
     expect(screen.getByTestId('my-watchlist-today-embed').style.height).toBe('300px')
     expect(screen.getByRole('table')).toBeInTheDocument()
-  })
-})
-
-describe('S20: the first live widget (the "aha")', () => {
-  it("My watchlist today with the member's own names sends first_live_widget once per browser", () => {
-    __setFirstLiveWidgetForTests(true)
-    localStorage.removeItem(FIRST_LIVE_WIDGET_KEY)
-    const attrs = { widgetId: 'myWatchlistToday', params: { rows: [{ symbol: 'NVDA' }, { symbol: 'AMD' }], asOf: 'x' } }
-    render(<MyWatchlistTodayEmbed attrs={attrs} />)
-    render(<MyWatchlistTodayEmbed attrs={attrs} />)
-    const sent = S.calls.filter((c) => c.url === '/api/j2/telemetry')
-    expect(sent.map((c) => c.body)).toEqual([{ event: 'first_live_widget', props: { source: 'watchlist', names: 2 } }])
-  })
-  it('CONTROL: an empty widget sends nothing', () => {
-    __setFirstLiveWidgetForTests(true)
-    localStorage.removeItem(FIRST_LIVE_WIDGET_KEY)
-    render(<MyWatchlistTodayEmbed attrs={{ widgetId: 'myWatchlistToday', params: { rows: [] } }} />)
-    expect(S.calls.filter((c) => c.url === '/api/j2/telemetry')).toEqual([])
   })
 })

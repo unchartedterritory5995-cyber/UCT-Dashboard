@@ -3,7 +3,7 @@
 // tests/test_notebook_telemetry_events.py, which reads THIS module's source.
 import { describe, it, expect, vi } from 'vitest'
 import {
-  NOTEBOOK_EVENTS, EVENT_SCHEMAS, CORE_ACTION_EVENTS, sanitizeProps, trackNotebookEvent, startNoteOpenTimer, markFirstLiveWidget, __setFirstLiveWidgetForTests,
+  NOTEBOOK_EVENTS, EVENT_SCHEMAS, CORE_ACTION_EVENTS, sanitizeProps, trackNotebookEvent, startNoteOpenTimer,
 } from './notebookTelemetry'
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
@@ -190,16 +190,5 @@ describe('S20 - the return-metric events carry counts and enums, never a ticker 
   it('trust_incident is one of its two kinds', () => {
     expect(sanitizeProps('trust_incident', { kind: 'publish_undone', ms: 1 })).toEqual({ kind: 'publish_undone', ms: 1 })
     expect(sanitizeProps('trust_incident', { kind: 'my note title' }).kind).toBe('other')
-  })
-  it('markFirstLiveWidget sends ONCE per browser, and nothing for zero names', () => {
-    __setFirstLiveWidgetForTests(true)
-    const store = new Map()
-    const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
-    const f = vi.fn(() => Promise.resolve({ ok: true }))
-    expect(markFirstLiveWidget('watchlist', 0, { fetchImpl: f, storage })).toBeNull()
-    expect(markFirstLiveWidget('watchlist', 3, { fetchImpl: f, storage })).toEqual({ source: 'watchlist', names: 3 })
-    expect(markFirstLiveWidget('reporting', 2, { fetchImpl: f, storage })).toBeNull()
-    expect(f).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(f.mock.calls[0][1].body).event).toBe('first_live_widget')
   })
 })

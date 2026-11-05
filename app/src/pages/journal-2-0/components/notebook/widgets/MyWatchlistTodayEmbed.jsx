@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
-import { markFirstLiveWidget } from '../../../lib/notebookTelemetry'
+import { useFirstLiveWidget } from '../../../lib/firstLiveWidget'
 import EmptyNamesAsk, { NAMES_ASK } from '../EmptyNamesAsk'
 import { fmtShortDay } from '../../../lib/earningsPrepShared'
 import SnapshotFrame, {
@@ -18,7 +17,7 @@ export default function MyWatchlistTodayEmbed({ attrs, height = 300, editable = 
   const sourceLine = [list, partial, extra].filter(Boolean).join(' ') || null
 
   // S20 "First aha": the first time this widget shows the member's own tickers (once per browser).
-  useEffect(() => { if (rows.length > 0) markFirstLiveWidget('watchlist', rows.length) }, [rows.length])
+  useFirstLiveWidget('watchlist', rows.length)
 
   // S17 (M7): with no names it ASKS -- one sentence, an inline input, three suggestions -- and it reserves no blank
   // space: the fixed height applies only to the table. A read-only copy says what it needs, nothing to press.

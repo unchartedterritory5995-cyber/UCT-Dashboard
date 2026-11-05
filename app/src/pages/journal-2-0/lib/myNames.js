@@ -48,7 +48,9 @@ export async function ownLists({ items = false } = {}) {
 
 /** The "My names" list, or null. */
 export function findMyNames(lists) {
-  return (lists || []).find((l) => l && l.name === MY_NAMES_LIST && !l.is_flagged_list && !l.is_prebuilt) || null
+  // The OLDEST, when a race ever made two (review minor 6): every tab then agrees on one.
+  const all = (lists || []).filter((l) => l && l.name === MY_NAMES_LIST && !l.is_flagged_list && !l.is_prebuilt)
+  return all.sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))[0] || null
 }
 
 let queue = Promise.resolve()
@@ -70,6 +72,14 @@ export function addMyNames(symbols) {
     if (!list) {
       list = await call('/api/watchlists', { method: 'POST', body: JSON.stringify({ name: MY_NAMES_LIST }) })
       created = true
+      // Review minor 6: another tab or device may have made one in the same moment. Read again and add to the OLDEST
+      // "My names", so every write from here on lands in one list (an empty twin, if one was made, is left alone:
+      // nothing here ever deletes a list).
+      const all = (await ownLists()).filter((l) => l && l.name === MY_NAMES_LIST && !l.is_flagged_list && !l.is_prebuilt)
+      if (all.length > 1) {
+        const oldest = [...all].sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))[0]
+        if (oldest.id !== list.id) { list = oldest; created = false }
+      }
     }
     const out = await call(`/api/watchlists/${encodeURIComponent(list.id)}/items/bulk`, {
       method: 'POST', body: JSON.stringify({ symbols: names }),
