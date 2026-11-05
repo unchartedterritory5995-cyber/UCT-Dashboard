@@ -10,6 +10,9 @@ import { getCapability } from './capabilities'
 import { CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { RANGE_OPTS } from '../components/chart/rangeOptions'
 import { anyAverageOn, withAveragesShown } from '../components/chart/averageVisibility'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -155,6 +158,18 @@ describe('chartSetup.resetView: right-click → Reset view', () => {
     expect(getCapability('chartSetup.resetView').undo).toBe('none')
     expect(getCapability('chartSetup.setRange').undo).toBe('exact')
   }, 40000)
+  it('the receipt says the price scale was reset, and the chart\'s reset really drops a dragged scale', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    withView(h, { activeRange: 12 })
+    p.st.envelopes.push(op('chartSetup.resetView', {}))
+    expect(await say('reset the view')).toMatch(/price scale back on auto/)
+    // canvas charts do not run in jsdom, so this reads the ONE reset both the button and the Agent call
+    const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../components/StockChart.jsx'), 'utf8')
+    const body = src.slice(src.indexOf('const doResetView = () => {'), src.indexOf('resetViewRef.current = doResetView'))
+    expect(body).toMatch(/priceManualRef\.current = false/)
+    expect(body).toMatch(/priceManualRangeRef\.current = null/)
+    expect(body).toMatch(/autoScale: true/)
+  }, 40000)
   it('already at the default view: a no-op', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
     const v = withView(h, { atDefaultView: true })
@@ -162,6 +177,14 @@ describe('chartSetup.resetView: right-click → Reset view', () => {
     expect(await say('reset the view')).toMatch(/already at its default view/)
     expect(v.calls).toEqual([])
   }, 40000)
+})
+
+describe('the module rename', () => {
+  it('averageVisibility.js is the one module; movingAverageVisibility.js is gone', () => {
+    const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../components/chart')
+    expect(existsSync(resolve(dir, 'averageVisibility.js'))).toBe(true)
+    expect(existsSync(resolve(dir, 'movingAverageVisibility.js'))).toBe(false)
+  })
 })
 
 describe('chartSetup.setIndicatorsHidden: Alt+Shift+I', () => {
