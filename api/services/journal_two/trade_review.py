@@ -272,6 +272,21 @@ def forget_review(review_id: str, *, user_id: str, conn=None) -> int:
             _conn.close()
 
 
+def replaces_forgotten(user_id: str, trade_id: str, conn=None) -> bool:
+    """Would a generate for this trade re-buy a review the member forgot? See
+    `coach.replaces_forgotten`: forget + generate is the regenerate door."""
+    _conn, _close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            "SELECT forgotten FROM j2_trade_reviews WHERE user_id = ? AND trade_id = ?",
+            (user_id, trade_id),
+        ).fetchone()
+        return bool(row and row[0])
+    finally:
+        if _close:
+            _conn.close()
+
+
 def _row_to_dict(row) -> dict:
     if row is None:
         return None

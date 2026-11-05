@@ -480,6 +480,46 @@ def forget_review(review_id: str, *, user_id: str | None = None, conn=None) -> i
             _conn.close()
 
 
+def restore_review(review_id: str, *, user_id: str, conn=None) -> int:
+    """Undo `forget_review` when the regeneration that replaced it failed."""
+    _conn, _should_close = _get_conn(conn)
+    try:
+        cur = _conn.execute(
+            "UPDATE j2_coach_outputs SET forgotten = 0 WHERE id = ? AND user_id = ?",
+            (review_id, user_id),
+        )
+        _conn.commit()
+        return cur.rowcount
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def replaces_forgotten(
+    user_id: str, account_id: str, output_type: str, period_key: str, period: str, *, conn=None,
+) -> bool:
+    """Would a generate for this period re-buy an output the member forgot?
+
+    Forget is free and must stay free, and generate is idempotent only while a live
+    row exists, so forget + generate was the regenerate door without its daily
+    ceiling. `period_key` is a code constant (`week_start`, `day`)."""
+    _conn, _should_close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            f"""
+            SELECT MIN(forgotten)
+              FROM j2_coach_outputs
+             WHERE user_id = ? AND account_id = ? AND output_type = ?
+               AND json_extract(metadata, '$.{period_key}') = ?
+            """,
+            (user_id, account_id, output_type, period),
+        ).fetchone()
+        return bool(row[0])          # NULL: never generated. 0: a live row answers it.
+    finally:
+        if _should_close:
+            _conn.close()
+
+
 # ---------------------------------------------------------------------------
 # EOD Recap (Phase G v2)
 # ---------------------------------------------------------------------------
