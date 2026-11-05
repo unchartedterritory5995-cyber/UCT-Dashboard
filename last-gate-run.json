@@ -2,7 +2,7 @@
   "master_sha": "57d90b405cf9638793ce373895f4f052fa9afe96",
   "gate_run_id": "42058147089",
   "gate_conclusion": "success",
-  "promoted": "no",
-  "production_head_after": "b9319e48ce6ada098b847233068178374ad4042d",
-  "ts": "2026-11-05T16:09:20.397491Z"
+  "promoted": "57d90b405cf9638793ce373895f4f052fa9afe96",
+  "production_head_after": "57d90b405cf9638793ce373895f4f052fa9afe96",
+  "ts": "2026-11-05T16:18:02.732080Z"
 }
