@@ -30,7 +30,7 @@ import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } fr
 import { scopeHostToGrid } from './host'
 import { screenGridOps } from './gridMode'
 import { bindCreated } from './createdBinding'
-import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps, INTERNAL_ERROR } from './executor'
+import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps, INTERNAL_ERROR, rethrowUnderTest } from './executor'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -2714,7 +2714,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const gridAsk0 = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
       // a grid that could not run either way (an unknown ticker, no room) is never asked about — its refusal is said as before
       const gridAsk = gridAsk0 && await (async () => {
-        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
+        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch (e) { rethrowUnderTest(e); return false }
       })() ? gridAsk0 : null
       if (gridAsk) {
         // review t4 M5: "…charts, each with a 50 SMA" — the per-chart steps ride with BOTH choices (they run on the charts the

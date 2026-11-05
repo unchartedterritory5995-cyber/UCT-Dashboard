@@ -11,6 +11,7 @@ import { buildDrawingSource } from './host'
 import { _resetAlertCache } from './capabilities/alert'
 import * as store from '../components/chart/drawingsStore'
 import { setupPanel, ONE } from './testing/panelHarness'
+import { preflightRefusals } from './nl1/interpreter'
 
 registerBuiltins()
 const CTX = { surface: 'charts' }
@@ -173,6 +174,32 @@ describe('a capability that throws while planning', () => {
       expect(console.error).toHaveBeenCalled()
     })
   }
+  it('in confirmIf: rethrown under test, refused and coded in production', async () => {
+    const h = host()
+    const first = await plan(h, [LEVEL()])
+    await commitPlan(h, first.p, { env: first.env })
+    const ops = [op('drawing.remove', { drawing: drawings()[0].id })]
+    crash('drawing.remove', 'confirmIf')
+    const env = await prepareOps(ops)
+    expect(() => planOps(collectTargets(h, ['drawing']), ops, env, CTX)).toThrow('boom')
+    vi.stubEnv('MODE', 'production')
+    const p = planOps(collectTargets(h, ['drawing']), ops, env, CTX)
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0]).toMatchObject({ code: INTERNAL_ERROR })
+  })
+  it('in production, a crash is never sent back to the model as a planner refusal (no paid repair turn)', async () => {
+    vi.stubEnv('MODE', 'production')
+    crash('drawing.addLevel', 'describe')
+    const h = host()
+    buildContext(h, CTX)
+    expect(preflightRefusals(h, [LEVEL()])).toEqual([])
+  })
+  it('under test, a caller that catches around planning passes the throw on', async () => {
+    crash('drawing.addLevel', 'describe')
+    const h = host()
+    buildContext(h, CTX)
+    expect(() => preflightRefusals(h, [LEVEL()])).toThrow('boom')
+  })
   it('in production, through the real panel: the member gets the sentence and the outcome row says internal-error, with no actions', async () => {
     vi.stubEnv('MODE', 'production')
     const panel = setupPanel()
@@ -184,5 +211,43 @@ describe('a capability that throws while planning', () => {
     expect(rows).toContainEqual({ kind: 'internal-error' })
     expect(rows.filter(r => r?.kind === 'refused')).toEqual([])
     cleanup()
+  })
+})
+
+describe('a read in a plan: it has no check, apply or describe, and planning has nothing to do for it', () => {
+  it('every registered query capability is declared so, and owns no apply', async () => {
+    const { manifestFor } = await import('./capabilities')
+    const queries = manifestFor(CTX).filter(c => c.query)
+    expect(queries.length).toBeGreaterThan(5)
+    for (const c of queries) expect(getCapability(c.name).apply, c.name).toBeUndefined()
+  })
+  it('drawing.list on its own: planned, no change, no line, in test and in production', async () => {
+    const h = host()
+    const first = await plan(h, [LEVEL()])
+    await commitPlan(h, first.p, { env: first.env })
+    const read = [op('drawing.list', {})]
+    const a = await plan(h, read)
+    expect(a.p).toMatchObject({ ok: true, changed: false, lines: [] })
+    vi.stubEnv('MODE', 'production')
+    expect((await plan(h, read)).p).toMatchObject({ ok: true, changed: false })
+    expect(preflightRefusals(h, read)).toEqual([])
+  })
+  it('preflightRefusals over reads (the NL-1 repair gate): [] with no internal-error, under test and in production', () => {
+    vi.spyOn(console, 'error')
+    const h = host()
+    h.drawings.list()
+    buildContext(h, CTX)
+    const ops = [op('drawing.list', {})]
+    expect(preflightRefusals(h, ops)).toEqual([])
+    vi.stubEnv('MODE', 'production')
+    expect(preflightRefusals(h, ops)).toEqual([])
+    expect(console.error).not.toHaveBeenCalled()
+  })
+  it('a read beside a change: the change is still planned and judged', async () => {
+    const { p } = await plan(host(), [op('drawing.list', {}), LEVEL()])
+    expect(p.ok).toBe(true)
+    expect(p.lines).toHaveLength(1)
+    const bad = await plan(host(), [op('drawing.list', {}), op('drawing.setAlert', { drawing: 'nope', direction: 'above', level: null })])
+    expect(bad.p.ok).toBe(false)
   })
 })

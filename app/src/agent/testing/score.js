@@ -10,7 +10,7 @@
 //
 // Pure: the caller passes the envelope, the ref → target map captured with the request, and the host.
 
-import { collectTargets, planOps } from '../executor'
+import { collectTargets, planOps, rethrowUnderTest } from '../executor'
 import { decideMode } from '../policy'
 import { getCapability, getTargetKind } from '../capabilities'
 
@@ -111,6 +111,7 @@ export function scoreTurn({ expect: e, env, refMap = {}, host, selectedLabel = n
         ? { planned: true, mode: decideMode(disp, plan), refused: null }
         : { planned: false, mode: null, refused: (plan.refusals || []).map(r => r.reason).slice(0, 3) }
     } catch (err) {
+      rethrowUnderTest(err)
       execution = { planned: false, mode: null, refused: [`planner threw: ${String(err?.message || err).slice(0, 120)}`] }
     }
   }
@@ -149,7 +150,7 @@ function expectedIsNoop(host, w, selectedLabel, canon) {
     const args = Object.fromEntries(Object.entries(w.args || {}).map(([k, v]) => [k, canon(v)]))
     const plan = planOps(collectTargets(host, [cap.target]), [{ action: w.a, target: hit.ref, args }])
     return plan.ok === true && plan.changed === false
-  } catch { return false }
+  } catch (e) { rethrowUnderTest(e); return false }
 }
 
 function refMapKind(refMap, op) {

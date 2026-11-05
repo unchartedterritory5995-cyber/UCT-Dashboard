@@ -112,7 +112,7 @@ function plannerRefuses(host, fast) {
     if (list.length !== 1) return false
     ops.push({ ...o, target: list[0].ref })
   }
-  try { return planOps(collectTargets(host, kinds), ops).ok === false } catch { return false }
+  return planOps(collectTargets(host, kinds), ops).ok === false
 }
 
 const MANIFEST = Array.isArray(manifestGolden) ? manifestGolden : (manifestGolden.capabilities || [])
