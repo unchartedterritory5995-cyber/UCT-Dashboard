@@ -508,3 +508,43 @@ def test_account_deletion_purges_the_members_vectors_and_only_theirs(db_path, on
     assert report["rows_deleted"].get("j2_note_embeddings", 0) >= 2
     assert _rows(U) == []
     assert _rows(OTHER), "another member's vectors were purged"
+
+
+# ── Audit 2026-11-05, spec S4 (B18): the meaning search says what it is still waiting for ──────
+#
+# "Meaning search returns nothing after 35 minutes" gave the member no status at all. The index
+# fills on a 15-minute sweep (api/main.py, `notebook_semantic_sweep`), so a new note is not in
+# it yet; the search now SAYS so, with the count of the member's notes still waiting.
+
+def test_pending_count_is_the_live_notes_not_yet_indexed(db_path, on_noop):
+    from api.services.journal_two import notes
+    a = _note(U, "First", "one two three")
+    assert ns.pending_count(U) == 1
+    ns.index_member(U)
+    assert ns.pending_count(U) == 0
+    _note(U, "Second", "four five six")
+    gone = _note(U, "Third", "seven eight nine")
+    notes.delete_note(U, gone["id"])
+    assert ns.pending_count(U) == 1                     # a trashed note is not waiting
+    notes.update_note(U, a["id"], {"bodyJson": {"type": "doc", "content": [P("edited words")]}})
+    assert ns.pending_count(U) == 2                     # an edit waits for the next sweep
+    assert ns.pending_count("someone-else") == 0
+
+
+def test_pending_count_is_None_while_dark(db_path, monkeypatch):
+    monkeypatch.delenv(GATE, raising=False)
+    _note(U, "First", "one two three")
+    assert ns.pending_count(U) is None
+
+
+def test_a_meaning_search_with_no_meaning_hit_reports_what_is_waiting(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q="consolidation pattern breakout setup")
+    assert not [r for r in body["notes"] if r.get("matchKind") == "meaning"]
+    assert body["meaningPending"] == 1
+
+
+def test_a_lexical_query_carries_no_waiting_count(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q="NVDA")
+    assert "meaningPending" not in body

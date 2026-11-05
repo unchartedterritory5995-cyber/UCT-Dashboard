@@ -317,6 +317,29 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
     expect(screen.getByText(/No notes match/)).toBeInTheDocument()
   })
 
+  // Audit 2026-11-05, spec S4 (B18): a meaning search that found nothing said nothing about the
+  // notes its index had not reached yet. The server now sends that count; the panel says it.
+  it('an empty search says how many notes the meaning search is still waiting for', () => {
+    useJ2NotesMock.mockImplementation((opts) => (opts?.enabled && 'q' in opts
+      ? { notes: [], meaningPending: 2, isLoading: false, isValidating: false, error: null }
+      : { notes: [], isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('consolidation pattern breakout')
+    settle()
+    expect(screen.getByText('New notes join meaning search within about 15 minutes. 2 are waiting.')).toBeInTheDocument()
+  })
+
+  it('no waiting count, no waiting line', () => {
+    useJ2NotesMock.mockImplementation(() => ({ notes: [], meaningPending: 0, isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('consolidation pattern breakout')
+    settle()
+    expect(screen.getByText(/No notes match/)).toBeInTheDocument()
+    expect(screen.queryByText(/join meaning search/)).toBeNull()
+  })
+
   it('leaving search mode without a query never enables the fetch', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)

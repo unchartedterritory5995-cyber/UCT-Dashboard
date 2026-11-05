@@ -444,6 +444,35 @@ _MEMBERS_WITH_WORK_SQL = (
     " ORDER BY COALESCE(m.last_at, '') ASC, w.user_id ASC")
 
 
+def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
+                  provider: EmbeddingProvider | None = None) -> int | None:
+    """Audit 2026-11-05, spec S4 (B18): how many of the member's live notes the meaning search
+    cannot see YET -- no vectors, or vectors from an older revision or another provider (the same
+    `_revision_marker` test `index_member` uses to decide what to embed). The sweep runs every 15
+    minutes (`notebook_semantic_sweep` in api/main.py), so the search can say "{n} are waiting"
+    instead of returning nothing in silence. A read: nothing is embedded or sent.
+    ⛔ Dark: None, and no connection is opened."""
+    if not semantic_enabled():
+        return None
+    provider = provider or get_provider()
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        ensure_semantic_schema(conn)
+        r = conn.execute(
+            "SELECT COUNT(*) FROM j2_notes n LEFT JOIN ("
+            "  SELECT note_id, MAX(updated_at) AS at FROM j2_note_embeddings"
+            "  WHERE user_id = ? GROUP BY note_id) i ON i.note_id = n.id"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
+            " AND (i.at IS NULL OR i.at <> (n.updated_at || '|' || ?))",
+            (user_id, user_id, provider.name)).fetchone()
+        return int(r[0] or 0) if r else 0
+    finally:
+        if owned:
+            conn.close()
+
+
 def run_sweep(*, conn: sqlite3.Connection | None = None,
               provider: EmbeddingProvider | None = None,
               max_embeds: int = MAX_EMBEDS_PER_SWEEP) -> dict[str, Any]:

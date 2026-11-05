@@ -110,6 +110,12 @@ export function renderSnippetMarks(snippet) {
 export const RELATED_BY_MEANING = 'Related by meaning'
 export const isMeaningRow = (note) => note?.matchKind === 'meaning'
 
+/** Audit 2026-11-05, spec S4 (B18): said under a search that found nothing by meaning while the
+ *  index has not reached some notes yet (the sweep runs every 15 minutes). */
+export function meaningWaitingSentence(n) {
+  return `New notes join meaning search within about 15 minutes. ${n} ${n === 1 ? 'is' : 'are'} waiting.`
+}
+
 export function matchReasonFor(note, query) {
   if (isMeaningRow(note)) return RELATED_BY_MEANING
   const q = (query || '').trim()
@@ -1101,6 +1107,7 @@ export default function FolderSidebar({
   const searchEnabled = mode === 'search' && Boolean(debouncedQuery || hasActiveFilters)
   const {
     notes: serverSearchResults,
+    meaningPending,
     isLoading: searchLoading,
     isValidating: searchValidating,
     error: searchError,
@@ -1717,6 +1724,9 @@ export default function FolderSidebar({
           ) : (
             <div className={styles.searchEmpty}>
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+              {trimmedQuery && meaningPending > 0 && (
+                <p className={styles.searchEmptyHint} data-meaning-waiting>{meaningWaitingSentence(meaningPending)}</p>
+              )}
             </div>
           )}
 
