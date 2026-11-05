@@ -156,3 +156,8 @@ lock `dsk/heavy-final3.lock`, log `_resume-2026-11-01/runs/w5t19r1/final.out`, t
   What was run under Node 20.18 (V8 11.3) is the CLI the gate runs: see "Results" (earlier run) for steps 1, 2, 5; the rail's own end-to-end test runs `--check` on whatever Node runs vitest (Node 24 here).
   CI uses `setup-node '20'` (a current 20.x), where this does not arise; the gate job runs the CLI, not vitest.
 - T4 r3 (stale vitest rail fix) was not pushed when this ran; if it lands, merge it and re-run (open item).
+
+### r1b: T4 r3 merged
+T4 r3 `86c2cf4e7c` merged `--no-ff`, clean (r3 changes T4's stale vitest rail and evidence only; the tool file is still byte-for-byte T4's).
+Node v20.18.0 CLI re-run on the merged tree (`runs/w5t19r1/n20.out`): build+import rc 0; `--check` rc 0, `HP-1 GREEN: 164/166 ...; 2 REPORTED`; `--mutation-control` rc 0, red on 35 cases; `node --test` rc 0.
+The r1 final-tip above predates this merge; the final-tip for the pushed tip is the next block (second r1 run).
