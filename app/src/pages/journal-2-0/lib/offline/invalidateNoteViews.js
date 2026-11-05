@@ -43,8 +43,12 @@ export const NOTE_VIEW_WORDS = new Set([
   'sector-theme-facets', 'switcher', 'tag-members', 'tags', 'tasks',
   'connectors', 'media', 'daily', 'batch', 'search', 'enrichment',
 ])
-/** The counts a title cannot move, and the tag cloud (opt-in: the most expensive read). */
-const COUNT_WORDS = new Set(['folder-counts', 'sector-theme-facets'])
+/** Fix round 2 (re-review N2): the views that SHOW a note's title -- the only ones a title save asks
+ *  again (with the list itself, every `/api/j2/notes?…` page, search results included). Tasks,
+ *  documents, excerpts, connector status, the import notice and the counts cannot change with a
+ *  title, and asking them on every landed autosave was load on the busiest edit in the product. */
+const TITLE_WORDS = new Set(['recents', 'favorites', 'by-folders', 'graph', 'switcher', 'link-targets', 'backlinks'])
+/** The tag cloud (opt-in: the most expensive read). */
 const TAG_WORDS = new Set(['tags', 'tag-members'])
 
 /** Is `key` one of the Notebook's note VIEWS (see the header and the rule above)? */
@@ -55,8 +59,8 @@ export function isNoteViewKey(key, { tags = false, titleOnly = false } = {}) {
   if (key === NOTES || key.startsWith(`${NOTES}?`)) return true
   const word = key.slice(NOTES.length + 1).split(/[/?#]/, 1)[0]
   if (!NOTE_VIEW_WORDS.has(word)) return false           // one note's own key, or its sub-resource
-  if (TAG_WORDS.has(word)) return tags && !titleOnly
-  if (titleOnly && COUNT_WORDS.has(word)) return false
+  if (titleOnly) return TITLE_WORDS.has(word)
+  if (TAG_WORDS.has(word)) return tags
   return true
 }
 

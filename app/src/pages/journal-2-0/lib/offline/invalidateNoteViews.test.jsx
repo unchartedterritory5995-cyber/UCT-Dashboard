@@ -185,3 +185,26 @@ describe('fix round 1: every view the old refresh reached is still reached', () 
     expect(screen.getByText('Task in Beta')).toBeInTheDocument()
   })
 })
+
+// Fix round 2 (re-review N2): after the rule was inverted, a title save reached every non-count view
+// on each landed autosave -- tasks, documents, excerpts, connector status, the import notice (a
+// 60/min server limit). A title save asks only the views that SHOW a title.
+describe('fix round 2: a title save refetches only the views that show a title', () => {
+  const KEYS = [
+    '/api/j2/notes?sort=title', '/api/j2/notes?q=flag&meaning=1', '/api/j2/notes',
+    '/api/j2/notes/recents', '/api/j2/notes/favorites', '/api/j2/notes/by-folders?ids=f1&limit=200',
+    '/api/j2/notes/graph', '/api/j2/notes/switcher', '/api/j2/notes/link-targets?q=x',
+    '/api/j2/notes/backlinks?symbol=NVDA&limit=5',
+    '/api/j2/notes/tasks?status=open', '/api/j2/notes/documents?q=x', '/api/j2/notes/excerpts?q=x',
+    '/api/j2/notes/connectors/status', '/api/j2/notes/import/repair-notice', '/api/j2/notes/research/NVDA/summary',
+    '/api/j2/notes/folder-counts', '/api/j2/note-folders', '/api/j2/notes/tags', '/api/j2/notes/n1',
+  ]
+  it('pins exactly which keys a title save asks again', () => {
+    expect(KEYS.filter((k) => isNoteViewKey(k, { titleOnly: true }))).toEqual([
+      '/api/j2/notes?sort=title', '/api/j2/notes?q=flag&meaning=1', '/api/j2/notes',
+      '/api/j2/notes/recents', '/api/j2/notes/favorites', '/api/j2/notes/by-folders?ids=f1&limit=200',
+      '/api/j2/notes/graph', '/api/j2/notes/switcher', '/api/j2/notes/link-targets?q=x',
+      '/api/j2/notes/backlinks?symbol=NVDA&limit=5',
+    ])
+  })
+})
