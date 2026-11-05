@@ -9,6 +9,8 @@ import { kindsFor } from './registry'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 import { _resetScreenerCache } from '../../../capabilities/screener'
+import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
+import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -65,6 +67,7 @@ export function checkExpect(ctx, e, label) {
     const hit = p.instancesOn(board, id).find(i => Object.entries(e.instance.find).every(([k, v]) => get(i, k) === v))
     expect(hit, `${label}: an indicator matching ${JSON.stringify(e.instance.find)}`).toBeTruthy()
     for (const [k, v] of Object.entries(e.instance.has || {})) expect(get(hit, k), `${label}: ${k}`).toEqual(v)
+    for (const k of e.instance.lacks || []) expect(get(hit, k), `${label}: ${k} is not set`).toBe(undefined)      // PACKAGE 3: an exact Undo removes the key
     if (e.instance.colour) expect(hueFamily(get(hit, e.instance.colour.key)), `${label}: ${e.instance.colour.key} is ${e.instance.colour.family}`).toBe(e.instance.colour.family)
   }
   if (e.layout) {
@@ -107,7 +110,26 @@ export function checkExpect(ctx, e, label) {
     const mine = p.instancesOn(board, id).filter(i => /^u_/.test(String(i.defId)))
     if (e.customIndicators.count != null) expect(mine.length, `${label}: own indicators on the chart`).toBe(e.customIndicators.count)
     if (e.customIndicators.saved != null) expect(ctx.st.defs.size, `${label}: definitions saved`).toBe(e.customIndicators.saved)
+    // PACKAGE 3: the saved definition's NAME is a human one (never formula-like) / exactly the one asked for
+    if (e.customIndicators.name || e.customIndicators.humanName) {
+      const names = [...ctx.st.defs.values()].map(d => d.definition?.meta?.name || '')
+      if (e.customIndicators.name) expect(names, `${label}: a saved indicator named ${e.customIndicators.name}`).toContain(e.customIndicators.name)
+      if (e.customIndicators.humanName) expect(names.every(n => n && !looksLikeFormula(n) && n.length <= 40), `${label}: every saved name is a human name (${JSON.stringify(names)})`).toBe(true)
+    }
+    if (e.customIndicators.version != null) expect(Math.max(0, ...[...ctx.st.defs.values()].map(d => d.version || 0)), `${label}: the saved version`).toBe(e.customIndicators.version)
     if (e.customIndicators.placement) expect(mine.length && [...ctx.st.defs.values()].some(d => d.definition?.placement?.target === e.customIndicators.placement), `${label}: saved with placement ${e.customIndicators.placement}`).toBe(true)
+  }
+  if ('preview' in e) {
+    // PACKAGE 3: the authoring preview on screen (null = none); {chart: <board index>} = on that chart
+    if (e.preview === null) expect(ctx.st.preview, `${label}: no preview on screen`).toBe(null)
+    else expect(ctx.st.preview?.chart, `${label}: the preview is on chart ${e.preview.chart}`).toBe(chartsOf(board)[e.preview.chart || 0]?.id)
+  }
+  if (e.drafts) {
+    // PACKAGE 3: the indicator drafts open in this tab (the specialist's own list — never the Agent's memory)
+    const open = listDrafts({ canAuthor: true, definitionRows: [] })
+    if (e.drafts.count != null) expect(open.length, `${label}: indicator drafts open`).toBe(e.drafts.count)
+    if (e.drafts.revision != null) expect(open[0]?.revision, `${label}: the draft's revision`).toBe(e.drafts.revision)
+    if ('name' in e.drafts) expect(open[0]?.name ?? null, `${label}: the draft's name`).toBe(e.drafts.name)
   }
   if (e.prefs) for (const [k, v] of Object.entries(e.prefs)) expect(ctx.st.prefs[k], `${label}: preference ${k}`).toEqual(v)
   if (e.templates) {

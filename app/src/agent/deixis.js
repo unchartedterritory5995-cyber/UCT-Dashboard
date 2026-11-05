@@ -110,6 +110,7 @@ const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top r
 // "both", "all (four) charts", "every chart", "all of them" — a SET of charts (never "remove all comparisons")
 const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
+const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -208,6 +209,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // the charts this plan changes ("both" = two), else it is only proposed
   // ⭐ P2: "copy these to my other charts" — with the chart the request is about, the member named every chart
   if (OTHER_CHARTS.test(words)) return null
+  // ⭐ PACKAGE 3: "apply it to my other chart" on a board of TWO — the other chart is the one the plan does NOT read from
+  // (a copy's `from`) and does not already carry what it adds; then the member named it
+  if (targets.size === 1 && otherChartMeant(words, charts, [...targets.keys()][0], ops)) return null
   const many = MANY_COUNT.exec(words)
   if (many) {
     const count = many[1] ? 2 : many[2] ? (COUNT_WORDS[many[2].toLowerCase()] || Number(many[2])) : null
@@ -240,8 +244,32 @@ export function selectedChart(host) {
  * selected chart (or the chart a named symbol picks). Plan aliases (`as` refs made in this plan)
  * and single-chart boards pass. → { ask } | null.
  */
+/** PACKAGE 3: "apply it to my other chart" on a board of TWO — `dest` is "the other chart" when the plan reads FROM the
+ *  remaining chart (a copy's `from`) or adds what that chart already carries. ("it" there is the indicator, not a chart.) */
+function otherChartMeant(text, charts, dest, ops) {
+  if (!OTHER_CHART.test(String(text || '')) || charts.length !== 2 || !charts.some(c => c.ref === dest)) return false
+  const other = charts.find(c => c.ref !== dest)
+  const strip = (r) => String(r || '').replace(/^[a-z]+:/i, '')
+  const fromOther = (ops || []).some(o => strip(o?.args?.from) === other?.ref)
+  const hasDef = (ops || []).some(o => typeof o?.args?.defId === 'string' && (other?.cs?.indicatorInstances || []).some(i => i && !i.deleted && i.defId === o.args.defId))
+  return fromOther || hasDef
+}
+
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability }) {
   if (!pointsAtChart(text, { chartOp: true })) return null
+  {
+    // PACKAGE 3: "put it on the other chart" — every chart-backed op aims at the other chart of two
+    const charts = host?.charts?.list?.() || []
+    const dests = new Set()
+    for (const o of ops || []) {
+      const cap = getCapability(o?.action)
+      const kind = cap ? getTargetKind(cap.target) : null
+      const snap = kind ? (kind.list(host) || []).find(x => x.ref === o.target) : null
+      const c = snap ? chartRefOf(kind, snap) : null
+      if (c) dests.add(c)
+    }
+    if (dests.size === 1 && otherChartMeant(text, charts, [...dests][0], ops)) return null
+  }
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
   for (const o of ops || []) {
     const cap = getCapability(o?.action)

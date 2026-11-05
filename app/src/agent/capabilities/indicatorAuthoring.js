@@ -68,7 +68,7 @@ function setActive(draftRef) {
     else store()?.removeItem(ACTIVE_KEY)
   } catch { /* storage is a convenience: the specialist is the authority */ }
 }
-export function _resetAuthoring() { active = null; try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
+export function _resetAuthoring() { active = null; savedDrafts.clear(); savedChart = null; try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
 
 // ── refinement A: the chart a draft belongs to is the SPECIALIST's association (`status.chartRef`,
 // recorded by openDraft). Used while that chart is on the board; otherwise the member names one. ──
@@ -209,6 +209,17 @@ const FORMULA_NAME = /[<>=+*^[\]·−×÷]|&&|\|\||\(.*\)\s*\//
 export const looksLikeFormula = (name) => FORMULA_NAME.test(String(name || ''))
 /** “Name” for chat, or the fallback when the name is missing or reads like a formula. */
 export const shownName = (name, fallback) => (name && !looksLikeFormula(name) ? `“${name}”` : fallback)
+// ⭐ PACKAGE 3 (owner 2026-11-04: created indicators get HUMAN names): the name the builder's model proposed for a
+// definition it created (Indicators' `keepCreateName` seam) is kept only when it IS a name — short words, never a
+// formula, never a sentence. Anything else keeps the engine's own derived name.
+const NOT_A_NAME = /[<>=+*^/\\[\]{}()·−×÷%$#@|;:!?"“”]|&&|\bhttps?\b|\b(?:when|where|if|that|which|above|below|crosses?|greater|less|than|times|minus|plus|divided)\b/i
+export function humanName(raw) {
+  const n = String(raw || '').replace(/\s+/g, ' ').trim().replace(/[.]+$/, '')
+  if (n.length < 3 || n.length > 40 || looksLikeFormula(n) || NOT_A_NAME.test(n)) return null
+  const words = n.split(' ')
+  if (words.length > 6 || !/[A-Za-z]{2}/.test(n) || words.filter(w => /\d/.test(w)).length > 2) return null
+  return n
+}
 export function oneLineOf(status) {
   const rb = status?.readback || {}
   const look = (rb.presentation || []).filter(l => typeof l === 'string' && !/: hidden \(still calculated\)$/.test(l))
@@ -632,17 +643,48 @@ function snapshots(host) {
   return out
 }
 
+// ── PACKAGE 3: drafts that were SAVED in this tab (ref → {name, defId}), so an Undo reaching one of their draft steps
+// says what happened instead of "no longer on the workspace" (a Save is permanent — D7, owner 2026-10-28) ──
+const savedDrafts = new Map()
+let savedChart = null           // the chart the last SAVED draft was built on (for "apply it")
+const savedByKey = (draftRef) => (draftRef && typeof draftRef.key === 'string' ? [...savedDrafts.values()].find(v => v.key === draftRef.key && v.lineage === draftRef.lineage) || null : null)
+function savedSentence(sv) {
+  const nm = shownName(sv.name, 'it')
+  return `${nm.charAt(0).toUpperCase()}${nm.slice(1)} is saved in your indicators now — a Save is permanent, so its draft steps can’t be undone. Nothing was undone. To remove it, ask me to delete ${nm} from your indicators.`
+}
+/** "Apply it." right after a Save that put it on no chart: the SAVED definition onto the draft's chart (or the board's
+ *  only chart / the clicked one) — the add the Save receipt promised ("say “apply it” to add it"). null = not this. */
+export function savedReferent(host, raw) {
+  if (!APPLY_IT_WHOLE.test(String(raw || '').trim())) return null
+  let snaps
+  try { snaps = snapshots(host) } catch { return null }
+  if (snaps.some(x => x.active && !x.new && !x.expired)) return null          // the active draft's own "apply it"
+  const ls = lastSaved()
+  if (!ls || typeof ls.defId !== 'string') return null
+  const charts = boardCharts(host)
+  const own = savedChart && savedChart.defId === ls.defId ? savedChart.chartRef : null
+  const chart = (own && charts.some(c => c.ref === own)) ? own
+    : charts.length === 1 ? charts[0].ref : (charts.some(c => c.ref === clickedChart(host)) ? clickedChart(host) : null)
+  if (!chart || showsDefinition(host, ls.defId).includes(chart)) return null
+  return { defId: ls.defId, chart }
+}
+
 export const indicatorDraftsKind = {
   name: 'indicatorDrafts',
   boardScoped: false,        // a draft lives in this tab, not on a board (survives layout switches)
   selfDescribing: true,
   list: (host) => snapshots(host),
   read: (host, ref) => snapshots(host).find(s => s.ref === ref) || null,
+  // PACKAGE 3: why an Undo can't reach this draft any more (runtime.undoEntry), in the member's terms
+  goneReason: (host, ref) => (savedDrafts.get(ref) ? savedSentence(savedDrafts.get(ref)) : null),
   stateOf: (s) => ({ ...s, ops: [] }),
   patch: (before, after) => (after.ops.length ? { ops: after.ops } : null),
   async commit(host, ref, patch) {
     // ── authoring Undo (from the Agent's Undo stack): the exact step, or refused ──
     if (patch.undo) {
+      // PACKAGE 3: a step of a draft that has since been SAVED — the Save is permanent (D7); say so, change nothing
+      const savedAs = savedByKey(patch.undo.draftRef)
+      if (savedAs) throw fail(savedSentence(savedAs), { complete: true })
       const st0 = draftStatus(patch.undo.draftRef, authoringCtx(host))
       const ctx = authoringCtx(host, originOf(st0))
       const st = st0
@@ -689,7 +731,10 @@ export const indicatorDraftsKind = {
           name = o.status.name || name
         }
         setActive(draftRef)
-        const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision }, ctx)
+        // ⭐ PACKAGE 3: a NEW indicator keeps the builder's proposed name when it is a human one (and not one the member
+        // already has) — applied by the engine in the same patch (AGENT-M3-CONTRACT §17)
+        const keepCreateName = opened && !op.edit ? (n) => !!humanName(n) && !ownNames().includes(humanName(n).toLowerCase()) : null
+        const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision, ...(keepCreateName ? { keepCreateName } : {}) }, ctx)
         if (!out.ok) throw turnRefused(out, lines.length ? { unreverted: true } : {})
         revision = out.revision
         op.outcome = out.kind
@@ -785,6 +830,8 @@ export const indicatorDraftsKind = {
         }
         setActive(null)
         rememberSaved({ defId: out.defId, version: out.version, name: out.name || name || null })
+        savedChart = { defId: out.defId, chartRef: originOf(st) }
+        savedDrafts.set(ref === NEW ? `${NEW}#${draftRef.key}` : ref, { name: out.name || name || null, defId: out.defId, key: draftRef.key, lineage: draftRef.lineage })
         // OWNER 2026-10-12: ONE short, honest line (Indicators (c)): saved = permanent; R1 also says WHAT
         // was saved (its line + the builder's assumptions). With chart adds, the add's receipt follows
         // in the same message (useAgent holds this one as its lead).

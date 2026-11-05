@@ -477,3 +477,24 @@ description plus the builder's own "assumed…" lines.
 A turn + Save on an EXISTING draft (refining, then saving in one message) is NOT combined: the turn
 runs, the Save is dropped, and the draft line says "not saved yet — want me to apply it?". No new
 `agentAuthoring` call surface: the Agent calls `draftTurn` then `saveDraft` exactly as today.
+
+## 17. PACKAGE 3 seam — the builder's proposed name, as a suggestion (Agent, 2026-11-04)
+
+Owner (2026-11-04): an indicator the Agent creates gets a HUMAN name; a formula-like or sentence-length derived
+name ("Close above EMA 21 and Volume above 1.5 times SMA 50 (Volume)", chip-cut to "Close above") never reaches
+chat. §P2 naming is unchanged: `create` still takes the DERIVED name (`derivedName.js`), and nothing in the engine
+writes the model's create-name.
+
+- `agentAuthoring.draftTurn(draftRef, message, {expectedRevision, keepCreateName})` → `authoringSession.modelTurn`:
+  `keepCreateName` is an optional predicate. Only for the turn that CREATES the definition, only when the member named
+  nothing (no naming cue), and only when the predicate accepts the model's `create` name, the engine appends a
+  `rename_definition` to the SAME patch — one revision, one Undo step, the name CUSTOM by the existing rule. The dock
+  never passes it, so the dock's behaviour is unchanged.
+- The Agent (`indicatorAuthoring.js`) passes `humanName()` (3–40 characters, ≤ 6 words, no formula symbols or
+  sentence words such as "above" / "minus") and "not a name the member already has".
+- Receipts name the member's own indicators by their saved `meta.name` (`indicatorEdits.ownIndicatorName`), not the
+  12-character legend chip (`labelText.chipName`), which can read as a built-in ("Volume Thrust Days" → "Volume").
+
+A Save stays permanent (D7): an Undo that reaches a saved draft's steps refuses with "… is saved in your indicators
+now — a Save is permanent … To remove it, ask me to delete … from your indicators" (`definition.delete`, which is
+proposed and itself undoable).

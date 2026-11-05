@@ -17,6 +17,9 @@ import { setAuthoringSources } from '../../../capabilities/indicatorAuthoring'
 import { storeConversation } from '../../../../components/chart/builder/conversationSave'
 import { CREATE_INDICATOR_FLAG_KEY } from '../../../../components/chart/builder/studio/createIndicatorFlag'
 import { groupOfAction } from '../../../routing'
+import { parseFormula } from '../../../../components/chart/engine/ast/parse'
+import { mutate } from 'swr'
+import { USER_DEFINITIONS_KEY } from '../../../../hooks/useUserDefinitions'
 import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
 
@@ -52,6 +55,9 @@ export const BOARDS = {
   AUTHOR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'QQQ' }, { authoring: true }],
   // AUTHOR on a board of TWO charts (a new draft with no chart must ask which one: agentPlannerV2Screens.test.jsx)
   AUTHOR_TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'QQQ', 'N:c2': 'SPY' }, { authoring: true }],
+  // PACKAGE 3: AUTHOR on a board of FOUR ("apply it to my other chart" is ambiguous there: it must ask which)
+  AUTHOR_FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
+    { 'N:c1': 'QQQ', 'N:c2': 'SPY', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }, { authoring: true }],
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
@@ -86,6 +92,14 @@ const CLOSE = { type: 'series', name: 'close' }
 const ema = (n) => ({ type: 'call', name: 'ema', args: [CLOSE, { type: 'num', value: n }] })
 const opn = (name, ...args) => ({ type: 'op', name, args })
 const PCT = opn('*', opn('/', opn('-', ema(9), ema(20)), ema(20)), { type: 'num', value: 100 })
+/** A scripted builder op with `formula` strings → the canonical trees (the engine's own parser; a bad formula fails the case). */
+const parsed = (f) => { const r = parseFormula(f); if (!r.ok) throw new Error(`scripted builder formula "${f}": ${r.error}`); return r.ast }
+const treesOf = (ops) => ops.map(o => {
+  const x = { ...o }
+  if (typeof x.formula === 'string') { x.tree = parsed(x.formula); delete x.formula }
+  if (Array.isArray(x.outputs)) x.outputs = x.outputs.map(out => (typeof out.formula === 'string' ? (({ formula, ...rest }) => ({ ...rest, tree: parsed(formula) }))(out) : out))
+  return x
+})
 // ── SYNTHETIC BAR HISTORY (deterministic; never a market value): a weekday calendar from 2025-01-02 to 2026-10-30 and a
 // smooth made-up price path. The chart's Time Navigator read-out (view.firstMs / lastMs / rightMs) and the `bars.daily`
 // gateway kind are both served from it, so time anchors, go-to-date and replay resolve against the same bars.
@@ -150,6 +164,19 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
     p.st.calls.push([method, u, body])
     if (u === '/api/agent/config') return json(srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds))
+    // PACKAGE 3: one definition (GET read-back, DELETE = the server's soft delete, PUT = a re-save under the same id —
+    // definition.delete's Undo), as api/routers/user_definitions.py answers them
+    const one = /^\/api\/user-definitions\/([^/?]+)/.exec(u)
+    if (one) {
+      const id = decodeURIComponent(one[1])
+      if (method === 'GET') return st.defs.has(id) ? json(st.defs.get(id)) : json({ detail: 'not found' }, 404)
+      if (method === 'DELETE') { const had = st.defs.delete(id); return had ? json({ ok: true }) : json({ detail: 'not found' }, 404) }
+      if (method === 'PUT' && body?.definition) {
+        const version = (st.defs.get(id)?.version || body.definition.version || 0) + 1
+        st.defs.set(id, { def_id: id, version, rev: 1, definition: { ...body.definition, id, version } })
+        return json(st.defs.get(id))
+      }
+    }
     if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
     // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
     // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
@@ -244,8 +271,18 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   }
   if (extra.authoring) {
     try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
+    // PACKAGE 3: a case may SCRIPT the builder's model (seed.builder: [{match, ops, disposition?, reply?, questions?}], the first
+    // `match` regex the member's message meets answers; an op's `formula` / an output's `formula` is parsed by the REAL engine
+    // parser into its canonical tree). Absent, the builder answers the EMA 9/20 % request as before.
+    const script = Array.isArray(seed.builder) ? seed.builder : null
     const converse = ({ message, state }) => {
       st.builderCalls.push(message)
+      const hit = script && script.find(b => new RegExp(b.match, 'i').test(String(message || '')))
+      if (hit) {
+        const disposition = hit.disposition || 'change'
+        return { ok: true, disposition, turn: disposition === 'change' ? 'patch' : disposition, reply: hit.reply || '', envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition,
+          ...(hit.reply ? { reply: hit.reply } : {}), ...(hit.questions ? { questions: hit.questions } : {}), ops: treesOf(hit.ops || []) } }
+      }
       return { ok: true, disposition: 'change', turn: 'patch', reply: '', envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
         ops: [{ op: 'create', name: 'EMA 9/20 % Diff', placement: 'pane', outputs: [{ key: 'diff', label: 'EMA 9/20 % Diff', tree: PCT }] }] } }
     }
@@ -253,9 +290,18 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       const id = defId || `u_aaaaaaaaae${String(st.defs.size + 10).padStart(2, '0')}`
       const version = defId ? (opts?.baseVersion || 0) + 1 : 1
       st.defs.set(id, { def_id: id, version, rev: 1, definition: { ...doc, id, version } })
+      mutate(USER_DEFINITIONS_KEY)            // the real save door revalidates the member's list (useUserDefinitions.saveUserDefinition)
       return { ok: true, row: { def_id: id, version, rev: 1 } }
     }
     setAuthoringSources({ extra: { converse, readBack: async (id) => st.defs.get(id) || null, store: (sv, o) => storeConversation(sv, { ...o, save: fakeSave }) } })
+    // PACKAGE 3: the chart's authoring PREVIEW channel (ChartPane's showAuthoringPreview / clearAuthoringPreview), recorded
+    // — a preview is on screen only, never persisted (st.preview: {chart, name} | null)
+    st.preview = null
+    const charts0 = mounted.h.charts
+    mounted.h.charts = { ...charts0, previewHost: (ref) => (charts0.list().some(c => c.ref === ref) ? {
+      showAuthoringPreview: (def) => { st.preview = { chart: ref, name: def?.meta?.name || null }; return { ok: true } },
+      clearAuthoringPreview: () => { st.preview = null },
+    } : null) }
   }
   if (extra.timeNav) {
     // ChartsWorkspace's Time Navigator + Replay Mode, as host.buildChartSource exposes them: a per-chart VIEW read-out,
