@@ -38,12 +38,18 @@
   "watchlist.show": "lists",
   "watchlist.add": "lists",
   "watchlist.remove": "lists",
+  "watchlist.keepOnly": "lists",
   "watchlist.clear": "lists",
   "watchlist.delete": "lists",
   "watchlist.create": "lists",
   "watchlist.rename": "lists",
   "watchlist.reorder": "lists",
   "watchlist.setNote": "lists",
+  "watchlist.sortColumn": "lists",
+  "watchlist.setColumns": "lists",
+  "watchlist.step": "lists",
+  "watchlist.readView": "lists",
+  "watchlist.setFlag": "lists",
   "screener.run": "screener",
   "screener.runSaved": "screener",
   "screener.state": "screener",
@@ -198,7 +204,7 @@
   },
   {
    "id": "lists",
-   "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+   "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
   },
   {
    "id": "screener",
@@ -338,7 +344,7 @@
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -496,7 +502,7 @@
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -601,12 +607,18 @@
     "watchlist.show",
     "watchlist.add",
     "watchlist.remove",
+    "watchlist.keepOnly",
     "watchlist.clear",
     "watchlist.delete",
     "watchlist.create",
     "watchlist.rename",
     "watchlist.reorder",
     "watchlist.setNote",
+    "watchlist.sortColumn",
+    "watchlist.setColumns",
+    "watchlist.step",
+    "watchlist.readView",
+    "watchlist.setFlag",
     "alert.list",
     "alert.create",
     "alert.delete",
@@ -661,7 +673,7 @@
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -835,7 +847,7 @@
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -989,7 +1001,7 @@
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -1094,12 +1106,18 @@
     "watchlist.show",
     "watchlist.add",
     "watchlist.remove",
+    "watchlist.keepOnly",
     "watchlist.clear",
     "watchlist.delete",
     "watchlist.create",
     "watchlist.rename",
     "watchlist.reorder",
     "watchlist.setNote",
+    "watchlist.sortColumn",
+    "watchlist.setColumns",
+    "watchlist.step",
+    "watchlist.readView",
+    "watchlist.setFlag",
     "screener.run",
     "screener.runSaved",
     "screener.state",

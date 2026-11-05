@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 163,
-  "withProductionKinds": 154,
+  "all": 169,
+  "withProductionKinds": 160,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 163,
-  "withAnyRegressionCase": 111,
+  "capabilities": 169,
+  "withAnyRegressionCase": 117,
   "perProtection": {
    "nl": {
-    "covered": 111,
-    "applicable": 163
+    "covered": 117,
+    "applicable": 169
    },
    "routing": {
-    "covered": 106,
-    "applicable": 163
+    "covered": 112,
+    "applicable": 169
    },
    "args": {
-    "covered": 111,
-    "applicable": 163
+    "covered": 117,
+    "applicable": 169
    },
    "execution": {
-    "covered": 111,
-    "applicable": 163
+    "covered": 117,
+    "applicable": 169
    },
    "receipt": {
-    "covered": 86,
-    "applicable": 163
+    "covered": 91,
+    "applicable": 169
    },
    "refusal": {
     "covered": 31,
-    "applicable": 163
+    "applicable": 169
    },
    "permission": {
-    "covered": 157,
-    "applicable": 163
+    "covered": 163,
+    "applicable": 169
    },
    "undo": {
-    "covered": 50,
-    "applicable": 102
+    "covered": 54,
+    "applicable": 107
    },
    "multiStep": {
     "covered": 31,
-    "applicable": 163
+    "applicable": 169
    },
    "phrasings": {
-    "covered": 110,
-    "applicable": 163
+    "covered": 116,
+    "applicable": 169
    }
   }
  },
@@ -6538,7 +6538,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 23,
+   "phrasings": 30,
    "evidence": {
     "nl": [
      "screener.adr: \"find stocks with ADR above 5%\"",
@@ -6591,6 +6591,7 @@
      "scan.refine.sector: after an earlier turn",
      "scan.refine.price: after an earlier turn",
      "scan.refine.sort: after an earlier turn",
+     "scan.sector-word: after an earlier turn",
      "GW-06.hidden-field-refused",
      "GW-25.scan-conversation"
     ],
@@ -7641,6 +7642,60 @@
     "phrasings": []
    }
   },
+  "watchlist.keepOnly": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.keepOnly: \"keep only NVDA on my Momentum watchlist\"",
+     "watchlist.keepOnly: \"remove everything from Momentum except NVDA\"",
+     "watchlist.keepOnly: \"clear Momentum except for NVDA\""
+    ],
+    "routing": [
+     "watchlist.keepOnly: \"keep only NVDA on my Momentum watchlist\"",
+     "watchlist.keepOnly: \"remove everything from Momentum except NVDA\"",
+     "watchlist.keepOnly: \"clear Momentum except for NVDA\""
+    ],
+    "args": [
+     "corpus watchlist.keepOnly"
+    ],
+    "execution": [
+     "watchlist.keepOnly (c)"
+    ],
+    "receipt": [
+     "watchlist.keepOnly (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "watchlist.keepOnly: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.list": {
    "domain": "watchlist",
    "group": "lists",
@@ -7723,6 +7778,56 @@
     "routing": [],
     "args": [],
     "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.readView": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.readView: \"what's at the top of my watchlist\"",
+     "watchlist.readView: \"what does this watchlist show right now\"",
+     "watchlist.readView: \"read me the tickers on this list in order\""
+    ],
+    "routing": [
+     "watchlist.readView: \"what's at the top of my watchlist\"",
+     "watchlist.readView: \"what does this watchlist show right now\"",
+     "watchlist.readView: \"read me the tickers on this list in order\""
+    ],
+    "args": [
+     "corpus watchlist.readView"
+    ],
+    "execution": [
+     "watchlist.readView (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -7900,6 +8005,119 @@
     "phrasings": []
    }
   },
+  "watchlist.setColumns": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.setColumns: \"add the RVOL column to my watchlist and hide the volume column\"",
+     "watchlist.setColumns: \"show RVOL and hide Volume on this watchlist\"",
+     "watchlist.setColumns: \"on my watchlist add an RVOL column and take off volume\""
+    ],
+    "routing": [
+     "watchlist.setColumns: \"add the RVOL column to my watchlist and hide the volume column\"",
+     "watchlist.setColumns: \"show RVOL and hide Volume on this watchlist\"",
+     "watchlist.setColumns: \"on my watchlist add an RVOL column and take off volume\""
+    ],
+    "args": [
+     "corpus watchlist.setColumns"
+    ],
+    "execution": [
+     "watchlist.setColumns (c)"
+    ],
+    "receipt": [
+     "watchlist.setColumns (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.setColumns: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.setFlag": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "flaggedList",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "watchlist.setFlag: \"add NVDA to my flagged list\"",
+     "watchlist.setFlag: \"put NVDA on my flagged list\"",
+     "watchlist.setFlag: \"add NVDA to flagged\"",
+     "watchlist.setFlag.bare: \"flag NVDA\"",
+     "watchlist.setFlag.bare: \"star NVDA\""
+    ],
+    "routing": [
+     "watchlist.setFlag: \"add NVDA to my flagged list\"",
+     "watchlist.setFlag: \"put NVDA on my flagged list\"",
+     "watchlist.setFlag: \"add NVDA to flagged\""
+    ],
+    "args": [
+     "corpus watchlist.setFlag",
+     "corpus watchlist.setFlag.bare"
+    ],
+    "execution": [
+     "watchlist.setFlag (c)",
+     "watchlist.setFlag.bare (c)"
+    ],
+    "receipt": [
+     "watchlist.setFlag (c)",
+     "watchlist.setFlag.bare (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.setFlag: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.setNote": {
    "domain": "watchlist",
    "group": "lists",
@@ -7988,6 +8206,116 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.sortColumn": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "watchlist.sortColumn: \"sort my watchlist by RVOL\"",
+     "watchlist.sortColumn: \"sort this list by relative volume, highest first\"",
+     "watchlist.sortColumn: \"put the biggest RVOL at the top of my watchlist\"",
+     "watchlist.sortColumn: \"sort the Momentum list by RVOL high to low\""
+    ],
+    "routing": [
+     "watchlist.sortColumn: \"sort my watchlist by RVOL\"",
+     "watchlist.sortColumn: \"sort this list by relative volume, highest first\"",
+     "watchlist.sortColumn: \"put the biggest RVOL at the top of my watchlist\"",
+     "watchlist.sortColumn: \"sort the Momentum list by RVOL high to low\""
+    ],
+    "args": [
+     "corpus watchlist.sortColumn"
+    ],
+    "execution": [
+     "watchlist.sortColumn (c)"
+    ],
+    "receipt": [
+     "watchlist.sortColumn (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.sortColumn: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.step": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.step: \"next ticker in my watchlist\"",
+     "watchlist.step: \"go to the next name on this list\"",
+     "watchlist.step: \"next one on my watchlist\""
+    ],
+    "routing": [
+     "watchlist.step: \"next ticker in my watchlist\"",
+     "watchlist.step: \"go to the next name on this list\"",
+     "watchlist.step: \"next one on my watchlist\""
+    ],
+    "args": [
+     "corpus watchlist.step"
+    ],
+    "execution": [
+     "watchlist.step (c)"
+    ],
+    "receipt": [
+     "watchlist.step (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.step: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

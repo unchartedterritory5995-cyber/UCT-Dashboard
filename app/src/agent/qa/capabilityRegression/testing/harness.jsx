@@ -91,8 +91,11 @@ const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { 
   // PKG2 (conversational scanning): the catalog keys the owner's screen + refinements use (filters.py), and one LIST field with its values
   { key: 'chg_pct_1m', label: 'Change 1M', type: 'range', unit: '%' }, { key: 'chg_pct_3m', label: 'Change 3M', type: 'range', unit: '%' },
   { key: 'dist_52w_high_pct', label: '% From 52W High', type: 'range', unit: '%' }, { key: 'vol_ratio', label: 'Volume vs 30D Avg', type: 'range', unit: 'x' },
-  { key: 'sector', label: 'Sector', type: 'enum', unit: '', category: 'descriptive' }]
-const FIELD_OPTIONS = { sector: { values: ['Technology', 'Healthcare', 'Energy', 'Financial Services'] } }
+  { key: 'sector', label: 'Sector', type: 'enum', unit: '', category: 'descriptive' },
+  // SG-2: the industry list holds an IT-services industry whose name contains "Technology" (the live wrong match)
+  { key: 'industry', label: 'Industry', type: 'enum', unit: '', category: 'descriptive' }]
+const FIELD_OPTIONS = { sector: { values: ['Technology', 'Healthcare', 'Energy', 'Financial Services'] },
+  industry: { values: ['Information Technology Services', 'Semiconductors', 'Software - Application', 'Oil & Gas E&P'] } }
 // the indicator-alert catalog as the evaluator serves it (indicator_alert_evaluator.alert_catalog), RSI + the MA cross (train 3)
 const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true },
   { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
@@ -135,10 +138,18 @@ const ASSET_ROUTES = { gold: { kind: 'commodity.quote', asset: 'gold', label: 'g
 // a made-up event-study answer (the study's own {lead, text, table, caveats} shape) — never a market value
 const SYNTH_STUDY = (sym) => ({ lead: `${sym} synthetic condition: 3 events (fixture)`, text: `${sym} synthetic condition: 3 events (fixture)\nSynthetic fixture study: no market value.`,
   table: { columns: [{ key: 'window', label: 'Window' }, { key: 'n', label: 'Events' }], rows: [{ window: '1 trading session', n: '3' }] }, caveats: ['Small sample (fixture).'] })
-const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i,
-  // PKG2: made-up values for the conversational-scan fields — every row meets the owner's screen, so a refinement's effect is
+// SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
+// other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
+const FAR_FROM_HIGH = [-12, -18, -25, -30, -35, -40]
+const UNIVERSE = Array.from({ length: 18 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i,
+  // PKG2: made-up values for the conversational-scan fields — T01–T12 meet the owner's screen, so a refinement's effect is
   // asserted on the canonical read's spec, never on a figure
-  chg_pct_1m: 20 + i, chg_pct_3m: 30 + 2 * i, dist_52w_high_pct: -0.4 * i, vol_ratio: 1.1 + 0.1 * i, sector: 'Technology' }))
+  chg_pct_1m: 20 + i, chg_pct_3m: 30 + 2 * i, dist_52w_high_pct: i < 12 ? -0.4 * i : FAR_FROM_HIGH[i - 12], vol_ratio: 1.1 + 0.1 * i,
+  sector: 'Technology', industry: i % 2 ? 'Semiconductors' : 'Software - Application' }))
+/** The engine's own filter semantics over the fixture universe (wire filters {key, op, min, max, value, values}). */
+export const rowMatches = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : f.op === 'gte' ? r[f.key] >= f.min
+  : f.op === 'lte' ? r[f.key] <= f.max : f.op === 'between' ? r[f.key] >= f.min && r[f.key] <= f.max : f.op === 'eq' ? r[f.key] === f.value
+    : f.op === 'in' ? (f.values || []).includes(r[f.key]) : f.op === 'not_in' ? !(f.values || []).includes(r[f.key]) : true)
 
 /** The board's EFFECTIVE state — every widget's cell, and each chart's symbol, timeframe and merged settings (what the
  *  member sees): equality = nothing changed for the member. (A stored `tf: 'D'` written back where nothing was stored
@@ -247,8 +258,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (ssm && method === 'PUT') { st.screens = st.screens.map(x => (String(x.id) === ssm[1] ? { ...x, ...(body.name ? { name: body.name } : {}), ...(body.spec ? { spec: body.spec } : {}) } : x)); return json(st.screens.find(x => String(x.id) === ssm[1]) || {}) }
     if (ssm && method === 'DELETE') { st.screens = st.screens.filter(x => String(x.id) !== ssm[1]); return json({ ok: true }) }
     if (u === '/api/screener/scan') {
-      const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : f.op === 'gte' ? r[f.key] >= f.min : f.op === 'lte' ? r[f.key] <= f.max
-        : f.op === 'in' ? (f.values || []).includes(r[f.key]) : true)
+      const ok = rowMatches
       const rows = UNIVERSE.filter(r => (body.filters || []).every(f => ok(r, f)))
       return json({ total: rows.length, rows: rows.slice(0, body.page_size || 25), snapshot_date: '2026-10-07' })
     }
@@ -264,7 +274,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // the SC-1 gateway's screen kinds (served in production): synthetic rows from the fixture universe — the corpus
     // asserts WHICH read ran and what the Agent did with a screen, never a figure
     if (u === '/api/agent/data' && (body?.kind === 'screen.run' || body?.kind === 'screen.count')) {
-      const rows = UNIVERSE.map(r => ({ ...r, symbol: r.ticker, company: r.ticker, chg_pct_1d: r.chg_pct }))
+      // SG-1: the engine's semantics — only rows meeting every wire filter come back (a saved id carries no spec: all rows)
+      const rows = UNIVERSE.filter(r => (body.params?.spec?.filters || []).every(f => rowMatches(r, f))).map(r => ({ ...r, symbol: r.ticker, company: r.ticker, chg_pct_1d: r.chg_pct }))
+      st.screenRows = rows
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'eod', as_of: '2026-11-03', stale: false, notes: [], coverage: null,
         data: { rows: rows.slice(0, body.params?.limit || 25), total_matches: rows.length, count: rows.length } })
     }

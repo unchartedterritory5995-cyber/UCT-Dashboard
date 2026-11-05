@@ -3652,6 +3652,66 @@
     }
    }
   },
+  "scan.near-high.sign": {
+   "digest": "c23f7abe79a7c0ec",
+   "phrasings": {
+    "find stocks up 20% this month near 52-week highs with volume above average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "stocks up 20% in a month within 5% of their 52-week high, volume above average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me names up 20%+ this month close to 52 week highs with above average volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.near-high.between": {
+   "digest": "f43ad88b749e6aca",
+   "phrasings": {
+    "stocks within 0 to 5% of their 52-week high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "find stocks between 0 and 5 percent below the 52 week high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scan for names 0-5% off their 52-week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.sector-word": {
+   "digest": "348c0fbc5da622e8",
+   "phrasings": {
+    "only tech": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "just the technology names": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep only tech stocks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setRange.1y": {
    "digest": "e26e59983f375f8a",
    "phrasings": {
@@ -3851,6 +3911,146 @@
      "modes": {}
     },
     "get rid of my Swing Setup indicator template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.sortColumn": {
+   "digest": "64d833a58a022da7",
+   "phrasings": {
+    "sort my watchlist by RVOL": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sort this list by relative volume, highest first": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the biggest RVOL at the top of my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sort the Momentum list by RVOL high to low": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setColumns": {
+   "digest": "17a8b6fbf4721908",
+   "phrasings": {
+    "add the RVOL column to my watchlist and hide the volume column": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show RVOL and hide Volume on this watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "on my watchlist add an RVOL column and take off volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.step": {
+   "digest": "2c59b73a0c4ea27e",
+   "phrasings": {
+    "next ticker in my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go to the next name on this list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "next one on my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.readView": {
+   "digest": "d10223bc7e38b56e",
+   "phrasings": {
+    "what's at the top of my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what does this watchlist show right now": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "read me the tickers on this list in order": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setFlag": {
+   "digest": "0528b45163933b69",
+   "phrasings": {
+    "add NVDA to my flagged list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put NVDA on my flagged list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add NVDA to flagged": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setFlag.bare": {
+   "digest": "c6d6f0d6279998a6",
+   "phrasings": {
+    "flag NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "star NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.keepOnly": {
+   "digest": "b745d9174ae1f506",
+   "phrasings": {
+    "keep only NVDA on my Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove everything from Momentum except NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clear Momentum except for NVDA": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

@@ -1851,6 +1851,19 @@
    ],
    "fast": false
   },
+  "watchlist.keepOnly": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "watchlist.list": {
    "domain": "watchlist",
    "group": "lists",
@@ -1876,6 +1889,19 @@
     "charts"
    ],
    "fast": true
+  },
+  "watchlist.readView": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "watchlist.remove": {
    "domain": "watchlist",
@@ -1916,6 +1942,32 @@
    ],
    "fast": true
   },
+  "watchlist.setColumns": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "watchlist.setFlag": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "flaggedList",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "watchlist.setNote": {
    "domain": "watchlist",
    "group": "lists",
@@ -1941,6 +1993,32 @@
     "charts"
    ],
    "fast": true
+  },
+  "watchlist.sortColumn": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "watchlist.step": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "widget.add": {
    "domain": "widget",
