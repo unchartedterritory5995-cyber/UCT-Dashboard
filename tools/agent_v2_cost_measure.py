@@ -237,11 +237,10 @@ def measure_case(case: dict, layout: str, model: str, *, led, v2, t1, ctx: dict,
 
 def measure() -> dict:
     from tools import agent_eval_ledger as led
-    from tools.agent_v2_cost_dryrun import SAMPLE_CONTEXT, _manifest
+    from tools.agent_v2_cost_dryrun import _manifest, real_context
     from api.services.uct_agent import turn as t1, turn_v2 as v2
     t1._record_cost = lambda r: 0.0                  # never record a scripted response as spend
-    ctx = json.loads(json.dumps(SAMPLE_CONTEXT))
-    ctx["charts"] = ctx["charts"]
+    ctx = real_context()
     manifest = _manifest()
     rows = []
     for case in _cases():

@@ -7,6 +7,9 @@ $0.25 per-turn cap:
   * v1's single call stays under the cap for every intent."""
 from __future__ import annotations
 
+import importlib.util
+import json
+import logging
 import os
 
 import pytest
@@ -21,11 +24,19 @@ def index():
 
 def test_index_layout_finishes_every_corpus_intent_under_the_cap_with_margin(index):
     s = index["summary"]
-    assert index["turn_cap_usd"] == 0.25 and s["intents"] == 46
+    assert index["turn_cap_usd"] == 0.25 and s["intents"] == 158
     assert s["v2_finished"] == s["intents"] and s["v2_stopped"] == []
     assert all(r["v2"]["steps_done"] == r["v2"]["steps"] for r in index["rows"])           # no step refused (args / target)
-    assert s["v2_gate_peak_usd_max"] < 0.25 and s["v2_margin_usd"] >= 0.10                  # measured ≈ $0.072 → margin ≈ $0.178
+    # over the real Screener section: measured $0.1409 → margin $0.1091. This is the RUNTIME gate (spent + next worst); the
+    # summed worst case is the stricter figure, $0.3387 here, and it is over the cap (see test_uct_agent_v2_cost_measure.py)
+    assert s["v2_gate_peak_usd_max"] < 0.25 and s["v2_margin_usd"] >= 0.10
     assert all(r["v2"]["rounds"] <= index["rounds_cap"] for r in index["rows"])
+
+
+def test_the_fixture_boards_carry_the_real_screener_section():
+    with open(cc.EXPORT, encoding="utf-8") as f:
+        boards = json.load(f)["boards"]
+    assert boards and all(len(b["screener"][0]["fields"]) > 4_000 and b["screener"][0]["savedScreens"] for b in boards.values())
 
 
 def test_v1_one_call_is_under_the_cap_for_every_intent(index):
@@ -52,6 +63,41 @@ def test_the_tool_never_records_a_cost_and_restores_the_recorder(monkeypatch):
     monkeypatch.setattr(t1, "_record_cost", sentinel)
     cc.measure("claude-haiku-4-5", "index")
     assert seen == [] and t1._record_cost is sentinel
+
+
+def test_the_tool_restores_the_process_logging_level():
+    before = logging.root.manager.disable
+    cc.measure("claude-haiku-4-5", "index")
+    assert logging.root.manager.disable == before == logging.NOTSET
+
+
+def test_the_tool_restores_the_logging_level_when_the_measurement_fails_and_keeps_a_callers_own(monkeypatch):
+    seen = []
+
+    def boom(*a):
+        seen.append(logging.root.manager.disable)
+        raise RuntimeError("boom")
+    monkeypatch.setattr(cc, "_measure", boom)
+    with pytest.raises(RuntimeError):
+        cc.measure()
+    assert seen == [logging.WARNING] and logging.root.manager.disable == logging.NOTSET
+    logging.disable(logging.INFO)
+    try:
+        with pytest.raises(RuntimeError):
+            cc.measure()
+        assert logging.root.manager.disable == logging.INFO
+    finally:
+        logging.disable(logging.NOTSET)
+
+
+def test_the_contract_skew_log_is_still_seen_after_the_tool_ran(caplog):
+    """The order that failed: this module before test_uct_agent_contract.py silenced that file's logged-skew test."""
+    cc.measure("claude-haiku-4-5", "index")
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_uct_agent_contract.py")
+    spec = importlib.util.spec_from_file_location("contract_after_the_cost_tool", path)
+    contract = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contract)
+    contract.test_manifest_version_skew_is_served_and_logged(caplog)
 
 
 def test_the_tool_refuses_unless_the_auth_db_is_a_temp_file(monkeypatch):

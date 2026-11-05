@@ -18,6 +18,7 @@ representative four-chart workspace context) — nothing is sent anywhere. `--ru
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import sys
@@ -29,13 +30,15 @@ sys.path.insert(0, ROOT)
 GOLDEN = os.path.join(ROOT, "app", "src", "agent", "contract", "manifest.golden.json")
 ACCEPTANCE = os.path.join(ROOT, "app", "src", "agent", "__fixtures__", "program", "v2-acceptance.json")
 OUT = os.path.join(ROOT, "app", "src", "agent", "__fixtures__", "program", "scores", "v2-cost-dryrun.json")
+CORPUS_EXPORT = os.path.join(ROOT, "tests", "fixtures", "agent_v2_corpus_requests.json")
 CUMULATIVE_CAP_USD = 21.0
 #: a step's tool_result as the browser writes it (receipt / value-free query summary), and the model's tool_use
 STEP_RESULT_BYTES = 400
 TOOL_USE_BYTES = 220
 ROUNDS_TABLE = (1, 2, 3, 4, 6)
 
-#: a representative Charts workspace context (four charts, two lists, the libraries) — the VOLATILE part of a request
+#: a representative Charts workspace context (four charts, two lists, the libraries) — the VOLATILE part of a request.
+#: Its Screener section is real_screener_section(): never price against this dict alone (real_context()).
 SAMPLE_CONTEXT = {
     "surface": "charts",
     "charts": [{"ref": f"c{i}", "label": f"Chart ({s})", "symbol": s, "tf": "D", "position": p, "indicators": ["EMA 9", "EMA 20", "SMA 50", "SMA 200"]}
@@ -44,7 +47,6 @@ SAMPLE_CONTEXT = {
     "layouts": [{"ref": "l1", "label": "Layouts", "layouts": [{"id": "1", "name": "Swing Board", "open": True}, {"id": "2", "name": "Day Trading"}]}],
     "watchlists": [{"ref": "w2", "label": "Swing", "count": 12}, {"ref": "w3", "label": "Momentum", "count": 40}],
     "watchlistLibrary": [{"ref": "w4", "label": "Watchlists (create new lists here)"}],
-    "screener": [{"ref": "s1", "label": "Screener", "fields": "price, adr_pct, rel_volume, pct_change, market_cap, sector, industry"}],
     "alertLibrary": [{"ref": "a1", "label": "Price alerts (create new alerts here)", "alerts": 5}],
     "indicatorEdits": [{"ref": f"i{i}", "chart": f"Chart ({s})", "indicators": [{"id": f"x{i}a", "name": "EMA 9"}, {"id": f"x{i}b", "name": "EMA 20"}]} for i, s in enumerate(["NVDA", "AMD", "TSLA", "SPY"], 1)],
     "board": [{"ref": "b1", "label": "Board (arrange, remove, link and configure the widgets on it)"}],
@@ -53,6 +55,26 @@ SAMPLE_CONTEXT = {
 SAMPLE_MESSAGE = ("Find stocks above their 20 EMA with volume at least twice average, drop anything under $10, put the top five "
                   "by 3-month change on a new list called w1test-flagship, open the top two in the bottom row with my 9/20 EMAs, "
                   "and save this as W1 Test")
+
+
+@functools.lru_cache(maxsize=1)
+def real_screener_section() -> list[dict]:
+    """The `screener` context section the browser sends a member with no saved screens on a screening request. Read from the
+    corpus fixture, which capabilities/screener.js's own provider wrote over the real registry and starters
+    (agentPlannerV2CostExport.test.jsx): the section now carries notes and composing rules only that provider can build, and a
+    second copy here would drift low. A stub or a partial section makes every v2 figure read low: this one rides every round."""
+    with open(CORPUS_EXPORT, encoding="utf-8") as f:
+        sec = json.load(f)["boards"]["ONE"]["screener"]
+    if not sec or sec[0].get("fields") in (None, "", "loading") or not sec[0].get("compose"):
+        raise RuntimeError("the corpus fixture has no real screener section: regenerate it (tools/agent_v2_corpus_cost.py)")
+    return sec
+
+
+def real_context() -> dict:
+    """SAMPLE_CONTEXT with the real Screener section: what every cost tool prices."""
+    ctx = json.loads(json.dumps(SAMPLE_CONTEXT))
+    ctx["screener"] = real_screener_section()
+    return ctx
 
 
 def _manifest() -> list[dict]:
@@ -75,7 +97,7 @@ def build_request(model_id: str, rounds_done: int) -> dict:
     caps = t1.validate_manifest(_manifest(), v2.MAX_CAPABILITIES_V2)
     tools = v2.build_tools(caps, research=True)
     system = [{"type": "text", "text": v2.V2_SYSTEM + "\n\n" + t1.BREADTH_RULE, "cache_control": {"type": "ephemeral"}}]
-    messages = [{"role": "user", "content": t1._block("workspace_context", SAMPLE_CONTEXT) + "\n" + t1._block("member_request", SAMPLE_MESSAGE)}]
+    messages = [{"role": "user", "content": t1._block("workspace_context", real_context()) + "\n" + t1._block("member_request", SAMPLE_MESSAGE)}]
     for i in range(rounds_done):
         messages.append({"role": "assistant", "content": [{"type": "tool_use", "id": f"tu{i}", "name": "chart__setTimeframe", "input": {"target": "c1", "args": {"timeframe": "W"}}, "pad": "x" * (TOOL_USE_BYTES - 120)}]})
         messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": f"tu{i}", "content": "done: " + "x" * (STEP_RESULT_BYTES - 6)}]})
