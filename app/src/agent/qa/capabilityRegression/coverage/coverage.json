@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 154,
-  "withProductionKinds": 145,
+  "all": 174,
+  "withProductionKinds": 165,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 154,
-  "withAnyRegressionCase": 102,
+  "capabilities": 174,
+  "withAnyRegressionCase": 122,
   "perProtection": {
    "nl": {
-    "covered": 102,
-    "applicable": 154
+    "covered": 122,
+    "applicable": 174
    },
    "routing": {
-    "covered": 101,
-    "applicable": 154
+    "covered": 120,
+    "applicable": 174
    },
    "args": {
-    "covered": 102,
-    "applicable": 154
+    "covered": 122,
+    "applicable": 174
    },
    "execution": {
-    "covered": 102,
-    "applicable": 154
+    "covered": 122,
+    "applicable": 174
    },
    "receipt": {
-    "covered": 78,
-    "applicable": 154
+    "covered": 96,
+    "applicable": 174
    },
    "refusal": {
     "covered": 31,
-    "applicable": 154
+    "applicable": 174
    },
    "permission": {
-    "covered": 148,
-    "applicable": 154
+    "covered": 168,
+    "applicable": 174
    },
    "undo": {
-    "covered": 46,
-    "applicable": 95
+    "covered": 56,
+    "applicable": 111
    },
    "multiStep": {
-    "covered": 31,
-    "applicable": 154
+    "covered": 36,
+    "applicable": 174
    },
    "phrasings": {
-    "covered": 101,
-    "applicable": 154
+    "covered": 120,
+    "applicable": 174
    }
   }
  },
@@ -2309,6 +2309,60 @@
     "phrasings": []
    }
   },
+  "chartSetup.resetView": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.resetView: \"reset the view\"",
+     "chartSetup.resetView: \"reset the chart view\"",
+     "chartSetup.resetView: \"reset the zoom on this chart\"",
+     "chartSetup.resetView: \"put this chart back to its default view\""
+    ],
+    "routing": [
+     "chartSetup.resetView: \"reset the view\"",
+     "chartSetup.resetView: \"reset the chart view\"",
+     "chartSetup.resetView: \"reset the zoom on this chart\"",
+     "chartSetup.resetView: \"put this chart back to its default view\""
+    ],
+    "args": [
+     "corpus chartSetup.resetView"
+    ],
+    "execution": [
+     "chartSetup.resetView (c)"
+    ],
+    "receipt": [
+     "chartSetup.resetView (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "chartSetup.saveTemplate": {
    "domain": "chartSetup",
    "group": "chartSetup",
@@ -2360,6 +2414,174 @@
     "permission": [],
     "undo": [
      "chartSetup.saveTemplate: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setIndicatorsHidden": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.setIndicatorsHidden: \"hide all indicators on this chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all my indicators for now\"",
+     "chartSetup.setIndicatorsHidden: \"hide every indicator on the chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all of the indicators and volume for a second\""
+    ],
+    "routing": [
+     "chartSetup.setIndicatorsHidden: \"hide all indicators on this chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all my indicators for now\"",
+     "chartSetup.setIndicatorsHidden: \"hide every indicator on the chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all of the indicators and volume for a second\""
+    ],
+    "args": [
+     "corpus chartSetup.setIndicatorsHidden"
+    ],
+    "execution": [
+     "chartSetup.setIndicatorsHidden (c)"
+    ],
+    "receipt": [
+     "chartSetup.setIndicatorsHidden (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setIndicatorsHidden: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setMovingAverages": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.setMovingAverages: \"hide all moving averages\"",
+     "chartSetup.setMovingAverages: \"hide every moving average on this chart\"",
+     "chartSetup.setMovingAverages: \"hide all my moving averages\"",
+     "chartSetup.setMovingAverages: \"turn off all the moving averages\""
+    ],
+    "routing": [
+     "chartSetup.setMovingAverages: \"hide all moving averages\"",
+     "chartSetup.setMovingAverages: \"hide every moving average on this chart\"",
+     "chartSetup.setMovingAverages: \"hide all my moving averages\"",
+     "chartSetup.setMovingAverages: \"turn off all the moving averages\""
+    ],
+    "args": [
+     "corpus chartSetup.setMovingAverages"
+    ],
+    "execution": [
+     "chartSetup.setMovingAverages (c)"
+    ],
+    "receipt": [
+     "chartSetup.setMovingAverages (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setMovingAverages: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setRange": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.setRange: \"show one year on this chart\"",
+     "chartSetup.setRange: \"set the chart range to 1Y\"",
+     "chartSetup.setRange: \"frame this chart on the last year\"",
+     "chartSetup.setRange: \"show 1Y on the chart\""
+    ],
+    "routing": [
+     "chartSetup.setRange: \"show one year on this chart\"",
+     "chartSetup.setRange: \"set the chart range to 1Y\"",
+     "chartSetup.setRange: \"frame this chart on the last year\"",
+     "chartSetup.setRange: \"show 1Y on the chart\""
+    ],
+    "args": [
+     "corpus chartSetup.setRange"
+    ],
+    "execution": [
+     "chartSetup.setRange (c)"
+    ],
+    "receipt": [
+     "chartSetup.setRange (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setRange: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -2616,6 +2838,54 @@
     "permission": [],
     "undo": [],
     "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.add": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": false,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "routing": [],
+    "args": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "execution": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "receipt": [
+     "GW-35.drawing-add-arrow"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "GW-35.drawing-add-arrow"
+    ],
     "phrasings": []
    }
   },
@@ -3279,6 +3549,62 @@
     "phrasings": []
    }
   },
+  "drawing.setAlert": {
+   "domain": "drawing",
+   "group": "alerts",
+   "target": "drawing",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setAlert: \"alert me if it breaks below this trendline\"",
+     "drawing.setAlert: \"set an alert when price loses that trendline\"",
+     "drawing.setAlert: \"alert me when NVDA breaks below that trendline\""
+    ],
+    "routing": [
+     "drawing.setAlert: \"alert me if it breaks below this trendline\"",
+     "drawing.setAlert: \"set an alert when price loses that trendline\"",
+     "drawing.setAlert: \"alert me when NVDA breaks below that trendline\""
+    ],
+    "args": [
+     "corpus drawing.setAlert"
+    ],
+    "execution": [
+     "drawing.setAlert (c)"
+    ],
+    "receipt": [
+     "drawing.setAlert (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "drawing.setAlert: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [
+     "drawing.setAlert: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
   "drawing.setAllVisible": {
    "domain": "drawing",
    "group": "drawings",
@@ -3331,6 +3657,116 @@
     "undo": [],
     "multiStep": [
      "drawing.hideAll: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setAnchors": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setAnchors: \"drag the arrow's end point up to 200\"",
+     "drawing.setAnchors: \"drag this drawing's end point up to 200\"",
+     "drawing.setAnchors: \"drag the end point of the drawing to 200\""
+    ],
+    "routing": [
+     "drawing.setAnchors: \"drag the arrow's end point up to 200\"",
+     "drawing.setAnchors: \"drag this drawing's end point up to 200\"",
+     "drawing.setAnchors: \"drag the end point of the drawing to 200\""
+    ],
+    "args": [
+     "corpus drawing.setAnchors"
+    ],
+    "execution": [
+     "drawing.setAnchors (c)"
+    ],
+    "receipt": [
+     "drawing.setAnchors (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.setAnchors: undo restores"
+    ],
+    "multiStep": [
+     "drawing.setAnchors: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setFibLevels": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setFibLevels: \"hide the 78.6 level on that fib\"",
+     "drawing.setFibLevels: \"remove the 0.786 level from the fib drawing\"",
+     "drawing.setFibLevels: \"turn off the 78.6 fib level\""
+    ],
+    "routing": [
+     "drawing.setFibLevels: \"hide the 78.6 level on that fib\"",
+     "drawing.setFibLevels: \"remove the 0.786 level from the fib drawing\"",
+     "drawing.setFibLevels: \"turn off the 78.6 fib level\""
+    ],
+    "args": [
+     "corpus drawing.setFibLevels"
+    ],
+    "execution": [
+     "drawing.setFibLevels (c)"
+    ],
+    "receipt": [
+     "drawing.setFibLevels (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "drawing.setFibLevels: after an earlier turn"
     ],
     "phrasings": []
    }
@@ -3389,6 +3825,60 @@
     ],
     "multiStep": [
      "drawing.setLevel: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setProps": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setProps: \"make that drawing a large arrow\"",
+     "drawing.setProps: \"set the arrow size on that drawing to large\"",
+     "drawing.setProps: \"use a large arrow size on the drawing\""
+    ],
+    "routing": [
+     "drawing.setProps: \"make that drawing a large arrow\"",
+     "drawing.setProps: \"set the arrow size on that drawing to large\"",
+     "drawing.setProps: \"use a large arrow size on the drawing\""
+    ],
+    "args": [
+     "corpus drawing.setProps"
+    ],
+    "execution": [
+     "drawing.setProps (c)"
+    ],
+    "receipt": [
+     "drawing.setProps (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "drawing.setProps: after an earlier turn"
     ],
     "phrasings": []
    }
@@ -4487,6 +4977,60 @@
     "phrasings": []
    }
   },
+  "indicatorAlert.list": {
+   "domain": "indicatorAlert",
+   "group": "indicatorAlerts",
+   "target": "indicatorAlertLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "indicatorAlert.list: \"show my indicator alerts\"",
+     "indicatorAlert.list: \"list my indicator alerts\"",
+     "indicatorAlert.list: \"what indicator alerts do I have\"",
+     "indicatorAlert.list: \"which indicator alerts are on my account\""
+    ],
+    "routing": [
+     "indicatorAlert.list: \"show my indicator alerts\"",
+     "indicatorAlert.list: \"list my indicator alerts\"",
+     "indicatorAlert.list: \"what indicator alerts do I have\"",
+     "indicatorAlert.list: \"which indicator alerts are on my account\""
+    ],
+    "args": [
+     "corpus indicatorAlert.list"
+    ],
+    "execution": [
+     "indicatorAlert.list (c)"
+    ],
+    "receipt": [
+     "indicatorAlert.list (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "indicatorAlert.toggle": {
    "domain": "indicatorAlert",
    "group": "indicatorAlerts",
@@ -4783,6 +5327,218 @@
      "indicator.followup-daily-only: after an earlier turn",
      "GW-27.indicator-package-draft-to-delete"
     ],
+    "phrasings": []
+   }
+  },
+  "indicatorTemplate.apply": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicatorTemplate.apply: \"apply my Swing Setup indicator template to this chart\"",
+     "indicatorTemplate.apply: \"add the Swing Setup indicator template to this chart\"",
+     "indicatorTemplate.apply: \"put my Swing Setup indicator template on this chart\""
+    ],
+    "routing": [
+     "indicatorTemplate.apply: \"apply my Swing Setup indicator template to this chart\"",
+     "indicatorTemplate.apply: \"add the Swing Setup indicator template to this chart\"",
+     "indicatorTemplate.apply: \"put my Swing Setup indicator template on this chart\""
+    ],
+    "args": [
+     "corpus indicatorTemplate.apply"
+    ],
+    "execution": [
+     "indicatorTemplate.apply (c)"
+    ],
+    "receipt": [
+     "indicatorTemplate.apply (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "indicatorTemplate.apply: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorTemplate.delete": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorTemplates",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicatorTemplate.delete: \"delete my Swing Setup indicator template\"",
+     "indicatorTemplate.delete: \"remove the Swing Setup indicator template\"",
+     "indicatorTemplate.delete: \"get rid of my Swing Setup indicator template\""
+    ],
+    "routing": [
+     "indicatorTemplate.delete: \"delete my Swing Setup indicator template\"",
+     "indicatorTemplate.delete: \"remove the Swing Setup indicator template\"",
+     "indicatorTemplate.delete: \"get rid of my Swing Setup indicator template\""
+    ],
+    "args": [
+     "corpus indicatorTemplate.delete"
+    ],
+    "execution": [
+     "indicatorTemplate.delete (c)"
+    ],
+    "receipt": [
+     "indicatorTemplate.delete (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "indicatorTemplate.delete: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorTemplate.list": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorTemplates",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicatorTemplate.list: \"what indicator templates do I have\"",
+     "indicatorTemplate.list: \"list my indicator templates\"",
+     "indicatorTemplate.list: \"show my indicator templates\""
+    ],
+    "routing": [
+     "indicatorTemplate.list: \"what indicator templates do I have\"",
+     "indicatorTemplate.list: \"list my indicator templates\"",
+     "indicatorTemplate.list: \"show my indicator templates\""
+    ],
+    "args": [
+     "corpus indicatorTemplate.list"
+    ],
+    "execution": [
+     "indicatorTemplate.list (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorTemplate.save": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorTemplates",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicatorTemplate.save: \"save these indicators as an indicator template called Momentum\"",
+     "indicatorTemplate.save: \"save the indicators on this chart as my Momentum indicator template\"",
+     "indicatorTemplate.save: \"make an indicator template called Momentum from this chart\""
+    ],
+    "routing": [
+     "indicatorTemplate.save: \"save these indicators as an indicator template called Momentum\"",
+     "indicatorTemplate.save: \"save the indicators on this chart as my Momentum indicator template\"",
+     "indicatorTemplate.save: \"make an indicator template called Momentum from this chart\""
+    ],
+    "args": [
+     "corpus indicatorTemplate.save"
+    ],
+    "execution": [
+     "indicatorTemplate.save (c)"
+    ],
+    "receipt": [
+     "indicatorTemplate.save (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "indicatorTemplate.save: undo restores"
+    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
@@ -7176,6 +7932,60 @@
     "phrasings": []
    }
   },
+  "watchlist.keepOnly": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.keepOnly: \"keep only NVDA on my Momentum watchlist\"",
+     "watchlist.keepOnly: \"remove everything from Momentum except NVDA\"",
+     "watchlist.keepOnly: \"clear Momentum except for NVDA\""
+    ],
+    "routing": [
+     "watchlist.keepOnly: \"keep only NVDA on my Momentum watchlist\"",
+     "watchlist.keepOnly: \"remove everything from Momentum except NVDA\"",
+     "watchlist.keepOnly: \"clear Momentum except for NVDA\""
+    ],
+    "args": [
+     "corpus watchlist.keepOnly"
+    ],
+    "execution": [
+     "watchlist.keepOnly (c)"
+    ],
+    "receipt": [
+     "watchlist.keepOnly (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "watchlist.keepOnly: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.list": {
    "domain": "watchlist",
    "group": "lists",
@@ -7258,6 +8068,56 @@
     "routing": [],
     "args": [],
     "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.readView": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.readView: \"what's at the top of my watchlist\"",
+     "watchlist.readView: \"what does this watchlist show right now\"",
+     "watchlist.readView: \"read me the tickers on this list in order\""
+    ],
+    "routing": [
+     "watchlist.readView: \"what's at the top of my watchlist\"",
+     "watchlist.readView: \"what does this watchlist show right now\"",
+     "watchlist.readView: \"read me the tickers on this list in order\""
+    ],
+    "args": [
+     "corpus watchlist.readView"
+    ],
+    "execution": [
+     "watchlist.readView (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -7435,6 +8295,118 @@
     "phrasings": []
    }
   },
+  "watchlist.setColumns": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.setColumns: \"add the RVOL column to my watchlist and hide the volume column\"",
+     "watchlist.setColumns: \"show RVOL and hide Volume on this watchlist\"",
+     "watchlist.setColumns: \"on my watchlist add an RVOL column and take off volume\""
+    ],
+    "routing": [
+     "watchlist.setColumns: \"add the RVOL column to my watchlist and hide the volume column\"",
+     "watchlist.setColumns: \"show RVOL and hide Volume on this watchlist\"",
+     "watchlist.setColumns: \"on my watchlist add an RVOL column and take off volume\""
+    ],
+    "args": [
+     "corpus watchlist.setColumns"
+    ],
+    "execution": [
+     "watchlist.setColumns (c)"
+    ],
+    "receipt": [
+     "watchlist.setColumns (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.setColumns: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.setFlag": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "flaggedList",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.setFlag: \"add NVDA to my flagged list\"",
+     "watchlist.setFlag: \"put NVDA on my flagged list\"",
+     "watchlist.setFlag: \"add NVDA to flagged\"",
+     "GW-34.watchlist-setFlag-bare"
+    ],
+    "routing": [
+     "watchlist.setFlag: \"add NVDA to my flagged list\"",
+     "watchlist.setFlag: \"put NVDA on my flagged list\"",
+     "watchlist.setFlag: \"add NVDA to flagged\""
+    ],
+    "args": [
+     "corpus watchlist.setFlag",
+     "GW-34.watchlist-setFlag-bare"
+    ],
+    "execution": [
+     "watchlist.setFlag (c)",
+     "GW-34.watchlist-setFlag-bare"
+    ],
+    "receipt": [
+     "watchlist.setFlag (c)",
+     "GW-34.watchlist-setFlag-bare"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.setFlag: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.setNote": {
    "domain": "watchlist",
    "group": "lists",
@@ -7523,6 +8495,116 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.sortColumn": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "watchlist.sortColumn: \"sort my watchlist by RVOL\"",
+     "watchlist.sortColumn: \"sort this list by relative volume, highest first\"",
+     "watchlist.sortColumn: \"put the biggest RVOL at the top of my watchlist\"",
+     "watchlist.sortColumn: \"sort the Momentum list by RVOL high to low\""
+    ],
+    "routing": [
+     "watchlist.sortColumn: \"sort my watchlist by RVOL\"",
+     "watchlist.sortColumn: \"sort this list by relative volume, highest first\"",
+     "watchlist.sortColumn: \"put the biggest RVOL at the top of my watchlist\"",
+     "watchlist.sortColumn: \"sort the Momentum list by RVOL high to low\""
+    ],
+    "args": [
+     "corpus watchlist.sortColumn"
+    ],
+    "execution": [
+     "watchlist.sortColumn (c)"
+    ],
+    "receipt": [
+     "watchlist.sortColumn (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.sortColumn: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.step": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.step: \"next ticker in my watchlist\"",
+     "watchlist.step: \"go to the next name on this list\"",
+     "watchlist.step: \"next one on my watchlist\""
+    ],
+    "routing": [
+     "watchlist.step: \"next ticker in my watchlist\"",
+     "watchlist.step: \"go to the next name on this list\"",
+     "watchlist.step: \"next one on my watchlist\""
+    ],
+    "args": [
+     "corpus watchlist.step"
+    ],
+    "execution": [
+     "watchlist.step (c)"
+    ],
+    "receipt": [
+     "watchlist.step (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.step: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

@@ -15,7 +15,7 @@ import { allCapabilityNames, getCapability } from '../capabilities'
 import { addableRows } from '../capabilities/indicatorEdits'
 import { savedScreensNow } from '../capabilities/screener'
 import { editDistance, allowedEdits } from './match'
-import { isPronounToken } from './tickers'
+import { isPronounToken, isReservedWord } from './tickers'
 
 // Words of 3+ letters. ALL-CAPS tokens in prose/source are skipped: they are tickers and acronyms in
 // examples ("Compare NVDA against QQQ") — a ticker must never become a "known word".
@@ -95,9 +95,13 @@ function extraWords(sources) {
  * edit from one — then it is a typo of that word, never a symbol) and not a pronoun. Whether the
  * ticker exists is decided later by the ticker search (prepare), never here.
  */
+// Real symbols that are also range words: "switch to mtd" / "max" is a range, so the lowercase spelling is not PLAINLY a
+// symbol. "MTD", "$mtd" and "change the ticker to mtd" still are (none of them reaches this check).
+const AMBIGUOUS_LOWER = new Set(['mtd', 'ltm', 'max'])
+
 export function plainSymbolWord(tok, host, raw = tok) {
   const t = String(tok || '').toLowerCase()
-  if (!/^[a-z][a-z0-9.]{0,9}$/.test(t) || isPronounToken(tok, raw)) return false
+  if (!/^[a-z][a-z0-9.]{0,9}$/.test(t) || isPronounToken(tok, raw) || isReservedWord(tok) || AMBIGUOUS_LOWER.has(t)) return false
   const { words } = lexiconFor(host)
   if (words.has(t)) return false
   if (t.length >= 4) for (const w of words) if (Math.abs(w.length - t.length) <= 1 && editDistance(t, w, 1) <= 1) return false

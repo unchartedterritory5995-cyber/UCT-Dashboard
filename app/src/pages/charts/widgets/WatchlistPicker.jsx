@@ -296,7 +296,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                 {createErr && <div className={styles.createErr} role="alert">{createErr}</div>}
                 <div className={styles.createActions}>
                   <button type="button" className={styles.createCancel} onClick={closeCreate}>Cancel</button>
-                  <button type="submit" className={styles.createBtn} disabled={!newName.trim() || busy}>{busy ? 'Creating…' : 'Create'}</button>
+                  <button type="submit" data-guide="watchlist.createList" className={styles.createBtn} disabled={!newName.trim() || busy}>{busy ? 'Creating…' : 'Create'}</button>
                 </div>
               </form>
             )}

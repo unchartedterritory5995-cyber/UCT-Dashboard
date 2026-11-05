@@ -215,7 +215,7 @@ export function copyRequest(st, { from, instances }, env) {
 }
 
 // ── the shared check / apply / describe for one built request ──
-function checkBuilt(st, built, op) {
+export function checkBuilt(st, built, op) {
   if (built.why) return built.why
   return oneChange(st) || planCheckP2(st, built.req, op)
 }
@@ -225,7 +225,7 @@ function planCheckP2(st, req, op) {
   if (!p.ok && p.reason === REASONS.NO_CHANGE) return null                 // said as a no-op, not a refusal
   return p.ok ? null : refusalSentence(p, { chart: st.chart, op: op || req.op })
 }
-function applyBuilt(st, built) {
+export function applyBuilt(st, built) {
   if (built.why || !built.req) return st
   const p = planFor(st, built.req)
   return p.ok ? { ...st, change: { request: built.req, plan: p.plan } } : st

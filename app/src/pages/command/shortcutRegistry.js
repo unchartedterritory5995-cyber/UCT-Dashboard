@@ -338,6 +338,17 @@ export const SHORTCUTS = Object.freeze([
     why: 'Escape exits fullscreen / picture-in-picture on the active video.',
   }),
 
+  // -- UCT Agent's product guide ------------------------------------------------
+  decl({
+    id: 'agent.guideEscape',
+    chord: { keys: ['Escape'], ctrl: false, alt: false, meta: false, shift: false },
+    target: 'window', capture: false, inEditable: false, repeat: false,
+    why: 'Escape ends the Agent\'s step-by-step guide, bound only while a walkthrough is on screen. It is the LAST '
+      + 'to hear the key: window bubble, never in a text field, and it stands down when a layer owned the press or '
+      + 'anything handled it, so one press does one thing. The Agent panel keeps its keys to itself, so its message '
+      + 'box ends the guide from its own handler (AgentPanel.jsx).',
+  }),
+
   // -- the Notebook (finish program, lane KEYS, 2026-10-07) --------------------
   // Three listeners the Notebook waves added raw. Each is declared here with its scope.
   decl({
@@ -502,6 +513,14 @@ export const SHORTCUTS = Object.freeze([
   // layer's own document or bubble handler can close that layer -- which open popups have a layer above them.
   // The popup's window-bubble Escape reads that record: a layer closed from a document listener is already
   // unmounted by then (React commits in the microtask between the two phases).
+  // The Agent guide's Escape asks the same question: which layers were open before any of them reacted.
+  decl({
+    id: 'agent.guideEscapeGate',
+    chord: { any: true },
+    observe: true,
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Agent guide: note which layers and menus are open before any closes.',
+  }),
   decl({
     id: 'tickerPopup.escapeGate',
     chord: { any: true },
@@ -570,6 +589,11 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   // -- 2026-10-23: the overlaps the surface-key migration made visible to this rail. The
   // chords still overlap (that is what this list records); since review M4 none of these is
   // a double action: each says which ONE binding answers the press.
+  // The chords overlap; the press does not. See agent/guide/GuideOverlay.jsx.
+  ...['palette.close', 'video.escape', 'notebook.tourEscape', ...SURFACE_ESCAPES, ...SHEET_ESCAPES].map((id) => ack(['agent.guideEscape', id], 'layer',
+    'Escape matches both, and only this binding answers. The guide listens last, in the window bubble phase, and '
+      + 'stands down for a layer that was open at the press, a press something prevented or stopped, and a menu the '
+      + 'press closed.')),
   ...SURFACE_ESCAPES.map((id) => ack([id, 'palette.close'], 'layer',
     `Escape matches both. ${SURFACE_WHAT[id]} It acts only with no modal layer above it, `
       + 'and the open palette is one, so with the palette over it this binding stands down '

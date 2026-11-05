@@ -3711,6 +3711,416 @@
      "modes": {}
     }
    }
+  },
+  "indicatorAlert.list": {
+   "digest": "956a3e1c3968cad9",
+   "phrasings": {
+    "show my indicator alerts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my indicator alerts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "what indicator alerts do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which indicator alerts are on my account": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorTemplate.list": {
+   "digest": "2184dc30f93b9f02",
+   "phrasings": {
+    "what indicator templates do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my indicator templates": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my indicator templates": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorTemplate.apply": {
+   "digest": "8004316a110c0e57",
+   "phrasings": {
+    "apply my Swing Setup indicator template to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the Swing Setup indicator template to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Swing Setup indicator template on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorTemplate.save": {
+   "digest": "5129949dcd1ef06f",
+   "phrasings": {
+    "save these indicators as an indicator template called Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save the indicators on this chart as my Momentum indicator template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make an indicator template called Momentum from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorTemplate.delete": {
+   "digest": "3ea36f4fb1725417",
+   "phrasings": {
+    "delete my Swing Setup indicator template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Swing Setup indicator template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Swing Setup indicator template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.sortColumn": {
+   "digest": "64d833a58a022da7",
+   "phrasings": {
+    "sort my watchlist by RVOL": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sort this list by relative volume, highest first": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the biggest RVOL at the top of my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sort the Momentum list by RVOL high to low": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setColumns": {
+   "digest": "17a8b6fbf4721908",
+   "phrasings": {
+    "add the RVOL column to my watchlist and hide the volume column": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show RVOL and hide Volume on this watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "on my watchlist add an RVOL column and take off volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.step": {
+   "digest": "2c59b73a0c4ea27e",
+   "phrasings": {
+    "next ticker in my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go to the next name on this list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "next one on my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.readView": {
+   "digest": "d10223bc7e38b56e",
+   "phrasings": {
+    "what's at the top of my watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what does this watchlist show right now": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "read me the tickers on this list in order": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setFlag": {
+   "digest": "0528b45163933b69",
+   "phrasings": {
+    "add NVDA to my flagged list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put NVDA on my flagged list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add NVDA to flagged": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.keepOnly": {
+   "digest": "b745d9174ae1f506",
+   "phrasings": {
+    "keep only NVDA on my Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove everything from Momentum except NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clear Momentum except for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setAnchors": {
+   "digest": "85ab080338aed101",
+   "phrasings": {
+    "drag the arrow's end point up to 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drag this drawing's end point up to 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drag the end point of the drawing to 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setProps": {
+   "digest": "3ba9a11e5aaa40e9",
+   "phrasings": {
+    "make that drawing a large arrow": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the arrow size on that drawing to large": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use a large arrow size on the drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setFibLevels": {
+   "digest": "15eebe56684a2313",
+   "phrasings": {
+    "hide the 78.6 level on that fib": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the 0.786 level from the fib drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off the 78.6 fib level": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setAlert": {
+   "digest": "aabd9de9ec954c3f",
+   "phrasings": {
+    "alert me if it breaks below this trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert when price loses that trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me when NVDA breaks below that trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.setRange": {
+   "digest": "c7d636cd12bccc5a",
+   "phrasings": {
+    "show one year on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the chart range to 1Y": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "frame this chart on the last year": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show 1Y on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.resetView": {
+   "digest": "14e9a2078df07e9e",
+   "phrasings": {
+    "reset the view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "reset the chart view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "reset the zoom on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put this chart back to its default view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.setIndicatorsHidden": {
+   "digest": "6a2ae0ff5a8652e0",
+   "phrasings": {
+    "hide all indicators on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide all my indicators for now": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide every indicator on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide all of the indicators and volume for a second": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.setMovingAverages": {
+   "digest": "b20f67ecf576a630",
+   "phrasings": {
+    "hide all moving averages": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide every moving average on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide all my moving averages": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off all the moving averages": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -4058,6 +4468,16 @@
   },
   "GW-29.counted-others-two-charts": {
    "digest": "60952e71b5fe019e",
+   "gap": false,
+   "mode": null
+  },
+  "GW-34.watchlist-setFlag-bare": {
+   "digest": "1714d2004e7eeef7",
+   "gap": false,
+   "mode": null
+  },
+  "GW-35.drawing-add-arrow": {
+   "digest": "936b8274f624215f",
    "gap": false,
    "mode": null
   }

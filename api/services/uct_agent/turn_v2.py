@@ -59,7 +59,7 @@ V2_UNDO_RULE = ("UNDO. Undoing YOUR OWN earlier change (\"undo that\", \"undo th
 TOOLS_ENV = "UCT_AGENT_V2_TOOLS"
 LOAD_TOOL = "load_actions"
 MAX_LOAD = 12
-INDEX_SUMMARY_CHARS = 40
+INDEX_SUMMARY_CHARS = 32
 #: the output reservation of one v2 round on a model without thinking: a round writes tool calls or ONE short reply,
 #: never a long answer, so 1024 tokens is ample — and the ledger reserves max_tokens of output on EVERY round
 V2_MAX_TOKENS = 1024
@@ -71,7 +71,7 @@ _DOMAIN_OF = {
     "chart": "chart", "chartSetup": "chart", "chartGrid": "chart", "volume": "chart", "pane": "chart",
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
     "watchlist": "watchlist", "layout": "layout",
-    "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "definition": "indicator",
+    "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities

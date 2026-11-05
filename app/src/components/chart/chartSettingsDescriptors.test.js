@@ -15,7 +15,7 @@ function leafPaths(o, prefix = '') {
   }
   return out
 }
-const AGENT = /^(eligible|known|internal|specialized:[a-z]+\.[a-zA-Z]+|owned:[a-z]+)$/
+const AGENT = /^(eligible|known|internal|specialized:[a-zA-Z]+\.[a-zA-Z]+|owned:[a-z]+)$/
 
 describe('chart settings descriptors — the completeness rail', () => {
   it('🔴 every key the settings allow-list keeps is CLASSIFIED (a new setting fails here until it has a row)', () => {
@@ -45,7 +45,7 @@ describe('chart settings descriptors — the completeness rail', () => {
       if (r.chartType) b = { ...b, chartType: r.chartType[0] }
       if (r.setting) {
         const dep = settingDescriptor(r.setting)
-        b = withSetting(b, dep, 'value' in r ? r.value : (dep.boolMap ? dep.boolMap.true : true))
+        b = withSetting(b, dep, 'value' in r ? r.value : r.not === true ? false : (dep.boolMap ? dep.boolMap.true : true))
       }
     }
     return b
@@ -53,7 +53,7 @@ describe('chart settings descriptors — the completeness rail', () => {
   it('a row never points at a key the allow-list would DROP (an eligible write must survive a reload)', () => {
     for (const d of ELIGIBLE_SETTINGS) {
       const base = ready(d)
-      expect(settingUnavailable(d, base), d.id).toBe(null)
+      expect(settingUnavailable(d, base), d.id).toBe(d.inert ?? null)
       const cur = settingValue(base, d)
       const want = d.type === 'bool' ? !cur : d.type === 'color' ? (cur === '#123456' ? '#654321' : '#123456') : d.type === 'number' ? (cur === d.min ? d.max : d.min) : d.options.find(o => o !== cur)
       const written = withSetting(base, d, want)
@@ -111,7 +111,7 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     expect(settingUnavailable(settingDescriptor('bgGradient.top'), mergeChartSettings({}))).toMatch(/Gradient first/)
     expect(settingUnavailable(settingDescriptor('bgGradient.top'), { ...mergeChartSettings({}), bgMode: 'gradient' })).toBe(null)
     expect(settingUnavailable(settingDescriptor('darkPool.barColor'), mergeChartSettings({}))).toMatch(/dark-pool levels on first/)
-    expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), mergeChartSettings({}))).toMatch(/own pane first/)
+    expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), withSetting(mergeChartSettings({}), settingDescriptor('volume.visible'), false))).toMatch(/Show Volume first/)
     expect(settingUnavailable(settingDescriptor('markers.ipoColor'), mergeChartSettings({}))).toBe(null)   // ipo marker is on by default
     // the header Info-row flags stay known (header.fields is the stored truth) — KNOWING ≠ DOING
     for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme']) expect(settingDescriptor(id).agent, id).toBe('known')

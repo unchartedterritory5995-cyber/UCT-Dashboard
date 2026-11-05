@@ -53,11 +53,13 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)', domains: ['chartSetup'], fillLast: true,
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
-    actions: ['chart.replay', 'chart.describeSetup'],
+    // Phase 1: indicator templates here by action name — the group's own `templates?` word already names them, and a
+    // member's saved template NAME brings the group (NAME_GROUPS), so no new phrase rule
+    actions: ['chart.replay', 'chart.describeSetup', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'],
     // CG-33 (corpus #774, live LT-7): Replay Mode had no words of its own — "replay", "bar replay", "as of <date>", "hide
     // what came after", "step through", "exit / stop replay" (routing only ADDS this group) — the first words below
     // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
@@ -67,7 +69,12 @@ export const GROUPS = [
       // market look like as of …"
       /\btemplates?\b/, /\b(?:make|making|made)\b.*\blooks? (just )?like\b|\blooks? (just )?like (?:the|that|my|this) (?:\w+ )?(?:chart|one)\b/,/\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
-      /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
+      /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/,
+      // chart range bar, Reset view, hide-all: chartSetup's own capabilities, by the words a member uses for the buttons
+      // temporary reachability; replace with description-driven discovery
+      /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
+      /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
+      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -79,7 +86,7 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)', domains: ['board'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
     actions: ['widget.setOption'],
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
@@ -142,19 +149,19 @@ export const GROUPS = [
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
-  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
-    actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
+  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move', domains: [], fillLast: true,
+    actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap', 'drawing.add'],
     // CG-29..32 (corpus #774): "connect … with a trend line", "draw a line from <date> to <date>", a bare "fib retracement
     // sep 2 100 to oct 28 180", "write breakout on the chart at …", "anchor a vwap to oct 1"
     words: [/\b(draw|add|put|place|plot|anchor|drop|mark|connect|join|link)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
       /\b(?:draw|put|add|plot)\b.*\blines? from\b.*\bto\b/, /\bfib(?:onacci)?(?: retracement)?\b|\bretracement\b/,
       /\b(?:write|type|label|annotate)\b.*\b(?:on (?:the|my|this) chart|at \$?\d)/, /\banchor(?:ed)? (?:a |an |the )?vwap\b/,
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
-  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
+  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), move any drawing\'s anchors, restyle, every setting in a drawing\'s menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
-  { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
+  { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
     words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/,
@@ -196,7 +203,7 @@ export const GROUPS = [
       /\b(gainers?|losers?|movers?|gap(ped|ping|s)? (up|down)|new highs?|near (the )?highs?|all[- ]time highs?|pull(ing|s)?[- ]?backs?|pulling back|tagging|tight (bases?|flags?|ranges?)|bases?|flags?|breakouts?|unusual volume|big volume|leaders?|leading groups?|laggards?|acting well|working)\b/,
       /\b(over|under|above|below) \$?\d+ (bucks|dollars)\b|\b\d+ (million|mil|m|billion|bn?) (a day|dollar volume)\b|\bliquid (names|stocks)\b/,
       /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
-  { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
+  { id: 'alerts', title: 'Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level', domains: ['alert'], actions: ['drawing.setAlert'],
     // CG-12 (corpus #769): "tell me about TSM" is a question, never an alert — only "tell me when / if …" is
     words: [/\balerts?\b/, /\b(notify|ping) me\b/, /\btell me (when|if|once|as soon as)\b/, /\b(crosses|breaks|hits)\b/] },
   // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the
@@ -327,7 +334,7 @@ export function routingEnabled() {
 // ⭐ Gate B (0C): the member's OWN names route too — "open swing board", "put the first 3 in swing",
 // "take smci off momentum": a layout / watchlist / saved screen named in the message (whole words,
 // from live state the caller passes in) brings its group. Pure: nothing here reads state.
-const NAME_GROUPS = { layouts: 'layouts', watchlists: 'lists', screens: 'screener' }
+const NAME_GROUPS = { layouts: 'layouts', watchlists: 'lists', screens: 'screener', indicatorTemplates: 'chartSetup' }
 const normWords = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z0-9$&+.\- ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
 function namedGroups(q, names) {
   const out = new Set()
@@ -348,6 +355,11 @@ export function routingNames(host) {
     layouts: read(() => host?.layouts?.snapshot?.()?.entries?.map(e => e.name)),
     watchlists: read(() => host?.watchlists?.snapshot?.()?.map(l => l.name)),
     screens: read(() => host?.savedScreens?.snapshot?.()?.map(s => s.name)),
+    indicatorTemplates: read(() => {
+      const raw = host?.prefs?.read?.()?.indicator_templates
+      const list = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return Array.isArray(list) ? list.map(t => t?.name).filter(Boolean) : []
+    }),
   }
 }
 
@@ -421,7 +433,8 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   // one pass: each group's action count (null = ungrouped) — the packing and both sorts read it many times
   const counts = new Map()
-  for (const c of manifest) { const g = groupOfAction(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
+  const groupOf = opts.groupOf || groupOfAction          // (NL-1 only: nl1/selection.js nl1GroupOf)
+  for (const c of manifest) { const g = groupOf(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
   const sizeOf = (id) => counts.get(id) || 0
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
@@ -455,7 +468,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     want.add(id); used += n
   }
   const present = GROUPS.filter(g => counts.has(g.id))
-  const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
+  const routed = manifest.filter(c => want.has(groupOf(c.name)) || groupOf(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
   return {
     manifest: routed,

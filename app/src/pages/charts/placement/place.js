@@ -11,7 +11,9 @@
 //   4. Resize existing (fallback) — no empty space, so make room by splitting the
 //      region's dominant widget 50/50 (charts split vertically; a panel stacks into
 //      its rail, or carves a rail by side-splitting the widest widget).
-//   5. Last resort — a full-width slot the caller bottom-packs.
+//   5. Last resort — a full-width bottom strip; then a split of ANY widget, either way.
+//   6. No room at all — { place: null }: the caller refuses the add. A place is never
+//      returned on top of the board: the grid would shove a widget off the bottom.
 //
 // PURE: no DOM, no React. Returns { place:{x,y,w,h}, mutations:[{id,...}] } where
 // `mutations` are geometry changes to apply to EXISTING widgets (empty unless a
@@ -131,6 +133,34 @@ function bottomStripWithMutations(widgets, d, cols, rows) {
   return { place: { x: 0, y: cutY, w: cols, h: stripH }, mutations }
 }
 
+// A plan lands clear when the newcomer is inside the grid and, with the plan's resizes
+// applied, overlaps nothing. clampPlace widens a slot to the newcomer's minimum, so a split
+// of a narrow widget can come back overlapping its neighbour; that plan is not a plan.
+function landsClear(plan, widgets, cols, rows) {
+  const p = plan?.place
+  if (!p || p.x < 0 || p.y < 0 || p.x + p.w > cols || p.y + p.h > rows) return false
+  const byId = Object.fromEntries((plan.mutations || []).map(m => [m.id, m]))
+  return !(widgets || []).some(w => {
+    const r = byId[w.id] ? { ...w, ...byId[w.id] } : w
+    return r.x < p.x + p.w && p.x < r.x + r.w && r.y < p.y + p.h && p.y < r.y + r.h
+  })
+}
+
+// Any widget that can give up half its space, either way, at no less than the newcomer's
+// minimum: the biggest slot wins, then one taken from the newcomer's own family.
+function splitAny(widgets, d, family) {
+  let best = null
+  for (const t of widgets || []) {
+    for (const split of [splitVertical(d, t), splitHorizontal(d, t)]) {
+      if (!split || split.place.w < (d.minW || 2) || split.place.h < (d.minH || 3)) continue
+      const area = split.place.w * split.place.h
+      const kin = familyOf(t.type) === family ? 1 : 0
+      if (!best || area > best.area || (area === best.area && kin > best.kin)) best = { ...split, area, kin }
+    }
+  }
+  return best ? { place: best.place, mutations: best.mutations } : null
+}
+
 export function planPlacement(widgets, type, cols = 24, rows = 20) {
   const d = defOf(type)
   const family = familyOf(type)
@@ -177,7 +207,8 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
     // Split the chart region's dominant chart 50/50 (stack a second chart).
     const target = affinity ? largestMember(affinity, 'chart') : tallest(widgets)
     const split = splitVertical(d, target)
-    if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
+    const plan = split && { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
+    if (landsClear(plan, widgets, cols, rows)) return plan
   } else {
     // Panel: first try to stack into a matching rail (split one of its widgets). When
     // the rail is FULL (splitVertical can't halve any member without going below its
@@ -190,14 +221,19 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
       const target = widest(charts.length ? charts : widgets)
       split = splitHorizontal(d, target, railW)
     }
-    if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
+    const plan = split && { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
+    if (landsClear(plan, widgets, cols, rows)) return plan
   }
 
   // 5. Last resort — reserve a bottom strip, shrinking crossers so the newcomer stays
   // on-screen (a bare overlapping placement would let RGL shove it off the bottom).
   const strip = bottomStripWithMutations(widgets, d, cols, rows)
   if (strip) return { place: clampPlace(strip.place, d, cols, rows), mutations: strip.mutations }
-  return { place: { x: 0, y: Math.max(0, rows - d.h), w: Math.min(cols, d.w), h: d.h }, mutations: [] }
+  const any = splitAny(widgets, d, family)
+  const plan = any && { place: clampPlace(any.place, d, cols, rows), mutations: any.mutations }
+  if (landsClear(plan, widgets, cols, rows)) return plan
+  // 6. Nothing on the board can make room: the caller refuses the add.
+  return { place: null, mutations: [] }
 }
 
 // ── Group placement: N new widgets of ONE type, tiled evenly into empty space ──

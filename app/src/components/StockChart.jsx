@@ -919,6 +919,9 @@ import CompanyLogo from './CompanyLogo'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
 import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
+import { RANGE_OPTS } from './chart/rangeOptions'
+import useWatermarkAnchorMigration from './chart/useWatermarkAnchorMigration'
+import { anyAverageOn, withAveragesShown } from './chart/averageVisibility'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
@@ -997,13 +1000,6 @@ const _dateToMs = (v) => {
   const s = String(v)
   return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
 }
-
-// Date-range presets for the bottom-left range bar (TC2000-style). Value = months
-// back from the newest bar; 'ytd' = since Jan 1 of the newest bar's year. 12M and 1Y
-// are intentionally both present (same ~12-month window) per the requested button set.
-const RANGE_OPTS = [
-  ['3M', 3], ['6M', 6], ['YTD', 'ytd'], ['1Y', 12], ['5Y', 60], ['Origin', 'origin'],
-]
 
 // Bars-worth of blank space to render on the LEFT when a framed window's start
 // date predates the earliest loaded bar — e.g. a Setup Library / Model Book
@@ -4059,29 +4055,7 @@ export default function StockChart({
       })
     } catch { /* noop */ }
   }, [chartReady, watermarkAdjusting, wmPending, watermarkX, watermarkY, watermarkAnchor, cs.watermark?.align, cs.watermark.x, cs.watermark.y, centerWatermarkOnPlot])
-  // One-time migration for a position saved BEFORE pixel anchors existed: once the
-  // chart has drawn, persist the anchor the primitive derived for it, so from then
-  // on the mark is pinned in pixels — including across a reload into a pane of a
-  // different size (the company panel open, a narrower widget). Without this the
-  // old fraction would re-resolve on every load and could land the mark half off
-  // the edge again. Fires at most once per chart, only when there is a legacy pos.
-  const wmMigratedRef = useRef(false)
-  useEffect(() => {
-    if (!chartReady || watermarkAdjusting || wmMigratedRef.current) return undefined
-    if (watermarkX == null || watermarkAnchor || !onWatermarkAnchor) return undefined
-    let tries = 0
-    const t = setInterval(() => {
-      tries += 1
-      let a = null
-      try { a = wmCtrlRef.current?.getAnchor?.() } catch { /* noop */ }
-      if (a) {
-        wmMigratedRef.current = true
-        clearInterval(t)
-        onWatermarkAnchor(a)
-      } else if (tries >= 10) clearInterval(t)   // never drawn (hidden widget) — give up
-    }, 300)
-    return () => clearInterval(t)
-  }, [chartReady, watermarkAdjusting, watermarkX, watermarkAnchor, onWatermarkAnchor])
+  useWatermarkAnchorMigration({ chartReady, watermarkAdjusting, watermarkX, watermarkAnchor, onWatermarkAnchor, wmCtrlRef })
   // Load the company logo when the watermark's "Logo" field is on (default off).
   // Same-origin PNG proxy (/api/ticker-logo) → drawing it can't taint the canvas.
   const wmLogoEnabled = cs.watermark.visible && !hideWatermark && cs.watermark.lines?.logo === true && !_econId
@@ -9299,26 +9273,9 @@ export default function StockChart({
           case 'countdown': updateField('countdown', !cs.countdown); break
           case 'ma': {
             // Toggle all moving-average overlays at once. If any are on, turn
-            // them all off; otherwise turn them all on.
-            // ⛔ THROUGH `liveOverlays`, so the chord reads what the chart draws.
-            // A tombstoned slot must not count toward "any enabled" (it would make
-            // one press do nothing) and must not be switched back on (the member
-            // deleted it).
-            // ⭐ 2026-09-28 — AND THROUGH THE AVERAGES THAT ARE INSTANCES. The
-            // `cs.overlays` averages are `movingAverage` instances now
-            // (`maAdoption.js`), so "every moving average" is every live instance
-            // of a definition declaring the average's appearance, plus any slot a
-            // host has not adopted. Their `hidden` flag is the same show/hide fact
-            // `enabled` was.
-            const overlays = Array.isArray(cs.overlays) ? cs.overlays : []
-            const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
-            const isAvg = (i) => i && typeof i === 'object' && i.deleted !== true
-              && !!engineRegistry.getDefinition(i.defId)?.meta?.appearance
-            const anyEnabled = liveOverlayList(overlays).some(o => o?.enabled)
-              || list.some(i => isAvg(i) && i.hidden !== true)
-            const next = overlays.map(o => (isOverlayRemoved(o) ? o : { ...o, enabled: !anyEnabled }))
-            const nextInstances = list.map(i => (isAvg(i) ? { ...i, hidden: anyEnabled } : i))
-            handleUpdateChartSettings({ ...cs, overlays: next, indicatorInstances: nextInstances, preset: 'custom' })
+            // them all off; otherwise turn them all on (averageVisibility.js,
+            // the writer UCT Agent shares).
+            handleUpdateChartSettings(withAveragesShown(cs, !anyAverageOn(cs, engineRegistry.getDefinition), engineRegistry.getDefinition))
             break
           }
           case 'volume':
@@ -14512,7 +14469,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -18550,6 +18507,7 @@ export default function StockChart({
       const cur = ts.getVisibleLogicalRange()
       const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
       ts.setVisibleLogicalRange({ from: -W / 2, to: W / 2 })   // bar 0 at the centre
+      appliedRangeRef.current = { val: 'origin', from: -W / 2, to: W / 2 }
       return true
     } catch { return false }
   }
@@ -18670,6 +18628,8 @@ export default function StockChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredBars, isValidating, barCount])
 
+  // The window the last range button framed: getDateMeta reports that range only while the chart still shows it.
+  const appliedRangeRef = useRef(null)
   const applyRange = (val) => {
     if (val === 'origin') {
       if (pendingNavRef.current) return   // already loading — ignore repeat clicks
@@ -18765,6 +18725,7 @@ export default function StockChart({
       const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
       const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
       ts.setVisibleLogicalRange({ from, to })
+      appliedRangeRef.current = { val, from, to }
       // PERSIST the chosen range as the active view-lock so EVERY next ticker
       // (searched or scanned) opens on this same window — until the user pans/zooms
       // or hits "Reset view". Same mechanism a manual pan uses (_captureUserLock):
@@ -18842,6 +18803,9 @@ export default function StockChart({
     const firstMs = _dateToMs(bars[0].t)
     const lastMs = _dateToMs(bars[bars.length - 1].t)
     let rightMs = lastMs
+    let activeRange = null
+    let atDefaultView = false
+    let frame = null
     try {
       const cur = chartRef.current?.timeScale()?.getVisibleLogicalRange()
       if (cur && Number.isFinite(cur.to)) {
@@ -18851,18 +18815,47 @@ export default function StockChart({
         const ri = Math.max(0, Math.min(bars.length - 1, Math.floor(cur.to)))
         rightMs = _dateToMs(bars[ri].t)
       }
+      // ⭐ UCT Agent's read-back: is the chart showing what the range bar / Reset view put there? Asked of the time scale
+      // itself, so a later pan or zoom makes both answers false.
+      if (cur) {
+        const near = (w) => Math.abs(cur.from - w.from) < 0.6 && Math.abs(cur.to - w.to) < 0.6
+        const applied = appliedRangeRef.current
+        if (applied && near(applied)) activeRange = applied.val
+        const len = lastBarCountRef.current || 0
+        atDefaultView = len > 1 && !priceManualRef.current && !userViewLockedRef.current
+          && near(computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chartRef.current, containerRef.current) }))
+        // What a range button replaces, for restoreView: the window counted from the newest bar (a range that loads deep
+        // history prepends bars, so plain logical indexes would point elsewhere) and the view lock it overwrites.
+        const lastIdx = bars.length - 1
+        frame = { fromRight: lastIdx - cur.from, toRight: lastIdx - cur.to, activeRange,
+          locked: !!userViewLockedRef.current, lock: userLockedViewRef.current ? { ...userLockedViewRef.current } : null }
+      }
     } catch { /* noop */ }
     return {
-      firstMs, lastMs, rightMs,
+      firstMs, lastMs, rightMs, activeRange, atDefaultView, frame,
+      indicatorsHidden: !!indicatorsHiddenRef.current,
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
       fullyLoaded: barCount === _fullTarget,
       loading: originLoading,
     }
   }
+  // UCT Agent's Undo of a range button: the `frame` getDateMeta read before it, and the view lock as it was (storage too).
+  const restoreView = (f) => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const bars = filteredBarsRef.current
+      if (!ts || !bars?.length || !f) return
+      const lastIdx = bars.length - 1
+      const from = lastIdx - f.fromRight, to = lastIdx - f.toRight
+      ts.setVisibleLogicalRange({ from, to })
+      appliedRangeRef.current = f.activeRange != null ? { val: f.activeRange, from, to } : null
+      userViewLockedRef.current = !!f.locked; userLockedViewRef.current = f.lock ? { ...f.lock } : null; persistViewLock()
+    } catch { /* noop */ }
+  }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
