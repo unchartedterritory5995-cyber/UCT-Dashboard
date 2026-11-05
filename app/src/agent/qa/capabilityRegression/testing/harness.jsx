@@ -8,6 +8,7 @@
 // the missing groups (`need_groups`, the bounded reroute — the real protocol); if they are still missing after the
 // reroute it plans nothing. So a capability the routing hides is a FAILURE here, never masked by a script that
 // answers regardless. No paid model call; no real market value (every figure below is synthetic).
+import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
@@ -22,6 +23,9 @@ import { mutate } from 'swr'
 import { USER_DEFINITIONS_KEY } from '../../../../hooks/useUserDefinitions'
 import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
+import { captureIndicatorTemplate } from '../../../../components/chart/builder/indicatorTemplates'
+import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
@@ -62,6 +66,9 @@ export const BOARDS = {
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
+  // Agent Phase 1: a chart with one indicator and the member's saved INDICATOR templates (seed.indicatorTemplates: names, each
+  // holding one MACD, built by the REAL capture; the surface's build flag is on for such a case only)
+  TEMPLATES: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { prefs: true }],
   ONE_DEFAULT_IA: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
@@ -161,6 +168,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
   const p = setupPanel()
   const nlm1 = nlm1Of(seed)
+  vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', seed.indicatorTemplates ? '1' : '0')     // the build flag, for this case only
   try { if (nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.setItem('uct.agent.routingV2', '0') } catch { /* */ }
   // NLM-1's third key (in-plan rules, nlm1/inplan.js): ON only for a case seeded nlm1Inplan, cleared otherwise
   try { if (seed.nlm1Inplan) localStorage.setItem('uct.agent.nlm1.inplan', '1'); else localStorage.removeItem('uct.agent.nlm1.inplan') } catch { /* */ }
@@ -279,7 +287,13 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
   if (extra.prefs) {
     if (!('chart_templates' in st.prefs)) st.prefs.chart_templates = JSON.stringify([{ name: 'Clean', settings: { ...bareSettings(), background: '#000000' } }])
-    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true } }
+    if (seed.indicatorTemplates) {
+      const cs = mergeChartSettings(JSON.stringify({ ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:macd:t', defId: 'macd', inputs: {} }] }))
+      st.prefs.indicator_templates = JSON.stringify(seed.indicatorTemplates.map(name => captureIndicatorTemplate(cs, nativeRegistry, { name }).template))
+    }
+    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true },
+      // setPrefMerged's contract: `undefined` from the merge abandons the write
+      merge: async (k, fn) => { const next = fn(JSON.parse(st.prefs[k] ?? '[]')); if (next === undefined) return undefined; st.prefs = { ...st.prefs, [k]: JSON.stringify(next) }; return { ok: true } } }
   }
   if (extra.authoring) {
     try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
@@ -317,15 +331,23 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   }
   if (extra.timeNav) {
     // ChartsWorkspace's Time Navigator + Replay Mode, as host.buildChartSource exposes them: a per-chart VIEW read-out,
-    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff
+    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff;
+    // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
-    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true })
+    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true, activeRange: null, atDefaultView: false, indicatorsHidden: false })
     st.replay = null
     const charts = mounted.h.charts
     const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
-      setReplay: (iso) => { st.replay = iso ?? null; return true } }
+      setReplay: (iso) => { st.replay = iso ?? null; return true },
+      viewDo: (ref, op, arg) => {
+        const v = viewOf(ref)
+        if (op === 'applyRange') { v.activeRange = arg; v.atDefaultView = false }
+        if (op === 'resetView') { v.activeRange = null; v.atDefaultView = true }
+        if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
+        return true
+      } }
     st.views = views
   }
   if (extra.drawings) {

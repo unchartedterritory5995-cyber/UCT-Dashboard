@@ -534,10 +534,62 @@
    ],
    "fast": true
   },
+  "chartSetup.resetView": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartSetup.saveTemplate": {
    "domain": "chartSetup",
    "group": "chartSetup",
    "target": "chartTemplates",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartSetup.setIndicatorsHidden": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartSetup.setMovingAverages": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartSetup.setRange": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
@@ -1054,6 +1106,19 @@
    ],
    "fast": false
   },
+  "indicatorAlert.list": {
+   "domain": "indicatorAlert",
+   "group": "indicatorAlerts",
+   "target": "indicatorAlertLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "indicatorAlert.toggle": {
    "domain": "indicatorAlert",
    "group": "indicatorAlerts",
@@ -1118,6 +1183,58 @@
     "charts"
    ],
    "fast": true
+  },
+  "indicatorTemplate.apply": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "indicatorTemplate.delete": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorTemplates",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "indicatorTemplate.list": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorTemplates",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "indicatorTemplate.save": {
+   "domain": "indicatorTemplate",
+   "group": "chartSetup",
+   "target": "indicatorTemplates",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "journal.createNote": {
    "domain": "journal",

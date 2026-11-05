@@ -181,6 +181,19 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  // the chart's view after its own control ran (TIMED board): only the fields a case names
+  if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toBe(v)
+  if ('averagesHidden' in e) {
+    // every moving average on the first chart, hidden or shown (they stay on the chart)
+    const ma = p.instancesOn(board, chartsOf(board)[0]?.id).filter(i => i.defId === 'movingAverage')
+    expect(ma.length, `${label}: the chart's moving averages`).toBeGreaterThan(0)
+    expect(ma.every(i => !!i.hidden === e.averagesHidden), `${label}: every moving average hidden = ${e.averagesHidden}`).toBe(true)
+  }
+  if (e.indicatorTemplates) {
+    const names = JSON.parse(ctx.st.prefs.indicator_templates || '[]').map(t => t.name)
+    for (const n of e.indicatorTemplates.include || []) expect(names, `${label}: an indicator template ${n}`).toContain(n)
+    for (const n of e.indicatorTemplates.exclude || []) expect(names, `${label}: no indicator template ${n}`).not.toContain(n)
+  }
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id

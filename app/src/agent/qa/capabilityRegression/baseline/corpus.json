@@ -8978,6 +8978,413 @@
           "text": "add another two charts for SPY and QQQ"
         }
       ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
+      "id": "chartSetup.setRange.1y",
+      "capabilities": [
+        "chartSetup.setRange"
+      ],
+      "board": "TIMED",
+      "needs": [],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setRange",
+            "target": "$charts[0]",
+            "args": {
+              "range": "1Y"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "activeRange": 12
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "show one year on this chart",
+        "show me the 1Y range",
+        "set this chart to the 1 year range",
+        "use the 1Y range button"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
+      "id": "chartSetup.resetView",
+      "capabilities": [
+        "chartSetup.resetView"
+      ],
+      "board": "TIMED",
+      "needs": [],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.resetView",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "atDefaultView": true,
+          "activeRange": null
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "reset the chart view",
+        "reset view",
+        "reset the view on this chart",
+        "put this chart back to its default view"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
+      "id": "chartSetup.hideAllIndicators",
+      "capabilities": [
+        "chartSetup.setIndicatorsHidden"
+      ],
+      "board": "TIMED",
+      "needs": [],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setIndicatorsHidden",
+            "target": "$charts[0]",
+            "args": {
+              "hidden": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "indicatorsHidden": true
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "hide all indicators for now",
+        "hide every indicator on this chart",
+        "hide all the indicators and volume",
+        "hide everything drawn on this chart for now"
+      ],
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "indicatorsHidden": false
+          }
+        }
+      }
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
+      "id": "chartSetup.hideMovingAverages",
+      "capabilities": [
+        "chartSetup.setMovingAverages"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setMovingAverages",
+            "target": "$charts[0]",
+            "args": {
+              "visible": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "averagesHidden": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "hide my moving averages",
+        "hide all moving averages",
+        "hide every moving average on this chart",
+        "turn off all the moving averages"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorAlert.list",
+      "capabilities": [
+        "indicatorAlert.list"
+      ],
+      "board": "IALERTS",
+      "seed": {
+        "indicatorAlerts": [
+          {
+            "id": 7,
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D",
+            "params_json": {
+              "period": 14
+            },
+            "instance_id": "inst:rsi:1"
+          }
+        ]
+      },
+      "needs": [
+        "indicatorAlert.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.list",
+            "args": {
+              "symbol": null,
+              "status": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.list",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "symbol": null,
+              "status": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/indicator-alerts"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "show my indicator alerts",
+          "det": "required"
+        },
+        {
+          "text": "list my indicator alerts",
+          "det": "required"
+        },
+        "what indicator alerts do I have",
+        "which indicator alerts are on my account"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.list",
+      "capabilities": [
+        "indicatorTemplate.list"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.list"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorTemplate.list",
+            "target": "$indicatorTemplateLibrary",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "says": [
+          "Swing Setup"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what indicator templates do I have",
+        "list my indicator templates",
+        "show my indicator templates"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.apply",
+      "capabilities": [
+        "indicatorTemplate.apply"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.apply"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorTemplate.apply",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "template": "Swing Setup"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "defId": "macd"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "apply my Swing Setup indicator template to this chart",
+        "add the Swing Setup indicator template to this chart",
+        "put my Swing Setup indicator template on this chart"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.save",
+      "capabilities": [
+        "indicatorTemplate.save"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.save"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorTemplate.save",
+            "target": "$indicatorTemplateLibrary",
+            "args": {
+              "name": "Momentum",
+              "chart": "$ctx:charts.0.ref"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "indicatorTemplates": {
+          "include": [
+            "Swing Setup",
+            "Momentum"
+          ]
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "indicatorTemplates": {
+            "include": [
+              "Swing Setup"
+            ],
+            "exclude": [
+              "Momentum"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "save these indicators as an indicator template called Momentum",
+        "save the indicators on this chart as my Momentum indicator template",
+        "make an indicator template called Momentum from this chart"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.delete",
+      "capabilities": [
+        "indicatorTemplate.delete"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.delete"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "indicatorTemplate.delete",
+            "target": "$indicatorTemplateLibrary",
+            "args": {
+              "name": "Swing Setup"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true,
+        "indicatorTemplates": {
+          "include": [
+            "Swing Setup"
+          ]
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorTemplates": {
+          "exclude": [
+            "Swing Setup"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete my Swing Setup indicator template",
+        "remove the Swing Setup indicator template",
+        "get rid of my Swing Setup indicator template"
+      ]
     }
   ],
   "refusals": [
