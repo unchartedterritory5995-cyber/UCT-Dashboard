@@ -1699,24 +1699,23 @@ function ChartsWorkspaceBoard() {
     // its first render loads that ticker, never the yellow group's or SPY's.
     // Seeded BEFORE the layout update so the widget never renders without it.
     const bornUnlinked = !!(unlinkedSymbol && !float)
-    if (bornUnlinked) setGroupSym(`N:${newId}`, String(unlinkedSymbol).toUpperCase())
     // Smart-placement: the ghost preview appears ONLY when placing the widget requires
     // resizing/moving an existing one (plan.mutations non-empty). When it fits in empty
     // space, fall through and place it immediately — no confirm step. (Float-on-create
     // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
     // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
-    if (!float && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)) {
-      const base = layoutRef.current?.widgets || []
-      const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
-      // No widget can give up room: refused, the board stays as it is (a widget placed on top
-      // of it would shove one off the bottom, out of reach).
-      if (!plan.place) { setBoardRefusal(BOARD_NO_ROOM); return }
-      if (!instant && plan.mutations && plan.mutations.length > 0) {
-        setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
-        return
-      }
-      // else: fits in empty space → place immediately via the setLayout path below.
+    const plan = !float && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)
+      ? planPlacement(layoutRef.current?.widgets || [], type, COLS.lg, FIXED_ROWS) : null
+    // No widget can give up room: refused, the board stays as it is (a widget placed on top
+    // of it would shove one off the bottom, out of reach). Before the symbol is saved below,
+    // so a refused add leaves no N:<id> ticker behind.
+    if (plan && !plan.place) { setBoardRefusal(BOARD_NO_ROOM); return }
+    if (bornUnlinked) setGroupSym(`N:${newId}`, String(unlinkedSymbol).toUpperCase())
+    if (plan && !instant && plan.mutations && plan.mutations.length > 0) {
+      setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
+      return
     }
+    // else: fits in empty space → place immediately via the setLayout path below.
     setLayout(prev => {
       const color = bornUnlinked ? 'N' : pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
