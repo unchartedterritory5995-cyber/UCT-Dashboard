@@ -62,6 +62,11 @@ DEFAULT_CAP_USD = 5.0
 # ACCIDENT (an unknown model falls back to the priciest known rate, which
 # happened to equal Opus's) — the COT narrative lane defaults to it.
 _PRICES = {
+    # The dearest models, so the unknown-model fallback really is the priciest rate: without them a model string
+    # set to Fable was reserved at half its real price, and every dollar cap held at about twice its value.
+    "claude-fable-5-1": (10.0, 50.0),
+    "claude-fable-5": (10.0, 50.0),
+    "claude-opus-5-5": (4.0, 20.0),
     "claude-opus-5": (5.0, 25.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-opus-4-7": (5.0, 25.0),

@@ -230,8 +230,10 @@ DOORS: dict[str, Door] = {
     "api/services/uct_agent/turn.py": Door(
         "operator", "POST /api/agent/turn (require_paid + require_admin: ADMIN-ONLY while UCT Agent "
         "is dark, 2026-10-07); opt-in research via the shared Perplexity client",
-        "UCT_AGENT_DAILY_CAP 300/member/ET day (daily_counters scope uct_agent_turn, durable) + "
-        "ai_population_cap 'uct_agent'; narrative_cost_guard surface 'uct_agent' records spend; "
+        "budget.py ledger: $0.25/turn, $5/ET day, stops at the shared $15, all reserved at worst case, "
+        "durable; UCT_AGENT_DAILY_CAP a COUNT per member, not financial (daily_counters scope "
+        "uct_agent_turn) + ai_population_cap 'uct_agent'; narrative_cost_guard surface 'uct_agent' "
+        "records spend for reporting; "
         "<= 2 model calls and <= 1 research call per turn (research only when the model declares "
         "it on an answer), 0 HTTP retries",
         pop_cap="api/routers/uct_agent.py"),

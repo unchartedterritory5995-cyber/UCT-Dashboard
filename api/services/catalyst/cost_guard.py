@@ -30,6 +30,9 @@ _HARD_CAP_TRIPPED = False
 # number 2026-08-30 and this table was never brought in line. Sonnet 5 is
 # $2.00/$10.00, not $3.00/$15.00 — the two guards had drifted apart.
 _PRICING = {
+    # The dearest models: an unknown model prices at the priciest entry here (see below).
+    "claude-fable-5-1":  {"input": 10.0, "output": 50.0},
+    "claude-fable-5":    {"input": 10.0, "output": 50.0},
     # Opus 5 ships at Opus 4.8's list price — $5 in / $25 out per 1M (Anthropic
     # model table, cached 2026-06-24; the same figures flow_explain._PRICING
     # already carries for claude-opus-4-8). W0.4, 2026-08-25.

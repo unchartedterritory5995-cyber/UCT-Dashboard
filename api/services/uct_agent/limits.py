@@ -154,6 +154,19 @@ def done(token: str | None) -> None:
         log.exception("[uct-agent limits] could not free the in-flight slot; its lease will expire")
 
 
+def renew(user_id: Any, now: float | None = None) -> None:
+    """A request still working keeps its slot: extends this member's lease. Never raises. Without this a turn slower
+    than UCT_AGENT_INFLIGHT_LEASE_S (a v2 turn waiting on steps, research retrying) loses the slot while it still
+    runs, and a second request is admitted beside it."""
+    now = time.time() if now is None else now
+    try:
+        with contextlib.closing(_connect()) as c:
+            c.execute("UPDATE agent_inflight SET lease_until = ? WHERE user_id = ?",
+                      (now + limit("UCT_AGENT_INFLIGHT_LEASE_S"), str(user_id)))
+    except Exception:  # noqa: BLE001
+        log.exception("[uct-agent limits] could not renew the in-flight lease")
+
+
 def _reset_for_test() -> None:
     with contextlib.closing(_connect()) as c:
         c.execute("DELETE FROM agent_rate_events")
