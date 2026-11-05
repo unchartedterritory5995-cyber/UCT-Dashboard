@@ -506,6 +506,7 @@ export function buildDrawingSource(charts, store = drawingsStore) {
     list: entries,
     read: (ref) => entries().find(e => e.ref === ref) || null,
     add: (sym, d) => store.addDrawing(sym, d),
+    restore: (sym, d) => store.restoreDrawing(sym, d),
     update: (sym, id, u) => store.updateDrawing(sym, id, u),
     remove: (sym, id) => store.removeDrawing(sym, id),
     // AUTHORITATIVE READ-BACK: the drawings reach the member's account only through the tracings

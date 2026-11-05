@@ -99,8 +99,8 @@ export const drawingKind = {
     for (const u of patch.update || []) d.update(ref, u.id, u.set)
     patch.added = []
     for (const x of patch.add || []) {
-      const { id: temp, ...body } = x
-      patch.added.push({ temp, id: d.add(ref, body), body })
+      const { id: temp, restore, ...body } = x
+      patch.added.push({ temp, id: restore ? d.restore(ref, restore) : d.add(ref, body), body: restore || body })
     }
     // the ONE drawing this change drew or changed is the one "it" means next (never after a bulk change)
     const touched = [...patch.added.map(x => x.id), ...(patch.update || []).map(u => u.id)]
@@ -121,13 +121,13 @@ export const drawingKind = {
     }
     return true
   },
-  // Exactly the inverse, by id: drop what was added, put back what was removed (the store mints a
-  // new id for it — same type, points and style), restyle back.
+  // Exactly the inverse, by id: drop what was added, put back what was removed (whole, under its OWN id, so an
+  // earlier change to it can still be undone), restyle back.
   undoPatch(item) {
     const p = item.patch
     if (!p || (p.add?.length && !p.added)) return null
     return {
-      add: (p.remove || []).map(x => ({ ...x, id: `${TEMP}undo:${x.id}` })),
+      add: (p.remove || []).map(x => ({ id: `${TEMP}undo:${x.id}`, restore: x })),
       remove: (p.added || []).map(x => ({ id: x.id })),
       update: (p.update || []).map(u => ({ id: u.id, set: u.prev, prev: u.set })),
     }
