@@ -34,6 +34,25 @@ A phase is substantially complete when all of its criteria pass with evidence.
 - Simple local commands have a measured median against the speed targets, and any miss is explained.
 - Each Charts area has a working interactive tutorial or a recorded reason for none.
 
+Coverage is reported as verified actions over discovered human actions, by feature area. The denominator counts actions, not phrasings, and may grow as the inventory finds more. Registered capabilities, PRs and commits are not coverage.
+
+Action states: UNMAPPED, MISSING, IMPLEMENTED / UNVERIFIED, VERIFIED, BLOCKED. VERIFIED needs a browser test, authoritative state read-back or equivalent end-to-end evidence, never source inspection alone.
+
+Phase 1 acceptance tasks, a starting set that grows with the inventory:
+
+| ID | Prompt | Pass |
+|---|---|---|
+| A | Change this chart to NVDA daily. | Correct chart, symbol and timeframe, concise confirmation |
+| B | Create four equal-sized charts showing SPY, QQQ, NVDA, and TSLA. | Correct layout, equal sizing, correct symbols, verified state |
+| C | Apply my usual indicators to all four charts. | Uses actual saved preferences or asks one targeted question |
+| D | Create a watchlist of these tickers and save this layout. | Whole workflow completes without unnecessary confirmation |
+| E | Show me how to create a watchlist. | Complete, cancelable, interactive tutorial in the real interface |
+| F | Add RSI and change its appearance. | Canonical indicator APIs; natural follow-ups work |
+| G | Make the top-left chart a weekly chart. | Spatial reference resolved correctly |
+| H | Undo that last change. | The supported action reverts correctly |
+| I | Find stocks matching these technical conditions. | Existing scanning infrastructure; accurate results |
+| J | Build an indicator that does this. | Existing custom-indicator engine; unsupported conditions reported honestly |
+
 **Phase 2**
 - Each authorized UCT information source is either reachable from the Charts Agent through a canonical service or listed with the licensing or data reason it is not.
 - C5, C6, C7, C8 and C9 pass on production with grounded answers.
