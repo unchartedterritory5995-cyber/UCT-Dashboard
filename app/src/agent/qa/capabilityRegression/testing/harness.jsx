@@ -12,7 +12,10 @@ import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
-import { buildDrawingSource, buildIndicatorAlertSource } from '../../../host'
+import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource } from '../../../host'
+import { publishListView } from '../../../../pages/watchlist/watchlistViews'
+import { DEFAULT_COL_ORDER } from '../../../../pages/watchlist/watchlistColumns'
+import { readFlagged, writeFlagged } from '../../../../hooks/flaggedStore'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { setAuthoringSources } from '../../../capabilities/indicatorAuthoring'
 import { storeConversation } from '../../../../components/chart/builder/conversationSave'
@@ -66,6 +69,11 @@ export const BOARDS = {
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
+  // Agent Phase 1: a Watchlist widget showing the saved list Momentum, beside a chart, published through the REAL registry and
+  // read through the REAL host source (host.js buildListViewSource) and Flagged store. The widget itself is a stand-in with
+  // Watchlists.jsx's published shape: qa/chartsOutcome/listControl.outcome.test.jsx covers the real widget.
+  LISTVIEW: () => [[chart('c1', 0, 0, 16, 20), { id: 'wl', type: 'watchlist', x: 16, y: 0, w: 8, h: 20, color: 'N', opts: { watchKey: 'user:w1', watchName: 'Momentum' } }], { 'N:c1': 'NVDA' },
+    { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA', 'AMD'] }], listView: true }],
   // Agent Phase 1: a chart with one indicator and the member's saved INDICATOR templates (seed.indicatorTemplates: names, each
   // holding one MACD, built by the REAL capture; the surface's build flag is on for such a case only)
   TEMPLATES: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { prefs: true }],
@@ -163,6 +171,7 @@ export const nlm1Of = (seed = {}) => (seed.nlm1 != null ? !!seed.nlm1 : (globalT
 // v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
+let unpublishListView = null
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   // NLM-1 on (nlm1Of): BOTH switches on for this case (server config routing_v2 + the browser key); off: the browser kill
   // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
@@ -285,6 +294,29 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  unpublishListView?.(); unpublishListView = null
+  if (extra.listView) {
+    // synthetic column values, only to order the rows; a sort on any other column keeps the saved order
+    const VALUES = { rvol: { NVDA: 1, TSLA: 3, AMD: 2 } }
+    const view = st.listView = { cfg: {}, selected: 'NVDA' }
+    const rows = () => {
+      const base = ['NVDA', 'TSLA', 'AMD']
+      const s = view.cfg.sort
+      const v = s && VALUES[s.key]
+      return v ? [...base].sort((a, b) => (s.dir === 'asc' ? v[a] - v[b] : v[b] - v[a])) : base
+    }
+    const columns = () => (view.cfg.order || DEFAULT_COL_ORDER).filter(k => !view.cfg.hidden?.[k])
+    unpublishListView = publishListView({ type: 'watchlist', color: 'N', key: 'user:w1' }, () => ({ name: 'Momentum', rows, cfg: view.cfg, sort: view.cfg.sort || null, columns: columns(),
+      fixedColumns: false, persisted: true, selected: view.selected, active: true, saveCols: (cfg) => { view.cfg = cfg }, select: (sym) => { view.selected = sym } }))
+    st.listViewNow = () => ({ rows: rows(), columns: columns(), sort: view.cfg.sort || null, selected: view.selected })
+    mounted.h.listViews = buildListViewSource({ getWidgets: () => mounted.board.state.widgets })
+    writeFlagged(seed.flagged || [])
+    mounted.h.flagged = buildFlaggedSource({ request: async (u, init) => {
+      p.st.calls.push(['POST', u, JSON.parse(init.body)])
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+    } })
+    st.flaggedNow = readFlagged
+  }
   if (extra.prefs) {
     if (!('chart_templates' in st.prefs)) st.prefs.chart_templates = JSON.stringify([{ name: 'Clean', settings: { ...bareSettings(), background: '#000000' } }])
     if (seed.indicatorTemplates) {

@@ -9385,6 +9385,355 @@
         "remove the Swing Setup indicator template",
         "get rid of my Swing Setup indicator template"
       ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.sortColumn",
+      "capabilities": [
+        "watchlist.sortColumn"
+      ],
+      "needs": [
+        "watchlist.sortColumn"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.sortColumn",
+            "target": "$listViews[0]",
+            "args": {
+              "column": "RVOL",
+              "direction": "desc"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "listView": {
+          "rows": [
+            "TSLA",
+            "AMD",
+            "NVDA"
+          ],
+          "sort": {
+            "key": "rvol",
+            "dir": "desc"
+          },
+          "columns": [
+            "rvol"
+          ]
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "listView": {
+            "rows": [
+              "NVDA",
+              "TSLA",
+              "AMD"
+            ],
+            "sort": null,
+            "noColumns": [
+              "rvol"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "sort my watchlist by RVOL",
+        "sort this list by relative volume, highest first",
+        "put the biggest RVOL at the top of my watchlist",
+        "sort the Momentum list by RVOL high to low"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.setColumns",
+      "capabilities": [
+        "watchlist.setColumns"
+      ],
+      "needs": [
+        "watchlist.setColumns"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.setColumns",
+            "target": "$listViews[0]",
+            "args": {
+              "add": [
+                "RVOL"
+              ],
+              "hide": [
+                "Volume"
+              ],
+              "reset": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "listView": {
+          "columns": [
+            "rvol"
+          ],
+          "noColumns": [
+            "vol"
+          ]
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "listView": {
+            "columns": [
+              "vol"
+            ],
+            "noColumns": [
+              "rvol"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add the RVOL column to my watchlist and hide the volume column",
+        "show RVOL and hide Volume on this watchlist",
+        "on my watchlist add an RVOL column and take off volume"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.step",
+      "capabilities": [
+        "watchlist.step"
+      ],
+      "needs": [
+        "watchlist.step"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.step",
+            "target": "$listViews[0]",
+            "args": {
+              "direction": "next",
+              "by": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "listView": {
+          "selected": "TSLA"
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "listView": {
+            "selected": "NVDA"
+          }
+        }
+      },
+      "phrasings": [
+        "next ticker in my watchlist",
+        "go to the next name on this list",
+        "next one on my watchlist"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.readView",
+      "capabilities": [
+        "watchlist.readView"
+      ],
+      "needs": [
+        "watchlist.readView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.readView",
+            "target": "$listViews[0]",
+            "args": {
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "says": [
+          "NVDA, TSLA, AMD"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's at the top of my watchlist",
+        "what does this watchlist show right now",
+        "read me the tickers on this list in order"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.setFlag",
+      "capabilities": [
+        "watchlist.setFlag"
+      ],
+      "needs": [
+        "watchlist.setFlag"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.setFlag",
+            "target": "$flagged[0]",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ],
+              "flagged": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "flagged": {
+          "include": [
+            "NVDA"
+          ]
+        },
+        "writes": [
+          "^POST /api/watchlists/flagged/sync .*NVDA"
+        ],
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "flagged": {
+            "exclude": [
+              "NVDA"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add NVDA to my flagged list",
+        "put NVDA on my flagged list",
+        "add NVDA to flagged"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget). Level (a) is not pinned: `needs` is empty because the routers do not send this action for these bare phrasings today; it arrives by the need_groups reroute. See the \"Agent integration 1\" PR.",
+      "board": "LISTVIEW",
+      "id": "watchlist.setFlag.bare",
+      "capabilities": [
+        "watchlist.setFlag"
+      ],
+      "needs": [],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.setFlag",
+            "target": "$flagged[0]",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ],
+              "flagged": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "flagged": {
+          "include": [
+            "NVDA"
+          ]
+        },
+        "writes": [
+          "^POST /api/watchlists/flagged/sync .*NVDA"
+        ],
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "flag NVDA",
+        "star NVDA"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.keepOnly",
+      "capabilities": [
+        "watchlist.keepOnly"
+      ],
+      "needs": [
+        "watchlist.keepOnly"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "watchlist.keepOnly",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "NVDA",
+            "TSLA",
+            "AMD"
+          ]
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "NVDA"
+          ],
+          "exclude": [
+            "TSLA",
+            "AMD"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "keep only NVDA on my Momentum watchlist",
+        "remove everything from Momentum except NVDA",
+        "clear Momentum except for NVDA"
+      ]
     }
   ],
   "refusals": [

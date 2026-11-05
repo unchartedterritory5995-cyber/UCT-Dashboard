@@ -189,6 +189,20 @@ export function checkExpect(ctx, e, label) {
     expect(ma.length, `${label}: the chart's moving averages`).toBeGreaterThan(0)
     expect(ma.every(i => !!i.hidden === e.averagesHidden), `${label}: every moving average hidden = ${e.averagesHidden}`).toBe(true)
   }
+  if (e.listView) {
+    // what the Watchlist widget shows (the LISTVIEW board): only the fields a case names
+    const now = ctx.st.listViewNow()
+    if (e.listView.rows) expect(now.rows, `${label}: the widget's rows, in order`).toEqual(e.listView.rows)
+    if ('sort' in e.listView) expect(now.sort, `${label}: the widget's sort`).toEqual(e.listView.sort)
+    if (e.listView.selected) expect(now.selected, `${label}: the widget's selected row`).toBe(e.listView.selected)
+    for (const k of e.listView.columns || []) expect(now.columns, `${label}: a ${k} column`).toContain(k)
+    for (const k of e.listView.noColumns || []) expect(now.columns, `${label}: no ${k} column`).not.toContain(k)
+  }
+  if (e.flagged) {
+    const syms = ctx.st.flaggedNow()
+    for (const s of e.flagged.include || []) expect(syms, `${label}: ${s} flagged`).toContain(s)
+    for (const s of e.flagged.exclude || []) expect(syms, `${label}: ${s} not flagged`).not.toContain(s)
+  }
   if (e.indicatorTemplates) {
     const names = JSON.parse(ctx.st.prefs.indicator_templates || '[]').map(t => t.name)
     for (const n of e.indicatorTemplates.include || []) expect(names, `${label}: an indicator template ${n}`).toContain(n)
