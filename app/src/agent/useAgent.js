@@ -1871,6 +1871,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', clarified: true, voice } })
         return
       }
+      // PACKAGE 3: a follow-up that needs ONE chart picked ("apply it to my other chart" with several): the pick runs its ops there
+      if (follow?.kind === 'askTarget') {
+        pendingRef.current = { kind: 'target', ops: follow.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host) }
+        push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
+        record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-target', actions: follow.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
       if (follow?.kind === 'ops') {
         if (follow.pick) memoryRef.current.notePick(follow.pick)
         lastActionsRef.current = follow.ops.map(o => o.action)

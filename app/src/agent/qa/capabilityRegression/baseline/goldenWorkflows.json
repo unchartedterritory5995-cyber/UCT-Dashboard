@@ -1023,7 +1023,7 @@
       ]
     },
     {
-      "id": "GW-25.indicator-package-draft-to-delete",
+      "id": "GW-27.indicator-package-draft-to-delete",
       "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — the whole lifecycle in one conversation, each committed step undone",
       "capabilities": [
         "indicator.draft",

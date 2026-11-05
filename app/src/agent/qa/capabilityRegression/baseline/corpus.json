@@ -8685,6 +8685,79 @@
           }
         }
       ]
+    },
+    {
+      "id": "refuse.other-chart-ambiguous",
+      "capabilities": [
+        "indicatorCopy.copyTo"
+      ],
+      "board": "AUTHOR_FOUR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "source": "PACKAGE 3 review (11-04): on a board of FOUR, \"apply it to my other chart\" names no one chart — UCT asks which (no model call, nothing changes), never silence",
+      "steps": [
+        {
+          "say": "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            }
+          }
+        },
+        {
+          "say": "apply it to my other chart",
+          "expect": {
+            "receipt": false,
+            "modelTurns": 0,
+            "customIndicators": {
+              "chart": 1,
+              "count": 0,
+              "saved": 1
+            }
+          }
+        }
+      ]
     }
   ]
 }

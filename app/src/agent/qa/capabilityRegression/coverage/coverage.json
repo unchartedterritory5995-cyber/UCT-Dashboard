@@ -2461,25 +2461,25 @@
    "phrasings": 0,
    "evidence": {
     "nl": [
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "routing": [],
     "args": [
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "execution": [
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "receipt": [
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [],
     "permission": [
-     "GW-25.indicator-package-draft-to-delete: waits for Apply"
+     "GW-27.indicator-package-draft-to-delete: waits for Apply"
     ],
     "undo": [],
     "multiStep": [
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "phrasings": []
    }
@@ -3641,7 +3641,7 @@
      "corpus indicator.rsi",
      "corpus indicator.apply-saved",
      "GW-22.new-chart-then-rsi-on-it",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "execution": [
      "indicator.ema-9-20 (c)",
@@ -3657,7 +3657,7 @@
      "indicator.apply-saved (c)",
      "GW-01.symbol-weekly-emas-log-undo",
      "GW-22.new-chart-then-rsi-on-it",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [
      "GW-02.empty-board-honest",
@@ -3784,20 +3784,21 @@
      "corpus indicator.draft-create",
      "corpus indicator.create-human-name",
      "corpus indicator.draft-only",
-     "GW-25.indicator-package-draft-to-delete",
-     "refuse.undo-after-indicator-save"
+     "GW-27.indicator-package-draft-to-delete",
+     "refuse.undo-after-indicator-save",
+     "refuse.other-chart-ambiguous"
     ],
     "execution": [
      "indicator.draft-create (c)",
      "indicator.create-human-name (c)",
      "indicator.draft-only (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "receipt": [
      "indicator.draft-create (c)",
      "indicator.create-human-name (c)",
      "indicator.draft-only (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [],
     "permission": [],
@@ -3807,7 +3808,7 @@
      "indicator.draft-only: undo restores"
     ],
     "multiStep": [
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "phrasings": []
    }
@@ -3989,7 +3990,7 @@
      "indicator.preview-draft: \"preview it on the chart\"",
      "indicator.preview-draft: \"let me see what it looks like on the chart\"",
      "indicator.preview-draft: \"show me how it looks\"",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "routing": [
      "indicator.preview-draft: \"show me the preview\"",
@@ -3999,22 +4000,22 @@
     ],
     "args": [
      "corpus indicator.preview-draft",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "execution": [
      "indicator.preview-draft (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "receipt": [
      "indicator.preview-draft (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [],
     "permission": [],
     "undo": [],
     "multiStep": [
      "indicator.preview-draft: after an earlier turn",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "phrasings": []
    }
@@ -4111,7 +4112,7 @@
      "indicator.save-draft-as: \"save the indicator as Thrust Days\"",
      "indicator.save-draft-as: \"save this as Thrust Days\"",
      "indicator.save-draft-as: \"ok save it, call it Thrust Days\"",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "routing": [
      "indicator.save-draft-as: \"save it as Thrust Days\"",
@@ -4121,23 +4122,23 @@
     ],
     "args": [
      "corpus indicator.save-draft-as",
-     "GW-25.indicator-package-draft-to-delete",
+     "GW-27.indicator-package-draft-to-delete",
      "refuse.undo-after-indicator-save"
     ],
     "execution": [
      "indicator.save-draft-as (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "receipt": [
      "indicator.save-draft-as (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [],
     "permission": [],
     "undo": [],
     "multiStep": [
      "indicator.save-draft-as: after an earlier turn",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "phrasings": []
    }
@@ -4687,19 +4688,19 @@
      "corpus indicatorStyle.colour",
      "corpus indicator.followup-thicker",
      "corpus indicator.followup-daily-only",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "execution": [
      "indicatorStyle.colour (c)",
      "indicator.followup-thicker (c)",
      "indicator.followup-daily-only (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "receipt": [
      "indicatorStyle.colour (c)",
      "indicator.followup-thicker (c)",
      "indicator.followup-daily-only (c)",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [],
     "permission": [],
@@ -4711,7 +4712,7 @@
     "multiStep": [
      "indicator.followup-thicker: after an earlier turn",
      "indicator.followup-daily-only: after an earlier turn",
-     "GW-25.indicator-package-draft-to-delete"
+     "GW-27.indicator-package-draft-to-delete"
     ],
     "phrasings": []
    }

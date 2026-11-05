@@ -519,6 +519,19 @@ function portable(row) {
   if (row.defId === 'movingAverage' && row.len) return `#${row.len}${row.type ? `:${row.type}` : ''}`
   return row.defId
 }
+/** PACKAGE 3: the ONE indicator the last turn put on (or changed on) ONE chart — what "apply it to …" copies. */
+function copySource(last, host) {
+  const found = []
+  for (const o of last?.ops || []) {
+    if (getCapability(o.action)?.target !== 'indicatorEdits') continue
+    const chart = String(o.target || '').replace(/^ixe:/, '')
+    const rows = rowsOnChart(host, chart)
+    const hit = typeof o.args?.instance === 'string' ? rows.find(r => r.instanceId === o.args.instance)
+      : typeof o.args?.defId === 'string' && /^u_/.test(o.args.defId) ? rows.filter(r => r.defId === o.args.defId).at(-1) : null
+    if (hit && !found.some(f => f.src === chart && f.id === hit.instanceId)) found.push({ src: chart, id: hit.instanceId })
+  }
+  return found.length === 1 ? { src: found[0].src, ids: [found[0].id] } : null
+}
 function repeatOps(last, dests, host) {
   const out = []
   for (const o of last.ops) {
@@ -615,6 +628,19 @@ function readOnce(t, ctx) {
     // when the last turn can't be repeated there (it isn't on that chart), it is read as a copy of it (below)
     const copyIt = !ops && /^(?:apply|copy) (?:it|this|that)(?: one)? (?:to|onto|on) /.test(t)
     if (!ops && !copyIt) return null                                // not plainly repeatable → the model (which may ask)
+    if (copyIt) {
+      const it = copySource(last, host)
+      if (it) {
+        const to = dests.filter(r => r !== it.src)
+        // "my other chart" (ONE chart) on a board with several others: ask which — never a guess, never silence
+        if (/\bother (?:chart|one)\b/.test(t) && to.length > 1) {
+          const charts = chartsOf(host)
+          return { kind: 'askTarget', text: 'Which chart should I put it on?', choices: to.map(r => ({ ref: ixe(r), label: charts.find(c => c.ref === r)?.label || r })),
+            ops: [{ action: 'indicatorCopy.copyTo', target: null, args: { from: it.src, instances: it.ids } }] }
+        }
+        if (to.length) return { kind: 'ops', ops: to.map(d => ({ action: 'indicatorCopy.copyTo', target: ixe(d), args: { from: it.src, instances: it.ids } })), pick: it.ids }
+      }
+    }
     if (!copyIt) {
       if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
       return { kind: 'ops', ops }

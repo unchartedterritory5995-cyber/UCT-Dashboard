@@ -53,6 +53,9 @@ export const BOARDS = {
   AUTHOR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'QQQ' }, { authoring: true }],
   // AUTHOR on a board of TWO charts (a new draft with no chart must ask which one: agentPlannerV2Screens.test.jsx)
   AUTHOR_TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'QQQ', 'N:c2': 'SPY' }, { authoring: true }],
+  // PACKAGE 3: AUTHOR on a board of FOUR ("apply it to my other chart" is ambiguous there: it must ask which)
+  AUTHOR_FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
+    { 'N:c1': 'QQQ', 'N:c2': 'SPY', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }, { authoring: true }],
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
