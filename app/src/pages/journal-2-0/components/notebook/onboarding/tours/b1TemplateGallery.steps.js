@@ -23,7 +23,7 @@ export const STEPS = Object.freeze([
 export const COPY = Object.freeze({
   templates: {
     title: 'Start from a template',
-    body: 'Templates opens the picker: a blank page, UCT templates for plans and reviews, and your own.',
+    body: 'The ▾ beside New opens From a template: a blank page, UCT templates for plans and reviews, and your own.',
   },
   door: {
     title: 'The Template library',

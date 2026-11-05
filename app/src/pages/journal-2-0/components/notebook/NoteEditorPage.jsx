@@ -48,7 +48,8 @@ import {
   recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq, connectNotebookDb,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
+import { blockedLabel, unsyncedLabel, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
+import { takeImageForNote } from '../../lib/pendingImageInsert'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
@@ -2505,8 +2506,22 @@ export default function NoteEditorPage({
       setUploadToast({ message: INSIDE_ANSWER_SENTENCE, tone: 'error' })
       return
     }
+    writingHelpFromButtonRef.current = false
     setWritingHelp(req)
   }, [])
+  // VIS-5 (audit 2026-11-05, issue 25): closing Writing help sent focus to "Share". The header button
+  // keeps the editor's selection on a mouse press (mousedown is prevented), so the Sheet's own restore read
+  // the wrong opener. Opened from the button, focus goes back to the button; from the slash menu, the
+  // Sheet's default restore (the editor) stands.
+  // Fix round 1 (review Minor 13): which Insert door opened the widget palette (the toolbar's, or the phone "+"
+  // menu's), so its Escape and close return focus THERE.
+  const paletteOpenerRef = useRef(null)
+  const writingHelpButtonRef = useRef(null)
+  const writingHelpFromButtonRef = useRef(false)
+  const openWritingHelpFromButton = useCallback(() => {
+    openWritingHelp()
+    writingHelpFromButtonRef.current = true
+  }, [openWritingHelp])
   // ── Wave 11 lane 11A: voice notes ─────────────────────────────────────────
   // ⛔ DARK behind `notebook_voice_notes_enabled` and paid-only, like the routes.
   // "Add to this note" is ONE editor transaction at the end of the note (never a
@@ -3192,6 +3207,14 @@ export default function NoteEditorPage({
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // S12 (audit 2026-11-05, M9): the phone "+" sheet's "Photo / chart screenshot" made THIS note for an image the
+  // member picked on the list. It is placed by this editor's own image door (`handleImageInsert`, the paste / Insert
+  // Image path), once, the first time the editor is ready -- never by a write of its own (lib/pendingImageInsert.js).
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !note || locked || !editor.isEditable) return
+    const file = takeImageForNote(noteId)
+    if (file) handleImageInsert(file)
+  }, [editor, note?.id, noteId, locked]) // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ I-A fix round 5 (review M-19): a save or Discard that took a refused-copy offer
   // off the page took the focused button with it. Focus goes to the editor (or, when it
   // cannot take focus, the page's landmark), never to the document body.
@@ -4900,6 +4923,23 @@ export default function NoteEditorPage({
   // background revalidation failure while a perfectly good `note` from an
   // earlier successful fetch is still on screen; that case must keep
   // rendering the note, not this error card).
+  // VIS-5 (audit 2026-11-05, issue 16): a note the server says is NOT THERE (404) is said as that, with the
+  // two ways on -- never blamed on the connection. Every other failure keeps its own sentence below.
+  if (!note && String(loadError?.message) === '404') {
+    return (
+      <div className={styles.loadError} role="alert" data-note-missing="">
+        <p>This note doesn't exist or was deleted</p>
+        <div className={styles.loadErrorActions}>
+          <button type="button" className="btn btn-primary" onClick={() => navigateTo('/journal/notebook?view=all')}>
+            Back to All notes
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => navigateTo('/journal/notebook?folder=__trash__')}>
+            Check Trash
+          </button>
+        </div>
+      </div>
+    )
+  }
   if (!note) {
     return (
       <div className={styles.loadError} role="alert">
@@ -5147,21 +5187,11 @@ export default function NoteEditorPage({
             {REFUSED_COPY_MESSAGE}
           </div>
         )}
-        {/* ⛔⛔ A DIFFERENT AXIS FROM THE THREE ABOVE — connectivity, not save
-            status. Independent (never else-if'd with the blocked/unsynced/
-            conflict states): a member can be offline AND have an unrelated
-            queued-write problem at the same time, and each fact is honest on
-            its own. Auto-clears the instant `online` fires -- no dismiss
-            state to manage for something that already un-shows itself.
-            Competitive audit finding Accessibility QW-5, 2026-09-22. */}
-        {/* Fix round 1 (S10 review finding 5): with unsent words kept here, the save indicator is the one offline
-            message ("Offline, kept on this device"); this banner speaks only when there is nothing unsent. */}
-        {isOffline && !durable.unsynced && (
-          <div className={styles.saveStatus} role="status">
-            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {OFFLINE_VIEWING_BANNER}
-          </div>
-        )}
+        {/* VIS-5 (audit 2026-11-05, issue 17): offline, the member reads ONE message -- the indicator's pill below,
+            "Offline · saved on this device", in its reserved slot. ⚰️ Three lines used to appear together here
+            (the unsynced line, "Viewing an earlier saved copy — you're offline." and "Couldn't reach the server —
+            … retrying…") and push the header down 26 px. The unsynced line and the retrying line stand down while
+            offline WITH the work committed locally; a save that failed with nothing committed still speaks. */}
         {/* ⛔ Wave 10 F7 (Part A, 5d): the retrying state used to put its whole sentence
             (`friendlySaveError(..., {retrying:true})`, e.g. "Couldn't reach the server —
             your note is unchanged, retrying automatically.") ONLY in the `title` tooltip
@@ -5171,7 +5201,7 @@ export default function NoteEditorPage({
             walk's silent-failure sweep read this as SILENT under a forced-offline autosave
             PUT (`is_sentence` requires 3+ words; "Reconnecting…" is one). The sentence is
             now the VISIBLE text, same as the 'error' branch already did. */}
-        {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        {(saveStatus === 'error' || saveStatus === 'reconnecting') && !(isOffline && durable.unsynced) && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {saveStatus === 'reconnecting'
@@ -5179,7 +5209,7 @@ export default function NoteEditorPage({
               : `Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
           </div>
         )}
-        {/* Audit 2026-11-05, spec S10 (M4): "Saved", "Saving…" or "Offline, kept on this device", always visible,
+        {/* Audit 2026-11-05, spec S10 (M4): "Saved", "Saving…" or "Offline · saved on this device" (VIS-5), always visible,
             read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
             one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
             announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}
@@ -5229,8 +5259,9 @@ export default function NoteEditorPage({
             <button
               type="button"
               className={styles.chromeBtn}
+              ref={writingHelpButtonRef}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={openWritingHelp}
+              onClick={openWritingHelpFromButton}
               aria-label="Writing help"
               data-tour="writing-help"
               title="Writing help — summarize, rewrite, continue or translate"
@@ -5708,7 +5739,7 @@ export default function NoteEditorPage({
           <button
             type="button"
             className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
-            onClick={() => { setOutlineOpen(false); setPaletteOpen((o) => !o) }}
+            onClick={(e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }}
             title="Insert a chart or preset — pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
@@ -5726,7 +5757,7 @@ export default function NoteEditorPage({
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
         <Suspense fallback={null}>
-          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} />
         </Suspense>
       )}
       {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
@@ -5740,7 +5771,7 @@ export default function NoteEditorPage({
             { label: 'Image', onClick: () => fileInputRef.current?.click() },
             { label: 'Attach a file', onClick: () => attachFileInputRef.current?.click() },
             { label: 'Scan with camera', onClick: () => scanInputRef.current?.click() },
-            { label: 'Chart or block', onClick: () => { setOutlineOpen(false); setPaletteOpen(true) } },
+            { label: 'Chart or block', onClick: () => { paletteOpenerRef.current = insertPhoneRef.current; setOutlineOpen(false); setPaletteOpen(true) } },
           ]}
         />
       )}
@@ -6100,6 +6131,7 @@ export default function NoteEditorPage({
             request={writingHelp}
             onAccept={acceptWritingHelpDraft}
             onClose={() => setWritingHelp(null)}
+            returnFocusTo={writingHelpFromButtonRef.current ? writingHelpButtonRef : undefined}
           />
         </Suspense>
       )}

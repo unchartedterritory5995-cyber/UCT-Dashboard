@@ -111,12 +111,14 @@ describe('the top of Home is the member\'s notes', () => {
     expect(within(list).getByText('Weekly plan')).toBeInTheDocument()
   })
 
-  it('typing in the search box opens the Notebook\'s own search (the #search door), and searches nothing itself', () => {
+  // VIS-4 (audit 2026-11-05, issue 12): typing keeps the query in THIS box, in the main column (it used to hand
+  // off to the panel's search, so the query jumped into the sidebar). ResearchHome.homeSearch.test.jsx pins the
+  // results; this pins that the page does not move to #search.
+  it('typing in the search box keeps the member on Home, with the text in the box', () => {
     renderHome()
-    const before = global.fetch.mock.calls.length
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search your notes' }), { target: { value: 'nv' } })
-    expect(screen.getByTestId('where')).toHaveTextContent('/journal/notebook#search')
-    expect(global.fetch.mock.calls.length).toBe(before)
+    expect(screen.getByTestId('where')).not.toHaveTextContent('#search')
+    expect(screen.getByRole('searchbox', { name: 'Search your notes' })).toHaveValue('nv')
   })
 
   it('a recent note opens on a press', () => {
@@ -148,7 +150,8 @@ describe('the top of Home is the member\'s notes', () => {
     latchNotebookFlags(WAVE14)
     const { unmount } = renderHome()
     const search = screen.getByRole('searchbox', { name: 'Search your notes' })
-    expect(search.parentElement).toContainElement(screen.getByRole('button', { name: 'Learn' }))
+    // the box sits in its own wrap (VIS-4: its results hang under it), so the row is the wrap's parent
+    expect(search.closest('[class*="homeHeader"]')).toContainElement(screen.getByRole('button', { name: 'Learn' }))
     unmount()
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })

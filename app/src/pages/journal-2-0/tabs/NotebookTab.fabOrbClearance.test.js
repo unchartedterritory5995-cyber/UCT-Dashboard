@@ -21,10 +21,15 @@ const FILE = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'tabs', 'Noteboo
 
 // The FAB's own reserved zone (JournalLayout.module.css `.logFab`/`.logFabBtn`):
 // bottom:70px + min-height 44px. The taller of the two fixed overlays.
-const FAB_ZONE_PX = 70 + 44
+// S12 (audit 2026-11-05, M9 / V4): the Notebook's ONE floating "+" (NotebookPlusFab: 56 px at bottom 16 px) is
+// the only thing left at the bottom of a phone's Notebook -- the Log-Trade FAB never rendered there and the orb
+// gives way to the "+". ⚰️ The zone was 70 + 44 (the Log-Trade FAB's), which forced a 150 px pad.
+const FAB_ZONE_PX = 16 + 56
 
+/** A px length, or the px term of `calc(<n>px + env(safe-area-inset-bottom, ...))`. */
 function px(value) {
-  const m = /^(-?\d+(?:\.\d+)?)px$/.exec((value || '').trim())
+  const v = (value || '').trim()
+  const m = /^(-?\d+(?:\.\d+)?)px$/.exec(v) || /^calc\((-?\d+(?:\.\d+)?)px \+ env\(safe-area-inset-bottom/.exec(v)
   return m ? Number(m[1]) : null
 }
 

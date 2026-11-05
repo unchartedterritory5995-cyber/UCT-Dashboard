@@ -35,6 +35,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
+import { chooseView, pressSaveView } from './__tests__/toolbarDoors'
 
 beforeEach(() => {
   timelineProps = null
@@ -56,7 +57,7 @@ const renderTab = () => render(
 describe('the Timeline view mode', () => {
   it('is offered in the toolbar and draws the timeline', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline view' }))
+    chooseView('Timeline')
     await screen.findByTestId('note-timeline')
     expect(screen.getByTestId('note-timeline')).toBeInTheDocument()
     expect(timelineProps.initialSettings).toBeNull()
@@ -64,10 +65,10 @@ describe('the Timeline view mode', () => {
 
   it('saves WITH the settings the timeline reports', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline view' }))
+    chooseView('Timeline')
     await screen.findByTestId('note-timeline')
     timelineProps.onSettingsChange({ timeBy: 'created', zoom: 'week', groupBy: 'tag' })
-    fireEvent.click(screen.getByRole('button', { name: /save view/i }))
+    pressSaveView()
     const name = await screen.findByLabelText('Name')
     fireEvent.change(name, { target: { value: 'This week by tag' } })
     fireEvent.keyDown(name, { key: 'Enter' })

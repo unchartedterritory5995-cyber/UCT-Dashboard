@@ -11,6 +11,8 @@ import VisionAttachButton from './VisionAttachButton'
 import UIcon from '../ui/UIcon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 import useScrollLocked from '../../hooks/useScrollLocked'
+import { useIsPhone } from '../../hooks/useBreakpoint'
+import { isCompactHeaderRoute } from '../../pages/journal-2-0/lib/compactHeaderRoute'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
@@ -134,7 +136,12 @@ export default function FloatingOrb({ context = 'global' }) {
   // (showCoachmark untouched) and shows on the next ordinary page. The list is measured,
   // not guessed: viewportLockedRoutes.js.
   const onViewportLockedPage = isViewportLockedRoute(useLocation().pathname)
+  // Tier 1b fix round 1 (review Important 5): on a PHONE's Notebook the cluster gives way to the Notebook's own "+"
+  // (S12, FloatingOrb.module.css), so the card that names the compass button WAITS there too -- not dismissed.
+  const pathname = useLocation().pathname
+  const onPhoneNotebook = useIsPhone() && isCompactHeaderRoute(pathname)
   const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld && !onViewportLockedPage
+    && !onPhoneNotebook
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
@@ -186,6 +193,26 @@ export default function FloatingOrb({ context = 'global' }) {
   // the phone chart shell, hides the card's slot with the same attribute
   // (FloatingOrb.module.css). Hidden is not dismissed: `showCoachmark` is untouched, so
   // the card comes back with the cluster, and only "Got it" or a first tap writes the key.
+  // Fix round 2 (re-review N6): is a call live, or did one START and then fail? An error with no call behind it (a
+  // denied microphone before the connect began) is neither: it must not keep the orb on the phone Notebook, nor raise
+  // the "+" there. `callStarted` remembers a call began until the voice state returns to idle.
+  const callLive = voice.mode === 'c' && voice.status !== 'idle' && voice.status !== 'error'
+  const [callStarted, setCallStarted] = useState(false)
+  useEffect(() => {
+    if (callLive) setCallStarted(true)
+    else if (voice.mode !== 'c' || voice.status === 'idle') setCallStarted(false)
+  }, [callLive, voice.mode, voice.status])
+  const callShowing = callLive || (voice.mode === 'c' && voice.status === 'error' && callStarted)
+  // The page-level fact the Notebook's "+" keys on (NotebookPlusFab.module.css), written on <html> while this orb is
+  // mounted with a call showing and cleared on unmount -- never a document-wide :has().
+  useEffect(() => {
+    const el = typeof document !== 'undefined' ? document.documentElement : null
+    if (!el) return undefined
+    if (callShowing) el.setAttribute('data-orb-in-session', '')
+    else el.removeAttribute('data-orb-in-session')
+    return () => el.removeAttribute('data-orb-in-session')
+  }, [callShowing])
+
   const coachmarkUp = coachmarkOn && !inSessionLive && !minimized
   const coachmarkPortal = coachmarkUp
     ? createPortal(<OrbCoachmark onDismiss={dismissCoachmark} />, firstRunSlot)
@@ -354,6 +381,9 @@ export default function FloatingOrb({ context = 'global' }) {
       <div
         ref={clusterRef}
         className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? (tuckSide === 'left' ? styles.tuckedLeft : styles.tuckedRight) : ''}`}
+        // The phone Notebook hides the cluster EXCEPT while this is set (S12): a live call, and a call that STARTED and
+        // fell into error, whose glyph and label are how the member learns it failed (Minor 9; N6).
+        data-in-session={callShowing ? '' : undefined}
         style={clusterStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

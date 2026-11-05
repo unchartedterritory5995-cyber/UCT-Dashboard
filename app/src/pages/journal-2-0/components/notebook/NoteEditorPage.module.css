@@ -18,6 +18,8 @@
    to hit, and portaled via SkipLinkSlotContext so it lands as an early Tab stop rather than
    after the whole chrome it exists to bypass. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;

@@ -62,6 +62,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({
 }))
 
 import NotebookTab from './NotebookTab'
+import { offersSaveView, pressSaveView, viewOption } from './__tests__/toolbarDoors'
 
 const NOTES = [
   { id: 'n1', title: 'First note', updatedAt: '2026-09-18T00:00:00Z' },
@@ -87,7 +88,7 @@ function renderTab(entry = '/journal?view=all') {
   )
 }
 
-const boardBtn = () => screen.getByRole('button', { name: /board view/i })
+const boardBtn = () => viewOption('Board')
 
 describe('NotebookTab — board view wiring', () => {
   it('offers a board view beside list, table and graph', () => {
@@ -147,7 +148,7 @@ describe('NotebookTab — board view wiring', () => {
     renderTab()
     fireEvent.click(boardBtn())
     await screen.findByTestId('note-board')
-    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
+    expect(offersSaveView()).toBe(true)
 
     // ⛔ A board without what it groups by is not the view the member saved.
     // The view REPORTS its resolved grouping up; the tab puts it in the spec.
@@ -156,7 +157,7 @@ describe('NotebookTab — board view wiring', () => {
 
     // And the spec that actually goes to the server carries it.
     boardProps.onGroupByChange('builtin:thesis_status')
-    fireEvent.click(screen.getByRole('button', { name: /save view/i }))
+    pressSaveView()
     // ⛔ The dialog's confirm button carries the SAME name as the toolbar button
     // that opened it, so a name query matches two. Name the field and press
     // Enter -- which is also a real member path the component supports.

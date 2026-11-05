@@ -126,32 +126,37 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
 })
 
 /**
- * ⛔⛔ A DIFFERENT AXIS FROM SAVE STATUS — connectivity, not writes. Wave Q1's
- * durable working copy lets a member reopen a previously-viewed note while
- * offline (G-083), completely silently before this. Competitive audit
- * finding Accessibility QW-5, 2026-09-22.
+ * ⛔⛔ A DIFFERENT AXIS FROM SAVE STATUS — connectivity, not writes. Wave Q1's durable working copy lets a member
+ * reopen a previously-viewed note while offline (G-083), completely silently before Accessibility QW-5.
+ * VIS-5 (audit 2026-11-05, issue 17): the fact is now said ONCE, by the header's offline pill in the Saved
+ * indicator's reserved slot ("Offline · saved on this device"); the separate "Viewing an earlier saved copy —
+ * you're offline." line is retired, because beside the other two it made three contradictory lines.
  */
-describe('NoteEditorPage — offline-viewing banner (Accessibility QW-5)', () => {
-  const BANNER_TEXT = "Viewing an earlier saved copy — you're offline."
+describe('NoteEditorPage — going offline is said once (QW-5, VIS-5)', () => {
+  const OLD_BANNER = "Viewing an earlier saved copy — you're offline."
+  const pill = () => document.querySelector('[data-save-indicator]')
 
-  it('shows nothing while online (the default)', async () => {
+  it('shows nothing offline while online (the default)', async () => {
     await renderEditor()
-    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+    await waitFor(() => expect(pill().textContent).toBe('Saved'))
+    expect(pill().textContent).not.toMatch(/Offline/)
   })
 
-  it('appears the instant the browser goes offline, no reload needed', async () => {
+  it('says it the instant the browser goes offline, no reload needed -- in ONE place', async () => {
     await renderEditor()
-    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
     fireEvent(window, new Event('offline'))
-    expect(screen.getByText(BANNER_TEXT)).toBeInTheDocument()
+    // jsdom exposes no navigator.storage, so persistence is unknown and the honest noun is the narrow one.
+    await waitFor(() => expect(pill().textContent).toBe('Offline · saved in this browser'))
+    expect(screen.queryByText(OLD_BANNER)).toBeNull()
+    expect(screen.getAllByText(/offline/i)).toHaveLength(1)
   })
 
-  it('auto-clears the instant connectivity returns — no dismiss state to manage', async () => {
+  it('clears the instant connectivity returns — no dismiss state to manage', async () => {
     await renderEditor()
     fireEvent(window, new Event('offline'))
-    expect(screen.getByText(BANNER_TEXT)).toBeInTheDocument()
+    await waitFor(() => expect(pill().textContent).toMatch(/^Offline/))
     fireEvent(window, new Event('online'))
-    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+    await waitFor(() => expect(pill().textContent).toBe('Saved'))
   })
 })
 

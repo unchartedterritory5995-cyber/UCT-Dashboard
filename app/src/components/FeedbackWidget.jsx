@@ -6,6 +6,7 @@ import useHideOnScroll from '../hooks/useHideOnScroll'
 import useScrollLocked from '../hooks/useScrollLocked'
 import fb from './FeedbackWidget.module.css'
 import Textarea from './ui/Textarea'
+import { OPEN_FEEDBACK_EVENT } from './feedbackDoor'
 
 const S = {
   btn: {
@@ -73,6 +74,7 @@ export default function FeedbackWidget() {
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
   const triggerRef = useRef(null)
+  const returnToRef = useRef(null)   // fix round 2 (N2): the opener, when the feedback door opened it
   const panelRef = useRef(null)
   const firstItemRef = useRef(null)
   const messageRef = useRef(null)
@@ -108,6 +110,17 @@ export default function FeedbackWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
+  // Tier 1b fix round 1 (review Minor 8): the phone Notebook does not draw the "?" (S12); its "+" sheet opens this
+  // menu through components/feedbackDoor.js.
+  useEffect(() => {
+    const onOpen = (e) => {
+      returnToRef.current = e.detail?.returnTo || null
+      setMode(e.detail?.mode === 'feedback' ? 'feedback' : 'menu')
+    }
+    window.addEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+  }, [])
+
   if (!user || location.pathname.startsWith('/admin')) return null
   // Hide when a modal/sheet is open so the "?" never covers its bottom CTA.
   if (scrollLocked && !mode) return null
@@ -116,7 +129,15 @@ export default function FeedbackWidget() {
   const tucked = hiddenOnScroll && !mode
 
   function close() { setMode(null); setSent(false); setMessage(''); setRating(0) }
-  function closeAndReturn() { close(); triggerRef.current?.focus() }
+  // Fix round 2 (N2): opened through the feedback door, focus goes back to the control that opened it (the phone
+  // Notebook's "+"); otherwise to the "?" as before.
+  function closeAndReturn() {
+    close()
+    const back = returnToRef.current
+    returnToRef.current = null
+    if (back && back.isConnected) back.focus()
+    else triggerRef.current?.focus()
+  }
 
   async function handleSend() {
     if (!message.trim()) return

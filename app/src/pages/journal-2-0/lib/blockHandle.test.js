@@ -228,6 +228,20 @@ describe('touch: hover never fires, so the grip is VISIBLE beside the caret\'s b
     expect(top(ed)).toEqual(['One.', 'Three.', 'Two.'])
   })
 
+  // S12 (audit 2026-11-05): the grip steps aside while the member types -- a change to the document hides it,
+  // and a tap that only moves the caret brings it back.
+  it('typing hides the grip; moving the caret (no change to the document) shows it again', () => {
+    const ed = mount([P('One.'), P('Two.')])
+    ed.view.hasFocus = () => true
+    caret(ed, at(ed, 'Two.'))
+    expect(grip().hidden).toBe(false)
+    ed.view.dispatch(ed.state.tr.insertText('x', at(ed, 'Two.')))
+    expect(grip().hidden).toBe(true)
+    caret(ed, at(ed, 'One.'))
+    expect(grip().hidden).toBe(false)
+    expect(grip().dataset.pos).toBe(String(topBlockAt(ed.state.doc, at(ed, 'One.')).pos))
+  })
+
   it('no hover path on touch: a stray mousemove does not move the grip off the caret\'s block', () => {
     const ed = mount([P('One.'), P('Two.')])
     ed.view.hasFocus = () => true

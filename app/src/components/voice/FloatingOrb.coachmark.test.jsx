@@ -17,10 +17,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useContext, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { AuthProvider } from '../../context/AuthContext'
 import { renderWithProviders, screen, fireEvent, act } from '../../test-utils'
 import FloatingOrb from './FloatingOrb'
-import { VoiceContext } from '../../context/VoiceContext'
+import { VoiceContext, VoiceProvider } from '../../context/VoiceContext'
 import { registerFirstRunSlot, claimFirstRunStage } from '../firstRun/firstRunStage'
 
 vi.mock('../../hooks/useRealtimeSession', () => ({
@@ -249,5 +250,70 @@ describe('"Meet Compass" at the desktop width keeps clear of the feedback "?"', 
     const desk = /@media \(min-width: 1025px\)\s*\{\s*\.coachmark\s*\{\s*margin-right:\s*(\d+)px;?\s*\}\s*\}/.exec(css)
     expect(desk, 'a desktop .coachmark margin-right rule').not.toBeNull()
     expect(Number(desk[1])).toBeGreaterThan(right + width)
+  })
+})
+
+// Tier 1b fix round 1 (review Important 5): on a PHONE's Notebook the orb cluster gives way to the Notebook's "+"
+// (S12), so the card -- "Tap the compass button" -- WAITS there, exactly as on a viewport-locked page: not shown, not
+// dismissed. The slot itself stays (the tour-offer toast lives in it too).
+describe('"Meet Compass" waits on the phone Notebook', () => {
+  const realMM = window.matchMedia
+  const phone = (on) => {
+    window.matchMedia = (q) => ({ matches: on && /max-width:\s*640px/.test(q) && !/min-width/.test(q), media: q,
+      addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
+  }
+  afterEach(() => { window.matchMedia = realMM })
+
+  it('phone + /journal/notebook: no card, the key is not written', () => {
+    phone(true)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    expect(card()).toBeNull()
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('control: a phone on another page shows it', () => {
+    phone(true)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/trades' })
+    expect(card()).not.toBeNull()
+  })
+
+  it('control: the Notebook on a wider screen shows it (the orb is there)', () => {
+    phone(false)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    expect(card()).not.toBeNull()
+  })
+})
+
+// Review Minors 9 + 19, fix round 2 (re-review N6): the phone Notebook hides the cluster unless `data-in-session` is
+// on it, and the "+" steps up while <html> carries `data-orb-in-session`. Both are set for a live call, and for a call
+// that STARTED and then fell into error (its glyph says it failed) -- never for an error with no call behind it (a
+// denied microphone), so neither the orb nor the raised "+" lingers. The <html> attribute is cleared on unmount.
+describe('the orb says when a call is live or failing (data-in-session, html[data-orb-in-session])', () => {
+  const html = () => document.documentElement.hasAttribute('data-orb-in-session')
+  function Driven({ status }) {
+    return <VoiceOverride voice={{ mode: 'c', status }}><FloatingOrb /></VoiceOverride>
+  }
+  it.each([['connected', true], ['idle', false]])('status %s -> %s', (status, on) => {
+    const { container } = renderWithProviders(<Driven status={status} />)
+    expect(cluster(container).hasAttribute('data-in-session')).toBe(on)
+    expect(html()).toBe(on)
+  })
+
+  it('an error with no call behind it (the connect never started) sets neither', () => {
+    const { container } = renderWithProviders(<Driven status="error" />)
+    expect(cluster(container).hasAttribute('data-in-session')).toBe(false)
+    expect(html()).toBe(false)
+  })
+
+  it('a call that started and then failed keeps both; back to idle clears them; unmount clears <html>', () => {
+    const view = renderWithProviders(<Driven status="connected" />)
+    view.rerender(<MemoryRouter><AuthProvider><VoiceProvider><Driven status="error" /></VoiceProvider></AuthProvider></MemoryRouter>)
+    expect(cluster(view.container).hasAttribute('data-in-session')).toBe(true)
+    expect(html()).toBe(true)
+    view.unmount()
+    expect(html()).toBe(false)
   })
 })

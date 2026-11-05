@@ -136,7 +136,7 @@ describe('focus in the Notebook tab', () => {
       [/^\/api\/j2\/notes\/n9$/, { note: fresh }],
     ])
     const pane = await renderTab()
-    fireEvent.click(within(pane).getByRole('button', { name: '+ New note' }))
+    fireEvent.click(within(pane).getByRole('button', { name: '+ New' }))
     // The note loads, its editor attaches, and the attach-polling effect places
     // the caret across animation frames -- in jsdom that chain needs real time
     // inside act() to advance, so this polls with `settle` (bounded, ~5 s)
@@ -214,9 +214,12 @@ describe('focus in the Notebook tab', () => {
 
   it('a Notebook Sheet (Save view) gives focus back to the button that opened it', async () => {
     const pane = await renderTab()
-    const opener = within(pane).getByRole('button', { name: 'Save view' })
+    // S11: Save view is a row of the View menu; the menu hands focus back to its trigger before the
+    // Sheet opens, so the trigger is the button the Sheet returns focus to.
+    const opener = within(pane).getByRole('button', { name: /^View:/ })
     opener.focus()
     fireEvent.click(opener)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save view' }))
     const field = await screen.findByRole('textbox', { name: /name/i })
     await waitFor(() => expect(active()).toBe(field))
     fireEvent.keyDown(document, { key: 'Escape' })

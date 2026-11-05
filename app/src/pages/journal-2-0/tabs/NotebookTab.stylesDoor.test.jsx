@@ -8,6 +8,7 @@ import { installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import NotebookTab from './NotebookTab'
 import JournalStylesCard from '../components/JournalStylesCard'
+import { pressToolbar, toolbarOffers } from './__tests__/toolbarDoors'
 
 // The manager has its own rail (styles/StylesManager.test.jsx), and refuses to render while the switch is off.
 // It is replaced here by a stub that does NOT refuse, so these tests prove the TAB's gate on its own: with the
@@ -27,26 +28,26 @@ afterEach(() => { cleanup(); __resetNotebookFlags() })
 async function show(route = '/journal/notebook?view=all') {
   render(<Providers route={route}><NotebookTab /></Providers>)
   await settle()
-  expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument()   // control: the header rendered
+  expect(toolbarOffers('Import')).toBe(true)   // control: the header rendered
 }
 
 describe('the Styles door on the Notebook tab', () => {
   it('shows a Styles button beside Import while the switch is on, and it opens the manager', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     await show()
-    fireEvent.click(screen.getByRole('button', { name: 'Manage templates' }))
+    pressToolbar('Manage templates')
     expect(await screen.findByRole('heading', { name: 'Manage templates' })).toBeInTheDocument()
   })
 
   it('has no Styles button while the switch is off', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: false })
     await show()
-    expect(screen.queryByRole('button', { name: 'Manage templates' })).toBeNull()
+    expect(toolbarOffers('Manage templates')).toBe(false)
   })
 
   it('has no Styles button when the server never said', async () => {
     await show()
-    expect(screen.queryByRole('button', { name: 'Manage templates' })).toBeNull()
+    expect(toolbarOffers('Manage templates')).toBe(false)
   })
 
   it('?styles=1 opens the manager when the switch is on', async () => {
@@ -66,7 +67,7 @@ describe('the Styles door on the Notebook tab', () => {
     expect(href).not.toMatch(/view=/)                                       // the case under test: Home, not the list
     render(<Providers route={href}><NotebookTab /></Providers>)
     await settle()
-    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()     // control: the list header is NOT here
+    expect(toolbarOffers('Import')).toBe(false)     // control: the list header is NOT here
     expect(screen.getByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
     expect(await screen.findByRole('heading', { name: 'Manage templates' })).toBeInTheDocument()
   })
@@ -76,7 +77,7 @@ describe('the Styles door on the Notebook tab', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: false })
     render(<Providers route="/journal/notebook?styles=1"><NotebookTab /></Providers>)
     await settle()
-    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()     // control: the list header is NOT here
+    expect(toolbarOffers('Import')).toBe(false)     // control: the list header is NOT here
     expect(screen.getByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
     await settle()
     expect(screen.queryByRole('heading', { name: 'Manage templates' })).toBeNull()
