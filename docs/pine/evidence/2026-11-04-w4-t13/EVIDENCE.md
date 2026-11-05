@@ -1,7 +1,7 @@
 # W4-T13 plotcandle / plotbar from the run: evidence
 
 Branch `feat/pine-w4-t13-candle` (desktop, builder session W4-T13b), stacked on W4-T12
-(`origin/feat/pine-w4-t12-paint` `f8ddebfa76`, READY). Code tip tested: `eab79680d9` (the evidence commit on top is docs only).
+(`origin/feat/pine-w4-t12-paint` `f8ddebfa76`, READY). Code tip tested: `545a284ed1` for final-tip; `eab79680d9` for mutations and measure-pair (the later commit changes only `pool.test.js`).
 Base for measure-pair and tested-on-master: `f8ddebfa76`. The owner delegated the ownership ruling: both the renderer part and
 the W4 side are built in this lane. Spike: `origin/spike/pine-w4-t13-candle` (`a561fc12ba`).
 
@@ -70,7 +70,10 @@ census 967 rows, 16 differ. All but one use plotcandle/plotbar and are INTENDED 
 0 unintended diffs. Object-door changes: none (C18 audit and probes diff 0 on both lanes).
 
 ## final-tip
-FINAL_TIP_PLACEHOLDER
+Final tip tested `545a284ed1` (`final-tip.sh pine-dsk-w4t13b dsk-w4t13b-final2 tests/test_script_engine_version_gate.py tests/test_p2_truth_policy.py tests/test_runtime_document_round_trip.py`; the evidence commit on top is docs only).
+Gate pytest `46 passed`; extra pytest `90 passed` (version gate, P2 truth policy, runtime document round trip); hygiene clean (34671 files).
+Full chart+hooks vitest: `Test Files 1 failed | 1337 passed | 27 skipped (1365)`; the one failure is `src/hooks/pollingSites.rail.test.js`, the known baseline.
+An earlier run on `eab79680d9` also failed `pool.test.js` (3 tests: its complete-option-set rail enumerates the schema's styles); fixed by adding the `candlestick` and `bar` expectations, then final-tip re-run on the final tree. Logs `runs/w4t13b/final.out`, `final2.out`.
 
 ## Engine bump
 Yes: door outcomes change on the runtime lane (a refusal becomes a served candle row). `SCRIPT_ENGINE_VERSION` NOT edited here.
