@@ -351,6 +351,14 @@ def test_the_all_finite_window_gives_exactly_the_gathered_bits(seed, n):
     assert [x.hex() for x in fast] == [x.hex() for x in _slow_skip(series, n, A._window_mean)]
 
 
+def test_a_series_shorter_than_the_window_is_all_nan_and_never_read():
+    import math
+    from api.services import ast_interpret as A
+    for short in ([None, 1.0], [None], [1.0, 2.0], []):
+        got = A._rolling(short, 5, A._window_mean, A.NA_SKIP)
+        assert len(got) == len(short) and all(math.isnan(x) for x in got)
+
+
 def test_a_series_with_an_na_still_takes_the_skipping_path():
     import math
     from api.services import ast_interpret as A
