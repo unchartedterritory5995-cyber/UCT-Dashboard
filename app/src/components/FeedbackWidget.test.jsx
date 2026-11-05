@@ -2,7 +2,7 @@
 // overlay sat over everything while it was open, so the member's next click on the page was eaten
 // just to close it. Now Esc closes it and focus goes back to the "?" button; a click outside closes
 // it AND reaches what was clicked; and nothing invisible is left over the page.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import NotebookPlusFab from '../pages/journal-2-0/components/notebook/NotebookPlusFab'
@@ -15,7 +15,8 @@ vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } 
 vi.mock('../hooks/useHideOnScroll', () => ({ default: () => false }))
 vi.mock('../hooks/useScrollLocked', () => ({ default: () => false }))
 
-import FeedbackWidget from './FeedbackWidget'
+import FeedbackWidget, { helpMenuRows } from './FeedbackWidget'
+import { __resetNotebookFlags, latchNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 
 afterEach(cleanup)
 
@@ -147,6 +148,9 @@ describe('the feedback door from the "+" returns focus to the "+" (N2)', () => {
 // S14 (audit 2026-11-05, details #3-#5): ONE Help menu. Two "?" buttons did two jobs (the corner one: feedback and a
 // ticket; the Journal header's: keyboard shortcuts). The menu is this one, with the spec's five rows in its order.
 describe('the one Help menu (S14)', () => {
+  // the wave-14 switch on, so Help > Walkthroughs exists and "Tours" is offered (review minor 10)
+  beforeEach(() => latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true }))
+  afterEach(() => __resetNotebookFlags())
   function Where() {
     const loc = useLocation()
     return <span data-testid="where" data-search={loc.search}>{loc.pathname}{loc.hash}</span>
@@ -229,5 +233,37 @@ describe('the one Help menu (S14)', () => {
     } finally { act(() => release()) }
     // CONTROL: released, the corner "?" is back
     expect(screen.getByRole('button', { name: 'Help & Feedback' })).toBeInTheDocument()
+  })
+})
+
+// Tier 2 fix round 1 (review minors 9, 10 and 17).
+describe('the Help menu: where it hangs, and which rows a page gets', () => {
+  it('opened from a page\'s own Help button, it hangs under that button; from the corner "?", in the corner', async () => {
+    const btn = document.createElement('button')
+    document.body.appendChild(btn)
+    btn.getBoundingClientRect = () => ({ top: 20, bottom: 52, left: 900, right: 940, width: 40, height: 32 })
+    const realW = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 1200, configurable: true })
+    try {
+      render(<MemoryRouter><FeedbackWidget /></MemoryRouter>)
+      act(() => { openFeedback('menu', btn, { toggle: true }) })
+      const menu = await screen.findByRole('menu', { name: 'Help' })
+      expect(menu.style.top).toBe('58px')
+      expect(menu.style.right).toBe('260px')
+      fireEvent.keyDown(document, { key: 'Escape' })
+      fireEvent.click(screen.getByRole('button', { name: 'Help & Feedback' }))
+      expect(screen.getByRole('menu', { name: 'Help' }).style.top).toBe('40px')   // the corner, as before
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { value: realW, configurable: true })
+      btn.remove()
+    }
+  })
+
+  it('"Tours" only where Help > Walkthroughs exists (the wave-14 switch); "Keyboard shortcuts" never on a phone touch screen', () => {
+    const on = (k) => k === 'notebook_onboarding_enabled' || k === 'notebook_getting_started_enabled'
+    const keys = (o) => helpMenuRows(o).map((r) => r.key)
+    expect(keys({ hasShortcuts: true, flag: on })).toEqual(['search', 'answers', 'shortcuts', 'tours', 'feedback'])
+    expect(keys({ hasShortcuts: true, flag: () => false })).toEqual(['search', 'answers', 'shortcuts', 'feedback'])
+    expect(keys({ hasShortcuts: true, flag: on, phoneTouch: true })).toEqual(['search', 'answers', 'tours', 'feedback'])
   })
 })

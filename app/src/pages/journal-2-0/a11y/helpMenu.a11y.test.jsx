@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { axeSurface } from './surface'
 import { registerShortcutsHost } from '../../../components/feedbackDoor'
+import { latchNotebookFlags } from '../lib/offline/notebookFlags'
 
 vi.mock('../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }), useIsPaid: () => true }))
 vi.mock('../../../hooks/useHideOnScroll', () => ({ default: () => false }))
@@ -15,6 +16,7 @@ import HelpAnswerLink from '../components/notebook/HelpAnswerLink'
 
 describe('the Help menu -- axe', () => {
   axeSurface('help-menu:open', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
     let release
     act(() => { release = registerShortcutsHost(() => {}) })
     render(<MemoryRouter><main><FeedbackWidget /></main></MemoryRouter>)
