@@ -15,6 +15,7 @@ import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../lib/notebookIcons'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplateAsync, preloadTemplates } from '../lib/templatesLoader'
 import { templateWantsTicker } from '../lib/templateWantsTicker'
@@ -2777,7 +2778,7 @@ export default function NotebookTab() {
             <button type="button" className={`btn btn-secondary btn-sm ${styles.phoneFolders}`} onClick={toggleSidebar}
               aria-expanded={sidebarOpen} aria-controls="notebook-folders-panel">
               <span className="sr-only">Folder: </span>{folderId ? activeFolderName : 'All notes'}
-              <UIcon name="chevronDown" size={12} gold={false} />
+              <UIcon name="chevronDown" {...TOOLBAR_ICON} />
             </button>
           )}
           {!isShelfView && (
@@ -2786,7 +2787,7 @@ export default function NotebookTab() {
                 disabled={Boolean(activeView)} data-tour="view-switcher">
                 {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
                 View: {currentView.short}
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </button>
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
@@ -2847,7 +2848,7 @@ export default function NotebookTab() {
               title="Open today's daily note (Ctrl+Alt+D)"
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
-              <UIcon name="sun" size={14} gold={false} />
+              <UIcon name="sun" {...TOOLBAR_ICON} />
               Today
             </button>
             {/* "+ New" makes a blank note in one press; its ▾ lists every way in. The group carries the
@@ -2866,7 +2867,7 @@ export default function NotebookTab() {
               <button {...newMenu.triggerProps} type="button"
                 className={`btn btn-primary btn-sm ${styles.toolBtn} ${styles.newCaret}`}
                 aria-label="More ways to start a note" data-tour="templates">
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </button>
               {newMenu.open && (
                 <div {...newMenu.menuProps} aria-label="Start a note">
@@ -2878,7 +2879,7 @@ export default function NotebookTab() {
               <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
                 aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button"
                 data-journal-tools-door="">
-                <UIcon name="more" size={16} gold={false} />
+                <UIcon name="more" {...TOOLBAR_ICON} />
               </button>
               {moreMenu.open && (
                 <div {...moreMenu.menuProps} aria-label="More notebook actions">

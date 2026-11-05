@@ -29,7 +29,7 @@
   border-radius: 7px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .sidebarToggle:hover {
   color: var(--accent);
@@ -44,12 +44,12 @@
   flex: 0 0 auto;
   width: var(--nb-sb-w, 260px);
   overflow: hidden;
-  transition: width 240ms ease;
+  transition: width var(--duration-base) var(--ease-out);
 }
 .sidebarInner {
   width: var(--nb-sb-w, 260px);
   height: 100%;
-  transition: transform 240ms ease;
+  transition: transform var(--duration-base) var(--ease-out);
 }
 .wrap.collapsed .sidebarSlot { width: 0; }
 .wrap.collapsed .sidebarInner { transform: translateX(-100%); }
@@ -72,7 +72,7 @@
   width: 1px;
   transform: translateX(-50%);
   background: var(--border);
-  transition: background 120ms ease, width 120ms ease;
+  transition: background var(--duration-fast) var(--ease-out), width var(--duration-fast) var(--ease-out);
 }
 .divider:hover::before,
 .wrap.dragging .divider::before { background: var(--ut-gold); width: 2px; }
@@ -191,6 +191,7 @@
   padding: 7px 12px;
   color: var(--text-bright);
   font-size: 13px;
+  transition: border-color var(--duration-fast) var(--ease-out); /* VIS-6 (issue 23) */
 }
 .search:focus { outline: none; border-color: var(--ut-gold); }
 .sortSelect {
@@ -201,6 +202,7 @@
   border-radius: var(--radius-md);
   padding: 0 8px;
   font-size: 12px;
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out); /* VIS-6 (issue 23) */
 }
 /* Wave H: the "?ticker=" filter's own visible indicator (checkpoint
    decision 23) -- a member landing here via a workspace's "View all Notes"

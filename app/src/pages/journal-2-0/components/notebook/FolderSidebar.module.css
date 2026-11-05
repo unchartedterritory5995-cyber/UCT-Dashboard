@@ -92,7 +92,7 @@
   border-radius: var(--radius-md);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .sbHeaderBtn:hover { color: var(--accent); background: var(--bg-hover); }
 .sbHeaderBtnActive { color: var(--accent); background: rgba(220, 187, 94, 0.14); }
@@ -336,6 +336,8 @@
   border-radius: var(--radius-md);
   font-size: 13px;
   text-align: left;
+  /* VIS-6 (issue 23): the sidebar rows (All notes, Today, each folder) had no transition at all. */
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 .row:hover { background: var(--bg-hover); }
 .rowActive { background: rgba(220, 187, 94, 0.15); color: var(--accent); }
@@ -349,6 +351,7 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 .addBtn:hover { border-color: var(--ut-gold); color: var(--accent); }
 .editInput {
@@ -386,7 +389,7 @@
   padding: 0;
 }
 .disclosureBtn:hover { color: var(--accent); background: var(--bg-hover); }
-.chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
+.chevron { transform: rotate(-90deg); transition: transform var(--duration-fast) var(--ease-out); }
 .chevronOpen { transform: rotate(0deg); }
 .childrenList { display: flex; flex-direction: column; gap: 2px; position: relative; }
 /* Obsidian-style vertical indent guide: a faint line down the left of an
@@ -440,7 +443,7 @@
 .searchResultSkeletonRow { display: flex; flex-direction: column; gap: 6px; }
 .noteIcon { flex: 0 0 auto; opacity: 0.75; }
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; margin-left: auto; }
+.actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); margin-left: auto; }
 .row:hover .actions { opacity: 1; }
 /* UX #1, 2026-09-22: Saved Views' rename/delete affordance reuses
    `.actions`/`.iconBtn` (the same hover-reveal pattern folder rows use).
@@ -467,7 +470,8 @@
   min-height: 24px;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--radius-sm); /* VIS-6: 3 px snapped to the 4 px token */
+  transition: color var(--duration-fast) var(--ease-out);
   /* a <button> as well as a <span>: no native chrome */
   border: none;
   background: transparent;

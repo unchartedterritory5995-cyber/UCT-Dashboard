@@ -39,6 +39,7 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
 import usePreferences from '../../../../hooks/usePreferences'
@@ -5018,7 +5019,7 @@ export default function NoteEditorPage({
         onClick={(e) => openAskFrom(e.currentTarget)}
         aria-label="Ask about this note"
       >
-        <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+        <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
         Ask about this note
       </button>
     </div>
@@ -5033,7 +5034,7 @@ export default function NoteEditorPage({
           aria-label="Find in note"
           title="Find in this note"
         >
-          <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          <UIcon name="search" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Find in note
         </button>
       )}
@@ -5047,7 +5048,7 @@ export default function NoteEditorPage({
           aria-label="Outline"
           title="Outline — every heading in this note"
         >
-          <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          <UIcon name="rows" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Outline
         </button>
       )}
@@ -5233,7 +5234,7 @@ export default function NoteEditorPage({
             aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
             title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
           >
-            <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
+            <UIcon name={isFavorite ? 'star-fill' : 'star'} {...TOOLBAR_ICON} gold={isFavorite} />
           </button>
           {/* S10 (M4): the AI control -- Ask and Writing help, one group. */}
           <div className={styles.aiGroup} role="group" aria-label="AI" data-header-control="ai">
@@ -5267,7 +5268,7 @@ export default function NoteEditorPage({
               data-tour="writing-help"
               title="Writing help — summarize, rewrite, continue or translate"
             >
-              <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               <span className={styles.phoneIconLabel}>Writing help</span>
             </button>
           )}
@@ -5318,7 +5319,7 @@ export default function NoteEditorPage({
               title="See earlier versions of this note and restore one"
               aria-label="Version history"
             >
-              <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="clock" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               History
             </button>
             <button
@@ -5329,7 +5330,7 @@ export default function NoteEditorPage({
               title="Create a copy of this note"
               aria-label="Duplicate note"
             >
-              <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="copy" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               {duplicating ? 'Duplicating…' : 'Duplicate'}
             </button>
             {/* Audit 2026-11-05, spec S2: thesis controls appear only for a real thesis, so a member
@@ -5345,7 +5346,7 @@ export default function NoteEditorPage({
                 disabled={makingThesis}
                 title="Add evidence, a changelog and reviews to this note"
               >
-                <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                <UIcon name="book" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                 Make this a thesis
               </button>
             )}
@@ -5561,7 +5562,7 @@ export default function NoteEditorPage({
               title="Insert an image, a file, a camera scan or a chart"
               onClick={toggleInsertPhone}
             >
-              <UIcon name="plus" size={16} gold={false} />
+              <UIcon name="plus" {...TOOLBAR_ICON} />
             </button>
             <span className={styles.formatRun} id={`${formatRunId}-a`} data-format-run="">
             <select
@@ -5674,12 +5675,12 @@ export default function NoteEditorPage({
                 const url = prompt('Link URL (https only):')
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
-              label={<UIcon name="link" size={14} />}
+              label={<UIcon name="link" {...TOOLBAR_ICON} />}
               title="Insert link"
             />
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
-              label={<UIcon name="document" size={14} />}
+              label={<UIcon name="document" {...TOOLBAR_ICON} />}
               title="Insert image"
             />
             {/* Wave 7 (lane G's G5, built by H): photograph a page on a phone or
@@ -5695,12 +5696,12 @@ export default function NoteEditorPage({
               title="Scan a document with the camera"
               data-tour="note-scan"
             >
-              <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="camera" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               Scan
             </button>
             <ToolButton
               onClick={() => attachFileInputRef.current?.click()}
-              label={<UIcon name="paperclip" size={14} />}
+              label={<UIcon name="paperclip" {...TOOLBAR_ICON} />}
               title="Attach a file"
             />
             </span>

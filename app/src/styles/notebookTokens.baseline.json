@@ -1,0 +1,323 @@
+{
+ "pages/journal-2-0/SharedNotePage.module.css": {
+  "border-radius 10px": 1,
+  "font-size 18px": 2,
+  "font-size 30px": 1,
+  "font-size 34px": 1
+ },
+ "pages/journal-2-0/components/notebook/AiActionsPanel.module.css": {
+  "border-radius 10px": 1,
+  "font-size 10px": 1,
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/AskInsertPicker.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/AskPanel.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 5px": 1,
+  "font-size 10.5px": 2,
+  "font-size 10px": 1,
+  "font-size 11.5px": 2,
+  "font-size 16px": 2
+ },
+ "pages/journal-2-0/components/notebook/BarReplay.module.css": {
+  "border-radius 10px": 1,
+  "font-size 11.5px": 2,
+  "font-size 16px": 2
+ },
+ "pages/journal-2-0/components/notebook/BlockedBadge.module.css": {
+  "font-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/BulkActionBar.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 7px": 2
+ },
+ "pages/journal-2-0/components/notebook/CaptureConnectPage.module.css": {
+  "border-radius 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/CaptureDialog.module.css": {
+  "font-size 15px": 1,
+  "font-size 16px": 2
+ },
+ "pages/journal-2-0/components/notebook/CaptureDoors.module.css": {
+  "font-size 12.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/CapturedSourceSheet.module.css": {
+  "font-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/ChartPlanPanel.module.css": {
+  "border-radius 5px": 3,
+  "font-size 11.5px": 5,
+  "font-size 12.5px": 2
+ },
+ "pages/journal-2-0/components/notebook/EmojiMenu.module.css": {
+  "font-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/EmptyNamesAsk.module.css": {
+  "font-size 12.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/FirstRunSheet.module.css": {
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/FolderSidebar.module.css": {
+  "border-radius 2px": 1,
+  "border-radius 3px": 3,
+  "border-radius 7px": 3,
+  "font-size 10px": 5,
+  "font-size 12.5px": 2,
+  "font-size 15px": 1,
+  "font-size 16px": 7,
+  "font-size 9px": 2
+ },
+ "pages/journal-2-0/components/notebook/FollowupOffer.module.css": {
+  "border-radius 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/FrozenList.module.css": {
+  "font-size 10.5px": 1,
+  "font-size 11.5px": 1,
+  "font-size 12.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/GettingStartedList.module.css": {
+  "font-size 13.5px": 3
+ },
+ "pages/journal-2-0/components/notebook/HeroImagePicker.module.css": {
+  "border-radius 10px": 2,
+  "font-size 16px": 2
+ },
+ "pages/journal-2-0/components/notebook/InternalCaptureEmbed.module.css": {
+  "border-radius 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteBoardView.module.css": {
+  "font-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteCalendarView.module.css": {
+  "font-size 10px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteCard.module.css": {
+  "border-radius 10px": 1,
+  "font-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteEditorPage.module.css": {
+  "border-radius 2px": 1,
+  "border-radius 3px": 1,
+  "border-radius 5px": 1,
+  "font-size 15px": 1,
+  "font-size 16px": 3,
+  "font-size 18px": 2,
+  "font-size 28px": 2,
+  "font-size 30px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteFindBar.module.css": {
+  "border-radius 5px": 2,
+  "font-size 11.5px": 1,
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteLinkView.module.css": {
+  "border-radius 3px": 1,
+  "font-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteOutline.module.css": {
+  "font-size 10px": 1,
+  "font-size 12.5px": 1,
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteShareControls.module.css": {
+  "font-size 12.5px": 7
+ },
+ "pages/journal-2-0/components/notebook/NoteStats.module.css": {
+  "font-size 11.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteTasksView.module.css": {
+  "border-radius 3px": 1,
+  "font-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteVideoRails.module.css": {
+  "border-radius 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NotebookPlusFab.module.css": {
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoticesBox.module.css": {
+  "border-radius 10px": 1,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/PassedSetups.module.css": {
+  "font-size 11.5px": 2,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/PdfDocumentViewer.module.css": {
+  "border-radius 2px": 1
+ },
+ "pages/journal-2-0/components/notebook/PublishFolderSheet.module.css": {
+  "font-size 12.5px": 4
+ },
+ "pages/journal-2-0/components/notebook/ReportingSoon.module.css": {
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/ResearchHome.module.css": {
+  "font-size 10px": 1,
+  "font-size 13.5px": 2,
+  "font-size 16px": 1,
+  "font-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/SaveTranscriptPassage.module.css": {
+  "font-size 12.5px": 2
+ },
+ "pages/journal-2-0/components/notebook/ScannedTextPanel.module.css": {
+  "font-size 12.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/SetupsBoard.module.css": {
+  "font-size 12.5px": 4,
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/SetupsBox.module.css": {
+  "border-radius 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/SlashMenu.module.css": {
+  "font-size 10px": 2
+ },
+ "pages/journal-2-0/components/notebook/TagSuggestInput.module.css": {
+  "border-radius 7px": 1,
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/TemplateGallery.module.css": {
+  "border-radius 10px": 3,
+  "font-size 11.5px": 4,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/TemplatePicker.module.css": {
+  "border-radius 10px": 2,
+  "font-size 10px": 1,
+  "font-size 11.5px": 2,
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/TemplatePreview.module.css": {
+  "border-radius 10px": 1,
+  "font-size 12.5px": 1,
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/TextAlertSheet.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/TextColorMenu.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/ThesisChip.module.css": {
+  "font-size 10.5px": 1,
+  "font-size 12.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/ThesisReviewSection.module.css": {
+  "font-size 10px": 2
+ },
+ "pages/journal-2-0/components/notebook/ThesisSection.module.css": {
+  "border-radius 3px": 1,
+  "font-size 10px": 1,
+  "font-size 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/TickerResearchWorkspace.module.css": {
+  "font-size 10px": 1,
+  "font-size 13.5px": 1,
+  "font-size 22px": 1
+ },
+ "pages/journal-2-0/components/notebook/TodayHome.module.css": {
+  "border-radius 3px": 2,
+  "font-size 22px": 1
+ },
+ "pages/journal-2-0/components/notebook/TradeCanvasBoard.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/UnlinkedMentions.module.css": {
+  "border-radius 2px": 1
+ },
+ "pages/journal-2-0/components/notebook/VoiceNoteDialog.module.css": {
+  "border-radius 2px": 1,
+  "font-size 15px": 1,
+  "font-size 28px": 1
+ },
+ "pages/journal-2-0/components/notebook/WidgetEmbedView.module.css": {
+  "border-radius 2px": 1,
+  "border-radius 5px": 2,
+  "font-size 10px": 2,
+  "font-size 11.5px": 1,
+  "font-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/WidgetPalette.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 5px": 1,
+  "border-radius 7px": 1,
+  "font-size 10.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/blocks/Blocks.module.css": {
+  "border-radius 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/blocks/TrackerBlock.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/import/ExportGuide.module.css": {
+  "font-size 12.5px": 3
+ },
+ "pages/journal-2-0/components/notebook/import/ImportWizard.module.css": {
+  "border-radius 3px": 1,
+  "font-size 11.5px": 1,
+  "font-size 12.5px": 8,
+  "font-size 13.5px": 1,
+  "font-size 15px": 2
+ },
+ "pages/journal-2-0/components/notebook/library/library.module.css": {
+  "font-size 16px": 2
+ },
+ "pages/journal-2-0/components/notebook/myTools/myTools.module.css": {
+  "border-radius 2px": 1,
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/onboarding/NotebookTour.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/routines/routines.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/ExampleNote.module.css": {
+  "border-radius 10px": 3,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 3
+ },
+ "pages/journal-2-0/components/notebook/styles/StarterPackOffer.module.css": {
+  "border-radius 10px": 1,
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StyleUpdateSheet.module.css": {
+  "font-size 13.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StylesManager.module.css": {
+  "border-radius 10px": 3,
+  "font-size 12.5px": 1,
+  "font-size 13.5px": 3
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/WidgetBuilderSheet.module.css": {
+  "font-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/sections/FormulaSection.module.css": {
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/SnapshotFrame.module.css": {
+  "font-size 10px": 1,
+  "font-size 16px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/builtViews/builtViews.module.css": {
+  "font-size 10px": 1,
+  "font-size 22px": 1
+ },
+ "pages/journal-2-0/tabs/NotebookTab.module.css": {
+  "border-radius 10px": 2,
+  "border-radius 7px": 2,
+  "font-size 16px": 1
+ }
+}

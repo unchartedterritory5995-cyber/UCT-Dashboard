@@ -12,6 +12,7 @@ import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import styles from './WidgetEmbedView.module.css'
@@ -1043,7 +1044,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               onBlur={dropMorePress}
               onClick={toggleMore}
             >
-              <UIcon name="more" size={14} gold={false} /> More
+              <UIcon name="more" {...TOOLBAR_ICON} /> More
             </button>
           )}
           {!annotate && (
