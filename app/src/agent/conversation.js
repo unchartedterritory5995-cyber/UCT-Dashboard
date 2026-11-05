@@ -326,6 +326,9 @@ export function chartSet(phrase, { host, sources = [] } = {}) {
     const src = new Set(sources)
     if (!src.size) return null                                   // "the others" — other than what? → the model
     const refs = charts.filter(c => !src.has(c.ref)).map(c => c.ref)
+    // #806 review: a SINGULAR "other" ("the other one", "the other chart", "the other") names ONE chart — when more than one
+    // remains it is no reading (the model asks which), never all of them ("same for the other one" on four charts did three)
+    if (refs.length > 1 && !/\b(?:others|ones|charts|rest|all|every|everything|two|three|four|five|six|seven|eight|nine|\d)\b/i.test(p)) return null
     return refs.length ? { refs } : { say: 'There are no other charts on this board.' }
   }
   if (R_ALL.test(p)) {
