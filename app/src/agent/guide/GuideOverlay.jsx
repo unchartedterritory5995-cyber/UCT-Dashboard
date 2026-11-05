@@ -6,19 +6,31 @@
 //
 //   • the ring and the dim are pointer-events: none — the chart, its menus and trading controls work as always
 //   • the target is re-found every POLL_MS (scrolling, resizing, a panel opening or closing); the ring follows it
-//   • a target that is gone for LOST_MS ends the walkthrough and says so (an `optional` step is skipped instead) —
+//   • a target that is gone for LOST_MS ends the walkthrough and says so (an `optional` step is skipped instead; a
+//     `retreat` step — a menu that closed, a form cancelled — returns to the nearest earlier step still on screen) —
 //     the card never points at nothing and never claims a control is visible when it is not
-//   • Escape from inside the card ends it — no window-level key listener, so every other Escape (a sheet, the palette,
-//     the chart's own keys) works exactly as before; the card's × always ends it
+//   • Back goes to the nearest earlier step whose control is on screen, and a `waitFor` already met does not bounce it
+//     forward again; the step moves on by itself once what it waits for goes away and comes back
+//   • Escape ends it wherever focus is (the card never takes focus, so a key on the card alone would almost never
+//     fire). Declared in the shortcut registry (`agent.guideEscape`), bound only while a walkthrough is on screen, and
+//     never consumed: a sheet, the palette, an inline form or the chart's own keys still answer the same press. The
+//     card's × always ends it
 //   • leaving Charts or closing the Agent unmounts it: the walkthrough ends, every timer and listener with it
 //   • the card is announced politely (aria-live) and never takes focus from what the member is doing
 
 import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
-import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide } from './guideStore'
+import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget } from './guideStore'
 import { findTarget, rectOf, reveal } from './targets'
 import { POLL_MS, LOST_MS, sameRect, placeCard } from './placement'
+import { registerShortcuts } from '../../pages/command/shortcutRegistry'
 import styles from './GuideOverlay.module.css'
+
+/** The nearest step before this one whose control is on screen → its index, or null. */
+function earlierStep(st) {
+  for (let i = st.index - 1; i >= 0; i--) if (findTarget(st.steps[i].target, st)) return i
+  return null
+}
 
 export default function GuideOverlay() {
   const { state: st, notice } = useSyncExternalStore(subscribeGuide, guideSnapshot, guideSnapshot)
@@ -36,13 +48,20 @@ export default function GuideOverlay() {
     let lostSince = null
     let shown = false
     let cancelled = false
+    // returned to by Back: a `waitFor` still met from last time is not a new event — wait until it has gone once
+    let armed = !st.back
     const tick = () => {
       if (cancelled) return
-      if (step.waitFor && findTarget(step.waitFor, { chartRef: st.chartRef })) { nextStep(); return }
-      const el = findTarget(step.target, { chartRef: st.chartRef })
+      if (step.waitFor) {
+        const met = findTarget(step.waitFor, st)
+        if (met && armed) { nextStep(); return }
+        if (!met) armed = true
+      }
+      const el = findTarget(step.target, st)
       if (el) {
         lostSince = null
         if (!shown) { shown = true; reveal(el) }
+        if (step.pin) pinWidget(el.closest?.('[data-widget-id]')?.getAttribute('data-widget-id'))
         const r = rectOf(el)
         setFound(prev => (prev.key === stepKey && sameRect(prev.rect, r) ? prev : { key: stepKey, rect: r }))
         return
@@ -51,7 +70,9 @@ export default function GuideOverlay() {
       const now = Date.now()
       if (lostSince == null) lostSince = now
       if (now - lostSince >= LOST_MS) {
+        const back = step.retreat ? earlierStep(st) : null
         if (step.optional) nextStep()
+        else if (back != null) prevStep(back)
         else endGuide('lost')
       }
     }
@@ -62,6 +83,10 @@ export default function GuideOverlay() {
 
   // closing the Agent / leaving Charts ends the walkthrough
   useEffect(() => () => endGuide('closed'), [])
+
+  // Escape, wherever focus is — never consumed (no preventDefault, no stopPropagation)
+  const active = !!st
+  useEffect(() => (active ? registerShortcuts({ 'agent.guideEscape': () => endGuide('exit') }) : undefined), [active])
 
   if (typeof document === 'undefined') return null
   if (!st || !step) {
@@ -94,9 +119,9 @@ export default function GuideOverlay() {
         </div>
         <p className={styles.text} aria-live="polite" data-testid="guide-text">{rect ? step.text : 'Looking for it on your screen…'}</p>
         <div className={styles.actions}>
-          {st.index > 0 && <button type="button" className={styles.btn} onClick={prevStep}>Back</button>}
+          {st.index > 0 && !step.noBack && <button type="button" className={styles.btn} onClick={() => prevStep(earlierStep(st) ?? st.index - 1)}>Back</button>}
           <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={nextStep}>
-            {last ? 'Done' : waiting ? 'Skip' : 'Next'}
+            {last ? 'Done' : step.nextLabel || (waiting ? 'Skip' : 'Next')}
           </button>
         </div>
       </div>

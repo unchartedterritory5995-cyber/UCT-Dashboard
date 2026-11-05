@@ -338,6 +338,16 @@ export const SHORTCUTS = Object.freeze([
     why: 'Escape exits fullscreen / picture-in-picture on the active video.',
   }),
 
+  // -- UCT Agent's product guide ------------------------------------------------
+  decl({
+    id: 'agent.guideEscape',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: true, inEditable: true, repeat: false,
+    why: 'Escape ends the Agent\'s step-by-step guide wherever focus is (its card never takes focus). Bound only '
+      + 'while a walkthrough is on screen. It never prevents the default or stops propagation, so whatever else '
+      + 'answers Escape still does.',
+  }),
+
   // -- the Notebook (finish program, lane KEYS, 2026-10-07) --------------------
   // Three listeners the Notebook waves added raw. Each is declared here with its scope.
   decl({
@@ -570,6 +580,10 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   // -- 2026-10-23: the overlaps the surface-key migration made visible to this rail. The
   // chords still overlap (that is what this list records); since review M4 none of these is
   // a double action: each says which ONE binding answers the press.
+  // The Agent's guide ends on the same press and consumes nothing: both act, on purpose (agent/guide/GuideOverlay.jsx).
+  ...['palette.close', 'video.escape', 'notebook.tourEscape', ...SURFACE_ESCAPES, ...SHEET_ESCAPES].map((id) => ack(['agent.guideEscape', id], 'guide',
+    'Escape matches both. The guide only ends its walkthrough and consumes nothing, so one press ends the guide '
+      + 'and this binding still answers it exactly as it does with no guide on screen.')),
   ...SURFACE_ESCAPES.map((id) => ack([id, 'palette.close'], 'layer',
     `Escape matches both. ${SURFACE_WHAT[id]} It acts only with no modal layer above it, `
       + 'and the open palette is one, so with the palette over it this binding stands down '
