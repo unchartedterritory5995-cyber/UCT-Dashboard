@@ -36,3 +36,8 @@ src/components/chart/builder/BuilderSheet.runsOn.test.jsx` = 17 passed (file run
 An earlier round's `isMap` array guard (M5) survived as equivalent (`array['alerts']` is undefined
 anyway) and was deleted rather than kept; its first-round survivor M2 was killed by the added
 component-alone tests.
+
+## final-tip (tip a59597320b, lock heavy-final2, label w5t18-final, logs `_resume-2026-11-01/runs/dsk-w5t18-final/`)
+gate pytest 46 passed; hygiene clean; chart+hooks vitest: 22378 passed, 2 failed, 118 skipped (Test Files
+1333 passed, 2 failed). The 2 failures are the known baselines only: `pollingSites.rail` and
+`settingsScope.rail` rule 1 (StudyChart.jsx:32 static scan). No Python rails (no server change).
