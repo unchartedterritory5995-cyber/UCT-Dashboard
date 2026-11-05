@@ -101,7 +101,7 @@ describe('when it shows', () => {
   it('first run: the title, the progress line and one action per step', async () => {
     renderList()
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
-    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Write your first note' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Start a note from a template' })).toHaveAttribute('href', '/journal/notebook?view=all')
     expect(screen.getByRole('button', { name: 'Open the sample notebook' })).toBeInTheDocument()
@@ -152,7 +152,7 @@ describe('when it shows', () => {
     latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     renderList()
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
-    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(screen.queryByText(/Formulas/)).toBeNull()
     // the one tour step is the base tour, and it opens through the base tour's own door
     const opened = vi.fn()
@@ -173,7 +173,7 @@ describe('a click opens the door; only the real action ticks the step', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Write your first note' }))
     expect(onCreateNote).toHaveBeenCalledTimes(1)
     await settle()
-    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(prefWrites()).toEqual([])
   })
 
@@ -202,7 +202,7 @@ describe('a click opens the door; only the real action ticks the step', () => {
   it('a finished base tour (its own seen-state) ticks the step', async () => {
     server.prefs = { notebook_tour: JSON.stringify({ v: 1, state: 'done', step: 'export' }) }
     renderList()
-    expect(await screen.findByText('1 of 4 done')).toBeInTheDocument()
+    expect(await screen.findByText('1 of 3 done')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Take the Notebook basics tour' })).toBeNull()
     const done = screen.getByText('Take the Notebook basics tour')
     expect(done.closest('li')).toHaveTextContent('Done')
@@ -235,7 +235,7 @@ describe('a step never unticks', () => {
     }
     server.home = { ...EMPTY_HOME, continueWorking: [{ id: 's1', title: 'Sample', bodyPlain: '' }] }
     renderList({ hasAnyNotes: true, onAddSample: null })
-    expect(await screen.findByText('3 of 4 done')).toBeInTheDocument()
+    expect(await screen.findByText('2 of 3 done')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Write your first note' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Start a note from a template' })).toBeNull()
   })

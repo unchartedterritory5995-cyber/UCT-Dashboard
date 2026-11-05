@@ -355,6 +355,9 @@ export const SURFACES = Object.freeze({
   // L3 (2026-11-03): the note view's notice for a connector note its source app no longer has.
   // The editor's rail opens an untagged note, so it has its own; rail a11y/sourceRemovedNotice.a11y.test.jsx.
   'components/notebook/SourceRemovedNotice.jsx': { recipe: 'source-removed-notice' },
+  // Audit 2026-11-05, spec S2: the "Link this note to $NVDA?" offer under the title. The editor's rail
+  // opens a note whose body names no $TICKER twice, so it has its own; rail a11y/tickerSuggestion.a11y.test.jsx.
+  'components/notebook/TickerSuggestion.jsx': { recipe: 'ticker-suggestion' },
   // Notebook P2 Tier 2 part B: the earnings follow-up card a notice links to (dark behind
   // notebook_earnings_followup_enabled + Journal styles, so no tab recipe renders it); a11y/followupCard.a11y.test.jsx
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.

@@ -347,3 +347,41 @@ describe('votes work with the new ids', () => {
     expect(within(row).getByRole('button', { name: 'Yes, this was helpful' })).toHaveTextContent('1')
   })
 })
+
+// ⛔ Audit 2026-11-05, spec S5 (B14): the Linking answer read "Unlinked mentionsshows notes ...".
+// JSX drops a line break between a closing tag and the next word, so `</strong>` at a line's end
+// glued itself to the word on the next line. Checked as RENDERED text for every answer on the page:
+// an inline element is never glued to a word on either side.
+describe('no answer glues a word to a bold, code or link (B14)', () => {
+  const INLINE = new Set(['STRONG', 'CODE', 'KBD', 'EM', 'A', 'B', 'I'])
+  const glued = (container) => {
+    const out = []
+    container.querySelectorAll('*').forEach((el) => {
+      if (!INLINE.has(el.tagName)) return
+      const next = el.nextSibling
+      if (next?.nodeType === 3 && /^[A-Za-z0-9]/.test(next.textContent)) out.push(`${el.textContent}|${next.textContent.slice(0, 12)}`)
+      const prev = el.previousSibling
+      if (prev?.nodeType === 3 && /[A-Za-z0-9]$/.test(prev.textContent) && !/^\s/.test(el.textContent)) {
+        out.push(`${prev.textContent.slice(-12)}|${el.textContent}`)
+      }
+    })
+    return out
+  }
+
+  it('the Linking answer says "Unlinked mentions shows"', () => {
+    const faq = FAQS.find((f) => f.id === 'notebook-linking-notes')
+    const { container } = render(<MemoryRouter><div>{faq.a}</div></MemoryRouter>)
+    expect(container.textContent).toContain('Unlinked mentions shows notes')
+  })
+
+  it('every answer, every topic', () => {
+    const bad = []
+    for (const f of FAQS) {
+      if (!f.a || typeof f.a === 'string') continue
+      const { container, unmount } = render(<MemoryRouter><div>{f.a}</div></MemoryRouter>)
+      for (const g of glued(container)) bad.push(`${f.id}: ${g}`)
+      unmount()
+    }
+    expect(bad).toEqual([])
+  })
+})

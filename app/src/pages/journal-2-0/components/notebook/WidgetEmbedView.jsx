@@ -2,7 +2,7 @@ import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'r
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
-  retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
+  retimeChartParams, resymbolChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
   EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta, isTraderBlock, paramsPlainText } from '../../../../widgets/registry'
@@ -20,6 +20,11 @@ import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
 import { isSnapshotKind, isDedicatedKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
+import { CHART_EMBED_TYPE_EVENT } from '../../lib/widgetEmbedNode'
+
+// S3: the Charts page's own ticker search, as the chart embed's ticker button. Loaded on use: only
+// an editable live chart embed renders it.
+const SymbolSearch = lazyLeaf(() => import('../../../../components/chart/SymbolSearch'))
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -418,6 +423,54 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // CENTER at the new tf — never jump to now. Explicit toolbar action = the
   // only kind of write an embed takes. Native tfs only: custom multipliers
   // fall through both durability rails (no to=, no warm) by design.
+  // ── S3: the chart's ticker, from its header ───────────────────────────────────────────────
+  // ⛔ Audit 2026-11-05, spec S3 (B7). The ticker could not be changed from the chart at all, and a
+  // key typed over the selected chart REPLACED it (widgetEmbedNode.jsx's chartTypeToSearch plugin
+  // now hands that key here instead). The header's ticker button is the Charts page's SymbolSearch;
+  // a typed key opens it with that key (`openWith`), as on /charts.
+  const canRetarget = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
+    && editor?.isEditable !== false && !frozen
+  // SymbolSearch's imperative handle, once its chunk has loaded. A ref plus a ready FLAG, never the
+  // handle in state: the handle is a new object on every render, and storing it would loop.
+  const symRef = useRef(null)
+  const [symReady, setSymReady] = useState(false)
+  const setSymApi = useCallback((h) => { symRef.current = h; setSymReady(Boolean(h)) }, [])
+  const [pendingSearch, setPendingSearch] = useState(null)
+  const switchSymbol = (sym) => {
+    const next = resymbolChartParams(attrs, sym)
+    if (!next) return
+    // Drawings (a plan's entry/stop/target among them) were drawn on THIS ticker's prices; carrying
+    // them to another would draw a plan at the wrong prices. Say so instead.
+    if (Array.isArray(attrs.annotations) && attrs.annotations.length > 0) {
+      setToolbarMsg(`This chart has drawings on ${attrs.params?.symbol}. Insert a new chart for ${next.params.symbol}.`)
+      return
+    }
+    setPeek(false)
+    archivedOnceRef.current = false
+    barsReadyRef.current = false
+    kickSnapshotWarm(next.params)
+    updateAttributes?.({ params: next.params, searchText: next.searchText, fallback: null })
+  }
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return undefined
+    const onType = (e) => {
+      if (!canRetarget) {
+        setToolbarMsg('This chart is fixed. Insert a new chart for another ticker.')
+        return
+      }
+      setToolbarOpen(true)
+      setPendingSearch(e.detail?.text || '')
+    }
+    el.addEventListener(CHART_EMBED_TYPE_EVENT, onType)
+    return () => el.removeEventListener(CHART_EMBED_TYPE_EVENT, onType)
+  }, [canRetarget])
+  useEffect(() => {
+    if (pendingSearch == null || !symReady || !symRef.current?.openWith) return
+    symRef.current.openWith(pendingSearch)
+    setPendingSearch(null)
+  }, [pendingSearch, symReady])
+
   const switchTf = (newTf) => {
     const next = retimeChartParams(attrs, newTf)
     if (!next) return
@@ -681,6 +734,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // persists), renders read-only on later opens, and never touches the
   // global /charts drawing store — frozen evidence stays frozen.
   const [annotate, setAnnotate] = useState(false)
+  // A search asked for while drawing is dropped, never opened later behind Done (fix round 1).
+  useEffect(() => { if (annotate && pendingSearch != null) setPendingSearch(null) }, [annotate, pendingSearch])
   // Marks changed this draw session → the stored archive PNG no longer shows
   // what the reader sees. Cleared when the exit re-freeze fires.
   const annotationsDirtyRef = useRef(false)
@@ -755,6 +810,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   //    Charts-page settings and drawings. Freeze: keep the real canvas but make it static.
   const isLiveChart = attrs.widgetId === 'chart' && decision.kind === 'live'
   const moreItems = [
+    // (S3: a chart also carries Live / Snapshot in its header; the menu row stays, same setter.)
     widgetMeta(attrs.widgetId)?.liveCapable === true
       && {
         label: attrs.mode === 'live' ? 'Snapshot' : 'Live',
@@ -882,6 +938,38 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               WIDENS once a mark exists), so everything else is unreachable
               anyway — and ✕ next to a drawing gesture is a destructive
               misclick (the 8/10 builder-sweep defect class). */}
+          {/* S3: the ticker button -- the Charts page's SymbolSearch. A key typed over the
+              selected chart opens it with that key. */}
+          {!annotate && canRetarget && attrs.params?.symbol && (
+            <span className={styles.tickerBtn} data-tour="chart-embed-ticker">
+              <EmbedErrorBoundary fallback={null}>
+                <Suspense fallback={<span className={styles.toolBtn} aria-hidden="true">{attrs.params.symbol}</span>}>
+                  <SymbolSearch
+                    ref={setSymApi}
+                    sym={attrs.params.symbol}
+                    onSymbolChange={switchSymbol}
+                    hideIcon
+                    ariaLabel={`Chart ticker, ${attrs.params.symbol}. Change it`}
+                  />
+                </Suspense>
+              </EmbedErrorBoundary>
+            </span>
+          )}
+          {/* S3: Live / Snapshot in the header (it was buried in More). The same setter. */}
+          {!annotate && attrs.widgetId === 'chart' && widgetMeta('chart')?.liveCapable === true && (
+            <span className={styles.segment} role="group" aria-label="Live or snapshot">
+              <button type="button" className={`${styles.toolBtn} ${attrs.mode === 'live' ? styles.toolBtnActive : ''}`}
+                aria-pressed={attrs.mode === 'live'} onClick={() => { if (attrs.mode !== 'live') toggleLive() }}
+                title={`Go live (max ${LIVE_EMBEDS_PER_ENTRY} per note)`}>
+                Live
+              </button>
+              <button type="button" className={`${styles.toolBtn} ${attrs.mode !== 'live' ? styles.toolBtnActive : ''}`}
+                aria-pressed={attrs.mode !== 'live'} onClick={() => { if (attrs.mode === 'live') toggleLive() }}
+                title="Freeze to snapshot">
+                Snapshot
+              </button>
+            </span>
+          )}
           {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
             <select
               className={styles.toolSelect}
@@ -997,6 +1085,21 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             />
           </Suspense>
         </EmbedErrorBoundary>
+      )}
+      {/* Fix round 1 (review finding 4): the spec's hint line while the chart is selected -- the
+          keys a selected chart answers. Polite, so it is said once when the chart is selected. */}
+      {/* Fix round 1 (review minor 12): a frozen chart has no toolbar, so its message is said here. */}
+      {frozen && toolbarMsg && (
+        <p className={styles.selectedHint} role="status">{toolbarMsg}</p>
+      )}
+      {/* Fix round 2 (re-review N6): the region is MOUNTED EMPTY on every editable chart and filled
+          when the chart is selected -- a live region inserted with its words is generally not read. */}
+      {attrs.widgetId === 'chart' && editor?.isEditable !== false && !shareView && (
+        <p className={selected ? styles.selectedHint : styles.hintIdle} aria-live="polite" data-chart-hint>
+          {!selected ? '' : canRetarget
+            ? 'Selected · type a ticker to switch it (for example A, M, D) · Del removes the chart · Esc back to writing'
+            : 'Selected · Del removes the chart · Esc back to writing'}
+        </p>
       )}
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}

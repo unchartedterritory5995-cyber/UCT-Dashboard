@@ -4,6 +4,17 @@
 call was made for anything below; v2 stays OFF (`UCT_AGENT_PLANNER` unset); the production model is unchanged
 (`claude-haiku-4-5`). A paid evaluation remains separately gated.
 
+**Correction (2026-11-05): the figures below understate v2.** They were measured with `SAMPLE_CONTEXT`, whose Screener section
+is a 113-byte stub; the real section is about 12 KB since #834 widened it, and it rides every round. With it the flagship's summed worst case on Haiku 4.5
+is **$0.3454, over the $0.25 cap**, and F01's is $0.3363, and the Wave 1 search layout is refused before its first call. The
+turn still finishes under the runtime rule (spent + next worst), but the "under the cap" target is not met. The test now
+measures the real section and pins that figure as a baseline it may not exceed. **Planner v2 cannot be enabled until an owner
+decision.** The tables are kept as measured then.
+
+`tools/agent_v2_cost_dryrun.py` and the corpus fixture now price the same real section. The fixture was also refreshed from
+46 to 158 intents. Over it the runtime gate peaks at $0.1409 (margin $0.1091; was $0.0693), the summed worst case reaches
+$0.3387, and a single Wave 1 search-layout request reserves $0.2687, over the cap on its own.
+
 ## How it was measured
 `python tools/agent_v2_cost_measure.py` (pinned by `tests/test_uct_agent_v2_cost_measure.py`) drives the REAL server loop
 (`turn_v2.run_turn_v2`) for every case of the scripted acceptance set (`app/src/agent/__fixtures__/program/v2-acceptance.json`,

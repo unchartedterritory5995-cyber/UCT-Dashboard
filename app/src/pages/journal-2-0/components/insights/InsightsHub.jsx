@@ -51,6 +51,7 @@ import {
 } from '../../lib/reviewDrafts'
 import { compassScope } from '../../hooks/compassScope'
 import styles from './InsightsHub.module.css'
+import { DAILY_FOLDER_NOTICE, queueNotebookNotice } from '../../lib/dailyNote'
 
 // The six hub sections. `key` is the `?ins=` value; order = the sub-nav order.
 const SECTIONS = [
@@ -202,7 +203,9 @@ export function ReviewDraftsSection({ accountId }) {
     setBusy(period)
     setError(null)
     try {
-      const { note } = await fn()
+      const { note, created } = await fn()
+      // Fix round 1 (finding 7): today's recap that MADE the day's note says where it went.
+      if (period === 'daily' && created) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
