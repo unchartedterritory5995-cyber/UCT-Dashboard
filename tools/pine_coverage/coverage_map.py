@@ -343,7 +343,7 @@ def usage_of(src, inv):
         used.discard(kw)
         if feat in feats:
             used.add(kw)
-    return {"version": version, "items": used, "features": feats, "symbols": syms}
+    return {"version": version, "items": used, "features": feats, "symbols": syms, "orders": order_calls_in(code)}
 
 
 def data_limited(name):
@@ -355,7 +355,59 @@ def data_limited(name):
 
 KEYWORD_FEATURE = {"type": "udt", "in": "for-in", "as": "import", "import": "import", "method": "method-def",
                    "enum": "enum", "while": "while", "for": "for", "switch": "switch", "varip": "varip"}
-STRATEGY_ORDERS = {"strategy.entry", "strategy.order", "strategy.exit", "strategy.close", "strategy.close_all"}
+# ⭐ W9 T0 - ONE authority for "which calls place or manage orders": the engine's own
+# STRATEGY_ORDER_CALLS (pine.js), read from the source, never restated here (the old copy named 5 of the
+# engine's 13). Detection is from the SCRIPT'S TEXT, never from the reference inventory: a reference
+# extract that lacks a name (the 11-03 map's lacks strategy.entry / exit / order / position_size) makes
+# an inventory lookup say "no orders" and a strategy placing orders counted as transferring.
+PINE_JS = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "ast", "pine.js")
+
+
+def engine_order_calls(path=PINE_JS):
+    """The names in pine.js's `export const STRATEGY_ORDER_CALLS = Object.freeze(new Set([...]))`."""
+    src = open(path, encoding="utf-8").read()
+    m = re.search(r"STRATEGY_ORDER_CALLS\s*=\s*Object\.freeze\(\s*new Set\(\s*\[(.*?)\]", src, re.S)
+    if not m:
+        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS not found in %s" % path)
+    names = re.findall(r"'([\w.]+)'", m.group(1))
+    if not names:
+        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS in %s is empty" % path)
+    return frozenset(names)
+
+
+STRATEGY_ORDERS = engine_order_calls()
+
+
+def order_calls_in(code, orders=None):
+    """The order-set names a script CALLS, read from its comment- and string-stripped code
+    (`strategy.entry(`, with whitespace around the dots allowed). Version-independent."""
+    names = sorted(orders if orders is not None else STRATEGY_ORDERS, key=len, reverse=True)
+    rx = r"(?<![\w.])(" + "|".join(r"\s*\.\s*".join(re.escape(p) for p in n.split(".")) for n in names) + r")\s*\("
+    return {re.sub(r"\s+", "", m.group(1)) for m in re.finditer(rx, code)}
+
+
+def places_orders(u):
+    """Whether a usage_of() result is a strategy that places or manages orders."""
+    return declaration_of(u) == "strategy" and bool(u["orders"])
+
+
+def strategy_on_block(scripts):
+    """⭐ W9 T0 - what the census knows about strategies, read from each script's text.
+    `orderSet` is the engine's own set; `byCall` counts the scripts calling each name; `doorCleanPlacingOrders`
+    counts the strategies whose plots the door draws and that still never transfer (their orders are not simulated)."""
+    strat = [s for s in scripts if s["declaration"] == "strategy"]
+    placing = [s for s in strat if s["placesOrders"]]
+    by_call = collections.Counter(n for s in placing for n in s["_orders"])
+    return {
+        "orderSet": sorted(STRATEGY_ORDERS), "orderSetSource": "app/src/components/chart/engine/ast/pine.js STRATEGY_ORDER_CALLS",
+        "strategies": len(strat), "placingOrders": len(placing), "notPlacingOrders": len(strat) - len(placing),
+        "byCall": dict(sorted(by_call.items())),
+        "doorCleanPlacingOrders": sum(1 for s in placing if s["doorClean"]),
+        "transferringPlacingOrders": sum(1 for s in placing if s["clean"]),
+        "wave": "W9",
+    }
+
+
 UNGRADED_PREFIXES = ("strategy", "alert", "alertcondition", "log.", "runtime.")
 
 DRAWING_CTORS = {"line.new", "label.new", "box.new", "table.new", "polyline.new", "linefill.new"}
@@ -370,7 +422,7 @@ def transfers_fully(census_row, u):
     AND not a strategy that places orders. Read by main() below and by
     tools/support_loop/remeasure.py, so the daily number and the map cannot disagree."""
     return bool((census_row or {}).get("clean")) and not (
-        declaration_of(u) == "strategy" and u["items"] & STRATEGY_ORDERS)
+        places_orders(u))
 
 
 def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
@@ -708,7 +760,7 @@ def main():
         m = manifest.get(key, {})
         decl = "strategy" if "strategy-decl" in u["features"] else "library" if "library-decl" in u["features"] else "indicator"
         walls, detail = walls_of(c, inv, u["version"], frozenset(u["items"]), decl)
-        if decl == "strategy" and u["items"] & STRATEGY_ORDERS:
+        if places_orders(u):
             walls.add(("bucket", "strategy"))   # orders are never simulated (see "clean" below)
         scripts.append({
             "key": key, "population": key.split(":")[0], "title": m.get("title"), "author": m.get("author"),
@@ -726,18 +778,20 @@ def main():
             # handed the script to the per-bar RUNTIME lane and attached it. The host
             # translation's refusals stay on that result by design, so `isClean` cannot
             # judge it; nothing here proves the runtime lane drew every output.
-            "runtimeClean": not (decl == "strategy" and u["items"] & STRATEGY_ORDERS) and (
+            "placesOrders": places_orders(u),
+            "runtimeClean": not places_orders(u) and (
                 bool((c.get("runtime") or {}).get("clean")) or (
                     bool((c.get("runtime") or {}).get("attached")) and (c.get("runtime") or {}).get("lane") == "runtime")),
             "peelSteps": c.get("peelSteps"), "reachedAfterPeel": c.get("reachedAfterPeel"), "stuck": c.get("stuck"),
             "firstGuards": sorted({r.get("guard") for r in ((c.get("steps") or [{}])[0].get("refusals") or [])} - {None}),
             "walls": sorted(key_label(k) for k in walls),
-            "_walls": walls, "_items": u["items"], "_features": u["features"], "_symbols": u["symbols"],
+            "_walls": walls, "_items": u["items"], "_orders": u["orders"], "_features": u["features"], "_symbols": u["symbols"],
         })
     N = len(scripts)
     clean = [s for s in scripts if s["clean"]]
     decl_by_key = {s["key"]: s["declaration"] for s in scripts}
     items_by_key = {s["key"]: s["_items"] for s in scripts}
+    orders_by_key = {s["key"]: s["_orders"] for s in scripts}
 
     # ── vendor parity evidence
     # a capture is joined to a sample script by its source, whitespace-insensitive (norm_src)
@@ -982,9 +1036,10 @@ def main():
             "notClean": len(notclean), "wallsFullyEnumerated": len(enumerated),
         },
         "crossSymbolPrefixes": dict(sym_prefix.most_common()),
+        "strategyOn": strategy_on_block(scripts),
         "runtimeOn": runtime_on_section(
             os.path.abspath(a.runtime_cache), a.runtime_verdicts, vd, scripts,
-            None, lambda k: decl_by_key[k] == "strategy" and bool(items_by_key[k] & STRATEGY_ORDERS),
+            None, lambda k: bool(orders_by_key[k]) and decl_by_key[k] == "strategy",
             norm_src, inputs, N) if a.runtime_cache else None,
         "engineTableThroughPineDoor": engine_door,
         "scripts": [{k: v for k, v in s.items() if not k.startswith("_")} for s in scripts],
