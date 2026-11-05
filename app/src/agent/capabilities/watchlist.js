@@ -40,7 +40,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
-import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
+import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
 import { matchName } from '../nl/match'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
@@ -73,7 +73,7 @@ export function andList(xs) {
  *  to the model, which knows what "it" refers to. `raw` = the whole message, for capitals. */
 export function parseTickers(text, raw = text) {
   const typed = String(text || '').split(/\s*(?:,|\band\b|&|\+)\s*/i).map(s => s.trim()).filter(Boolean)
-  if (typed.some(p => isPronounToken(p, raw))) return null
+  if (typed.some(p => isPronounToken(p, raw) || isReservedWord(p))) return null
   const parts = typed.map(s => s.replace(/^\$/, ''))
   if (!parts.length || parts.length > MAX_PER_REQUEST) return null
   if (!parts.every(p => /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(p))) return null

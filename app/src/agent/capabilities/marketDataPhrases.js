@@ -61,7 +61,7 @@ const TIME_VETO = [/\bhistor(y|ical|ic)\b/, /\bago\b/, /\bsince\b/, /\bbefore\b/
   /\btomorrow\b/, /\btonight\b/, /\b(mon|tues?|wed(nes)?|thu(rs)?|fri|sat(ur)?|sun)(day)?s?\b/,
   /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/,
   /\b\d{1,2}\/\d{1,2}\b/, /\b\d{4}-\d{2}(-\d{2})?\b/, /\b(19|20)\d\d\b/, /\b(this|last|next) (week|month|quarter|year|session)\b/,
-  /\ball[\s-]?time\b/, /\bytd\b/, /\byear[\s-]to[\s-]date\b/, /\bmtd\b/, /\bqtd\b/, /\bopen(ing)? (price|print)\b/,
+  /\ball[\s-]?time\b/, /\bytd\b/, /\byear[\s-]to[\s-]date\b/, /\bmtd\b/, /\bqtd\b/, /\bwtd\b/, /\bttm\b/, /\bntm\b/, /\bopen(ing)? (price|print)\b/,
   /\bon (the )?\d/, /\bintraday\b/, /\btoday'?s (high|low|open|range)\b/, /\b(high|low) today\b/]
 
 const TOKEN = /^\$?[A-Za-z][A-Za-z0-9]{0,9}([.-][A-Za-z]{1,2})?$/
