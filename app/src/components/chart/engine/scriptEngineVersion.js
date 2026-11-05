@@ -88,7 +88,8 @@
 /** 5 = W1: Pine v4-v6 builtin names and lookback reads (#736). */
 /** 6 = W4 T4: a v6 root `?:` arm with sma/ema/rma/change runs only when chosen; a `?:` off the
  *  column route no longer steps unchosen arms every bar (now refused by name). */
-export const SCRIPT_ENGINE_VERSION = 6
+/** 7 = W4-T3 (train): session/timeframe text fixed before bar 0 (own timeframe via a parameter, joined texts, an unreassigned var) is served on the runtime lane */
+export const SCRIPT_ENGINE_VERSION = 7
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
