@@ -451,3 +451,4 @@ Then N5: W0 re-measure on the train tip; N6-N9 build from the train tip. <<<
 - R11 (Q2 sweep cap): owned by the scans lane, as one named constant with a coverage line when it truncates (follow-up F9).
 Merging to master is still not authorized in this file; the owner approves it directly at merge time. <<<
 - 2026-11-05 08:16 EDITOR-E2 a2f137dc67: GO-WITH-NOTES. Rounds 1-3 closed; 15/15 mutations killed; 106/106 tests, and 172/172 on a scratch merge with master. Added to the train after W5-T18. Follow-up F10: after T17/T18, E2 reads server_lanes and shows one 'Runs on' line.
+- 2026-11-05 08:17 N2 W6-BREAKDOWN docs/pine-w6-breakdown fd8bbd8e93: 10 tasks (T1-T3, T5-T11). From the 11-03 W0 map: 56 scripts touched, 5/4 alone and 15/7 with W4 (PLAN said +30/+11). About 8 captures needed. First batch from the train tip: T3 (Opus), T5, T2, then T1. Rebase risk: T3 against W4-T12, and T6/T11 against W4-T15. Independent review in progress.
