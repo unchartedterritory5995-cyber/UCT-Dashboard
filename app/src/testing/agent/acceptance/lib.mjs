@@ -222,6 +222,12 @@ export async function open(R, { query = '', prefs = null, fixtures = null, iaCat
   return mkPage(b, R)
 }
 
+/** The same page helpers on a page this rig did not open (the production target: no harness, no fixtures). */
+export async function attach(b, R) {
+  await b.evaluate(READ)
+  return mkPage(b, R)
+}
+
 function mkPage(b, R) {
   const box = (sel) => b.evaluate(`(() => { const e = document.querySelector(${q(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height } })()`)
   const P = {

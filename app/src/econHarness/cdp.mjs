@@ -8,10 +8,10 @@ import { join } from 'node:path'
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 
-export async function launch({ width = 1400, height = 800 } = {}) {
+export async function launch({ width = 1400, height = 800, headless = true } = {}) {
   const port = 9333 + Math.floor(Math.random() * 500)
   const profile = mkdtempSync(join(tmpdir(), 'econ-ui-cdp-'))
-  const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  const chrome = spawn(CHROME, [...(headless ? ['--headless=new'] : []), `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
     `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' })
   let wsUrl = null
   for (let i = 0; i < 60 && !wsUrl; i++) {
@@ -29,8 +29,11 @@ export async function launch({ width = 1400, height = 800 } = {}) {
   const pending = new Map()
   const consoleErrors = []
   const network = []
+  const listeners = new Map()
+  const on = (method, fn) => listeners.set(method, fn)
   ws.addEventListener('message', (ev) => {
     const m = JSON.parse(ev.data)
+    if (m.method && listeners.has(m.method)) listeners.get(m.method)(m.params)
     if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); return }
     if (m.method === 'Runtime.exceptionThrown') consoleErrors.push(String(m.params.exceptionDetails?.exception?.description || m.params.exceptionDetails?.text).slice(0, 400))
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
@@ -70,5 +73,5 @@ export async function launch({ width = 1400, height = 800 } = {}) {
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, windowsVirtualKeyCode: codes[k] || 0 })
   }
   const close = () => { try { ws.close() } catch { /* */ } chrome.kill() }
-  return { send, evaluate, open, waitFor, shot, click, hover, type, key, close, consoleErrors, network }
+  return { send, on, evaluate, open, waitFor, shot, click, hover, type, key, close, consoleErrors, network }
 }
