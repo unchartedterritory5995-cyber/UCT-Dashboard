@@ -8622,6 +8622,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     mk.valued = true
     mk.paint = sink.paint
+    // ⭐ W4-T14: the value an UNMATCHED v6 `bool` block yields (`false`); one slot only
+    mk.falseFallback = sink.slots.length === 1 ? () => [assign(sink.slots[0], num(0))] : null
     return mk
   }
 
@@ -8837,6 +8839,55 @@ function buildRuntimeIrLinked(source, opts, holder) {
     try { node = parseWholeExpression(toks) } catch { return false }
     return provablyNonBoolNode(node, sc)
   }
+  // ⭐⭐ W4-T14 — THE OTHER HALF OF THE TYPE: PROVABLY A `bool`. The lane serves an
+  // unmatched v6 block as `false` (Pine 6: a `bool` is never `na`) only when EVERY arm
+  // value is provably a bool: a comparison, `and`/`or`/`not`, `true`/`false`, an
+  // `input.bool`, a name declared `bool` or bound to such a value, a user function whose
+  // every result is one. Anything else keeps `refuseV6UnmatchedBool`'s refusal.
+  const BOOL_COMPARE = new Set(['==', '!=', '<', '>', '<=', '>='])
+  const nameIsBool = (sc, nm) => {
+    const { memo } = typeTables()
+    const key = `${sc} ${nm}`
+    if (memo.has(key)) return memo.get(key)
+    memo.set(key, false)   // a cycle is not a proof
+    const ds = declsOf(sc, nm)
+    const ok = !!ds && ds.every((d) => (d.ty ? d.ty === 'bool'
+      : !d.tuple && d.rhs !== null && provablyBoolToks(d.rhs, d.sc)))
+    memo.set(key, ok)
+    return ok
+  }
+  const fnIsBool = (fn) => {
+    const { results, memo } = typeTables()
+    const key = `${fn}`
+    if (memo.has(key)) return memo.get(key)
+    memo.set(key, false)   // recursion is not a proof
+    const ok = results.get(fn).every((cands) => !!cands && cands.every((toks) => !!toks && provablyBoolToks(toks, fn)))
+    memo.set(key, ok)
+    return ok
+  }
+  const provablyBoolNode = (n, sc, d = 0) => {
+    if (!n || typeof n !== 'object' || d > 64) return false
+    if (n.type === 'number') return !!n.tok && n.tok.kind === 'ident' && (n.tok.value === 'true' || n.tok.value === 'false')
+    if (n.type === 'binary') return BOOL_COMPARE.has(n.op) || n.op === 'and' || n.op === 'or'
+    if (n.type === 'unary') return n.op === 'not'
+    if (n.type === 'ternary') return provablyBoolNode(n.yes, sc, d + 1) && provablyBoolNode(n.no, sc, d + 1)
+    if (n.type === 'call') {
+      const nm = String(n.name)
+      if (typeTables().results.has(nm)) return fnIsBool(nm)
+      return nm === 'input.bool'
+    }
+    if (n.type === 'name') {
+      const nm = String(n.name)
+      return !!declsOf(sc, nm) && nameIsBool(sc, nm)
+    }
+    return false
+  }
+  const provablyBoolToks = (toks, sc = curTypeScope()) => {
+    if (!toks || !toks.length) return false
+    let node = null
+    try { node = parseWholeExpression(toks) } catch { return false }
+    return provablyBoolNode(node, sc)
+  }
   /** ⭐ (re-review 3 M-1) every value a statement list can yield, as token lists: its last
    *  line's expression, or — when it ends in an `if`/`else if`/`else` chain or a `switch`
    *  — each arm's, recursively. null when any arm's value cannot be read (a loop, a void
@@ -8888,13 +8939,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
     return eq > 0 ? t.slice(eq + 1) : t
   }
+  // ⛔⛔ Q-A3 capture gate: flip to true ONLY once the capture MATCHes (unmatched v6 bool block = false)
+  const V6_BOOL_UNMATCHED_CAPTURED = false
   const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
-    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
+    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return false
     typeTables()
-    if (mkArm.declaredType === 'float') return
+    if (mkArm.declaredType === 'float') return false
     // ⚰️ a separate "declared `bool` refuses" check lived here; in valid Pine a bool
     // target's arms are bools, which are never PROVABLY non-bool, so it could not fire
-    if (valueToksList.every((t) => provablyNonBoolToks(t))) return
+    if (valueToksList.every((t) => provablyNonBoolToks(t))) return false
+    // ⭐ W4-T14: every arm provably a bool => the unmatched block is `false` (v6), served
+    // off the object door (which keeps Q-A3 refused) into a single slot
+    // ⛔⛔ GATED on capture Q-A3 (capture-queue-2026-10-31-wsa-for-bound.md): until a TradingView
+    // capture MATCHES `false`, the typed case stays the named refusal below. The test-only
+    // `opts.w4t14ServeUnmatchedFalse` lets a rail prove the machinery without the gate.
+    if (!atObjectDoor && (V6_BOOL_UNMATCHED_CAPTURED || opts.w4t14ServeUnmatchedFalse === true)
+        && mkArm.falseFallback && valueToksList.length
+        && valueToksList.every((t) => provablyBoolToks(t))) return true
     if (atObjectDoor) {
       objectDoorRefuses(`${what} can match no arm, and its value is not provably a number, a string or a colour `
         + '(a v6 bool is never `na`) (Q-A3)', at)
@@ -8945,11 +9006,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
       allInv = allInv && invariantTest(t, scope)
       return { test, body: inR4Region(allInv, () => mkArm(a.from.sub, a.from.header[0])) }
     })
+    let falseElse = false
     if (!finalElse) {
-      refuseV6UnmatchedBool(mkArm, arms.map((a) => armValueToks(a.from.sub)), locate(list[at].header[0]),
+      falseElse = refuseV6UnmatchedBool(mkArm, arms.map((a) => armValueToks(a.from.sub)), locate(list[at].header[0]),
         'an `if` with no `else`')
     }
-    let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0])) : []
+    let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0]))
+      : (falseElse ? mkArm.falseFallback() : [])
     for (let j = lowered.length - 1; j >= 0; j -= 1) {
       chain = [ifStmt(lowered[j].test, lowered[j].body, chain)]
     }
@@ -9088,13 +9151,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         `\`${label ? `${label} ` : ''}switch …\` has no arms`, locate(atTok))
     }
     if (!fallback) {
-      refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
+      if (refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
         const at2 = findTop(arm.header, (t) => isPunct(t, '=>'))
         const rhs = arm.header.slice(at2 + 1)
         // (a continued inline arm, `c => close` / `      > open`, never reaches here: the arm
         // lowering above refuses it first — "ends in a block")
         return rhs.length ? rhs : armValueToks(arm.sub)
-      }), locate(atTok), 'a `switch` with no default')
+      }), locate(atTok), 'a `switch` with no default')) fallback = mkArm.falseFallback()
     }
     let chain = fallback || []
     for (let k = cases.length - 1; k >= 0; k -= 1) {
