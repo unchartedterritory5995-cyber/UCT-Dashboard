@@ -1337,6 +1337,18 @@ Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Co
   --merge --repo unchartedterritory5995-cyber/UCT-Dashboard`); the classifier refuses the session's merges.
 - Noticed, not changed: a spot item asked "Does the firm's Capitulation setup fire" while the chip read VOLUME
   CLIMAX (the chip is setupName(skill_id); the question text is the bank's). Owner's call on the wording.
+## 2026-11-04 (evening): TRANSFER CHECKPOINT — the owner is moving to another computer
+- LIVE: round 17b of the daily drill (PR #800, merge caadddf14e) on production since 20:35 local, verified in the
+  served Courses chunk; the owner's dev team reviews it on the live site. Earlier today: #784 (signed-out card),
+  #791 (chart-tap snap), #792 (round 16 reskin), all live. A GitHub Actions billing block (~12:50-13:05 CT) and a
+  red gate from PR #786 (fixed forward by #795) delayed the afternoon; both resolved.
+- The whole local workbench is now IN THE REPO: docs/study/workbench/ (shell, pieces.json with batch 17, the owner's
+  feedback.jsonl, the rigs, the patch scripts, the sandbox boot scripts, the session memory). README.md there says
+  how to boot it on a new machine. The part PNGs and sandbox_env.json are deliberately not included.
+- NEXT: the owner's batch-17 ranks (local shell, batch 17, b17-drill) + his team's notes -> round 18. Then the
+  Study landing / start card in the same look if asked; Hard mode + Draw-it bank items; bank growth.
+- To resume on the other computer: clone, `npm ci` in app/, create the Python venv, follow docs/study/workbench/README.md,
+  and have the new Claude Code session read this file + docs/study/workbench/SESSION-MEMORY.md first.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
