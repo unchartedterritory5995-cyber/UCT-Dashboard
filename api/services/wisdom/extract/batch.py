@@ -123,6 +123,7 @@ def make_client():
     return anthropic.Anthropic(
         api_key=key,
         timeout=llm_timeouts.seconds("WISDOM_EXTRACT_LLM_TIMEOUT_SECS", llm_timeouts.OFFLINE_JOB),
+        max_retries=0,
     )
 
 
