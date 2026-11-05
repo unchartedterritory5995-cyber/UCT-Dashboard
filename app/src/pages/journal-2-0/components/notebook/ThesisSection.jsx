@@ -60,6 +60,12 @@ export function isThesisShaped(note, evidence, changelog) {
   const props = note.propertiesJson || {}
   if (THESIS_RESEARCH_TYPES.has(props['builtin:research_type'])) return true
   if (props['builtin:note_kind'] === THESIS_KIND) return true
+  // Fix round 1 (review finding 6): a thesis property WITH A VALUE is a thesis, even when the
+  // changelog holds no event for it (set before any version checkpoint existed).
+  for (const id of THESIS_PROPERTIES) {
+    const v = props[id]
+    if (v !== undefined && v !== null && v !== '') return true
+  }
   if (Array.isArray(note.tags) && note.tags.includes('thesis')) return true
   if (Array.isArray(evidence) && evidence.length > 0) return true
   if (Array.isArray(changelog) && changelog.some(isThesisHistory)) return true

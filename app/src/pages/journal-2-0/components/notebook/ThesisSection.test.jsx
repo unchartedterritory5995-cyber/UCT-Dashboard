@@ -679,3 +679,19 @@ describe('isThesisShaped: only a real thesis (S2)', () => {
     expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:note_kind': 'daily_prep' } }, [], ambient)).toBe(false)
   })
 })
+
+// ⛔ Fix round 1 (review finding 6): a real thesis whose Thesis Status or Confidence was SET early (no
+// change event in the computed changelog: set before any checkpoint) lost its controls. A value in
+// either thesis property is itself the member treating the note as a thesis.
+describe('isThesisShaped: a thesis property with a value is a thesis (fix round 1)', () => {
+  const plain = { id: 'n1', tags: [], ticker: 'NVDA', propertiesJson: {} }
+  it('Thesis Status set, empty changelog: a thesis', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:thesis_status': 'active' } }, [], [])).toBe(true)
+  })
+  it('Confidence set, empty changelog: a thesis', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:confidence': 'high' } }, [], [])).toBe(true)
+  })
+  it('an empty value is not', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:thesis_status': '', 'builtin:confidence': null } }, [], [])).toBe(false)
+  })
+})
