@@ -94,9 +94,9 @@ export const TOPICS = [
   {
     id: 'indicators', title: 'Indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/],
-    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo'], productHas: true,
-    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change',
-    known: () => ['indicator alerts (set them on the chart)', 'classic overlay averages and Volume Profile (Chart Settings)'],
+    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete'], productHas: true,
+    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change. Also: alert on an indicator that is on a chart (a level, a line crossing, or a 9 / 20 moving-average cross — always shown to you first), and pause, resume or delete those alerts',
+    known: () => ['classic overlay averages and Volume Profile (Chart Settings)'],
     planned: null,
   },
   {

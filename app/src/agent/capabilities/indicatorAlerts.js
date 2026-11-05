@@ -22,6 +22,9 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
 import { indicatorsOn } from './indicators'
 import { instancesForAddress, addressBase } from '../../components/chart/engine/alertSets'
+import { getDefinition } from '../../components/chart/engine/nativeRegistry'
+import { calcTimeframeOf } from '../../components/chart/engine/instanceTimeframe'
+import { isNativeTf, NATIVE_TFS, tfLabel } from '../../components/chart/timeframes'
 
 const MAX_CREATES = 5
 const SHOW_IN_CONTEXT = 25
@@ -255,7 +258,9 @@ export const indicatorAlertKind = {
     if (!a) throw new Error('that alert is already gone')
     if (patch.sig && rowSig(a) !== patch.sig) throw new Error('that alert changed since I read it — ask again')
     if (patch.delete) await src.remove(ref)
-    else if (patch.toggle) await src.toggle(ref)                       // the manager's own pause / resume
+    // the popover row's own switch (toggleIndicatorAlert); the route FLIPS, so an alert already where it should be
+    // (another tab, an Undo after a manual flip) is left alone rather than flipped away
+    else if (patch.toggle && a.active !== patch.to) await src.toggle(ref)
     await loadIndicatorAlerts(host, { force: true })
     return true
   },
@@ -360,6 +365,8 @@ export function registerIndicatorAlertCapabilities() {
       } else if (crossWith != null && String(crossWith).trim()) {
         return `${plotLabel(p)} alerts on one line — “crossWith” is only for a moving-average cross.`
       }
+      const faithful = cannotWatchFaithfully(found, p, String(found.chart.tf || 'D'))
+      if (faithful) return faithful
       if (st.creates.length >= MAX_CREATES) return `That's more than ${MAX_CREATES} alerts in one request — ask for them in smaller groups.`
       const c = toCreate(found, p, condition, cond.needs_threshold ? threshold : null, cross)
       if (st.alerts.find(a => a.active && sameAlert(a, c)) || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(c)}.`
@@ -386,7 +393,7 @@ export function registerIndicatorAlertCapabilities() {
     surfaces: ['charts'],
     available: (ctx) => ctx.surface === 'charts',
     target: 'indicatorAlert',
-    summary: 'Pause or resume ONE indicator alert (the alert manager\'s own switch). Undo switches it back.',
+    summary: 'Pause or resume ONE indicator alert (the ON / OFF switch on its row in the chart\'s Indicator Alerts popover). Undo switches it back.',
     hints: 'target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.',
     args: { type: 'object', properties: { active: { type: 'boolean' } }, required: ['active'], additionalProperties: false },
     check: () => null,
@@ -468,6 +475,52 @@ function resolveCross(found, crossWith, condition) {
   }
 }
 
+// ── WHAT THE ALERT WILL ACTUALLY WATCH ────────────────────────────────────────────────────────────────
+// The receipt says "watched with that indicator's own settings", so that has to be TRUE. Three ways it was not:
+//  • a chart definition and the alert column name the same knob differently (macd fastPeriod / fast, bb stdDev / stddev,
+//    stoch kPeriod / k_period), and a key looked up verbatim missed, so MACD 8/21/5 armed as 12/26/9 with nothing said;
+//  • a setting the column has no knob for (stoch smoothK) cannot be carried at all;
+//  • a custom timeframe (45m, 3D…) is a client-side resample: the evaluator reads stored bars, and there are none.
+// The first is read correctly; the others are refused by name, never armed as something close.
+const fold = (k) => String(k).toLowerCase().replace(/_/g, '')
+const defOf = (inst) => { try { return getDefinition(inst.defId) || null } catch { return null } }
+/** The chart input a plot's knob means: same name but for case and `_`, or that name + "Period" (`fast` → `fastPeriod`). */
+function inputOfKnob(def, knob) {
+  const f = fold(knob)
+  return (def?.inputs || []).find(d => d?.key && (fold(d.key) === f || fold(d.key) === `${f}period`)) || null
+}
+function knobValue(inst, def, knob, dflt) {
+  const spec = inputOfKnob(def, knob)
+  const given = inst.inputs || {}
+  if (spec && given[spec.key] !== undefined) return given[spec.key]
+  if (given[knob] !== undefined) return given[knob]
+  return spec && spec.default !== undefined ? spec.default : dflt
+}
+// paint and line look: they change how it is drawn, never what it computes
+const DRAWN_ONLY = /^(?:opacity|line(?:Width|Style)|bands)$/
+/** A setting of this instance that changes its line and that the plot's knobs cannot carry, or null. */
+function settingOutOfReach(inst, def, p) {
+  const knobs = Object.keys(p.inputs || {})
+  const carried = new Set(knobs.flatMap(k => [k, inputOfKnob(def, k)?.key]))
+  for (const d of def?.inputs || []) {
+    if (!d?.key || carried.has(d.key) || d.type === 'color' || DRAWN_ONLY.test(d.key)) continue
+    const v = inst.inputs?.[d.key]
+    if (v !== undefined && String(v) !== String(d.default)) return { label: d.label || d.key, value: v }
+  }
+  return null
+}
+const nativeWords = () => NATIVE_TFS.map(t => tfLabel(t)).join(', ')
+/** Why an alert on this plot, on this timeframe, would not be watching what the chart draws — or null. */
+function cannotWatchFaithfully(found, p, tf) {
+  if (!isNativeTf(tf)) return `Indicator alerts read stored bars, and ${tfLabel(tf)} is a custom timeframe with none, so that alert could never fire. Nothing was created — it can run on ${nativeWords()}.`
+  const stored = (found.chart.cs?.indicatorInstances || []).find(i => i && i.instanceId === found.inst.instanceId)
+  const calc = calcTimeframeOf(stored)
+  if (calc && calc !== tf) return `${found.inst.name} is calculated on ${tfLabel(calc)}, so an alert on ${tfLabel(tf)} would judge a different line. Nothing was created.`
+  if (isCrossPlot(p)) return null                       // resolveCross has already judged both averages
+  const out = settingOutOfReach(found.inst, defOf(found.inst), p)
+  return out ? `${plotLabel(p)} alerts can't use ${found.inst.name}'s ${out.label} of ${out.value}, so an alert would watch a different line than your chart draws. Nothing was created — set that back to its default, or pick another indicator.` : null
+}
+
 /** The alert to create, from the chart the instance is on and the catalog's plot — the popover's own fields. */
 function toCreate(found, p, condition, threshold, cross = null) {
   if (cross) {
@@ -480,7 +533,8 @@ function toCreate(found, p, condition, threshold, cross = null) {
   }
   const keys = Object.keys(p.inputs || {})
   // the instance's own settings for the knobs the plot declares (the popover: the catalog's shape, the instance's values)
-  const params = keys.length ? Object.fromEntries(keys.map(k => [k, found.inst.inputs && found.inst.inputs[k] !== undefined ? found.inst.inputs[k] : p.inputs[k]])) : null
+  const def = defOf(found.inst)
+  const params = keys.length ? Object.fromEntries(keys.map(k => [k, knobValue(found.inst, def, k, p.inputs[k])])) : null
   return {
     sym: String(found.chart.symbol || '').toUpperCase(), tf: String(found.chart.tf || 'D'), indicator: p.value, condition,
     threshold: threshold == null ? null : Number(threshold), params, instanceId: found.inst.instanceId,
