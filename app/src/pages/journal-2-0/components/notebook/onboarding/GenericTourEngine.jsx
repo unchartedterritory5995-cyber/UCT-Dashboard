@@ -151,22 +151,33 @@ export default function GenericTourEngine({
 
   const steps = content?.steps || null
 
-  // ── the step counter counts what is SHOWN ────────────────────────────────────────────────
-  // A step that was passed over because its anchor is not on this screen is not a step the
-  // member takes, so it is in neither number: a tour whose first step cannot show here opens
-  // on "Step 1 of N-1", never "Step 2 of N" (the Formulas tour did, at every width). A step
-  // reached later (Back onto one that has since appeared) counts again.
-  const [passed, setPassed] = useState(() => new Set())
+  // ── the step counter counts what is SHOWN, over ONE list fixed at the start ────────────────
+  // A step whose anchor is not on this screen is not a step the member takes, so it is in
+  // neither number: a tour whose first step cannot show here opens on "Step 1 of N-1", never
+  // "Step 2 of N" (the Formulas tour did, at every width).
+  // ⛔ Audit 2026-11-05, spec S5 (B6): THE LIST IS COMPUTED ONCE, when the tour opens. The total
+  // used to drop each time a later step turned out not to be there, so the My Playbook tour read
+  // "Step 1 of 5" and then "Step 2 of 3". Now the steps whose anchors are on screen when the
+  // tour opens are the list (with every step after the first one that waits for the member: those
+  // appear once the member acts), and the total holds. A step outside it that the tour lands on
+  // anyway joins the list in its place.
+  const [visible, setVisible] = useState(null)   // sorted step indices, or null before opening
   const indexRef = useRef(0)
   indexRef.current = index
   const land = useCallback((from, to) => {
-    setPassed((prev) => {
-      const out = new Set(prev)
-      for (let j = from + 1; j < to; j += 1) out.add(j)
-      out.delete(to)
-      return out.size === prev.size && [...out].every((j) => prev.has(j)) ? prev : out
+    setVisible((prev) => {
+      if (prev === null) {
+        // A step after one that WAITS for the member (a door that opens a sheet, a page) cannot be
+        // on screen yet and is expected to show, so it is in the list; a step before any wait is
+        // in it only when its anchor is here now.
+        const firstWait = (steps || []).findIndex((s) => s.waitFor)
+        return (steps || []).map((_, j) => j).filter((j) => j === to || anchorFor(steps[j].anchor)
+          || (firstWait >= 0 && j > firstWait))
+      }
+      if (prev.includes(to)) return prev
+      return [...prev, to].sort((x, y) => x - y)
     })
-  }, [])
+  }, [steps])
   const step = phase === 'open' && steps ? steps[index] : null
 
   // ── 1. START ──────────────────────────────────────────────────────────────────────────
@@ -511,7 +522,7 @@ export default function GenericTourEngine({
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
       <p id={progressId} className={styles.progress}>
-        {`Step ${index + 1 - [...passed].filter((j) => j < index).length} of ${steps.length - passed.size}`}
+        {`Step ${(visible?.indexOf(index) ?? -1) + 1 || 1} of ${visible?.length || steps.length}`}
       </p>
       <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
         aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>

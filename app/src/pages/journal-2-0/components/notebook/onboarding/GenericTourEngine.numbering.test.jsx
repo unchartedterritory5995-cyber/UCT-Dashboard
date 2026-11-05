@@ -64,9 +64,12 @@ describe('P6 — the step counter counts what is shown', () => {
     expect((await progress()).textContent).toBe('Step 1 of 2')
   })
 
-  it('a middle step that turns out not to be there is dropped from the total when it is passed', async () => {
+  // ⛔ Audit 2026-11-05, spec S5 (B6): the total used to DROP when a missing middle step was passed
+  // ("Step 1 of 5", then "Step 2 of 3" on the My Playbook tour). The list is fixed when the tour
+  // opens, so a step not on screen then is out of the total from the first card, and it holds.
+  it('a middle step that is not there is out of the total from the first card, and the total holds', async () => {
     render(<Page entry={tour(['a', 'b', 'c'])} anchors={['anchor-a', 'anchor-c']} />)
-    expect((await progress()).textContent).toBe('Step 1 of 3')
+    expect((await progress()).textContent).toBe('Step 1 of 2')
     next()
     expect((await screen.findByText('Step 2 of 2', {}, { timeout: 4000 })).textContent).toBe('Step 2 of 2')
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Title c')

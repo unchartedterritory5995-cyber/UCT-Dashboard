@@ -99,7 +99,9 @@ describe('(c) the step list is re-evaluated on every Next', () => {
   it('a step whose anchor appears AFTER the tour opened is shown, not dropped', async () => {
     render(<Page />)
     await card('c-behind door')
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    // S5 (B6): the list is fixed when the tour opens; the panel is not on screen then and no step
+    // waits for it, so it is not counted until the tour lands on it.
+    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     // the panel opens while Next is waiting (a click outside the modal card's layer, as the
     // page's own code would do it)
