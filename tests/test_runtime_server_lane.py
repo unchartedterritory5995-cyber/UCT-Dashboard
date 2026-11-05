@@ -248,3 +248,105 @@ def test_the_default_client_is_read_per_call(world, monkeypatch):
             call(fn)
         assert e.value.guard == prc.UNAVAILABLE
     assert made == [1, 1]
+
+
+def test_r1_the_lane_column_carries_the_runs_warmup(world):
+    sw, fake, make = world
+    fake.withheld_bars = 2
+    col = call(lane_mod.runtime_column_fn(ROW, "value", "record", client_factory=make))
+    assert isinstance(col, list) and len(col) == 5 and col.warmup == {"withheldBars": 2}
+    assert col.warmup["withheldBars"] == 2  # the read W5-T16's record_runtime_pass makes
+
+
+# --- r1: the public admission question agrees with the column function on every refusal ---------
+
+def _admission_states():
+    return [
+        ("admitted", None, None),
+        ("verdict", "engine-refused: refused by engine 4", None),
+        ("verdict-and-kill", "engine-refused", ("runtime:killed", "kill list")),
+        ("killed", None, ("runtime:killed", "on the kill list")),
+        ("not-graded", None, ("runtime:not-yet-graded", "not graded")),
+        ("stage", None, ("runtime:stage", "stage off")),
+        ("server-stage", None, ("runtime:server-stage", "server stage off")),
+        ("unavailable", None, ("runtime:server-unavailable", "not set up")),
+        ("malformed", None, "runtime:killed"),
+        ("absent", None, "ABSENT"),
+        ("raises", None, "RAISES"),
+    ]
+
+
+@pytest.mark.parametrize("name,verdict,refusal", _admission_states(), ids=[s[0] for s in _admission_states()])
+def test_r1_admission_and_runtime_column_fn_agree(world, monkeypatch, name, verdict, refusal):
+    sw, fake, make = world
+    sw.verdict = verdict
+    if refusal == "ABSENT":
+        monkeypatch.delattr(runtime_definitions, "server_lane_refusal", raising=False)
+    elif refusal == "RAISES":
+        def boom(row, *, lane):
+            raise RuntimeError("down")
+        monkeypatch.setattr(runtime_definitions, "server_lane_refusal", boom, raising=False)
+    elif refusal == "runtime:killed":
+        monkeypatch.setattr(runtime_definitions, "server_lane_refusal", lambda row, *, lane: refusal, raising=False)
+    else:
+        sw.refusal = refusal
+    asked = lane_mod.admission(ROW, "value", "alert")
+    assert fake.urls == []  # the public question never calls the service
+    fn = lane_mod.runtime_column_fn(ROW, "value", "alert", client_factory=make)
+    if asked is None:
+        assert name == "admitted" and len(call(fn)) == 5
+    else:
+        with pytest.raises(lane_mod.ServerLaneWithheld) as e:
+            call(fn)
+        assert (e.value.guard, e.value.sentence) == asked and fake.urls == []
+    expected = {"admitted": None, "verdict": lane_mod.VERDICT_GUARD, "verdict-and-kill": lane_mod.VERDICT_GUARD,
+                "malformed": prc.UNAVAILABLE, "absent": prc.UNAVAILABLE, "raises": prc.UNAVAILABLE}
+    want = expected.get(name, refusal[0] if isinstance(refusal, tuple) else None)
+    assert (asked[0] if asked else None) == want
+
+
+def test_r1_admission_refuses_an_unnamed_plot_and_rejects_an_unknown_lane(world):
+    sw, fake, make = world
+    for key in ("", None, 3):
+        assert lane_mod.admission(ROW, key, "alert")[0] == prc.INTEGRITY
+    with pytest.raises(ValueError):
+        lane_mod.admission(ROW, "value", "nightly")
+    assert sw.asked == []
+
+
+def test_r1_the_underscore_names_stay_as_aliases(world):
+    sw, fake, make = world
+    sw.verdict = "held"
+    assert lane_mod._verdict(ROW) == "held"
+    sw.refusal = ("runtime:killed", "k")
+    assert lane_mod._admission(ROW, "sweep") == ("runtime:killed", "k")
+
+
+# --- r2: the lane column carries the engine's NaN warm-up; a finite one never reaches a lane -----------
+
+def test_r2_the_lane_column_is_nan_on_its_warmup(world):
+    sw, fake, make = world
+    fake.withheld_bars = 2
+    col = call(lane_mod.runtime_column_fn(ROW, "value", "alert", client_factory=make))
+    assert all(math.isnan(v) for v in col[:2]) and col[2:] == [2 * b["c"] for b in bars_fixture(5)][2:]
+    assert col.warmup == {"withheldBars": 2}
+
+
+def test_r2_a_finite_warmup_value_is_raised_never_returned(world):
+    sw, fake, make = world
+    from tests.fakes.pine_runtime_fake import b64_column
+    from api.services import pine_runtime_codec as codec
+    import base64
+    fake.withheld_bars = 2
+
+    def m(reply):
+        r = reply["results"][0]
+        col = codec.decode_column(base64.b64decode(r["columns"]["value"]))
+        col[0] = 9.0
+        r["columns"]["value"] = b64_column(col)
+        r["digest"] = codec.column_digest(fake.identity, {"value": col}, r["refusals"])
+        return reply
+    fake.tamper = m
+    with pytest.raises(lane_mod.ServerLaneWithheld) as e:
+        call(lane_mod.runtime_column_fn(ROW, "value", "sweep", client_factory=make))
+    assert e.value.guard == prc.INTEGRITY

@@ -43,7 +43,7 @@ runtime:server-engine-mismatch`, rc 0. The rails also pin two vectors computed b
 `test_bars_hash_matches_t6_protocol_vector`).
 
 ## Schema findings (for the coordinator)
-1. **T7's job results carry no `digest`** (`job.mjs::encodeResult` on `feat/pine-w5-t7-pool`), but
+1. (closed in r1 by W5-T7b) **T7's job results carry no `digest`** (`job.mjs::encodeResult` on `feat/pine-w5-t7-pool`), but
    design 3.2 puts one on every result and T11 must "verify length and digest". The client REQUIRES
    it on an `ok` result (verifies it on `withheld` when present), so until T7/T8 adds
    `digest = column_digest(service identity, decoded columns, refusals)` every T7 `ok` answer is
@@ -191,3 +191,159 @@ Log dir `_resume-2026-11-01/runs/dsk-w5t11-final/`.
   `caller_identity()` is None and every run is withheld `runtime:server-unavailable`.
 - Logs: `_resume-2026-11-01/runs/w5t11-mut/` (tip.log, redbase.log, mut.log, tip2.log, redbase2.log,
   mut2.log) and `_resume-2026-11-01/runs/dsk-w5t11-final/`.
+
+## r1 (FIX r1: the W5-T7b warm-up, the public admission, the Infinity ruling), code tip `a74e273652`
+W5-T7b (`origin/feat/pine-w5-t7b-result-integrity` e13d282eae) now sends `digest` on every result
+and `warmup: {withheldBars}` on every ok result. T7b's e2e rail showed this client refused that ok
+answer because `warmup` was not in its closed `_RESULT_KEYS`. T7b is read only; it is NOT merged here.
+
+What changed:
+- `pine_runtime_client.py`: `warmup` joins the closed result keys. On an ok result it is REQUIRED
+  and must be an object of exactly `{withheldBars}` holding an integer in [0, n] (not a bool).
+  Anything else is `runtime:server-integrity`. A withheld result that reports one is also
+  integrity, matching T7b's `RESULT_FIELDS`. Every other key stays closed. The value is kept as
+  `JobResult.warmup`. `warmup` is not covered by the digest (the T3 preimage has no field for it),
+  so it is checked by shape and range.
+- `runtime_server_lane.py`: the column is now a `RuntimeColumn` (a `list` subclass) that carries
+  `.warmup = {"withheldBars": k}`, which is what W5-T16's `record_runtime_pass` reads.
+- `runtime_server_lane.admission(row, plot_key, lane)` (owner-delegated ruling 1) is PUBLIC. It
+  returns `(guard, sentence)` or None from the same 5.2 chain `runtime_column_fn` asks on every
+  call (the stored verdict, then `server_lane_refusal`), and it makes no service call. An unnamed
+  plot is `runtime:server-integrity` and an unknown lane is a ValueError. `runtime_column_fn` now
+  calls `admission` itself, so there is one chain. `_verdict` and `_admission` stay as thin
+  aliases for T13-T15.
+- Infinity (ruling 2, design 3.7): +Infinity or -Infinity in an ok column is
+  `runtime:server-integrity`, and the codec's na (canonical NaN) is a value. This was already the
+  r0 behaviour (`test_row10_an_infinite_value_is_integrity[inf,-inf]`,
+  `test_row10_na_is_a_value_not_a_failure`). r1 mutation-proves it per sign (I01, I02).
+- The fake answers in T7b's shape (an ok result carries `warmup`).
+- `tests/fixtures/pine_runtime/t7b_response.json`: a REAL T7b response.
+  `t7b_capture.py e13d282eae` reads T7b's own server.mjs, pool.mjs, job.mjs, protocol.mjs,
+  auth.mjs, sandbox.mjs, its `test/fixtures/fakeBundle.mjs` and T3's `columnDigest.js` with
+  `git show` into a temp tree (never into the repo). It runs T7b's `createPineRuntimeServer` with
+  T7b's `createPool` (1 sandboxed worker) on 127.0.0.1, POSTs the request this client builds and
+  signs, and stores the request sha256 and the exact response bytes. Result: HTTP 200, 2 ok jobs,
+  `warmup {withheldBars: 3}`, sealed digests. Fixture secret only.
+
+Rails (r1, names start `test_r1_`):
+- client: `test_r1_an_ok_result_carries_its_warmup`;
+  `test_r1_a_warmup_that_is_not_exactly_a_bar_count_is_integrity[11]` (absent, None, [], {}, -1,
+  1.5, True, "3", n+1, an extra key, a wrong key); `test_r1_warmup_bounds_are_inclusive` (0 and n);
+  `test_r1_a_withheld_result_reporting_a_warmup_is_integrity`;
+  `test_r1_still_closed_an_unknown_key_beside_warmup_is_integrity`.
+- conformance: `test_r1_conformance_a_real_t7b_response_decodes_and_verifies` checks that the
+  client's request sha equals the captured one, both jobs are ok, the columns equal the closes,
+  `warmup == {withheldBars: 3}` and the digest is the sealed one.
+  `test_r1_conformance_one_flipped_byte_of_the_real_response_is_integrity` flips one byte in job 2:
+  job 2 becomes integrity and job 1 stays ok.
+- lane: `test_r1_the_lane_column_carries_the_runs_warmup`.
+- admission: `test_r1_admission_and_runtime_column_fn_agree[11 states]` covers admitted, a
+  verdict, verdict plus kill, killed, not-graded, stage, server-stage, unavailable, a malformed
+  answer, absent, and raising. In every state the public answer equals the column function's
+  raised (guard, sentence) and no service call is made.
+  `test_r1_admission_refuses_an_unnamed_plot_and_rejects_an_unknown_lane` and
+  `test_r1_the_underscore_names_stay_as_aliases` cover the rest.
+
+Red on r0, green on tip:
+- `python -B docs/pine/evidence/2026-11-04-w5-t11/redr0.py 86218da704 <both files>` writes r0's
+  client, lane and fake, runs `-k r1`, and restores byte-exact: **28 failed, 4 passed**.
+- The 4 that pass on r0 preserve r0 behaviour: withheld-with-warmup, unknown key and the flipped
+  byte (r0 refused those answers too), and the underscore aliases (r0 has them).
+- The tip passes everything: **157 passed** (`runs/w5t11/r1b-tip.log`).
+
+Mutations (lock `dsk/heavy-mut.lock`; `mutate_pytest.py muts_r1.json`, made by `mkmuts_r1.py`;
+log `runs/w5t11/r1b-mut.log`, a run on the final code): **TOTAL 18, KILLED 17, SURVIVED 1, and
+the survivor is the no-op control**, as it must be.
+
+| mutation | killed by |
+|---|---|
+| W01 warmup not a result key | `test_ok_run_returns_the_full_verified_column` |
+| W02 extra keys admitted | `test_r1_a_warmup_that_is_not_exactly_a_bar_count_is_integrity[warmup3]` ({}) |
+| W03 warmup not required | `...[absent]` |
+| W04 bool bar count admitted | `...[warmup6]` (True) |
+| W05 non-int bar count admitted | `...[warmup5]` (1.5) |
+| W06 negative admitted | `...[warmup4]` (-1) |
+| W07 past n admitted | `...[warmup8]` (n+1) |
+| W08 withheld may report a warmup | `test_r1_a_withheld_result_reporting_a_warmup_is_integrity` |
+| W09 not carried to JobResult | `test_r1_an_ok_result_carries_its_warmup` |
+| W10 lane column without the warmup | `test_r1_the_lane_column_carries_the_runs_warmup` |
+| A01 admission skips the stored verdict | `test_admitted_call_returns_the_plot_column` (and the agreement rail) |
+| A02 admission skips server_lane_refusal | `test_admitted_call_returns_the_plot_column` |
+| A03 column fn asks step 4 only | `test_admitted_call_returns_the_plot_column` |
+| A04 unnamed plot admitted | `test_r1_admission_refuses_an_unnamed_plot_and_rejects_an_unknown_lane` |
+| A05 unknown lane accepted | `test_r1_admission_refuses_an_unnamed_plot_and_rejects_an_unknown_lane` |
+| I01 +/-Infinity admitted | `test_row10_an_infinite_value_is_integrity[inf]` |
+| I02 only +Infinity refused | `test_row10_an_infinite_value_is_integrity[-inf]` |
+
+r1 final-tip (lock `dsk/heavy-final2.lock`, tip `a74e273652`, tested on master `0afa7645dd`):
+`bash $S/final-tip.sh pine-dsk-w5t11 dsk-w5t11r1-final tests/test_pine_runtime_client.py
+tests/test_runtime_server_lane.py tests/test_pine_runtime_codec.py tests/test_script_engine_version_gate.py`,
+log dir `_resume-2026-11-01/runs/dsk-w5t11r1-final/`.
+- gate pytest: 46 passed (rc 0). Hygiene: clean (34615 files).
+- rails pytest (both T11 files, T3 codec, engine-version gate): 374 passed.
+- full chart+hooks vitest: Test Files 1 failed | 1334 passed | 27 skipped; Tests 1 failed | 22505 passed | 118 skipped. The only failure is `src/hooks/pollingSites.rail.test.js`, the known baseline. Nothing new.
+- Engine bump: NO (Python only).
+
+## r2 (review B1: the warm-up curtain is VERIFIED, not masked), code tip `20856aff67`
+Finding (`dsk/reviews/W5-T11.md` B1, which the T13, T14 and T15 reviews also hit): r1 checked `warmup`
+for shape only, so finite values in bars [0, withheldBars) could reach alerts, scans and backtests.
+The ENGINE already blanks those bars to na (runtimeWarmupCurtain.test.js:42 on master), so the
+engine stays the one authority. The client now VERIFIES the curtain and does not apply a mask
+(coordinator correction; a mask would be a second curtain).
+
+What changed:
+- `pine_runtime_client._result`: after the decode and the digest check, if any served column holds
+  a non-NaN value at an index below `withheldBars`, the result is `runtime:server-integrity`
+  ("serves output `k` with a value inside its own warm-up"). The digest is still verified over the
+  received bytes. NaN warm-up bars are na and pass through unchanged. `.warmup` stays on
+  `JobResult` and on the lane column.
+- `tests/fakes/pine_runtime_fake.py` answers as the engine does: NaN on bars [0, withheld_bars) in
+  every column.
+- Real T7b captures (`t7b_capture.py e13d282eae SOURCE OUT`, read-only `git show`, T7b's own server
+  and pool):
+  - `tests/fixtures/pine_runtime/t7b_response_echo.json` (stand-in bundle `echo`, withheldBars 0)
+    is the POSITIVE conformance rail.
+  - `t7b_response.json` (`warmup:3`: the stand-in bundle reports 3 withheld bars over FINITE
+    closes) is now a NEGATIVE rail, and both jobs are integrity.
+  - It was not recaptured from the real bundle, because that needs T7b's full tree and the T1
+    build. The negative rail pins exactly the B1 shape.
+
+Rails (`test_r2_*`):
+- client: `a_finite_value_inside_the_warmup_is_integrity` (bar k-1);
+  `batch_a_finite_warmup_value_withholds_that_job_only`;
+  `any_served_column_is_checked_not_only_the_first`;
+  `a_nan_warmup_is_accepted_and_finite_from_withheld_bars_on`; `withheld_bars_n_all_nan_is_accepted`;
+  `withheld_bars_zero_needs_no_nan`;
+  `conformance_a_real_t7b_response_with_finite_warmup_values_is_integrity`.
+- lane: `the_lane_column_is_nan_on_its_warmup`; `a_finite_warmup_value_is_raised_never_returned`.
+
+Red on r1, green on tip:
+- `RED_K=r2 python -B redr0.py 1e384edbfe <both files>` writes r1's client, lane and fake, and
+  restores byte-exact: **8 failed, 1 passed**. The pass is `withheld_bars_zero`, which r1 also
+  satisfied.
+- Tip: **166 passed** (`runs/w5t11r2/r2-tip.log`).
+
+Mutations (lock `dsk/heavy-mut.lock`, `muts_r2.json` from `mkmuts_r2.py`, log
+`runs/w5t11r2/r2-mut.log`): **TOTAL 5, KILLED 4, SURVIVED 1, and the survivor is the no-op
+control**.
+
+| mutation | killed by |
+|---|---|
+| V01 curtain not checked | `test_r2_conformance_a_real_t7b_response_with_finite_warmup_values_is_integrity` |
+| V02 curtain checks one bar short | `test_ok_run_returns_the_full_verified_column` (and the k-1 rail) |
+| V03 first column only | `test_r2_any_served_column_is_checked_not_only_the_first` |
+| V04 curtain over-reaches one bar | `test_ok_run_returns_the_full_verified_column` |
+
+Review notes N1-N6 are non-blocking and not changed in r2: the fake does not enforce the tf set, the
+body size is unbounded per chunk, the owner key is shared with the service, a cache hit returns the
+first caller's `.job`, the identity is re-read per call, and no rail drives the real T12 function.
+
+r2 final-tip (lock `dsk/heavy-final2.lock`, tip `20856aff67`, tested on master `0afa7645dd`):
+`bash $S/final-tip.sh pine-dsk-w5t11 dsk-w5t11r2-final tests/test_pine_runtime_client.py
+tests/test_runtime_server_lane.py tests/test_pine_runtime_codec.py tests/test_script_engine_version_gate.py`,
+log dir `_resume-2026-11-01/runs/dsk-w5t11r2-final/`.
+- gate pytest: 46 passed (rc 0). Hygiene: clean (34618 files).
+- rails pytest (both T11 files, T3 codec, engine-version gate): 383 passed.
+- full chart+hooks vitest: Test Files 1 failed | 1334 passed | 27 skipped; Tests 1 failed | 22505 passed | 118 skipped. The only failure is `src/hooks/pollingSites.rail.test.js`, the known baseline.
+- Engine bump: NO (Python only).
+
