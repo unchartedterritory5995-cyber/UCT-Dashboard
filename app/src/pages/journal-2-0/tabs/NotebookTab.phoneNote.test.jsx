@@ -85,6 +85,7 @@ vi.mock('../components/notebook/NoteTasksView', () => ({
 
 import NotebookTab from './NotebookTab'
 import { requestReveal, TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
+import { chooseView } from './__tests__/toolbarDoors'
 
 function Where() {
   const loc = useLocation()
@@ -288,7 +289,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('switching to an icon-row mode (Table) at phone width collapses the panel', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     expect(showFoldersBtn()).not.toBeNull()
   })
@@ -296,7 +297,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('the SAME switch at 820px (not a phone) never collapses the panel', async () => {
     setWidth(820)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     expect(showFoldersBtn()).toBeNull()
   })
@@ -304,7 +305,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('the floating toggle -- the EXISTING control, never a new one -- reopens the panel', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     fireEvent.click(showFoldersBtn())
     expect(showFoldersBtn()).toBeNull()
@@ -326,7 +327,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('CONTROL: the panel is genuinely reachable while collapsed -- toggling shows the real FolderSidebar again', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     expect(screen.getByTestId('folder-sidebar')).toBeInTheDocument() // never unmounted, only hidden by CSS
     fireEvent.click(showFoldersBtn())

@@ -29,7 +29,7 @@ export const JOURNAL_STYLES_STEPS = Object.freeze([
 export const JOURNAL_STYLES_COPY = Object.freeze({
   open: {
     title: 'Journal styles',
-    body: 'Styles opens the Journal styles manager, where you choose how each kind of note starts. Select Styles to open it.',
+    body: 'Manage templates, in the ⋯ menu, opens the Journal styles manager, where you choose how each kind of note starts. Open ⋯ and select Manage templates.',
   },
   manager: {
     title: 'How a note starts',
@@ -55,7 +55,7 @@ export const STYLE_LIBRARY_STEPS = Object.freeze([
 export const STYLE_LIBRARY_COPY = Object.freeze({
   templates: {
     title: 'Styles other traders share',
-    body: 'The community library is in the template gallery. Select Templates to open the picker.',
+    body: 'The community library is in the template gallery. Open the ▾ beside New and select From a template to open the picker.',
   },
   door: {
     title: 'Open the community gallery',

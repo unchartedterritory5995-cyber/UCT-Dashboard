@@ -34,6 +34,7 @@ import { BUILTIN_NOTE_KINDS } from '../lib/noteKinds'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { contractBody } from '../__fixtures__/contract'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 const listBody = {
   kinds: BUILTIN_NOTE_KINDS.map((k) => ({ ...k, builtin: true })),
@@ -89,7 +90,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
   it('switch on: a kind makes a note of that kind through the one create door', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
@@ -101,7 +102,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
   it('switch on: a chosen style goes as styleId', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [another] = await screen.findAllByLabelText('Choose another template for Trade plan', {}, T)
     fireEvent.click(another)
     fireEvent.click(screen.getAllByRole('button', { name: 'Use My plan' })[0])
@@ -116,7 +117,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     const detail = contractBody('notes.create.kind.unknown').detail
     createNoteViaApi.mockRejectedValueOnce(Object.assign(new Error('Could not create note (400)'), { status: 400, detail }))
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent)).toContain(detail))
@@ -127,7 +128,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     createNoteViaApi.mockRejectedValueOnce(Object.assign(new Error('Could not create note (404)'), {
       status: 404, detail: contractBody('notes.create.styled.not-found').detail }))
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent))
@@ -150,7 +151,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
   it('the Templates button still opens it with the search box focused', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const dialog = await screen.findByRole('dialog', { name: 'New note' })
     await within(dialog).findByLabelText('New Trade plan', {}, T)
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' })))
@@ -158,7 +159,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
 
   it('switch off: today\'s sheet exactly, and the styles list is never requested', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     await screen.findAllByRole('region', { name: 'Your templates' })
     expect(screen.queryByRole('group', { name: 'Start from a template' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'New Trade plan' })).toBeNull()

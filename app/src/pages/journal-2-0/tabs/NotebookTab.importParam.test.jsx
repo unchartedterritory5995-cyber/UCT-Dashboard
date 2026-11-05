@@ -8,6 +8,7 @@ import { installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { ENEX_IMPORT_HREF } from '../components/connectors/evernoteCopy'
 import NotebookTab from './NotebookTab'
+import { toolbarOffers } from './__tests__/toolbarDoors'
 
 // The wizard has its own rails. A stub that shows whenever it is open proves the TAB opened it.
 vi.mock('../components/notebook/import/ImportWizard', () => ({
@@ -54,7 +55,7 @@ describe('?import=evernote on the Notebook tab', () => {
 
   it('opens nothing for any other import value, and leaves the URL alone', async () => {
     await show('/journal/notebook?view=all&import=notion')
-    expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument()   // control: the list rendered
+    expect(toolbarOffers('Import')).toBe(true)   // control: the list rendered
     expect(screen.queryByRole('heading', { name: 'Import wizard' })).toBeNull()
     expect(screen.getByTestId('where').textContent).toBe('?view=all&import=notion')
   })

@@ -52,6 +52,7 @@ import { recordLandedRevision } from '../lib/offline/useDurableNote'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { TITLE as ADOPT_TITLE } from '../components/notebook/library/AdoptSheet'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 const LIB_ROW = { id: 'g-night', title: 'Night-before prep', description: 'planning tomorrow', group: 'night_before',
   category: 'journal', author: 'UCT', itemType: 'style', usedBy: 0, helpfulCount: 0, contains: [], inYourTemplates: false }
@@ -99,7 +100,7 @@ const renderTab = () => render(
 describe('creating from a member template', () => {
   it('reads the template, creates the note through createNoteViaApi, lands its properties, and opens it', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     // Scoped: the built-in catalog has its own "Weekly review" card.
     // (An empty notebook also shows the picker inline, so there are two.)
     const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
@@ -115,7 +116,7 @@ describe('creating from a member template', () => {
   it('a template that cannot be read creates nothing and says so', async () => {
     templateRead.ok = false
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     // Scoped: the built-in catalog has its own "Weekly review" card.
     // (An empty notebook also shows the picker inline, so there are two.)
     const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
@@ -131,7 +132,7 @@ describe('creating from a member template', () => {
   // GET for data already sitting in the preview's own state.
   it('using a template from its preview does not re-read what the preview already fetched', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
     fireEvent.click(await within(mine).findByRole('button', { name: 'Preview Weekly review' }))
     const dialog = await screen.findByRole('dialog', { name: 'Weekly review' })
@@ -165,7 +166,7 @@ describe('using a Template library template (wave 11, walk D1)', () => {
   it('closes the New note sheet and opens the new note with focus where a member template puts it', async () => {
     latchNotebookFlags({ notebook_widgets_w11_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const sheet = await screen.findByRole('dialog', { name: 'New note' })
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
     const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
@@ -183,7 +184,7 @@ describe('using a Template library template (wave 11, walk D1)', () => {
     const appRoot = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' }))
     try {
       render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>, { container: appRoot })
-      fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+      pressToolbar('Templates')
       const sheet = await screen.findByRole('dialog', { name: 'New note' })
       fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
       const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
@@ -199,7 +200,7 @@ describe('using a Template library template (wave 11, walk D1)', () => {
 
   it('CONTROL: a member template lands the same way (sheet closed, focus in the title)', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     await screen.findByRole('dialog', { name: 'New note' })
     const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
     fireEvent.click(await within(mine).findByRole('button', { name: /^Weekly review/ }))
@@ -218,7 +219,7 @@ describe("a note from Your templates is created in the editor's own form (W11-R8
   it('a template ending on a list makes a note ending on the trailing paragraph', async () => {
     templateBody = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Checklist' }] }, list] }
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
     fireEvent.click(await within(mine).findByRole('button', { name: /^Weekly review/ }))
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
@@ -228,7 +229,7 @@ describe("a note from Your templates is created in the editor's own form (W11-R8
   })
   it('CONTROL: a template already ending on a paragraph is sent with its blocks unchanged', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
     fireEvent.click(await within(mine).findByRole('button', { name: /^Weekly review/ }))
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
