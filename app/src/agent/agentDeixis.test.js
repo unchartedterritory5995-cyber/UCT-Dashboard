@@ -163,7 +163,7 @@ describe('a chart named by its state or an indicator on it', () => {
   })
   it('NEGATIVE: a plan aimed elsewhere is asked about, not obeyed', () => {
     expect(scr(grid(four()), put('g0'), 'put SPY on the empty chart')?.ask).toBeTruthy()
-    expect(unn(grid(four()), put('g0'), 'stick SPY in the empty one')?.ask).toBeTruthy()
+    expect(scr(grid(four()), put('g0'), 'stick SPY in the empty one')?.ask).toBeTruthy()
   })
   it('NEGATIVE: two empty cells name neither; no empty cell names none', () => {
     const two = [...four(), cell('g4', '')]

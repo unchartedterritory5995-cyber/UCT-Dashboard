@@ -189,6 +189,19 @@ describe('chartGrid.set — a line of charts that cannot hold them becomes the e
     expect(p.ok).toBe(false)
     expect(p.refusals[0].reason).toContain('ZZZZ')
   })
+  it('AUDIT D2: a bare "grid" can be the board itself, so it never outranks the shape the member asked for', () => {
+    const host = beside().host
+    const layoutOf = (t) => multiChartPlan(t, { host })?.ops?.[0]?.args?.layout
+    expect(layoutOf('put NVDA and AMD stacked on the grid')).toBe('rows')
+    expect(layoutOf('put NVDA, AMD and TSLA side by side in my grid')).toBe('columns')
+    for (const t of ['put NVDA, AMD, TSLA and SPY side by side in a grid', 'NVDA, AMD, TSLA and SPY stacked as a grid', 'NVDA, AMD, TSLA and SPY side by side in a 2x2', 'NVDA, AMD, TSLA and SPY stacked in a quad']) expect(layoutOf(t), t).toBe('grid')
+    expect(layoutOf('grid of NVDA, AMD and TSLA')).toBe('grid')
+  })
+  it('the reflow note counts every chart tiled, kept ones included', async () => {
+    const { p } = await plan(whole(), [{ ...grid(['SPY', 'QQQ', 'NVDA', 'TSLA'], null, 'columns'), args: { ...grid(['SPY', 'QQQ', 'NVDA', 'TSLA'], null, 'columns').args, new_charts: true } }])
+    expect(p.ok).toBe(true)
+    expect(p.lines[0]).toMatch(/because five side by side would be too narrow/)
+  })
   it('the instant reader: the same sentence and its variations reach this plan; a shape stated outright wins', () => {
     const host = beside().host
     const layoutOf = (t) => multiChartPlan(t, { host })?.ops?.[0]?.args?.layout

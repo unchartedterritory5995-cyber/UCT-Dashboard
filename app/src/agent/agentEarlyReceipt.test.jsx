@@ -7,6 +7,7 @@ import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 import { lastTurns } from './trace'
+import { SAVE_WAIT_MS } from './useAgent'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -101,6 +102,32 @@ describe('the receipt follows the read-back, not the save', () => {
     expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
   }, 30000)
 
+  it('a save that never answers: at the deadline the receipt says not saved, and the panel is free again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      mountHeld()
+      send('make this weekly')
+      await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 4000 })
+      expect(lastReceipt().getAttribute('data-saving')).toBe('true')
+      await vi.advanceTimersByTimeAsync(SAVE_WAIT_MS + 50)
+      await waitFor(() => expect(lastReceipt().getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
+      expect(lastReceipt().textContent).toMatch(/not saved yet/i)
+      expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
+      await p.idle()
+    } finally { vi.useRealTimers() }
+  }, 30000)
+
+  it('a failure after the save still clears Saving: the receipt is never left on it', async () => {
+    const m = mountHeld()
+    send('make this weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 4000 })
+    vi.spyOn(m.board.host.charts, 'read').mockImplementation(() => { throw new Error('boom') })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    m.answer({ ok: true })
+    await waitFor(() => expect(lastReceipt().getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
+    expect(screen.queryByTestId('agent-receipt-saving')).toBeNull()
+  }, 30000)
+
   it('the lock holds: a second message while the save is out is not run', async () => {
     const { answer, board } = mountHeld()
     send('make this weekly')
@@ -145,6 +172,17 @@ describe('settle: only a ticker or timeframe change skips the wait on other pref
 })
 
 describe('only when nothing follows', () => {
+  it('NEGATIVE: a model plan keeps the old order: the receipt follows the save', async () => {
+    onBoard()
+    const { answer } = heldSave()
+    p.st.envelopes.push(p.env('apply', [{ action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } }]))
+    send('kindly flip the chart over to the weekly')
+    await waitFor(() => expect(p.st.persist).toHaveBeenCalled(), { timeout: 4000 })
+    expect(receipts()).toHaveLength(0)
+    answer({ ok: true })
+    await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 4000 })
+    await p.idle()
+  }, 30000)
   it('NEGATIVE: a request with a deferred step keeps the old order: the receipt follows the save', async () => {
     onBoard()
     const { answer } = heldSave()

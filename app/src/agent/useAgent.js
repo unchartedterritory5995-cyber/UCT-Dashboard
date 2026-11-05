@@ -572,6 +572,14 @@ async function persistBoard(host, ops) {
   }
 }
 
+// ⛔ "Saving…" can't stay up, and the panel can't stay locked, on a save that never answers. No answer in time is not confirmed,
+// and is said as that (UNSAVED_NOTE); a save slower than this reads the same way, with the change still on screen.
+export const SAVE_WAIT_MS = 45000
+const withinSaveWait = (p) => new Promise((resolve, reject) => {
+  const t = setTimeout(() => resolve({ ok: false, reason: 'not-saved' }), SAVE_WAIT_MS)
+  p.then((v) => { clearTimeout(t); resolve(v) }, (e) => { clearTimeout(t); reject(e) })
+})
+
 // the server's stage timings (ms only) for the turn trace
 const stagesOf = (data) => { const s = data?.usage?.stages; return s && typeof s === 'object' ? JSON.stringify(s) : null }
 
@@ -1247,7 +1255,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // never a claim that it is saved. Everything else still waits for the save: the lock, the in-flight mark, the working
       // signal, Undo and the record. The save's answer patches this same receipt (below), a failure in words.
       // Only a change that is the whole request: a step, a follow-up or a deferred step has its order to keep.
-      if (res.ok && !more && !lead && !afterCommit && !deferred.length && !res.followUps?.length && !tapRef.current && !v2TapRef.current
+      if (res.ok && path !== 'model' && !more && !lead && !afterCommit && !deferred.length && !res.followUps?.length && !tapRef.current && !v2TapRef.current
         && ((!selfSaved(plan.plans) && host?.persist && boardEpoch(host, ops) != null) || drawingRefsOfPlan(plan).length)) {
         const first = composed ? [...composed.lines, ...res.lines] : res.lines
         const notes = receiptNotes()
@@ -1263,10 +1271,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const s = selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)
         return s.ok ? confirmDrawings(host, drawingRefsOfPlan(plan)) : s
       }
-      saved = res.ok ? await persisted().catch(() => ({ ok: false, reason: 'not-saved' })) : { ok: true }
+      saved = res.ok ? await withinSaveWait(persisted()).catch(() => ({ ok: false, reason: 'not-saved' })) : { ok: true }
     } finally {
       // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
       writeLocal(AGENT_INFLIGHT_KEY, null)
+      if (saying) patchItem(saying, { saving: false })       // here, so nothing after this can leave a receipt on "Saving…"
     }
     mark('persist', saved.ok ? 'ok' : saved.reason)
     if (res.undo && saved.ok) {
@@ -1280,7 +1289,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (lead) lead.used = true
       if (!saved.ok) {
         const unsaved = { undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true }
-        if (saying) patchItem(saying, { ...unsaved, saving: false })
+        if (saying) patchItem(saying, unsaved)
         else push({ role: 'receipt', lines, ...unsaved })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
@@ -1299,7 +1308,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const receiptId = saying || nid()
       const shown = receiptCharts(host, plan, res)
       watchChartFaults(plannedChartRefs(plan, res), { receiptId, undoId: res.undo?.id || null, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
-      if (saying) patchItem(saying, { saving: false, undoId: res.undo?.id || null })
+      if (saying) patchItem(saying, { undoId: res.undo?.id || null })
       else if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: receiptNotes(afterNote) })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
@@ -2348,6 +2357,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (!fast.target?.position && !fast.target?.chart && !ordAsk && candidates.length > 1) {
           const d = resolveDeictic({ host, kind, candidates, text, chartOp: true })
           if (d?.ref) candidates = candidates.filter(c => c.ref === d.ref)
+          // a description fitting several charts: the question offers those, not the whole board
+          else if (d?.ask?.choices?.length) candidates = candidates.filter(c => d.ask.choices.some(x => x.ref === c.ref))
           if (d?.implicit && candidates.length === 1) implicitTarget = `On ${candidates[0].label || 'the chart you selected'} — the chart you last clicked.`
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts

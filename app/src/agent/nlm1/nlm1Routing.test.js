@@ -118,7 +118,7 @@ describe('undo rides on its own words, never on the words of its description', (
   })
   it.each(['undo', 'undo that', 'undo the last change', 'undo my last change', 'revert your last change', 'undo everything you just did', 'take that back', 'reverse that',
     'put it back how it was', 'go back to how it was', 'oops', 'whoops', 'my bad, go back to before', 'ctrl z', 'nah that is wrong, put it the way it was', 'that was wrong, change it back',
-    'your last change was wrong', 'not what i wanted'])('signal, offered and recognised: %s', (q) => {
+    'your last change was wrong', 'not what i wanted', 'back out the last change', 'back that out', 'walk that back', 'change it back', 'remove what you just added'])('signal, offered and recognised: %s', (q) => {
     const s = sel(q)
     expect(s.undoSignal).toBe(true)
     expect(s.matched).toBe(true)

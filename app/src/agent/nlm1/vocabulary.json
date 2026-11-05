@@ -1017,6 +1017,42 @@
   "undo": {
    "undo": 1
   },
+  "back out": {
+   "undo": 1
+  },
+  "back that out": {
+   "undo": 1
+  },
+  "back it out": {
+   "undo": 1
+  },
+  "walk back": {
+   "undo": 1
+  },
+  "walk that back": {
+   "undo": 1
+  },
+  "rescind": {
+   "undo": 1
+  },
+  "change it back": {
+   "undo": 1
+  },
+  "change that back": {
+   "undo": 1
+  },
+  "set it back": {
+   "undo": 0.8
+  },
+  "what you just added": {
+   "undo": 0.8
+  },
+  "what you just changed": {
+   "undo": 0.8
+  },
+  "what you just made": {
+   "undo": 0.8
+  },
   "scratch that": {
    "undo": 1
   },
