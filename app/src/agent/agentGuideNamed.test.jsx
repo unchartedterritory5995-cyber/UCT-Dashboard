@@ -95,7 +95,7 @@ describe('words that do not name a chart (AUDIT N2)', () => {
     // held out: the same classes, other words
     'how do I open the heikin ashi chart', 'how do I turn on the percent chart', 'how do I see the premarket chart', 'how do I get back to the original chart',
     'how do I use the renko chart', 'how do I change the extended hours chart', 'how do I reset my main chart', 'how do I fix the inverted chart',
-    'how do I add RSI to the TSLA chart', 'how do I add RSI to the tsla chart', 'how do I change the left chart', 'how do I change the second chart', 'how do I change the weekly chart',
+    'how do I change the left chart', 'how do I change the weekly chart',
   ])('one chart never refuses: %s', (q) => { expect(namedChart(q, ONE)).toBeNull() })
   it.each([
     'how do I switch to the log chart', 'how do I make my candles chart hollow', 'how do I reset to the default chart', 'how do I change my intraday chart',
@@ -140,6 +140,76 @@ describe('words that do not name a chart (AUDIT N2)', () => {
     const charts = [chart('a', 'AAPL', 'left', 0, 'D'), chart('b', 'NVDA', 'right', 1, '5')]
     expect(namedChart(q, charts)?.say).toMatch(said)
     expect(namedChart(q, charts)?.chart).toBeUndefined()
+  })
+})
+
+describe('one chart, and the words named another', () => {
+  afterEach(() => { cleanup(); _resetGuide() })
+  const NOTE = 'This board only has AAPL, so I’ll show it there.'
+  const told = (q, charts = [chart('a', 'AAPL', 'left', 0)]) => {
+    const { container } = render(<div data-widget-id="a"><button data-guide="chart.timeframe">1D</button></div>)
+    const el = container.querySelector('button')
+    el.getBoundingClientRect = () => ({ left: 10, right: 40, top: 10, bottom: 30, width: 30, height: 20 })
+    el.getClientRects = () => [{}]
+    const out = showFeature(guideFeature('timeframe'), { surface: 'charts', charts: { list: () => charts, selected: () => 'a' } }, q)
+    const walked = guideState()?.chartRef ?? null
+    cleanup(); _resetGuide()
+    return { out, walked }
+  }
+  // every sentence walks the only chart. The ones that named another say so, first, in the board's own symbol
+  it.each([
+    'how do I change the timeframe on the TSLA chart', 'how do I change the timeframe on the tsla chart', 'how do I change the timeframe on TSLA',
+    'how do I change the timeframe on the BRK.B chart', 'how do I change the timeframe on my Nvidia chart', 'how do I change the timeframe on this MSFT chart',
+    'how do I change the timeframe on the second chart', 'how do I change the timeframe for NVDA',
+    // held out
+    'walk me through changing the interval on that AMD chart', 'how would I change the timeframe in GOOGL', 'where do I set the timeframe on the tesla chart', 'how do I switch timeframes on chart 3',
+  ])('named another: %s', (q) => {
+    const { out, walked } = told(q)
+    expect(walked).toBe('a')
+    expect(out.startsWith(`${NOTE} I’ve highlighted it`)).toBe(true)
+  })
+  it('the note reads the symbol from the board', () => {
+    expect(told('how do I change the timeframe on the TSLA chart', [chart('a', 'SPY', 'left', 0)]).out).toMatch(/^This board only has SPY, so I’ll show it there\./)
+  })
+  it('a chart with no symbol yet claims none', () => {
+    expect(told('how do I change the timeframe on the TSLA chart', [chart('a', '', 'left', 0)]).out).toMatch(/^This board only has one chart, so I’ll show it there\./)
+  })
+  // each pairs with a sentence that does draw the note, so it cannot pass on a page that never says one
+  const another = told0 => told0('how do I change the timeframe on the TSLA chart').out.startsWith(NOTE)
+  it.each([
+    // the same chart
+    'how do I change the timeframe on the AAPL chart', 'how do I change the timeframe on the aapl chart', 'how do I change the timeframe on AAPL', 'how do I change the timeframe on my AAPL chart',
+    'where do I set the timeframe on this AAPL chart',
+    // nothing named
+    'how do I change the timeframe', 'how do I change the timeframe on my chart', 'how do I change the timeframe on this chart', 'how do I change the timeframe on the chart',
+    // words that are about the chart here
+    'how do I change the timeframe on the log chart', 'how do I change the timeframe on the 1D chart', 'how do I change the timeframe on the 1W chart', 'how do I change the timeframe on the candles chart',
+    'how do I change the timeframe on the OHLC chart', 'how do I change the timeframe on the HA chart', 'how do I change the timeframe on the default chart', 'how do I change the timeframe on my intraday chart',
+    'how do I change the timeframe on the left chart', 'how do I change the timeframe on the first chart', 'how do I change the timeframe on the 5m chart', 'how do I change the timeframe on the RSI chart',
+    // held out
+    'how do I change the timeframe on the 2-day chart', 'how do I change the timeframe on the 3 month chart', 'how do I change the timeframe on the renko chart', 'how do I change the timeframe on this premarket chart',
+    'how do I change the timeframe on the inverted chart', 'how do I set it to RTH', 'how do I export it to CSV', 'how do I change the timeframe on the hourly chart', 'how do I change the timeframe in OHLC',
+  ])('no note: %s', (q) => {
+    expect(another(told)).toBe(true)
+    const { out, walked } = told(q)
+    expect(walked).toBe('a')
+    expect(out).toMatch(/^I’ve highlighted it/)
+  })
+  it('a board of several still refuses, on any clicked chart, and no note stands in for it', () => {
+    expect(another(told)).toBe(true)
+    const two = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '5')]
+    const { out, walked } = told('how do I change the timeframe on the TSLA chart', two)
+    expect(walked).toBeNull()
+    expect(out).toMatch(/no TSLA chart/)
+    expect(out).not.toMatch(/only has/)
+  })
+  it('the fast path carries the words that draw the note, and only those', () => {
+    const host = { surface: 'charts', charts: { list: () => [chart('a', 'AAPL', 'left', 0)], selected: () => 'a' } }
+    const fast = (raw) => getCapability('guide.show').fast({ raw, host })
+    expect(fast('how do I use the symbol search on the TSLA chart').feature).toBe('symbol')
+    expect(fast('how do I use the symbol search on the TSLA chart').detail).toMatch(/TSLA/)
+    expect(fast('how do I use the symbol search on the AAPL chart').detail).toBeUndefined()
+    expect(fast('how do I use the symbol search on the 1D chart').detail).toBeUndefined()
   })
 })
 

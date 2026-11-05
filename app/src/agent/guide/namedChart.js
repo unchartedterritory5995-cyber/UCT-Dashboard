@@ -9,12 +9,13 @@
 //
 // ⛔ A CHART THE WORDS NAME AND THE BOARD DOES NOT HOLD IS SAID, never swapped for another: walking the wrong chart looks
 // exactly like walking the right one. Nothing here is a phrase rule: it only reads which chart, once a walkthrough is chosen.
+// ⭐ ONE CHART IS THE EXCEPTION: there is nothing to choose, so it walks there, and says so when the words named another.
 
 import { ordinalChart } from '../deixis'
 import { readIndicator } from './slots'
 
 const POSITION = /\b(?:the\s+)?((?:top|bottom|upper|lower)[- ]?(?:left|right)|left|right|top|bottom|upper|lower)(?:[- ]hand)?(?:[- ]side)?\s+(?:chart|cell|one)\b/i
-const TF_CHART = /\b(?:the|my|this|that)\s+(\d{1,3}[- ]?(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours)|[1]?[dwm]|hourly|daily|weekly|monthly|day|week|month)\s+chart\b/i
+const TF_CHART = /\b(?:the|my|this|that)\s+(\d{1,3}[- ]?(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours|days?|weeks?|months?)|[1]?[dwm]|hourly|daily|weekly|monthly|day|week|month)\s+chart\b/i
 // "the TSLA chart", "my nvda chart", "the BRK.B chart", "the Nvidia chart": "how can I chart" has no "the" and is not one, and
 // nor is a chart's own feature ("the UCT chart theme")
 const WORD_CHART = /\b(?:the|my|this|that)\s+([a-z0-9][a-z0-9.-]*)\s+chart\b(?!\s+(?:themes?|templates?|settings?|types?|grid|tabs?))/gi
@@ -30,11 +31,15 @@ const NOT_A_NAME = new Set([
   // which one, without saying which
   'default original standard normal usual clean blank empty saved shared main primary secondary whole entire full current active selected focused clicked linked same other another next previous new old big small large wide narrow favourite favorite only one actual real',
   // the product's own words
-  'uct multi grid price stock ticker symbol volume breadth market time timeframe trading own',
+  'uct multi grid price stock ticker symbol volume breadth market time timeframe trading own drawing indicator watchlist news dark light fullscreen full-screen',
+  // keys and files: "set it to ALT", "export to CSV"
+  'alt ctrl shift esc enter tab pdf csv png',
   // an order or a place: an ordinal and a position are read on their own
   'first second third fourth fifth sixth last middle center centre left right top bottom upper lower',
 ].join(' ').split(' '))
 const isNotAName = (word) => { const w = word.toLowerCase(); return NOT_A_NAME.has(w) || NOT_A_NAME.has(w.replace(/s$/, '')) }
+// could this word be a chart's name at all? Tickers have letters; a timeframe or an indicator between "the" and "chart" is neither
+const couldName = (word) => /[a-z]/i.test(word) && !isNotAName(word) && !tfCode(word) && !readIndicator(word)
 const listOf = (charts) => charts.map(c => c.label).join(', ')
 
 const TF_WORDS = { hourly: '60', daily: 'D', day: 'D', weekly: 'W', week: 'W', monthly: 'M', month: 'M' }
@@ -46,6 +51,8 @@ function tfCode(word) {
   if (/^1?w$/i.test(raw)) return 'W'
   const w = raw.toLowerCase().replace('-', ' ')
   if (TF_WORDS[w]) return TF_WORDS[w]
+  const long = /^(\d+)\s*(day|week|month)s?$/.exec(w)
+  if (long) return `${long[1] === '1' ? '' : long[1]}${long[2][0].toUpperCase()}`
   const m = /^(\d+)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)$/.exec(w)
   return m ? String(/^h/.test(m[2]) ? Number(m[1]) * 60 : Number(m[1])) : null
 }
@@ -58,11 +65,24 @@ const atPosition = (c, word) => {
   return !!c.position && parts.every(p => c.position.split('-').includes(p))
 }
 
-/** → { chart } | { say } | null (the words name no chart: the clicked one stands). */
+// ⛔ the same test as a refusal on a bigger board: a word that survives the classes above names a chart. A timeframe, a position
+// and a chart type are about the chart that is here. The note is true whatever the word was, and it only ever adds a sentence
+function namesAnother(s, only) {
+  const ord = ordinalChart(s, [only])
+  if (ord?.ask && /chart/i.test(ord.match[0]) && !/middle|cent(?:er|re)/i.test(ord.match[0])) return true
+  const other = (word) => !sameSymbol(only, word) && couldName(word)
+  for (const m of s.matchAll(WORD_CHART)) if (other(m[1])) return true
+  for (const m of s.matchAll(BARE_TICKER)) if (m[1].length > 1 && other(m[1])) return true
+  return false
+}
+const onlyNote = (c) => `This board only has ${c.symbol || 'one chart'}, so I’ll show it there.`
+
+/** → { chart, note? } | { say } | null (the words name no chart: the clicked one stands). */
 export function namedChart(words, charts = []) {
   const s = String(words || '')
+  if (!s || !charts.length) return null
   // one chart: nothing to choose between, and nothing to refuse
-  if (!s || charts.length < 2) return null
+  if (charts.length === 1) return namesAnother(s, charts[0]) ? { chart: charts[0], note: onlyNote(charts[0]) } : null
   const names = new Set()
   const ord = ordinalChart(s, charts)
   if (ord && /chart/i.test(ord.match[0])) {
@@ -85,7 +105,7 @@ export function namedChart(words, charts = []) {
   }
   for (const m of s.matchAll(WORD_CHART)) {
     const word = m[1]
-    if (!onBoard(word, charts) && (isNotAName(word) || tfCode(word) || readIndicator(word))) continue
+    if (!onBoard(word, charts) && !couldName(word)) continue
     const hits = charts.filter(c => sameSymbol(c, word))
     if (hits.length > 1) return { say: `More than one chart shows ${word.toUpperCase()}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) {
