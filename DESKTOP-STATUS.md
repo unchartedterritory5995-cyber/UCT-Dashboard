@@ -483,3 +483,9 @@ Merging to master is still not authorized in this file; the owner approves it di
   - Follow-ups F13-F17: N1-N2 two unrailed resolved lines; N3 a dead check in serverBundle.rail; N4 editorStatus phrase authority; N5 a stale comment.
   - N6: SCORE, W4-T1 and W4-T4 were reviewed by the laptop coordinator (merge queue of 11-03), so there are no desktop review files.
   M2 and the measure-pair are running.
+- 2026-11-05 12:11 TRAIN M2 @1eb3ba53e5: ok apart from baselines.
+  - Master baselines (red on 646dca8cbf too): enumerationSites, vendorHarness, and test_vendor_batch_capture manifest (cdc-btc-rainbow-road captured 10-02).
+  - coverageAudit delta-rsi is a 1000 ms wall-clock instrument limit, not a slowdown: master 942/808/761 ms vs train 922/746/745 ms. Budget not widened.
+  - ready-check allowlist updated, ops 7f0b4e921a.
+  - The C18 measure-pair is running.
+- 2026-11-05 12:11 W9-T3a/b 38777a9f47 READY pending review (reader 21 slots, 48 probes, mutations 42/42). W9-T0 9054c0197c re-checking coverageAudit.
