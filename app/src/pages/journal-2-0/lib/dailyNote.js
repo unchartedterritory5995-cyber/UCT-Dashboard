@@ -22,6 +22,11 @@ export const DAILY_TEMPLATE_PREF = 'notebook_daily_template'
  *  Notebook's Ctrl+Alt+D shortcut (tabs/NotebookTab.jsx) and the Today panel. One sentence, one place. */
 export const DAILY_TEMPLATE_MISSING = "Your daily template no longer exists, so today's note started blank."
 
+/** Audit 2026-11-05, spec S2 (B12): what a door says when it MADE the day's note. The server files a
+ *  new daily note in a root `Daily` folder (creating the folder the first time); a member who never
+ *  made that folder deserves to know where the note went. One sentence, one place. */
+export const DAILY_FOLDER_NOTICE = 'Saved in your Daily folder.'
+
 /** Open (or make) today's note. Resolves `{note, created, templateMissing}`. */
 export async function openDailyNote({ templateId, today = todayET } = {}) {
   const res = await fetch('/api/j2/notes/daily', {

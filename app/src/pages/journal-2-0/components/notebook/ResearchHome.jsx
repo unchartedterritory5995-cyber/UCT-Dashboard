@@ -28,6 +28,7 @@ import AskPanel from './AskPanel'
 import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/earningsPrepShared'
 import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
+import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
 import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
@@ -117,7 +118,7 @@ function NoteRow({ note, onOpen, reason }) {
 // Notebook UX pass: on Research Home the box sits in a collapsible section whose header already
 // names it, so `titleHidden` keeps its heading for screen readers and the skip link below while
 // it is not drawn a second time.
-export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '', titleHidden = false }) {
+export function ReviewDraftsHomeBox({ onOpenNote, onNotice = null, skipLinkClassName = '', titleHidden = false }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const headingRef = useRef(null)
@@ -136,7 +137,10 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '', titleH
     setError(null)
     try {
       // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
-      const { note } = await fn(await loadReviewDrafts())
+      const { note, created } = await fn(await loadReviewDrafts())
+      // S2 (B12): Today's recap that MADE the day's note says where it went (the server files it in
+      // a root Daily folder, made on first use). A recap added to an existing note says nothing more.
+      if (period === 'daily' && created) onNotice?.(DAILY_FOLDER_NOTICE)
       // Lane KEYS3 (Q18): a drafted review's findings are its collapsed blocks. The note opens
       // with focus on the first of them, not at its top (18 to 24 Tab stops above it).
       onOpenNote(note, null, { to: 'collapsed' })
@@ -336,6 +340,9 @@ export default function ResearchHome({
   // function its All Notes list header's "Today" button already calls (one authority, never
   // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
   onOpenToday = null,
+  // Audit 2026-11-05, spec S2 (B12): where the reviews box says a sentence that must outlive the
+  // navigation it triggers (NotebookTab's notice stack). Optional; absent, nothing is said.
+  onNotice = null,
   // P0.1 (the Home "New note" door): NotebookTab's own New-note sheet opener and its voice-note
   // starter (null while the voice gate is off, so the menu never lists a door that opens
   // nothing). Optional so every existing caller/test keeps working unchanged.
@@ -757,7 +764,7 @@ export default function ResearchHome({
   const reviewBox = reviewDraftsEnabled() ? (
     <HomeBox id="nb-home-reviews" title="Reviews that write themselves" meta="Daily, weekly and monthly"
       defaultOpen openSignal={tourSignal}>
-      <ReviewDraftsHomeBox onOpenNote={openNote} skipLinkClassName={skipLinkClassName} titleHidden />
+      <ReviewDraftsHomeBox onOpenNote={openNote} onNotice={onNotice} skipLinkClassName={skipLinkClassName} titleHidden />
     </HomeBox>
   ) : null
   // Wave 13 lane 13Q-3 (click-budget fix, Q5): same "one authority" reasoning as the three

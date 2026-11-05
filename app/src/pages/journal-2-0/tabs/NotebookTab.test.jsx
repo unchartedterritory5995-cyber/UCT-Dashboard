@@ -10,6 +10,13 @@ vi.mock('swr', async (importOriginal) => {
   return { ...actual, mutate: (...args) => { swrMutateSpy(...args); return actual.mutate(...args) } }
 })
 
+// Audit 2026-11-05, spec S2 (B1): the app focus (charts Group A) a test can set. Null by default,
+// so every other test runs with nothing charted.
+const appFocus = vi.hoisted(() => ({ symbol: null }))
+vi.mock('../../../hooks/useAppFocus', () => ({
+  default: () => ({ symbol: appFocus.symbol, setSymbol: () => {} }),
+}))
+
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
 // list or the editor.
@@ -427,6 +434,35 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.title).toBe('')
     expect(lastPostBody.bodyJson).toBeUndefined()
     expect(lastPostBody.tags).toBeUndefined()
+  })
+
+  // ⛔ Audit 2026-11-05, spec S2 (B1): a blank note was stamped with the last-charted symbol
+  // (CDNA for the test account), which then autofilled sector, industry and theme and dressed
+  // the note as a thesis. The ticker comes from the door that made the note, never app focus.
+  describe('S2 (B1): no silent ticker stamp', () => {
+    afterEach(() => { appFocus.symbol = null })
+
+    it('a blank note made while CDNA is charted carries no ticker', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=blank')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker ?? null).toBeNull()
+      expect(JSON.stringify(lastPostBody)).not.toContain('CDNA')
+    })
+
+    it('an explicit ticker from the door still seeds, whatever is charted', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=blank&ticker=nvda')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker).toBe('NVDA')
+    })
+
+    it('a template with no ticker while CDNA is charted carries no ticker', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=thesis')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker ?? null).toBeNull()
+    })
   })
 
   it('Wave B: ?new=blank&ticker=NVDA seeds the ticker on the blank note', async () => {

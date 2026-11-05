@@ -284,3 +284,46 @@ describe('a running tour opens the details (any start path)', () => {
     expect(localStorage.getItem(NOTE_DETAILS_PREF_KEY)).toBeNull()
   })
 })
+
+// ⛔ Audit 2026-11-05, spec S2: a ticker on a plain note grew the thesis controls, because a Compass
+// verdict for that ticker sat in the note's computed changelog. Only a real thesis shows them, and a
+// member asks for them from the note menu.
+describe('S2: thesis controls only on request', () => {
+  const VERDICT = { type: 'compass_verdict', at: '2026-11-04T00:00:00Z', verdictId: 'v1', label: 'GO', symbol: 'NVDA' }
+  const withSummary = (changelog) => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => (String(url) === '/api/j2/notes/n1/thesis-summary'
+      ? { ok: true, json: async () => ({ evidence: [], changelog }) }
+      : base(url, init)))
+  }
+
+  it('a plain note with a ticker and a verdict on file shows no thesis controls', async () => {
+    NOTE = { ...bareNote(), ticker: 'NVDA' }
+    PROPERTIES = [derived('builtin:ticker', 'Ticker', 'NVDA')]
+    withSummary([VERDICT])
+    const { container } = await renderEditor()
+    await waitFor(() => expect(summary(container)?.textContent).toContain('NVDA'))
+    expect(summary(container).textContent).not.toMatch(/review/i)
+    expect(screen.queryByText('Add evidence')).toBeNull()
+  })
+
+  it('"Make this a thesis" in the note menu writes kind Thesis through the property door', async () => {
+    NOTE = { ...bareNote(), ticker: 'NVDA' }
+    withSummary([VERDICT])
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    const item = await screen.findByRole('button', { name: /Make this a thesis/ })
+    fireEvent.click(item)
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith({ properties: { 'builtin:note_kind': 'thesis' } }))
+  })
+
+  it('a thesis is never offered "Make this a thesis"', async () => {
+    NOTE = thesisNote()
+    await renderEditor()
+    await waitFor(() => expect(global.fetch.mock.calls.map(([u]) => String(u))).toContain('/api/j2/notes/n1/thesis-summary'))
+    await new Promise((r) => setTimeout(r, 20))
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    await screen.findByRole('button', { name: 'Duplicate note' })
+    expect(screen.queryByRole('button', { name: /Make this a thesis/ })).toBeNull()
+  })
+})

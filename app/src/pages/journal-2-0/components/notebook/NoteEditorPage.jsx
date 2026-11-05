@@ -96,7 +96,9 @@ import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
-import ThesisSection, { isThesisShaped } from './ThesisSection'
+import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
+import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
+import TickerSuggestion from './TickerSuggestion'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
@@ -2139,6 +2141,20 @@ export default function NoteEditorPage({
     && isThesisShaped(note, thesisEvidence, thesisChangelog)
   const { completed: thesisReviewsDone, isLoading: reviewsLoading, error: reviewsError } =
     useThesisReviews(detailsThesis ? noteId : null)
+  // S2: the note menu's "Make this a thesis" -- kind Thesis through the property door.
+  const [makingThesis, setMakingThesis] = useState(false)
+  const makeThesis = async () => {
+    if (makingThesis) return
+    setMakingThesis(true)
+    try {
+      await update({ properties: { [NOTE_KIND_PROPERTY]: THESIS_KIND } })
+      setChromeMsg('This note is now a thesis. Evidence, the changelog and reviews are under its details.')
+    } catch (e) {
+      setChromeMsg(e?.message || "Couldn't make this note a thesis. Try again.")
+    } finally {
+      setMakingThesis(false)
+    }
+  }
 
   // Wave J: opens the preview Sheet for a document_excerpt evidence row in
   // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
@@ -5209,6 +5225,23 @@ export default function NoteEditorPage({
               <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               {duplicating ? 'Duplicating…' : 'Duplicate'}
             </button>
+            {/* Audit 2026-11-05, spec S2: thesis controls appear only for a real thesis, so a member
+                who wants them on a plain note asks here. It writes kind Thesis through the note's
+                own property door (`update`, the one PropertiesSection uses); ThesisSection and the
+                details line then read it from the note. Never offered on a thesis, a trade-plan
+                canvas, or a locked note. */}
+            {note && !detailsThesis && !thesisLoading && !thesisError && !isCanvas && !locked && !unreadable && (
+              <button
+                type="button"
+                className={styles.chromeBtn}
+                onClick={makeThesis}
+                disabled={makingThesis}
+                title="Add evidence, a changelog and reviews to this note"
+              >
+                <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                Make this a thesis
+              </button>
+            )}
             {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
                 actions (Lock, Archive, Save as template, Open beside). Lane E's
                 own file (NoteMenuActions.jsx) renders itself; this is the one
@@ -5743,6 +5776,10 @@ export default function NoteEditorPage({
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+        {/* Audit 2026-11-05, spec S2: a note is never stamped with the charted symbol any more;
+            once the body names a $TICKER twice it OFFERS the link, through the Ticker field's door. */}
+        <TickerSuggestion editor={editor} noteId={noteId} ticker={note?.ticker || null}
+          readOnly={locked || unreadable || isCanvas} onLink={(sym) => onTickerChange(sym)} />
         {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
             the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
             What only this editor can do is handed over as `api`; the host does the rest. */}
