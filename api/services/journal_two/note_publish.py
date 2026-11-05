@@ -436,11 +436,14 @@ def list_mine(user_id: str, note_id: str | None = None,
             # `publishable` is the door's answer: the caller's live note, not archived.
             ctx: dict[str, Any] = {"noteId": note_id, "exists": n is not None,
                                    "publishable": n is not None and not n["archived_at"],
-                                   "folderId": None, "folderName": None}
+                                   "folderId": None, "folderName": None, "folderNoteCount": None}
             if n is not None and n["folder_id"]:
                 f = _folder_row(conn, user_id, n["folder_id"])
                 if f is not None:
                     ctx["folderId"], ctx["folderName"] = f["id"], f["name"]
+                    # Audit 2026-11-05, spec S1: the editor's confirm step names how many notes a
+                    # folder publish takes -- the SAME query and cap publish_folder snapshots with.
+                    ctx["folderNoteCount"] = len(_live_notes_in_tree(conn, user_id, f["id"], MEMBER_CAP))
             out["note"] = ctx
         return out
     finally:

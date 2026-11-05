@@ -5120,7 +5120,7 @@ export default function NoteEditorPage({
               Find
             </button>
           )}
-          <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
+          <NoteShareControls noteId={noteId} noteTitle={title} onMessage={setChromeMsg} />
           {/* Wave 8 (8A): the header's select and inputs carry names -- a
               placeholder vanishes once there is a value, and a select has none. */}
           <select

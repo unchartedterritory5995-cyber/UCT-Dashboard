@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../../../components/TileCard'
 import UIcon from '../../../components/ui/UIcon'
@@ -77,17 +77,25 @@ export default function PersonalApiCard() {
   const [busyId, setBusyId] = useState(null)
   const [message, setMessage] = useState(null)
   const [seenBefore] = useState(gateSeen)
+  // Audit 2026-11-05, spec S1 (B19): Revoke asks first. The id of the token being asked about.
+  const [confirmId, setConfirmId] = useState(null)
+  const cancelRevokeRef = useRef(null)
+  useEffect(() => { if (confirmId) cancelRevokeRef.current?.focus() }, [confirmId])
+  // S1 (B19): a token needs a name. A key with no name cannot be told apart in the list when the
+  // member later has to revoke the right one.
+  const named = label.trim().length > 0
   useEffect(() => { rememberGate(data) }, [data])
 
   const make = useCallback(async (e) => {
     e?.preventDefault?.()
+    if (!label.trim()) return
     setMaking(true); setMessage(null); setCopied(false)
     try {
       const res = await fetch(PERSONAL_API_URL, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(label.trim() ? { label: label.trim() } : {}),
+        body: JSON.stringify({ label: label.trim() }),
       })
       if (!res.ok) {
         setMessage(res.status === 402
@@ -117,6 +125,7 @@ export default function PersonalApiCard() {
   }, [made])
 
   const revoke = useCallback(async (id) => {
+    setConfirmId(null)
     setBusyId(id); setMessage(null)
     try {
       const res = await fetch(`${PERSONAL_API_URL}/${encodeURIComponent(id)}`, {
@@ -186,7 +195,7 @@ export default function PersonalApiCard() {
               aria-label="Token name"
               onChange={(e) => setLabel(e.target.value)}
             />
-            <button type="submit" className="btn btn-primary" disabled={making}>
+            <button type="submit" className="btn btn-primary" disabled={making || !named}>
               {making ? 'Making…' : 'Make a token'}
             </button>
           </form>
@@ -206,12 +215,27 @@ export default function PersonalApiCard() {
               {t.expiresAt ? ` · expires ${when(t.expiresAt)}` : ''}
             </div>
           </div>
-          <button type="button" className="btn btn-danger"
-                  disabled={busyId === t.id}
-                  aria-label={`Revoke ${t.label}`}
-                  onClick={() => revoke(t.id)}>
-            {busyId === t.id ? 'Revoking…' : 'Revoke'}
-          </button>
+          {confirmId === t.id ? (
+            <div role="group" aria-label="Confirm revoke" className={styles.confirm}>
+              <span className={styles.confirmText}>
+                {`Revoke "${t.label}"? Shortcuts using this key stop working at once.`}
+              </span>
+              <button type="button" ref={cancelRevokeRef} className="btn btn-ghost"
+                      onClick={() => setConfirmId(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={() => revoke(t.id)}>
+                Revoke
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn btn-danger"
+                    disabled={busyId === t.id}
+                    aria-label={`Revoke ${t.label}`}
+                    onClick={() => { setMessage(null); setConfirmId(t.id) }}>
+              {busyId === t.id ? 'Revoking…' : 'Revoke'}
+            </button>
+          )}
         </div>
       ))}
 

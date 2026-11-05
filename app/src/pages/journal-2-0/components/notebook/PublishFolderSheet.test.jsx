@@ -182,7 +182,7 @@ describe('a refusal shows the server\'s sentence', () => {
     S.post = () => json(500, {})
     const { dialog } = await openSheet()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }))
-    await waitFor(() => expect(status(dialog)).toBe('Could not publish. Try again.'))
+    await waitFor(() => expect(status(dialog)).toBe("Couldn't publish. Nothing was made public."))
   })
 })
 
@@ -238,7 +238,7 @@ describe('one publish helper, one set of sentences (ruling D-9D2)', () => {
 
   it('the sentences live once, in lib/notePublishLink.js — neither door restates them', () => {
     const lib = read('lib/notePublishLink.js')
-    for (const sentence of [PUBLIC, SCOPE, 'Could not publish. Try again.', 'Page link copied.']) {
+    for (const sentence of [PUBLIC, SCOPE, "Couldn't publish. Nothing was made public.", 'Page link copied.']) {
       expect(lib, sentence).toContain(sentence)
       for (const f of DOORS) expect(read(f), `${f} restates: ${sentence}`).not.toContain(sentence)
     }
