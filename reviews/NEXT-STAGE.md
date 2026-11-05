@@ -72,3 +72,7 @@ Reviewed GO and unmerged: 37 lanes, plus 3 held since 11-03 (language scoreboard
 5. The W5-T15 vs T14 history-length rule (500 vs 5,000 bars).
 6. Who owns the Q2 sweep cap of 25 documents a night.
 7. The W7.2 data contract for other symbols intraday.
+
+## 7. Rulings 2026-11-05
+- F8 / R10: one history rule (5,000 bars, W5-T14); T15 derives from it.
+- F9 / R11: the sweep cap is owned by the scans lane, as a named constant with a coverage line.

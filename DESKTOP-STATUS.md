@@ -445,3 +445,8 @@ open: acceptance capture W4-P1 not done (row in docs/pine/capture-queue-2026-11-
 - N3: W9 strategy-tester design.
 - N4: editor status panel round-3 delta review.
 Then N5: W0 re-measure on the train tip; N6-N9 build from the train tip. <<<
+
+>>> 2026-11-05 08:10 Design rulings (delegated):
+- R10 (history length): one rule. W5-T14's 5,000-bar runtime history is the authority; W5-T15 derives from it (follow-up F8).
+- R11 (Q2 sweep cap): owned by the scans lane, as one named constant with a coverage line when it truncates (follow-up F9).
+Merging to master is still not authorized in this file; the owner approves it directly at merge time. <<<
