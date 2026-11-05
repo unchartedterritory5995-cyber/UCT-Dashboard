@@ -147,3 +147,21 @@ On this tip: 1 failed (the manifest test) / 21 passed. It fails with the same as
 change, and the manifest was NOT regenerated. Cause: `batch-manifest.json` still lists `cdc-btc-rainbow-road`, which the train fixture of
 `3e90f18e0a` already captures; the test's `captured_shas` finds it. A manifest regeneration is the train owner's.
 `vendorHarness.coverageAudit` solo run on this tip: `runs/w9t3/coverageAudit-solo.log` (1 failed, 184 passed; `delta-rsi-oscillator-strategy` INCONCLUSIVE).
+
+## Fix r1 (review W9-T3 NO-GO @38777a9f47)
+- B1 fixed: `declaredStrategyArgs` locates `strategy(` on comment- and string-blanked text (`blankSource`, the rule of `range_guard.blank`).
+  `settingsAgreement` never returns AGREE on nothing: no declaration is `strategy-settings:no-declaration`, a declaration with no literal is
+  `strategy-settings:nothing-compared`, both INCONCLUSIVE; `verify_capture` prints the reason. Rails: the reviewer's case (commented
+  `strategy (` above `initial_capital = 5000`, read-back 100000 gives INCONCLUSIVE with the disagreement), a string and a trailing comment,
+  the two named zero-compared cases, the 4 named corpus strategies parse a declaration, and the verify_capture line.
+- N1 fixed: `_strategyKeys` walks property descriptors only (own or inherited getters are reported `accessor`, never run); rail with an own and
+  a prototype getter spy.
+- N2 (the reviewer's 4 survivors) now each killed by name: (a) unpinned slot not guessed from a tree key, (b) partial report refused by
+  `readReport`, (c) snippet records the given `warmupBars`, (d) method (a) carries no gradeRange.
+- Mutations (`runs/w9t3/mut2.py`, `mut2.log`): 10 of 10 KILLED (3 B1 guards + reason line, getter walk, N2a-d) + 1 no-op control green. Total with the first table: 52 killed, 5 controls green.
+- final-tip run 2 (FULL scope, `source dsk/node20.sh`, Node 20.20.2, after merging the then-current train): TIP `e620cf4473`;
+  `runs/w9t3/final2.log`, `final2/`. rc gate=0 hyg=0 py=1 js=1 totals=ok errors=0 integrity=ok. vitest `Test Files 4 failed | 1362 passed`,
+  `Tests 4 failed | 23245 passed`; failing files: enumerationSites, vendorHarness.test, settingsScope.rail, pollingSites.rail (all baselines).
+  py: the `test_vendor_batch_capture` manifest test only (fails identically on the clean train tip, log `runs/w9t3/batch-capture-train-solo.log`).
+  `vendorHarness.coverageAudit` PASSED in this full run; its earlier failure (delta-rsi runtime pane, solo log `runs/w9t3/coverageAudit-solo.log`)
+  was a wall-clock flake, not a change of ours.
