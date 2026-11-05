@@ -339,3 +339,41 @@ describe('M-5 -- one authority for the Notebook route (lib/journalRoutes.js)', (
     expect(NOTEBOOK_PATH).toBe('/journal/notebook')
   })
 })
+
+// Tier 2 (production check of Tier 1b, 390 x 844): the first note sat at y=320 (spec ~110). On the phone Notebook the
+// folded "Journal tools" toggle is a ⋯ at the end of the section strip (no row of its own), and the strip is labels
+// only at the 44 px floor. jsdom applies no CSS, so the rendered half (the hooks the rules key on, the toggle's name)
+// and the structural half (the rules, in the phone block only, on the compact route only) are railed separately.
+describe('the phone Notebook header takes no row of its own (Tier 2)', () => {
+  const css = (f) => readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const phoneBlocks = (text) => [...text.matchAll(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
+
+  it('rendered: the strip is marked compact on the Notebook only, and the folded toggle keeps the name "Journal tools"', () => {
+    renderAt('/journal/notebook')
+    expect(screen.getByRole('navigation', { name: 'Journal sections (mobile)' })).toHaveAttribute('data-compact')
+    expect(toggle()).toBeInTheDocument()
+    expect(toggle().textContent).toMatch(/Journal tools/)
+  })
+
+  it('CONTROL: another Journal page keeps the icon-over-label strip (not compact)', () => {
+    renderAt('/journal/trades')
+    expect(screen.getByRole('navigation', { name: 'Journal sections (mobile)' })).not.toHaveAttribute('data-compact')
+  })
+
+  it('structural: folded, the header is out of the flow on the compact route, in the phone block only', () => {
+    const phone = phoneBlocks(css('JournalLayout.module.css'))
+    expect(phone).toMatch(/\.root\[data-compact-header\]:not\(\[data-tools-open\]\) \.header \{[^}]*position: absolute;/)
+    // open, nothing takes it out of the flow (the D2 layout of the revealed controls stands)
+    expect(phone).not.toMatch(/\.root\[data-compact-header\]\[data-tools-open\] \.header \{[^}]*position: absolute/)
+    const whole = css('JournalLayout.module.css').replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
+    expect(whole).not.toMatch(/\.header \{[^}]*position: absolute/)
+  })
+
+  it('structural: the compact strip is 44 px labels only, with room at its end for the ⋯', () => {
+    const phone = phoneBlocks(css('JournalMobileNav.module.css'))
+    expect(phone).toMatch(/\.mobileNav\.compact \{[^}]*padding-right: 52px;/)
+    expect(phone).toMatch(/\.compact \.icon \{ display: none; \}/)
+    const base = css('JournalMobileNav.module.css')
+    expect(base).toMatch(/\.item \{[^}]*min-height: var\(--tap-min\);/)      // the 44 px floor still holds
+  })
+})

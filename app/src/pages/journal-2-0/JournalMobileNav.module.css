@@ -114,3 +114,20 @@
     padding-right: 3px;
   }
 }
+
+/* Tier 2 (production check of Tier 1b, 390 x 844): on the phone Notebook (`compact`, JournalLayout passes it on
+   that route only) the strip is labels only at the 44 px floor, with a tighter gap below, and keeps 52 px free at
+   its end for the folded "Journal tools" ⋯ that sits over it (JournalLayout.module.css). Every other page keeps
+   the icon-over-label strip. */
+@media (max-width: 640px) {
+  .mobileNav.compact {
+    margin: 0 0 8px;
+    padding-right: 52px;
+  }
+  .compact .item {
+    min-width: 0;
+    padding: 0 10px;
+    gap: 0;
+  }
+  .compact .icon { display: none; }
+}

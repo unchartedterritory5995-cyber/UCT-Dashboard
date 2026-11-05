@@ -428,7 +428,10 @@
   .phoneOnlyItem { display: flex !important; }
   /* 16px inputs avoid the iOS focus-zoom */
   .search, .sortSelect { font-size: 16px; }
-  .sortSelect { max-width: 34vw; }
+  .sortSelect { max-width: 34vw; padding: 0 6px; }
+  /* Tier 2 (production check of Tier 1b, 390 px): Folders, View, sort and ⋯ on ONE line (V4) -- the ⋯ had
+     wrapped onto a row of its own. Tighter side padding on the row's labelled buttons pays for it. */
+  .toolbar .toolBtn, .toolbar .phoneFolders { padding-inline: 10px; }
   /* position: the ⋯ menu hangs from this row, right-aligned (NewNoteMenu's phone rule hangs a menu from
      its LEFT edge, which would run a row-end menu off a 390 px screen) */
   .newWrap { margin-left: auto; position: relative; }
