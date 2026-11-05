@@ -95,7 +95,7 @@ def _token_label(tok: str) -> str:
     return " ".join(out)
 
 
-def _open_range(key, label, category, column, unit=None, factual=()):
+def _open_range(key, label, category, column, unit=None, factual=(), description=None):
     """A range control with no EDITORIAL preset thresholds — only ``Any``, the
     custom min/max the member types, and any FACTUAL presets passed in.
 
@@ -134,19 +134,33 @@ def _open_range(key, label, category, column, unit=None, factual=()):
     retyped in a test.
     """
     presets = [{"label": "Any"}] + [dict(p) for p in factual]
-    key, spec = _range(key, label, category, column, presets, unit)
+    key, spec = _range(key, label, category, column, presets, unit, description)
     spec["presets_deferred"] = True
     spec["factual_presets"] = tuple(p["label"] for p in factual)
     return key, spec
 
 
-def _bool(key, label, category, column):
-    return key, {"label": label, "category": category, "type": "bool",
-                 "column": column, "presets": [
-                     {"label": "Any"},
-                     {"label": "Yes", "op": "eq", "value": 1},
-                     {"label": "No", "op": "eq", "value": 0}],
-                 "allow_custom": False, "unit": None}
+def _bool(key, label, category, column, description=None):
+    spec = {"label": label, "category": category, "type": "bool",
+            "column": column, "presets": [
+                {"label": "Any"},
+                {"label": "Yes", "op": "eq", "value": 1},
+                {"label": "No", "op": "eq", "value": 0}],
+            "allow_custom": False, "unit": None}
+    if description:
+        spec["description"] = description
+    return key, spec
+
+
+#: What every scan primitive is measured on. These are nightly: the live tier does not re-derive them.
+_LAST_SESSION = "Measured at the last completed session."
+#: How a signed run reads, said once for all six.
+_RUN_RULE = ("Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on "
+             "the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N "
+             "sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. "
+             "Counted over the 400 stored sessions at most. Blank until both sides exist. " + _LAST_SESSION)
+_RISING_RULE = ("Yes when the average stands above its own value 20 sessions earlier. Blank until both values exist. "
+                + _LAST_SESSION)
 
 
 FILTERS = dict([
@@ -434,6 +448,77 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Within 1%", "op": "between", "min": -1, "max": 1},
             {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%"),
+    # ── scan primitives (`technicals.scan_primitives`) ──
+    # ⭐ COMPOSABLE CONDITIONS, NOT NAMED SCANS: each is one fact a screen combines with others. "Breakout on volume"
+    # is new_high_lookback plus vol_ratio, never a field of its own. ⛔ Each states its definition here, because a
+    # bare label leaves the window and the boundary to whoever reads it. All computed from the stored daily bars,
+    # none reads a later session than the one it describes, and none reads a base, pattern, rating or flow output.
+    # The first two are stored distances that had columns, a view seat and display defs but no filter.
+    _open_range("pct_vs_sma50", "SMA50 Distance", "technical", "pct_vs_sma50", unit="%",
+                description="Percent the price is above (+) or below (-) its 50-day simple moving average."),
+    _open_range("pct_vs_sma200", "SMA200 Distance", "technical", "pct_vs_sma200", unit="%",
+                description="Percent the price is above (+) or below (-) its 200-day simple moving average."),
+    _open_range("pct_vs_ema9", "EMA9 Distance", "technical", "pct_vs_ema9", unit="%",
+                description="Percent the close is above (+) or below (-) its 9-day exponential moving average. "
+                            + _LAST_SESSION),
+    _open_range("pct_vs_ema10", "EMA10 Distance", "technical", "pct_vs_ema10", unit="%",
+                description="Percent the close is above (+) or below (-) its 10-day exponential moving average. "
+                            + _LAST_SESSION),
+    _open_range("run_close_ema20", "Sessions vs EMA20", "technical", "run_close_ema20",
+                description="The close against its 20-day EMA. " + _RUN_RULE),
+    _open_range("run_close_sma50", "Sessions vs SMA50", "technical", "run_close_sma50",
+                description="The close against its 50-day SMA. " + _RUN_RULE),
+    _open_range("run_close_sma200", "Sessions vs SMA200", "technical", "run_close_sma200",
+                description="The close against its 200-day SMA. " + _RUN_RULE),
+    _open_range("run_ema9_ema20", "EMA9 vs EMA20 Run", "technical", "run_ema9_ema20",
+                description="The 9-day EMA against the 20-day EMA. " + _RUN_RULE),
+    _open_range("run_sma20_sma50", "SMA20 vs SMA50 Run", "technical", "run_sma20_sma50",
+                description="The 20-day SMA against the 50-day SMA. " + _RUN_RULE),
+    _open_range("run_sma50_sma200", "SMA50 vs SMA200 Run", "technical", "run_sma50_sma200",
+                description="The 50-day SMA against the 200-day SMA: +1 is a golden cross, -1 a death cross. "
+                            + _RUN_RULE),
+    _bool("sma20_rising", "SMA20 Rising", "technical", "sma20_rising", description=_RISING_RULE),
+    _bool("sma50_rising", "SMA50 Rising", "technical", "sma50_rising", description=_RISING_RULE),
+    _bool("sma200_rising", "SMA200 Rising", "technical", "sma200_rising", description=_RISING_RULE),
+    _open_range("avg_volume_10d", "Avg Volume (10d)", "technical", "avg_volume_10d",
+                description="Mean daily volume of the last 10 sessions, the last one included. Blank if any of "
+                            "them has no volume. " + _LAST_SESSION),
+    _open_range("avg_volume_50d", "Avg Volume (50d)", "technical", "avg_volume_50d",
+                description="Mean daily volume of the last 50 sessions, the last one included. Blank if any of "
+                            "them has no volume. " + _LAST_SESSION),
+    _open_range("vol_trend_pct", "Volume Trend (5d vs 20d)", "technical", "vol_trend_pct", unit="%",
+                description="Percent the 5-session average volume stands above (+) or below (-) the 20-session "
+                            "average, both ending at the last session. Blank if any of those sessions has no "
+                            "volume or the 20-session average is zero. " + _LAST_SESSION),
+    _open_range("vol_up_run", "Rising-Volume Run", "technical", "vol_up_run",
+                description="Consecutive sessions, ending at the last one, each on more volume than the session "
+                            "before. 0 when the last session did not rise. A session with no volume ends the run. "
+                            + _LAST_SESSION),
+    _open_range("vol_down_run", "Falling-Volume Run", "technical", "vol_down_run",
+                description="Consecutive sessions, ending at the last one, each on less volume than the session "
+                            "before. 0 when the last session did not fall. A session with no volume ends the run. "
+                            + _LAST_SESSION),
+    _open_range("new_high_lookback", "Close Above Prior Highs", "technical", "new_high_lookback",
+                description="How many consecutive prior sessions have a high below the last close, up to 252. "
+                            "At least N is a close above the N-session high, the last session excluded, so 20 is a "
+                            "20-day breakout. A close that only equals a prior high does not count. A short "
+                            "history can only count the sessions it holds. " + _LAST_SESSION),
+    _open_range("new_low_lookback", "Close Below Prior Lows", "technical", "new_low_lookback",
+                description="How many consecutive prior sessions have a low above the last close, up to 252. "
+                            "At least N is a close below the N-session low, the last session excluded. "
+                            + _LAST_SESSION),
+    _open_range("breakout_20d_age", "20-Day Breakout Age", "technical", "breakout_20d_age",
+                description="Sessions since the latest close above the highest high of the 20 sessions before it. "
+                            "0 is the last session. Blank when none happened in the last 63 sessions or with fewer "
+                            "than 21 sessions of history. " + _LAST_SESSION),
+    _open_range("high_52w_age", "52W High Age", "technical", "high_52w_age",
+                description="Sessions since the highest high of the last 252 sessions was set. 0 is the last "
+                            "session. Blank without a full year, except a stock listed inside the year. "
+                            + _LAST_SESSION),
+    _open_range("low_52w_age", "52W Low Age", "technical", "low_52w_age",
+                description="Sessions since the lowest low of the last 252 sessions was set. 0 is the last "
+                            "session. Blank without a full year, except a stock listed inside the year. "
+                            + _LAST_SESSION),
     # ── single candle ──
     # ⛔ QUERIES `candle_matches`, NOT `candle_type`. A bar routinely satisfies
     # several patterns; `candle_type` holds only the one that RENDERS. Screening
@@ -1058,7 +1143,8 @@ def field_catalog() -> list[dict]:
     """
     return [
         {"key": key, "label": f.get("label") or key, "type": f.get("type"),
-         "unit": f.get("unit"), "category": f.get("category")}
+         "unit": f.get("unit"), "category": f.get("category"),
+         **({"description": f["description"]} if f.get("description") else {})}
         for key, f in FILTERS.items() if key not in RETIRED
     ]
 
