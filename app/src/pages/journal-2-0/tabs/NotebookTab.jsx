@@ -61,6 +61,7 @@ import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
+import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
@@ -274,6 +275,10 @@ export default function NotebookTab() {
   const location = useLocation()
   const navigationType = useNavigationType()
   const noteId = searchParams.get('note')
+  // Audit 2026-11-05, S5 (B11): the Notebook's home names the tab "Notebook · UCT Intelligence"
+  // (it read "Journal"); an open note's editor names it after the note. Closing the note (a query
+  // change, which the shell's pathname-keyed title never sees) puts the home's title back.
+  useEffect(() => { if (!noteId) document.title = NOTEBOOK_TITLE }, [noteId])
   // Wave 6 (lane E, item 7) — split view: `?side=` is a second note beside the
   // first, desktop only. Each pane is an ordinary editor (lib/splitView.js).
   // ⛔⛔ `sideId` is NEVER the open note: a URL naming one note twice (a pasted
@@ -2415,6 +2420,7 @@ export default function NotebookTab() {
                 openFocus={openFocus?.id === noteId ? openFocus.to : null}
                 onOpenFocused={() => setOpenFocus(null)}
                 onTitleChange={updateTreeNoteTitle}
+                ownsDocumentTitle
                 // Wave 6 (lane E), I1: the note menu's organisation actions.
                 // The editor (lane D's NoteEditorPage.jsx) renders
                 // `{noteMenu?.(note, { refresh, unlockNote })}` in its header

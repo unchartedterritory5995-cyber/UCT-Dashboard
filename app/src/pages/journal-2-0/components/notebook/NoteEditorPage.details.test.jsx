@@ -359,3 +359,60 @@ describe('S6: a landed title reaches every view', () => {
     expect(invalidateSpy).not.toHaveBeenCalledWith({ titleOnly: true })
   })
 })
+
+// ⛔ Audit 2026-11-05, S5 (B11): the tab read "Journal" on every open note.
+describe('S5: the browser tab names the open note', () => {
+  it('the main pane names it "{title} · Notebook · UCT Intelligence", and follows typing', async () => {
+    NOTE = { ...bareNote(), title: 'NVDA swing plan' }
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} ownsDocumentTitle /></MemoryRouter>
+      </SWRConfig>,
+    )
+    await waitFor(() => expect(document.title).toBe('NVDA swing plan · Notebook · UCT Intelligence'))
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'NVDA plan v2' } })
+    await waitFor(() => expect(document.title).toBe('NVDA plan v2 · Notebook · UCT Intelligence'))
+  })
+
+  it('a pane that does not own the tab (the split view side) leaves it alone', async () => {
+    document.title = 'unchanged'
+    NOTE = { ...bareNote(), title: 'Side note' }
+    await renderEditor()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(document.title).toBe('unchanged')
+  })
+})
+
+// ⛔ Audit 2026-11-05, S5 (B4): a widget's archived snapshot is an image document; OCR read the
+// chart, and the note said "Image — Text read from a scanned page" once per widget.
+describe('S5 (B4): the editor speaks of an image only when its body holds it', () => {
+  const docs = (list) => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => (String(url) === '/api/j2/notes/n1/documents'
+      ? { ok: true, json: async () => ({ documents: list }) }
+      : base(url, init)))
+  }
+  const snap = (file, extra = {}) => ({
+    id: file, name: 'Image', attachmentUrl: `/api/j2/notes/attachments/u1/n1/inline/${file}`, status: 'no_text',
+    pagesTotal: 1, pagesWithText: 0, pagesFromOcr: 0, pagesAwaitingOcr: 0, textComplete: false, ...extra,
+  })
+
+  it('snapshot images the body does not hold: no line at all', async () => {
+    docs([snap('a.png'), snap('b.png', { status: 'ready', pagesWithText: 1, pagesFromOcr: 1, textComplete: true })])
+    await renderEditor()
+    await waitFor(() => expect(global.fetch.mock.calls.map(([u]) => String(u))).toContain('/api/j2/notes/n1/documents'))
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.queryByRole('status', { name: 'Attachment text status' })).toBeNull()
+  })
+
+  it('an image the body holds, with no text: one line, and it is not called a scan', async () => {
+    NOTE = { ...bareNote(), bodyJson: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Body words' }] },
+      { type: 'image', attrs: { src: '/api/j2/notes/attachments/u1/n1/inline/a.png' } }] } }
+    docs([snap('a.png')])
+    await renderEditor()
+    const region = await screen.findByRole('status', { name: 'Attachment text status' })
+    expect(region).toHaveTextContent('Image has no readable text, so Search and Ask cannot use it.')
+  })
+})

@@ -97,6 +97,13 @@ describe('Today', () => {
     expect(screen.queryByText('Saved in your Daily folder.')).toBeNull()
   })
 
+  // Audit 2026-11-05, S5 (B11): the Notebook's home named the tab "Journal".
+  it('the Notebook home names the browser tab "Notebook · UCT Intelligence"', async () => {
+    document.title = 'Journal — UCT Intelligence'
+    renderTab()
+    await waitFor(() => expect(document.title).toBe('Notebook · UCT Intelligence'))
+  })
+
   it('a refusal says nothing was created', async () => {
     answer = () => ({ ok: false, status: 500, json: async () => ({}) })
     renderTab()

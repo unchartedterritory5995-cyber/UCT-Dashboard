@@ -22,7 +22,7 @@ import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOW
          passageFromNavigationState } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
-import DocumentTextStatus from './DocumentTextStatus'
+import DocumentTextStatus, { isImageDocument } from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useThesisSummary from '../../hooks/useThesisSummary'
@@ -99,6 +99,7 @@ import PropertiesSection from './PropertiesSection'
 import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
 import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
 import TickerSuggestion from './TickerSuggestion'
+import { noteDocumentTitle } from '../../../../surfaces/pageTitle.js'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
@@ -894,6 +895,9 @@ export default function NoteEditorPage({
   // title, no template -- the next act is writing), null for an open aimed
   // inside the note (a task, a page, an excerpt), which places focus itself.
   openFocus = null, onOpenFocused = null,
+  // Audit 2026-11-05, S5 (B11): the MAIN pane's editor names the browser tab after its note; the
+  // side pane of a split view does not (one tab, one title). NotebookTab passes it.
+  ownsDocumentTitle = false,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
@@ -1398,6 +1402,12 @@ export default function NoteEditorPage({
 
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
+  // S5 (B11): "{title} · Notebook · UCT Intelligence" while this note is open, following the title
+  // as it is typed (the tab read "Journal" on every note). Only once the note has loaded.
+  useEffect(() => {
+    if (!ownsDocumentTitle || !note) return
+    document.title = noteDocumentTitle(title)
+  }, [ownsDocumentTitle, note, title])
   const [subtitle, setSubtitle] = useState('')
   // Wave 0 (P1-10): mirrored synchronously in the onChange handlers below
   // (never via a `useEffect` on `title`/`subtitle`) so the local-draft write
@@ -2123,6 +2133,18 @@ export default function NoteEditorPage({
   // never as a document. See CapturedSourceSheet for what that means.
   const [capturedSource, setCapturedSource] = useState(null)
   const { documents: noteDocuments, error: documentsError, refresh: refreshDocuments } = useNoteDocuments(noteId)
+  // S5 (B4): the images this note's body HOLDS, so DocumentTextStatus speaks only of those (a
+  // widget's archived snapshot is an image document too, and is not in the body). Walked only
+  // when there is an image document to judge; read at render, which every transaction triggers.
+  const bodyImageUrls = (() => {
+    if (!noteDocuments?.some?.(isImageDocument)) return []
+    const ed = editorRef.current
+    const out = []
+    try {
+      ed?.state?.doc?.descendants((n) => { if (n.type?.name === 'image' && n.attrs?.src) out.push(n.attrs.src) })
+    } catch { /* an editor mid-teardown holds nothing */ }
+    return out
+  })()
   const { excerpts: noteExcerpts, error: excerptsError, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
   // ⛔ Wave 10 F7 (Part A, 5d): the side reads of an open note, asked here for their ERRORS --
   // the same SWR keys ThesisSection and the fact nodes read, so no request is added. A failed
@@ -5871,7 +5893,7 @@ export default function NoteEditorPage({
         {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
             NOTHING when every document's text is complete — the common case
             gets no chrome. */}
-        <DocumentTextStatus documents={noteDocuments} />
+        <DocumentTextStatus documents={noteDocuments} imageUrls={bodyImageUrls} />
         {/* Wave 10 F7 (Part A, 5d): ONE sentence for the note's side reads that failed. */}
         <LoadFailed compact failures={[
           { what: "this note's attachments", error: documentsError, retry: refreshDocuments },
