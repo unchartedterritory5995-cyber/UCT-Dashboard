@@ -335,6 +335,57 @@ def test_llm_exception_returns_deterministic_fallback_not_500(client, monkeypatc
     assert fe._cache_get(fe._cache_key(_parse(), fe.build_context(_parse()), fe._today_et())) is None
 
 
+def _failed_call_spend(client, monkeypatch, error):
+    fake = FakeAnthropic(behavior=error)
+    import api.services.engine as engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: fake)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    r = client.post("/api/flow-explain", json=_print_body())
+    assert r.status_code == 200 and r.json()["model"] == "deterministic-fallback"
+    return fe._spend_today(fe._today_et())
+
+
+def _timeout():
+    import anthropic
+    import httpx
+    return anthropic.APITimeoutError(httpx.Request("POST", "https://example.invalid/v1/messages"))
+
+
+def test_a_failed_call_is_charged_the_worst_case_for_every_attempt(client, monkeypatch):
+    from api.services.uct_agent import budget
+    spent = _failed_call_spend(client, monkeypatch, _timeout())
+    ctx = fe.build_context(_parse())
+    request = {"system": fe._SYSTEM_PROMPT, "messages": [{"role": "user", "content": fe._user_prompt(_parse(), ctx)}]}
+    one = fe._estimate_cost_usd(fe._model_name(), budget.request_bytes(request) + budget.FRAMING_TOKENS, fe._MAX_TOKENS)
+    assert spent == pytest.approx(one * (fe._SDK_RETRIES + 1))
+    assert fe._SDK_RETRIES + 1 == 3
+
+
+def test_an_http_error_stays_free(client, monkeypatch):
+    import anthropic
+    import httpx
+    request = httpx.Request("POST", "https://example.invalid/v1/messages")
+    error = anthropic.InternalServerError("overloaded", response=httpx.Response(529, request=request), body=None)
+    assert _failed_call_spend(client, monkeypatch, error) == 0.0
+
+
+def test_a_failed_charge_never_breaks_the_fallback(client, monkeypatch):
+    def boom(*_a):
+        raise OSError("disk")
+    monkeypatch.setattr(fe, "_add_cost", boom)
+    assert _failed_call_spend(client, monkeypatch, _timeout()) == 0.0
+
+
+def test_the_client_asks_for_the_kept_retries(monkeypatch):
+    seen = {}
+    fake = FakeAnthropic()
+    fake.with_options = lambda **kw: seen.update(kw) or fake
+    import api.services.engine as engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: fake)
+    fe._anthropic()
+    assert seen == {"timeout": fe._LLM_TIMEOUT_SECS, "max_retries": 2}
+
+
 def test_json_parse_fallback_uses_raw_text_and_derived_signals(client, monkeypatch):
     raw = "Someone is loading up on near-term calls here, plain and simple."
     fake = FakeAnthropic(behavior=raw)
