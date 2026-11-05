@@ -105,6 +105,7 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 #: that code on purpose, and that commit's message says why. This pin is #827's own Screener commit, 920fdcc1bb, the scan primitives.
 #: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
 #: then report that very change.
+#: move this pin when a reviewed PR intentionally changes api/services/screener
 SCREENER_PIN = "920fdcc1bb4c3d8a13d173188ffc98712e46bad6"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
