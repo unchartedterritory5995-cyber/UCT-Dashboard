@@ -63,9 +63,11 @@ const widgetFirst = (result) => [
 const LAYOUTS_MENU = { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Open Layouts ▾.', waitFor: 'workspace.layoutsMenu' }
 // a row shows the indicator's short name, or its full one: "EMA 20", "Relative Strength Index"
 const named = (more = {}) => [{ within: 'chartSettings', attr: 'data-row-primary', named: '{ind.label}', ...more }, { within: 'chartSettings', attr: 'data-row-primary', named: '{ind.labelName}', ...more }]
-// the row of a NEW one: it starts at its default length, so it never carries the length asked for
+// the row of a NEW one: it starts at its defaults, so it carries neither the type nor the length asked for
+// the whole Moving Average family: "a 50-day WMA on my chart" is an indicator, however much it reads like a timeframe
+const MOVING_AVERAGE = /\b(moving averages?|sma|ema|wma|vwma|hma|smma|dema|tema|lsma)\b/
 const ROW_ON = { within: 'chartSettings', attr: 'data-row-primary', on: true }
-const added = () => [{ within: 'chartSettings', attr: 'data-row-primary', text: '{ind.say}' }, { within: 'chartSettings', attr: 'data-row-primary', text: '{ind.name}' }]
+const added = () => [{ within: 'chartSettings', attr: 'data-row-primary', named: '{ind.addedRow}' }, { within: 'chartSettings', attr: 'data-row-primary', named: '{ind.name}' }]
 // the row of the indicator asked about; with none named (or not on this chart), any row of the chart's own list
 const ROW = { within: 'chartSettings', attr: 'data-row-primary' }
 const rowStep = (result) => [
@@ -172,7 +174,7 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Tell me the change — for example “make this chart wider”.' },
   },
   {
-    id: 'widgetMove', terms: ['move a widget', 'moving a widget'], control: 'the widget’s header', title: 'Moving a chart or widget', topic: 'arrange',
+    id: 'widgetMove', except: MOVING_AVERAGE, terms: ['move a widget', 'moving a widget'], control: 'the widget’s header', title: 'Moving a chart or widget', topic: 'arrange',
     words: [/\b(move|moving|drag|dragging|rearrange|reposition|swap)\b.*\b(charts?|widgets?)\b/],
     caps: ['widget.move'],
     explain: 'Drag a widget by its header to move it. Drop it where the gold outline shows; the other widgets make room.',
@@ -326,7 +328,7 @@ export const GUIDE_FEATURES = [
   },
   {
     // pages/charts/widgets/TimeframeMenu.jsx — the adder at the foot of the menu
-    id: 'timeframeCustom', terms: ['custom timeframe', 'custom interval'], control: 'the arrow beside the timeframes', title: 'Adding a custom timeframe', topic: 'charts',
+    id: 'timeframeCustom', except: MOVING_AVERAGE, terms: ['custom timeframe', 'custom interval'], control: 'the arrow beside the timeframes', title: 'Adding a custom timeframe', topic: 'charts',
     words: [/\bcustom\b.*\b(time ?frames?|intervals?)\b/, /\b(add|create|new|make|save|favou?rite|star)\b.*\b(time ?frames?|intervals?)\b/, /\b\d+[- ]?(minute|min|hour|day|week)\b.*\b(time ?frame|chart|interval)\b/],
     caps: ['chart.addCustomTimeframe'],
     explain: 'The arrow beside the timeframe buttons opens every timeframe. At its foot, Add custom interval makes your own, such as 45 minutes. A star adds any timeframe to the buttons; a custom one can be deleted from the same list.',
@@ -449,7 +451,7 @@ export const GUIDE_FEATURES = [
   },
   {
     id: 'indicators', slots: ['ind'], except: /\banchored vwap\b/, terms: ['chart settings indicators'], control: 'the chart’s settings gear', title: 'Adding {ind.say}', titleAny: 'Adding and configuring an indicator', topic: 'indicators',
-    words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|moving averages?|studies|study)\b/],
+    words: [/\bindicators?\b/, /\b(rsi|macd|vwap|atr|bollinger|studies|study)\b/, MOVING_AVERAGE],
     caps: ['indicator.add'],
     explain: 'Indicators are in Chart settings → Indicators: search for one (RSI, MACD, a moving average…) and add it; click an indicator already on the chart to change its settings, colours and the pane it draws in.',
     steps: [
@@ -461,7 +463,7 @@ export const GUIDE_FEATURES = [
       // one already on the chart shows Active: its row only selects it, and the ＋ beside it is what adds another
       { only: 'ind', target: [{ within: 'indicators.addSurface', aria: 'Add another {ind.name}' }, { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' }], name: 'the result', text: '{ind.name} is already on this chart. Click this ＋ to add another.', altText: 'Click {ind.name} to add it to this chart.', waitFor: { not: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } } },
       // the row just added is the selected one: "SMA 5", not the SMA 50 above it
-      { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.say} is on the chart. Click it here to change its settings, colours and pane.{ind.lengthNote}', noBack: true },
+      { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.addedSay} is on the chart.{ind.addNext}', noBack: true },
       { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed on the left — click one to change its settings, colours and pane.' },
     ],
     doIt: {

@@ -86,6 +86,92 @@ describe('the chart the words name', () => {
   })
 })
 
+describe('words that do not name a chart (AUDIT N2)', () => {
+  const ONE = [chart('a', 'AAPL', 'left', 0)]
+  const WIDE = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1)]
+  it.each([
+    'how do I switch to the log chart', 'how do I make my candles chart hollow', 'how do I reset to the default chart', 'how do I change my intraday chart',
+    'how do I get the OHLC chart', 'how do I get the HA chart', 'how do I get the 1D chart',
+    // held out: the same classes, other words
+    'how do I open the heikin ashi chart', 'how do I turn on the percent chart', 'how do I see the premarket chart', 'how do I get back to the original chart',
+    'how do I use the renko chart', 'how do I change the extended hours chart', 'how do I reset my main chart', 'how do I fix the inverted chart',
+    'how do I add RSI to the TSLA chart', 'how do I add RSI to the tsla chart', 'how do I change the left chart', 'how do I change the second chart', 'how do I change the weekly chart',
+  ])('one chart never refuses: %s', (q) => { expect(namedChart(q, ONE)).toBeNull() })
+  it.each([
+    'how do I switch to the log chart', 'how do I make my candles chart hollow', 'how do I reset to the default chart', 'how do I change my intraday chart',
+    'how do I get the OHLC chart', 'how do I get the HA chart', 'how do I use the hollow candles chart', 'how do I open the heikin ashi chart', 'how do I turn on the percent chart',
+    'how do I see the premarket chart', 'how do I get back to the original chart', 'how do I use the renko chart', 'how do I change the extended hours chart', 'how do I reset my main chart',
+    'how do I change my logarithmic chart', 'how do I change this area chart', 'how do I use the baseline chart', 'how do I change my RTH chart', 'how do I change the whole chart',
+  ])('many charts, the clicked one stands: %s', (q) => {
+    expect(namedChart(q, WIDE)).toBeNull()
+    const host = { surface: 'charts', charts: { list: () => WIDE, selected: () => 'b' } }
+    expect(getCapability('guide.show').fast({ raw: q, host })?.detail ?? q).toBe(q)
+  })
+  it.each([
+    ['how do I add RSI to the 1D chart', 'a'], ['how do I add RSI to the 1d chart', 'a'], ['how do I add RSI to the 1W chart', 'b'], ['how do I add RSI to the weekly chart', 'b'],
+    ['how do I add RSI to my D chart', 'a'], ['how do I add RSI to the W chart', 'b'],
+  ])('a timeframe label: %s', (q, ref) => {
+    const charts = [chart('a', 'AAPL', 'left', 0, 'D'), chart('b', 'NVDA', 'right', 1, 'W')]
+    expect(namedChart(q, charts)?.chart?.ref).toBe(ref)
+  })
+  it.each([
+    ['how do I add RSI to the HA chart', 'HA'], ['how do I add RSI to the LINE chart', 'LINE'], ['how do I add RSI to the D chart', 'D'], ['how do I add RSI to the M chart', 'M'],
+  ])('a ticker the board shows stays a ticker: %s', (q, symbol) => {
+    expect(namedChart(q, [chart('a', 'AAPL', 'left', 0, 'D'), chart('b', symbol, 'right', 1, '5')])?.chart?.ref).toBe('b')
+  })
+  it('a lowercase letter is not a timeframe', () => {
+    expect(namedChart('how do I add RSI to the m chart', [chart('a', 'AAPL', 'left', 0, 'D'), chart('b', 'NVDA', 'right', 1, 'M')])?.say).toMatch(/can’t match “m”/)
+  })
+  it('the board may spell it 1D as well', () => {
+    expect(namedChart('how do I add RSI to the 1D chart', [chart('a', 'AAPL', 'left', 0, '1D'), chart('b', 'NVDA', 'right', 1, '5')])?.chart?.ref).toBe('a')
+  })
+  it('1M is a month and 1m a minute, as on the buttons', () => {
+    const charts = [chart('a', 'AAPL', 'left', 0, 'M'), chart('b', 'NVDA', 'right', 1, '1')]
+    expect(namedChart('how do I add RSI to the 1M chart', charts)?.chart?.ref).toBe('a')
+    expect(namedChart('how do I add RSI to the 1m chart', charts)?.chart?.ref).toBe('b')
+  })
+  it.each([
+    ['how do I add RSI to the 1W chart', /No chart on this board is on 1W/],
+    ['how do I add RSI to the TSLA chart', /no TSLA chart/],
+    ['how do I add RSI to the tesla chart', /can’t match “tesla”/],
+    ['how do I add RSI to my tsla chart', /can’t match “tsla”/],
+    ['how do I add RSI to the BRK.B chart', /no BRK\.B chart/],
+  ])('many charts, a name that matches nothing is said, on any clicked chart: %s', (q, said) => {
+    const charts = [chart('a', 'AAPL', 'left', 0, 'D'), chart('b', 'NVDA', 'right', 1, '5')]
+    expect(namedChart(q, charts)?.say).toMatch(said)
+    expect(namedChart(q, charts)?.chart).toBeUndefined()
+  })
+})
+
+describe('the divider above a named pane (AUDIT 5: the production failure)', () => {
+  afterEach(() => { cleanup(); _resetGuide() })
+  const box = (el, top, height) => {
+    el.getBoundingClientRect = () => ({ left: 10, right: 600, top, bottom: top + height, width: 590, height })
+    el.getClientRects = () => [{}]
+  }
+  // price with ATR Bands on it, then a pane each for Stoch RSI, RSI and ATR: every name holds another's words
+  function stack(chips) {
+    const { container } = render(
+      <div data-widget-id="w">
+        <div data-guide="chart.plot">
+          {[300, 400, 500].map(y => <div key={y} data-line={y} style={{ cursor: 'row-resize' }} />)}
+        </div>
+        {chips.map(([name]) => <span key={name} data-guide="chart.chip" aria-label={`${name} options`}>{name}</span>)}
+      </div>,
+    )
+    box(container.querySelector('[data-guide="chart.plot"]'), 0, 600)
+    container.querySelectorAll('[data-line]').forEach(el => box(el, Number(el.dataset.line), 9))
+    container.querySelectorAll('[data-guide="chart.chip"]').forEach((el, i) => box(el, chips[i][1], 16))
+    return (words) => findTarget({ within: 'chart.plot', cursor: 'row-resize', above: words }, { chartRef: 'w' })?.dataset.line ?? null
+  }
+  const FULL = [['ATR Bands', 20], ['Stoch RSI', 310], ['RSI', 410], ['ATR', 510]]
+  it('RSI is the line above RSI, not the one above Stoch RSI', () => { expect(stack(FULL)('RSI')).toBe('400') })
+  it('ATR is the line above ATR: it has a pane, whatever the price pane holds', () => { expect(stack(FULL)('ATR')).toBe('500') })
+  it('Stoch RSI keeps its own line', () => { expect(stack(FULL)('Stoch RSI')).toBe('300') })
+  it('an indicator drawn on the price pane has no line above it', () => { expect(stack(FULL)('ATR Bands')).toBeNull() })
+  it('a name that is only inside another name finds no pane', () => { expect(stack([['Stoch RSI', 310]])('RSI')).toBeNull() })
+})
+
 describe('the words on their own', () => {
   afterEach(() => { cleanup(); _resetGuide() })
   const shown = (el) => { el.getBoundingClientRect = () => ({ left: 10, right: 40, top: 10, bottom: 30, width: 30, height: 20 }); el.getClientRects = () => [{}]; return el }
@@ -118,15 +204,43 @@ describe('the instance the words name', () => {
     ['the 200 SMA', 'SMA 200'],
     ['the EMA', 'EMA'],
   ])('%s → %s', (q, label) => { expect(readIndicator(q).label).toBe(label) })
-  it('adding one with a length waits for the row a new one really shows, and says how to set the length', () => {
+  // a new Moving Average is SMA 5 whatever was asked for: the last step names that, and says what is left to set
+  const lastStep = (q) => stepsFor(guideFeature('indicators'), q).at(-1)
+  it.each([
+    ['how do I add a 20 SMA', /^SMA 5 is on the chart\..*set Period to 20\.$/],
+    ['how do I add an EMA', /^SMA 5 is on the chart\..*set Type to EMA\.$/],
+    ['how do I add a 20 EMA', /^SMA 5 is on the chart\..*set Type to EMA and Period to 20\.$/],
+    ['how do I put a 50-day WMA on my chart', /^SMA 5 is on the chart\..*set Type to WMA and Period to 50\.$/],
+    ['show me how to add an hma', /^SMA 5 is on the chart\..*set Type to HMA\.$/],
+    ['how would I get a DEMA(9) on here', /^SMA 5 is on the chart\..*set Type to DEMA and Period to 9\.$/],
+    ['how do I add a TEMA', /^SMA 5 is on the chart\..*set Type to TEMA\.$/],
+    ['how do I add a VWMA 21', /^SMA 5 is on the chart\..*set Type to VWMA and Period to 21\.$/],
+    ['how do I add an SMMA', /^SMA 5 is on the chart\..*set Type to SMMA\.$/],
+    ['how do I add an LSMA', /^SMA 5 is on the chart\..*set Type to LSMA\.$/],
+    ['how do I add a 50 day moving average', /^SMA 5 is on the chart\..*set Period to 50\.$/],
+  ])('%s never claims what was not applied', (q, text) => { expect(lastStep(q).text).toMatch(text) })
+  it.each(['how do I add a DEMA 9', 'how would I get an HMA on here', 'show me how to put a 50-day WMA on my chart', 'how do I put a 200 day moving average on my chart', 'how do I add a VWMA', 'teach me how to add an LSMA', 'where do I add a TEMA', 'how do I add an SMMA to this chart'])('the whole family reaches the walkthrough without the model: %s', (q) => {
+    expect(getCapability('guide.show').fast({ raw: q, host: { surface: 'charts' } })?.feature).toBe('indicators')
+  })
+  it('a timeframe in days stays a timeframe', () => {
+    expect(getCapability('guide.show').fast({ raw: 'how do I make a 45-minute chart', host: { surface: 'charts' } })?.feature).toBe('timeframeCustom')
+  })
+  it('asking for exactly the default has nothing left to set', () => {
+    expect(lastStep('how do I add a 5 SMA').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colours and pane.')
+    expect(lastStep('how do I add a moving average').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colours and pane.')
+  })
+  it('the row it rings is the row a new one really shows', () => {
+    expect(JSON.stringify(lastStep('how do I add a 20 EMA').target)).toMatch(/"named":"SMA 5"/)
+    expect(JSON.stringify(lastStep('how do I add a 20 EMA').target)).not.toMatch(/EMA/)
+  })
+  it('an indicator with no such defaults is still named as asked', () => {
+    expect(lastStep('how do I add RSI').text).toBe('RSI is on the chart. Click it here to change its settings, colours and pane.')
+  })
+  it('adding one with a length waits for the add itself', () => {
     const steps = stepsFor(guideFeature('indicators'), 'how do I add a 20 SMA')
-    const text = JSON.stringify(steps)
-    expect(text).not.toMatch(/SMA 20 is on the chart/)
-    expect(text).toMatch(/set it to 20 under Period/)
     const add = steps.find(s => /to add it to this chart/.test(s.altText))
     // a row of that kind already on the chart must not pass for the new one: the step waits for the result to be taken
     expect(add.waitFor.not.value).toBe('movingAverage')
-    expect(stepsFor(guideFeature('indicators'), 'how do I add RSI').at(-1).text).not.toMatch(/Period/)
   })
   it('the title and the row name that instance', () => {
     const steps = stepsFor(guideFeature('indicatorColor'), 'change the colour of the EMA 20 line')

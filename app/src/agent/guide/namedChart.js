@@ -14,24 +14,44 @@ import { ordinalChart } from '../deixis'
 import { readIndicator } from './slots'
 
 const POSITION = /\b(?:the\s+)?((?:top|bottom|upper|lower)[- ]?(?:left|right)|left|right|top|bottom|upper|lower)(?:[- ]hand)?(?:[- ]side)?\s+(?:chart|cell|one)\b/i
-const TF_CHART = /\b(?:the|my)\s+(\d{1,3}[- ]?(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)\s+chart\b/i
+const TF_CHART = /\b(?:the|my|this|that)\s+(\d{1,3}[- ]?(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours)|[1]?[dwm]|hourly|daily|weekly|monthly|day|week|month)\s+chart\b/i
 // "the TSLA chart", "my nvda chart", "the BRK.B chart", "the Nvidia chart": "how can I chart" has no "the" and is not one, and
 // nor is a chart's own feature ("the UCT chart theme")
-const WORD_CHART = /\b(?:the|my)\s+([a-z0-9][a-z0-9.-]*)\s+chart\b(?!\s+(?:themes?|templates?|settings?|types?|grid|tabs?))/gi
+const WORD_CHART = /\b(?:the|my|this|that)\s+([a-z0-9][a-z0-9.-]*)\s+chart\b(?!\s+(?:themes?|templates?|settings?|types?|grid|tabs?))/gi
 const BARE_TICKER = /\b(?:to|on|for|in)\s+(?:the\s+)?([A-Z][A-Z.-]{0,6})\b(?!\s+charts?\b)/g
-// what comes between "the" and "chart" without naming one
-const NOT_A_NAME = new Set(`uct price main whole entire current selected active other same big small new old next previous multi
-  line bar bars candle candlestick area hollow baseline heikin stock ticker symbol linked focused clicked empty live own grid
-  first second third fourth fifth sixth last middle center centre left right top bottom upper lower`.split(/\s+/))
+// what comes between "the" and "chart" without naming one, by class. Add a class or a word here: never a sentence
+const NOT_A_NAME = new Set([
+  // how it is drawn
+  'line lines bar bars candle candles candlestick candlesticks hollow hlc ohlc ha heikin ashi heikin-ashi area mountain baseline renko kagi step',
+  // its scale
+  'log logarithmic linear arithmetic arith percent percentage pct inverted invert auto semi-log',
+  // its session
+  'intraday premarket pre-market postmarket post-market extended regular rth eth overnight hours session after-hours afterhours live realtime historical replay',
+  // which one, without saying which
+  'default original standard normal usual clean blank empty saved shared main primary secondary whole entire full current active selected focused clicked linked same other another next previous new old big small large wide narrow favourite favorite only one actual real',
+  // the product's own words
+  'uct multi grid price stock ticker symbol volume breadth market time timeframe trading own',
+  // an order or a place: an ordinal and a position are read on their own
+  'first second third fourth fifth sixth last middle center centre left right top bottom upper lower',
+].join(' ').split(' '))
+const isNotAName = (word) => { const w = word.toLowerCase(); return NOT_A_NAME.has(w) || NOT_A_NAME.has(w.replace(/s$/, '')) }
 const listOf = (charts) => charts.map(c => c.label).join(', ')
 
-const TF_WORDS = { hourly: '60', '1h': '60', daily: 'D', weekly: 'W', monthly: 'M' }
+const TF_WORDS = { hourly: '60', daily: 'D', day: 'D', weekly: 'W', week: 'W', monthly: 'M', month: 'M' }
+// the product's own labels too: 1D, 1W, and 1M for a month while 1m is a minute (ChartTfBar), so 1M keeps its case
 function tfCode(word) {
-  const w = word.toLowerCase().replace('-', ' ')
+  const raw = String(word)
+  if (/^1?M$/.test(raw)) return 'M'
+  if (/^1?d$/i.test(raw)) return 'D'
+  if (/^1?w$/i.test(raw)) return 'W'
+  const w = raw.toLowerCase().replace('-', ' ')
   if (TF_WORDS[w]) return TF_WORDS[w]
-  const m = /^(\d+)\s*(m|min|mins|minute|minutes|h|hr|hour|hours)$/.exec(w)
+  const m = /^(\d+)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)$/.exec(w)
   return m ? String(/^h/.test(m[2]) ? Number(m[1]) * 60 : Number(m[1])) : null
 }
+// HA, D, LINE: a word in capitals that a chart here really shows is that ticker, whatever else the word can mean
+const onBoard = (word, charts) => word === word.toUpperCase() && charts.some(c => sameSymbol(c, word))
+const chartTf = (c) => String(c.tf).replace(/^1([DWM])$/i, '$1').toUpperCase()
 const sameSymbol = (c, word) => String(c.symbol || '').toUpperCase() === word.toUpperCase()
 const atPosition = (c, word) => {
   const parts = word.toLowerCase().replace('upper', 'top').replace('lower', 'bottom').match(/top|bottom|left|right/g) || []
@@ -41,7 +61,8 @@ const atPosition = (c, word) => {
 /** → { chart } | { say } | null (the words name no chart: the clicked one stands). */
 export function namedChart(words, charts = []) {
   const s = String(words || '')
-  if (!s || charts.length === 0) return null
+  // one chart: nothing to choose between, and nothing to refuse
+  if (!s || charts.length < 2) return null
   const names = new Set()
   const ord = ordinalChart(s, charts)
   if (ord && /chart/i.test(ord.match[0])) {
@@ -49,22 +70,22 @@ export function namedChart(words, charts = []) {
     names.add(ord.ref)
   }
   const pos = POSITION.exec(s)
-  if (pos && charts.length > 1) {
+  if (pos) {
     const hits = charts.filter(c => atPosition(c, pos[1]))
     if (hits.length !== 1) return { say: `I can’t tell which chart is the ${pos[1].toLowerCase()} one here. Your charts are: ${listOf(charts)}.` }
     names.add(hits[0].ref)
   }
   const tf = TF_CHART.exec(s)
-  if (tf) {
-    const code = tfCode(tf[1])
-    const hits = charts.filter(c => String(c.tf) === code)
+  const code = tf && !onBoard(tf[1], charts) ? tfCode(tf[1]) : null
+  if (code) {
+    const hits = charts.filter(c => chartTf(c) === String(code).toUpperCase())
     if (hits.length > 1) return { say: `More than one chart fits ${tf[1]}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) return { say: `No chart on this board is on ${tf[1]}, so I can’t show that on it. Your charts are: ${listOf(charts)}.` }
     names.add(hits[0].ref)
   }
   for (const m of s.matchAll(WORD_CHART)) {
     const word = m[1]
-    if (NOT_A_NAME.has(word.toLowerCase()) || tfCode(word) || readIndicator(word)) continue
+    if (!onBoard(word, charts) && (isNotAName(word) || tfCode(word) || readIndicator(word))) continue
     const hits = charts.filter(c => sameSymbol(c, word))
     if (hits.length > 1) return { say: `More than one chart shows ${word.toUpperCase()}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) {
