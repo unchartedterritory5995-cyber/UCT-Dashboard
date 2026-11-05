@@ -456,6 +456,30 @@ export function lowerIrProgram(ir, opts = {}) {
         return
       }
       case EXPR.TERNARY:
+        // ⭐⭐⭐ W4 T4 — AN ARM THAT KEEPS PER-CALL-SITE STATE (`lazy`, set by the front
+        // end only for a Pine v6 `?:` whose arms hold `ta.sma` / `ta.ema` / `ta.rma` /
+        // `ta.change`): Pine runs only the arm it picks, so the other arm's state
+        // must not step (vw-arm-history T03 / T04 / T05 / K02 / K03). ALWAYS the
+        // jump form. The test is read AS A CONDITION where this run has the
+        // version's `na` rule (`naFalse`, `asCondition`: an `na` test takes the else
+        // arm, F1 / `rt1-na-test-v6`); a test this lane can show is 0/1 needs no
+        // reading; anything else is COUNTED as `SELECT`'s test is below (the member
+        // door declines a listing program that carries one, `runtime:na-test`), and
+        // `JUMP_IF_FALSE` takes the else arm on an `na` test.
+        if (e.lazy === true) {
+          if (isBoolIr(e.test)) expr(e.test)
+          else if (naFalse) asCondition(e.test)
+          else { naTests += 1; expr(e.test) }
+          const toElse = here()
+          emit(OP.JUMP_IF_FALSE, 0)
+          expr(e.then)
+          const toEnd = here()
+          emit(OP.JUMP, 0)
+          patch(toElse, 1, here())
+          expr(e.else)
+          patch(toEnd, 1, here())
+          return
+        }
         // ⚠️ BOTH ARMS EVALUATE — Pine's `?:` over values, mirroring
         // `interpret.js`. A branch that can have an EFFECT is a statement
         // (`STMT.IF`) and must never be routed here.

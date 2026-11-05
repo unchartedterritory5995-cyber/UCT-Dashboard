@@ -54,6 +54,11 @@ const SHAPES = {
   // `inputConsts` the door drew "146.05" / "299.06" here (reviewer's probes, RDDT 1D).
   cv_int: ['', false, 'var int LEN = 5\nlen = input.int(LEN, "L")\n', 'v = ta.sma(close, len) + k * 0\n'],
   cv_float: ['', false, 'var float M = 2.0\nm = input.float(M, "M")\n', 'v = close * m + k * 0\n'],
+  // ⭐ W4 T4 — a `?:` arm with per-call-site history (`ta.sma` in the arm taken when the
+  // test reads state). A widened predicate (`armHistoryGuard`), so the door keeps master's
+  // own refusal (`runtime:conditional-history`).
+  arm_sma: ['x = close + k * 0\nv = x > open ? ta.sma(close, 5) : close\n', false],
+  arm_change: ['x = close + k * 0\nv = x > open ? ta.change(close) : 0.0\n', false],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
