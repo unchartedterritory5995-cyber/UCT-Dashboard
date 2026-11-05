@@ -9,13 +9,14 @@ import { registerBuiltins } from './builtins'
 import { manifestFor, getCapability, allCapabilityNames, onSurface } from './capabilities'
 import { fastParse } from './fastPath'
 import { quickReplies } from './quickReplies'
+import { groupOfAction, routeManifest } from './routing'
 
 registerBuiltins()
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const GOLDEN = JSON.parse(fs.readFileSync(path.join(HERE, 'contract', 'manifest.golden.json'), 'utf8'))
 const names = (surface) => manifestFor({ surface, createIndicator: true }).map(c => c.name)
 
-const PAGES = ['screener', 'breadth', 'calendar', 'journal']
+const PAGES = ['screener', 'breadth', 'calendar', 'journal', 'wire']
 // the query families the brief names: everywhere the Agent is mounted
 const EVERYWHERE = ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'breadth.show', 'breadth.history', 'guide.explain', 'guide.show', 'agent.capabilities', 'app.open',
   'screener.run', 'screener.runSaved', 'screener.state', 'screener.listSaved']
@@ -30,7 +31,7 @@ describe('surfaces (W2-C1)', () => {
     expect(manifestFor({ surface: 'charts', createIndicator: true })).toEqual(GOLDEN.capabilities)
     // and none of the pages\' own capabilities reached it
     const charts = names('charts')
-    for (const n of ['screener.page', 'screener.openSaved', 'breadth.page', 'calendar.nextReport', 'calendar.day', 'journal.listNotes', 'journal.createNote']) expect(charts).not.toContain(n)
+    for (const n of ['screener.page', 'screener.openSaved', 'breadth.page', 'calendar.nextReport', 'calendar.day', 'journal.listNotes', 'journal.createNote', 'wire.page', 'wire.archive']) expect(charts).not.toContain(n)
   })
 
   it('queries that read UCT\'s own data are offered on every page', () => {
@@ -75,9 +76,20 @@ describe('surfaces (W2-C1)', () => {
     expect(onSurface(getCapability('stock.profile'), undefined)).toBe(true)
   })
 
+  it('the wire reads are ungrouped, so routing keeps them whatever the message selects', () => {
+    expect(groupOfAction('wire.page')).toBeNull()
+    expect(groupOfAction('wire.archive')).toBeNull()
+    const full = manifestFor({ surface: 'wire', createIndicator: true })
+    for (const msg of ['when was breadth last below 20%', 'what does this page show?', 'zzz']) {
+      const kept = routeManifest(full, msg, {}).manifest.map(c => c.name)
+      expect(kept, msg).toEqual(expect.arrayContaining(['wire.page', 'wire.archive', 'agent.capabilities']))
+    }
+  })
+
   it('quick replies fit the page; the Charts list is untouched', () => {
     expect(quickReplies([{ symbol: 'NVDA', tf: 'D', cs: {} }])).toEqual(['Switch this chart to weekly bars', 'Why is NVDA moving today?', 'Build an indicator that flags volume spikes'])
     expect(quickReplies([], 'screener')[0]).toMatch(/screen/)
     expect(quickReplies([], 'journal')).toContain('List my recent notes')
+    expect(quickReplies([], 'wire')[0]).toBe('What does this page show?')
   })
 })

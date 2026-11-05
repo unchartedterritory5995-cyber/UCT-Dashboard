@@ -8,6 +8,7 @@ const PAGE_REPLIES = {
   breadth: ['What does this breadth page show?', 'How is US breadth looking now?', 'When was US breadth last below 20% above the 50-day?'],
   calendar: ['When does NVDA report next?', 'What reports are on this week?', 'Why is SPY moving today?'],
   journal: ['List my recent notes', 'Add a note: what I am watching this week', 'Why is SPY moving today?'],
+  wire: ['What does this page show?', 'How far back does the wire archive go?', 'Why is SPY moving today?'],
 }
 export function quickReplies(charts, surface = 'charts') {
   if (surface !== 'charts' && PAGE_REPLIES[surface]) return [...PAGE_REPLIES[surface]]

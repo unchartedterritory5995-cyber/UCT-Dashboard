@@ -15,6 +15,7 @@
 //   known      — UCT has it, the Agent can't operate it yet
 //   planned    — not in UCT or the Agent today; on the roadmap (future)
 //   unsupported— neither, and not planned
+// A topic's `fixed` is its whole answer, word for word (a decline that must never vary).
 // agentDiscovery.test.js rails: every topic cap is registered, every registered capability is
 // covered by some topic, every planned batch/stage label exists in docs/agent/ROADMAP.md.
 
@@ -25,6 +26,7 @@ import { SCHEMA as DRAWING_SCHEMA, RETIRED_TYPES } from '../components/chart/dra
 const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label).map(d => d.label)
 const drawingTools = () => Object.keys(DRAWING_SCHEMA).filter(t => !RETIRED_TYPES.has(t))
 const sample = (xs, n = 6) => (xs.length > n ? `${xs.slice(0, n).join(', ')} and ${xs.length - n} more` : xs.join(', '))
+const WIRE = String.raw`(?:morning wire|the wire|today'?s wire|the rundown)`
 
 /**
  * Topics, most specific first (the future-stage topics lead, so “can you backtest my screen?” is about backtesting). `words` are matched against the lowercased question.
@@ -44,6 +46,22 @@ export const TOPICS = [
     words: [/\b(screenshot|screen shot|image|picture|photo|png|upload)\w*/, /\brecreate (this|a|my|the) chart\b/],
     caps: [], productHas: false,
     planned: { when: 'Stage 2', what: 'reading a chart screenshot and rebuilding it in UCT, saying what it saw, what it inferred and what it could not tell' },
+  },
+  {
+    // ⛔ A FIXED ANSWER. The wire's text and its picks never reach the model (capabilities/wirePage.js): `fixed` is the
+    // whole answer, the same words on every page, whether a question lands here or the model plans this topic.
+    id: 'wireText', title: 'What the Morning Wire says',
+    words: [new RegExp(String.raw`\b(?:summar\w*|recap\w*|tl;?dr|quote|read)\b.*\b${WIRE}`), new RegExp(String.raw`\b${WIRE}(?:'s)? (?:says?|text|contents?|picks?|tickers?|thesis)\b`), new RegExp(String.raw`\b(?:picks?|tickers?|names|stocks)\b.*\b(?:in|on|from)\b.*\b${WIRE}`)],
+    caps: [], productHas: false, planned: null,
+    fixed: 'I can’t summarise, quote or list anything from the Morning Wire. Its text and picks stay on the page and don’t reach me. On the Morning Wire page I can tell you its date and section names, check whether the archive holds a past date, and show you where things are; Read aloud on that page reads it to you.',
+  },
+  {
+    id: 'wire', title: 'The Morning Wire page',
+    words: [new RegExp(String.raw`\b${WIRE}`), /\bwire archive\b/, /\bpast (?:issues?|wires?)\b/],
+    caps: ['wire.page', 'wire.archive'], productHas: true,
+    canDo: 'on the Morning Wire page, say the wire’s date and section names and check whether the archive holds a past date — dates and names only, never the wire’s text',
+    known: () => ['the wire’s text and Top picks (on the page; Read aloud reads it to you)', 'replaying a past issue (pick the date in Past issues)', 'the thumbs and notes on a section (the page’s own controls)'],
+    planned: null,
   },
   {
     id: 'breadth', title: 'Market breadth (now and history)',
@@ -238,6 +256,7 @@ const LEAD = {
 /** The deterministic answer for one topic (plain text). */
 export function answerTopic(t, reg = registeredSet()) {
   const status = topicStatus(t, reg)
+  if (t.fixed) return { status, text: t.fixed }
   const lines = []
   if (status === 'available' || status === 'partial') {
     lines.push(`${LEAD[status]} ${t.title}: I can ${t.canDo}.`)

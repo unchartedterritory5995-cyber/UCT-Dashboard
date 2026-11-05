@@ -11,7 +11,7 @@ import CatalystTable from '../components/tiles/CatalystTable'
 import WireArchive from '../components/wire/WireArchive'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useHubMode from '../hub/useHubMode'
-import useWireSection from '../hub/sections/wireSection'
+import useWireSection, { segmentNodes, segmentLabelText } from '../hub/sections/wireSection'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
@@ -29,6 +29,7 @@ import { useMemberInterestSurface } from '../lib/memberInterest'
 import styles from './MorningWire.module.css'
 import jsonFetcher from '../utils/jsonFetcher'
 import { formatPercent } from '../lib/presentation/presentationPrimitives'
+import { useWireAgentHost } from '../agent/hosts/usePageAgentHosts'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
 const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
@@ -210,6 +211,12 @@ export default function MorningWire() {
     containerRef: rundownRef,
     trackId: `morning-wire-${rundown?.date || 'today'}`,
   })
+
+  // ⛔ UCT Agent: the wire's date and section NAMES, read when the Agent asks. Never `rundown` itself: the html is the
+  // wire's text, which must not reach the model (agent/capabilities/wirePage.js). A Terminal panel gets no host.
+  const wireSections = useCallback(() => segmentNodes(rundownRef.current).map(segmentLabelText), [])
+  const wireStatus = rundown?.html ? 'ready' : rundownError && !rundown ? 'error' : rundown ? 'notOut' : 'loading'
+  useWireAgentHost({ date: rundown?.date, status: wireStatus, sections: wireSections }, { skip: !!inPanel })
 
   // ── Joystick hub, Phase 3 §3.1 — MOUNT ONLY ────────────────────────────────
   // Tap = next segment · double-tap = previous · scrub = segment index · chip = the segment's
@@ -415,8 +422,8 @@ export default function MorningWire() {
 
       {/* ── The Rundown (Read aloud sits by the "UPDATED …" line) ── */}
       <TileCard>
-        <div className={styles.rundownArea}>
-          <div className={styles.rundownReadAloud}>
+        <div className={styles.rundownArea} data-guide="wire.rundown">
+          <div className={styles.rundownReadAloud} data-guide="wire.readAloud">
             <ReadAloudButton
               trackId={`morning-wire-${rundown?.date || 'today'}`}
               label="Morning Wire"

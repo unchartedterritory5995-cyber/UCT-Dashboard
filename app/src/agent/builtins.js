@@ -38,6 +38,7 @@ import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
 import { registerCalendarCapabilities } from './capabilities/calendar'
 import { registerJournalCapabilities } from './capabilities/journal'
+import { registerWirePageCapabilities } from './capabilities/wirePage'
 import { registerCoachCapabilities } from './capabilities/coach'
 
 let done = false
@@ -74,6 +75,7 @@ export function registerBuiltins() {
   registerBreadthPageCapabilities()
   registerCalendarCapabilities()
   registerJournalCapabilities()
+  registerWirePageCapabilities()
 }
 
 // SERVER-GATED capabilities: registered only once /api/agent/config has answered, and only when the server

@@ -10,13 +10,15 @@
 //   Breadth:                       useBreadthAgentHost({ tab, days, topDate, rowCount, columns, live, loading })
 //   Calendar:                      useCalendarAgentHost({ data, weekLabel, view, loading })
 //   JournalLayout:                 useJournalAgentHost({ notes?, refresh? })
+//   MorningWire:                   useWireAgentHost({ date, status, sections }, { skip })
 
 import { useEffect, useState } from 'react'
 import { mutate as globalMutate } from 'swr'
 import { useAgentPageHost, useAgentApp } from '../agentApp'
 import useSavedScreens from '../../pages/screener/hooks/useSavedScreens'
 import useJ2Notes from '../../pages/journal-2-0/hooks/useJ2Notes'
-import { buildScreenerPageHost, buildBreadthPageHost, buildCalendarPageHost, buildJournalPageHost } from './pageHosts'
+import jsonFetcher from '../../utils/jsonFetcher'
+import { buildScreenerPageHost, buildBreadthPageHost, buildCalendarPageHost, buildJournalPageHost, buildWirePageHost } from './pageHosts'
 
 const here = () => { try { return window.location.pathname } catch { return null } }
 
@@ -104,5 +106,18 @@ export function useJournalAgentHost(values = {}) {
     navigate: (to) => live().app?.navigate(to),
   }))
   useAgentPageHost('journal', host)
+  return host
+}
+
+/** `skip`: the page is mounted inside a UCT Terminal panel, which is not the page: no host there. */
+export function useWireAgentHost(values, { skip = false } = {}) {
+  const app = useAgentApp()
+  const host = useLiveHost(app, { ...values, app }, (live) => buildWirePageHost({
+    read: () => live(),
+    archiveIndex: () => jsonFetcher('/api/wire/archive'),   // WireArchive's own read (the index: no issue text)
+    location: () => here() || '/morning-wire',
+    navigate: (to) => live().app?.navigate(to),
+  }))
+  useAgentPageHost('wire', skip ? null : host)
   return host
 }

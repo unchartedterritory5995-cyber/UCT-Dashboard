@@ -251,6 +251,40 @@ export const GUIDE_FEATURES = [
     ],
     doIt: { say: 'Tell me what it should say — for example “add a note: NVDA held its 21-day on earnings” — and I’ll add it (Undo moves it to Trash).' },
   },
+  // ⛔ /morning-wire: the guide says what the page's controls ARE, never what a wire says (capabilities/wirePage.js)
+  {
+    id: 'wireArchive', surface: 'wire', terms: ['past issues', 'wire archive', 'past wires'], control: 'the Past issues tile', title: 'Replaying a past Morning Wire', topic: 'wire',
+    words: [/\b(past|old|older|previous|earlier|replay|archived?)\b/],
+    caps: ['wire.archive'],
+    // components/wire/WireArchive.jsx
+    explain: 'Past issues replays an archived Morning Wire: pick a date and the wire of that morning opens below it. The tile says how many weekdays the archive holds and names the ones it does not.',
+    steps: [
+      { target: 'wire.archive', text: 'Past issues is here. Pick a date to replay the wire of that morning.' },
+    ],
+    doIt: { say: 'Give me a date and I’ll check whether the archive holds it. Replaying it is yours: pick the date in Past issues.' },
+  },
+  {
+    id: 'wireReadAloud', surface: 'wire', terms: ['read aloud'], control: 'the Read aloud button', title: 'Listening to the Morning Wire', topic: 'wire',
+    words: [/\b(read (it |this )?(out ?loud|aloud)|listen|audio|hear)\b/],
+    caps: ['wire.page'],
+    // pages/MorningWire.jsx — ReadAloudButton
+    explain: 'Read aloud plays the wire on the page and follows along, highlighting the part being read.',
+    steps: [
+      { target: 'wire.readAloud', text: 'Press Read aloud to hear the wire. The page follows along as it reads.' },
+    ],
+    doIt: { say: 'Press Read aloud on the page. I don’t read the wire myself.' },
+  },
+  {
+    id: 'wireSections', surface: 'wire', terms: ['morning wire', 'the wire', 'rundown', 'wire sections'], control: 'the Morning Wire', title: 'Reading the Morning Wire', topic: 'wire',
+    words: [/\b(wire|rundown|sections?|brief(ing)?)\b/],
+    caps: ['wire.page'],
+    // pages/MorningWire.jsx — the rundown tile
+    explain: 'The Morning Wire is UCT’s daily brief, published each trading morning around 7:35 AM ET. The page shows the latest wire section by section, beside the market clock, the indexes and the pre-market movers.',
+    steps: [
+      { target: 'wire.rundown', text: 'The wire reads top to bottom, one section after another.' },
+    ],
+    doIt: { say: 'Ask me what this page shows and I’ll give you the wire’s date and section names. Its text stays on the page.' },
+  },
 ]
 
 const BY_ID = new Map(GUIDE_FEATURES.map(f => [f.id, f]))

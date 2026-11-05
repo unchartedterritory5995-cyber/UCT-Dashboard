@@ -13,7 +13,7 @@ export const useAgentApp = () => useContext(AgentContext)
 /**
  * A page hands the provider its host. `host` must be STABLE (build it once with useMemo and read live
  * state through refs — host.js's own rule); `surface` is the registry's name for the page ('screener',
- * 'breadth', 'calendar', 'journal', 'charts'). `owned`: the page renders its own panel (/charts).
+ * 'breadth', 'calendar', 'journal', 'wire', 'charts'). `owned`: the page renders its own panel (/charts).
  * No-op outside a provider.
  */
 export function useAgentPageHost(surface, host, { owned = false } = {}) {

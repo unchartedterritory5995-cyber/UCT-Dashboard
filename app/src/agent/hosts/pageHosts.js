@@ -15,6 +15,8 @@
 //                                        same POST /api/j2/notes NotebookWidget and NotebookTab make); Undo
 //                                        TRASHES that note through the editor's own DELETE /api/j2/notes/{id}
 //                                        (restorable from Trash). Trades and positions: not written here.
+//   /morning-wire  host.wirePage  read only: the wire's date and section NAMES; the archive's index (dates, coverage).
+//                                 ⛔ never the wire's text, its picks, or an issue (capabilities/wirePage.js)
 //
 // Every host carries `surface` (the registry filters on it, and the fast path claims no phrase of a
 // capability not offered on it), `location()` (app.open says where the member is) and `navigate`.
@@ -164,6 +166,45 @@ export function buildJournalPageHost({ notes, refresh, location, navigate, reque
         return !!r?.ok
       },
       refresh: () => refreshFn(),
+    },
+  })
+}
+
+// ── /morning-wire ──
+// ⛔ A SECTION NAME IS A SHORT HEADING, OR IT IS NOT HANDED OVER. The rundown is the engine's HTML, so a heading that ever
+// carried a sentence, a level or a figure must stop here: letters, spaces and light punctuation, no long number.
+const SECTION_NAME = /^[\p{L}\d][\p{L}\d '’&/-]{0,39}$/u
+const SECTION_WORDS_MAX = 6
+export const wireSectionName = (raw) => {
+  const name = str(raw).replace(/\s+/g, ' ').trim()
+  return SECTION_NAME.test(name) && !/\d{3}/.test(name) && name.split(' ').length <= SECTION_WORDS_MAX ? name : null
+}
+const WIRE_STATUS = new Set(['ready', 'notOut', 'error', 'loading'])
+export function buildWirePageHost({ read, archiveIndex, location, navigate }) {
+  const readPage = fn(read, {})
+  const readIndex = fn(archiveIndex, null)
+  return buildPageHost({
+    surface: 'wire', location, navigate,
+    wirePage: {
+      snapshot() {
+        const p = readPage() || {}
+        const raw = typeof p.sections === 'function' ? p.sections() : p.sections
+        const labels = Array.isArray(raw) ? raw : []
+        const sections = labels.map(wireSectionName).filter(Boolean)
+        return {
+          date: p.date ? str(p.date).slice(0, 32) : null,
+          status: WIRE_STATUS.has(p.status) ? p.status : 'loading',
+          sections,
+          unnamed: labels.length - sections.length,
+        }
+      },
+      // what the Past issues tile reads: the index, never an issue. Rejects as the page's fetcher does (err.status).
+      async archive() {
+        const body = await readIndex()
+        const c = body?.coverage || {}
+        const list = (v) => (Array.isArray(v) ? v.map(str) : [])
+        return { dates: list(body?.dates), held: Number(c.held) || 0, first: c.first ? str(c.first) : null, last: c.last ? str(c.last) : null, weekdays: Number(c.weekdays_in_range) || 0, missing: list(c.missing_weekdays) }
+      },
     },
   })
 }

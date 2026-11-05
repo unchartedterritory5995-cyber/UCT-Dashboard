@@ -97,8 +97,10 @@ function WireArchivePanel() {
   }
 
   return (
-    <TileCard title="Past issues" icon="calendar">
-      {body}
-    </TileCard>
+    <div data-guide="wire.archive">
+      <TileCard title="Past issues" icon="calendar">
+        {body}
+      </TileCard>
+    </div>
   )
 }
