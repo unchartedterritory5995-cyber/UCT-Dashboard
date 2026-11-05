@@ -2664,6 +2664,10 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                     composed = compose(user_id, composed_from, ticker=ticker, conn=conn, mode="create",
                                        after_build=prefill, now=now, note_day=note_day, answers=answers,
                                        choices=choices, tools_later=True)
+                    # Fix round 2 (re-review R1-2): the listing's routine/tracker definitions are read and cleaned
+                    # BEFORE the write lock (W11-R53/W11-R31: no reducer or clean runs while it is held). They are keyed
+                    # by the listing, not the style version; a key that moved under the lock says its own honest line.
+                    pools_r, pools_t = _copy_inline_pools(composed_from, conn)
                     _lock_for_style(conn)
                     began = True
                     current = get_style(user_id, style["id"], conn)
@@ -2675,7 +2679,6 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                     conn.rollback()                              # never compose while holding the lock
                     began = False
                     composed_from = current
-                pools_r, pools_t = _copy_inline_pools(current, conn)
                 ctx = {"user_id": user_id, "conn": conn, "now": now, "note_day": note_day, "fill_widgets": True,
                        "choices": dict(choices or {}), "answers": dict(answers or {}), "tool_answers": True,
                        "inline_routines": pools_r, "inline_trackers": pools_t, "definitions": {}, "defs": {}, "tools": {},

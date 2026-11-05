@@ -145,6 +145,26 @@ def test_inline_skip_then_a_ticked_use_makes_exactly_one_routine(db):
     assert _count(db, "j2_routines") == before + 1
 
 
+def test_the_listing_is_read_before_the_style_write_lock(db, monkeypatch):
+    """Fix round 2 (re-review R1-2): the listing's definitions are read and cleaned OUTSIDE the create's write lock
+    (W11-R53/W11-R31: no reducer or clean runs while it is held). Every read is recorded with whether a transaction
+    was open on the connection it ran on."""
+    gid = _inline_listing(db)
+    gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"skip": True}, "tracker_a": {"skip": True}},
+                                 payload={}, conn=db)               # the copy now holds inline slots
+    seen = []
+    real = gallery.listing_tool_pools
+
+    def spy(conn, gallery_id):
+        seen.append(conn.in_transaction)
+        return real(conn, gallery_id)
+    monkeypatch.setattr(gallery, "listing_tool_pools", spy)
+    gallery.use_library_template(MEMBER, gid, choices={"routine_a": {"create": True}, "tracker_a": {"create": True}},
+                                 payload={}, conn=db)
+    assert seen, "non-vacuity: the definitions were read for the copy's inline slots"
+    assert not any(seen), "the listing was read while the style write lock was held"
+
+
 def test_inline_control_create_makes_the_member_their_own(db):
     r, t = routine(db), tracker(db)
     s = style(db, blocks=[routine_slot("a", r["id"]), tracker_slot("a", t["id"])])
