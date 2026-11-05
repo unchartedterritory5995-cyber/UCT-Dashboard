@@ -2036,7 +2036,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 18,
+   "phrasings": 25,
    "evidence": {
     "nl": [
      "grid.four.named: \"Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.\"",
@@ -2057,32 +2057,36 @@
     "args": [
      "corpus grid.four.named",
      "corpus grid.four.named.daily",
-     "GW-16.live-grid-2x2-daily",
-     "GW-21.two-charts-side-by-side"
+     "corpus grid.add-count.reuses-one",
+     "corpus grid.add-count.reuses-two",
+     "corpus grid.add-new.adds",
+     "GW-16.live-grid-2x2-daily"
     ],
     "execution": [
      "grid.four.named (c)",
      "grid.four.named.daily (c)",
      "undo.named-after-grid (c)",
-     "GW-10.grid-then-undo-by-kind",
-     "GW-16.live-grid-2x2-daily",
-     "GW-19.daily-charts-each-with-50sma"
+     "grid.add-count.reuses-one (c)",
+     "grid.add-count.reuses-two (c)",
+     "grid.add-new.adds (c)"
     ],
     "receipt": [
      "grid.four.named (c)",
      "grid.four.named.daily (c)",
-     "GW-10.grid-then-undo-by-kind",
-     "GW-16.live-grid-2x2-daily",
-     "GW-21.two-charts-side-by-side"
+     "grid.add-count.reuses-one (c)",
+     "grid.add-count.reuses-two (c)",
+     "grid.add-new.adds (c)",
+     "GW-10.grid-then-undo-by-kind"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "grid.four.named: undo restores",
      "undo.named-after-grid: undo restores",
-     "GW-10.grid-then-undo-by-kind",
-     "GW-19.daily-charts-each-with-50sma",
-     "GW-21.two-charts-side-by-side"
+     "grid.add-count.reuses-one: undo restores",
+     "grid.add-count.reuses-two: undo restores",
+     "grid.add-new.adds: undo restores",
+     "GW-10.grid-then-undo-by-kind"
     ],
     "multiStep": [
      "undo.named-after-grid: after an earlier turn",
@@ -3699,6 +3703,9 @@
      "GW-27.indicator-package-draft-to-delete"
     ],
     "refusal": [
+     "refuse.other-one.ambiguous-four",
+     "followup.other-one.two-charts",
+     "followup.other-charts.plural-four",
      "GW-02.empty-board-honest",
      "GW-18.live-emas-already-present"
     ],

@@ -8719,6 +8719,265 @@
         "make a copy of the 20 ema",
         "clone the 20 ema"
       ]
+    },
+    {
+      "id": "grid.add-count.reuses-one",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — one chart on the board",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "new_charts": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "timeframe": null,
+              "layout": "grid",
+              "new_charts": null,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "symbols": [
+            "SPY",
+            "QQQ",
+            "IWM",
+            "DIA"
+          ],
+          "keepsIds": [
+            "c1"
+          ],
+          "sameSize": true
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "det": "required"
+        },
+        {
+          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "det": "required"
+        },
+        {
+          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "det": "required"
+        },
+        {
+          "text": "add four charts for SPY QQQ IWM DIA",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "grid.add-count.reuses-two",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — two charts on the board",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "TWO",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "new_charts": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "IWM",
+                "DIA"
+              ],
+              "timeframe": null,
+              "layout": "grid",
+              "new_charts": null,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "symbols": [
+            "SPY",
+            "QQQ",
+            "IWM",
+            "DIA"
+          ],
+          "keepsIds": [
+            "c1",
+            "c2"
+          ],
+          "sameSize": true
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "det": "required"
+        },
+        {
+          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "det": "required"
+        },
+        {
+          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "det": "required"
+        },
+        {
+          "text": "add four charts for SPY QQQ IWM DIA",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "grid.add-new.adds",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — words that SAY more (\"new\", \"more\", \"another\") still add beside the board's charts",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ"
+              ],
+              "new_charts": true
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ"
+              ],
+              "timeframe": null,
+              "layout": null,
+              "new_charts": true,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 3,
+          "symbolSet": [
+            "NVDA",
+            "SPY",
+            "QQQ"
+          ],
+          "keepsIds": [
+            "c1"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add two new charts for SPY and QQQ",
+          "det": "required"
+        },
+        {
+          "text": "open two more charts: SPY and QQQ"
+        },
+        {
+          "text": "add another two charts for SPY and QQQ"
+        }
+      ]
     }
   ],
   "refusals": [
@@ -10171,6 +10430,140 @@
               "chart": 1,
               "count": 0,
               "saved": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.other-one.ambiguous-four",
+      "source": "GRID-REUSE #2 (11-04, v1 with NLM-1 off): a SINGULAR referent (\"the other one\") is exactly ONE chart — the only other one, else a question; never several (live: a 4-chart board, \"same for the other one\" changed all three)",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to the SPY chart",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "same for the other one",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "do the same on the other chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "same for the QQQ chart",
+          "expect": {
+            "receipt": true,
+            "indicators": {
+              "chart": 1,
+              "include": [
+                "rsi(14)"
+              ]
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 1,
+              "exclude": [
+                "rsi(14)"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.other-one.two-charts",
+      "source": "GRID-REUSE #2 (11-04, v1 with NLM-1 off): a SINGULAR referent (\"the other one\") is exactly ONE chart — the only other one, else a question; never several (live: a 4-chart board, \"same for the other one\" changed all three) — with ONE other chart it is that chart",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "TWO",
+      "steps": [
+        {
+          "say": "add rsi to the NVDA chart",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "same for the other one",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "indicators": {
+              "chart": 1,
+              "include": [
+                "rsi(14)"
+              ]
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 1,
+              "exclude": [
+                "rsi(14)"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.other-charts.plural-four",
+      "source": "GRID-REUSE #2 (11-04, v1 with NLM-1 off): a SINGULAR referent (\"the other one\") is exactly ONE chart — the only other one, else a question; never several (live: a 4-chart board, \"same for the other one\" changed all three) — the PLURAL (\"the other charts\") is still every other chart",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to the SPY chart",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "same for the other charts",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "indicatorsEach": {
+              "include": [
+                "rsi(14)"
+              ]
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 3,
+              "exclude": [
+                "rsi(14)"
+              ]
             }
           }
         }
