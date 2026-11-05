@@ -248,7 +248,7 @@ export function recordOf(raw, identity) {
     const columns = {}
     for (const k of Object.keys(enc.columns)) columns[k] = b64ToF64(enc.columns[k])
     const digest = codec.columnDigest({ engine: identity, columns, refusals: [] })
-    return { status: 'ok', digest, guards: [], warmup: raw.warmup || null, keys: Object.keys(columns).sort() }
+    return { status: 'ok', digest, guards: [], warmup: raw.warmup || null, keys: Object.keys(columns).sort(), cols: enc.columns }
   }
   const e = raw.error || {}
   const guard = e.guard || `unnamed:${e.name || 'Error'}`
@@ -336,6 +336,77 @@ export function compareRecords(a, b) {
   return out
 }
 
+// ─── report-only cases (the V8 sin/cos finding) ───────────────────────────────
+
+/** The NAMED report-only list: `corpus.reportOnly = { reason, cases: [case names] }`. Never a
+ *  pattern. -> Map(case -> reason). A name that is not a real case is an error. */
+export function reportOnlyOf(corpus) {
+  const r = corpus.reportOnly
+  const out = new Map()
+  if (!r) return out
+  if (!r.reason || !Array.isArray(r.cases)) throw new Error('corpus.reportOnly needs { reason, cases: [...] }')
+  const real = new Set(caseList(corpus).map((c) => c.case))
+  for (const name of r.cases) {
+    if (!real.has(name)) throw new Error(`reportOnly names "${name}", which is not a corpus case`)
+    out.set(name, r.reason)
+  }
+  return out
+}
+
+const _f64 = new Float64Array(1)
+const _i64 = new BigInt64Array(_f64.buffer)
+/** A double's position on the ordered number line (so adjacent doubles differ by 1). */
+function orderedBits(x) {
+  _f64[0] = x
+  const b = _i64[0]
+  return b < 0n ? -(b & 0x7fffffffffffffffn) : b
+}
+
+/** Rows that differ bit for bit, and the largest ulp distance, over every column. NaN equals NaN.
+ *  -> { rows, total, maxUlp } or null when either side carries no columns. */
+export function ulpStats(a, b) {
+  if (!a || !b || !a.cols || !b.cols) return null
+  let rows = 0, total = 0, maxUlp = 0n
+  for (const k of new Set([...Object.keys(a.cols), ...Object.keys(b.cols)])) {
+    if (!a.cols[k] || !b.cols[k]) return null
+    const x = b64ToF64(a.cols[k]), y = b64ToF64(b.cols[k])
+    total += Math.max(x.length, y.length)
+    for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
+      const u = x[i], v = y[i]
+      if (Number.isNaN(u) && Number.isNaN(v)) continue
+      if (Object.is(u, v)) continue
+      rows += 1
+      if (Number.isNaN(u) || Number.isNaN(v) || !Number.isFinite(u) || !Number.isFinite(v)) { maxUlp = -1n; continue }
+      const d = orderedBits(u) - orderedBits(v)
+      const ad = d < 0n ? -d : d
+      if (maxUlp >= 0n && ad > maxUlp) maxUlp = ad
+    }
+  }
+  return { rows, total, maxUlp: maxUlp < 0n ? 'inf/nan' : Number(maxUlp) }
+}
+
+/** `describe(name, reason)` (optional) words the REPORTED line (HP-1 has no columns to measure).
+ *  Split diffs into gated RED, REPORTED (a listed case whose ONLY difference is the digest) and
+ *  INCONCLUSIVE. -> { red, reported: [{case, text}], inconclusive } */
+export function classifyDiffs(diffs, ra, rb, reportOnly = new Map(), describe = null) {
+  const inc = new Set(Object.entries({ ...ra, ...rb }).filter(([, r]) => r.status === 'inconclusive').map(([n]) => n))
+  const byCase = new Map()
+  for (const d of diffs) byCase.set(d.case, [...(byCase.get(d.case) || []), d])
+  const red = [], reported = [], inconclusive = []
+  for (const [name, ds] of byCase) {
+    if (inc.has(name)) { inconclusive.push(...ds); continue }
+    if (reportOnly.has(name) && ds.every((d) => d.field === 'digest')) {
+      if (describe) { reported.push({ case: name, text: describe(name, reportOnly.get(name)) }); continue }
+      const st = ulpStats(ra[name], rb[name])
+      const where = st ? `${st.rows}/${st.total} values differ, max ${st.maxUlp} ulp` : 'ulp not measurable (a side carries no columns)'
+      reported.push({ case: name, text: `REPORTED ${name}: digest differs; ${where}; ${reportOnly.get(name)}` })
+      continue
+    }
+    red.push(...ds)
+  }
+  return { red, reported, inconclusive }
+}
+
 /** "A fixture that cannot distinguish is not a rail": every ok case has its OWN digest, and the
  *  corpus produces more than one digest. -> a sentence, or null when the corpus distinguishes. */
 export function distinguishes(records) {
@@ -375,7 +446,17 @@ export function checkAgainst(expected, got, corpus) {
   for (const [set, sha] of Object.entries(got.barsSha256)) {
     if (expected.barsSha256[set] !== sha) { lines.push(`RED bars "${set}": generator output moved (${sha.slice(0, 12)})`); code = 1 }
   }
-  const diffs = compareRecords(expected.cases, got.records).filter((d) => !inconclusive.includes(d.case))
+  let diffs = compareRecords(expected.cases, got.records).filter((d) => !inconclusive.includes(d.case))
+  // W5-T19: HP-1 on a V8 other than the one the digests were recorded on (the gate runs Node 20 =
+  // V8 11.3; recorded on V8 13.6). ONLY the NAMED report-only cases, ONLY when their sole difference
+  // is the digest, ONLY when the V8 moved. On the recording V8 they are gated like every other case.
+  const v8Was = expected.recordedOn && expected.recordedOn.v8, v8Now = got.recordedOn && got.recordedOn.v8
+  const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)
+  // ONE rule: classifyDiffs (HP-3 uses the same function); the list is empty unless the V8 moved.
+  const cls = classifyDiffs(diffs, expected.cases, got.records, v8Moved ? reportOnlyOf(corpus) : new Map(),
+    (name, reason) => `REPORTED ${name}: digest differs from the one recorded on V8 ${v8Was}; this run is V8 ${v8Now}; ${reason}`)
+  const reportedLines = cls.reported.map((r) => r.text)
+  diffs = [...cls.red, ...cls.inconclusive]
   if (diffs.length) {
     code = 1
     const bumped = !sameIdentity(expected.identity, got.identity)
@@ -386,6 +467,7 @@ export function checkAgainst(expected, got, corpus) {
     const was = expected.recordedOn && expected.recordedOn.v8, now = got.recordedOn && got.recordedOn.v8
     if (was && now && was !== now) lines.push(`NOTE committed on V8 ${was}, this run is V8 ${now}: a last-ulp Math difference between V8 builds reads as this red`)
   }
+  lines.push(...reportedLines)
   const nd = distinguishes(got.records)
   if (nd) { code = 1; lines.push(`RED corpus: ${nd}`) }
   for (const h of hostileFailures(corpus, got.records)) { code = 1; lines.push(`RED hostile ${h}`) }
@@ -394,6 +476,13 @@ export function checkAgainst(expected, got, corpus) {
     lines.push(`INCONCLUSIVE (wall-clock stop, never a verdict): ${inconclusive.join(', ')}`)
   }
   return { code, lines }
+}
+
+/** The HP-1 verdict line. REPORTED cases (a V8 other than the recording V8) are counted apart. */
+export function hp1Summary(r, n) {
+  const rep = r.lines.filter((l) => l.startsWith('REPORTED ')).length
+  if (r.code === 0) return `HP-1 GREEN: ${n - rep}/${n} cases equal the committed digests${rep ? `; ${rep} REPORTED, not gated (V8 differs from the recording V8)` : ''}`
+  return r.code === 2 ? 'HP-1 INCONCLUSIVE' : 'HP-1 RED'
 }
 
 /** --write: refuse to move an existing case's digest unless the engine identity moved. */
@@ -525,11 +614,14 @@ async function main(argv) {
     const a = JSON.parse(readFileSync(argv[i + 1], 'utf8')), b = JSON.parse(readFileSync(argv[i + 2], 'utf8'))
     const ra = a.records || a.cases, rb = b.records || b.cases
     const diffs = compareRecords(ra, rb)
-    const inc = Object.entries({ ...ra, ...rb }).filter(([, r]) => r.status === 'inconclusive').map(([n]) => n)
-    for (const d of diffs) console.log(`${inc.includes(d.case) ? 'INCONCLUSIVE' : 'RED'} ${d.case}: ${d.field} ${JSON.stringify(d.a)} != ${JSON.stringify(d.b)}`)
-    const red = diffs.filter((d) => !inc.includes(d.case)).length
+    const cls = classifyDiffs(diffs, ra, rb, reportOnlyOf(loadCorpus()))
+    for (const d of cls.inconclusive) console.log(`INCONCLUSIVE ${d.case}: ${d.field} ${JSON.stringify(d.a)} != ${JSON.stringify(d.b)}`)
+    for (const d of cls.red) console.log(`RED ${d.case}: ${d.field} ${JSON.stringify(d.a)} != ${JSON.stringify(d.b)}`)
+    for (const r of cls.reported) console.log(r.text)
+    const red = new Set(cls.red.map((d) => d.case)).size
+    const inc = [...new Set(cls.inconclusive.map((d) => d.case))]
     const n = Object.keys(ra).length
-    console.log(`HP-3 ${red ? 'RED' : inc.length ? 'INCONCLUSIVE' : 'GREEN'}: ${n - red - inc.length}/${n} cases equal (digest, guards, status, warmup)`)
+    console.log(`HP-3 ${red ? 'RED' : inc.length ? 'INCONCLUSIVE' : 'GREEN'}: ${n - red - inc.length - cls.reported.length}/${n} cases equal (digest, guards, status, warmup)${cls.reported.length ? `; ${cls.reported.length} REPORTED, not gated` : ''}`)
     return red ? 1 : inc.length ? 2 : 0
   }
   const corpus = loadCorpus()
@@ -587,8 +679,7 @@ async function main(argv) {
       if (only) for (const k of Object.keys(expected.cases)) if (!got.records[k]) delete expected.cases[k]
       const r = checkAgainst(expected, got, corpus)
       r.lines.forEach((l) => console.log(l))
-      const n = Object.keys(got.records).length
-      console.log(r.code === 0 ? `HP-1 GREEN: ${n}/${n} cases equal the committed digests` : r.code === 2 ? 'HP-1 INCONCLUSIVE' : 'HP-1 RED')
+      console.log(hp1Summary(r, Object.keys(got.records).length))
       return r.code
     }
     return 0

@@ -84,6 +84,8 @@ def ulp_gap(a: float, b: float) -> int | None:
     """Distance in representable doubles; None when exactly one side is NaN; 0 for two NaNs."""
     if a != a or b != b:
         return 0 if (a != a and b != b) else None
+    if a in (float("inf"), float("-inf")) or b in (float("inf"), float("-inf")):
+        return None  # the JS rule (ulpStats): an infinity on either side is "inf/nan", not a distance
     ia = struct.unpack("<q", struct.pack("<d", a))[0]
     ib = struct.unpack("<q", struct.pack("<d", b))[0]
     if ia < 0:
@@ -213,16 +215,16 @@ def main(argv=None) -> int:
 
     code_n, text_n = compare(node_file, chromium_file)
     print(f"node vs {args.browser}:", text_n.splitlines()[-1] if text_n else "")
-    if code_n:
+    if code_n or "REPORTED" in text_n:
         print(text_n)
     if args.only:
         code_e, text_e = 0, "expected: skipped (--only)"
     else:
         code_e, text_e = compare(EXPECTED, chromium_file)
         print(f"committed vs {args.browser}:", text_e.splitlines()[-1] if text_e else "")
-        if code_e:
+        if code_e or "REPORTED" in text_e:
             print(text_e)
-    differing = sorted({line.split()[1].rstrip(":") for line in text_n.splitlines() if line.startswith(("RED ", "INCONCLUSIVE "))})
+    differing = sorted({line.split()[1].rstrip(":") for line in text_n.splitlines() if line.startswith(("RED ", "INCONCLUSIVE ", "REPORTED "))})
     coldiff = column_diff(json.loads(node_raw_file.read_text(encoding="utf-8")), results, differing)
     (out / "column-diff.json").write_text(json.dumps(coldiff, indent=1), encoding="utf-8")
     print(f"column diff: {len(differing)} differing case(s), {sum(len(v) for v in coldiff.values())} differing column(s)")
@@ -230,6 +232,7 @@ def main(argv=None) -> int:
     verdict = 1 if 1 in codes else 2 if 2 in codes else 0
     (out / "verdict.json").write_text(json.dumps({"browser": browser_version, "node_vs_chromium": text_n.splitlines()[-1] if text_n else "",
                                                   "committed_vs_chromium": text_e.splitlines()[-1] if text_e else "",
+                                                  "reported": [l for l in (text_n + chr(10) + text_e).splitlines() if l.startswith("REPORTED")],
                                                   "python_codec_red": py_bad, "exit": verdict}, indent=1), encoding="utf-8")
     print({0: "HP-2/HP-3 GREEN", 1: "HP-2/HP-3 RED", 2: "HP-2/HP-3 INCONCLUSIVE"}[verdict])
     if args.browser != "chromium":
