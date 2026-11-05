@@ -114,3 +114,20 @@ describe('typing over a frozen chart says why nothing happened (fix round 1)', (
     expect(opened.with).toEqual([])
   })
 })
+
+// Fix round 2 (re-review N6): a live region inserted WITH its words is generally not announced. The
+// hint's region is there, empty, from the start; selecting the chart fills the same element.
+describe('fix round 2: the hint region is mounted empty, then filled', () => {
+  it('the same polite region is present before selection and receives the words on selection', async () => {
+    const attrs = chartAttrs()
+    const view = render(<WidgetEmbedView node={{ attrs }} selected={false} editor={editor()} updateAttributes={vi.fn()} />)
+    await screen.findAllByTestId('chart-embed-stub')
+    const root = view.container.querySelector('[data-widget-embed-view="chart"]')
+    const region = root.querySelector('[data-chart-hint][aria-live="polite"]')
+    expect(region).not.toBeNull()
+    expect(region.textContent).toBe('')
+    view.rerender(<WidgetEmbedView node={{ attrs }} selected editor={editor()} updateAttributes={vi.fn()} />)
+    expect(root.querySelector('[data-chart-hint][aria-live="polite"]')).toBe(region)
+    expect(region.textContent).toMatch(/Esc back to writing/)
+  })
+})

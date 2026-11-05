@@ -391,3 +391,5 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+/* The hint's live region at rest: present (so a screen reader hears it when filled), takes no room. */
+.hintIdle { margin: 0; height: 0; overflow: hidden; }

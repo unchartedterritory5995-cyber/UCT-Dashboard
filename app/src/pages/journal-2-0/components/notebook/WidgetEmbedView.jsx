@@ -1092,9 +1092,11 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       {frozen && toolbarMsg && (
         <p className={styles.selectedHint} role="status">{toolbarMsg}</p>
       )}
-      {attrs.widgetId === 'chart' && selected && editor?.isEditable !== false && !shareView && (
-        <p className={styles.selectedHint} aria-live="polite">
-          {canRetarget
+      {/* Fix round 2 (re-review N6): the region is MOUNTED EMPTY on every editable chart and filled
+          when the chart is selected -- a live region inserted with its words is generally not read. */}
+      {attrs.widgetId === 'chart' && editor?.isEditable !== false && !shareView && (
+        <p className={selected ? styles.selectedHint : styles.hintIdle} aria-live="polite" data-chart-hint>
+          {!selected ? '' : canRetarget
             ? 'Selected · type a ticker to switch it (for example A, M, D) · Del removes the chart · Esc back to writing'
             : 'Selected · Del removes the chart · Esc back to writing'}
         </p>
