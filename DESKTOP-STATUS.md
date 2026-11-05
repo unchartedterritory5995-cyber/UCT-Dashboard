@@ -496,3 +496,5 @@ Merging to master is still not authorized in this file; the owner approves it di
   - Merges clean onto master c5f5dd41b5 (merge-tree).
   - Engine map in runs/train/ENGINE.md: T4=6, T3=7, W3=8, T7=9, T2=10, T9=11, T8=12, T10=13, T11=14, T12=15, T13=16, T15=17.
   READY TO LAND. Waiting on the owner's explicit approval of the master merge and production deploy.
+- 2026-11-05 13:24 OWNER APPROVED the train merge and production deploy, in chat ("approve do it all"). PR #857 integ/pine-train-2026-11-05 -> master opened; CI running.
+- 2026-11-05 13:24 W9-T3 r1 45def73c2f: GO-WITH-NOTES. B1 fixed (5000-vs-100000 now INCONCLUSIVE). Note for the W9-T2 brief: scripts with no literal settings always read INCONCLUSIVE, and T2 must not block them on that.
