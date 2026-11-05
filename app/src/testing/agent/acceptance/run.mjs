@@ -140,26 +140,54 @@ scn('task-C indicators on all four', [], { prefs: FOUR }, async (p, t) => {
 })
 
 scn('task-D watchlist and save layout', ['C3-030', 'C1-171', 'C3-076'], { query: 'charts=1&layouts=1' }, async (p, t) => {
-  // as ONE planned turn the runtime refuses the whole plan: that is recorded, and nothing may land
-  await act(p, t, {
+  // ONE planned turn, ONE card: the save runs last, on the board the rest left
+  const r = await act(p, t, {
     say: 'add AMD to my Momentum list and save this layout as Swing 2',
     plan: { disposition: 'propose', ops: [{ action: 'watchlist.add', target: '$watchlists[0]', args: { symbols: ['AMD'] } }, { action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 2' } }] },
-    noReceipt: true, says: /didn't change anything/i, busy: false,
+    approve: true, settleMs: 1200, receipt: /Swing 2/, busy: false,
   })
-  t.ok('the refused plan left the list alone', !(await p.H(`H.wl.find(w => w.name === 'Momentum').items.map(i => i.sym)`)).includes('AMD'))
-  t.ok('the refused plan saved nothing', (await p.H('H.layoutWrites.length')) === 0)
-  // the same work, as two requests
-  await act(p, t, { say: 'add AMD to my Momentum list', plan: { ops: [{ action: 'watchlist.add', target: '$watchlists[0]', args: { symbols: ['AMD'] } }] }, receipt: /AMD/ })
   const wl = await p.H(`H.wl.find(w => w.name === 'Momentum').items.map(i => i.sym)`)
   t.ok('AMD is on the list, once', wl.filter(s => s === 'AMD').length === 1, wl.join())
   const face = await p.b.evaluate(`document.querySelector('[data-widget-id="w-watch"]').innerText`)
   t.ok('the Watchlist widget shows the new count', face.split(/[^A-Za-z0-9]+/).join(' ').includes('Momentum 5'), face.slice(0, 200))
-  const r = await act(p, t, { say: 'save this layout as Swing 2', plan: { ops: [{ action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 2' } }] }, approve: true, settleMs: 1200, receipt: /Swing 2/ })
   const writes = await p.H('H.layoutWrites.map(w => [w.method, w.path, w.body && w.body.name])')
   t.ok('a layout write reached the library, with that name', writes.some(w => w[2] === 'Swing 2'), JSON.stringify(writes))
   const dock = await p.b.evaluate(`[...document.querySelectorAll('button, a, div, span')].filter(e => !e.closest('[data-testid="agent-panel"]') && e.textContent.trim() === 'Swing 2').length`)
   t.ok('the Layout Dock shows Swing 2', dock > 0, dock)
   t.ok('the charts did not change', r.after.filter(w => w.type === 'chart').every(c => same(c, r.was(c.id))))
+})
+scn('save last holds the change before it', ['C3-030'], { query: 'charts=1&layouts=1' }, async (p, t) => {
+  await act(p, t, {
+    say: 'make this chart weekly and save this layout as Swing 3',
+    plan: { disposition: 'propose', ops: [{ action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }, { action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 3' } }] },
+    receipt: /weekly/i, undoable: true, settleMs: 1200, busy: false,
+  })
+  t.ok('the chart is weekly at once', (await p.charts())[0].tf === '1W', (await p.charts())[0].tf)
+  t.ok('the save is a card, not yet run', /Swing 3/.test(await p.proposal() || '') && (await p.H('H.layoutWrites.length')) === 0, await p.proposal())
+  t.ok('Apply clicked', await p.button('Apply'))
+  await p.idle()
+  await sleep(800)
+  const w = (await p.H('H.layoutWrites')).find(x => x.body?.name === 'Swing 3')
+  t.ok('the saved layout holds the weekly chart', !!w && /"tf":"W"/.test(JSON.stringify(w.body)), JSON.stringify(w?.body || null).slice(0, 300))
+})
+scn('save last on a card with the rest', ['C3-030'], { query: 'charts=1&layouts=1' }, async (p, t) => {
+  await act(p, t, {
+    say: 'alert me if SPY goes above 300 and save this layout as Swing 5',
+    plan: { disposition: 'propose', ops: [{ action: 'alert.create', target: '$alertLibrary', args: { symbol: 'SPY', price: 300, direction: 'above' } }, { action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 5' } }] },
+    approve: true, settleMs: 1200, receipt: /Swing 5/, busy: false,
+  })
+  t.ok('the alert landed', (await p.b.evaluate('window.__ba.alerts.length')) === 1)
+  t.ok('the layout was saved once, on the one Apply', (await p.H('H.layoutWrites')).filter(w => w.body?.name === 'Swing 5').length === 1)
+  t.ok('no second card', !(await p.proposal()), await p.proposal())
+})
+scn('save first stays refused', [], { query: 'charts=1&layouts=1' }, async (p, t) => {
+  await act(p, t, {
+    say: 'save this layout as Swing 4 and then make this chart weekly',
+    plan: { disposition: 'propose', ops: [{ action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 4' } }, { action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }] },
+    noReceipt: true, says: /Save the layout on its own/, busy: false,
+  })
+  t.ok('nothing saved', (await p.H('H.layoutWrites.length')) === 0)
+  t.ok('nothing changed', (await p.charts())[0].tf === '1D')
 })
 
 scn('task-E rsi with follow-ups', ['C2-004', 'C2-024', 'C2-030', 'C2-032'], { prefs: TWO() }, async (p, t) => {

@@ -440,6 +440,19 @@ function fanOutOf(ops) {
 // run, what the rest did STAYS (a new list is never deleted because it could not be opened) and
 // the member is told exactly that. Never a way around approval: they are on the same card.
 const isDeferred = (o) => !!getCapability(o?.action)?.deferred
+// ⭐ C2: "add AMD to my Momentum list and save this layout as Swing 2". A save is `exclusive` because it takes the board as it
+// is, has no Undo and is bound to that board on its card, so it can't commit inside another change. As the LAST step of a plan
+// it needs none of that: it is a deferred step, run once the rest has landed, on the board the rest left. A rest that failed or
+// wasn't saved never reaches it. Anywhere but last it would save a board the member asked to change afterwards, so it stays
+// refused, and so does a rest that is itself exclusive (opening a layout) or changes the layouts.
+const SAVES_THE_BOARD = new Set(['layout.saveAs', 'layout.saveCurrent'])
+function saveRunsLast(ops) {
+  if (!Array.isArray(ops) || ops.length < 2 || !SAVES_THE_BOARD.has(ops[ops.length - 1]?.action)) return false
+  return ops.slice(0, -1).every(o => {
+    const c = getCapability(o?.action)
+    return !!c && c.target !== 'layouts' && (!c.exclusive || c.sequential)
+  })
+}
 // ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
 export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
 /** True when a capability's answer carries nothing the member could see (no text, table, view, link or chart). */
@@ -483,8 +496,9 @@ function landDeferred(ops, created, names, approved = false) {
     action: o.action, target: realTarget(o),
     args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
     pendingLists, followNote,
-    // a step that was ON the card the member approved runs as approved (re-validated, never re-asked)
-    ...(approved ? { approvedStep: true } : {}),
+    // a step that was ON the card the member approved runs as approved (re-validated, never re-asked). Not saving over the open
+    // layout: that replaces its saved copy with no Undo, and what was on the card was the board before this request changed it
+    ...(approved && o.action !== 'layout.saveCurrent' ? { approvedStep: true } : {}),
   }))
 }
 
@@ -805,6 +819,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       allOps = opsIn.filter(o => !isDeferred(o))
       opsIn = allOps
     }
+    if (saveRunsLast(allOps)) {
+      deferred = [...deferred, allOps[allOps.length - 1]]
+      allOps = allOps.slice(0, -1); opsIn = allOps
+    }
     // SEQUENTIAL capabilities (indicator edits: exclusive — never mixed in a plan): in a request that
     // asks for more, each runs as its OWN step after the rest (own receipt + Undo), in request order.
     // The same change on several charts keeps its fan-out path (proposed together, run per chart).
@@ -837,7 +855,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
       mixedDeferred = creates.size > 0 && deferred.some(d => !creates.has(String(d.target)))
       for (const d of deferred) {
-        const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+        const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+        const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+        const dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
         else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
         else { okd.push(d); deferredLines.push(...dp.lines) }
