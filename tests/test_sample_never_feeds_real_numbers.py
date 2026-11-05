@@ -467,6 +467,22 @@ EXEMPT = {
     "api/services/journal_two/widget_engine/run.py": "the widget result cache's freshness stamp (COUNT and "
                                                      "MAX(updated_at) of notes, folders, kinds, properties); it "
                                                      "only decides when to recompute, never a shown number",
+    # Connector fidelity (Plans A, E, F): import plumbing that stores, links or repairs the note itself.
+    "api/services/journal_two/import_repair/links.py": "repairs links inside the member's own imported notes; "
+                                                       "the note itself, never a fact about the member",
+    "api/services/journal_two/import_repair/runner.py": "selects imported notes (import_key set; a sample has "
+                                                        "none) for the link repair and its dry-run report",
+    "api/services/journal_two/note_connectors/adoption.py": "matches a live connector note to the member's own "
+                                                            "file-imported copy of it; the note itself",
+    "api/services/journal_two/note_connectors/corpora/corpora_gen.py": "the connector certification corpora "
+                                                                       "generator, an offline tool, not a member "
+                                                                       "surface",
+    "api/services/journal_two/note_connectors/dest_folder.py": "the connector's destination folder and its repair; "
+                                                               "folders and ownership, never a shown count",
+    "api/services/journal_two/note_connectors/link_keys.py": "the link heal pass: an imported note's placeholder "
+                                                             "links become in-app links; the note itself",
+    "api/services/journal_two/note_connectors/providers/obsidian.py": "the Obsidian sync writes and reconciles the "
+                                                                      "member's vault notes; the note itself",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",
