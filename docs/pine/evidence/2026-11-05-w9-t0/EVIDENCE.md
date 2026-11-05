@@ -135,4 +135,20 @@ theirs was edited; this change touches Python tooling only.
 
 ## final-tip
 
-(see the appended section below)
+TIP `6f962f833e` (code `0b8e9145bd` + train merge `6a9198cac5` + evidence). Node 20.20.2 (a local `node@20.20.2`
+npm copy first on PATH; the box default is 24), `FINAL_TIP_SCOPE=affected`, base `origin/integ/pine-train-2026-11-05`,
+`app/node_modules` junctioned to `pine-base`. Logs: `_resume-2026-11-01/runs/w9t0/final/`, `final2.out`.
+The change is Python tooling only, so `vitest --changed` selects nothing; the rails run is the vitest scope.
+
+- gate pytest (4 files): rc 0, 46 passed.
+- hygiene: rc 0.
+- pytest of every test importing a changed module: rc 0, 255 passed
+  (`test_pine_coverage_w9_t0_strategies`, `test_pine_coverage_w4_t0_honesty`, `test_pine_coverage_conditional_ta`,
+  `test_language_coverage`, `test_support_loop_tools`, `test_pine_runtime_switch_on`).
+- vitest rails (4 files), js rc 1, `3 failed | 207 passed | 9 skipped`:
+  - `coverageMapDoorCensus.measure.test.js`: passed (the train's fix is in the merge).
+  - `pollingSites.rail.test.js`: FAIL, the named baseline.
+  - `settingsScope.rail.test.js`: FAIL, the named baseline.
+  - `vendorHarness.coverageAudit.test.js`: FAIL (`delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHES ...`),
+    the train red the coordinator named. This change touches no JS and no vendor fixture, so it is not the cause.
+- integrity: ok (HEAD and tree did not move). The full chart+hooks vitest was not run (scope as briefed).
