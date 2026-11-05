@@ -590,6 +590,7 @@ scn('replay', ['C1-042', 'C1-045', 'C3-209', 'C3-210'], { prefs: TWO() }, async 
   await p.select(A)
   const snap = await p.read()
   const r = await act(p, t, { say: 'show me this chart as of may 1 2025', plan: { ops: [{ action: 'chart.replay', target: CH0, args: { date: '2025-05-01' } }] }, touch: [A, B], receipt: /replay|as of|may/i })
+  t.ok('the receipt says every chart, which is what moved: the two charts here are not linked', /every chart in this workspace/.test(r.receipt?.text || '') && r.chart(A).pixels !== r.was(A).pixels && r.chart(B).pixels !== r.was(B).pixels, r.receipt?.text)
   const f = await p.b.evaluate(`document.querySelector('[data-widget-id="${A}"]').innerText`)
   t.ok('the chart says it is in replay', /replay/i.test(f), f.slice(0, 200))
   t.ok('the last bars are gone from the picture', r.chart(A).text.join() !== r.was(A).text.join())
