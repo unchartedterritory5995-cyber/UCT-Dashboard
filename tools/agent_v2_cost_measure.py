@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import types
 
@@ -96,6 +97,46 @@ def _groups(steps: list[dict]) -> list[list[int]]:
                 continue
         out.append([i])
     return out
+
+
+#: the catalog line for a distance field (screener.js DIST_BELOW_HIGH / DIST_ABOVE_LOW, DIST_UNIT)
+_DIST_BELOW_HIGH = re.compile(r"^dist_(?:\w+_)?high_pct$|^dist_ath_pct$")
+_DIST_ABOVE_LOW = re.compile(r"^dist_(?:\w+_)?low_pct$")
+_DIST_UNIT = {"neg": "(%, ≤0: −5 = 5% below the high)", "pos": "(%, ≥0: 5 = 5% above the low)"}
+_SESSION_MEASURES = os.path.join(ROOT, "app", "src", "agent", "capabilities", "sessionMeasures.js")
+
+
+def real_screener_section() -> list[dict]:
+    """The `screener` context section as the browser sends a member with no saved screens on a screening request:
+    capabilities/screener.js's provider, built from the server's own registry (the /api/screener/fields catalog less
+    hidden fields, the session measures, the starter screens). A stub here makes every v2 figure read low: the section
+    rides every round, and it is several KB."""
+    from api.services.screener import filters, saved_screens
+    from api.services.uct_agent.scan import hidden
+
+    def line(key: str, label: str, typ: str, unit: str | None) -> str:
+        dist = "neg" if _DIST_BELOW_HIGH.match(key) else "pos" if _DIST_ABOVE_LOW.match(key) else None
+        tail = _DIST_UNIT[dist] if dist else f"({unit})" if unit else "(yes/no)" if typ == "bool" else "(list)" if typ == "enum" else ""
+        return f"{key}:{label}{tail}"
+
+    hide = hidden.rating_keys() | hidden.flow_keys()
+    fields = [line(f["key"], f.get("label") or f["key"], f["type"], f.get("unit")) for f in filters.field_catalog()
+              if f.get("key") and f["key"] not in hide and f.get("type") in ("range", "bool", "enum")]
+    with open(_SESSION_MEASURES, encoding="utf-8") as f:
+        measures = re.findall(r"\{ key: '(\w+)', label: '([^']+)', unit: '([^']*)'", f.read())
+    if not fields or not measures:
+        raise RuntimeError("the real screener section could not be built")
+    fields += [line(k, label, "range", unit) for k, label, unit in measures]
+    starters = [{"id": str(s["id"]), "name": s["name"], "kind": "starter"} for s in saved_screens.starters()][:40]
+    return [{"ref": "s1", "label": "Screener", "fields": ";".join(fields), "savedScreens": starters}]
+
+
+def real_context() -> dict:
+    """SAMPLE_CONTEXT with the real Screener section (the only section the sample stubbed down to a sentence)."""
+    from tools.agent_v2_cost_dryrun import SAMPLE_CONTEXT
+    ctx = json.loads(json.dumps(SAMPLE_CONTEXT))
+    ctx["screener"] = real_screener_section()
+    return ctx
 
 
 def measure_case(case: dict, layout: str, model: str, *, led, v2, t1, ctx: dict, manifest: list[dict]) -> dict:
@@ -237,11 +278,10 @@ def measure_case(case: dict, layout: str, model: str, *, led, v2, t1, ctx: dict,
 
 def measure() -> dict:
     from tools import agent_eval_ledger as led
-    from tools.agent_v2_cost_dryrun import SAMPLE_CONTEXT, _manifest
+    from tools.agent_v2_cost_dryrun import _manifest
     from api.services.uct_agent import turn as t1, turn_v2 as v2
     t1._record_cost = lambda r: 0.0                  # never record a scripted response as spend
-    ctx = json.loads(json.dumps(SAMPLE_CONTEXT))
-    ctx["charts"] = ctx["charts"]
+    ctx = real_context()
     manifest = _manifest()
     rows = []
     for case in _cases():
