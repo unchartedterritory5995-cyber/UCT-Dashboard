@@ -16,13 +16,15 @@ import { buildPineRuntime, viteEnvOf } from '../../../../../../scripts/build-pin
 import { SCRIPT_ENGINE_VERSION } from '../../scriptEngineVersion.js'
 import { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from '../ir.js'
+import { NATIVE_TFS } from '../../../timeframes.js'
+import { DEFAULT_LIMITS } from '../limits.js'
 
 const APP = path.resolve(process.cwd())
 const REPO = path.resolve(APP, '..')
 const SERIES = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-deadband-ticks-aapl-1d-2026-09-28.json')
 const MEASURE = path.join(APP, 'scripts', 'measure-pine-runtime.mjs')
 const EXPORTS = [
-  'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION', 'RUNTIME_IR_VERSION', 'SCRIPT_ENGINE_VERSION',
+  'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION', 'RUNTIME_IR_VERSION', 'SCRIPT_ENGINE_VERSION',
   'computeRuntimeColumns', 'resetRuntimeLedgers', 'resetRuntimeSessions', 'runtimeVersionRefusal',
 ]
 
@@ -55,6 +57,8 @@ describe('server bundle (W5-T1)', () => {
     expect(mod.RUNTIME_FRONTEND_LANGUAGE).toBe(RUNTIME_FRONTEND_LANGUAGE)
     expect(mod.RUNTIME_FRONTEND_VERSION).toBe(RUNTIME_FRONTEND_VERSION)
     expect(mod.RUNTIME_IR_VERSION).toBe(RUNTIME_IR_VERSION)
+    expect(mod.NATIVE_TFS).toEqual(NATIVE_TFS)
+    expect(mod.DEFAULT_LIMITS).toEqual(DEFAULT_LIMITS)
   })
 
   it('bakes import.meta.env once: no live read remains, the VITE_* value moves the bundle', async () => {
