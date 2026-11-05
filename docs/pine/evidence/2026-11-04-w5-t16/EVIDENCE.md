@@ -22,12 +22,7 @@ Code tip (before this evidence commit): `c2afcfb06c`. Base: merge commit `e5ed2f
   - `RUNTIME_REFUSALS` (`not_runtime`, `column_shape`), pairwise distinct from `REFUSALS`.
 - `tests/test_definition_record_runtime.py`: 25 tests.
 
-## SCHEMA GAP (report to T6/T11 owners; their files untouched)
-`pine_runtime_client.JobResult` has no warm-up field and `_RESULT_KEYS` rejects any extra key on the
-wire, so the shipped `runtime_column_fn` returns a plain list with no warm-up. Until T6/T7 report the
-warm-up and T11 surfaces it (as `.warmup` on the returned column, or tell me another shape), every real
-run is refused by name (`test_schema_gap_the_shipped_lane_reports_no_warmup_so_the_record_refuses`).
-Also noted from T11: T7 results carry no digest.
+(r0's schema-gap section is superseded: T11 r1/r2 carry the warm-up as `RuntimeColumn.warmup`.)
 
 ## Rails (red on base, green on tip)
 - Base (`e5ed2f5c76`): `git show HEAD:api/services/definition_record.py | grep -c record_runtime_pass` = 0
@@ -66,3 +61,26 @@ tests/test_definition_record.py tests/test_runtime_server_lane.py` under `heavy-
 
 ## Engine bump
 No. Python service only; no engine file touched.
+
+## r1 (FIX after NO-GO @5a85b9b23f) - base now T11 r2 `7df06fe3fd` merged (merge `3c80b4e212`), master `9bfd567837`
+- B1: the pass asks the service in the bars-store CODE. `_service_tf(label)` inverts
+  `ledger._BARS_STORE_TF_KEYS` (the one authority; `scan_store._TF_CODE_BY_LABEL` is the same inverse);
+  the record key keeps the label. Rails: `test_the_service_is_asked_in_the_bars_store_code_not_the_record_label`
+  (all 8 labels, through the real client and T11's fake; the job's tf is asserted from the fake's recorded call),
+  `test_every_record_label_has_exactly_one_code`.
+- B2: merged T11 r2. The schema-gap test is now the positive end-to-end rail
+  `test_the_real_lane_records_with_the_runs_own_warmup` (fake `withheld_bars=3`, NaN in [0,3): evaluated n-k,
+  first bar = bars[k]).
+- B3: `def_hash` = `runtime_definitions.handle(definition)` (the `runtime:sha256:` key T14's `scan_runtime`
+  files the same document under), no stripping, no retyped prefix. The record's key shape
+  (`_IdentityShape`) admits tree result identities or `HASH_PREFIX` + 64 hex, reading the prefix from
+  `runtime_definitions`. Rail `test_the_runtime_record_key_is_the_scan_lanes_handle`. NOTE: the existing
+  `api/routers/definition_record.py` reader validates identities with the tree-only regex; widening it is
+  that file's owner's call (not touched).
+- Mutations (driver committed: `mutate_r1.py`, heavy-mut.lock, log `dsk/w5t16r1-mut.log`): 16/16 killed -
+  label-as-tf, `_service_tf` identity, pad ignored, warm-up guard/bool/upper/lower, def_hash constant,
+  def_hash stripped, shape refuses namespace, column length, runtime check, withheld uncaught, lane
+  record->alert, zero-evaluated written, forward-only origin off.
+- Tests: `tests/test_definition_record_runtime.py` 35 passed (+ `test_runtime_server_lane.py`: 78 together).
+- final-tip: numbers in the following docs-only commit; log `dsk/w5t16r1-final.log`.
+- Engine bump: no.
