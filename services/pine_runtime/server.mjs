@@ -7,8 +7,11 @@
 //   2. body read, capped at MAX_BODY_BYTES while it streams (400)
 //   3. HMAC over the exact body bytes, any configured secret (401); then the replay check (401)
 //   4. closed schema, engine identity, doc and bars hashes recomputed (protocol.mjs: 400/409/422)
-//   5. the runner (the T7 pool). Not built yet: with no runner the service is NOT ready and every
-//      run answers 503 runtime:server-unavailable. Nothing is ever computed in this process.
+//   5. the runner (the T7 pool). With no runner the service is NOT ready and every run answers
+//      503 runtime:server-unavailable. Nothing is ever computed in this process.
+//   6. the seal (W5-T7b, protocol.mjs sealRunResults): every result is checked against the closed
+//      result schema and stamped with its design 2.3 digest by the bundle's own T3 codec; anything
+//      else is a 500 and no job of the request is answered.
 //
 // ⛔ A refused request runs ZERO jobs. ⛔ No log line carries a body, a source, a secret or an
 // owner id: refusals log their status and guard only.
@@ -30,7 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   AUTH_GUARD, SIGNATURE_HEADER, ReplayGuard, parseSecrets, parseSignatureHeader, sha256Hex, verifyBody,
 } from './auth.mjs'
-import { MAX_BODY_BYTES, PROTOCOL, SCHEMA_GUARD, parseRunRequest } from './protocol.mjs'
+import { MAX_BODY_BYTES, PROTOCOL, SCHEMA_GUARD, parseRunRequest, sealRunResults } from './protocol.mjs'
 import { BUSY_GUARD, createPool } from './pool.mjs'
 
 export const UNAVAILABLE_GUARD = 'runtime:server-unavailable'
@@ -93,7 +96,12 @@ export async function loadBundle(path = DEFAULT_BUNDLE) {
   if (!Array.isArray(mod.NATIVE_TFS) || !mod.DEFAULT_LIMITS || !Number.isSafeInteger(mod.DEFAULT_LIMITS.HISTORY)) {
     throw new Error(`the bundle at ${path} exports no NATIVE_TFS / DEFAULT_LIMITS.HISTORY; the service refuses to start.`)
   }
-  return { mod, identity, tfSet: [...mod.NATIVE_TFS], maxBars: mod.DEFAULT_LIMITS.HISTORY }
+  // W5-T7b: the T3 codec the seal digests with is the bundle's own (one implementation, in the artifact)
+  for (const k of ['columnDigest', 'decodeColumn']) {
+    if (typeof mod[k] !== 'function') throw new Error(`the bundle at ${path} exports no ${k}; the service refuses to start.`)
+  }
+  const codec = { columnDigest: mod.columnDigest, decodeColumn: mod.decodeColumn }
+  return { mod, identity, codec, tfSet: [...mod.NATIVE_TFS], maxBars: mod.DEFAULT_LIMITS.HISTORY }
 }
 
 function send(res, status, payload) {
@@ -124,17 +132,11 @@ function readCapped(req, cap) {
   })
 }
 
-/** Every job answered once, in order, by id, with a closed status: anything else is not a reply. */
-function wellFormedResults(jobs, results) {
-  return Array.isArray(results) && results.length === jobs.length
-    && results.every((r, i) => r && r.job === jobs[i].job && (r.status === 'ok' || r.status === 'withheld'))
-}
-
 /**
  * The supervisor's HTTP server. Everything it trusts is passed in, so a rail can drive it.
  * @param {object} o
  * @param {string[]} o.secrets     from parseSecrets(PINE_RUNTIME_SERVICE_SECRET)
- * @param {{identity:object, tfSet:string[], maxBars:number}} o.door   from loadBundle()
+ * @param {{identity:object, codec:object, tfSet:string[], maxBars:number}} o.door   from loadBundle()
  * @param {(request:object) => Promise<object[]>} [o.runner]  the job pool (T7); absent = not ready
  * @param {() => boolean} [o.canary]  readiness beyond "loaded" (the T9 parity canary)
  * @param {() => number} [o.now]      unix seconds
@@ -174,10 +176,12 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
       if (e && e.guard === BUSY_GUARD) return refuse(res, 429, BUSY_GUARD, e.message, log)
       return refuse(res, 500, FAILED_GUARD, 'the runtime pool failed, so no job in this request has a value.', log)
     }
-    if (!wellFormedResults(checked.request.jobs, results)) {
-      return refuse(res, 500, FAILED_GUARD, 'the runtime pool did not answer every job once, so no job in this request has a value.', log)
+    // Every job answered once, in order, by id, in the closed result schema, then sealed (step 6)
+    const sealed = sealRunResults(door.codec, door.identity, checked.request.jobs, results)
+    if (!sealed.ok) {
+      return refuse(res, 500, FAILED_GUARD, 'the runtime pool did not answer every job once in the result schema, so no job in this request has a value.', log)
     }
-    return send(res, 200, { protocol: PROTOCOL, engine: door.identity, results })
+    return send(res, 200, { protocol: PROTOCOL, engine: door.identity, results: sealed.results })
   }
 
   const server = createHttpServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {

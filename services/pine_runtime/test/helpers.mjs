@@ -3,6 +3,8 @@
 // fresh from the OS RNG for this process only.
 import { createHash, randomBytes } from 'node:crypto'
 import { barsSha256, BAR_COLUMNS } from '../protocol.mjs'
+// W5-T7b: the seal's codec in the rails is T3's own module (the service reads the bundle's copy of it)
+import { columnDigest, decodeColumn } from '../../../app/src/components/chart/engine/runtime/columnDigest.js'
 
 export const SECRET = process.env.PINE_RUNTIME_TEST_SECRET || randomBytes(32).toString('hex')
 export const SECRET_2 = process.env.PINE_RUNTIME_TEST_SECRET_2 || randomBytes(32).toString('hex')
@@ -12,7 +14,8 @@ export const IDENTITY = Object.freeze({
   bundle_sha256: 'ab'.repeat(32),
 })
 export const TFS = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
-export const DOOR = Object.freeze({ identity: IDENTITY, tfSet: TFS, maxBars: 32768 })
+export const CODEC = Object.freeze({ columnDigest, decodeColumn })
+export const DOOR = Object.freeze({ identity: IDENTITY, codec: CODEC, tfSet: TFS, maxBars: 32768 })
 
 export function f64b64(values) {
   const b = Buffer.alloc(values.length * 8)

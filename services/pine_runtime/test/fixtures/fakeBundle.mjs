@@ -28,6 +28,12 @@ let sessions = 0
 let ledgers = 0
 export function resetRuntimeSessions() { sessions = 0 }
 export function resetRuntimeLedgers() { ledgers = 0 }
+// W5-T7b: the real bundle's reader (runtimeObjects.js::runtimeWarmupOf) reads the same key
+export const RUNTIME_WARMUP_KEY = '__runtimeWarmup'
+export function runtimeWarmupOf(cols) {
+  const w = cols && typeof cols === 'object' ? cols[RUNTIME_WARMUP_KEY] : null
+  return w && typeof w === 'object' ? w : null
+}
 
 const fill = (n, x) => Array.from({ length: n }, () => x)
 const cold = (cols) => Object.defineProperty(cols, RUNTIME_INCREMENTAL_KEY, { enumerable: false, value: { resumedFrom: null } })
@@ -54,6 +60,10 @@ export function computeRuntimeColumns(def, rows, ctx, opts) {
     cols.frozen = fill(n, Object.isFrozen(globalThis) ? 1 : 0)
     cols.env = fill(n, Object.keys(proc().env).length)
     return cold(cols)
+  }
+  if (src.startsWith('warmup:')) {
+    const cols = cold({ value: rows.map((r) => r.c) })
+    return Object.defineProperty(cols, RUNTIME_WARMUP_KEY, { enumerable: false, value: { withheldBars: JSON.parse(src.slice(7)), shift: 2 } })
   }
   if (src === 'resumed') return Object.defineProperty({ value: fill(n, 1) }, RUNTIME_INCREMENTAL_KEY, { enumerable: false, value: { resumedFrom: 3 } })
   throw Object.assign(new Error(`the fake bundle has no behaviour ${src}`), { guard: 'runtime:fake' })

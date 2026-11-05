@@ -18,7 +18,14 @@ export {
   RUNTIME_INCREMENTAL_KEY,
   RUNTIME_TIME_BUDGET_GUARD,
   RUNTIME_FAILED_GUARD,
+  // W5-T7b: the run's own warm-up record (`computeOffListing`), which the service puts on the wire
+  // as `warmup.withheldBars` beside the columns, read by the function the browser worker reads.
+  runtimeWarmupOf,
 } from './runtimeColumns.js'
+// W5-T7b: the T3 canonical codec, so the supervisor (services/pine_runtime/protocol.mjs
+// sealRunResults) decodes what a job sends and stamps the design 2.3 digest with the ONE
+// implementation, carried inside the artifact (the image copies no source file).
+export { columnDigest, decodeColumn } from './columnDigest.js'
 // W5-T7: drawings are not served by the server lanes in v1; the adapter names them by this key.
 export { RUNTIME_OBJECTS_KEY } from './runtimeObjects.js'
 export { SCRIPT_ENGINE_VERSION } from '../scriptEngineVersion.js'

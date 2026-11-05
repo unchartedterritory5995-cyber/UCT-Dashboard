@@ -1,0 +1,6 @@
+//@version=5
+indicator("hp percentrank", overlay=false)
+plot(ta.percentrank(close, 50), "prank")
+plot(ta.percentile_linear_interpolation(close, 50, 80), "p80")
+plot(ta.median(close, 21), "median")
+plot(ta.dev(close, 21), "dev")

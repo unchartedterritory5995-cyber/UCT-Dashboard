@@ -19,7 +19,7 @@ async function boot({ runner = 'count', canary, now = () => T, secrets = [SECRET
   const calls = []
   const logs = []
   const run = runner === 'count'
-    ? async (req) => { calls.push(req); return req.jobs.map((j) => ({ job: j.job, status: 'ok', columns: {}, refusals: [] })) }
+    ? async (req) => { calls.push(req); return req.jobs.map((j) => ({ job: j.job, status: 'ok', columns: {}, refusals: [], warmup: { withheldBars: 0 } })) }
     : runner
   const server = createPineRuntimeServer({ secrets, door: DOOR, runner: run, canary, now, log: (l) => logs.push(l) })
   const port = await listenDualStack(server, 0)

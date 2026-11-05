@@ -23,6 +23,21 @@
 //                    where str(x) = u32le(byte length) + UTF-8 bytes.
 //   engine           the five identity fields of the T3 codec; an integer and its decimal string
 //                    are one value (T3's rule); every field must equal the service's own.
+//
+// THE RESPONSE (W5-T7b, `sealRunResults`): every result the runner returns is checked against a
+// CLOSED schema and then SEALED, here, once, before it is sent:
+//   ok        { job, status: 'ok', columns, refusals, warmup, digest, ms? }
+//   withheld  { job, status: 'withheld', refusals, digest, ms? }
+//   columns   key -> canonical base64 of exactly bars.n canonical Float64 values (T3 decodeColumn)
+//   refusals  [{ key | '*', guard, sentence, bar | null }]; a withheld result holds a '*' one, an
+//             ok result none
+//   warmup    { withheldBars }: the run's own warm-up (`runtimeWarmupOf`, set by job.mjs), the
+//             bars [0, withheldBars) a run off the listing withheld; 0 when the run withheld none
+//   digest    T3 `columnDigest({ engine: <this service's identity>, columns: <the decoded wire
+//             columns>, refusals, rows: bars.n })` (design 2.3), computed by the bundle's own
+//             codec over the bytes that are sent, so a caller can verify what it RECEIVED
+// A field outside these sets, a missing one, or a column that does not decode is not a reply:
+// the whole request is refused (500 runtime:server-failed). Nothing is passed through unread.
 import { createHash } from 'node:crypto'
 
 export const PROTOCOL = 1
@@ -259,5 +274,94 @@ function parse(body, { identity, tfSet, maxBars }) {
   return {
     protocol: PROTOCOL, profile: raw.profile, engine, owner,
     definition: { def_id: defId, version, doc_sha256: docSha, doc }, jobs,
+  }
+}
+
+// ─── the response (W5-T7b) ──────────────────────────────────────────────────────
+
+/** The closed key sets of one result as the RUNNER returns it, by status (before the seal). */
+export const RUNNER_RESULT_FIELDS = Object.freeze({
+  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms']) }),
+  withheld: Object.freeze({ required: Object.freeze(['job', 'status', 'refusals']), optional: Object.freeze(['ms']) }),
+})
+/** The closed key sets of one result ON THE WIRE: the runner's, plus the digest the seal adds.
+ *  `sealOne` builds each result from these fields only (a rail holds its output to this set). */
+export const RESULT_FIELDS = Object.freeze({
+  ok: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.ok.required, 'digest']), optional: RUNNER_RESULT_FIELDS.ok.optional }),
+  withheld: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.withheld.required, 'digest']), optional: RUNNER_RESULT_FIELDS.withheld.optional }),
+})
+export const REFUSAL_FIELDS = Object.freeze(['key', 'guard', 'sentence', 'bar'])
+export const WARMUP_FIELDS = Object.freeze(['withheldBars'])
+const U32_MAX = 0xffffffff
+
+function refusalsOf(v, path) {
+  if (!Array.isArray(v)) throw bad(path, 'must be an array')
+  return v.map((r, i) => {
+    const p = `${path}[${i}]`
+    closed(r, p, REFUSAL_FIELDS)
+    if (typeof r.key !== 'string' || r.key.length === 0) throw bad(`${p}.key`, 'must be a non-empty string')
+    if (typeof r.guard !== 'string' || r.guard.length === 0) throw bad(`${p}.guard`, 'must be a non-empty string')
+    if (typeof r.sentence !== 'string') throw bad(`${p}.sentence`, 'must be a string')
+    if (r.bar !== null && (!Number.isSafeInteger(r.bar) || r.bar < 0 || r.bar > U32_MAX)) {
+      throw bad(`${p}.bar`, 'must be null or a bar index')
+    }
+    return { key: r.key, guard: r.guard, sentence: r.sentence, bar: r.bar }
+  })
+}
+
+function sealOne(codec, identity, job, r, path) {
+  if (!isPlain(r)) throw bad(path, 'must be an object')
+  const shape = Object.hasOwn(RUNNER_RESULT_FIELDS, r.status) ? RUNNER_RESULT_FIELDS[r.status] : null
+  if (!shape) throw bad(`${path}.status`, "must be 'ok' or 'withheld'")
+  closed(r, path, shape.required, shape.optional)
+  if (r.job !== job.job) throw bad(`${path}.job`, 'does not answer the job in its place')
+  const refusals = refusalsOf(r.refusals, `${path}.refusals`)
+  const runWide = refusals.some((x) => x.key === '*')
+  const out = { job: r.job, status: r.status }
+  const decoded = {}
+  if (r.status === 'withheld') {
+    if (!runWide) throw bad(`${path}.refusals`, "a withheld job must name a run-wide ('*') reason")
+  } else {
+    if (runWide) throw bad(`${path}.refusals`, "an ok job cannot carry a run-wide ('*') refusal")
+    if (!isPlain(r.columns)) throw bad(`${path}.columns`, 'must be an object')
+    const n = job.bars.n
+    const columns = {}
+    for (const [k, text] of Object.entries(r.columns)) {
+      if (refusals.some((x) => x.key === k)) throw bad(`${path}.columns`, `both serves and refuses ${JSON.stringify(k)}`)
+      const bytes = b64Bytes(text, `${path}.columns.${JSON.stringify(k)}`)
+      try {
+        decoded[k] = codec.decodeColumn(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), n)
+      } catch (e) {
+        throw bad(`${path}.columns.${JSON.stringify(k)}`, `is not ${n} canonical values (${(e && e.message) || e})`)
+      }
+      columns[k] = text
+    }
+    const w = closed(r.warmup, `${path}.warmup`, WARMUP_FIELDS)
+    if (!Number.isSafeInteger(w.withheldBars) || w.withheldBars < 0 || w.withheldBars > n) {
+      throw bad(`${path}.warmup.withheldBars`, `must be a bar count from 0 to ${n}`)
+    }
+    out.columns = columns
+  }
+  out.refusals = refusals
+  if (r.status === 'ok') out.warmup = { withheldBars: r.warmup.withheldBars }
+  out.digest = codec.columnDigest({ engine: identity, columns: decoded, refusals, rows: job.bars.n })
+  if (Object.hasOwn(r, 'ms')) out.ms = nonNegInt(r.ms, `${path}.ms`)
+  return out
+}
+
+/**
+ * Check what the runner returned for `jobs` against the closed result schema and seal each result
+ * with its design 2.3 digest (see the header).
+ * @param {{ columnDigest: Function, decodeColumn: Function }} codec  the BUNDLE's T3 codec (loadBundle)
+ * @param {object} identity  the service's own engine identity, the one the reply's `engine` names
+ * @returns {{ ok: true, results: object[] } | { ok: false, sentence: string }}
+ */
+export function sealRunResults(codec, identity, jobs, results) {
+  try {
+    if (!Array.isArray(results) || results.length !== jobs.length) throw bad('results', 'must answer every job once')
+    return { ok: true, results: results.map((r, i) => sealOne(codec, identity, jobs[i], r, `results[${i}]`)) }
+  } catch (e) {
+    if (e instanceof Refused) return { ok: false, sentence: e.message }
+    throw e
   }
 }
