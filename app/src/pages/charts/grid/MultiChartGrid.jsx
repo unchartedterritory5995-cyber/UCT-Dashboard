@@ -34,11 +34,12 @@ import { chartKeys, admittedSym } from './symAdmission'
 import { buildCellBadges } from './cellBadge'
 import GroupHeatHeader from './GroupHeatHeader'
 import { humanizeGroupId } from './groupLabel'
+import { GRID_BOARD_KEY } from './gridAgentAdapter'
 import useLivePrices from '../../../hooks/useLivePrices'
 import styles from './MultiChartGrid.module.css'
 
 export default function MultiChartGrid({ mc }) {
-  const { chartsTheme } = useWorkspace()
+  const { chartsTheme, chartApiById } = useWorkspace()
   const { prefs, setPref } = usePreferences()
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
@@ -160,10 +161,21 @@ export default function MultiChartGrid({ mc }) {
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
   const inGroupMode = state.groupsMode
+  // ⭐ UCT Agent: the chart the member last CLICKED ("this chart") — never the hover-sticky active cell, which moves as
+  // the pointer crosses the grid on its way to the Agent panel — and the cell last changed, by each of them: "the one I
+  // just changed" is the member's, "the one you just changed" the Agent's. `latest` says which came last ("we").
+  const clickedIdRef = useRef(null)
+  const changedRef = useRef({ member: null, agent: null, latest: null })
+  const agentWritingRef = useRef(false)
   const onChangeFns = useMemo(
     () => cells.map((_, i) => (next) => {
       if (spikeActive) return
       const cur = cellsRef.current[i]
+      // A settings write can come from the chart itself, so it counts only on the cell the member is working in
+      if (next?.sym !== displayedSymRef.current[i] || next?.tf !== cur?.tf || (next?.chartType ?? null) !== (cur?.chartType ?? null)
+        || (next && 'settings' in next && activeCellRef.current === i)) {
+        if (!agentWritingRef.current) { changedRef.current.member = cur?.id ?? null; changedRef.current.latest = 'member' }
+      }
       // A real new-ticker commit changes the sym away from what's DISPLAYED
       // (loadSym). A TF/style change carries the displayed sym unchanged.
       const isNewSym = !!next?.sym && next.sym !== displayedSymRef.current[i]
@@ -189,11 +201,50 @@ export default function MultiChartGrid({ mc }) {
           if (next.settings) merged.settings = next.settings
           else delete merged.settings
         }
+        if (next?.clearSym) merged.sym = null   // the Agent's Undo of a ticker it put on an empty cell
         mc.updateCellAt(i, merged)
       }
     }),
     [cells.length, mc.updateCellAt, spikeActive, inGroupMode, peerFiller, state.group],   // eslint-disable-line react-hooks/exhaustive-deps
   )
+
+  // ⭐ UCT AGENT: the grid as a chart target (agent/host.js reads this entry; each cell registers its own adapter).
+  // Stable: everything live comes through the ref. Not while a spike harness runs: its board is synthetic and unsaved.
+  const agentLiveRef = useRef(null)
+  agentLiveRef.current = { cells, layout, maxId, state, flushSave: mc.flushSave }
+  const onAgentChangeFns = useMemo(
+    () => cells.map((_, i) => (write) => {
+      agentWritingRef.current = true
+      try { write() } finally { agentWritingRef.current = false }
+      changedRef.current.agent = cellsRef.current[i]?.id ?? null
+      changedRef.current.latest = 'agent'
+    }),
+    [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const groupsActive = useCallback(() => !!agentLiveRef.current.state.groupsMode, [])
+  useEffect(() => {
+    if (!chartApiById || spikeActive) return undefined
+    const map = chartApiById.current
+    const live = () => agentLiveRef.current
+    const known = (id) => (id && live().cells.some(c => c.id === id) ? id : null)
+    map.set(GRID_BOARD_KEY, {
+      agent: {
+        read: () => null,   // the grid itself is not a chart
+        gridBoard: {
+          cells: () => live().cells.map(c => ({ id: c.id, sym: c.sym || null, tf: c.tf, chartType: c.chartType ?? null, settings: c.settings ?? null })),
+          shape: () => ({ rows: live().layout.rows, cols: live().layout.cols }),
+          // the maximized cell is the only one on screen; otherwise the last one clicked
+          selected: () => known(live().maxId) || known(clickedIdRef.current),
+          lastChanged: (who = null) => known(changedRef.current[who || changedRef.current.latest]),
+          maximized: () => known(live().maxId),
+          syncTimeRange: () => !!live().state.syncTimeRange,
+          groupsMode: () => !!live().state.groupsMode,
+          persist: () => live().flushSave?.() ?? { ok: false, reason: 'not-saved' },
+        },
+      },
+    })
+    return () => { map.delete(GRID_BOARD_KEY) }
+  }, [chartApiById, spikeActive])
 
   // ── Crosshair sync bus (ref-based; passed to cells only while Sync is on) ──
   const busRef = useRef(null)
@@ -461,6 +512,7 @@ export default function MultiChartGrid({ mc }) {
               className={`${styles.cellOuter} ${activeIdx === i ? styles.cellActive : ''} ${maxId === cell.id ? styles.cellMaximized : ''} ${maxId && maxId !== cell.id ? styles.cellHiddenBehindMax : ''}`}
               onPointerEnter={() => setActive(i)}
               onFocusCapture={() => setActive(i)}
+              onPointerDownCapture={() => { clickedIdRef.current = cell.id }}
             >
               <GridChartCell
                 cell={{ ...cell, sym: loadSym }}
@@ -478,6 +530,9 @@ export default function MultiChartGrid({ mc }) {
                 onBarsReady={onBarsReadyFns[i]}
                 isMaximized={maxId === cell.id}
                 onToggleMaximize={onToggleMaxFns[i]}
+                chartApiById={spikeActive ? null : chartApiById}
+                onAgentChange={onAgentChangeFns[i]}
+                groupsActive={groupsActive}
                 deepWarm={gridWarmEnabled && maxId === cell.id}
               />
             </div>

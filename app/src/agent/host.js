@@ -9,6 +9,7 @@
 //
 // A chart's ref is its persisted widget id (+ "~tabId" for an extra chart tab).
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
+// While Multi Chart is on screen the targets are its cells instead (gridEntries; a cell's ref is its persisted cell id).
 
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
@@ -19,6 +20,7 @@ import * as drawingsStore from '../components/chart/drawingsStore'
 // ⭐ W1-B B-03 (announced to Indicators): the indicator-alert product's OWN writers, called — never modified
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
+import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -52,8 +54,47 @@ export function positionWord(w, all) {
   return distinct ? spanWord(w, all) : centreWord(w, all)
 }
 
+// ⭐ MULTI CHART. A row or column word only where it means one line of cells: "the top-left chart" on any grid, "the
+// top-middle chart" on 3 across; a cell inside a 4-wide grid has no word and goes by its number ("chart 6").
+const lineWord = (i, n, first, last) => (n === 1 ? '' : i === 0 ? first : i === n - 1 ? last : n === 3 ? 'middle' : null)
+export function gridPositionWord(index, rows, cols) {
+  const v = lineWord(Math.floor(index / cols), rows, 'top', 'bottom')
+  const h = lineWord(index % cols, cols, 'left', 'right')
+  return v == null || h == null ? '' : [v, h].filter(Boolean).join('-')
+}
+const PENDING_CELL = { agent: { commit: () => false } }   // a cell still waiting for its slot in the mount queue
+const gridOf = (chartApiById) => chartApiById.current.get(GRID_BOARD_KEY)?.agent?.gridBoard || null
+
+// The grid's cells as chart targets. There is no link group here: a cell's ticker and timeframe are its own, so a change
+// to one reaches no other (linkedCount 0). There is no Replay on the grid (`replay` stays undefined: chart.replay refuses).
+function gridEntries(chartApiById, grid) {
+  const cells = grid.cells()
+  const { rows, cols } = grid.shape()
+  const sel = grid.selected()
+  return cells.map((c, i) => {
+    const api = chartApiById.current.get(gridCellKey(c.id)) || PENDING_CELL
+    const r = api.agent.read?.() || null
+    const pos = gridPositionWord(i, rows, cols)
+    const name = cells.length === 1 ? 'Chart' : (pos ? `${pos[0].toUpperCase()}${pos.slice(1)} chart` : `Chart ${i + 1}`)
+    return {
+      api, ref: c.id, r,
+      snap: {
+        ref: c.id, label: `${name} (${c.sym || 'empty'})`, position: pos || null,
+        symbol: c.sym, tf: c.tf, cs: r?.cs || {}, stored: r?.stored ?? null,
+        linkedCount: 0, group: null,
+        cell: { x: i % cols, y: Math.floor(i / cols), w: 1, h: 1 },
+        ...(sel === c.id ? { selected: true } : {}),
+        view: api.agent.view?.() || null,
+        drawSym: api.agent.drawSym?.() || c.sym,
+      },
+    }
+  })
+}
+
 export function buildChartSource({ chartApiById, getWidgets, selectedChart = null, replay = null }) {
   function entries() {
+    const grid = gridOf(chartApiById)
+    if (grid) return gridEntries(chartApiById, grid)
     const widgets = getWidgets() || []
     const byId = new Map(widgets.map(w => [w.id, w]))
     const seen = new Set()
@@ -105,6 +146,7 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     // Multi-Chart grid cells are not counted here.)
     unreachableCount: () => {
       try {
+        if (gridOf(chartApiById)) return 0
         const reached = entries()
         let n = 0
         for (const w of getWidgets() || []) {
@@ -117,6 +159,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     },
     // "this chart": the selected chart's ref, only while it is still on the board (agent/deixis.js)
     selected: () => entries().find(e => e.snap.selected)?.ref || null,
+    // ⭐ MULTI CHART: the grid behind these charts (null on the board) — scopeHostToGrid reads it
+    grid: () => gridOf(chartApiById),
     read: (ref) => entries().find(e => e.ref === ref)?.snap || null,
     commit: (ref, patch) => {
       const e = entries().find(x => x.ref === ref)
@@ -562,6 +606,54 @@ export function buildIndicatorAlertSource({ fetchFn = (u, o) => fetch(u, o) } = 
     create: (payload) => createIndicatorAlert(payload),
     toggle: (id) => toggleIndicatorAlert(id),
     remove: (id) => deleteIndicatorAlert(id),
+  }
+}
+
+/**
+ * ⭐ MULTI CHART: what is one grid cell on the server the same as in THIS tab? The grid's counterpart of buildWidgetSync, over
+ * `multichart_state`. An approved chart change fails closed when it cannot tell (unreadable), and waits out this tab's own
+ * debounced save before it says another window changed the cell. A cell that is gone from the server is a change.
+ */
+export function buildCellSync({ readCells, localCell, settleMs = 700, tries = 2 }) {
+  const content = (c) => (c ? JSON.stringify([c.sym || null, c.tf || 'D', c.chartType ?? null, c.settings ?? null]) : 'gone')
+  return async function cellInSync(id) {
+    for (let i = 0; ; i++) {
+      let server
+      try { server = await readCells() } catch { server = null }
+      if (!Array.isArray(server)) return { ok: false, unreadable: true }
+      if (content(localCell(id)) === content(server.find(c => String(c?.id) === String(id)))) return { ok: true }
+      if (i >= tries) return { ok: false, reason: 'that chart was changed in another window or device' }
+      await sleep(settleMs)
+    }
+  }
+}
+const GRID_KEYS_URL = `${PREFS_URL}?keys=multichart_state`
+async function readServerCells() {
+  const r = await fetch(GRID_KEYS_URL, { credentials: 'include', cache: 'no-store' })
+  if (!r.ok) return null
+  const raw = (await r.json()).multichart_state
+  const state = typeof raw === 'string' ? JSON.parse(raw) : raw
+  return Array.isArray(state?.cells) ? state.cells : null
+}
+
+/**
+ * ⭐ MULTI CHART: the workspace host as it is while the grid is on screen. The board's widgets are still in memory but out of
+ * sight, and the workspace offers none of their controls here, so they are not targets: `widgets` goes, and with it the
+ * board's context, its capabilities' targets and its server checks. The grid is its own board for every staleness rule: its
+ * own epoch and visit, so a proposal, Undo or remembered reference from the board never reaches into the grid, or back.
+ */
+export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
+  if (!host) return host
+  const { widgets: _widgets, boardInSync: _boardInSync, ...rest } = host
+  const grid = () => host.charts?.grid?.() || null
+  return {
+    ...rest,
+    multiChart: true,
+    epoch: () => `multichart:${host.epoch?.() ?? ''}`,
+    boardVisit: () => `multichart:${host.boardVisit?.() ?? 0}`,
+    otherWidgets: () => [],
+    persist: async () => (await grid()?.persist()) || { ok: false, reason: 'not-saved' },
+    widgetInSync: buildCellSync({ readCells, localCell: (id) => grid()?.cells().find(c => c.id === id) || null }),
   }
 }
 

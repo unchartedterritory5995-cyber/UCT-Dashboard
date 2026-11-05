@@ -92,6 +92,11 @@ const PREFS = {
   charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: 'AAPL', D: 'MSFT' }),
   theme: THEME,
   ...(LAYOUTS ? { charts_active_template: JSON.stringify({ id: 11, name: 'Agent Test', scope: 'user' }) } : {}),
+  // ?multichart=1 — the workspace opens in Multi Chart: a 2×2 grid, one cell empty (=sync: time-range sync on)
+  ...(params.has('multichart') ? { multichart_state: JSON.stringify({
+    mode: 'grid', layout: '2x2', syncTimeRange: params.get('multichart') === 'sync',
+    cells: [{ id: 'g0', sym: 'NVDA', tf: 'D' }, { id: 'g1', sym: 'AMD', tf: 'D' }, { id: 'g2', sym: 'TSLA', tf: 'D' }, { id: 'g3', sym: null, tf: 'D' }],
+  }) } : {}),
 }
 
 const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [], wl: WL, wlWrites: [] })
