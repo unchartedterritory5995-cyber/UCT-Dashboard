@@ -209,9 +209,9 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((x) => x.t) })
     expect(Array.from(r.outputs[0])).toEqual([5, 5, 5, 5, 7, 7, 7, 7])
   })
-  it('⛔⛔ v6: a name declared `bool` as the arm value — served, unmatched is false', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}bool up = close > open\nb = if close > 103\n    up\nplot(b ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  it('⛔⛔ v6: a name declared `bool` as the arm value — refused by name too', () => {
+    const r = refusalOf(`${v6}bool up = close > open\nb = if close > 103\n    up\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/bool/)
   })
   it('⛔ CONTROL — v6: a NUMBER with no else still yields na (not refused)', () => {
     const out = run(`${v6}x = if close > 103\n    1.0\nplot(x)\n`)
@@ -269,9 +269,9 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   // ⛔⛔ review 3 M-1b — a global `float x` must not type a function-local bool `x`
-  it('⛔⛔ M-1b: `x := if` on a local bool x shadowing a global float x (served, unmatched false)', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    x := if v > 102\n        true\n    x ? 1 : 0\nplot(f(close))\n`)).toEqual([0, 0, 0, 1, 1, 1, 1, 1])
+  it('⛔⛔ M-1b: `x := if` on a local bool x shadowing a global float x', () => {
+    const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    x := if v > 102\n        true\n    x ? 1 : 0\nplot(f(close))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   it('⛔⛔ M-1b: an arm reading the local bool x (a global float x elsewhere)', () => {
     const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    y = if v > 102\n        x\n    y ? 1 : 0\nplot(f(close))\n`)
@@ -304,9 +304,9 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   // ⛔ re-review 2 L-4 — a declaration wins over a built-in of the same spelling
-  it('⛔ re-review 2 L-4: a shadowed built-in (`high = close > open`) is the member\'s bool, served false', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}high = close > open\nb = if close > 102\n    high\nplot(b ? 1 : 0)\n`)).toEqual([0, 0, 0, 1, 1, 1, 1, 1])
+  it('⛔ re-review 2 L-4: a shadowed built-in (`high = close > open`) is the member\'s bool, refused', () => {
+    const r = refusalOf(`${v6}high = close > open\nb = if close > 102\n    high\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   // ⛔ re-review 2 L-5 — the SOURCE argument is resolved by name
   // (`ta.valuewhen` at top level carries the case: in an arm it meets conditional-history
@@ -383,13 +383,13 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   // ⛔ re-review 3 rails (c) — a function ending in a block whose arms are bools
-  it('⛔⛔ re-review 3 (c): a function whose body ends in an `if` with bool arms is served false', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}f() =>\n    if close > 100\n        close > open\n    else\n        close < open\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 0, 1, 1, 1])
+  it('⛔⛔ re-review 3 (c): a function whose body ends in an `if` with bool arms refuses', () => {
+    const r = refusalOf(`${v6}f() =>\n    if close > 100\n        close > open\n    else\n        close < open\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
   })
-  it('⛔⛔ re-review 3 (c): a function whose body ends in a `switch` with a bool arm is served false', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}f() =>\n    switch\n        close > 100 => close > open\n        => false\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 0, 1, 1, 1])
+  it('⛔⛔ re-review 3 (c): a function whose body ends in a `switch` with a bool arm refuses', () => {
+    const r = refusalOf(`${v6}f() =>\n    switch\n        close > 100 => close > open\n        => false\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   it('⭐ re-review 3 M-1: a function ending in a numeric `switch` — v6 draws v5', () => {
     const body = 'f() =>\n    switch\n        close > 105 => close\n        close < 0 => open\nx = if close > 103\n    f()\nplot(x)\n'
@@ -415,13 +415,13 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     })
   }
   // ⛔ a user function whose value is a bool stays refused (the inference only proves numbers)
-  it('⛔⛔ re-review 2 H-2: a user function returning a bool is served false', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}f(v) => v > 104\nb = if close > 102\n    f(close)\nplot(b ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 0, 1, 1, 1])
+  it('⛔⛔ re-review 2 H-2: a user function returning a bool is refused as the arm value', () => {
+    const r = refusalOf(`${v6}f(v) => v > 104\nb = if close > 102\n    f(close)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
   })
-  it('⛔⛔ re-review 2 H-2: `input.bool` is a bool, served false', () => {
-    // W4-T14: provably a bool, so an unmatched block is FALSE in v6 (was a named refusal)
-    expect(run(`${v6}on = input.bool(true, "On")\nb = if close > 102\n    on\nplot(b ? 1 : 0)\n`)).toEqual([0, 0, 0, 1, 1, 1, 1, 1])
+  it('⛔⛔ re-review 2 H-2: `input.bool` is a bool, refused', () => {
+    const r = refusalOf(`${v6}on = input.bool(true, "On")\nb = if close > 102\n    on\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
   })
   // ⛔ review 3 L-3 — a ternary whose both branches are numbers is a number
   it('⛔ CONTROL — L-3: a numeric ternary arm is served (na where unmatched)', () => {

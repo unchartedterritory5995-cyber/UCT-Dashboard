@@ -8070,6 +8070,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
     return eq > 0 ? t.slice(eq + 1) : t
   }
+  // ⛔⛔ Q-A3 capture gate: flip to true ONLY once the capture MATCHes (unmatched v6 bool block = false)
+  const V6_BOOL_UNMATCHED_CAPTURED = false
   const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
     if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return false
     typeTables()
@@ -8079,7 +8081,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (valueToksList.every((t) => provablyNonBoolToks(t))) return false
     // ⭐ W4-T14: every arm provably a bool => the unmatched block is `false` (v6), served
     // off the object door (which keeps Q-A3 refused) into a single slot
-    if (!atObjectDoor && mkArm.falseFallback && valueToksList.length
+    // ⛔⛔ GATED on capture Q-A3 (capture-queue-2026-10-31-wsa-for-bound.md): until a TradingView
+    // capture MATCHES `false`, the typed case stays the named refusal below. The test-only
+    // `opts.w4t14ServeUnmatchedFalse` lets a rail prove the machinery without the gate.
+    if (!atObjectDoor && (V6_BOOL_UNMATCHED_CAPTURED || opts.w4t14ServeUnmatchedFalse === true)
+        && mkArm.falseFallback && valueToksList.length
         && valueToksList.every((t) => provablyBoolToks(t))) return true
     if (atObjectDoor) {
       objectDoorRefuses(`${what} can match no arm, and its value is not provably a number, a string or a colour `

@@ -6,8 +6,11 @@
 // `and`/`or`/`not`, `true`/`false`, `input.bool`, a bool-typed name, a user function whose
 // every result is one); a value that is neither provably bool nor provably non-bool keeps
 // the named refusal. The object door keeps Q-A3 refused (p3WsaDarkGate.test.js).
-// Q-A3 (the TradingView capture) is NOT yet taken: this serves the documented reading.
-import { describe, it, expect } from 'vitest'
+// Q-A3 (the TradingView capture) is NOT yet taken, so the typing machinery is BUILT but the
+// served `false` is GATED (V6_BOOL_UNMATCHED_CAPTURED = false): the unmatched case stays the
+// named refusal. The served-value rails run through the test-only `w4t14ServeUnmatchedFalse`
+// opt; flipping the constant (one line) is the whole change once the capture MATCHes.
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
@@ -24,7 +27,8 @@ const v6 = '//@version=6\nindicator("t")\n'
 const FALSE_THEN_TRUE = [5, 5, 5, 5, 7, 7, 7, 7]
 const PROBE = 'plot(b == false ? 5 : 7)\n'
 
-const build = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {} })
+let serveOpt = {}
+const build = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {}, ...serveOpt })
 function run(src) {
   const built = build(src)
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
@@ -38,7 +42,48 @@ const refusalOf = (src) => {
   return b.refusal
 }
 
-describe('W4-T14 — a v6 unmatched block of provable bools yields false', () => {
+describe('W4-T14 — Q-A3 GATE: the shipped lane keeps the named refusal for a typed bool block', () => {
+  it('an `if` with no else, arm a comparison: refused by name (not served false)', () => {
+    serveOpt = {}
+    const r = refusalOf(`${v6}b = if close > 103
+    close > open
+${PROBE}`)
+    expect(r.guard).toBe('runtime:block-value')
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('a `switch` with no default, bool arms: refused by name', () => {
+    serveOpt = {}
+    const r = refusalOf(`${v6}b = switch
+    close > 105 => true
+${PROBE}`)
+    expect(r.guard).toBe('runtime:block-value')
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('the typing machinery is present: with the gate lifted (test-only opt) the same source is served false', () => {
+    serveOpt = { w4t14ServeUnmatchedFalse: true }
+    try {
+      expect(run(`${v6}b = if close > 103
+    close > open
+${PROBE}`)).toEqual(FALSE_THEN_TRUE)
+    } finally { serveOpt = {} }
+  })
+})
+
+describe('W4-T14 — the object door keeps Q-A3 refused even with the gate lifted', () => {
+  it('objectDoor + the test-only opt: still refused', () => {
+    serveOpt = { w4t14ServeUnmatchedFalse: true, objectDoor: true }
+    try {
+      const r = refusalOf(`${v6}b = if close > 103
+    close > open
+${PROBE}`)
+      expect(r.message).toMatch(/v6 bool is never `na`/)
+    } finally { serveOpt = {} }
+  })
+})
+
+describe('W4-T14 [machinery, gate lifted by the test-only opt] — a v6 unmatched block of provable bools yields false', () => {
+  beforeAll(() => { serveOpt = { w4t14ServeUnmatchedFalse: true } })
+  afterAll(() => { serveOpt = {} })
   it('an `if` with no else, arm a comparison', () => {
     expect(run(`${v6}b = if close > 103\n    close > open\n${PROBE}`)).toEqual(FALSE_THEN_TRUE)
   })
