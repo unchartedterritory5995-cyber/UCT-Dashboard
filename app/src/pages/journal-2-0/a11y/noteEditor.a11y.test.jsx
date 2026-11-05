@@ -85,6 +85,8 @@ describe('note editor popups', () => {
 
   axeSurface('editor-find', async () => {
     await renderEditor()
+    // S10 (audit 2026-11-05, M4): Find and Outline are items in "More note actions" now.
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     fireEvent.click(screen.getByRole('button', { name: 'Find in note' }))
     const bar = await screen.findByRole('search', { name: 'Find in note' })
     fireEvent.click(screen.getByRole('button', { name: 'Show replace' }))
@@ -93,6 +95,7 @@ describe('note editor popups', () => {
 
   axeSurface('editor-outline', async () => {
     await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     fireEvent.click(screen.getByRole('button', { name: 'Outline' }))
     await screen.findAllByText('Setup')
     await settle()

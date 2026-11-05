@@ -1,3 +1,4 @@
+// S7 (audit 2026-11-05, one vocabulary): the note menu's "Delete" reads "Move to Trash" (and its question "Move this note to Trash?"), the sidebar's word; the rails below follow the new words.
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useSearchParams } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -88,28 +89,28 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
     const confirmSpy = vi.spyOn(window, 'confirm')
     await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     expect(confirmSpy).not.toHaveBeenCalled()
-    expect(screen.getByText('Delete this note?')).toBeInTheDocument()
+    expect(screen.getByText('Move this note to Trash?')).toBeInTheDocument()
   })
 
   it('cancel closes the modal without deleting', async () => {
     await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByText('Delete this note?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Move this note to Trash?')).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/j2/notes/n1', expect.objectContaining({ method: 'DELETE' }))
   })
 
   it('confirming deletes the note and navigates back', async () => {
     const { onBack } = await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     // The modal's own confirm button carries the same accessible name as the
     // header's Delete trigger -- disambiguate by scoping to the dialog.
     const dialog = screen.getByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }))
     await waitFor(() => expect(onBack).toHaveBeenCalled())
     expect(fetchMock).toHaveBeenCalledWith('/api/j2/notes/n1', expect.objectContaining({ method: 'DELETE' }))
   })
@@ -117,10 +118,10 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
   it('Escape closes the modal without deleting', async () => {
     await renderEditor()
     openMoreNoteActions()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(screen.getByText('Delete this note?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(screen.getByText('Move this note to Trash?')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByText('Delete this note?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Move this note to Trash?')).not.toBeInTheDocument()
   })
 })
 
