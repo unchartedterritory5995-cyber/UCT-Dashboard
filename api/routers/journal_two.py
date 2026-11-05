@@ -2648,7 +2648,9 @@ def daily_note_endpoint(
             from api.middleware.auth_middleware import get_user_plan
             from api.services.journal_two import notebook_today
             paid = is_paid_user({**user, "plan": get_user_plan(user["id"])})
-            seed = lambda: notebook_today.plan_seed_for(user["id"], paid=paid)  # noqa: E731
+            # Fix round 2 (N5): built HERE, before the door opens its write transaction -- the seed's reads (the
+            # market, up to 200 chart notes, the names) must never run while auth.db's write lock is held.
+            seed = notebook_today.plan_seed_for(user["id"], paid=paid)
         out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"), seed_blocks=seed)
     except note_daily.DailyNoteError as e:
         raise HTTPException(status_code=400, detail=str(e))

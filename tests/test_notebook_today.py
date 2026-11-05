@@ -597,3 +597,65 @@ def test_M6_recap_written_is_todays_heading_only(app, client):
                                                         "baseUpdatedAt": note["updatedAt"]})
     assert r.status_code == 200, r.text
     assert client.get("/api/j2/notes/today").json()["todayNote"]["recapWritten"] is True
+
+
+# ── fix round 2 (N3): one table of seed line formats, the writer and the matcher both derived from it ─────────
+
+def test_N3_every_line_shape_the_writer_makes_is_matched(today):
+    ctx = {"day": DAY}
+    market = {"regimeWord": "Green", "pctAbove50": 61.0}
+    setups = {"nearCount": 1, "belowStop": ["ANET"], "triggered": ["CRWD"]}
+    names = {"rows": [
+        {"symbol": "AMD", "earnings": {"date": DAY, "timing": "amc"}},
+        {"symbol": "NVDA", "earnings": {"date": DAY, "timing": "bmo"}},
+        {"symbol": "TSLA", "earnings": {"date": DAY, "timing": None}},
+        {"symbol": "ORCL", "earnings": {"date": "2026-11-06", "timing": "bmo"}},
+    ], "first": ["AMD", "NVDA"]}
+    lines = today._plan_lines(ctx, market, setups, names, cap=99)
+    lines += today._plan_lines(ctx, {"regimeWord": "Yellow"}, {"nearCount": 2}, None, cap=99)
+    lines += today._plan_lines(ctx, {"pctAbove50": 48.5}, None, None, cap=99)
+    shapes = {
+        "Check the market: Green regime, 61% above the 50-day", "Check the market: Yellow regime",
+        "Check the market: 48.5% above the 50-day",
+        "Review the 1 setup within 3% of entry", "Review the 2 setups within 3% of entry",
+        "Review ANET: below stop", "CRWD triggered: check the entry",
+        "Prep $AMD earnings (after the close)", "Prep $NVDA earnings (before the open)", "Prep $TSLA earnings (today)",
+        "Prep $ORCL earnings (tomorrow before the open)", "Check your names: AMD, NVDA",
+    }
+    assert shapes <= set(lines), shapes - set(lines)
+    # all 7 kinds of line, each matched
+    assert {k for k, _ in today.SEED_FORMATS} == {"market", "near", "below", "triggered", "earnings",
+                                                  "earnings_tomorrow", "names"}
+    for line in lines:
+        assert today.is_seed_line(line), line
+
+
+@pytest.mark.parametrize("member_line", [
+    "Check the market: breadth improving, 61% above the 50-day",     # M1's own Daily prep line
+    "Check the market: Green regime, then size down",
+    "Check the market: SPY first",
+    "Check the market: risk-on regime",                              # a regime word UCT does not use
+    "Review ANET: below stop, then cut",
+    "Prep $AMD earnings (with the call notes)",
+])
+def test_N3_a_members_own_line_with_a_seed_prefix_is_theirs(today, member_line):
+    assert today.is_seed_line(member_line) is False
+
+
+# ── fix round 2 (N5): the seed is built BEFORE the daily note door writes ──────────────────────
+
+def test_N5_seedToday_builds_the_seed_before_the_door_takes_its_write_lock(app, client, monkeypatch):
+    _login_as(app, "u1")
+    _add_names("u1", ["NVDA"])
+    from api.services.journal_two import note_daily
+    real = note_daily.open_daily_note
+    got = {}
+
+    def spy(user_id, raw_date, template_id=None, *, seed_blocks=None):
+        got["seed"] = seed_blocks
+        return real(user_id, raw_date, template_id, seed_blocks=seed_blocks)
+
+    monkeypatch.setattr(note_daily, "open_daily_note", spy)
+    made = client.post("/api/j2/notes/daily", json={"date": DAY, "seedToday": True}).json()
+    assert isinstance(got["seed"], list), "a callable would run its reads inside the door's write transaction"
+    assert made["created"] is True and "Check your names: NVDA" in json.dumps(made["note"]["bodyJson"])

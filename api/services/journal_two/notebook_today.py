@@ -399,57 +399,102 @@ def names_section(ctx: dict) -> dict[str, Any]:
 
 #: ⛔ The seeded lines are recognised by their OWN WORDING, never by a node attribute: TipTap drops an attribute
 #: its schema does not declare the first time the editor loads the note, so a mark on the node would be gone after
-#: the member's first edit. Each pattern is exactly one line `_plan_lines` writes; a line the member edits no longer
-#: matches and is theirs (fix round 1, I4).
+#: the member's first edit. A line the member edits no longer matches and is theirs (fix round 1, I4).
+#: ⛔ ONE TABLE (fix round 2, N3): `SEED_FORMATS` is the only place a line's wording lives. The writer
+#: (`_plan_lines`) fills its slots with `str.format`; the matcher is DERIVED from the same strings, the literal parts
+#: escaped and each slot replaced by the pattern of the values the writer can put there. A new wording cannot be
+#: written without being matched, and the matcher cannot drift to something the writer never says.
 _TK = r"[A-Z][A-Z0-9.\-]{0,9}"
-SEED_LINE_PATTERNS = tuple(re.compile(p) for p in (
-    r"^Check the market: .+$",
-    r"^Review the \d+ setups? within [\d.]+% of entry$",
-    rf"^Review {_TK}: below stop$",
-    rf"^{_TK} triggered: check the entry$",
-    rf"^Prep \${_TK} earnings \((before the open|after the close|today|tomorrow before the open)\)$",
-    rf"^Check your names: {_TK}(, {_TK})*$",
-))
+SEED_FORMATS: tuple[tuple[str, str], ...] = (
+    ("market", "Check the market: {regime} regime, {pct}% above the 50-day"),
+    ("market", "Check the market: {regime} regime"),
+    ("market", "Check the market: {pct}% above the 50-day"),
+    ("near", "Review the {n} {setups} within {near}% of entry"),
+    ("below", "Review {sym}: below stop"),
+    ("triggered", "{sym} triggered: check the entry"),
+    ("earnings", "Prep ${sym} earnings ({when})"),
+    ("earnings_tomorrow", "Prep ${sym} earnings (tomorrow before the open)"),
+    ("names", "Check your names: {syms}"),
+)
+#: The values each slot can hold, as patterns. `regime` is the member-facing regime words (regime.regime_words).
+_EARNINGS_WHEN = {"bmo": "before the open", "amc": "after the close"}
+_SLOTS = {
+    "pct": r"\d+(?:\.\d+)?",
+    "n": r"\d+",
+    "setups": r"setups?",
+    "near": r"\d+(?:\.\d+)?",
+    "sym": _TK,
+    "when": "(?:" + "|".join(re.escape(w) for w in (*_EARNINGS_WHEN.values(), "today")) + ")",
+    "syms": rf"{_TK}(?:, {_TK})*",
+}
 PLAN_HEADING = "Today's plan"
+_SLOT_RE = re.compile(r"\{(\w+)\}")
+_matchers: list[re.Pattern] | None = None
+
+
+def _fmt(kind: str, **slots: Any) -> str:
+    """The first SEED_FORMATS line of `kind` whose slots are exactly `slots`, filled in."""
+    for k, f in SEED_FORMATS:
+        if k == kind and set(_SLOT_RE.findall(f)) == set(slots):
+            return f.format(**slots)
+    raise KeyError((kind, sorted(slots)))
+
+
+def _seed_matchers() -> list[re.Pattern]:
+    global _matchers
+    if _matchers is None:
+        from api.services.journal_two.regime import regime_words
+        slots = {**_SLOTS, "regime": "(?:" + "|".join(re.escape(w) for w in regime_words().values()) + ")"}
+        out = []
+        for _kind, f in SEED_FORMATS:
+            parts, pos = [], 0
+            for m in _SLOT_RE.finditer(f):
+                parts.append(re.escape(f[pos:m.start()]))
+                parts.append(slots[m.group(1)])
+                pos = m.end()
+            parts.append(re.escape(f[pos:]))
+            out.append(re.compile("^" + "".join(parts) + "$"))
+        _matchers = out
+    return _matchers
 
 
 def is_seed_line(text: Any) -> bool:
     """Is this checklist line one Today wrote (and the member has not changed)?"""
     t = " ".join(str(text or "").split())
-    return any(p.match(t) for p in SEED_LINE_PATTERNS)
+    return any(p.match(t) for p in _seed_matchers())
 
 
-def _plan_lines(ctx: dict, market: dict | None, setups: dict | None, names: dict | None) -> list[str]:
+def _plan_lines(ctx: dict, market: dict | None, setups: dict | None, names: dict | None, *,
+                cap: int = PLAN_ITEMS_SHOWN) -> list[str]:
     lines: list[str] = []
     if market and (market.get("regimeWord") or market.get("pctAbove50") is not None):
-        bits = []
+        slots = {}
         if market.get("regimeWord"):
-            bits.append(f"{market['regimeWord']} regime")
+            slots["regime"] = market["regimeWord"]
         if market.get("pctAbove50") is not None:
-            bits.append(f"{market['pctAbove50']:g}% above the 50-day")
-        lines.append("Check the market: " + ", ".join(bits))
+            slots["pct"] = f"{market['pctAbove50']:g}"
+        lines.append(_fmt("market", **slots))
     if setups:
         n = int(setups.get("nearCount") or 0)
         if n:
-            lines.append(f"Review the {n} {'setup' if n == 1 else 'setups'} within {NEAR_PCT:g}% of entry")
+            lines.append(_fmt("near", n=n, setups="setup" if n == 1 else "setups", near=f"{NEAR_PCT:g}"))
         for sym in (setups.get("belowStop") or [])[:3]:
-            lines.append(f"Review {sym}: below stop")
+            lines.append(_fmt("below", sym=sym))
         for sym in (setups.get("triggered") or [])[:3]:
-            lines.append(f"{sym} triggered: check the entry")
+            lines.append(_fmt("triggered", sym=sym))
     if names:
         day = date.fromisoformat(ctx["day"])
         tomorrow = (day + timedelta(days=1)).isoformat()
-        words = {"bmo": "before the open", "amc": "after the close"}
         for r in names.get("rows") or []:
             e = r.get("earnings") or {}
             if e.get("date") == day.isoformat():
-                lines.append(f"Prep ${r['symbol']} earnings ({words.get(e.get('timing'), 'today')})")
+                lines.append(_fmt("earnings", sym=r["symbol"], when=_EARNINGS_WHEN.get(e.get("timing"), "today")))
             elif e.get("date") == tomorrow and e.get("timing") == "bmo":
-                lines.append(f"Prep ${r['symbol']} earnings (tomorrow before the open)")
+                lines.append(_fmt("earnings_tomorrow", sym=r["symbol"]))
         first = [s for s in (names.get("first") or []) if re.fullmatch(_TK, s)]
         if first:
-            lines.append("Check your names: " + ", ".join(first))
-    return lines[:PLAN_ITEMS_SHOWN]
+            lines.append(_fmt("names", syms=", ".join(first)))
+    return lines[:cap]
 
 
 def _plan_seed(ctx: dict, market: dict | None, setups: dict | None, names: dict | None) -> list[dict]:
