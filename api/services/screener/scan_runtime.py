@@ -9,9 +9,11 @@ request path asks them without importing the evaluator and neither door keeps a 
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Mapping, Optional
 
 from api.services import runtime_definitions, runtime_server_lane, scan_definition
+from api.services.screener import scan_store
 
 
 class RuntimeScanDoc(dict):
@@ -62,12 +64,32 @@ def runtime_scan_spec(definition: Any) -> dict:
     return {"def_hash": handle, "plot": plots[0]}
 
 
-def runtime_admission(row: Any, lane: str) -> Optional[tuple]:
-    """``(guard, sentence)`` when this stored runtime row may NOT run in this lane now,
-    else ``None``: the stored verdict first, then the lane admission -- the ordered
-    pair ``runtime_server_lane`` asks on every call, never a second copy of the order.
-    Fails closed (an admission that cannot answer admits nothing)."""
-    why = runtime_server_lane._verdict(row)
-    if why:
-        return (runtime_server_lane.VERDICT_GUARD, why)
-    return runtime_server_lane._admission(row, lane)
+def runtime_admission(row: Any, lane: str, plot: str) -> Optional[tuple]:
+    """``(guard, sentence)`` when this stored runtime row may NOT run this plot in this lane
+    now, else ``None``. THE ONE ADMISSION: ``runtime_server_lane.admission`` (the stored
+    verdict, then ``server_lane_refusal``), the very question ``runtime_column_fn`` asks on
+    every call. Fails closed (an admission that cannot answer admits nothing)."""
+    try:
+        return runtime_server_lane.admission(row, plot, lane)
+    except Exception:  # noqa: BLE001 -- an admission that cannot answer admits nothing
+        return ("runtime:server-unavailable",
+                "the server-lane admission could not answer, so this script does not run")
+
+
+def store_time_seconds(t: Any) -> Optional[float]:
+    """ONE store bar key as the service's unix SECONDS, or ``None`` when it is not readable.
+
+    The store keys a daily bar by a YYYYMMDD int; the runtime reads ``t`` as unix seconds. A
+    daily key becomes its session's 09:30 America/New_York open (the chart's daily convention,
+    ``indicator_compute.bar_open_instant``); epoch seconds pass through. The single home of this
+    conversion for the scan and backtest lanes (W5-T15's ``_epoch_seconds`` should call it)."""
+    from api.services import indicator_compute
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t):
+        return None
+    n = int(t)
+    if scan_store._AS_OF_MIN <= n <= scan_store._AS_OF_MAX:
+        secs = indicator_compute.bar_open_instant(
+            "%04d-%02d-%02d" % (n // 10000, (n // 100) % 100, n % 100), "D")
+    else:
+        secs = indicator_compute.bar_open_instant(float(n))
+    return None if secs is None else float(secs)

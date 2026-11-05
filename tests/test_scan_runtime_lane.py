@@ -664,3 +664,61 @@ def test_a_symbol_whose_bars_use_unix_seconds_already_is_passed_through(world):
     out = _run(world, ["UP"])
     assert out["answered"] == 1
     assert _request_bars(world.fake.calls[0])["t"] == [b["t"] for b in secs]
+
+
+# ═══ 12. FIX r1: the engine's warm-up is na (NaN) and the lane reads it as na ═
+
+def _warm_script(k):
+    """First `k` bars na (the engine's warm-up), then a 0/1 condition."""
+    def script(cols):
+        c = cols["c"]
+        return {OUT: [float("nan")] * k + [1.0 if c[i] > c[i - 1] else 0.0 for i in range(k, len(c))]}
+    return script
+
+
+def test_warmup_na_bars_are_skipped_by_the_condition_check_and_the_symbol_answers(world):
+    world.fake.script = _warm_script(3)
+    world.fake.withheld_bars = 3
+    world.bars = {"UP": _bars(n=8), "DN": _bars(n=8, up=False)}
+    out = _run(world, ["UP", "DN"])
+    assert (out["answered"], out["not_computable"], out["withheld"]) == (2, 0, 0)
+    assert out["hits"] == ["UP"]
+
+
+def test_a_symbol_whose_whole_run_is_warmup_is_not_computable_never_a_non_hit(world):
+    world.bars = {"UP": _bars(n=6)}
+    world.fake.script = _warm_script(6)
+    world.fake.withheld_bars = 6
+    out = _run(world, ["UP"])
+    assert (out["answered"], out["not_computable"], out["hits"]) == (0, 1, [])
+    assert "na on the as-of bar" in out["dropped_symbols"][0]["detail"]
+
+
+def test_a_non_condition_value_AFTER_the_warmup_is_still_not_computable(world):
+    world.fake.script = lambda cols: {OUT: [float("nan"), float("nan"), 7.0] + [1.0] * (len(cols["c"]) - 3)}
+    world.fake.withheld_bars = 2
+    world.bars = {"UP": _bars(n=6)}
+    out = _run(world, ["UP"])
+    assert out["not_computable"] == 1 and "not a 0/1 condition" in out["dropped_symbols"][0]["detail"]
+
+
+def test_admission_is_the_public_server_lane_admission_with_the_plot(world, monkeypatch):
+    from api.services import runtime_server_lane
+    seen = []
+    real = runtime_server_lane.admission
+    monkeypatch.setattr(runtime_server_lane, "admission", lambda row, plot, lane: seen.append((plot, lane)) or real(row, plot, lane))
+    world.bars = {"UP": _bars()}
+    _run(world, ["UP"], mode="on-demand")
+    assert seen and set(seen) == {(OUT, "on-demand")}
+
+
+def test_the_shared_store_time_helper_is_the_one_conversion():
+    assert scan_runtime.store_time_seconds(20261103) == _et_open(2026, 11, 3)
+    assert scan_runtime.store_time_seconds(_et_open(2026, 11, 3)) == _et_open(2026, 11, 3)
+    assert scan_runtime.store_time_seconds(20261399) is None
+    assert scan_runtime.store_time_seconds(True) is None and scan_runtime.store_time_seconds(None) is None
+
+
+def test_an_admission_that_cannot_answer_admits_nothing():
+    got = scan_runtime.runtime_admission(_row(), "no-such-lane", OUT)      # T11's admission raises
+    assert got is not None and got[0] == "runtime:server-unavailable"

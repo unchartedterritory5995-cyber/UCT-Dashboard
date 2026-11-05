@@ -1468,8 +1468,6 @@ _RUNTIME_PROFILES = {NIGHTLY: "sweep", LIVE: "sweep", ON_DEMAND: "on-demand"}
 #: sent in chunks of 50 and a chunk is the unit a kill / stage change can reach.
 _RUNTIME_CHUNK = pine_runtime_client.SWEEP_CHUNK
 
-#: Pine's daily session open: the instant a daily bar is sent at. ONE authority.
-_RUNTIME_BAR_TF = DEFAULT_TF
 
 
 def _scannable_handle(definition: Any) -> str:
@@ -1504,22 +1502,14 @@ def _runtime_row(definition: Any) -> Mapping[str, Any]:
 
 def _runtime_bar_seconds(bars: Sequence[Mapping[str, Any]]) -> Optional[list]:
     """The bars with ``t`` in UNIX SECONDS (see the header), or ``None`` when any bar's
-    time cannot be read -- never a partly converted series."""
-    from api.services import indicator_compute
+    time cannot be read -- never a partly converted series. The conversion of ONE store
+    key is ``scan_runtime.store_time_seconds``, the single home both lanes should call."""
     out: list = []
     for b in bars:
-        t = b.get("t")
-        if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t):
-            return None
-        n = int(t)
-        if scan_store._AS_OF_MIN <= n <= scan_store._AS_OF_MAX:
-            secs = indicator_compute.bar_open_instant(
-                "%04d-%02d-%02d" % (n // 10000, (n // 100) % 100, n % 100), _RUNTIME_BAR_TF)
-        else:
-            secs = indicator_compute.bar_open_instant(float(n))
+        secs = scan_runtime.store_time_seconds(b.get("t"))
         if secs is None:
             return None
-        out.append({**b, "t": float(secs)})
+        out.append({**b, "t": secs})
     return out
 
 
@@ -1557,7 +1547,7 @@ def _evaluate_runtime(definition: Any, tf: str, *, universe: Optional[Sequence[s
             "implying new information arrived; the live sweep does not run it")
     row = _runtime_row(definition)
     profile = _RUNTIME_PROFILES[mode]
-    refused = scan_runtime.runtime_admission(row, profile)
+    refused = scan_runtime.runtime_admission(row, profile, plot)
     if refused is not None:
         raise ScanRunRefused("not-scannable", refused[1])
 
@@ -1602,7 +1592,7 @@ def _evaluate_runtime(definition: Any, tf: str, *, universe: Optional[Sequence[s
         chunk = kept[start:start + _RUNTIME_CHUNK]
         # ⛔ ASKED AGAIN FOR EVERY CHUNK: a kill, a stage step back or a demotion
         # reaches the next chunk, and what it stops is withheld by name, never run.
-        refused = scan_runtime.runtime_admission(row, profile)
+        refused = scan_runtime.runtime_admission(row, profile, plot)
         if refused is not None:
             for sym in chunk:
                 _withhold(sym, refused[0], refused[1])
@@ -3009,7 +2999,14 @@ def definitions_to_sweep() -> list:
             # W5-T14: admitted only when the lane admission says so, asked per row
             # on every sweep. Silent per row (the member read the sentence at the
             # door), counted per guard in one line below.
-            refused = scan_runtime.runtime_admission(row, "sweep")
+            try:
+                plot = scan_runtime.runtime_scan_spec(definition)["plot"]
+            except scan_definition.ScanRefused:
+                # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
+                # `refused`); it asks for no plot, runs nothing, sends nothing.
+                plot = None
+            refused = (scan_runtime.runtime_admission(row, "sweep", plot)
+                       if plot is not None else None)
             if refused is not None:
                 not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
                 continue

@@ -365,7 +365,11 @@ def _load_definition(user_id: Any, def_id: str) -> dict:
     # W5-T14: a stored runtime document runs on the server only when the lane
     # admission says so; a refusal is `gate:not-scannable` with the guard's sentence.
     if runtime_definitions.is_runtime(row.get("definition")):
-        refused = scan_runtime.runtime_admission(row, "on-demand")
+        try:
+            plot = scan_runtime.runtime_scan_spec(row["definition"])["plot"]
+        except scan_definition.ScanRefused as exc:
+            raise RunRefused("gate:not-scannable", str(exc)) from exc
+        refused = scan_runtime.runtime_admission(row, "on-demand", plot)
         if refused is not None:
             raise RunRefused("gate:not-scannable", refused[1])
     return row
