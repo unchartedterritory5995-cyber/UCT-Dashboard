@@ -253,16 +253,16 @@ const suggestFor = (options, word) => {
 // field, are asked about, never guessed.
 const SECTOR_NAMES = [
   [/^(?:tech|techs|technology|technologies|info(?:rmation)? tech(?:nology)?|tech stocks?|tech sector)$/, ['Technology', 'Information Technology']],
-  [/^(?:energy|energy stocks?|oil and gas)$/, ['Energy']],
-  [/^(?:health ?care|health|medical|healthcare stocks?)$/, ['Healthcare', 'Health Care']],
+  [/^(?:energy|energy stocks?)$/, ['Energy']],
+  [/^(?:health ?care|health|healthcare stocks?)$/, ['Healthcare', 'Health Care']],
   [/^(?:financials?|finance|financial services)$/, ['Financial Services', 'Financials']],
   [/^(?:utilities|utility)$/, ['Utilities']],
-  [/^(?:real estate|reits?)$/, ['Real Estate']],
+  [/^(?:real estate)$/, ['Real Estate']],
   [/^(?:materials|basic materials)$/, ['Basic Materials', 'Materials']],
   [/^(?:industrials?)$/, ['Industrials']],
   [/^(?:consumer staples|staples|consumer defensive|defensives?)$/, ['Consumer Defensive', 'Consumer Staples']],
   [/^(?:consumer discretionary|discretionary|consumer cyclicals?|cyclicals?)$/, ['Consumer Cyclical', 'Consumer Discretionary']],
-  [/^(?:communications?|communication services|telecom|telecoms)$/, ['Communication Services']],
+  [/^(?:communications?|communication services)$/, ['Communication Services']],
 ]
 /** The sector value (one the sector field holds) a member's word names, or null. Pure over the options. */
 export function sectorNamed(word, sectorValues) {
