@@ -119,7 +119,7 @@ describe('EODRecap: the Daily folder is said (fix round 1)', () => {
     render(<MemoryRouter><EODRecapFresh recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} /></MemoryRouter>)
     await user.click(screen.getByRole('button', { name: /draft in today/i }))
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled())
-    expect(takeQueuedNotebookNotice()).toBe('Saved in your Daily folder.')
+    expect(takeQueuedNotebookNotice({ noteId: 'daily1' })).toBe('Saved in your Daily folder.')
     vi.doUnmock('../lib/reviewDrafts')
     vi.doUnmock('react-router-dom')
   })

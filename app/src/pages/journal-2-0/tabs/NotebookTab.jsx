@@ -1369,7 +1369,7 @@ export default function NotebookTab() {
   // Fix round 1 (review finding 7): a sentence another door queued before navigating here (Today,
   // the Compass recap card, Insights: "Saved in your Daily folder."), said once on arrival.
   useEffect(() => {
-    const queued = takeQueuedNotebookNotice()
+    const queued = takeQueuedNotebookNotice({ noteId })
     if (queued) setBulkNotice({ message: queued, tone: 'info' })
   }, [])
   const anywayRef = useRef(null)

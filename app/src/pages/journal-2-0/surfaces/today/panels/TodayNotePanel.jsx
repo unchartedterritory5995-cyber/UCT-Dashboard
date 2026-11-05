@@ -50,7 +50,7 @@ export default function TodayNotePanel() {
     try {
       const { note, created, templateMissing } = await openDailyNote({ templateId })
       // Fix round 1 (finding 7): a NEW day's note lands in the Daily folder; the Notebook says so.
-      if (created && !templateMissing) queueNotebookNotice(DAILY_FOLDER_NOTICE)
+      if (created && !templateMissing) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       if (templateMissing) setBlankNoteId(note.id)
       else goTo(note.id)
     } catch (e) {

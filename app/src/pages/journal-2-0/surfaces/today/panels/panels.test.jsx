@@ -326,12 +326,12 @@ describe('TodayNotePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
     const { takeQueuedNotebookNotice } = await import('../../../lib/dailyNote')
-    expect(takeQueuedNotebookNotice()).toBe('Saved in your Daily folder.')
-    expect(takeQueuedNotebookNotice()).toBeNull()                    // said once
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBe('Saved in your Daily folder.')
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBeNull()   // said once
     openDailyNoteSpy.mockResolvedValue({ note: { id: 'n42' }, created: false, templateMissing: false })
     fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(2))
-    expect(takeQueuedNotebookNotice()).toBeNull()
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBeNull()
   })
 
   it('a rejected call shows the failure sentence and goes nowhere', async () => {

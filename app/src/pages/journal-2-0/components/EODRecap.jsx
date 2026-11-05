@@ -34,7 +34,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
     try {
       const { note, created } = await draftDailyReview({ accountId: compassScope(accountId), day })
       // Fix round 1 (finding 7): a draft that MADE the day's note says where it went, in the Notebook.
-      if (created) queueNotebookNotice(DAILY_FOLDER_NOTICE)
+      if (created) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).

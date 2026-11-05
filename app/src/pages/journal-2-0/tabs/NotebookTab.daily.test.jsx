@@ -108,9 +108,18 @@ describe('Today', () => {
   // that made the day's note queues the sentence; the Notebook says it when it opens.
   it('a queued notice from another door is said once when the Notebook opens', async () => {
     const { queueNotebookNotice } = await import('../lib/dailyNote')
-    queueNotebookNotice('Saved in your Daily folder.')
+    queueNotebookNotice('Saved in your Daily folder.')   // no note named: any Notebook visit may say it
     renderTab()
     await waitFor(() => expect(screen.getByTestId('bulk-notice')).toHaveTextContent('Saved in your Daily folder.'))
+    expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeNull()
+  })
+
+  it('a notice queued for ANOTHER note is dropped, not said on this visit (fix round 2, N3)', async () => {
+    const { queueNotebookNotice } = await import('../lib/dailyNote')
+    queueNotebookNotice('Saved in your Daily folder.', { noteId: 'someOtherNote' })
+    renderTab()
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.queryByText('Saved in your Daily folder.')).toBeNull()
     expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeNull()
   })
 

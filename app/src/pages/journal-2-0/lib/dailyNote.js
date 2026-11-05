@@ -32,14 +32,25 @@ export const DAILY_FOLDER_NOTICE = 'Saved in your Daily folder.'
  *  It queues the sentence here; the Notebook says it once when it opens (NotebookTab). Session
  *  storage survives the navigation and any redirect on the way; a blocked store says nothing. */
 const PENDING_NOTICE_KEY = 'uct.nb.pendingNotice'
-export function queueNotebookNotice(message) {
-  try { sessionStorage.setItem(PENDING_NOTICE_KEY, String(message || '')) } catch { /* nothing said */ }
-}
-export function takeQueuedNotebookNotice() {
+/** Fix round 2 (re-review N3): a queued sentence lives this long, and is said only on the arrival it
+ *  was queued for -- the note it names (or any Notebook visit when it names none). Anything else
+ *  drops it, so it can never surface an hour later on an unrelated visit. */
+export const NOTICE_MAX_AGE_MS = 30_000
+export function queueNotebookNotice(message, { noteId = null, now = Date.now() } = {}) {
   try {
-    const m = sessionStorage.getItem(PENDING_NOTICE_KEY)
+    sessionStorage.setItem(PENDING_NOTICE_KEY, JSON.stringify({ message: String(message || ''), at: now, noteId }))
+  } catch { /* nothing said */ }
+}
+export function takeQueuedNotebookNotice({ noteId = null, now = Date.now() } = {}) {
+  try {
+    const raw = sessionStorage.getItem(PENDING_NOTICE_KEY)
     sessionStorage.removeItem(PENDING_NOTICE_KEY)
-    return m || null
+    if (!raw) return null
+    const q = JSON.parse(raw)
+    if (!q || typeof q.message !== 'string' || !q.message) return null
+    if (!Number.isFinite(q.at) || now - q.at > NOTICE_MAX_AGE_MS || now < q.at) return null
+    if (q.noteId && q.noteId !== noteId) return null
+    return q.message
   } catch { return null }
 }
 

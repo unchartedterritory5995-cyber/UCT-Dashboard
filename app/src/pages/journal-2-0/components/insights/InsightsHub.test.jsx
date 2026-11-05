@@ -290,7 +290,8 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
     fireEvent.click(screen.getByRole('button', { name: /today.s recap/i }))
     const { takeQueuedNotebookNotice } = await import('../../lib/dailyNote')
-    await waitFor(() => expect(takeQueuedNotebookNotice()).toBe('Saved in your Daily folder.'))
+    await waitFor(() => expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeTruthy())
+    expect(takeQueuedNotebookNotice({ noteId: 'd1' })).toBe('Saved in your Daily folder.')
   })
 
   it('a refusal the door wrote for the member is shown in its own words, not the generic line', async () => {

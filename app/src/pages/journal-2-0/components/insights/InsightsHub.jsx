@@ -205,7 +205,7 @@ export function ReviewDraftsSection({ accountId }) {
     try {
       const { note, created } = await fn()
       // Fix round 1 (finding 7): today's recap that MADE the day's note says where it went.
-      if (period === 'daily' && created) queueNotebookNotice(DAILY_FOLDER_NOTICE)
+      if (period === 'daily' && created) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
