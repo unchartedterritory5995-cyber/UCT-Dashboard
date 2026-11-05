@@ -491,6 +491,8 @@ scn('price alert', ['C1-114', 'C3-098', 'C3-128', 'C3-127'], { prefs: TWO() }, a
   await act(p, t, { say: 'show my alerts', plan: { disposition: 'apply', ops: [{ action: 'alert.list', target: '$alertLibrary', args: {} }] }, busy: false })
   const txt = await p.b.evaluate(`[...document.querySelectorAll('[data-testid="agent-transcript"] > *')].at(-1).textContent`)
   t.ok('the list names the alert (the rows sit under Details)', /SPY/.test(txt), txt.slice(0, 200))
+  const face = await p.b.evaluate(`(() => { const e = [...document.querySelectorAll('[data-testid="agent-transcript"] > *')].at(-1); const d = e.querySelector('details'); if (d) d.remove(); return e.innerText })()`)
+  t.ok('both halves are stated with Details shut', /price alerts \(1\)/i.test(face) && /no indicator alerts/i.test(face), face.slice(0, 200))
 })
 
 const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true }, { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
