@@ -200,6 +200,19 @@ function expectNoFork({ fork, results }) {
 }
 
 // ── (a) ─────────────────────────────────────────────────────────────────────
+
+// Tier 2 fix round 1 (review (e)): Tier 1a made version history load on its FIRST OPEN (NoteEditorPage mounts the
+// panel only once `historyEverOpen`), so the rail's stand-in button exists only after History is opened -- through
+// the real door, More note actions > Version history, as a member does. Opened OUTSIDE act (state set inside an
+// async act is not rendered until it ends), then the restore is pressed inside it, as before.
+async function openHistoryRail() {
+  if (!screen.queryByRole('button', { name: 'rail: restore a version' })) {
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Version history' }))
+  }
+  return screen.findByRole('button', { name: 'rail: restore a version' })
+}
+
 describe('(a) type, let it land, Undo, leave ⇒ the server ends with the post-undo text and no fork', () => {
   it('⭐⭐ Undo back to text that has already landed: the undone text is NOT re-sent behind the member’s back', async () => {
     server = makeServer({ body: doc(para('ab cd')), updatedAt: T0 })
@@ -339,7 +352,7 @@ describe('(d) an Undo across a whole-view swap still rotates', () => {
     server.body = doc(para('a restored version'))
     server.updatedAt = TV
     versionGate.note = server.note()
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    { const rail = await openHistoryRail(); await act(async () => { fireEvent.click(rail); await settleIdb(6) }) }
     expect(await viewText(), 'precondition: the version is on the page').toContain('a restored version')
     await tick(600)                                      // past the history group delay: ' gh' is its own step
     await edit((c) => c.focus('end').insertContent(' gh'))
@@ -359,7 +372,7 @@ describe('(d) an Undo across a whole-view swap still rotates', () => {
     server.body = doc(para('a restored version'))
     server.updatedAt = TV
     versionGate.note = server.note()
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    { const rail = await openHistoryRail(); await act(async () => { fireEvent.click(rail); await settleIdb(6) }) }
     // ⚠️ FLAKE FIX (2026-10-16, minted 5 vs 4 once): ' gh' must be its OWN history
     // step, or the first Undo takes the swap with it. prosemirror-history groups a
     // transaction with the previous one when it lands within `newGroupDelay` (500 ms)
@@ -438,7 +451,7 @@ describe('(f) ⛔⛔ review I-1 — a doc change OUTSIDE history must never blin
     server.body = doc(para('a restored version'))
     server.updatedAt = TV
     versionGate.note = server.note()
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    { const rail = await openHistoryRail(); await act(async () => { fireEvent.click(rail); await settleIdb(6) }) }
     await tick(600)
   }
 

@@ -8,7 +8,7 @@
 // "folded by a later effect" and "never open" are told apart -- jsdom lays nothing out, but the class that makes the
 // phone rule fold the box (`.wrap.collapsed .sidebarSlot { height: 0 }`) is what this reads.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const NOTES = [
@@ -75,7 +75,8 @@ vi.mock('../components/notebook/NoteTasksView', () => ({
   default: () => <div data-testid="note-tasks" />,
 }))
 
-import NotebookTab, { phoneArrivalFolds } from './NotebookTab'
+import NotebookTab, { SORT_OPTIONS, phoneArrivalFolds } from './NotebookTab'
+import { OPEN_JOURNAL_TOOLS_EVENT, journalToolsDoorMounted } from '../lib/journalToolsDoor'
 
 let realWidth
 beforeEach(() => {
@@ -137,5 +138,40 @@ describe('the phone folders panel never paints open on arrival (CLS)', () => {
     expect(phoneArrivalFolds(null, '#search')).toBe(false)
     width(820)
     expect(phoneArrivalFolds(null, '')).toBe(false)
+  })
+})
+
+// Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row), and the list offers that
+// door only while its toolbar is on screen -- an open note does not, so the header's own toggle is never stranded.
+describe('"Journal tools" is a row of the list ⋯ menu (Tier 2 fix round 1)', () => {
+  it('the list offers the door; its row opens the Journal header tools; an open note withdraws it', async () => {
+    width(390)
+    const seen = vi.fn()
+    window.addEventListener(OPEN_JOURNAL_TOOLS_EVENT, seen)
+    const { unmount } = render(<MemoryRouter initialEntries={['/journal/notebook?view=all']}><NotebookTab /></MemoryRouter>)
+    expect(journalToolsDoorMounted()).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'More notebook actions' }))
+    const menu = screen.getByRole('menu', { name: 'More notebook actions' })
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Journal tools' }))
+    expect(seen).toHaveBeenCalledTimes(1)
+    unmount()
+    expect(journalToolsDoorMounted()).toBe(false)
+    render(<MemoryRouter initialEntries={['/journal/notebook?note=n1']}><NotebookTab /></MemoryRouter>)
+    expect(journalToolsDoorMounted()).toBe(false)
+    window.removeEventListener(OPEN_JOURNAL_TOOLS_EVENT, seen)
+  })
+})
+
+
+// Tier 2 fix round 1 (review minor 12): compact sort words on a phone only; wider screens keep the full words.
+describe('the sort words', () => {
+  it('the full words where the screen is wide', () => {
+    width(1200)
+    render(<MemoryRouter initialEntries={['/journal/notebook?view=all']}><NotebookTab /></MemoryRouter>)
+    const sel = screen.getByRole('combobox', { name: 'Sort notes' })
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['Recently updated', 'Recently created', 'Title'])
+  })
+  it('the table of words', () => {
+    expect(SORT_OPTIONS.map((o) => o.short)).toEqual(['Updated', 'Created', 'Title'])
   })
 })

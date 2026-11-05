@@ -426,6 +426,8 @@ describe('Quick answers: Help landings (S14)', () => {
     await user.clear(box)
     await user.type(box, 'zzqqxx')
     expect(screen.getAllByRole('status').some((s) => /No answer matches/.test(s.textContent))).toBe(true)
+    // review Important 3: the sentence's "open a ticket" is the door to the new-ticket form
+    expect(screen.getByRole('link', { name: 'open a ticket' })).toHaveAttribute('href', '/support?view=new')
   })
 
   it('#quick-answers focuses the Quick answers heading', async () => {

@@ -18,12 +18,13 @@ import {
 } from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
 
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
+import Input from '../../../../components/ui/Input'
+
 // S13 (audit 2026-11-05): the formula editor (the trader formulas and the raw "Write your own" box) shows only when a
 // member writes or edits a formula, so it loads then, never with the note (perf-budgets.md, `lazyDialog` pattern: a
 // `lazyChunk` in a `null` Suspense). Rail: PropertiesSection.formulaLazy.test.js.
 const FormulaEditor = lazyChunk(() => import('./FormulaEditor'))
-import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
-import Input from '../../../../components/ui/Input'
 
 const savedViewsFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {

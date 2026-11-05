@@ -16,6 +16,7 @@ vi.mock('../../../../hooks/usePreferences', async (importOriginal) => ({
 }))
 
 import NotebookTipSlot from './NotebookTipSlot'
+import NotebookTip from './NotebookTip'
 import { buildExtensions } from '../../lib/tiptap'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { TIPS_PREF, insertedChart, seenTips, tipFor, withTipSeen, wroteTicker } from '../../lib/notebookTips'
@@ -119,6 +120,50 @@ describe('the ticker tip', () => {
   })
 })
 
+// Tier 2 fix round 1 (review minors 6 and 8).
+describe('the ticker tip waits for a whole ticker, and is recorded only once its card is on screen', () => {
+  it('the first letter after $ is not a ticker; the boundary after 2+ letters is', async () => {
+    const editor = mountEditor()
+    render(<NotebookTipSlot editor={editor} />)
+    typeAtEnd(editor, ' $N')
+    typeAtEnd(editor, 'V')
+    await new Promise((r) => setTimeout(r, 30))
+    expect(tipCard()).toBeNull()                         // "$NV" with the caret on it: still being written
+    typeAtEnd(editor, 'DA')
+    await new Promise((r) => setTimeout(r, 30))
+    expect(tipCard()).toBeNull()
+    typeAtEnd(editor, ' ')
+    expect(await screen.findByText(TICKER_TIP)).toBeInTheDocument()
+  })
+
+  it('a one-letter symbol ($F) never earns it', async () => {
+    const editor = mountEditor()
+    render(<NotebookTipSlot editor={editor} />)
+    typeAtEnd(editor, ' $F ')
+    await new Promise((r) => setTimeout(r, 30))
+    expect(tipCard()).toBeNull()
+  })
+
+  it('an inline atom earlier in the line (a line break) does not shift the match', async () => {
+    const editor = mountEditor()
+    render(<NotebookTipSlot editor={editor} />)
+    act(() => { editor.chain().focus('end').setHardBreak().insertContent('$AMD ').run() })
+    expect(await screen.findByText(TICKER_TIP)).toBeInTheDocument()
+  })
+
+  it('the record is made by the CARD on mount (onShown), so a card that never arrives never burns the tip', async () => {
+    const onShown = vi.fn()
+    render(<NotebookTip id="ticker" text="x" onDismiss={() => {}} onShown={onShown} />)
+    expect(onShown).toHaveBeenCalledTimes(1)
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const slot = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'NotebookTipSlot.jsx'), 'utf8')
+    const calls = slot.match(/setPrefMerged\(TIPS_PREF/g) || []
+    expect(calls).toHaveLength(1)
+    expect(slot).toMatch(/onShown=\{\(\) => setPrefMerged\(TIPS_PREF/)
+  })
+})
+
 describe('the chart tip', () => {
   it('the first chart inserted shows the Setups board tip, once', async () => {
     const editor = mountEditor()
@@ -151,10 +196,10 @@ describe('the rules (lib/notebookTips.js)', () => {
   })
 
   it('tipFor: a chart insert wins; a selection-only change earns nothing', () => {
-    const editor = mountEditor('<p>$NVDA </p>')
+    const editor = mountEditor('<p>$NVDA now</p>')
     let seen = null
     editor.on('transaction', ({ transaction }) => { seen = tipFor(transaction, editor.state) })
-    act(() => { editor.commands.setTextSelection(6) })
+    act(() => { editor.commands.setTextSelection(7) })   // after "$NVDA " (the paragraph starts at 1)
     expect(seen).toBeNull()
     expect(wroteTicker(editor.state)).toBe(true)          // the caret IS after a ticker, but nothing was written
     insertChart(editor)

@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { isMacPlatform } from './journal-2-0/lib/platform'
+import {
+  feedbackMenuMounted, openFeedback, registerHelpHost, registerShortcutsHost,
+} from '../components/feedbackDoor'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import { beginPrefsOp } from '../lib/prefsSession'
@@ -1621,8 +1625,8 @@ export function PreferencesBackupCard() {
 
 /** The palette chord as this machine's keyboard reads it: ⌘K on a Mac, Ctrl K elsewhere. */
 export function paletteChordLabel() {
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
-  return isMac ? '⌘K' : 'Ctrl K'
+  // Tier 2 review minor 16: the ONE "is this a Mac?" (journal-2-0/lib/platform.js), never a second regex.
+  return isMacPlatform() ? '⌘K' : 'Ctrl K'
 }
 
 const SHORTCUT_ROWS = [
@@ -1635,7 +1639,7 @@ const SHORTCUT_ROWS = [
 ]
 
 function ShortcutHelpModal({ onClose }) {
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
+  const isMac = isMacPlatform()
   return (
     <div className={styles.paletteBackdrop} onClick={onClose} role="dialog" aria-label="Keyboard shortcuts">
       <div className={styles.paletteBox} onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
@@ -1763,6 +1767,15 @@ export default function Settings() {
   const [flashCard, setFlashCard] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  // Tier 2 review minor 15: this page's Help button is THE Help button here (feedbackDoor.js), and its shortcut list
+  // is what the menu's "Keyboard shortcuts" row opens.
+  const helpBtnRef = useRef(null)
+  useEffect(() => registerHelpHost(), [])
+  useEffect(() => registerShortcutsHost(() => setHelpOpen(true)), [])
+  const openHelp = useCallback(() => {
+    if (feedbackMenuMounted()) openFeedback('menu', helpBtnRef.current, { toggle: true })
+    else setHelpOpen(true)
+  }, [])
   const railSearchRef = useRef(null)
 
   const results = useMemo(() => {
@@ -2500,11 +2513,16 @@ export default function Settings() {
             {/* S14 (audit 2026-11-05): this said ⌘K on every machine; Windows and Linux press Ctrl+K. */}
             <kbd className={styles.kbdKey}>{paletteChordLabel()}</kbd>
           </button>
+          {/* Tier 2 review minor 15: ONE "?" here too. This was a second "?" (shortcuts only) beside the corner one;
+              it is now THE Help button (the one Help menu, whose "Keyboard shortcuts" row opens this page's list),
+              and the corner "?" steps aside while it is on screen. `?` still opens the list directly. */}
           <button
+            ref={helpBtnRef}
             className={styles.kbdIconBtn}
-            onClick={() => setHelpOpen(true)}
-            title="Keyboard shortcuts (?)"
-            aria-label="Show keyboard shortcuts"
+            onClick={openHelp}
+            title="Help (? for keyboard shortcuts)"
+            aria-label="Help"
+            aria-haspopup="menu"
           >
             <kbd className={styles.kbdKey}>?</kbd>
           </button>

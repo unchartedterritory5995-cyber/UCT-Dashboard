@@ -5,6 +5,7 @@ import { render, screen } from '@testing-library/react'
 import { axeSurface } from './surface'
 import NotebookTip from '../components/notebook/NotebookTip'
 import NotebookTipSlot from '../components/notebook/NotebookTipSlot'
+import CaptureAlertOffer from '../components/notebook/CaptureAlertOffer'
 
 vi.mock('../../../hooks/usePreferences', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -21,5 +22,10 @@ describe('the one-time tips -- axe', () => {
   axeSurface('notebook-tip-slot', async () => {
     render(<main><NotebookTipSlot editor={null} /></main>)
     expect(screen.getByRole('status')).toHaveTextContent('')
+  })
+
+  axeSurface('capture-alert-offer', async () => {
+    render(<main><CaptureAlertOffer text="alert me if NVDA closes below 190" /></main>)
+    expect(document.querySelector('[data-capture-alert-offer]')).not.toBeNull()
   })
 })

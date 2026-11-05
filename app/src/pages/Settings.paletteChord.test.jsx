@@ -17,3 +17,20 @@ describe('the Settings palette chip', () => {
     expect(paletteChordLabel()).toBe('⌘K')
   })
 })
+
+// Tier 2 fix round 1 (review minors 15 and 16). Settings is a page with many cards and reads; these are read from its
+// source (the rendered Help-host contract itself is railed in FeedbackWidget.test.jsx and JournalLayout.test.jsx).
+describe('Settings has ONE "?" and ONE "is this a Mac?"', () => {
+  it('its "?" is THE Help button: it registers as the help host and the shortcuts host, and opens the one menu', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'src', 'pages', 'Settings.jsx'), 'utf8')
+    expect(src).toMatch(/useEffect\(\(\) => registerHelpHost\(\), \[\]\)/)
+    expect(src).toMatch(/useEffect\(\(\) => registerShortcutsHost\(\(\) => setHelpOpen\(true\)\), \[\]\)/)
+    expect(src).toMatch(/openFeedback\('menu', helpBtnRef\.current, \{ toggle: true \}\)/)
+    expect(src).not.toMatch(/aria-label="Show keyboard shortcuts"/)
+    // review minor 16: no second Mac regex
+    expect(src).not.toMatch(/\/Mac\|iPhone/)
+    expect(src).toMatch(/import \{ isMacPlatform \} from '\.\/journal-2-0\/lib\/platform'/)
+  })
+})

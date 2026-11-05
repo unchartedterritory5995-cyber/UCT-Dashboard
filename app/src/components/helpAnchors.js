@@ -12,4 +12,6 @@ export const ANSWER_PREFIX = 'answer-'
 export const HELP_WALKTHROUGHS_HREF = `${SUPPORT_PATH}#${WALKTHROUGHS_ID}`
 export const QUICK_ANSWERS_HREF = `${SUPPORT_PATH}#${QUICK_ANSWERS_ID}`
 export const HELP_SEARCH_HREF = `${SUPPORT_PATH}#${HELP_SEARCH_ID}`
+// Tier 2 fix round 1 (review Important 3): the new-ticket form (Support.jsx reads `?view=new`).
+export const NEW_TICKET_HREF = `${SUPPORT_PATH}?view=new`
 export const answerHref = (faqId) => `${SUPPORT_PATH}#${ANSWER_PREFIX}${faqId}`

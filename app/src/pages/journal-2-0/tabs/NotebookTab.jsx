@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -49,9 +49,10 @@ import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
 import useToolbarRoving from '../lib/useToolbarRoving'
 import useGridRoving from '../lib/useGridRoving'
-import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { useIsDesktop, useIsPhone } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { openJournalTools, registerJournalToolsDoor } from '../lib/journalToolsDoor'
 import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
@@ -283,6 +284,13 @@ const RENAME_TAG_CHUNK_SIZE = 500
 
 /** The phone fold rule (one authority for the seed and the effect): at <=640 px, on a list or Home (not a note, not
  *  the `#search` door, which opens the panel on purpose), the folders panel is folded. Exported for its rail. */
+/** The sort select's choices: the full words, and the compact ones a phone shows (Tier 2). */
+export const SORT_OPTIONS = Object.freeze([
+  { value: 'updated', label: 'Recently updated', short: 'Updated' },
+  { value: 'created', label: 'Recently created', short: 'Created' },
+  { value: 'title', label: 'Title', short: 'Title' },
+])
+
 export function phoneArrivalFolds(noteId, hash) {
   if (typeof window === 'undefined' || window.innerWidth > 640) return false
   return !noteId && hash !== NOTEBOOK_SEARCH_HASH
@@ -864,6 +872,13 @@ export default function NotebookTab() {
   const viewParam = searchParams.get('view')
   const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
+  // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
+  const listToolbarShown = !noteId && !isHome
+  // the compact sort words, on a phone only (review minor 12)
+  const phoneSortWords = useIsPhone()
+  // a LAYOUT effect: registered in the list's first commit, before the browser paints it (no fold after a paint)
+  useLayoutEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'
@@ -2199,6 +2214,9 @@ export default function NotebookTab() {
     { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
     { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
+    // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
+    { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
@@ -2750,10 +2768,9 @@ export default function NotebookTab() {
               aria-label="Sort notes"
             >
               {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
-                  of its own. Compact words; the control's NAME ("Sort notes") says what they order. */}
-              <option value="updated">Updated</option>
-              <option value="created">Created</option>
-              <option value="title">Title</option>
+                  of its own. On a PHONE the words are compact (review minor 12: only there); the control's NAME
+                  ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
             </select>
           )}
           {tickerFilter && (
@@ -2809,7 +2826,8 @@ export default function NotebookTab() {
             </div>
             <div className={styles.menuSlot}>
               <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
-                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button">
+                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button"
+                data-journal-tools-door="">
                 <UIcon name="more" size={16} gold={false} />
               </button>
               {moreMenu.open && (

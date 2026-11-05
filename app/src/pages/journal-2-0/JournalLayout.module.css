@@ -478,41 +478,14 @@
   }
 }
 
-/* ── Tier 2 (production check of Tier 1b, 390 x 844): the phone Notebook's first note sat at y=320 ───────
-   (spec target ~110). Above it: the app's top bar, a "Journal tools" row of its own, a 70 px section strip, the
-   filter row and a ⋯ row. On the Notebook route only, and only on a phone:
-     * folded, the tools toggle is a 44 px ⋯ at the END of the section strip -- out of the flow, so it takes no row
-       (the strip keeps room for it: JournalMobileNav.module.css `.compact`). Open, the header is in the flow as
-       before and the controls it reveals are laid out exactly as D2 laid them out;
-     * the section strip is labels only, 44 px (JournalMobileNav.module.css).
-   ⛔ Every other page, and tablet and desktop, are untouched. Rail: JournalLayout.compactHeader.test.jsx. */
-.toolsIcon { display: none; }
+/* ── Tier 2 fix round 1 (review Important 1): the phone Notebook list's first screen ───────────────────────
+   Measured on production (Tier 1b, 390 x 844): the first note sat at y=320 -- the app bar, a "Journal tools" row of
+   its own, the 70 px section strip, then the filter row. While the Notebook LIST is on screen it offers the header's
+   tools through a "Journal tools" row in its own ⋯ menu (lib/journalToolsDoor.js, `data-tools-door`), so the folded
+   header takes NO row; opened from that row, the header is laid out exactly as D2 laid it out, with its toggle to
+   close it. Where no page offers the door (Home, an open note, the research page) the folded toggle stays.
+   ⛔ Nothing here sits over the section strip (a control laid over it hid Insights and Compass: the Tier 2 review).
+   ⛔ Phone only, Notebook routes only. Rail: JournalLayout.compactHeader.test.jsx. */
 @media (max-width: 640px) {
-  .root[data-compact-header] { position: relative; padding-top: 8px; }
-  .root[data-compact-header]:not([data-tools-open]) .header {
-    position: absolute;
-    top: 8px;
-    right: var(--page-pad-x, 24px);
-    z-index: 2;
-    margin: 0;
-    padding: 0;
-    min-height: 0;
-    background: none;
-    border: 0;
-    box-shadow: none;
-  }
-  .root[data-compact-header]:not([data-tools-open]) .toolsToggle {
-    justify-content: center;
-    width: var(--tap-min);
-    padding: 0;
-    border-color: var(--border);
-    background: var(--bg-surface);
-  }
-  .root[data-compact-header]:not([data-tools-open]) .toolsIcon { display: inline-flex; }
-  .root[data-compact-header]:not([data-tools-open]) .toolsChevron { display: none; }
-  .root[data-compact-header]:not([data-tools-open]) .toolsLabel {
-    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
-    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-  }
+  .root[data-compact-header][data-tools-door]:not([data-tools-open]) .header { display: none; }
 }
-

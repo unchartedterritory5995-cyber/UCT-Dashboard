@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 
 vi.mock('../../context/AuthContext', () => ({
@@ -48,6 +48,7 @@ vi.mock('./components/AddTradeModal', () => ({ default: () => null }))
 
 import JournalLayout from './JournalLayout'
 import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
+import { isNotebookListAddress, openJournalTools, registerJournalToolsDoor } from './lib/journalToolsDoor'
 import { NOTEBOOK_PATH, NOTEBOOK_SEGMENT, NOTEBOOK_RESEARCH_SEGMENT } from './lib/journalRoutes'
 
 function renderAt(route) {
@@ -340,40 +341,82 @@ describe('M-5 -- one authority for the Notebook route (lib/journalRoutes.js)', (
   })
 })
 
-// Tier 2 (production check of Tier 1b, 390 x 844): the first note sat at y=320 (spec ~110). On the phone Notebook the
-// folded "Journal tools" toggle is a ⋯ at the end of the section strip (no row of its own), and the strip is labels
-// only at the 44 px floor. jsdom applies no CSS, so the rendered half (the hooks the rules key on, the toggle's name)
-// and the structural half (the rules, in the phone block only, on the compact route only) are railed separately.
-describe('the phone Notebook header takes no row of its own (Tier 2)', () => {
+// Tier 2 (production check of Tier 1b, 390 x 844), as corrected by its fix round 1 (review Important 1): the first
+// note sat at y=320. While the Notebook LIST offers "Journal tools" in its own ⋯ menu (lib/journalToolsDoor.js), the
+// folded phone header takes no row; that row opens the header's tools, focus on their toggle. NOTHING is laid over
+// the section strip (a tools icon over it hid Insights and Compass: the review), and D2's strip levers stand. jsdom
+// lays nothing out: the rendered half (the hooks, the door, focus) and the structural half (the rules) are railed
+// here; the 360 / 390 px "no tab overlapped" verdict is the browser measurement in the report.
+describe('the phone Notebook header takes no row of its own, and nothing covers the strip (Tier 2)', () => {
   const css = (f) => readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
   const phoneBlocks = (text) => [...text.matchAll(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
 
-  it('rendered: the strip is marked compact on the Notebook only, and the folded toggle keeps the name "Journal tools"', () => {
-    renderAt('/journal/notebook')
+  it('rendered: the strip is compact on the Notebook only; the door marks the root and opens the tools, focus on their toggle', async () => {
+    const { container } = renderAt('/journal/notebook')
     expect(screen.getByRole('navigation', { name: 'Journal sections (mobile)' })).toHaveAttribute('data-compact')
-    expect(toggle()).toBeInTheDocument()
-    expect(toggle().textContent).toMatch(/Journal tools/)
+    expect(root(container)).not.toHaveAttribute('data-tools-door')
+    let release
+    act(() => { release = registerJournalToolsDoor() })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    act(() => { openJournalTools() })
+    expect(root(container)).toHaveAttribute('data-tools-open', 'true')
+    await waitFor(() => expect(document.activeElement).toBe(toggle()))
+    act(() => release())
+    expect(root(container)).not.toHaveAttribute('data-tools-door')
   })
 
-  it('CONTROL: another Journal page keeps the icon-over-label strip (not compact)', () => {
-    renderAt('/journal/trades')
+  it('CONTROL: another Journal page keeps the icon-over-label strip and never takes the door', () => {
+    const { container } = renderAt('/journal/trades')
     expect(screen.getByRole('navigation', { name: 'Journal sections (mobile)' })).not.toHaveAttribute('data-compact')
+    let release
+    act(() => { release = registerJournalToolsDoor() })
+    expect(root(container)).not.toHaveAttribute('data-tools-door')
+    act(() => release())
   })
 
-  it('structural: folded, the header is out of the flow on the compact route, in the phone block only', () => {
-    const phone = phoneBlocks(css('JournalLayout.module.css'))
-    expect(phone).toMatch(/\.root\[data-compact-header\]:not\(\[data-tools-open\]\) \.header \{[^}]*position: absolute;/)
-    // open, nothing takes it out of the flow (the D2 layout of the revealed controls stands)
-    expect(phone).not.toMatch(/\.root\[data-compact-header\]\[data-tools-open\] \.header \{[^}]*position: absolute/)
-    const whole = css('JournalLayout.module.css').replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
-    expect(whole).not.toMatch(/\.header \{[^}]*position: absolute/)
+  it('structural: with the door and closed, the header is display: none on a phone; nothing is ever absolute over the strip', () => {
+    const jl = css('JournalLayout.module.css')
+    expect(phoneBlocks(jl)).toMatch(/\.root\[data-compact-header\]\[data-tools-door\]:not\(\[data-tools-open\]\) \.header \{ display: none; \}/)
+    expect(jl).not.toMatch(/\.header \{[^}]*position: absolute/)
   })
 
-  it('structural: the compact strip is 44 px labels only, with room at its end for the ⋯', () => {
-    const phone = phoneBlocks(css('JournalMobileNav.module.css'))
-    expect(phone).toMatch(/\.mobileNav\.compact \{[^}]*padding-right: 52px;/)
+  it('structural: the compact strip is labels only and KEEPS D2 (the 8 px bleed, 3 px side padding, no reserved end)', () => {
+    const nav = css('JournalMobileNav.module.css')
+    const phone = phoneBlocks(nav)
+    expect(phone).toMatch(/\.mobileNav \{[^}]*margin-left: -8px;[^}]*margin-right: -8px;/)
+    expect(phone).toMatch(/\.item \{[^}]*padding-left: 3px;[^}]*padding-right: 3px;/)
     expect(phone).toMatch(/\.compact \.icon \{ display: none; \}/)
-    const base = css('JournalMobileNav.module.css')
-    expect(base).toMatch(/\.item \{[^}]*min-height: var\(--tap-min\);/)      // the 44 px floor still holds
+    const compact = [...phone.matchAll(/\.(?:mobileNav\.)?compact[^{]*\{([^}]*)\}/g)].map((m) => m[1]).join(';')
+    expect(compact, 'a compact rule overrides D2').not.toMatch(/padding-(left|right)|padding:|margin:|margin-(left|right)/)
+    expect(nav).toMatch(/\.item \{[^}]*min-height: var\(--tap-min\);/)
+  })
+})
+
+// Tier 2 fix round 1, measured (the debug layout-shift logger, lib/clsDebug.js, at 390 px): the header painted, then
+// folded when the list registered its door, moving the strip and the notes up 57 px (0.05). On the list's own address
+// it is folded from the FIRST paint; elsewhere it waits for a door.
+describe('the header folds from the first paint on the list address', () => {
+  it('?view=all folds with no door registered yet; a note, Home and another page do not', () => {
+    const { container, unmount } = renderAt('/journal/notebook?view=all')
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    unmount()
+    const second = renderAt('/journal/notebook?view=all&note=n1')
+    expect(root(second.container)).not.toHaveAttribute('data-tools-door')
+    second.unmount()
+    const home = renderAt('/journal/notebook')
+    expect(root(home.container)).not.toHaveAttribute('data-tools-door')
+  })
+
+  it('the address rule', () => {
+    const ids = ['list', 'board', 'calendar']
+    const f = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids)
+    expect(f('/journal/notebook', '?view=all')).toBe(true)
+    expect(f('/journal/notebook', '?view=board')).toBe(true)
+    expect(f('/journal/notebook', '?folder=f1')).toBe(true)
+    expect(f('/journal/notebook', '?tag=swing')).toBe(true)
+    expect(f('/journal/notebook', '')).toBe(false)                  // Home
+    expect(f('/journal/notebook', '?view=nope')).toBe(false)        // an unknown view opens Home
+    expect(f('/journal/notebook', '?view=all&note=n1')).toBe(false) // a note
+    expect(f('/journal/notebook/research/NVDA', '?view=all')).toBe(false)
   })
 })
