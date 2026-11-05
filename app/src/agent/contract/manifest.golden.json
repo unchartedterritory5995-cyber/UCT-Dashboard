@@ -1517,61 +1517,92 @@
    "domain": "screener",
    "target": "screener",
    "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
-   "hints": "target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches the real values; value/max null. \"(latest session)\" fields only when a session is named (\"today\", \"yesterday\"); \"$10M a day\" / \"per day\" if none named = the 30-day average, not share volume. A measure not in `fields`: say the Screener doesn't have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (the whole market).",
+   "hints": "target = the screener entry ref. Comparisons, OR/NOT, rank: `compose`. filters: each {field: a key from `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches real values; value/max null. \"(latest session)\" fields only when a session is named (\"today\", \"yesterday\"); \"$10M a day\" / \"per day\" if none named = the 30-day average, not share volume. A measure not in `fields`: say so, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (whole market).",
    "args": {
     "type": "object",
     "properties": {
      "filters": {
       "type": "array",
       "items": {
-       "type": "object",
-       "properties": {
-        "field": {
-         "type": "string"
-        },
-        "op": {
-         "type": "string",
-         "enum": [
-          "gt",
-          "gte",
-          "lt",
-          "lte",
-          "eq",
-          "between",
-          "in",
-          "not_in"
-         ]
-        },
-        "value": {
-         "type": [
-          "number",
-          "null"
-         ]
-        },
-        "max": {
-         "type": [
-          "number",
-          "null"
-         ]
-        },
-        "values": {
-         "type": [
-          "array",
-          "null"
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "op": {
+           "type": "string",
+           "enum": [
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "eq",
+            "between",
+            "in",
+            "not_in",
+            "contains"
+           ]
+          },
+          "value": {
+           "type": [
+            "number",
+            "null"
+           ]
+          },
+          "max": {
+           "type": [
+            "number",
+            "null"
+           ]
+          },
+          "values": {
+           "type": [
+            "array",
+            "null"
+           ],
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "field",
+          "op",
+          "value",
+          "max",
+          "values"
          ],
-         "items": {
-          "type": "string"
-         }
+         "additionalProperties": false
+        },
+        {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "op": {
+           "type": "string",
+           "enum": [
+            "gt_col",
+            "gte_col",
+            "lt_col",
+            "lte_col"
+           ]
+          },
+          "other": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "field",
+          "op",
+          "other"
+         ],
+         "additionalProperties": false
         }
-       },
-       "required": [
-        "field",
-        "op",
-        "value",
-        "max",
-        "values"
-       ],
-       "additionalProperties": false
+       ]
       }
      },
      "sort_field": {
@@ -1615,6 +1646,38 @@
        "string",
        "null"
       ]
+     },
+     "logic": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "rank": {
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "object",
+       "properties": {
+        "field": {
+         "type": "string"
+        },
+        "weight": {
+         "type": "number"
+        },
+        "lower_better": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "field",
+        "weight",
+        "lower_better"
+       ],
+       "additionalProperties": false
+      }
      }
     },
     "required": [
@@ -1624,7 +1687,9 @@
      "mode",
      "show",
      "as",
-     "within"
+     "within",
+     "logic",
+     "rank"
     ],
     "additionalProperties": false
    },
@@ -1706,7 +1771,7 @@
      ]
     }
    },
-   "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
+   "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null,\"logic\":null,\"rank\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), no nested \"sort\" object. Up 5% today OR 15% on the week: \"filters\":[],\"logic\":\"{\\\"any\\\":[{\\\"field\\\":\\\"chg_pct_1d\\\",\\\"op\\\":\\\"gte\\\",\\\"value\\\":5},{\\\"field\\\":\\\"chg_pct_1w\\\",\\\"op\\\":\\\"gte\\\",\\\"value\\\":15}]}\"."
   },
   {
    "name": "screener.runSaved",
