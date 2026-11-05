@@ -59,7 +59,8 @@ import {
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
-import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
+import useJ2NoteTags from '../hooks/useJ2NoteTags'
+import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
@@ -878,10 +879,9 @@ export default function NotebookTab() {
   // exactly those hooks without disturbing anything else.
   // `tags: false` leaves GET /api/j2/notes/tags out — for a change that cannot
   // move a tag count (review R1-N4: that endpoint costs ~1.4 s at 50k notes).
-  const refreshSidebarCounts = ({ tags = true } = {}) => {
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes')
-      && (tags || !key.startsWith(NOTE_TAGS_KEY)))
-  }
+  // ⛔ Audit 2026-11-05, spec S6: ONE authority over "which keys are the note views" --
+  // lib/offline/invalidateNoteViews.js. This is that helper with the tab's default (tags on).
+  const refreshSidebarCounts = ({ tags = true } = {}) => invalidateNoteViews({ tags, mutate: globalMutate })
 
   // ── Wave 6 (lane E, item 7): split view ─────────────────────────────────────
   // A side note with no main note, or the main note named again, is dropped
@@ -1797,6 +1797,8 @@ export default function NotebookTab() {
     // Instant: put it in the tree now, then reconcile from the server.
     addNoteToTree(created)
     refreshAll()
+    // S6 (B5): every view, not just the sidebar's page -- the list said "3 of 3" beside a 5.
+    refreshSidebarCounts()
     openNote(created, null, openOptions)
   }
   const createNote = async ({
@@ -1889,6 +1891,7 @@ export default function NotebookTab() {
     const created = await createVoiceNote({ title, result, folderId: newNoteFolderId })
     addNoteToTree(created)
     refreshAll()
+    refreshSidebarCounts()   // S6
     openNote(created, null, { fresh: true })
     return created
   }
@@ -2007,6 +2010,7 @@ export default function NotebookTab() {
       const created = await createTradeCanvasNote({ folderId: newNoteFolderId })
       addNoteToTree(created)
       refreshAll()
+      refreshSidebarCounts()   // S6 (B5): the canvas door refreshed the sidebar's page only
       openNote(created, null, { fresh: true })
     } catch (e) {
       console.error('[notebook] create trade-plan canvas failed', e)
@@ -2072,6 +2076,7 @@ export default function NotebookTab() {
   const handleImported = () => {
     refresh()
     refreshAll()
+    refreshSidebarCounts()   // S6
     setFolderRefreshKey((k) => k + 1)
   }
 

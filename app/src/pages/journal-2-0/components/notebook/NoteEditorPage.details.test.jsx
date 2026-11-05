@@ -44,6 +44,12 @@ vi.mock('../../hooks/useJ2Notes', () => ({
   setNoteFavorite: vi.fn(),
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// S6: the editor tells the note views when a title has landed (and when a note moved).
+const invalidateSpy = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/offline/invalidateNoteViews', async (importOriginal) => ({
+  ...(await importOriginal()),
+  invalidateNoteViews: (...args) => invalidateSpy(...args),
+}))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 
 const derived = (id, name, value) => ({ id, name, type: 'text', source: 'financial_derived', value })
@@ -325,5 +331,31 @@ describe('S2: thesis controls only on request', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     await screen.findByRole('button', { name: 'Duplicate note' })
     expect(screen.queryByRole('button', { name: /Make this a thesis/ })).toBeNull()
+  })
+})
+
+// ⛔ Audit 2026-11-05, S6 (found on production after #816): a title typed into a new note stayed
+// "Untitled" in Recents and the list cards. Once the title save LANDS, the editor revalidates the
+// views that show a title -- and only then, and never for a body-only save.
+describe('S6: a landed title reaches every view', () => {
+  it('a title save that lands asks the title views again (titleOnly)', async () => {
+    invalidateSpy.mockClear()
+    NOTE = { ...bareNote(), title: '' }
+    await renderEditor()
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'NVDA swing plan' } })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'NVDA swing plan' }), expect.anything()), { timeout: 5000 })
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ titleOnly: true }))
+  })
+
+  it('a save that changes no title asks no view', async () => {
+    invalidateSpy.mockClear()
+    NOTE = bareNote()
+    await renderEditor()
+    fireEvent.change(screen.getByPlaceholderText('Subtitle (optional)'), { target: { value: 'deck line' } })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subtitle: 'deck line' }), expect.anything()), { timeout: 5000 })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ titleOnly: true })
   })
 })

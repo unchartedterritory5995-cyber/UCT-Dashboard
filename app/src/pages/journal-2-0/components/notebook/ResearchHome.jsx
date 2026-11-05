@@ -29,6 +29,7 @@ import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/ear
 import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
+import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
@@ -141,6 +142,8 @@ export function ReviewDraftsHomeBox({ onOpenNote, onNotice = null, skipLinkClass
       // S2 (B12): Today's recap that MADE the day's note says where it went (the server files it in
       // a root Daily folder, made on first use). A recap added to an existing note says nothing more.
       if (period === 'daily' && created) onNotice?.(DAILY_FOLDER_NOTICE)
+      // S6 (B5): a drafted review made or changed a note behind every list's back.
+      invalidateNoteViews({ tags: true })
       // Lane KEYS3 (Q18): a drafted review's findings are its collapsed blocks. The note opens
       // with focus on the first of them, not at its top (18 to 24 Tab stops above it).
       onOpenNote(note, null, { to: 'collapsed' })

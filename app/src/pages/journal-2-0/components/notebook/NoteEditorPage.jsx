@@ -99,6 +99,7 @@ import PropertiesSection from './PropertiesSection'
 import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
 import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
 import TickerSuggestion from './TickerSuggestion'
+import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
@@ -4136,6 +4137,8 @@ export default function NoteEditorPage({
       // a different body with its own writer.
       // (Read BEFORE `captureLocalState` below, whose stamp this decides.)
       if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
+      // S6 (post-#816): did this save land a NEW title? Read before the baseline moves.
+      const titleLanded = (lastSavedRef.current.title || '') !== (title || '')
       lastSavedRef.current = {
         title, subtitle, bodyJson,
         updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
@@ -4176,6 +4179,12 @@ export default function NoteEditorPage({
       // Wave 0 (P1-10): the server now has this content — the local safety
       // net for it is no longer needed.
       clearDraftLocally()
+      // ⛔ Audit 2026-11-05, S6 (found on production after #816): a title typed into a new note
+      // stayed "Untitled" in Recents, the list cards and the folder rows while the editor showed
+      // the new one -- only the sidebar's own tree was patched as it was typed. Once the title
+      // has LANDED, every view that shows a title asks the server again (never the counts, which
+      // a title cannot move, and never this note's own key, which this save just settled).
+      if (titleLanded) invalidateNoteViews({ titleOnly: true })
     } catch (e) {
       const status = e?.status
       // A 409 reaches here only when it was not reconciled above: a second one
@@ -4414,6 +4423,9 @@ export default function NoteEditorPage({
 
   const onFolderChange = async (folderId) => {
     await settleMetadataRevision(await update({ folderId: folderId || null }))
+    // S6 (B2): a move changes two folders' counts and which lists hold the note. The tab never
+    // heard of it, so "Unfiled 1" stayed after the note left Unfiled.
+    invalidateNoteViews()
   }
   // The Ticker field is checked against the server's rule BEFORE it is sent, and a refusal is
   // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
