@@ -190,7 +190,7 @@ DOORS: dict[str, Door] = {
         "narrative_cost_guard $10/day global, durable", gap="no per-member counter exists"),
     "api/services/company_about.py": Door(
         "member", "GET /api/about/{sym} (get_current_user)",
-        "30-day in-process cache only", gap="no counter exists to meter"),
+        "30-day in-process cache; a failure is remembered 1h", gap="no counter exists to meter"),
     "api/services/groups.py": Door(
         "member", "GET /api/groups/peers; GET /api/about/{sym}",
         "6h cache + 3 concurrent", gap="no counter exists to meter"),
