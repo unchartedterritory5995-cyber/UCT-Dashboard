@@ -31,7 +31,7 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={styles.cfg} role="dialog" aria-label="Replay Mode">
+      <div className={styles.cfg} role="dialog" aria-label="Replay Mode" data-guide="replay.panel">
         <div className={styles.cfgHead}>Replay Mode</div>
         <div className={styles.cfgBody}>
           <div className={styles.cfgRow}>
@@ -75,6 +75,7 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
           <button
             type="button"
             className={styles.cfgBtn}
+            data-guide="replay.start"
             disabled={!valid}
             onClick={() => { if (valid) onStart(date, tf) }}
           >{active ? 'Update' : 'Start replay'}</button>

@@ -337,7 +337,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Notebook widget settings"
         ><UIcon name="gear" size={13} /></button>
       </div>

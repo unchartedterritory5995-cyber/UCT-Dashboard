@@ -171,6 +171,7 @@ export default function GhostPreview({
         }}
       >
         <button
+          data-guide="workspace.place"
           type="button"
           onClick={onConfirm}
           style={{

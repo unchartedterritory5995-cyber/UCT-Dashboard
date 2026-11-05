@@ -413,7 +413,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Options Flow widget settings"
         ><UIcon name="gear" size={13} /></button>
       </div>

@@ -3315,7 +3315,7 @@ export default function ChartSettingsIndicators({
   const renderAddSurface = () => {
     const tabLabel = (libraryTabs.find((t) => t.key === activeTab) || { label: 'anything' }).label
     return (
-    <div className={styles.insAdd} data-testid="add-surface">
+    <div className={styles.insAdd} data-testid="add-surface" data-guide="indicators.addSurface">
       <div className={styles.insHead}>
         {/* ⚰️⚰️ IT WAS UNCONDITIONAL, AND IT USED TO MEAN SOMETHING: discovery was a
             place you went FROM the orientation screen, so there was always
@@ -3721,6 +3721,7 @@ export default function ChartSettingsIndicators({
                 type="button"
                 className={styles.insAddIndicator}
                 data-testid="add-enter"
+                data-guide="indicators.add"
                 onClick={enterBrowse}
               >
                 <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>

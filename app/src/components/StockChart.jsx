@@ -19334,6 +19334,7 @@ export default function StockChart({
         </div>
       )}
       <div
+        data-guide="chart.plot"
         ref={containerRef}
         className={styles.chart}
         style={{

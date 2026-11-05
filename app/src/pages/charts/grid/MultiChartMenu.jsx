@@ -152,6 +152,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
             key={l.id}
             type="button"
             className={`${styles.presetBtn} ${inGrid && mc.state.layout === l.id ? styles.presetBtnActive : ''}`}
+            data-guide={`multiChart.preset.${l.id}`}
             onClick={() => pickPreset(l.id)}
             title={l.label}
           >
@@ -177,7 +178,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
           onChange={e => { setCols(e.target.value); setNxmErr('') }}
           aria-label="Columns"
         />
-        <button type="button" className={wsStyles.toolbarBtn} onClick={applyCustom}>Apply</button>
+        <button type="button" className={wsStyles.toolbarBtn} data-guide="multiChart.customApply" onClick={applyCustom}>Apply</button>
       </div>
       {nxmErr && <div className={wsStyles.menuErr}>{nxmErr}</div>}
 

@@ -279,7 +279,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           type="button"
           className={`${styles.gear} ${settingsOpen ? styles.gearOn : ''}`}
           onClick={() => setSettingsOpen(o => !o)}
-          title="New Highs / Lows settings"
+          data-guide="widget.settings" title="New Highs / Lows settings"
           aria-label="New Highs / Lows settings"
         >
           <UIcon name="gear" size={13} gold={false} />

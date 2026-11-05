@@ -334,7 +334,7 @@ export default function FundamentalsWidget({
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           style={journalDoor && !isPanelView && (hasAnnual || hasQ) ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
-          title="Fundamentals settings"
+          data-guide="widget.settings" title="Fundamentals settings"
           aria-label="Fundamentals settings"
         ><UIcon name="gear" size={13} /></button>
         )}

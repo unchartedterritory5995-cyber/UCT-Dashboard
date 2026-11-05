@@ -729,6 +729,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   className={styles.chartSettingsBtn}
                   onClick={handleAddTab}
                   title="New chart tab (independent settings, loads as UCT Default)"
+                  data-guide="chart.addTab"
                   aria-label="New chart tab"
                 >
                   <UIcon name="plus" size={15} />
