@@ -1,131 +1,177 @@
-# W5-T11 client + lane adapter: evidence
+# W5-T2 host-neutral closure: evidence
 
-Lane: W5-T11 (docs/pine/SERVER-RUNTIME-DESIGN.md section 7, P2 T11), desktop machine.
-Branch `feat/pine-w5-t11-client`, stacked on W5-T3's tip `409456ee36` (T3 not merged yet; merge
-origin/master in once it is). Tested on master `@MASTER@` (merge-base with origin/master).
-Code tip checked: `@CODE@`. Local only: no Railway, no flags, no network in any rail (every request
-goes to the in-process fake), fixture secrets only.
+Lane: W5-T2 (docs/pine/SERVER-RUNTIME-DESIGN.md section 7 row T2; sections 2.1, 2.2 H3/H4/H5, 8 step 4; ruling R3 in
+9.1), desktop machine. Branch `feat/pine-w5-t2-host-neutral`.
+**Stacked on W5-T1** (READY, unmerged): base = `origin/feat/pine-w5-t1-server-bundle` `27e95ca34c`, whose master is
+`5d95103c8a` (tested-on-master). "Base" below always means `27e95ca34c`. T1 merges first, then T2.
+Fix round r1 (review `dsk/reviews/W5-T2.md`, B1): the previous version of this file at `0b45a9707a` held another
+lane's draft (a shared-scratchpad collision on the desktop). This file is rewritten from the W5-T2 run records in
+`_resume-2026-11-01/runs/w5t2/` and `runs/dsk-w5t2-final/`. No code changed in r1.
 
-## What is new
-- `api/services/pine_runtime_client.py`, THE ONE DOOR. `PineRuntimeClient.run(def_id, version, doc,
-  owner_id, profile, jobs, cache)` returns one `JobResult` per job, in order, and never raises for a
-  failed run. It signs (`X-Pine-Runtime-Signature: t=<unix>,v1=HMAC-SHA256(secret, "<t>." +
-  sha256hex(body))`, first comma-separated secret), sends the T6 closed schema (doc as canonical JSON
-  text, bars as T3 canonical base64, `bars.sha256` = T6's `barsSha256`), decodes with the T3 codec
-  (`pine_runtime_codec.decode_column(rows=n)`, `b64_to_bytes`), verifies length, finiteness and the
-  T3 digest, and maps every failure to a 3.7 guard. Batch API: sweep is chunked by 50, other
-  profiles by `scan_run.MAX_RUN_SYMBOLS` (read); one failed chunk or job withholds only itself.
-  `RunCache` is the per-cycle caller cache keyed on identity, doc sha, symbol, tf, ctx, BARS HASH,
-  want and profile; it never keeps a `runtime:server-*` or `runtime:time-budget` result.
-  `caller_identity()` reads the 5 identity fields from `scriptEngineVersion.js` (through
-  `user_definitions.read_script_engine_version`), `pineRuntimeFrontend.js`, `ir.js` and the sha256
-  of `app/dist-server/pine-runtime.mjs`; any part missing means every run is withheld by name.
-  `client_from_env()` reads the variable NAMES from W5-T12 (`runtime_definitions.SERVICE_URL_ENV`,
-  `SERVICE_SECRET_ENV`) through the module, never retyped.
-- `api/services/runtime_server_lane.py`: `runtime_column_fn(row, plot_key, lane)` returns
-  `fn(bars, params, *, tf, ticker, exchange="", history_from_listing=False) -> column`. On EVERY
-  call, before any service call and before the cache, it asks `user_definitions.engine_withheld_reason`
-  (5.2 step 2, guard `withheld`) and then `runtime_definitions.server_lane_refusal(row, lane=)`
-  (step 4, W5-T12's, through a call-time `getattr` seam: absent, raising or malformed answers refuse).
-  A refusal RAISES `ServerLaneWithheld(guard, sentence)`; it never returns an empty column.
-- `tests/fakes/pine_runtime_fake.py`: an in-process `Transport` that re-derives T6's door
-  independently (signature, replay set, closed top level, engine, doc and bars hashes) and answers in
-  T7's job-result shape plus the 3.2 `digest`, with named fault injection.
+**Engine bump: NO.** No product caller injects a clock (the browser worker passes `{budgetMs}` only, HP-7), and every
+default reads the same host clock, late, as before. Measured: C18 0 diffs and harness 0 diffs on both lanes, census
+0 diffs on runtime 1, and 3 runtime-0 census rows that are wall-clock `pine:timeout` jitter (classified below).
+HP-1 166/166. SCRIPT_ENGINE_VERSION untouched.
 
-Engine bump: **NO**. No engine or app code changed (Python only, plus tests and evidence).
-
-## Against W5-T6's real door (not a rail: T6 is not on this base)
-`python -B docs/pine/evidence/2026-11-04-w5-t11/t6_door_check.py 94b46f55b1` builds a request with the
-client (non-ASCII source, inputs, 7 bars) and feeds it to T6's own `auth.mjs` / `protocol.mjs` (read
-with `git show`, never copied): `signature verified: true | parse ok: true n=7 | moved engine: 409
-runtime:server-engine-mismatch`, rc 0. The rails also pin two vectors computed by T6's JS:
-`signHeader` and `barsSha256` (`test_signature_matches_t6_auth_vector`,
-`test_bars_hash_matches_t6_protocol_vector`).
-
-## Schema findings (for the coordinator)
-1. **T7's job results carry no `digest`** (`job.mjs::encodeResult` on `feat/pine-w5-t7-pool`), but
-   design 3.2 puts one on every result and T11 must "verify length and digest". The client REQUIRES
-   it on an `ok` result (verifies it on `withheld` when present), so until T7/T8 adds
-   `digest = column_digest(service identity, decoded columns, refusals)` every T7 `ok` answer is
-   withheld `runtime:server-integrity`. That is fail-closed; one side must move before T13.
-2. Design 3.2 shows a 4-field `engine` and `doc` as an object; T3/T6 use 5 fields (with
-   `runtime_language`) and `doc` as JSON text. The client follows T6.
-3. 3.7 row 10 says a non-finite value is integrity, while T3's codec carries +/-Infinity as values.
-   The client refuses +/-Infinity (NaN is na and passes). If the runtime can emit Infinity for a
-   value TradingView shows, this needs a ruling.
-4. T6's replay set refuses an identical body signed in the same second. Two identical runs (two
-   alerts on one plot in a cycle, a 429 resend) would collide, so the client signs a repeated body
-   with a later second (`signing_time`, process-wide). Two web replicas sending byte-identical bodies
-   in one second can still collide (one is withheld `runtime:server-auth`, by name).
-5. `server_lane_refusal` and the `SERVICE_*_ENV` names are on origin/master (T12 merged) but not on
-   this base; on this branch every lane call is refused `runtime:server-unavailable`, by design.
-
-## Commands and totals
-@TOTALS@
-
-## Rails red on base, green on tip
-`python -B docs/pine/evidence/2026-11-04-w5-t11/redbase.py tests/test_pine_runtime_client.py
-tests/test_runtime_server_lane.py` removes the three new modules (as on base 409456ee36), runs
-pytest, restores byte-exact: @REDBASE@. Every test in both files is red on base (collection
-ImportError) and green on the tip (@TIPCOUNT@).
-
-One rail per 3.7 row (test names in `tests/test_pine_runtime_client.py`):
-| 3.7 row | rails |
+## Files changed (27e95ca34c..tip, 15 files)
+| file | why |
 |---|---|
-| 1 URL unset | `test_row1_url_unset_withholds_unavailable_and_sends_nothing`, `test_row1_no_secret_or_no_identity_is_unavailable_too`, `test_row1_client_from_env_reads_t12_names_and_fails_closed_without_them` |
-| 2 connect/DNS/timeout/5xx | `test_row2_transport_errors_are_unavailable[3]`, `test_row2_5xx_is_unavailable[500,502,503,504]`, `test_row2_t6_not_ready_503_is_unavailable`, `test_row2_transport_gets_the_remaining_deadline` |
-| 3 401/403 | `test_row3_a_wrong_secret_is_auth_and_never_retried`, `test_row3_401_403_is_auth[2]` |
-| 4 engine identity | `test_row4_service_409_engine_is_engine_mismatch`, `test_row4_a_reply_from_another_engine_is_engine_mismatch`, `test_row4_an_integer_and_its_decimal_string_are_one_identity` |
-| 5 doc/bars hash | `test_row5_bars_hash_mismatch_is_integrity`, `test_row5_doc_hash_mismatch_is_integrity`, `test_row5_integrity_is_logged_loudly_without_the_owner_or_source`, `test_row5_a_request_the_service_calls_malformed_is_integrity[2]` |
-| 6 429 | `test_row6_alert_retries_once_then_withholds_busy`, `test_row6_alert_busy_then_ok_is_ok`, `test_row6_resending_the_same_body_needs_a_later_timestamp`, `test_row6_scan_chunk_retries_three_times_with_backoff`, `test_row6_backtest_does_not_retry`, `test_row6_no_retry_past_the_deadline` |
-| 7 worker OOM/crash/kill | `test_row7_worker_stops_keep_their_guard_and_are_never_cached[oom,failed,time-budget]`, `test_row7_pool_failure_500_withholds_every_job_as_failed` |
-| 8 run-wide refusal | `test_row8_run_wide_refusal_is_the_guard_itself_with_its_sentence[3]`, `test_row8_a_deterministic_run_refusal_may_be_cached`, `test_row8_an_ok_result_carrying_a_run_wide_refusal_is_integrity`, `test_row8_withheld_with_values_or_without_a_reason_is_integrity` |
-| 9 per-output refusal | `test_row9_per_output_refusal_withholds_that_plot_only`, `test_row9_a_wanted_key_neither_served_nor_refused_is_integrity`, `test_row9_a_key_both_served_and_refused_or_unasked_is_integrity` |
-| 10 length / non-finite | `test_row10_never_partial_a_short_column_is_integrity`, `..._a_long_column_...`, `..._an_infinite_value_...[2]`, `..._na_is_a_value_not_a_failure`, `..._a_non_canonical_nan_...`, `..._a_digest_that_does_not_match_...`, `..._an_ok_result_without_a_digest_...`, `..._a_digest_over_another_engine_...`, `..._one_bad_job_withholds_that_job_only`, `..._a_reply_not_answering_every_job_once_in_order_withholds_the_chunk[4]`, `..._not_protocol_1_...[4]`, `..._an_unknown_result_key_...` |
-| never stale | `test_never_stale_a_bars_change_is_a_cache_miss`, `test_never_stale_every_key_part_misses[6]`, `..._profile_and_document_are_in_the_key`, `..._the_engine_identity_is_in_the_key`, `..._a_client_withhold_is_never_cached`, `..._without_a_cache_every_call_runs` |
-| never partial | `test_row10_never_partial_a_short_column_is_integrity`, `test_row10_one_bad_job_withholds_that_job_only`, lane `test_never_partial_through_the_lane_a_short_column_raises_integrity` |
-Lane rails (`tests/test_runtime_server_lane.py`): both questions on every call, a kill reaches the
-next call with the cache warm and makes no service call, a new verdict reaches the next call, verdict
-before admission, every admission guard raised by name, absent/raising/malformed admission refuses,
-an unreadable verdict withholds, run-wide and per-output refusals raise, transport failure raises,
-never partial and never stale through the lane, params become `ctx.runtimeInputs`, the client is
-built per call.
+| `engine/objectRuntimeSeam.js` (new) | an import-free leaf holding the C18 runtime-values slot (H4) |
+| `engine/objectColumns.js` | reads the slot from the seam; re-exports `registerObjectRuntimeValues` from it |
+| `engine/runtime/runtimeColumns.js` | registers through the seam, not `objectColumns.js` (the edge that pulled in nativeRegistry, serverCompute, runtimeKill, runtimePaneGate, lib/runtimePanePermission); clock lines: one default `hostNow`, `clockOf(opts)` at the three pane-budget sites, `opts.now` handed to the VM (`WALL_TIME`; before T2 the VM ignored the caller's clock) and to the translator (`withTranslateClock`) for the run's build; `runtimeObjectValues` takes `ctx.now` the same way |
+| `engine/lowerTfServing.js` (new) | an import-free leaf: the translator's view of the lower-timeframe gate; unregistered is OFF, only a literal `true` serves (H3) |
+| `engine/lowerTf.js` | reads the gate through `lowerTfServing.js`, no longer imports `lowerTfGate.js` |
+| `engine/lowerTfGate.js` | registers its (unchanged, late) reader into the leaf when imported; still the ONE reader of the flag |
+| `engine/nativeRegistry.js` | imports `./lowerTfGate.js` (the chart door registers the gate) |
+| `app/src/test-setup.js` | imports `lowerTfGate.js`, as the app does through the registry, so suites that stub the flag still flip it |
+| `engine/ast/pine.js` (TRANSLATE_DEADLINE block, Resolver deadline, checkClock, translatePine's window) | every translator clock read goes through an injectable clock: `withTranslateClock(now, fn)`, `beginTranslateBudget(budgetMs, path, now)`, `translatePine(src, { now })`, Resolver `opts.now`; each deadline is read on the clock that set it; default `const wallNow = () => Date.now()` (H5, R3) |
+| `tools/pine_runtime_closure.mjs` (new) | the 2.1 walk as a rail (design 8 step 4), see below |
+| `runtime/__tests__/hostNeutralClosure.rail.test.js` (new) | the rail, 14 tests |
+| `runtime/__tests__/serverBundle.rail.test.js` (T1's) | module floor derived from the closure walk (was a literal `> 80`); a VITE_* value no longer moves the bundle (it did on base, through the two gates) |
+| `docs/pine/evidence/2026-11-04-w5-t2/{EVIDENCE.md,muts.json,muts-r2.json}` | this evidence and the mutation sets |
+
+`tools/pine_runtime_closure.mjs` walks from `runtime/serverEntry.js` and `runtime/runtimeColumns.js` (relative static,
+side-effect and literal dynamic imports; comments blanked, strings skipped, line numbers kept) and reports, each with
+its import chain: forbidden modules (nativeRegistry, objectColumns, serverCompute, runtimeKill, runtimePaneGate,
+lowerTfGate, lib/runtimePanePermission, runtimeAsync, runtimeWorker); network / build-flag / storage / dynamic-code /
+worker / timer patterns; any wall clock other than the three named defaults (exact line; a stale default is also a
+finding); bare imports other than `jsep`; door registrations (the registry must still reach `lowerTfGate.js`); and
+every module or JSON outside the service's watch patterns (3.1). `--check` exits 1 on a finding and 2 when the walk
+cannot be made (never clean); `--repo <dir>` walks another tree.
+
+| measure | base `27e95ca34c` | tip |
+|---|---|---|
+| closure modules / lines / JSON | 84 / 95,693 / 4 | 64 / 85,541 / 3 |
+| `--check` findings | 35 (rc 1) | 0 (rc 0) |
+| server bundle (T1 build script) | 2,140,179 B, 90 modules | 1,829,141 B, 69 modules |
+| bundle sha with `VITE_PINE_LOWER_TF_ENABLED=1` vs unset | differs | identical |
+
+## Rails: red on base, green on tip
+`runtime/__tests__/hostNeutralClosure.rail.test.js` (14 tests):
+- the closure is host-neutral (findings = []); `--check` exits 0; CONTROL: a tree breaking every rule gives each
+  named finding, CLI rc 1, and an unwalkable tree rc 2;
+- CONTROL: with no clock injected a run reads the host clock. With `opts.now` and `Date.now`/`performance.now`
+  throwing, runs read 0 host clocks from the listing, off the listing (warm-up curtain, sessions on) and in a
+  `calc_bars_count` window; the clock scope is restored after a run; the VM's WALL_TIME reads the injected clock;
+  `translatePine` reads only the injected clock and its deadline is that clock's; each `pine:timeout` limb (window
+  expiry, tick, Resolver own clock, scoped clock, in-window clock; a still clock never expires) reads its handed
+  clock; `runtimeObjectValues` reads `ctx.now`;
+- the C18 slot is one slot (`viaColumns === viaSeam`, registered = `runtimeObjectValues`); the lower-tf gate reaches
+  the translator late and fails closed (unregistered, throwing, non-`true`);
+- the server bundle under bare node with `fetch`, `Date.now` and `performance.now` all throwing: 0 calls, columns
+  computed on the injected clock; no VITE_* value moves the bundle.
+
+Red on base (inside the mp3 measure-pair hold; base worktree `pine-dsk-mpbase3` detached at `27e95ca34c`; the tool and
+the rail copied in and removed after; logs `runs/w5t2/redbase-closure.log`, `runs/w5t2/redbase-rail.log`):
+- `node tools/pine_runtime_closure.mjs --check` on base: rc 1, `closure: 35 finding(s)` (7 forbidden modules, fetch
+  and import.meta.env hits, 19 uninjectable clocks, 5 modules outside the watch patterns, 2 absent defaults);
+- `hostNeutralClosure.rail.test.js` on base: rc 1, the suite cannot load ("Cannot find module
+  '../../objectRuntimeSeam.js'"), Test Files 1 failed, no tests;
+- T1's edited assertion (no VITE_* value moves the bundle) is red on base by construction: the base bundle's sha moves
+  with the flag (table above).
+Green on tip: 14/14 and serverBundle 6/6 (tip `b886da066a`, direct run), and both inside final-tip. Also green directly
+on the tip: pine.timeout, lowerTf, memberPaneGate, runtimeRealtimeGuards, runtimePaneSafety, runtimeHardeningP1,
+runtimeLimitsAcceptance, simpleArgWindow, vendorHarness c27/c35/c41/c49, useLowerTfSources, objectRuntimeValues,
+pineRuntimeFrontendGate, pineProbeReplay.
 
 ## Mutation table
-Lock `_resume-2026-11-01/dsk/heavy-mut.lock`. Command, from the repo root:
-`python -B docs/pine/evidence/2026-11-04-w5-t11/mutate_pytest.py docs/pine/evidence/2026-11-04-w5-t11/muts.json tests/test_pine_runtime_client.py tests/test_runtime_server_lane.py`
-(`mutate_pytest.py` = the programme's `mutate.py` apply/byte-exact restore/assert with pytest as the
-runner; `python -B`, PYTHONDONTWRITEBYTECODE=1 and the mutated module's pyc deleted before each run,
-so a same-length mutation cannot be defeated by `__pycache__`. `mkmuts.py` regenerates `muts.json`
-and asserts each `old` occurs once.) @MUTRESULT@
+Command (from `app/`, lock `dsk/heavy-mut.lock`): `python $S/mutate.py ../docs/pine/evidence/2026-11-04-w5-t2/muts.json
+src/components/chart/engine/runtime/__tests__/hostNeutralClosure.rail.test.js src/components/chart/engine/__tests__/objectRuntimeValues.test.js`.
+- Round 1 (`muts.json`, tip `b613082ee1`, `runs/w5t2/mut.log`, 12:16-12:26): 45 mutations. Control survived,
+  **42 killed**, 2 survived: `pine:tick-wall` and `pine:checkClock-wall`. Cause: the rail used a LEAPING injected
+  clock, and a leaping clock cannot tell its own reading from the host's (both are past the deadline). The rail was
+  fixed in `b886da066a`: a clock that does not advance must never expire and must read no host clock.
+- Round 2 (`muts-r2.json`, tip `b886da066a`, `runs/w5t2/mut2.log`): both **KILLED**; control survived.
 
-Round 1 (`runs/w5t11-mut/mut.log`) left 3 survivors besides the control, all masked by a SECOND
-check rather than unguarded: C02 (no URL: the transport call still failed inside the `try`, so the
-withhold was right for the wrong reason; the rail now asserts the sentence names the URL), C17 (the
-column length was checked twice, by the decode and again by the digest's `rows=n`; the digest no
-longer re-checks rows, so the decode is the one length authority), C23 (a withheld result with no
-reason also broke its digest; the rail now re-digests honestly). Round 2 re-ran all 63.
+**44 of 44 real mutations killed. No equivalent survivors in this lane.** (Consequence for T1's table: its mutations
+"define dropped" and "VITE_* not spread into the define" become equivalent survivors on this tree, because nothing in
+the closure reads `import.meta.env` any more.)
 
-@MUTROWS@
+| group | mutations (names as in muts.json) | killed by |
+|---|---|---|
+| edges | `edge:objectColumns-import-back`, `edge:lowerTfGate-import-back`, `edge:nativeRegistry-into-closure` | "is host-neutral" (forbidden module + chain) |
+| door | `door:registry-no-longer-registers-gate` | "is host-neutral" (door registration finding) |
+| gate seam | `door:gate-does-not-register`, `seam:unregistered-serves`, `seam:truthy-serves`, `seam:throw-serves` | "the lower-timeframe gate reaches the translator..." |
+| C18 seam | `c18:not-registered`, `c18:reader-ignores-slot` | "one slot" / objectRuntimeValues.test.js |
+| runtimeColumns clocks | `clock:pane-core-host`, `clock:offlisting-host`, `clock:calcbars-host`, `clock:vm-not-handed`, `clock:core-build-not-scoped`, `clock:objects-build-not-scoped`, `clock:objects-vm-not-handed`, `clock:injected-ignored` | the matching "injected clock is the only clock read" test |
+| pine.js clocks | `pine:scope-ignored`, `pine:scope-not-restored`, `pine:window-ignores-now`, `pine:translatePine-drops-now`, `pine:expired-wall`, `pine:tick-wall` (r2), `pine:resolver-ignores-now`, `pine:resolver-ignores-scope`, `pine:resolver-ignores-window`, `pine:checkClock-wall` (r2), `pine:checkClock-window-wall` | translator / limbs / from-the-listing (scope restore) tests |
+| tool | `tool:network-pattern-dropped`, `tool:flag-pattern-dropped`, `tool:forbidden-modules-unchecked`, `tool:bare-unchecked`, `tool:clock-any-allowed`, `tool:clock-allow-by-file`, `tool:stale-unchecked`, `tool:watch-unchecked`, `tool:watch-any`, `tool:door-unchecked`, `tool:comments-kept`, `tool:line-comments-kept`, `tool:strings-not-skipped`, `tool:side-effect-import-unwalked`, `tool:check-exit-0` | the CONTROL tree test and "is host-neutral" |
+| control | `control:noop-comment` | SURVIVED (control), both rounds |
+
+## measure-pair (both runtime lanes)
+Lock `dsk/heavy-mp3.lock`, label `w5t2-mp`, log `runs/w5t2/mpjob.log`; per lane `runs/w5t2/mp{0,1}.log` and a
+timing-scrubbed tip/base diff of every artifact in `runs/w5t2/mp{0,1}-compare.txt`. Tip `b886da066a` (its code is the
+final tip's code: every later commit touches only this evidence directory). Base worktree `pine-dsk-mpbase3` switched
+INSIDE the job (detached) from `5d95103c8a` to `27e95ca34c`. Its HEAD, asserted with a timestamp:
+
+    BASE_BEFORE_SWITCH 5d95103c8a426e9c5844f42acef2f2131a96101a 12:52:56
+    BASE_HEAD after-switch          27e95ca34cb5615f512487fd5fd10bd237e8cd67 12:52:56
+    BASE_HEAD before-tip-side-rt0   27e95ca34cb5615f512487fd5fd10bd237e8cd67 12:52:56
+    == side tip b886da066a 12:52:57      == side base 27e95ca34c 13:11:39
+    BASE_HEAD after-base-side-rt0   27e95ca34cb5615f512487fd5fd10bd237e8cd67 13:28:42
+    BASE_HEAD before-tip-side-rt1   27e95ca34cb5615f512487fd5fd10bd237e8cd67 13:28:43
+    == side tip b886da066a 13:28:43      == side base 27e95ca34c 13:47:14
+    BASE_HEAD after-base-side-rt1   27e95ca34cb5615f512487fd5fd10bd237e8cd67 14:03:59
+    BASE_HEAD end                   27e95ca34cb5615f512487fd5fd10bd237e8cd67 14:04:03
+
+| lane | C18 audit (63,694 leaves) | C18 probes (921) | census (967 rows) | harness |
+|---|---|---|---|---|
+| runtime 0 (production) | 0 differ | 0 differ | 3 rows differ (below); lane.jsonl hostRefused 1293 vs 1290 | 0 of 56,887 leaves; summary identical; MATCH 93 DIVERGE 103 INCONCLUSIVE 140 both |
+| runtime 1 (runtime-on) | 0 differ | 0 differ | 0 differ | 0 of 68,366 leaves; summary identical; MATCH 111 DIVERGE 107 INCONCLUSIVE 118 both |
+
+### The runtime-0 census rows, by script (lane.jsonl hostRefused 1290 -> 1293 is their sum)
+Each row differs in WHERE the census's peel loop met the translator's 10 s wall-clock `pine:timeout`; every row hits
+that timeout on BOTH sides (no census path injects a clock, so tip and base read the same `Date.now`, and the row's
+total run time differs with load):
+- `committed:volatility-coil-edge-bullbyte`: peel step 6 is `pine:timeout` on both; ops dropped there 143 vs 142
+  (row ran 90 s on the tip, 86 s on the base);
+- `reference:halftrend-longshort-signal-engine-bigbeluga`: step 2 `pine:timeout` on both; then 7 vs 4 peel steps
+  before the census stopped (61 s vs 21 s);
+- `reference:market-structure-with-inducements-sweeps-luxalgo`: steps 0-1 `pine:timeout` on both; one extra timeout
+  refusal line recorded on the tip (107 s vs 89 s).
+hostRefused 1290 -> 1293 in lane.jsonl is these three rows' refused-step counts, nothing else (runtime 1 shows 0 row
+diffs and equal lane totals for the same scripts).
+
+**Re-run alone (fix r1)**, under `dsk/heavy-mp3.lock` (label `w5t2-rt0probe`, `runs/w5t2/rt0probe/`; tip worktree at
+`0b45a9707a` = tip code; base `pine-dsk-mpbase3` asserted at `27e95ca34c` at 22:01:35, 22:18:28 and 22:34:58): each
+script through `translatePine(src, { strict, objects })` twice with the wall clock OFF (`budgetMs: 0`, only the
+deterministic step and depth limbs) and twice with it ON. The answer (ok, first guard and line, every refusal guard
+and line, output count) is **identical on tip and base in all 12 pairs**: halftrend `pine:state` (14 refusals),
+volatility-coil `pine:reassign` (3), market-structure `pine:timeout` (2; with the clock off this is the deterministic
+step cap, reached after 446-529 s on both sides; with the clock on, 16-17 s). So the translator gives the same
+answer on both trees with or without a clock, and the census rows move only with wall time.
+**Classification: noise (pre-existing wall-clock non-determinism, design H5), not a change made by this branch.**
+
+**0 unintended diffs.**
+
+## Host parity (W5-T4's HP-1, run read-only)
+W5-T4's tool, corpus and committed digests were extracted read-only from `origin/feat/pine-w5-t4-host-parity`
+(`eb922686fe`) with `git archive` and run against THIS tree's server bundle:
+`node tools/pine_runtime_host_parity.mjs --host node --bundle <tip bundle> --check`.
+- early, bundle from `8429814e36`: **HP-1 GREEN 166/166** (`runs/w5t2/hp1-early.log`);
+- final, bundle from `073806c4b4` (1,829,141 B, 69 modules), in the final-tip hold: **HP-1 GREEN 166/166** (`runs/w5t2/hp1.log`).
+T4 recorded those digests on T1's bundle, so the closure cut changes no column, refusal guard or warm-up of the corpus.
 
 ## final-tip
 Command: `bash $S/final-tip.sh pine-dsk-w5t2 dsk-w5t2-final tests/test_script_engine_version_gate.py`, lock
-`dsk/heavy-final3.lock`, tip `073806c4b4` (code identical to every later commit; only this file differs), tested on
-(T1's) master `5d95103c8a`. Logs `_resume-2026-11-01/runs/dsk-w5t2-final/` and `runs/w5t2/finaljob.log`.
+`dsk/heavy-final3.lock`, tip `073806c4b4` (code identical to every later commit; only this directory differs), tested on
+(T1's) master `5d95103c8a`. Logs `_resume-2026-11-01/runs/dsk-w5t2-final/` and `runs/w5t2/finaljob.log` (14:35-15:22).
 - gate pytest (4 files): 46 passed. `tests/test_script_engine_version_gate.py`: 6 passed. Hygiene: clean (34,676 files).
 - full chart+hooks vitest: Test Files 1 failed | 1335 passed | 27 skipped (1363); Tests 1 failed | 22380 passed |
   118 skipped (22499). The only failure is `src/hooks/pollingSites.rail.test.js`, the desktop baseline (96582cd549 is
   not in this tree, so settingsScope is not expected red). Both W5-T2 rails passed inside the run.
-- In the same hold: `pine_runtime_closure.mjs --check` 0 findings (64 modules); HP-1 on the final tip's bundle
-  (1,829,141 B, 69 modules) **GREEN 166/166** (`runs/w5t2/hp1.log`).
+- In the same hold: `pine_runtime_closure.mjs --check` 0 findings (64 modules); HP-1 GREEN 166/166.
 - No `app/dist` or `app/dist-server` was created in the worktree (bundles were built into a scratch dir).
 
 ## Open items
-- T7/T8 must add `digest` to every job result (finding 1) before T13 can get an `ok` answer.
-- Infinity ruling (finding 3).
-- `t` units: `bars_sqlite` daily `ts` is YYYYMMDD; the client only requires finite, strictly
-  increasing numbers. Converting to the runtime's time base is T13/T14's (the lanes own bars).
-- The web pod's identity needs `app/dist-server/pine-runtime.mjs` (T1) in the web image; until then
-  `caller_identity()` is None and every run is withheld `runtime:server-unavailable`.
-- Logs: `_resume-2026-11-01/runs/w5t11-mut/` (tip.log, redbase.log, mut.log, tip2.log, redbase2.log,
-  mut2.log) and `_resume-2026-11-01/runs/dsk-w5t11-final/`.
+- **Arming checklist for `VITE_PINE_LOWER_TF_ENABLED`** (review note 1): in a realm that never imports the registry
+  (the runtime worker, the server bundle) the gate reads OFF. While the flag is dark (UNSET, `docs/feature_flags.json`)
+  nothing changes. Once armed, the runtime front end there refuses a read below the chart as
+  `lower-tf:store-unmeasured` instead of `lower-tf:runtime-lane`: the same withhold, a different name and sentence, on
+  a path the member door does not route (its probe, main thread and registered, refuses with `runtime-lane`).
+- The `docs/feature_flags.json` note for that flag says "Its one caller is engine/lowerTf.js"; it should name
+  `lowerTfServing.js` (the read is still only in `lowerTfGate.js`). Coordinator rewords at merge.
+- Wire `node tools/pine_runtime_closure.mjs --check` into `master-deploy-gate.yml` (design 8 step 4) with T19.
+- Stack order: T1 then T2. If T1 takes a fix round on `serverBundle.rail.test.js`, carry over the two edits here.
+- `test-setup.js` registers the gate in every vitest realm; the unregistered realm is exercised only by the explicit
+  rail (review note 2). The VITE on/off sha assertion sits in both bundle rails (note 3): harmless.
