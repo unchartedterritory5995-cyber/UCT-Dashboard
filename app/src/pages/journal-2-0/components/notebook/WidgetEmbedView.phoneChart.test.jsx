@@ -3,20 +3,30 @@
 // Plan and Replay move into More, and a tap on the chart opens it full screen in the phone /charts app on
 // the same ticker and timeframe. Desktop and tablet render exactly as before.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
-import { forwardRef } from 'react'
+import { forwardRef, useEffect } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
 vi.mock('@tiptap/react', async (orig) => ({ ...(await orig()), NodeViewWrapper: forwardRef((props, ref) => <div ref={ref} {...props} />) }))
+const shot = vi.hoisted(() => ({ els: [] }))
 vi.mock('../../lib/embedArchive', async (orig) => ({
   ...(await orig()),
-  captureElementPng: vi.fn(async () => null),
+  // The element the self-archive hands the rasteriser, as it stood at that moment.
+  captureElementPng: vi.fn(async (el) => { shot.els.push({ open: !!el?.querySelector('[data-phone-chart-open]') }); return null }),
   storeFallbackImage: vi.fn(async () => ({ url: '/x.png' })),
   kickSnapshotWarm: vi.fn(),
 }))
 const seen = vi.hoisted(() => ({ props: [] }))
 vi.mock('./ChartEmbed', () => ({
-  default: (props) => { seen.props.push(props); return <div data-testid="chart-embed-stub" /> },
+  default: function Stub(props) {
+    seen.props.push(props)
+    // The live chart says its bars are painted (the self-archive waits for that).
+    useEffect(() => { props.onBarsReady?.() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    return <div data-testid="chart-embed-stub" />
+  },
 }))
 vi.mock('./ChartPlanPanel', () => ({ default: () => <div data-testid="plan-panel-stub" /> }))
 vi.mock('../../../../components/chart/SymbolSearch', () => ({
@@ -27,8 +37,11 @@ import WidgetEmbedView from './WidgetEmbedView'
 import { buildWidgetEmbedAttrs } from '../../lib/widgetEmbedCore'
 
 const nowSec = Math.floor(Date.now() / 1000)
-const chartAttrs = (p = {}, extra = {}) => ({ ...buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D', to: nowSec, ...p }), ...extra })
-const editor = () => ({ isEditable: true, storage: { uctJournalWidgets: { noteId: 'n' } }, on() {}, off() {}, state: { doc: { descendants() {} } } })
+// An ARCHIVED chart (its PNG is stored), so phone mode applies at once; `pending()` is one still to be archived.
+const ARCHIVED = { fallback: { url: '/x.png', w: 600, h: 300 } }
+const chartAttrs = (p = {}, extra = {}) => ({ ...buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D', to: nowSec, ...p }), ...ARCHIVED, ...extra })
+const pending = () => buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D', to: nowSec })
+const editor = (over = {}) => ({ isEditable: true, storage: { uctJournalWidgets: { noteId: 'n', ...over } }, on() {}, off() {}, state: { doc: { descendants() {} } } })
 
 let RealIO
 const realWidth = window.innerWidth
@@ -43,13 +56,13 @@ beforeAll(() => {
   }
 })
 afterAll(() => { globalThis.IntersectionObserver = RealIO; setWidth(realWidth) })
-beforeEach(() => { __resetNotebookFlags(); latchNotebookFlags({ notebook_chart_plan_enabled: true }); seen.props = [] })
-afterEach(() => { cleanup(); __resetNotebookFlags(); setWidth(realWidth) })
+beforeEach(() => { __resetNotebookFlags(); latchNotebookFlags({ notebook_chart_plan_enabled: true }); seen.props = []; shot.els = [] })
+afterEach(() => { cleanup(); __resetNotebookFlags(); setWidth(realWidth); vi.useRealTimers() })
 
-async function mount(attrs = chartAttrs()) {
-  const view = render(<WidgetEmbedView node={{ attrs }} selected editor={editor()} updateAttributes={vi.fn()} />)
+async function mount(attrs = chartAttrs(), ed = editor(), wrap = (x) => x) {
+  const view = render(wrap(<WidgetEmbedView node={{ attrs }} selected editor={ed} updateAttributes={vi.fn()} />))
   await screen.findByTestId('chart-embed-stub')
-  return view.container.querySelector('[data-widget-embed-view="chart"]')
+  return view.container.querySelector('[data-widget-embed-view]')
 }
 const lastProps = () => seen.props[seen.props.length - 1]
 
@@ -131,4 +144,98 @@ describe('S12: desktop and tablet are unchanged', () => {
       expect(lastProps()).not.toHaveProperty('insights')
     })
   }
+})
+
+// ⛔ Fix round 1 (review 1, CRITICAL): the archive PNG is the note's permanent evidence. It is taken from the full
+// render at any width, and the tap layer never reaches it.
+describe('fix round 1: an archive taken at 390 px is the full chart, with no phone-only element', () => {
+  it('while the archive is due the chart renders as on a desktop, and the raster holds no tap layer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    setWidth(390)
+    const view = render(<WidgetEmbedView node={{ attrs: pending() }} selected editor={editor()} updateAttributes={vi.fn()} />)
+    await screen.findByTestId('chart-embed-stub')
+    expect(lastProps()).not.toHaveProperty('phoneMode')
+    expect(view.container.querySelector('[data-phone-chart-open]')).toBeNull()
+    await act(async () => { vi.advanceTimersByTime(4000) })
+    await act(async () => { await Promise.resolve() })
+    expect(shot.els).toHaveLength(1)
+    expect(shot.els[0].open).toBe(false)
+    expect(seen.props.every((p) => !('phoneMode' in p))).toBe(true)
+  })
+
+  it('once the image is stored, phone mode applies, and its tap layer is marked for the archive filter', async () => {
+    setWidth(390)
+    const root = await mount(chartAttrs())
+    expect(lastProps()).toMatchObject({ phoneMode: true })
+    expect(root.querySelector('[data-phone-chart-open]')).toHaveAttribute('data-archive-exclude')
+  })
+})
+
+describe('fix round 1: share view, read-only, frozen and other widgets', () => {
+  it('a public share page never enters phone mode', () => {
+    setWidth(390)
+    const view = render(<WidgetEmbedView node={{ attrs: chartAttrs() }} selected={false}
+      editor={{ ...editor({ shareView: true }), isEditable: false }} updateAttributes={vi.fn()} />)
+    expect(view.container.querySelector('[data-phone-chart-open], [data-phone-chart-title], [data-phone-chart-bar]')).toBeNull()
+    expect(seen.props.every((p) => !('phoneMode' in p))).toBe(true)
+  })
+
+  it('a read-only note keeps a view-only Insights toggle (it has no toolbar)', async () => {
+    setWidth(390)
+    const root = await mount(chartAttrs(), { ...editor(), isEditable: false })
+    expect(within(root).queryByRole('toolbar')).toBeNull()
+    const bar = root.querySelector('[data-phone-chart-bar]')
+    expect(bar.textContent).toContain('NVDA · 1D')
+    expect(lastProps()).toMatchObject({ phoneMode: true, insights: false })
+    fireEvent.click(within(bar).getByRole('button', { name: 'Insights' }))
+    expect(lastProps()).toMatchObject({ phoneMode: true, insights: true })
+  })
+
+  it('a frozen chart keeps it too', async () => {
+    setWidth(390)
+    const root = await mount(chartAttrs({}, { frozen: true }))
+    const bar = root.querySelector('[data-phone-chart-bar]')
+    expect(bar).not.toBeNull()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Insights' }))
+    expect(lastProps()).toMatchObject({ insights: true })
+  })
+
+  it('an editable chart has no second bar (Insights lives in its header)', async () => {
+    setWidth(390)
+    const root = await mount()
+    expect(root.querySelector('[data-phone-chart-bar]')).toBeNull()
+  })
+
+  it('a widget that is not a chart is untouched at 390 px', () => {
+    setWidth(390)
+    const attrs = { ...buildWidgetEmbedAttrs('cot', { market: 'ES', reportDate: '2026-11-03', groups: {} }), ...ARCHIVED }
+    const view = render(<WidgetEmbedView node={{ attrs }} selected editor={editor()} updateAttributes={vi.fn()} />)
+    expect(view.container.querySelector('[data-phone-chart-open], [data-phone-chart-title], [data-phone-chart-bar]')).toBeNull()
+  })
+})
+
+// Fix round 1 (review 4): inside the app's router the hop to /charts is client-side, so no document unload races a
+// pending autosave; and a long press shows no link callout.
+describe('fix round 1: the full-screen hop', () => {
+  function Where() { const l = useLocation(); return <p data-testid="where">{l.pathname}{l.search}</p> }
+
+  it('a tap navigates to /charts with the ticker and timeframe, through the router', async () => {
+    setWidth(390)
+    const wrap = (el) => (
+      <MemoryRouter initialEntries={['/journal/notebook/n']}>
+        <Routes>
+          <Route path="/journal/notebook/n" element={el} />
+          <Route path="/charts" element={<Where />} />
+        </Routes>
+      </MemoryRouter>
+    )
+    const root = await mount(chartAttrs({ symbol: 'AMD', tf: '15' }), editor(), wrap)
+    expect(fireEvent.click(within(root).getByRole('link', { name: 'Open AMD 15m full screen' }))).toBe(false)
+    expect((await screen.findByTestId('where')).textContent).toBe('/charts?sym=AMD&tf=15')
+  })
+
+  it('the link suppresses the long-press callout', () => {
+    const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/WidgetEmbedView.module.css'), 'utf8')
+    expect(/\.phoneOpen\s*\{([^}]*)\}/.exec(css)[1]).toMatch(/-webkit-touch-callout:\s*none/)
+  })
 })

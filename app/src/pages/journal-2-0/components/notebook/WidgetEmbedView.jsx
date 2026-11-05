@@ -1,5 +1,6 @@
 import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
+import { useInRouterContext, useNavigate } from 'react-router-dom'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
   retimeChartParams, resymbolChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
@@ -220,6 +221,40 @@ function usePhoneWidth(active) {
 /** The timeframe as the compact header says it ("NVDA · 1D"). */
 const TF_WORDS = { 1: '1m', 5: '5m', 15: '15m', 30: '30m', 60: '1h', D: '1D', W: '1W', M: '1M' }
 export const chartTfWord = (tf) => TF_WORDS[String(tf ?? 'D')] || String(tf)
+
+// S12 fix round 1 (review 4): the full-screen door. A real link (middle-click, long-press semantics) that the
+// editor never sees (`widgetEmbedStopEvent` returns true inside `[data-phone-chart-open]`), and, inside the app's
+// router, a client-side hop to /charts so a pending autosave is never raced by a document unload. The width is
+// read again at the tap: wider than a phone by then, nothing happens. `data-archive-exclude`: the self-archive
+// never rasterises it (lib/embedArchive.js `captureElementPng`'s filter; review 1).
+function PhoneOpenLink({ href, label, navigate }) {
+  return (
+    <a
+      className={styles.phoneOpen}
+      href={href}
+      contentEditable={false}
+      data-phone-chart-open=""
+      data-archive-exclude=""
+      aria-label={label}
+      onClick={(e) => {
+        if (!isPhoneWidth()) { e.preventDefault(); return }
+        if (navigate && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+          e.preventDefault()
+          navigate(href)
+        }
+      }}
+    >
+      <span className={styles.phoneOpenHint}>Tap to open full screen</span>
+    </a>
+  )
+}
+function RoutedPhoneOpenLink(props) {
+  const navigate = useNavigate()
+  return <PhoneOpenLink {...props} navigate={navigate} />
+}
+function PhoneOpen(props) {
+  return useInRouterContext() ? <RoutedPhoneOpenLink {...props} /> : <PhoneOpenLink {...props} navigate={null} />
+}
 
 export default function WidgetEmbedView(props) {
   if (isTraderBlock(props.node?.attrs?.widgetId)) {
@@ -821,6 +856,14 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   const phoneChart = usePhoneWidth(attrs.widgetId === 'chart' && !shareView)
   const phoneMode = phoneChart && !annotate
   const [insightsOn, setInsightsOn] = useState(false)
+  // ⛔ Fix round 1 (review 1, CRITICAL): the archive PNG is the note's permanent evidence (the public page and every
+  // unavailable render show it), so it is taken from the FULL render whatever the device. While an archive is due on
+  // an editable note, the chart renders as on a desktop (watermark, Chart IQ, labels, no tap layer); phone mode
+  // applies once the image is stored. The tap layer is also excluded from the raster itself (data-archive-exclude).
+  const archivePending = needsArchive && editor?.isEditable !== false
+  const phoneRender = phoneChart && !archivePending
+  // Fix round 1 (review 5): a read-only or frozen chart has no toolbar, so its Insights toggle (view-only) is its own.
+  const phoneBarOnly = phoneRender && decision.kind === 'live' && (editor?.isEditable === false || frozen)
 
   // 13H-2: the chart-plan doors, gate-checked at render (the latch never moves mid-tab).
   const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
@@ -909,7 +952,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // a coarse pointer (`isCoarsePointer`, above). Only chart embeds in
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
-            {...(attrs.widgetId === 'chart' && phoneChart ? { phoneMode: true, insights: insightsOn } : {})}
+            {...(attrs.widgetId === 'chart' && phoneRender ? { phoneMode: true, insights: insightsOn } : {})}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
             {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams, uid: editor?.storage?.uctJournalWidgets?.uid } : {})}
             // Wave 8 (Task 8.14): a built widget's ⋯ menu opens the builder at this node (editor + getPos).
@@ -1068,7 +1111,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               under the same guard, name and effect it had as a button. Absent while drawing
               (Done is the only control there, and a destructive Remove next to a drawing
               gesture is a misclick). */}
-          {phoneMode && decision.kind === 'live' && (
+          {phoneMode && phoneRender && decision.kind === 'live' && (
             <button
               type="button"
               className={`${styles.toolBtn} ${insightsOn ? styles.toolBtnActive : ''}`}
@@ -1120,21 +1163,33 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
           selects the block. Keep this attribute on whatever element wraps the live
           chart/drawing surface; moving the ref without moving the marker
           reopens the bug silently. */}
+      {phoneBarOnly && (
+        <div className={styles.phoneBar} contentEditable={false} data-phone-chart-bar="">
+          {attrs.params?.symbol && (
+            <span className={styles.phoneTitle} data-phone-chart-title="">
+              {attrs.params.symbol} · {chartTfWord(attrs.params.tf)}
+            </span>
+          )}
+          <button
+            type="button"
+            className={`${styles.toolBtn} ${insightsOn ? styles.toolBtnActive : ''}`}
+            aria-pressed={insightsOn}
+            onClick={() => setInsightsOn((o) => !o)}
+            title="Chart IQ and the pattern labels, on this screen only"
+          >
+            Insights
+          </button>
+        </div>
+      )}
       <div ref={bodyRef} data-widget-embed-body={annotate ? 'draw' : ''} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
         {/* S12: tap the chart to open it full screen in the phone /charts app, on this ticker and timeframe
             (lib/chartDeepLink.js, the same link as More > Open in Charts). The width is read again at the tap. */}
-        {phoneMode && attrs.params?.symbol && (
-          <a
-            className={styles.phoneOpen}
+        {phoneMode && phoneRender && attrs.params?.symbol && (
+          <PhoneOpen
             href={chartsLinkPath({ symbol: attrs.params.symbol, tf: attrs.params.tf })}
-            contentEditable={false}
-            data-phone-chart-open=""
-            aria-label={`Open ${attrs.params.symbol} ${chartTfWord(attrs.params.tf)} full screen`}
-            onClick={(e) => { if (!isPhoneWidth()) e.preventDefault() }}
-          >
-            <span className={styles.phoneOpenHint}>Tap to open full screen</span>
-          </a>
+            label={`Open ${attrs.params.symbol} ${chartTfWord(attrs.params.tf)} full screen`}
+          />
         )}
       </div>
       {planDoors && inView && (
