@@ -8,6 +8,7 @@
       "app/src/components/chart/engine/**",
       "app/src/lib/marketClock/**",
       "app/src/components/chart/indicators.js",
+      "app/src/components/chart/timeframes.js",
       "app/src/components/chart/builder/authoring/crossContext.json",
       "app/package*.json",
       "app/vite.config.js",

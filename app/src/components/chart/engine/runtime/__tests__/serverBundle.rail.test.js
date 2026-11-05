@@ -117,7 +117,12 @@ describe('server bundle (W5-T1)', () => {
 
   it('the allowlist is exactly the VITE_* names the bundle reads: no unlisted read, no stale entry, no secret-shaped name', () => {
     const names = [...new Set(text.match(/VITE_[A-Z0-9_]+/g) || [])].sort()
-    expect(names).toEqual([...SERVER_BUNDLE_VITE_NAMES].sort())
+    // train (W5-INT x W5-T2): since W5-T2 cut the build gates from the compute closure (design 2.2 H3),
+    // the bundle reads NO VITE_* name at all, so "exactly the allowlist" became "none". Every name read
+    // must still be allowlisted (none is), and the allowlist stays non-secret; whether the bake-list
+    // itself can now be emptied is a follow-up (runs/train/FIXES.md).
+    expect(names).toEqual([])
+    for (const n of names) expect(SERVER_BUNDLE_VITE_NAMES).toContain(n)
     for (const n of SERVER_BUNDLE_VITE_NAMES) expect(n).not.toMatch(/TOKEN|KEY|SECRET|PASSWORD|PRIVATE/)
   })
 

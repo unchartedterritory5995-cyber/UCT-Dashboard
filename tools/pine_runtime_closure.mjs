@@ -84,6 +84,8 @@ export const WATCH_PATTERNS = Object.freeze([
   'app/src/components/chart/engine/**',
   'app/src/lib/marketClock/**',
   'app/src/components/chart/indicators.js',
+  // train (W5-T2 x W5-T7/INT): the bundle exports NATIVE_TFS, so timeframes.js is in the closure
+  'app/src/components/chart/timeframes.js',
   'app/src/components/chart/builder/authoring/crossContext.json',
   'app/package.json',
   'app/package-lock.json',

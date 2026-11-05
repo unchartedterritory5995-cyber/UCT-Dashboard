@@ -309,6 +309,8 @@ def test_railway_json_points_at_the_image_and_watches_the_closure():
     watch = set(cfg["build"]["watchPatterns"])
     for p in ("services/pine_runtime/**", "app/src/components/chart/engine/**", "app/src/lib/marketClock/**",
               "app/src/components/chart/indicators.js",
+              # train: W5-T7/INT export NATIVE_TFS through the bundle (tools/pine_runtime_closure.mjs)
+              "app/src/components/chart/timeframes.js",
               "app/src/components/chart/builder/authoring/crossContext.json",
               "app/package*.json", "app/vite.config.js",
               # W5-INT: the canary's tool is in the image; a change to it must rebuild the service
