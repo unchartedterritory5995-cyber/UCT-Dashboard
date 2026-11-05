@@ -914,8 +914,11 @@
    :global([data-flash="true"]) in TranscriptSearch.module.css.
    ⛔ Corrected at the Phase 1 gate: an earlier draft of this rule used
    `[data-hub-selected]`, an attribute name nothing in the codebase ever
-   writes — dead CSS that would never have matched a real DOM node. */
-[data-hub-cursor="active"] {
+   writes — dead CSS that would never have matched a real DOM node.
+   VIS-4 (audit 2026-11-05, issue 9): painted only while the hub is ENGAGED (HubRoot writes
+   `data-hub-engaged` on <html> while it is eligible and on screen). The attribute is set on rows on
+   every page, so unscoped it drew a second, wrong "selected" outline on a desktop with no hub. */
+:root[data-hub-engaged] [data-hub-cursor="active"] {
   outline: var(--hub-cursor-outline-width) solid var(--hub-cursor-outline);
   outline-offset: var(--hub-cursor-outline-offset);
   background: var(--hub-cursor-fill);

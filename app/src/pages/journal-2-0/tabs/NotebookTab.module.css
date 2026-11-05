@@ -535,6 +535,8 @@
    Both are visually hidden until they take focus, then shown with the gold
    ring -- a focused thing nobody can see is not a focus indicator. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;

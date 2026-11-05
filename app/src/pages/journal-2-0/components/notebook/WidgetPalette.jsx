@@ -17,7 +17,7 @@
  * the / menu's moment labels, and every one is the item SlashMenu.snapshotWidgetItems builds -- the
  * palette clicks the same command, and a symbol kind asks for a ticker and runs the same grammar.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { JOURNAL_MENU_TYPES, widgetMeta, isReconstructable } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes, etTodayIso,
@@ -117,9 +117,32 @@ export default function WidgetPalette({ editor, onClose }) {
   // mount-site comment in NoteEditorPage.jsx -- so Sheet's centered-modal/
   // bottom-sheet treatment would fight that design, not fix this bug).
   // Competitive audit finding UX #13, 2026-09-22.
+  // VIS-5 (audit 2026-11-05, issue 25): Escape and ✕ hand focus BACK to what opened the panel (the toolbar's
+  // Insert button). It used to drop to <body>, the top of the page, so a keyboard member lost their place.
+  // Read once, at the first render -- before the effect above moves focus into the panel. A chart that was
+  // just inserted keeps its own focus (S3): only a close without an insert returns to the opener.
+  const openerRef = useRef(typeof document !== 'undefined' ? document.activeElement : null)
+  const dismiss = () => {
+    const opener = openerRef.current
+    onClose?.()
+    if (opener && opener !== document.body && opener.isConnected) opener.focus?.()
+  }
+  const dismissRef = useRef(dismiss)
+  dismissRef.current = dismiss
+
+  // Insert panel (VIS-4, issue 22): its bottom sat past the screen. It hangs from the sticky chrome, so its
+  // top is measured once open and the panel may grow only to 16 px above the viewport's bottom
+  // (`--palette-top` feeds the stylesheet's `max-height: calc(100vh - top - 16px)`).
+  useLayoutEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const top = Math.max(0, Math.round(el.getBoundingClientRect().top))
+    el.style.setProperty('--palette-top', `${top}px`)
+  }, [])
+
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return }
+      if (e.key === 'Escape') { e.stopPropagation(); dismissRef.current(); return }
       if (e.key !== 'Tab') return
       const nodes = panelRef.current?.querySelectorAll(
         'button:not([disabled]), input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])')
@@ -187,7 +210,7 @@ export default function WidgetPalette({ editor, onClose }) {
           <span className={styles.headTitle}>Insert widget</span>
         )}
         {onClose && (
-          <button type="button" className={styles.headBtn} onClick={onClose} aria-label="Close insert panel">✕</button>
+          <button type="button" className={styles.headBtn} onClick={dismiss} aria-label="Close insert panel">✕</button>
         )}
       </div>
 

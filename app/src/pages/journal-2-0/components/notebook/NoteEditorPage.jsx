@@ -2497,8 +2497,19 @@ export default function NoteEditorPage({
       setUploadToast({ message: INSIDE_ANSWER_SENTENCE, tone: 'error' })
       return
     }
+    writingHelpFromButtonRef.current = false
     setWritingHelp(req)
   }, [])
+  // VIS-5 (audit 2026-11-05, issue 25): closing Writing help sent focus to "Share". The header button
+  // keeps the editor's selection on a mouse press (mousedown is prevented), so the Sheet's own restore read
+  // the wrong opener. Opened from the button, focus goes back to the button; from the slash menu, the
+  // Sheet's default restore (the editor) stands.
+  const writingHelpButtonRef = useRef(null)
+  const writingHelpFromButtonRef = useRef(false)
+  const openWritingHelpFromButton = useCallback(() => {
+    openWritingHelp()
+    writingHelpFromButtonRef.current = true
+  }, [openWritingHelp])
   // ── Wave 11 lane 11A: voice notes ─────────────────────────────────────────
   // ⛔ DARK behind `notebook_voice_notes_enabled` and paid-only, like the routes.
   // "Add to this note" is ONE editor transaction at the end of the note (never a
@@ -5219,8 +5230,9 @@ export default function NoteEditorPage({
             <button
               type="button"
               className={styles.chromeBtn}
+              ref={writingHelpButtonRef}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={openWritingHelp}
+              onClick={openWritingHelpFromButton}
               aria-label="Writing help"
               data-tour="writing-help"
               title="Writing help — summarize, rewrite, continue or translate"
@@ -6086,6 +6098,7 @@ export default function NoteEditorPage({
             request={writingHelp}
             onAccept={acceptWritingHelpDraft}
             onClose={() => setWritingHelp(null)}
+            returnFocusTo={writingHelpFromButtonRef.current ? writingHelpButtonRef : undefined}
           />
         </Suspense>
       )}

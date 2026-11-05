@@ -2424,7 +2424,7 @@ export default function NotebookTab() {
             place for the skip link and for focus when a delete leaves no row
             after it. Visually hidden until it takes focus. */}
         {!noteId && (
-          <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
+          <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading} data-focus-fallback="">{paneHeading}</h2>
         )}
         {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
             note / Research Home / notes-list branches. They used to be inside the notes-list

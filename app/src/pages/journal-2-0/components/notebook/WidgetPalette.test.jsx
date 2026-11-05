@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 // Widget palette — the point-and-click twin of the slash commands (owner ask:
 // "click Charts → What ticker? What time frame? Boom — click, click, click").
 // It must ride the SAME grammar (parseChartSlashArgs & friends) and the SAME
@@ -181,6 +184,42 @@ describe('WidgetPalette keyboard escape (UX #13)', () => {
     render(<WidgetPalette editor={editor} onClose={onClose} />)
     fireEvent.keyDown(document, { key: 'a' })
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  // VIS-5 (audit 2026-11-05, issue 25): "Insert's Esc sends focus to the top of the page". Escape and ✕
+  // hand focus back to the button that opened the panel.
+  function Host({ editor }) {
+    const [open, setOpen] = useState(false)
+    return (
+      <div>
+        <button type="button" onClick={() => setOpen(true)}>Insert widget</button>
+        {open && <WidgetPalette editor={editor} onClose={() => setOpen(false)} />}
+      </div>
+    )
+  }
+  it.each([['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
+    ['the ✕ button', () => fireEvent.click(screen.getByRole('button', { name: 'Close insert panel' }))]])(
+    '%s returns focus to the Insert button that opened it', (_n, close) => {
+      const { editor } = makeEditor()
+      render(<Host editor={editor} />)
+      const opener = screen.getByRole('button', { name: 'Insert widget' })
+      opener.focus()
+      fireEvent.click(opener)
+      expect(document.activeElement).not.toBe(opener)   // focus moved into the panel
+      close()
+      expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
+      expect(document.activeElement).toBe(opener)
+    },
+  )
+
+  it('the type cards take the full column width, and the panel stops 16 px above the bottom of the screen', () => {
+    const css = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'WidgetPalette.module.css'), 'utf8')
+    const rule = (sel) => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)))
+    expect(rule('.typeBtn')).toMatch(/width: 100%/)
+    expect(rule('.panel')).toMatch(/max-height: calc\(100vh - var\(--palette-top, 160px\) - 16px\)/)
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} onClose={vi.fn()} />)
+    expect(screen.getByRole('dialog', { name: 'Insert widget' }).style.getPropertyValue('--palette-top')).toMatch(/^\d+px$/)
   })
 
   it('Tab from the last focusable element wraps to the first (focus trap)', () => {
