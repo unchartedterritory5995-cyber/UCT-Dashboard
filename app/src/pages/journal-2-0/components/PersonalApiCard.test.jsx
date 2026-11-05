@@ -201,4 +201,31 @@ describe('PersonalApiCard', () => {
     expect(global.fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
     expect(screen.getByTestId('personal-api-token')).toBeInTheDocument()
   })
+
+  // Fix round 1 (review minor 9): Cancel returned focus to <body> (the Revoke button it brings back
+  // is a new element), Esc did nothing, and the buttons were not tied to the sentence.
+  it('Esc cancels the confirm, and focus goes back to that row’s Revoke', async () => {
+    const tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async (url, init = {}) => (init.method === 'DELETE' ? json(200, {}) : json(200, { tokens })))
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    const ask = screen.getByRole('group', { name: 'Confirm revoke' })
+    const sentence = within(ask).getByText(/Shortcuts using this key stop working at once/)
+    expect(within(ask).getByRole('button', { name: 'Revoke' }).getAttribute('aria-describedby')).toBe(sentence.id)
+    fireEvent.keyDown(within(ask).getByRole('button', { name: 'Cancel' }), { key: 'Escape' })
+    expect(screen.queryByRole('group', { name: 'Confirm revoke' })).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' })))
+    expect(global.fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
+  it('Cancel also puts focus back on that row’s Revoke', async () => {
+    const tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async () => json(200, { tokens }))
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Confirm revoke' })).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' })))
+  })
 })

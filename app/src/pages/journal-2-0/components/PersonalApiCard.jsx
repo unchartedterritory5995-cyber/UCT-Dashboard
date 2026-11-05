@@ -81,6 +81,16 @@ export default function PersonalApiCard() {
   const [confirmId, setConfirmId] = useState(null)
   const cancelRevokeRef = useRef(null)
   useEffect(() => { if (confirmId) cancelRevokeRef.current?.focus() }, [confirmId])
+  // Fix round 1 (review minor 9): leaving the confirm without revoking hands focus back to that
+  // row's Revoke button (a NEW element, so it is found after the swap), and Esc leaves it.
+  const revokeBtnRefs = useRef(new Map())
+  const [returnTo, setReturnTo] = useState(null)
+  useEffect(() => {
+    if (!returnTo || confirmId) return
+    revokeBtnRefs.current.get(returnTo)?.focus()
+    setReturnTo(null)
+  }, [returnTo, confirmId])
+  const cancelRevoke = (id) => { setConfirmId(null); setReturnTo(id) }
   // S1 (B19): a token needs a name. A key with no name cannot be told apart in the list when the
   // member later has to revoke the right one.
   const named = label.trim().length > 0
@@ -216,20 +226,24 @@ export default function PersonalApiCard() {
             </div>
           </div>
           {confirmId === t.id ? (
-            <div role="group" aria-label="Confirm revoke" className={styles.confirm}>
-              <span className={styles.confirmText}>
+            <div role="group" aria-label="Confirm revoke" className={styles.confirm}
+                 onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); cancelRevoke(t.id) } }}>
+              <span className={styles.confirmText} id={`revoke-ask-${t.id}`}>
                 {`Revoke "${t.label}"? Shortcuts using this key stop working at once.`}
               </span>
               <button type="button" ref={cancelRevokeRef} className="btn btn-ghost"
-                      onClick={() => setConfirmId(null)}>
+                      aria-describedby={`revoke-ask-${t.id}`}
+                      onClick={() => cancelRevoke(t.id)}>
                 Cancel
               </button>
-              <button type="button" className="btn btn-danger" onClick={() => revoke(t.id)}>
+              <button type="button" className="btn btn-danger" aria-describedby={`revoke-ask-${t.id}`}
+                      onClick={() => revoke(t.id)}>
                 Revoke
               </button>
             </div>
           ) : (
             <button type="button" className="btn btn-danger"
+                    ref={(el) => { if (el) revokeBtnRefs.current.set(t.id, el); else revokeBtnRefs.current.delete(t.id) }}
                     disabled={busyId === t.id}
                     aria-label={`Revoke ${t.label}`}
                     onClick={() => { setMessage(null); setConfirmId(t.id) }}>
