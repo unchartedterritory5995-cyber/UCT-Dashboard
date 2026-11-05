@@ -529,6 +529,7 @@ const UNSAVED_NOTE = {
   conflict: 'Shown on this screen but NOT saved: your workspace was changed in another window or device. Reload to see the current workspace (reloading discards this change).',
   'not-saved': 'Shown on this screen, but the save was not confirmed — it is not saved yet.',
   'not-synced': 'Drawn on this device, but syncing it to your account was not confirmed yet — keep this tab open a few seconds; closing it now may lose the change.',
+  slow: 'On your screen. The save is taking longer than usual; this updates when it answers, and Undo comes with it.',
 }
 // Drawings reach the account through the tracings sync, not the board save: wait for the server's
 // copy of each touched symbol to match (host.drawings.confirm). Same rule as a board change: until
@@ -572,12 +573,14 @@ async function persistBoard(host, ops) {
   }
 }
 
-// ⛔ "Saving…" can't stay up, and the panel can't stay locked, on a save that never answers. No answer in time is not confirmed,
-// and is said as that (UNSAVED_NOTE); a save slower than this reads the same way, with the change still on screen.
-export const SAVE_WAIT_MS = 45000
-const withinSaveWait = (p) => new Promise((resolve, reject) => {
-  const t = setTimeout(() => resolve({ ok: false, reason: 'not-saved' }), SAVE_WAIT_MS)
-  p.then((v) => { clearTimeout(t); resolve(v) }, (e) => { clearTimeout(t); reject(e) })
+// ⛔ The panel can't stay locked on a save that won't answer, and a slow save is not a failed one (a chart grid's has run 30 s+).
+// At the deadline the panel is freed and the receipt says the save is still going; the save's OWN answer settles it whenever it
+// comes: Undo if it landed, the real reason if not (a conflict stays a conflict). A save queued behind a slow one waits the
+// same way, so it is never reported as failed for the time it spent in the queue.
+export const SAVE_WAIT_MS = 90000
+const withinSaveWait = (p) => new Promise((resolve) => {
+  const t = setTimeout(() => resolve({ ok: false, reason: 'slow', late: p }), SAVE_WAIT_MS)
+  p.then((v) => { clearTimeout(t); resolve(v) })
 })
 
 // the server's stage timings (ms only) for the turn trace
@@ -1271,11 +1274,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const s = selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)
         return s.ok ? confirmDrawings(host, drawingRefsOfPlan(plan)) : s
       }
-      saved = res.ok ? await withinSaveWait(persisted()).catch(() => ({ ok: false, reason: 'not-saved' })) : { ok: true }
+      saved = res.ok ? await withinSaveWait(persisted().catch(() => ({ ok: false, reason: 'not-saved' }))) : { ok: true }
     } finally {
-      // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
-      writeLocal(AGENT_INFLIGHT_KEY, null)
-      if (saying) patchItem(saying, { saving: false })       // here, so nothing after this can leave a receipt on "Saving…"
+      // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this; a save still out keeps the mark.
+      if (!saved?.late) writeLocal(AGENT_INFLIGHT_KEY, null)
+      if (saying && !saved?.late) patchItem(saying, { saving: false })       // here, so nothing after this can leave a receipt on "Saving…"
     }
     mark('persist', saved.ok ? 'ok' : saved.reason)
     if (res.undo && saved.ok) {
@@ -1288,9 +1291,21 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const lines = [...(composed ? [...composed.lines, ...res.lines] : res.lines), ...leadLines]
       if (lead) lead.used = true
       if (!saved.ok) {
-        const unsaved = { undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true }
-        if (saying) patchItem(saying, unsaved)
-        else push({ role: 'receipt', lines, ...unsaved })
+        const unsaved = (reason) => ({ undoId: null, notes: [UNSAVED_NOTE[reason] || UNSAVED_NOTE['not-saved']], unsaved: true, saving: false })
+        if (saved.late) {
+          const id = saying || nid()
+          const still = { undoId: null, notes: [UNSAVED_NOTE.slow], saving: true }
+          if (saying) patchItem(id, still)
+          else push({ id, role: 'receipt', lines, ...still })
+          const mark0 = readLocal(AGENT_INFLIGHT_KEY)
+          saved.late.then((s) => {
+            if (readLocal(AGENT_INFLIGHT_KEY) === mark0) writeLocal(AGENT_INFLIGHT_KEY, null)      // never a later change's mark
+            if (s.ok && res.undo) undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
+            patchItem(id, s.ok ? { saving: false, undoId: res.undo?.id || null, notes: receiptNotes() } : unsaved(s.reason))
+            record({ member: null, outcome: s.ok ? `Saved after a wait: ${lines.join(' · ')}` : `${lines.join(' · ')} · NOT SAVED (${s.reason})`, outcomeData: { kind: 'save-late', ok: !!s.ok, actions, ...(s.ok ? {} : { reason: s.reason }) }, telemetry: { path, actions, voice, ...(s.ok ? {} : { refused: true }) } })
+          })
+        } else if (saying) patchItem(saying, unsaved(saved.reason))
+        else push({ role: 'receipt', lines, ...unsaved(saved.reason) })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
         rememberChange(memoryRef.current, host, ops, null, res.created || null)

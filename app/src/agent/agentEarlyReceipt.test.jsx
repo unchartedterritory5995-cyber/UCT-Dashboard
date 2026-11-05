@@ -8,6 +8,7 @@ import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 import { lastTurns } from './trace'
 import { SAVE_WAIT_MS } from './useAgent'
+import { AGENT_INFLIGHT_KEY } from './agentFlag'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -102,20 +103,61 @@ describe('the receipt follows the read-back, not the save', () => {
     expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
   }, 30000)
 
-  it('a save that never answers: at the deadline the receipt says not saved, and the panel is free again', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    try {
-      mountHeld()
+  describe('a save slower than the deadline', () => {
+    const pastDeadline = async () => {
+      const m = mountHeld()
       send('make this weekly')
       await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 4000 })
-      expect(lastReceipt().getAttribute('data-saving')).toBe('true')
       await vi.advanceTimersByTimeAsync(SAVE_WAIT_MS + 50)
-      await waitFor(() => expect(lastReceipt().getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
-      expect(lastReceipt().textContent).toMatch(/not saved yet/i)
+      await p.idle()                                                       // the panel is free again
+      expect(lastReceipt().getAttribute('data-saving')).toBe('true')       // and it never said not saved
+      expect(lastReceipt().textContent).toMatch(/taking longer than usual/)
+      expect(lastReceipt().textContent).not.toMatch(/not saved/i)
       expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
+      return m
+    }
+    const rows = () => p.st.calls.filter(c => c[1] === '/api/agent/record').map(c => c[2].outcomeData)
+    beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }) })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('a late success settles the same receipt: Undo, no note, and one saved row', async () => {
+      const { answer, say, board } = await pastDeadline()
+      answer({ ok: true })
+      await waitFor(() => expect(lastReceipt().getAttribute('data-undoable')).toBe('true'), { timeout: 4000 })
+      expect(lastReceipt().getAttribute('data-saving')).toBeNull()
+      expect(lastReceipt().textContent).not.toMatch(/taking longer/)
+      expect(receipts()).toHaveLength(1)
+      expect(rows().filter(r => r.kind === 'save-late')).toEqual([{ kind: 'save-late', ok: true, actions: ['chart.setTimeframe'] }])
+      p.st.persist = async () => ({ ok: true })
+      await say('undo')
+      expect(board.state.widgets[0].opts.tf || 'D').toBe('D')
+    }, 30000)
+    it('a late conflict says conflict, not a generic note, and offers no Undo', async () => {
+      const { answer } = await pastDeadline()
+      answer({ ok: false, conflict: true, reason: 'conflict' })
+      await waitFor(() => expect(lastReceipt().textContent).toMatch(/changed in another window/), { timeout: 4000 })
+      expect(lastReceipt().getAttribute('data-saving')).toBeNull()
+      expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
+      expect(rows().filter(r => r.kind === 'save-late')[0]).toMatchObject({ ok: false, reason: 'conflict' })
+    }, 30000)
+    it('the in-flight mark stays while the save is out', async () => {
+      const { answer } = await pastDeadline()
+      expect(localStorage.getItem(AGENT_INFLIGHT_KEY)).toBeTruthy()
+      answer({ ok: true })
+      await waitFor(() => expect(localStorage.getItem(AGENT_INFLIGHT_KEY)).toBeNull(), { timeout: 4000 })
+    }, 30000)
+    it('a second change queued behind the slow one is not reported as failed; each settles on its own answer', async () => {
+      const { answer } = await pastDeadline()
+      send('make this monthly')
+      await waitFor(() => expect(receipts()).toHaveLength(2), { timeout: 4000 })
+      await vi.advanceTimersByTimeAsync(SAVE_WAIT_MS + 50)
       await p.idle()
-    } finally { vi.useRealTimers() }
-  }, 30000)
+      expect(receipts().map(r => /not saved/i.test(r.textContent))).toEqual([false, false])
+      answer({ ok: true }); answer({ ok: true })
+      await waitFor(() => expect(receipts().map(r => r.getAttribute('data-saving'))).toEqual([null, null]), { timeout: 4000 })
+      expect(receipts().map(r => r.getAttribute('data-undoable'))).toEqual(['true', 'true'])
+    }, 30000)
+  })
 
   it('a failure after the save still clears Saving: the receipt is never left on it', async () => {
     const m = mountHeld()

@@ -1017,16 +1017,10 @@
   "undo": {
    "undo": 1
   },
-  "back out": {
-   "undo": 1
-  },
   "back that out": {
    "undo": 1
   },
   "back it out": {
-   "undo": 1
-  },
-  "walk back": {
    "undo": 1
   },
   "walk that back": {
@@ -1041,17 +1035,29 @@
   "change that back": {
    "undo": 1
   },
-  "set it back": {
-   "undo": 0.8
+  "back out the last": {
+   "undo": 1
   },
-  "what you just added": {
-   "undo": 0.8
+  "back out that": {
+   "undo": 1
   },
-  "what you just changed": {
-   "undo": 0.8
+  "back out your": {
+   "undo": 1
   },
-  "what you just made": {
-   "undo": 0.8
+  "back out my": {
+   "undo": 1
+  },
+  "walk back the last": {
+   "undo": 1
+  },
+  "walk it back": {
+   "undo": 1
+  },
+  "remove what you just": {
+   "undo": 1
+  },
+  "get rid of what you just": {
+   "undo": 1
   },
   "scratch that": {
    "undo": 1
