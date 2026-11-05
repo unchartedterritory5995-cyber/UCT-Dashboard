@@ -380,7 +380,7 @@ jobs:
       # ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04) ──────────────────────────────────
       # docs/pine/SERVER-RUNTIME-DESIGN.md section 8, steps 1-7, in that order; every one is
       # offline and cheap. Runbook: docs/runbooks/pine-runtime-service.md.
-      # ⛔ NEVER SKIPPED: no `if:`, no continue-on-error, no path filter. A step that cannot find
+      # ⛔ NEVER SKIPPED: no conditional, no optional-failure flag, no path filter. A step that cannot find
       # its subject FAILS (node and pytest both exit non-zero on a missing file).
       # tests/test_pine_runtime_deploy_gate.py rails all of this: the steps, their order, that the
       # Node here is the image's Node, and that a NEW tests/test_pine_runtime_*.py must be named.

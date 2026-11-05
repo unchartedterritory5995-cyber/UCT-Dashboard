@@ -101,7 +101,17 @@ summary without the subtraction / without the suffix / code 2 as red.
 (The first pytest run used a stale mutation file: one row was a BADMATCH, since fixed, and one referred to a deleted test; the table above is the re-run.)
 
 ## final-tip
-FINAL_TIP_PLACEHOLDER
+Command: `bash $S/final-tip.sh pine-dsk-w5t19 dsk-w5t19-final tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_dockerfile.py tests/test_pine_runtime_engine_identity.py tests/test_promotion_control.py tests/test_uct_agent_deploy_gate.py`,
+lock `dsk/heavy-final3.lock` (held 39.6 min), code tip `ff5445c33a`, tested on master `5d95103c8a`. Log `_resume-2026-11-01/runs/dsk-w5t19-final.out`.
+- gate pytest (4 files): 46 passed. Hygiene: clean (34,779 files).
+- rails pytest (5 files): 63 passed, **1 failed**: `test_uct_agent_deploy_gate.py::...[UCT Agent browser tests]`. Cause, mine: that rail reads the text between
+  one `- name:` and the next, and my explanatory comment (which sits before the first Pine step, so inside the Agent browser step's span) contained the
+  literal words `if:` / `continue-on-error`. Fixed in the following commit by rewording the comment; re-run after the fix:
+  `pytest tests/test_uct_agent_deploy_gate.py tests/test_pine_runtime_deploy_gate.py tests/test_promotion_control.py` = 47 passed. The full final-tip
+  was NOT repeated on the comment-only fix (the changed file is a workflow comment, not read by vitest; queue time was 1.5 h).
+- full chart+hooks vitest: Test Files 1 failed | 1337 passed | 27 skipped (1365); the only failure is the baseline `pollingSites.rail`.
+  `hostParity.v8.rail.test.js` (9) and `hostParity.rail.test.js` passed in the run.
+
 
 ## Open items
 - T2 must merge first (above). T9 merge needs the Dockerfile COPY lines (checklist item 3; the rail arms itself).
