@@ -205,11 +205,16 @@ def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = N
         existing = get_share(user_id, note_id, conn=conn)
         if existing:
             if hide_pnl is True and existing.get("hidePnl") is not True:
-                conn.execute("UPDATE j2_note_shares SET hide_pnl = 1 WHERE token = ? AND user_id = ?",
-                             (existing["token"], user_id))
+                # Fix round 2 (R2): tighten only a link that is STILL live (a revoke or an expiry may have landed since
+                # the read), and answer from a fresh read -- the database's truth, never the patched copy.
+                conn.execute(
+                    f"UPDATE j2_note_shares SET hide_pnl = 1 WHERE token = ? AND user_id = ? AND {_active_sql()}",
+                    (existing["token"], user_id, _now_iso()))
                 conn.commit()
-                existing = {**existing, "hidePnl": True}
-            return {**existing, "reused": True}
+                existing = get_share(user_id, note_id, conn=conn)
+            if existing:
+                return {**existing, "reused": True}
+            # The link died in between: a new one is made below, so the member is never handed a dead URL.
         token = secrets.token_urlsafe(TOKEN_BYTES)
         now = _now()
         expires = _iso(now + timedelta(days=days)) if days else None
@@ -320,7 +325,10 @@ def _note_revision(conn: sqlite3.Connection, owner_id: str, note_id: str) -> Any
 def share_image_references(conn: sqlite3.Connection, token: str, row: sqlite3.Row) -> frozenset[str]:
     """Ruling R59: the images THIS share's reduced page references right now, cached per (token, note,
     revision) for `public.REFERENCE_SET_TTL_S`."""
-    key = ("share", token, row["note_id"], _note_revision(conn, row["user_id"], row["note_id"]))
+    # Tier 3a fix round 2 (R1): the link's own `hide_pnl` is part of the key. Tightening a link changes what its page
+    # references without touching the note's revision, so a set cached while it showed must never answer after.
+    key = ("share", token, row["note_id"], _note_revision(conn, row["user_id"], row["note_id"]),
+           bool(row["hide_pnl"]))
 
     def compute() -> frozenset[str]:
         payload = _share_payload(conn, token, row)

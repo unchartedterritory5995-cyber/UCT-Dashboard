@@ -293,3 +293,59 @@ def test_minor11_settings_lists_each_links_real_setting(client):
     client.post(f"/api/j2/notes/{b}/share", json={})
     got = {s["noteId"]: s["hidePnl"] for s in note_shares.list_shares(A)}
     assert got == {a: True, b: False}
+
+
+# ── Fix round 2 ─────────────────────────────────────────────────────────────────────────────
+
+def test_R1_tightening_a_link_404s_its_images_at_once_never_from_the_cached_set(client, att_root):
+    from api.services.journal_two import public_note_payload as public
+    public._REF_SETS.clear()
+    nid = _note_with_image(att_root)
+    as_member(client, A)
+    tok = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": False}).json()["share"]["token"]
+    signed_out(client)
+    assert client.get(f"/api/j2/shared/{tok}/att/inline/pnl.png").status_code == 200   # primes the 60 s set
+    as_member(client, A)
+    tight = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": True}).json()["share"]
+    assert tight["token"] == tok and tight["hidePnl"] is True
+    signed_out(client)
+    assert client.get(f"/api/j2/shared/{tok}/att/inline/pnl.png").status_code == 404   # at once, not in 60 s
+
+
+def test_R2_a_link_revoked_between_the_read_and_the_tighten_is_never_answered_as_live(db_path, monkeypatch):
+    from api.services.journal_two import note_shares
+    nid = _note()
+    old = note_shares.create_share(A, nid, hide_pnl=False)
+    stale = dict(old)                                      # what the mint read, before a revoke landed
+    note_shares.revoke_share(A, nid)
+    real = note_shares.get_share
+    calls = {"n": 0}
+
+    def racing(user_id, note_id, conn=None):
+        calls["n"] += 1
+        return stale if calls["n"] == 1 else real(user_id, note_id, conn=conn)
+    monkeypatch.setattr(note_shares, "get_share", racing)
+    got = note_shares.create_share(A, nid, hide_pnl=True)
+    assert got["token"] != old["token"]                    # a new, live link -- never the dead URL "copied"
+    assert got["hidePnl"] is True
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    row = conn.execute("SELECT hide_pnl, revoked_at FROM j2_note_shares WHERE token = ?", (old["token"],)).fetchone()
+    conn.close()
+    assert row["revoked_at"] is not None and row["hide_pnl"] == 0   # the dead row was not touched
+
+
+def test_R3_a_hidden_link_carries_no_link_card_picture_and_no_widget_fallback_image():
+    from api.services.journal_two import public_note_payload as public
+    own = f"/api/j2/notes/attachments/{A}/n1/inline/shot.png"
+    body = {"type": "doc", "content": [
+        {"type": "linkPreview", "attrs": {"url": "https://example.com/a", "title": "A page", "image": own}},
+        {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "fundamentals", "mode": "snapshot",
+                                          "params": {"symbol": "NVDA"}, "fallback": {"url": own, "w": 10, "h": 10}}},
+    ]}
+    kw = dict(mode="share", owner_id=A, note_id="n1", attachment_base="/api/j2/shared/t/att/")
+    shown = json.dumps(public.reduce(body, **kw))
+    assert "/api/j2/shared/t/att/inline/shot.png" in shown                 # CONTROL: both travel on a showing link
+    hidden = json.dumps(public.reduce(body, hide_account=True, **kw))
+    assert "att/" not in hidden and "shot.png" not in hidden
+    assert public.referenced_images(public.reduce(body, hide_account=True, **kw), "/api/j2/shared/t/att/") == frozenset()

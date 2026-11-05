@@ -1414,9 +1414,11 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         if _internal_href(attrs.get("url")) or (ctx.strict and _in_app_shape(attrs.get("url"))):
             ctx.note("dropped", attrs.get("url"))
             return None
-        if ctx.strict and attrs.get("image") is not None:
+        if (ctx.strict or ctx.hide_account) and attrs.get("image") is not None:
             ctx.note("dropped", attrs.get("image"))
-            return {**node, "attrs": {**attrs, "image": None}}     # gallery: no image of any kind
+            # gallery: no image of any kind; a hidden share link (Tier 3a fix round 2, R3): "…and images" means every
+            # image, a link card's picture included (it can point at the member's own upload)
+            return {**node, "attrs": {**attrs, "image": None}}
         if attrs.get("image") is not None and _public_image_src(attrs.get("image"), ctx.attachment_base) is None:
             node = {**node, "attrs": {**attrs, "image": None}}
         return node
@@ -1591,6 +1593,8 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
             # it can hold their real note titles, folder and account names and their own controls, so it never
             # travels (and `referenced_images` then refuses to serve it).
             kept.pop("fallback", None)
+        if ctx.hide_account:
+            kept.pop("fallback", None)               # R3: a hidden link carries no widget's archived picture either
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
