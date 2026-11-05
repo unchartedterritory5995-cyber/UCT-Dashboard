@@ -93,7 +93,8 @@
 /** 9 = W4-T7 (train): an expression's own series inside a function body (per call site) is served instead of refused */
 /** 10 = W4-T2 (train): simple-qualifier folding (reassignment under an invariant test, an unreassigned var, arithmetic over an input) serves values where it refused */
 /** 11 = W4-T9 (train): offsets bounded by simple values and frame parameters are served */
-export const SCRIPT_ENGINE_VERSION = 11
+/** 12 = W4-T8 (train): series int window lengths (v5 and v6) are served on the runtime lane */
+export const SCRIPT_ENGINE_VERSION = 12
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
