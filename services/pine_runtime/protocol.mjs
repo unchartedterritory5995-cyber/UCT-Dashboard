@@ -12,7 +12,8 @@
 //
 // WIRE DECISIONS THIS FILE FIXES (the T11 client mirrors them):
 //   definition.doc   the document's canonical JSON TEXT (a string), or null when the caller
-//                    believes the service holds `doc_sha256`. doc_sha256 = sha256 of that text's
+//                    believes the service holds `doc_sha256` (W5-INT: answered from the T8 document
+//                    cache, a fresh copy per request; unknown -> 409 doc-unknown). doc_sha256 = sha256 of that text's
 //                    UTF-8 bytes. Shipping the text, not an object, means both languages hash the
 //                    SAME bytes: no second canonical-JSON emitter has to agree with Python's
 //                    `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)` on
@@ -26,8 +27,11 @@
 //
 // THE RESPONSE (W5-T7b, `sealRunResults`): every result the runner returns is checked against a
 // CLOSED schema and then SEALED, here, once, before it is sent:
-//   ok        { job, status: 'ok', columns, refusals, warmup, digest, ms? }
-//   withheld  { job, status: 'withheld', refusals, digest, ms? }
+//   ok        { job, status: 'ok', columns, refusals, warmup, digest, ms?, cache? }
+//   withheld  { job, status: 'withheld', refusals, digest, ms?, cache? }
+//   cache     (W5-INT, design 3.2) 'hit' | 'miss', set by the T8 result cache (cache.mjs); any other
+//             value is refused like an unknown key. `instructions` (3.2) is NOT admitted: no run
+//             counts it yet, and an unknown field stays a refusal.
 //   columns   key -> canonical base64 of exactly bars.n canonical Float64 values (T3 decodeColumn)
 //   refusals  [{ key | '*', guard, sentence, bar | null }]; a withheld result holds a '*' one, an
 //             ok result none
@@ -208,16 +212,18 @@ const FATAL_UTF8 = new TextDecoder('utf-8', { fatal: true })
  * @param {{ identity: object, tfSet: string[], maxBars: number }} door  read from the bundle
  * @returns {{ ok: true, request: object } | { ok: false, status: number, guard: string, sentence: string }}
  */
-export function parseRunRequest(body, door) {
+export function parseRunRequest(body, door, docs = null) {
   try {
-    return { ok: true, request: parse(body, door) }
+    return { ok: true, request: parse(body, door, docs) }
   } catch (e) {
     if (e instanceof Refused) return { ok: false, status: e.status, guard: e.guard, sentence: e.message }
     throw e
   }
 }
 
-function parse(body, { identity, tfSet, maxBars }) {
+/** @param {{ get(sha:string): object|undefined, put(sha:string, text:string): object }|null} docs
+ *  the T8 DocCache (W5-INT), or null for none. */
+function parse(body, { identity, tfSet, maxBars }, docs) {
   // MAX_BODY_BYTES is enforced ONCE, by the server while the body streams in (server.mjs readCapped).
   let raw
   try {
@@ -253,17 +259,24 @@ function parse(body, { identity, tfSet, maxBars }) {
   if (!sameIdentity(engine, identity)) {
     throw new Refused(409, ENGINE_GUARD, 'the request was built for a different engine than this service runs, so nothing is computed.')
   }
-  if (d.doc === null) {
-    throw new Refused(409, DOC_UNKNOWN_GUARD, 'this service does not hold that document; resend the request with it.')
-  }
-  const docBytes = Buffer.from(d.doc, 'utf8')
-  if (docBytes.length > MAX_DOC_BYTES) throw bad('definition.doc', `is larger than ${MAX_DOC_BYTES} bytes`)
-  if (createHash('sha256').update(docBytes).digest('hex') !== docSha) {
-    throw new Refused(422, INTEGRITY_GUARD, 'definition.doc_sha256 does not match the document sent, so nothing is computed.')
-  }
   let doc
-  try { doc = JSON.parse(d.doc) } catch { throw bad('definition.doc', 'is not JSON') }
-  if (!isPlain(doc)) throw bad('definition.doc', 'must be a JSON object')
+  if (d.doc === null) {
+    // W5-INT: the T8 document cache, filed only under a hash THIS service recomputed (below). A
+    // fresh copy per request: no request can reach (or change) another's document object.
+    const held = docs ? docs.get(docSha) : undefined
+    if (held === undefined) {
+      throw new Refused(409, DOC_UNKNOWN_GUARD, 'this service does not hold that document; resend the request with it.')
+    }
+    doc = structuredClone(held)
+  } else {
+    const docBytes = Buffer.from(d.doc, 'utf8')
+    if (docBytes.length > MAX_DOC_BYTES) throw bad('definition.doc', `is larger than ${MAX_DOC_BYTES} bytes`)
+    if (createHash('sha256').update(docBytes).digest('hex') !== docSha) {
+      throw new Refused(422, INTEGRITY_GUARD, 'definition.doc_sha256 does not match the document sent, so nothing is computed.')
+    }
+    try { doc = JSON.parse(d.doc) } catch { throw bad('definition.doc', 'is not JSON') }
+    if (!isPlain(doc)) throw bad('definition.doc', 'must be a JSON object')
+  }
   for (const [i, j] of jobs.entries()) {
     const { bytes, ...bars } = j.bars
     if (barsSha256(bars.n, bytes) !== bars.sha256) {
@@ -271,6 +284,8 @@ function parse(body, { identity, tfSet, maxBars }) {
     }
     j.bars = bars
   }
+  // the request is whole and every hash is the service's own: only now is a sent document kept
+  if (docs && d.doc !== null) docs.put(docSha, d.doc)
   return {
     protocol: PROTOCOL, profile: raw.profile, engine, owner,
     definition: { def_id: defId, version, doc_sha256: docSha, doc }, jobs,
@@ -281,9 +296,11 @@ function parse(body, { identity, tfSet, maxBars }) {
 
 /** The closed key sets of one result as the RUNNER returns it, by status (before the seal). */
 export const RUNNER_RESULT_FIELDS = Object.freeze({
-  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms']) }),
-  withheld: Object.freeze({ required: Object.freeze(['job', 'status', 'refusals']), optional: Object.freeze(['ms']) }),
+  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms', 'cache']) }),
+  withheld: Object.freeze({ required: Object.freeze(['job', 'status', 'refusals']), optional: Object.freeze(['ms', 'cache']) }),
 })
+/** W5-INT: the values of a result's `cache` field (design 3.2). */
+export const CACHE_STATES = Object.freeze(['hit', 'miss'])
 /** The closed key sets of one result ON THE WIRE: the runner's, plus the digest the seal adds.
  *  `sealOne` builds each result from these fields only (a rail holds its output to this set). */
 export const RESULT_FIELDS = Object.freeze({
@@ -346,6 +363,10 @@ function sealOne(codec, identity, job, r, path) {
   if (r.status === 'ok') out.warmup = { withheldBars: r.warmup.withheldBars }
   out.digest = codec.columnDigest({ engine: identity, columns: decoded, refusals, rows: job.bars.n })
   if (Object.hasOwn(r, 'ms')) out.ms = nonNegInt(r.ms, `${path}.ms`)
+  if (Object.hasOwn(r, 'cache')) {
+    if (!CACHE_STATES.includes(r.cache)) throw bad(`${path}.cache`, `must be one of ${CACHE_STATES.join(', ')}`)
+    out.cache = r.cache
+  }
   return out
 }
 

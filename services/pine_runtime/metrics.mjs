@@ -11,7 +11,8 @@
 //                the job adapter stamps on each result
 //   instructions NOT MEASURED YET: the wire result carries no instruction count (job.mjs, T7).
 //                Reported as null, never as 0, so a reader cannot take "none" for "free".
-//   cache        NOT BUILT YET (T8): null for the same reason.
+//   cache        (W5-INT) the result lane's own counts (cache.mjs createResultLane().stats(): hits,
+//                misses, stored, entries, bytes); null when the server runs without a result cache.
 //   queue/workers from the pool's own `stats()`; heap from this process (the supervisor's; a
 //                worker's heap is capped by resourceLimits and not read here).
 import { PROFILES } from './protocol.mjs'
@@ -51,7 +52,7 @@ export function createMetrics({ now = () => Date.now(), memory = () => process.m
         }
       }
     },
-    snapshot({ identity = null, boot = null, pool = null, canary = null } = {}) {
+    snapshot({ identity = null, boot = null, pool = null, canary = null, cache = null } = {}) {
       const m = memory()
       return {
         protocol: 1,
@@ -65,7 +66,7 @@ export function createMetrics({ now = () => Date.now(), memory = () => process.m
         instructions: null,
         queue_depth: pool ? pool.queued : null,
         workers: pool ? { live: pool.live, starts: pool.starts, recycles: pool.recycles, kills: pool.kills, ooms: pool.ooms, crashes: pool.crashes } : null,
-        cache: null,
+        cache,
         heap: { used_bytes: m.heapUsed, total_bytes: m.heapTotal, rss_bytes: m.rss },
         canary,
       }

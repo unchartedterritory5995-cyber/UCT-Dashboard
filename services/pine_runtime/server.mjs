@@ -12,6 +12,12 @@
 //   6. the seal (W5-T7b, protocol.mjs sealRunResults): every result is checked against the closed
 //      result schema and stamped with its design 2.3 digest by the bundle's own T3 codec; anything
 //      else is a 500 and no job of the request is answered.
+//   W5-INT, THE T8 CACHES (cache.mjs, design 3.3), ON BY DEFAULT: step 4 answers `doc: null` from
+//   the document cache (a fresh copy per request) and files every sent document whose hash it
+//   recomputed; around step 5, the result lane answers each job it holds from a COPY (this
+//   request's job id, `cache: 'hit'`), sends only the misses to the runner, and stores a miss only
+//   after step 6 sealed the whole reply and only when it is deterministic (cache.mjs `cacheable`).
+//   The parity canary bypasses both (it calls the pool directly; its all-zero hashes are never keys).
 //
 // ⛔ A refused request runs ZERO jobs. ⛔ No log line carries a body, a source, a secret or an
 // owner id: refusals log their status and guard only.
@@ -34,6 +40,7 @@ import {
   AUTH_GUARD, SIGNATURE_HEADER, ReplayGuard, parseSecrets, parseSignatureHeader, sha256Hex, verifyBody,
 } from './auth.mjs'
 import { MAX_BODY_BYTES, PROTOCOL, SCHEMA_GUARD, parseRunRequest, sealRunResults } from './protocol.mjs'
+import { DocCache, createResultLane } from './cache.mjs'
 import { BUSY_GUARD, createPool } from './pool.mjs'
 // W5-T9 (the only T9 additions to this file: these two imports, the metrics wiring in
 // createPineRuntimeServer, the /v1/metrics route, and the canary wiring in main)
@@ -58,6 +65,11 @@ export const ENV_ALLOWLIST = Object.freeze([
   'RAILWAY_DEPLOYMENT_ID', 'RAILWAY_REPLICA_ID', 'RAILWAY_REPLICA_REGION', 'RAILWAY_SNAPSHOT_ID',
   'RAILWAY_GIT_COMMIT_SHA', 'RAILWAY_GIT_AUTHOR', 'RAILWAY_GIT_BRANCH', 'RAILWAY_GIT_REPO_NAME',
   'RAILWAY_GIT_REPO_OWNER', 'RAILWAY_GIT_COMMIT_MESSAGE',
+  // W5-INT: the bundle's only build args (app/scripts/build-pine-runtime.mjs SERVER_BUNDLE_VITE_NAMES,
+  // non-secret '1'/unset flags). On Railway a service variable is both a build arg and a runtime
+  // variable, so mirroring web's value of one must not refuse the boot. Nothing reads them at run
+  // time (the bundle baked them); a rail holds this pair equal to the build script's list.
+  'VITE_PINE_LOWER_TF_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED',
 ])
 
 /** The sentence when `env` holds a variable outside the allowlist, else null. Names only, never values. */
@@ -148,10 +160,13 @@ function readCapped(req, cap) {
  * @param {() => object} [o.poolStats] W5-T9: the pool's stats(), for /v1/metrics
  * @param {() => object} [o.canaryStatus] W5-T9: the canary's status(), for /v1/metrics
  * @param {object} [o.boot]          W5-T9: the boot fingerprint's fields, for /v1/metrics
+ * @param {DocCache|null} [o.docCache]  W5-INT: the T8 document cache (null: none, every doc must be sent)
+ * @param {object|null} [o.resultLane]  W5-INT: cache.createResultLane() (null: no result cache)
  */
 export function createPineRuntimeServer({ secrets, door, runner = null, canary = () => true,
   now = () => Math.floor(Date.now() / 1000), log = console.log,
-  metrics = createMetrics(), poolStats = null, canaryStatus = null, boot = null } = {}) {
+  metrics = createMetrics(), poolStats = null, canaryStatus = null, boot = null,
+  docCache = new DocCache(), resultLane = createResultLane() } = {}) {
   if (!Array.isArray(secrets) || secrets.length === 0) throw new Error('createPineRuntimeServer needs at least one secret')
   const replay = new ReplayGuard()
   const refuse = (res, status, guard, sentence, l) => { metrics.refused(guard); return refuseResponse(res, status, guard, sentence, l) }
@@ -175,19 +190,19 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
     }
     if (!verifyBody(secrets, parsed, body)) return refuse(res, 401, AUTH_GUARD, 'the signature does not match the body, so nothing runs.', log)
     if (!replay.admit(parsed.v1, parsed.t, now())) return refuse(res, 401, AUTH_GUARD, 'this signed request was already received, so it is not run twice.', log)
-    const checked = parseRunRequest(body, door)
+    const checked = parseRunRequest(body, door, docCache)
     if (!checked.ok) return refuse(res, checked.status, checked.guard, checked.sentence, log)
     if (!ready()) return refuse(res, 503, UNAVAILABLE_GUARD, 'the runtime service is not ready, so nothing is computed.', log)
-    let results
+    // Every job answered once, in order, by id, in the closed result schema, then sealed (step 6)
+    const seal = (results) => sealRunResults(door.codec, door.identity, checked.request.jobs, results)
+    let sealed
     try {
-      results = await runner(checked.request)
+      sealed = resultLane ? await resultLane.answer(checked.request, runner, seal) : seal(await runner(checked.request))
     } catch (e) {
       // W5-T7: a full queue refuses the whole request before any job of it is queued (design 3.4)
       if (e && e.guard === BUSY_GUARD) return refuse(res, 429, BUSY_GUARD, e.message, log)
       return refuse(res, 500, FAILED_GUARD, 'the runtime pool failed, so no job in this request has a value.', log)
     }
-    // Every job answered once, in order, by id, in the closed result schema, then sealed (step 6)
-    const sealed = sealRunResults(door.codec, door.identity, checked.request.jobs, results)
     if (!sealed.ok) {
       return refuse(res, 500, FAILED_GUARD, 'the runtime pool did not answer every job once in the result schema, so no job in this request has a value.', log)
     }
@@ -201,7 +216,8 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
     if (parsed.reason) return refuse(res, 401, AUTH_GUARD, `${parsed.reason}, so no metrics are served.`, log)
     if (!verifyBody(secrets, parsed, Buffer.alloc(0))) return refuse(res, 401, AUTH_GUARD, 'the signature does not match, so no metrics are served.', log)
     if (!replay.admit(parsed.v1, parsed.t, now())) return refuse(res, 401, AUTH_GUARD, 'this signed request was already received, so it is not served twice.', log)
-    return send(res, 200, metrics.snapshot({ identity: door && door.identity, boot, pool: poolStats && poolStats(), canary: canaryStatus && canaryStatus() }))
+    return send(res, 200, metrics.snapshot({ identity: door && door.identity, boot, pool: poolStats && poolStats(),
+      canary: canaryStatus && canaryStatus(), cache: resultLane ? resultLane.stats() : null }))
   }
 
   const server = createHttpServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {

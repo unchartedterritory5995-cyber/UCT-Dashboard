@@ -12,7 +12,7 @@ import { copyFileSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildPineRuntime, viteEnvOf } from '../../../../../../scripts/build-pine-runtime.mjs'
+import { SERVER_BUNDLE_VITE_NAMES, buildPineRuntime, defineOf, viteEnvOf } from '../../../../../../scripts/build-pine-runtime.mjs'
 import { SCRIPT_ENGINE_VERSION } from '../../scriptEngineVersion.js'
 import { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from '../ir.js'
@@ -32,7 +32,7 @@ const EXPORTS = [
   'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
   'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
   'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION',
-  'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'resetRuntimeLedgers', 'resetRuntimeSessions',
+  'bytesToB64', 'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'encodeColumn', 'resetRuntimeLedgers', 'resetRuntimeSessions',
   'runtimeVersionRefusal', 'runtimeWarmupOf',
 ]
 
@@ -88,7 +88,31 @@ describe('server bundle (W5-T1)', () => {
     expect(on.manifest.viteEnvNames).toEqual(['VITE_PINE_LOWER_TF_ENABLED'])
     expect(on.manifest.sha256).not.toBe(built.manifest.sha256)
     expect(built.manifest.viteEnvNames).toEqual([])
-    expect(Object.entries(viteEnvOf({ VITE_B: '2', X: '1', VITE_A: '1' }))).toEqual([['VITE_A', '1'], ['VITE_B', '2']])
+    expect(Object.entries(viteEnvOf({ VITE_PINE_RUNTIME_PANE_ENABLED: '2', X: '1', VITE_PINE_LOWER_TF_ENABLED: '1', VITE_A: '1' })))
+      .toEqual([['VITE_PINE_LOWER_TF_ENABLED', '1'], ['VITE_PINE_RUNTIME_PANE_ENABLED', '2']])
+  })
+
+  // â›” W5-INT SECRETS: web's build env holds secret VITE_* values. `define` inlines the whole
+  // import.meta.env object, so the bundle may bake ONLY the named non-secret constants.
+  it('bakes no VITE_* off its allowlist: a build with web\'s secret values set carries none of them', async () => {
+    const MARK = 'w5int-secret-marker-7f3a'
+    const env = { VITE_CHART_RENDER_TOKEN: `${MARK}-render`, VITE_CHART_RENDER_TOKEN_PREVIOUS: `${MARK}-prev`,
+      VITE_PICOVOICE_ACCESS_KEY: `${MARK}-pico`, VITE_WS_HOST: `${MARK}-ws`, VITE_PINE_LOWER_TF_ENABLED: '1' }
+    const leaky = await buildPineRuntime({ outfile: path.join(dir, 'leak', 'pine-runtime.mjs'), logLevel: 'silent', env })
+    const t = readFileSync(leaky.outfile, 'utf8')
+    expect(t.includes(MARK)).toBe(false)
+    expect(leaky.manifest.viteEnvNames).toEqual(['VITE_PINE_LOWER_TF_ENABLED'])
+    // the define list itself: the allowlisted names and vite's mode constants, nothing else
+    const baked = JSON.parse(defineOf(env)['import.meta.env'])
+    expect(Object.keys(defineOf(env))).toEqual(['import.meta.env'])
+    expect(Object.keys(baked).sort()).toEqual(['DEV', 'MODE', 'PROD', 'SSR', 'VITE_PINE_LOWER_TF_ENABLED'])
+    for (const k of Object.keys(baked)) if (k.startsWith('VITE_')) expect(SERVER_BUNDLE_VITE_NAMES).toContain(k)
+  }, 120000)
+
+  it('the allowlist is exactly the VITE_* names the bundle reads: no unlisted read, no stale entry, no secret-shaped name', () => {
+    const names = [...new Set(text.match(/VITE_[A-Z0-9_]+/g) || [])].sort()
+    expect(names).toEqual([...SERVER_BUNDLE_VITE_NAMES].sort())
+    for (const n of SERVER_BUNDLE_VITE_NAMES) expect(n).not.toMatch(/TOKEN|KEY|SECRET|PASSWORD|PRIVATE/)
   })
 
   it('is deterministic: a second build of the same tree has the same sha256', async () => {

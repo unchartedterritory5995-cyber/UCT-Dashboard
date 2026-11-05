@@ -8,7 +8,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { signHeader, SIGNATURE_HEADER } from '../auth.mjs'
-import { RESULT_FIELDS, RUNNER_RESULT_FIELDS, REFUSAL_FIELDS, WARMUP_FIELDS, sealRunResults } from '../protocol.mjs'
+import { CACHE_STATES, RESULT_FIELDS, RUNNER_RESULT_FIELDS, REFUSAL_FIELDS, WARMUP_FIELDS, sealRunResults } from '../protocol.mjs'
+import { bytesToB64, encodeColumn } from '../../../app/src/components/chart/engine/runtime/columnDigest.js'
 import { createPineRuntimeServer, listenDualStack, loadBundle } from '../server.mjs'
 import { encodeResult, runJob } from '../job.mjs'
 import { createPool } from '../pool.mjs'
@@ -61,7 +62,7 @@ test('a withheld result is sealed too: the digest of no columns and its refusals
 })
 
 test('the schema stays CLOSED: an unknown field anywhere in a result is refused, and so is a missing one', () => {
-  for (const extra of ['digest', 'cache', 'instructions', 'warmUp', 'secret']) {
+  for (const extra of ['digest', 'instructions', 'warmUp', 'secret', 'cached', 'Cache']) {
     refused(okResult({ [extra]: 'x' }), /unknown key/)
     refused(heldResult({ [extra]: 'x' }), /unknown key/)
   }
@@ -126,6 +127,7 @@ test("job.mjs: an ok result carries the run's own warm-up, 0 when it withheld no
     RUNTIME_INCREMENTAL_KEY: '__inc', RUNTIME_OBJECTS_KEY: '__obj', RUNTIME_PANE_TIME_BUDGET_MS: 1, RUNTIME_FAILED_GUARD: 'runtime:failed',
     resetRuntimeSessions() {}, resetRuntimeLedgers() {},
     runtimeWarmupOf: (c) => c.__warm || null,
+    encodeColumn, bytesToB64,
     computeRuntimeColumns: (def, rows) => {
       const cols = { value: rows.map((r) => r.c) }
       if (def.compute.source === 'curtain') Object.defineProperty(cols, '__warm', { enumerable: false, value: { withheldBars: 2, shift: 9 } })
@@ -224,4 +226,26 @@ test('the pool refuses to start on a bundle with no runtimeWarmupOf, and an ok j
       assert.deepEqual(r.warmup, { withheldBars: 2 }, 'the warm-up crosses the worker boundary')
     } finally { await pool.close() }
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('W5-INT: the closed schema admits `cache` (design 3.2) by name and value only; `instructions` stays refused', () => {
+  assert.deepEqual(CACHE_STATES, ['hit', 'miss'])
+  for (const status of ['ok', 'withheld']) {
+    assert.deepEqual(RUNNER_RESULT_FIELDS[status].optional, ['ms', 'cache'])
+    assert.deepEqual(RESULT_FIELDS[status].optional, ['ms', 'cache'])
+  }
+  for (const state of CACHE_STATES) {
+    for (const r of [okResult({ cache: state }), heldResult({ cache: state })]) {
+      const out = seal(r)
+      assert.equal(out.ok, true, JSON.stringify(out))
+      assert.equal(out.results[0].cache, state, 'the seal carries it onto the wire')
+    }
+  }
+  for (const bad of ['x', 'HIT', '', null, true, 1, ['hit'], { hit: 1 }]) {
+    refused(okResult({ cache: bad }), /cache: must be one of hit, miss/)
+    refused(heldResult({ cache: bad }), /cache: must be one of hit, miss/)
+  }
+  refused(okResult({ instructions: 1830551 }), /unknown key "instructions"/)
+  // absent stays absent (a server with no result cache sends none)
+  assert.equal(Object.hasOwn(seal(okResult()).results[0], 'cache'), false)
 })

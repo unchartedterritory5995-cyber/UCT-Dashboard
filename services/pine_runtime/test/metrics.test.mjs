@@ -31,9 +31,12 @@ function call(port, { method = 'GET', path = '/v1/metrics', body = Buffer.alloc(
 const sig = (body = Buffer.alloc(0), { secret = SECRET, t = T } = {}) => ({ [SIGNATURE_HEADER]: signHeader(secret, t, body) })
 
 async function boot(o = {}) {
+  // W5-INT: in the result schema T7b's seal checks (sentence, warm-up); T9's fixture predated the seal,
+  // so after the T7b+T9 merge every run here was a 500.
   const runner = o.runner || (async (req) => req.jobs.map((j, i) => (i === 1
-    ? { job: j.job, status: 'withheld', refusals: [{ key: '*', guard: 'runtime:limit', bar: 3 }], ms: 40 }
-    : { job: j.job, status: 'ok', columns: {}, refusals: [{ key: 'p1', guard: 'runtime:server-output-absent' }], ms: 10 + i })))
+    ? { job: j.job, status: 'withheld', refusals: [{ key: '*', guard: 'runtime:limit', sentence: 'x', bar: 3 }], ms: 40 }
+    : { job: j.job, status: 'ok', columns: {}, refusals: [{ key: 'p1', guard: 'runtime:server-output-absent', sentence: 'x', bar: null }],
+      warmup: { withheldBars: 0 }, ms: 10 + i })))
   const logs = []
   const server = createPineRuntimeServer({ secrets: [SECRET, SECRET_2], door: DOOR, runner, now: () => T, log: (l) => logs.push(l),
     poolStats: () => ({ starts: 2, kills: 1, recycles: 0, ooms: 0, crashes: 0, queued: 7, live: 2 }),
@@ -82,7 +85,11 @@ test('a signed GET answers 200 with every field of design 3.8 and counts what th
   assert.deepEqual(m.latency_ms.alert, { n: 2, p50: 10, p95: 40 })
   assert.equal(m.latency_ms.sweep.p50, null)
   assert.equal(m.instructions, null, 'not on the wire yet: null, never 0')
-  assert.equal(m.cache, null, 'T8 is not built: null, never 0')
+  // W5-INT: the result lane's own counts. Two misses; the runtime:limit stop is stored, the ok answer
+  // is not (its per-output refusal is a runtime:server-* guard, which design 3.3 never caches)
+  assert.deepEqual({ ...m.cache, bytes: undefined }, { hits: 0, misses: 2, stored: 1, entries: 1, bytes: undefined })
+  assert.ok(m.cache.bytes > 0)
+  assert.equal(createMetrics().snapshot().cache, null, 'no result cache: null, never 0')
   assert.equal(m.queue_depth, 7)
   assert.deepEqual(m.workers, { live: 2, starts: 2, recycles: 0, kills: 1, ooms: 0, crashes: 0 })
   assert.ok(m.heap.used_bytes > 0 && m.heap.rss_bytes > 0)

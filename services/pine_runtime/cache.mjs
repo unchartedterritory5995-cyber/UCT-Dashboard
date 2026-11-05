@@ -20,6 +20,9 @@
 //   must not share a result. The design row omits them; including them can only lower the hit
 //   rate, never serve a wrong value.
 // Kill and stage are NOT in the key: the caller asks server_lane_refusal before every use (3.5).
+//
+// W5-INT WIRING: server.mjs passes a DocCache to protocol.parseRunRequest (step 4) and runs every
+// request through `createResultLane().answer` (bottom of this file). Both are ON in the service.
 import { createHash } from 'node:crypto'
 import { ENGINE_FIELDS, INTEGRITY_GUARD } from './protocol.mjs'
 
@@ -157,4 +160,67 @@ export class ResultCache {
     if (!cacheable(result)) return false
     return this.lru.set(key, result, bytes)
   }
+}
+
+// ─── W5-INT: the result cache on the run path ──────────────────────────────────────
+
+/** The placeholder hash the parity canary sends (canary.mjs requestOf): never one the door computed. */
+const PLACEHOLDER_SHA = /^0{64}$/
+
+/** The key of one job, or null when it must not touch the cache: a request that names a placeholder
+ *  hash (the canary's all-zero doc_sha256 / bars.sha256) would file every canary case under ONE key. */
+export function cacheKeyOf(request, job) {
+  if (PLACEHOLDER_SHA.test(request.definition.doc_sha256) || PLACEHOLDER_SHA.test(job.bars.sha256)) return null
+  return resultKey(request, job)
+}
+
+/** What is stored: the runner's answer, a deep copy, minus the per-run fields (`ms`, `cache`). */
+function storedOf(r) {
+  const copy = structuredClone(r)
+  delete copy.ms
+  delete copy.cache
+  return copy
+}
+
+/**
+ * The run path with the result cache (design 3.3). `answer(request, runner, seal)`:
+ *   1. every job with a key and a stored answer is a HIT: a deep COPY of the stored answer, with this
+ *      request's `job` id (the stored one names whoever asked first), `cache: 'hit'` and no `ms`;
+ *   2. the other jobs (MISSES) go to `runner` as ONE request, in order, each answered `cache: 'miss'`;
+ *   3. `seal(results)` (protocol.sealRunResults) checks the merged answers; a miss is STORED only
+ *      after the seal accepted the whole reply, and only when `cacheable()` (never a wall-clock stop,
+ *      never runtime:server-*, never a crash). Stored objects are never handed out.
+ * @returns {{ answer: Function, stats: () => object }}
+ */
+export function createResultLane({ cache = new ResultCache() } = {}) {
+  const counts = { hits: 0, misses: 0, stored: 0 }
+  async function answer(request, runner, seal) {
+    const keys = request.jobs.map((j) => cacheKeyOf(request, j))
+    const merged = new Array(request.jobs.length)
+    const missAt = []
+    keys.forEach((k, i) => {
+      const held = k === null ? undefined : cache.get(k)
+      if (held === undefined) { missAt.push(i); return }
+      merged[i] = { ...structuredClone(held), job: request.jobs[i].job, cache: 'hit' }
+    })
+    let fresh = []
+    if (missAt.length) {
+      fresh = await runner(missAt.length === request.jobs.length ? request : { ...request, jobs: missAt.map((i) => request.jobs[i]) })
+      // a reply of the wrong shape goes to the seal as it is, which refuses it
+      if (!Array.isArray(fresh) || fresh.length !== missAt.length) return seal(fresh)
+      missAt.forEach((i, j) => {
+        const r = fresh[j]
+        merged[i] = r && typeof r === 'object' && !Array.isArray(r) ? { ...r, cache: 'miss' } : r
+      })
+    }
+    const sealed = seal(merged)
+    if (!sealed.ok) return sealed
+    counts.hits += request.jobs.length - missAt.length
+    counts.misses += missAt.length
+    missAt.forEach((i, j) => {
+      if (keys[i] !== null && cache.put(keys[i], storedOf(fresh[j]))) counts.stored += 1
+    })
+    return sealed
+  }
+  return { answer, stats: () => ({ ...counts, entries: cache.size, bytes: cache.bytes }) }
 }

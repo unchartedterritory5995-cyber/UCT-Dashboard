@@ -23,6 +23,13 @@
 //   --compare <a.json> <b.json>               HP-3 + HP-5: two record files agree case by case.
 //   --adapters                                HP-7: the worker's call and this host's call build the
 //                                             same (def, rows, ctx, opts), by a static parse.
+//                                             W5-INT: THIS tool's Node half only. The SERVICE's
+//                                             adapter (services/pine_runtime/job.mjs) has ONE HP-7
+//                                             authority, services/pine_runtime/test/adapter.test.mjs,
+//                                             which requires its budgetMs to be the worker's own
+//                                             (RUNTIME_PANE_TIME_BUDGET_MS). This tool exempts budgetMs
+//                                             for its measurement host only, so it no longer reads
+//                                             job.mjs (two rails, two rules, was the W5-T7b finding).
 //
 // ⛔ THE DIGEST'S `bundle_sha256` IS ARTIFACT-NEUTRAL (64 zeros). The parity claim is about the
 // COLUMNS two different artifacts compute; the artifact's own sha256 is HP-6's and the canary's
@@ -435,7 +442,8 @@ export function perturb(text) {
 export const ADAPTER_EXEMPT = Object.freeze({
   now: 'the injected clock (design HP-7: "minus now")',
   incremental: 'H6: the service runs with no session; the cold path the incremental rails compare against',
-  budgetMs: 'H5: the wall-clock safety stop; its refusal is never a verdict (INCONCLUSIVE here)',
+  budgetMs: 'H5: the wall-clock safety stop; its refusal is never a verdict (INCONCLUSIVE here). This MEASUREMENT host only: '
+    + 'the service adapter passes the worker\'s budget, held by services/pine_runtime/test/adapter.test.mjs',
 })
 
 /** -> [{file, args: [text of arg0..2], optKeys}] for every `computeRuntimeColumns(...)` call. */
@@ -467,10 +475,10 @@ export function adapterCalls(file) {
   return calls
 }
 
+/** The hosts this tool compares. NOT job.mjs: its one HP-7 rail is services/pine_runtime/test/adapter.test.mjs. */
 export const ADAPTER_FILES = Object.freeze({
   worker: join(RUNTIME_DIR, 'runtimeWorker.js'),
   node: fileURLToPath(import.meta.url),
-  job: join(REPO, 'services', 'pine_runtime', 'job.mjs'),
 })
 
 /** -> {code, lines}. One call per adapter; same option keys modulo ADAPTER_EXEMPT. */

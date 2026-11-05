@@ -25,7 +25,9 @@ export {
 // W5-T7b: the T3 canonical codec, so the supervisor (services/pine_runtime/protocol.mjs
 // sealRunResults) decodes what a job sends and stamps the design 2.3 digest with the ONE
 // implementation, carried inside the artifact (the image copies no source file).
-export { columnDigest, decodeColumn } from './columnDigest.js'
+// W5-INT: and the job adapter (services/pine_runtime/job.mjs) writes each column's wire bytes with
+// the same codec's encoder, so the service holds no second copy of the design 2.3 encoding.
+export { bytesToB64, columnDigest, decodeColumn, encodeColumn } from './columnDigest.js'
 // W5-T7: drawings are not served by the server lanes in v1; the adapter names them by this key.
 export { RUNTIME_OBJECTS_KEY } from './runtimeObjects.js'
 export { SCRIPT_ENGINE_VERSION } from '../scriptEngineVersion.js'

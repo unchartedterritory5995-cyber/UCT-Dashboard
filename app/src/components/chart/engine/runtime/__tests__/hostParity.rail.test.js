@@ -40,6 +40,9 @@ describe('HP-1 / HP-4 / HP-7 end to end (the server bundle, built fresh)', () =>
     expect(p.stdout).toMatch(/worker: args \(def, rows \|\| \[\], ctx \|\| \{\}\) opts \{budgetMs\}/)
     // H6: the Node half runs with no session (`incremental: false`), as the service will
     expect(p.stdout).toContain('node: args (c.def, rows, c.ctx) opts {incremental}')
+    // W5-INT: one HP-7 authority per adapter; the service's is services/pine_runtime/test/adapter.test.mjs
+    expect(p.stdout).not.toMatch(/^job:/m)
+    expect(Object.keys(hp.ADAPTER_FILES)).toEqual(['worker', 'node'])
     expect(p.status).toBe(0)
   }, 60000)
 })

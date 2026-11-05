@@ -17,6 +17,12 @@
 //              withheld runtime:server-worker-oom. Any other exit while busy: runtime:server-worker-failed.
 //   recycle    a worker retires after `recycleJobs` jobs or `recycleMs` of age (checked after each
 //              job) and a fresh one takes its place (H6).
+//   respawn    (W5-INT) once the pool has started, a REPLACEMENT worker that fails to load the
+//              bundle does not break the pool for good: it is retried after `respawnBaseMs`,
+//              doubling to `respawnMaxMs`, and `ready()` is FALSE from the first failure until a
+//              replacement boots (so /ready answers 503 and every run is refused by name, instead
+//              of the pool staying broken in silence). A failure during the FIRST boot still
+//              refuses the pool, as before.
 //
 // ⛔ A hard kill, an OOM and a crash are not deterministic: they are answered as stops, never as
 // values, and T8 must never cache them (design 3.3). ⛔ A job is answered exactly once.
@@ -42,6 +48,8 @@ export const POOL_DEFAULTS = Object.freeze({
   ownerCaps: Object.freeze({ 'on-demand': 4 }),
   // design 3.4 names alert, on-demand, backtest and the sweep chunk; record is given on-demand's
   deadlinesMs: Object.freeze({ alert: 15_000, 'on-demand': 60_000, backtest: 60_000, record: 60_000, sweep: 120_000 }),
+  respawnBaseMs: 1000,
+  respawnMaxMs: 60_000,
 })
 
 export class BusyError extends Error {
@@ -60,6 +68,7 @@ export async function createPool({
   resourceLimits = POOL_DEFAULTS.resourceLimits, killMs = POOL_DEFAULTS.killMs,
   recycleJobs = POOL_DEFAULTS.recycleJobs, recycleMs = POOL_DEFAULTS.recycleMs,
   queueDepth = POOL_DEFAULTS.queueDepth, ownerCaps = POOL_DEFAULTS.ownerCaps, deadlinesMs = POOL_DEFAULTS.deadlinesMs,
+  respawnBaseMs = POOL_DEFAULTS.respawnBaseMs, respawnMaxMs = POOL_DEFAULTS.respawnMaxMs,
 } = {}) {
   if (!Number.isSafeInteger(workers) || workers < 1) throw new Error('the pool needs at least one worker')
   const { hits } = scanBundle(readFileSync(bundle, 'utf8'))
@@ -82,10 +91,13 @@ export async function createPool({
   const queues = new Map(PRIORITY.map((p) => [p, []]))
   const inflight = new Map()
   const exits = new Set()
-  const stats = { starts: 0, kills: 0, recycles: 0, ooms: 0, crashes: 0 }
+  const stats = { starts: 0, kills: 0, recycles: 0, ooms: 0, crashes: 0, bootFailures: 0 }
+  const respawns = new Set()
   let nextId = 0
   let closed = false
   let broken = null
+  let started = false
+  let failing = 0 // replacement boots failed since the last one that loaded; > 0 = not ready
 
   const queued = () => { let n = 0; for (const q of queues.values()) n += q.length; return n }
   const ownerKey = (e) => `${e.profile}|${e.owner}`
@@ -123,12 +135,22 @@ export async function createPool({
 
   function replace() { if (!closed && !broken) spawn() }
 
+  /** W5-INT: a replacement failed to boot after the pool started. Not ready, and retry with backoff. */
+  function bootFailed() {
+    failing += 1
+    stats.bootFailures += 1
+    const t = setTimeout(() => { respawns.delete(t); replace() }, Math.min(respawnMaxMs, respawnBaseMs * 2 ** (failing - 1)))
+    t.unref()
+    respawns.add(t)
+  }
+
   function onMessage(s, m) {
-    if (m.type === 'ready') { s.ready = true; s.bootOk(); pump(); return }
+    if (m.type === 'ready') { s.ready = true; failing = 0; s.bootOk(); pump(); return }
     if (m.type === 'boot-error') {
-      broken = m.message
       s.bootNo(new Error(`a worker could not load the bundle (${m.message}); the pool refuses to start.`))
       retire(s)
+      if (started) { bootFailed(); return }
+      broken = m.message
       drain(WORKER_FAILED_GUARD, 'the runtime pool could not start a worker, so this job has no value.')
       return
     }
@@ -149,9 +171,13 @@ export async function createPool({
     const wasGone = s.gone
     s.gone = true
     live.delete(s)
-    if (!s.ready) {
+    if (!s.ready && !started) {
       broken = broken || 'a worker exited before it loaded the bundle'
       s.bootNo(new Error(`${broken}; the pool refuses to start.`))
+    } else if (!s.ready && !wasGone) {
+      bootFailed() // W5-INT: replaced through the backoff, not at once
+      pump()
+      return
     }
     if (s.busy) {
       const e = s.busy
@@ -236,6 +262,8 @@ export async function createPool({
 
   async function close() {
     closed = true
+    for (const t of respawns) clearTimeout(t)
+    respawns.clear()
     drain(WORKER_FAILED_GUARD, 'the runtime pool stopped, so this job has no value.')
     for (const s of [...live]) retire(s)
     await Promise.all(exits)
@@ -248,12 +276,13 @@ export async function createPool({
     await close()
     throw e
   }
+  started = true
   return {
     run,
     close,
     size: workers,
-    ready: () => !closed && !broken && [...live].some((s) => s.ready),
-    stats: () => ({ ...stats, queued: queued(), live: live.size }),
+    ready: () => !closed && !broken && failing === 0 && [...live].some((s) => s.ready),
+    stats: () => ({ ...stats, queued: queued(), live: live.size, respawnPending: respawns.size }),
     threadIds: () => [...live].map((s) => s.threadId),
     limits: () => [...live].map((s) => s.w.resourceLimits),
   }
