@@ -138,3 +138,12 @@ Record: `scope=full shards=1 gate=0 hyg=0 py=1 js=1 totals=ok errors=0 integrity
   coverageAudit failure reproduced when re-run alone; it does not involve the files this lane changed (the 353-capture check above shows
   `validateCapture` is identical), so it is recorded as a baseline red, not a flake.
 - ready-check: see the pushed result in the report; it fails on `py=1` and on the jsfail allowlist (`BASELINE_FAIL_RE` names only pollingSites and settingsScope) for the reasons above.
+
+## Follow-up (coordinator note: is the py failure ours?)
+`tests/test_vendor_batch_capture.py` run alone on a clean checkout of the train tip `1eb3ba53e5` (no change of ours): the manifest test
+`test_the_committed_manifest_matches_the_corpus_and_skips_what_is_captured` FAILS there too (and so does
+`test_grade_runs_the_corpus_harness_over_a_run_and_writes_both_files`, 2 failed / 20 passed; log `runs/w9t3/batch-capture-train-solo.log`).
+On this tip: 1 failed (the manifest test) / 21 passed. It fails with the same assertion on both, so it does not come from our `tv_capture.js` v3
+change, and the manifest was NOT regenerated. Cause: `batch-manifest.json` still lists `cdc-btc-rainbow-road`, which the train fixture of
+`3e90f18e0a` already captures; the test's `captured_shas` finds it. A manifest regeneration is the train owner's.
+`vendorHarness.coverageAudit` solo run on this tip: `runs/w9t3/coverageAudit-solo.log` (1 failed, 184 passed; `delta-rsi-oscillator-strategy` INCONCLUSIVE).
