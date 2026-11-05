@@ -125,12 +125,12 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
   // S12 + VIS-4 (audit 2026-11-05, V4 / issue 14): "Log Trade" FOLDS into the disclosure on the Notebook, so the
   // phone's first screen is notes (the first note card sat at y=603 of 844). ⚰️ D2 kept it outside the fold as
   // "the primary write affordance"; on the Notebook the primary write is "+ New", and Log Trade is one tap away.
-  it('aria-controls names the element that holds Log Trade, ?, account, report, settings and More', () => {
+  it('aria-controls names the element that holds Log Trade, Help (?), account, report, settings and More', () => {
     renderAt('/journal/notebook')
     const tools = document.getElementById(toggle().getAttribute('aria-controls'))
     expect(tools).not.toBeNull()
     const w = within(tools)
-    expect(w.getByRole('button', { name: 'Show keyboard shortcuts' })).toBeInTheDocument()
+    expect(w.getByRole('button', { name: 'Help' })).toBeInTheDocument()
     expect(w.getByTestId('account-selector')).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'Generate report' })).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'Open Portfolio Settings' })).toBeInTheDocument()

@@ -22,10 +22,14 @@
  * once").
  */
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
+import {
+  feedbackMenuMounted, openFeedback, registerHelpHost, registerShortcutsHost,
+} from '../../components/feedbackDoor'
+import { SUPPORT_PATH } from '../../components/helpAnchors'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
 import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
@@ -43,6 +47,7 @@ import lazyChunk from './lib/lazyChunk'
 // chunk door, never with the page. ⛔ Never a static import of ShortcutCheatSheet
 // (rail: components/notebook/RefusedCopyOffer.lazy.test.js).
 import ShortcutCheatSheet from './components/ShortcutCheatSheetDoor'
+import { pageSection } from './lib/shortcutPage'
 import LogTradeButton from './LogTradeButton'
 import JournalMobileNav from './JournalMobileNav'
 import JournalLogFab from './JournalLogFab'
@@ -111,7 +116,8 @@ export default function JournalLayout() {
   const { settings, isLoading, error, save, accountName, noSpecificAccount, noAccountReason } = useJ2Settings()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const { pathname } = location
   const compactHeader = isCompactHeaderRoute(pathname)
   // D2 (D-1): the phone Notebook's header tools, folded until asked for.
   const [toolsOpen, setToolsOpen] = useState(false)
@@ -136,6 +142,16 @@ export default function JournalLayout() {
   useJournalAgentHost()
 
   const openSettings = useCallback(() => setShowSettings(true), [])
+
+  // S14: the header's Help button is THE Help button on Journal pages, and this page's shortcut sheet is what the
+  // menu's "Keyboard shortcuts" row opens.
+  const helpBtnRef = useRef(null)
+  useEffect(() => registerHelpHost(), [])
+  useEffect(() => registerShortcutsHost(() => setShowShortcuts(true)), [])
+  const openHelp = useCallback(() => {
+    if (feedbackMenuMounted()) openFeedback('menu', helpBtnRef.current, { toggle: true })
+    else navigate(SUPPORT_PATH)
+  }, [navigate])
   const closeSettings = useCallback(() => setShowSettings(false), [])
 
   // Wave 13 (13Q-4): the 6-item primary nav (Today/Trades/Calendar/Notebook/
@@ -293,21 +309,21 @@ export default function JournalLayout() {
               row as its anchor on a phone). */}
           <div id="journal-header-tools" className={styles.headerTools}>
           {compactHeader && <LogTradeButton />}
+          {/* S14 (audit 2026-11-05, details #3-#5): ONE Help menu. This was the keyboard-shortcuts "?", a second
+              "?" beside the app's corner one with a different job. It now opens THE Help menu (FeedbackWidget's:
+              Search help, Quick answers, Keyboard shortcuts, Tours, Send feedback), and while it is on screen the
+              corner "?" steps aside (registerHelpHost), so exactly one "?" shows. Shift+? still opens the
+              shortcuts directly. With the touch hub up there is no menu to open (Layout does not mount it), so the
+              press goes to the Support page instead of doing nothing. */}
           <button
+            ref={helpBtnRef}
             type="button"
             className={styles.shortcutsBtn}
-            onClick={() => setShowShortcuts(true)}
-            // A2R-04: explicit, so Enter/Space are guaranteed regardless of a
-            // native <button>'s own default activation — see ShortcutCheatSheet
-            // for the dialog-side half of this fix (trap + focus restore).
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                e.preventDefault()
-                setShowShortcuts(true)
-              }
-            }}
-            aria-label="Show keyboard shortcuts"
-            title="Keyboard shortcuts (Shift + ?)"
+            onClick={openHelp}
+            aria-label="Help"
+            aria-haspopup="menu"
+            title="Help (Shift + ? for keyboard shortcuts)"
+            data-journal-help=""
           >
             <kbd className={styles.headerKbd}>?</kbd>
           </button>
@@ -437,7 +453,8 @@ export default function JournalLayout() {
         </Suspense>
       )}
 
-      <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)}
+        page={pageSection(pathname, location.search)} />
 
       {/* Mobile quick-log FAB (Task B5): a phone-only fixed "+ Log" button that
           opens the same add flow as the header LogTradeButton. Placed clear of

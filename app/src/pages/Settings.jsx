@@ -1619,6 +1619,12 @@ export function PreferencesBackupCard() {
 // on `?` (i.e. Shift+/) when the user isn't in another input, matching
 // GitHub / Slack / Notion convention.
 
+/** The palette chord as this machine's keyboard reads it: ⌘K on a Mac, Ctrl K elsewhere. */
+export function paletteChordLabel() {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
+  return isMac ? '⌘K' : 'Ctrl K'
+}
+
 const SHORTCUT_ROWS = [
   { keys: ['⌘', 'K'], macAlt: ['Ctrl', 'K'], desc: 'Open the command palette' },
   { keys: ['/'], desc: 'Focus the section search' },
@@ -2491,7 +2497,8 @@ export default function Settings() {
           >
             <UIcon name="search" size={12} />
             <span>Jump to…</span>
-            <kbd className={styles.kbdKey}>⌘K</kbd>
+            {/* S14 (audit 2026-11-05): this said ⌘K on every machine; Windows and Linux press Ctrl+K. */}
+            <kbd className={styles.kbdKey}>{paletteChordLabel()}</kbd>
           </button>
           <button
             className={styles.kbdIconBtn}
