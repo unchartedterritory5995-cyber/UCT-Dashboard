@@ -219,6 +219,29 @@ def test_REPLICAS_a_redeploy_is_not_two_replicas(replicas, clean_limits):
     assert clean_limits.admit("b", new_request=False)
 
 
+def test_REPLICAS_a_crash_restart_with_a_new_id_does_not_stop_paid_turns(replicas, clean_limits, monkeypatch):
+    """The dead replica's row is seconds old. It predates this process, so it cannot be running beside it."""
+    limits = clean_limits
+    monkeypatch.setattr(limits, "_STARTED_AT", 0.0)
+    replicas("died")
+    assert limits.admit("a", new_request=False, now=1000.0)
+    monkeypatch.setattr(limits, "_STARTED_AT", 1010.0)     # the restart
+    replicas("restarted")
+    assert limits.admit("b", new_request=False, now=1020.0)
+
+
+def test_REPLICAS_a_live_replica_beside_a_restarted_one_is_still_caught(replicas, clean_limits, monkeypatch):
+    limits, alerts = clean_limits, []
+    monkeypatch.setattr(limits, "_alert_replicas", alerts.append)
+    monkeypatch.setattr(limits, "_STARTED_AT", 1010.0)
+    replicas("restarted")
+    assert limits.admit("a", new_request=False, now=1020.0)
+    replicas("still-alive")                                # admits after the restart, so its row is new
+    with pytest.raises(limits.Refused) as e:
+        limits.admit("b", new_request=False, now=1030.0)
+    assert e.value.reason == "multiple_replicas" and alerts == [2]
+
+
 def test_REPLICAS_a_replica_that_has_gone_stops_counting(replicas, clean_limits):
     limits = clean_limits
     replicas("r1")

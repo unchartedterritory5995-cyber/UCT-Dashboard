@@ -62,6 +62,8 @@ RENEW_EVERY_S = 30.0
 EXPIRE_GRACE_S = 5.0
 #: How recently another replica of THIS deployment must have been seen to count as running beside this one.
 REPLICA_WINDOW_S = 300.0
+#: When this process began. A replica last seen before that may simply be the one this process replaced.
+_STARTED_AT = time.time()
 #: The refusals that mean the service cannot take a turn, not that this member sent too many: 503, not 429.
 SERVICE_REASONS = ("store_unavailable", "multiple_replicas")
 
@@ -122,8 +124,10 @@ class Refused(Exception):
 
 def _replicas_seen(c, now: float) -> int:
     """Records this replica, outside the admission transaction so a refusal cannot undo it, and counts the replicas
-    of this DEPLOYMENT seen lately. A deploy brings a new id, so counting across deployments would refuse every turn
-    for a while after each one. 1 outside Railway. ⛔ Sees only replicas that share this file."""
+    of this DEPLOYMENT seen lately, and since this process started: a crash restart can bring a new id, and the dead
+    replica's row must not refuse every turn for minutes. A deploy brings a new id too, so counting across deployments
+    would do the same. A live replica shows up again the next time it admits a turn. 1 outside Railway.
+    ⛔ Sees only replicas that share this file."""
     deployment, replica = os.environ.get("RAILWAY_DEPLOYMENT_ID"), os.environ.get("RAILWAY_REPLICA_ID")
     if not deployment or not replica:
         return 1
@@ -131,7 +135,7 @@ def _replicas_seen(c, now: float) -> int:
               " ON CONFLICT(deployment_id, replica_id) DO UPDATE SET seen_at = excluded.seen_at", (deployment, replica, now))
     c.execute("DELETE FROM agent_replicas WHERE seen_at < ?", (now - 2 * REPLICA_WINDOW_S,))
     n = c.execute("SELECT COUNT(*) FROM agent_replicas WHERE deployment_id = ? AND seen_at >= ?",
-                  (deployment, now - REPLICA_WINDOW_S)).fetchone()[0]
+                  (deployment, max(now - REPLICA_WINDOW_S, _STARTED_AT))).fetchone()[0]
     if n > 1:
         _alert_replicas(n)
     return int(n)
@@ -269,7 +273,7 @@ def guard(user_id: Any, token: str | None, clock):
                 lingered.set()
                 _count_lingering(1)
                 log.warning("[uct-agent limits] a turn is stuck past its deadline; %d worker(s) lingering", lingering_workers())
-                clock.expire()
+                clock.expire(worker_stuck=True)
                 done(token)
                 return
             renew(user_id, token=token)
@@ -280,7 +284,7 @@ def guard(user_id: Any, token: str | None, clock):
             yield
     finally:
         stop.set()
-        if clock.left() <= 0:                      # ended by the deadline: the ledger closes this turn too
+        if clock.left() <= 0:                      # ended by the deadline, but it came back: it keeps its last word
             clock.expire()
         done(token)
         if lingered.is_set():
@@ -288,6 +292,9 @@ def guard(user_id: Any, token: str | None, clock):
 
 
 def _reset_for_test() -> None:
+    global _lingering
+    with _lingering_lock:
+        _lingering = 0
     with contextlib.closing(_connect()) as c:
         c.execute("DELETE FROM agent_rate_events")
         c.execute("DELETE FROM agent_inflight")

@@ -58,6 +58,7 @@ def hung(monkeypatch):
     monkeypatch.setattr(turn, "_default_caller", caller)
     yield types.SimpleNamespace(entered=entered, release=release)
     release.set()
+    assert until(lambda: limits.lingering_workers() == 0)  # no stuck worker outlives its test
 
 
 # ═══ a stuck worker: everything is released beside it ════════════════════════════════════════════
@@ -110,6 +111,43 @@ def test_a_turn_that_ends_in_time_keeps_its_answer_and_runs_no_cleanup(clean, cl
     monkeypatch.setattr(turn, "_default_caller", _caller(calls))
     assert client.post("/api/agent/turn", json={"message": "add rsi"}).status_code == 200
     assert held() == (0, 0) and budget.state()["calls"]["charged_worst_case"] == 0
+
+
+def test_a_turn_finishing_just_past_the_deadline_keeps_its_final_on_the_stream(clean, client, monkeypatch):  # noqa: F811
+    """Before: the guard's exit ended the stream, so the member saw the error while the final was already stored."""
+    monkeypatch.setenv(budget.TURN_DEADLINE_ENV, "0.1")
+    calls = []
+    answer = _caller(calls)
+
+    def slow(**kw):
+        threading.Event().wait(0.2)                        # back past the deadline, well inside the grace
+        return answer(**kw)
+
+    monkeypatch.setattr(turn, "_default_caller", slow)
+    with client.stream("POST", "/api/agent/turn/stream", json={"message": "add rsi"}) as r:
+        body = "".join(r.iter_text())
+    assert '"t":"final"' in body and '"t":"error"' not in body and budget.TURN_DEADLINE not in body
+    assert held() == (0, 0)
+
+
+def test_a_worker_that_came_back_closes_the_ledger_but_not_the_stream(clean, monkeypatch):  # noqa: F811
+    monkeypatch.setenv(budget.TURN_DEADLINE_ENV, "0.1")
+    clock, ended = budget.TurnClock(), []
+    clock.on_stuck(lambda: ended.append("stream"))
+    clock.on_expire(lambda: ended.append("ledger"))
+    token = limits.admit("u", new_request=False)
+    with limits.guard("u", token, clock):
+        threading.Event().wait(0.2)
+    assert ended == ["ledger"]
+
+
+def test_a_stuck_worker_runs_both_kinds_of_cleanup_once():
+    clock, ended = budget.TurnClock(), []
+    clock.on_stuck(lambda: ended.append("stream"))
+    clock.on_expire(lambda: ended.append("ledger"))
+    clock.expire(worker_stuck=True)
+    clock.expire(worker_stuck=True)
+    assert ended == ["ledger", "stream"]
 
 
 # ═══ the guard ═══════════════════════════════════════════════════════════════════════════════════
@@ -385,6 +423,16 @@ def test_REVIEW_a_late_reply_is_kept_as_confirmed_and_counts_once(clean):  # noq
     assert st["confirmed_usd"] == pytest.approx(0.05) and st["estimated_usd"] == 0
 
 
+def test_REVIEW_a_late_reply_above_its_worst_case_is_logged(clean, caplog):  # noqa: F811
+    rid = budget.open_request("u", "c", "x")
+    r = budget.reserve(user_id="u", request_id=None, turn_request_id=rid, category="turn", model="m", worst_usd=0.2,
+                       site_reader=ZERO_SITE, counts_as_call=False)
+    budget.close_turn(rid)
+    with caplog.at_level("ERROR"):
+        budget.settle(r, actual_usd=0.3)
+    assert "exceeded its worst case" in caplog.text and budget.state()["confirmed_usd"] == pytest.approx(0.3)
+
+
 def test_REVIEW_a_settled_call_is_confirmed_and_a_timeout_is_an_estimate(clean):  # noqa: F811
     m = budget.Meter(user_id="u", request_id=None, site_reader=ZERO_SITE)
     m.call("turn", lambda **kw: _resp(usage=(1000, 100, 0, 0)), **KW)
@@ -459,7 +507,7 @@ def test_REVIEW_a_stuck_worker_is_counted_until_it_ends(short, hung, client):  #
     assert until(lambda: limits.lingering_workers() == 1)
     hung.release.set()
     t.join(20)
-    assert limits.lingering_workers() == 0
+    assert until(lambda: limits.lingering_workers() == 0)
 
 
 def test_REVIEW_a_following_turn_of_the_request_is_not_closed_by_the_old_cleanup(clean):  # noqa: F811

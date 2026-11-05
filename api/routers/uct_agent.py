@@ -417,7 +417,7 @@ def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event, o
     clock = budget.TurnClock(used_s=p["state"].get("active_s") or 0.0)
     clock.on_expire(lambda: _v2_unregister(token))
     if on_expired is not None:
-        clock.on_expire(on_expired)
+        clock.on_stuck(on_expired)
     with _V2_LOCK:
         _V2_STEPS[token] = (q, str(uid))
     with limits.guard(uid, slot, clock):
@@ -503,7 +503,7 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, 
                             headers={"Retry-After": str(e.retry_after)})
     clock = budget.TurnClock()
     if on_expired is not None:
-        clock.on_expire(on_expired)
+        clock.on_stuck(on_expired)
     with limits.guard(uid, slot, clock):
         return _admitted_turn(body, background, user, on_event, headline, clock)
 

@@ -451,6 +451,8 @@ def settle(reservation_id: int, *, actual_usd: float | None, tokens: dict | None
             row = c.execute("SELECT reserved_usd, status, outcome FROM agent_spend WHERE id = ?", (int(reservation_id),)).fetchone()
             if row and row[1] != "reserved" and row[2] in LATE_OUTCOMES and actual_usd is not None:
                 # A reply after the row was closed: kept as the confirmed figure. The charge stands, so it counts once.
+                if float(actual_usd) > float(row[0]):
+                    log.error("[uct-agent budget] a late reply exceeded its worst case (reservation %s)", reservation_id)
                 c.execute("UPDATE agent_spend SET confirmed_usd=?, input_tokens=?, output_tokens=?, cache_read_tokens=?,"
                           " cache_write_tokens=? WHERE id = ?",
                           (round(float(actual_usd), 6), int(t.get("input", 0)), int(t.get("output", 0)),
@@ -526,7 +528,8 @@ class TurnClock:
     ENFORCEMENT, cooperative because Python cannot kill a thread: no paid call starts past it, each model and
     lookup timeout is capped to what is left (call_deadline), a stream stops reading, and a wait on the browser
     ends. `expire()` is the backstop for a worker that is still blocked: limits.guard calls it, and it runs each
-    cleanup once, so nothing the turn holds outlives the deadline even while that thread is stuck."""
+    cleanup once, so nothing the turn holds outlives the deadline even while that thread is stuck. `on_stuck` is
+    only for that case: a worker that came back delivers its own last word, so nothing may end its stream first."""
 
     def __init__(self, used_s: float = 0.0):
         self.started = time.monotonic()
@@ -534,6 +537,7 @@ class TurnClock:
         self.at = self.started + turn_deadline_s() - self.used_before_s
         self.expired = threading.Event()
         self._cleanups: list[Callable[[], None]] = []
+        self._stuck: list[Callable[[], None]] = []
         self._lock = threading.Lock()
 
     def left(self) -> float:
@@ -546,11 +550,18 @@ class TurnClock:
         with self._lock:
             self._cleanups.append(fn)
 
-    def expire(self) -> None:
-        """Run every cleanup, once. One that fails never stops the others."""
+    def on_stuck(self, fn: Callable[[], None]) -> None:
+        with self._lock:
+            self._stuck.append(fn)
+
+    def expire(self, worker_stuck: bool = False) -> None:
+        """Run every cleanup, once, and the stuck-worker ones if the worker never came back. One that fails never
+        stops the others."""
         self.expired.set()
         with self._lock:
             cleanups, self._cleanups = self._cleanups, []
+            if worker_stuck:
+                cleanups, self._stuck = cleanups + self._stuck, []
         for fn in cleanups:
             try:
                 fn()
@@ -561,7 +572,8 @@ class TurnClock:
 def close_turn(turn_request_id: int | None) -> int:
     """End a turn on the ledger: nothing more can be reserved for it, and its open reservations close AT THEIR WORST
     CASE, as estimates (`confirmed_usd` stays NULL). Never released to $0: a call still running may be billed, and $0
-    would let the daily cap undercount. A late reply only fills `confirmed_usd`, so it cannot lower the charge."""
+    would let the daily cap undercount. A late reply only fills `confirmed_usd`, so it cannot lower the charge.
+    This ends the REQUEST, so the browser's reroute of a request that hit its deadline is refused the same way."""
     if turn_request_id is None:
         return 0
     try:
