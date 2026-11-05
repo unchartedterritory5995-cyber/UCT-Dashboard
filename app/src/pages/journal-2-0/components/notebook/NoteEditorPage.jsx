@@ -101,6 +101,7 @@ import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
 import TickerSuggestion from './TickerSuggestion'
 import { noteDocumentTitle } from '../../../../surfaces/pageTitle.js'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
+import { firstFieldPos } from '../../lib/firstFieldPos'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
@@ -1255,7 +1256,7 @@ export default function NoteEditorPage({
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!openFocus || openFocus === 'body' || openFocus === 'collapsed' || openFocusDoneRef.current) return
+    if (!openFocus || openFocus === 'body' || openFocus === 'field' || openFocus === 'collapsed' || openFocusDoneRef.current) return
     // Lane KEYS3 (Q2): 'ticker' is a fresh note from a template that asks for one. A note
     // with no Ticker field on screen falls back to the title, as before.
     const target = openFocus === 'ticker' ? (tickerInputRef.current || titleInputRef.current)
@@ -3263,7 +3264,9 @@ export default function NoteEditorPage({
   // one-shot and nothing throws. The title/landmark effect above is
   // untouched.
   useLayoutEffect(() => {
-    if (openFocus !== 'body' || openFocusDoneRef.current) return
+    // S9 (audit 2026-11-05): 'field' is a note a template's Use just made and named: the caret goes to its first
+    // field (lib/firstFieldPos.js), or to the end like 'body' when it has none.
+    if ((openFocus !== 'body' && openFocus !== 'field') || openFocusDoneRef.current) return
     if (!editor || editor.isDestroyed) return
     let cancelled = false
     let rafId = null
@@ -3276,7 +3279,8 @@ export default function NoteEditorPage({
       const dom = editor.view && editor.view.dom
       if (dom && dom.isConnected && editor.isEditable) {
         openFocusDoneRef.current = true
-        editor.commands.focus('end')
+        const at = openFocus === 'field' ? firstFieldPos(editor.state.doc) : null
+        editor.commands.focus(at ?? 'end')
         onOpenFocused?.()
         return
       }

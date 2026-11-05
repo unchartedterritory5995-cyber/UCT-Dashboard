@@ -3517,6 +3517,11 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
                 continue                             # filtered, as above
             pick = picks.get(b["block"]) if isinstance(picks.get(b["block"]), Mapping) else {}
             use = pick.get("use")
+            if use is None and _sf_skip(pick):
+                # Spec S9 (audit 2026-11-05): "Also start this every weekday" was not ticked. Nothing is made; the
+                # copy keeps the inline slot, so the note's create leaves it as plain content and a later Use asks.
+                out.append(b)
+                continue
             if use is not None:
                 if not isinstance(use, str) or not _owned_value(conn, user_id, family, use):
                     raise _not_yours(b["block"])
@@ -3552,6 +3557,12 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
         out.append({**b, "settings": js.slot_settings_of(family, {"ref": ref, "bind": st["bind"],
                                                                    "display": st["display"]})})
     return out, created, reused
+
+
+def _sf_skip(pick: Any) -> bool:
+    """The one reader of a "not now" answer (`slot_fill.is_skip_choice`)."""
+    from api.services.journal_two import slot_fill
+    return slot_fill.is_skip_choice(dict(pick) if isinstance(pick, Mapping) else pick)
 
 
 class _ListingMoved(Exception):
