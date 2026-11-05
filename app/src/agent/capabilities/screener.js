@@ -833,7 +833,7 @@ async function listSavedViaGateway() {
 // two conditions. Its own stocks and one condition could be either, so it is asked, never guessed.
 // A turn whose words aren't known here (a panel action, a fast path) keeps the model's mode.
 const POINTS_BACK = /\b(?:those|them|these|they|ones|same|results?|remaining|rest|instead|(?:that|this) (?:list|screen|scan))\b/
-const OPENS_WITH_A_CHANGE = /^(?:(?:now|ok|okay|and|then|also|but|next)[ ,]+)*(?:(?:please|pls)\s+)?(?:only|just|drop|remove|exclude|add|keep|narrow|limit|restrict|without|except|sort|rank|order|filter)\b/
+const OPENS_WITH_A_CHANGE = /^(?:(?:now|ok|okay|and|then|also|but|next)[ ,]+)*(?:(?:please|pls)\s+)?(?:only|just|no|not|skip|ignore|drop|remove|exclude|add|keep|narrow|limit|restrict|without|except|sort|rank|order|filter)\b/
 const CONTINUES = /^(?:now|ok|okay|and|then|also|but|next)\b/
 const OWN_STOCKS = /\b(?:stocks?|names|tickers|equities|companies|shares|etfs)\b/
 /** 'refine' | 'new' | 'ask': how `text` stands to the screen before it, with `conditions` conditions of its own. Pure. */
@@ -858,18 +858,21 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
   if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
   const read = readLogic(logicArg)
   if (read.error) return { error: read.error }
+  const rankRead = readLogic(rankArg)
+  if (rankRead.error) return { error: "I couldn't read that rank" }
+  const rankList = rankRead.tree
   // W1-C C-01: a screen that names a hidden UCT field gets the SC-1 §2d sentence PLUS one public alternative
   // (scanRefine.js), checked before the catalog so the alternative is always offered — on a refinement AND on a new
   // screen (W1.1 R-05 / live LT-11: "show me my strongest stocks" gave the bare sentence with no alternative)
   {
     // ...and through every new shape: a compared field, a leaf of the tree, a rank measure
-    const why = refineRefusal([...(filters || []).flatMap(x => [String(x?.field || ''), String(x?.other || '')]), ...logicNames(read.tree), ...(Array.isArray(rankArg) ? rankArg.map(c => String(c?.field || '')) : []), ...(sortField ? [sortField] : [])])
+    const why = refineRefusal([...(filters || []).flatMap(x => [String(x?.field || ''), String(x?.other || '')]), ...logicNames(read.tree), ...(Array.isArray(rankList) ? rankList.map(c => String(c?.field || '')) : []), ...(sortField ? [sortField] : [])])
     if (why) return { error: why.replace(/\.$/, '') }
   }
   const w = toWireFilters(filters, { lenient })
   if (w.error) return { error: w.error }
   let wire = w.filters
-  const rk = rankOf(rankArg)
+  const rk = rankOf(rankList)
   if (rk.error) return { error: rk.error }
   if (rk.rank && sortField) return { error: 'a weighted rank sets the order, so it can\'t also be sorted: say which one you want' }
   // ⛔ THE TREE. Exactly a flat list → that list (the same rows, on any server). Otherwise it stays a tree: see the gate below.
@@ -1004,16 +1007,12 @@ const COMPARE_ITEM = {
   properties: { field: { type: 'string' }, op: { type: 'string', enum: COL_OPS }, other: { type: 'string' } },
   required: ['field', 'op', 'other'], additionalProperties: false,
 }
-const RANK_ITEM = {
-  type: 'object',
-  properties: { field: { type: 'string' }, weight: { type: 'number' }, lower_better: { type: 'boolean' } },
-  required: ['field', 'weight', 'lower_better'], additionalProperties: false,
-}
 // What the model reads beside the field list: the manifest's hints (1000 characters) and shape (600) are full.
 const COMPOSE_RULES = 'filters are ANDed. Field vs field: {field, op: gt_col|gte_col|lt_col|lte_col, other: a second number key} ("above the price target" = price gt_col pt_target). '
   + 'Candle Type: op contains, values = pattern words (every word must match); op in = any of them. '
   + 'OR / NOT: logic = a JSON STRING holding one tree of {"any":[…]}, {"all":[…]}, {"none":[…]} or {"not":x}, at most 4 deep; a leaf is one filter object, numbers in value/max as in filters; it is ANDed with filters. '
-  + 'rank: [{field, weight, lower_better}] number fields, percentile-weighted within the screen, sets the order (sort_field null). lower_better is the member\'s, ask if unclear. '
+  + 'Up 5% today or 15% on the week: logic = "{\\"any\\":[{\\"field\\":\\"chg_pct_1d\\",\\"op\\":\\"gte\\",\\"value\\":5},{\\"field\\":\\"chg_pct_1w\\",\\"op\\":\\"gte\\",\\"value\\":15}]}". '
+  + 'rank = a JSON STRING of [{"field":…,"weight":…,"lower_better":true|false}], number fields, percentile-weighted within the screen, sets the order (sort_field null). lower_better is the member\'s, ask if unclear. '
   + 'Never replace an any / none / not with a nearby flat filter, and never drop a condition you cannot say. '
   + 'mode: a request with its own stocks and conditions that does not point at the earlier results is new, even right after a screen; never copy lastScreen filters into it.'
 const LOGIC_OFF_RULE = 'logic is OFF on this server: a tree runs only if it is exactly a flat screen (any of one list field\'s values, none of them), and anything else is refused. Say so, offer the conditions one at a time, never approximate it.'
@@ -1131,7 +1130,8 @@ export function registerScreenerCapabilities() {
         within: { type: ['string', 'null'] },
         // a JSON STRING: the closed schemas every planner path compiles cannot hold a recursive tree (see COMPOSE_RULES)
         logic: { type: ['string', 'null'] },
-        rank: { type: ['array', 'null'], items: RANK_ITEM },
+        // a JSON string too: as a closed array its schema pushed the v2 flagship turn past DEFAULT_TURN_USD on Haiku 4.5
+        rank: { type: ['string', 'null'] },
       },
       required: ['filters', 'sort_field', 'sort_dir', 'mode', 'show', 'as', 'within', 'logic', 'rank'], additionalProperties: false,
     },
@@ -1156,8 +1156,7 @@ export function registerScreenerCapabilities() {
     defaultsWhen: { filters: { mode: ['refine'] } },
     shape: 'a refinement that only changes the ORDER ("sort them by 3-month performance") is {"filters":[],"sort_field":"chg_pct_3m",'
       + '"sort_dir":"desc","mode":"refine","show":null,"as":null,"within":null,"logic":null,"rank":null} — filters is ALWAYS present ([] when nothing is added), '
-      + 'sort_field is a key from `fields`, sort_dir is exactly "asc" or "desc" (never "descending"), no nested "sort" object. '
-      + 'Up 5% today OR 15% on the week: "filters":[],"logic":"{\\"any\\":[{\\"field\\":\\"chg_pct_1d\\",\\"op\\":\\"gte\\",\\"value\\":5},{\\"field\\":\\"chg_pct_1w\\",\\"op\\":\\"gte\\",\\"value\\":15}]}".',
+      + 'sort_field is a key from `fields`, sort_dir is exactly "asc" or "desc" (never "descending"), and there is no nested "sort" object.',
     // As a PRODUCER (compose.js): the screen's tickers, in the engine's own order.
     produces: SYMBOLS,
     // Checked before a proposal (catalog permitting; the engine re-checks at apply).

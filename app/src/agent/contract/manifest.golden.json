@@ -1655,29 +1655,9 @@
      },
      "rank": {
       "type": [
-       "array",
+       "string",
        "null"
-      ],
-      "items": {
-       "type": "object",
-       "properties": {
-        "field": {
-         "type": "string"
-        },
-        "weight": {
-         "type": "number"
-        },
-        "lower_better": {
-         "type": "boolean"
-        }
-       },
-       "required": [
-        "field",
-        "weight",
-        "lower_better"
-       ],
-       "additionalProperties": false
-      }
+      ]
      }
     },
     "required": [
@@ -1771,7 +1751,7 @@
      ]
     }
    },
-   "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null,\"logic\":null,\"rank\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), no nested \"sort\" object. Up 5% today OR 15% on the week: \"filters\":[],\"logic\":\"{\\\"any\\\":[{\\\"field\\\":\\\"chg_pct_1d\\\",\\\"op\\\":\\\"gte\\\",\\\"value\\\":5},{\\\"field\\\":\\\"chg_pct_1w\\\",\\\"op\\\":\\\"gte\\\",\\\"value\\\":15}]}\"."
+   "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null,\"logic\":null,\"rank\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
   },
   {
    "name": "screener.runSaved",

@@ -143,6 +143,7 @@ describe('the manifest stays inside the server’s limits', () => {
     expect(shapeError('screener.run', { ...old, filters: [F('price', 'gt', 1)] }, { surface: 'charts' })).toBeNull()
     expect(shapeError('screener.run', { ...ARGS, logic: OR }, { surface: 'charts' })).toBeNull()
     expect(shapeError('screener.run', { ...ARGS, logic: { any: [] } }, { surface: 'charts' })).toMatch(/wrong kind/)
+    expect(shapeError('screener.run', { ...ARGS, rank: '[]' }, { surface: 'charts' })).toBeNull()
   })
 })
 
@@ -479,6 +480,7 @@ describe('⛔ a new screen starts clean; only a follow-up builds on the last one
   it.each([
     ['only tech', [L('sector', 'in', ['energy'])]],
     ['drop under $10', [F('price', 'gte', 10)]],
+    ['no stocks under $10', [F('price', 'gte', 10)]],
     ['now only the ones above $20', [F('price', 'gt', 20)]],
     ['semis', [L('sector', 'in', ['energy'])]],
     ['above $20 and rsi over 50', [F('price', 'gt', 20), F('rsi14', 'gt', 50)]],
