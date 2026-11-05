@@ -462,3 +462,4 @@ Merging to master is still not authorized in this file; the owner approves it di
   - D7 approve the T15 wording.
   - D8 unpinned metrics are shown refused by name.
   Still the owner's: D4 (the rig account's plan) and the act of arming.
+- 2026-11-05 08:23 OWNER-ACTIONS.md: open items decided. Rig plan inferred Premium (cap of about 20K intraday bars). W2 stage 1 GO for adx-only, armed AFTER the train lands; P11 accepted; save door closed; follow-ups F11 (census detector arm) and F12 (stage-2 run counter). The W5-T20 service is created after the train is on production, per the runbook. The acts themselves (merge approval, Railway variables, arming, the rig) stay the owner's.
