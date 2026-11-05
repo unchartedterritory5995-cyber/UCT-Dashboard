@@ -1211,7 +1211,7 @@ def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER) -> 
                                             read_ledger_rows(ledger)))
     out = pathlib.Path(out)
     if check:
-        have = out.read_bytes().decode("utf-8") if out.exists() else ""
+        have = out.read_bytes().decode("utf-8").replace("\r\n", "\n") if out.exists() else ""  # autocrlf checkouts
         print(f"VERDICT: {'PASS' if have == text else 'FAIL'} ({rel(out)} {'is' if have == text else 'is NOT'} the resolution of its sources)")
         return 0 if have == text else 1
     write_atomic(out, text)

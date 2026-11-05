@@ -64,7 +64,7 @@ def test_the_output_is_canonical_and_order_independent():
 def test_FRESHNESS_the_committed_ledger_is_the_resolution_of_its_sources():
     text = ee.canonical_pins_text(ee.resolve_pins(
         json.loads(ee.PINS_SRC.read_text(encoding="utf-8")), ee.read_ledger_rows()))
-    assert ee.PINS_OUT.read_bytes().decode("utf-8") == text
+    assert ee.PINS_OUT.read_bytes().decode("utf-8").replace("\r\n", "\n") == text  # autocrlf checkouts
 
 
 def test_FRESHNESS_check_fails_on_a_stale_ledger(tmp_path):

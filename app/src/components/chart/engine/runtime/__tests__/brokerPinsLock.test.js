@@ -121,8 +121,10 @@ describe('brokerPins lock: the five cases', () => {
 })
 
 describe('brokerPins lock: the real committed files', () => {
-  const resolvedText = fs.readFileSync(path.join(RT, 'brokerPins.resolved.json'), 'utf8')
-  const lockText = fs.readFileSync(path.join(RT, 'brokerPins.lock.json'), 'utf8')
+  // A Windows checkout with autocrlf holds CRLF; the committed blob (and the sha) is LF.
+  const lf = (t) => t.replace(/\r\n/g, '\n')
+  const resolvedText = lf(fs.readFileSync(path.join(RT, 'brokerPins.resolved.json'), 'utf8'))
+  const lockText = lf(fs.readFileSync(path.join(RT, 'brokerPins.lock.json'), 'utf8'))
 
   it('the committed ledger, lock and engine version agree', () => {
     const r = checkLock({
