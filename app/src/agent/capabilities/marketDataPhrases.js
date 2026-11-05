@@ -29,6 +29,8 @@ const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell tra
 // not a price question at all, so the reader steps aside (the request goes on to its own capability or the model). A
 // ticker is still read when typed $-prefixed or in capitals ("$LINE", "LINE").
 const NOT_A_TICKER = new Set(('line lines places place left charts chart level levels drawing drawings top bottom middle side sides '
+  // "sort by price" / "hide the price column" is a list widget's column, never a quote for SORT or HIDE
+  + 'sort sorted sorting rank ranked ranking hide column columns list lists scan scans scanner first lowest highest biggest smallest ascending descending '
   + 'board widget widgets panel panels screen screens layout layouts window windows grid label labels colour color colors colours '
   + 'average averages one ones each every other those these them that this thing things alert alerts tab tabs pane panes '
   + 'indicator indicators study studies box boxes ray rays fib trendline trendlines arrow arrows note notes '

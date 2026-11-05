@@ -1219,7 +1219,7 @@
    "domain": "watchlist",
    "target": "watchlist",
    "summary": "Say which symbols are in one of the member's watchlists. UCT answers from the real list — use this (disposition apply) for \"what's in <list>?\".",
-   "hints": "target = the ref of that watchlist. as: name this list's STOCKS (e.g. \"list1\") when a later op in the same request uses them (e.g. widget.addCharts symbols {from:\"list1\", top:N}); else null.",
+   "hints": "target = the ref of that watchlist. \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. as: name this list's STOCKS (e.g. \"list1\") when a later op in the same request uses them (e.g. widget.addCharts symbols {from:\"list1\", top:N}); else null.",
    "args": {
     "type": "object",
     "properties": {
@@ -1250,7 +1250,7 @@
    "domain": "watchlist",
    "target": "watchlist",
    "summary": "Add tickers to one of the member's saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.",
-   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = ALL of them — the default when they say \"all\" or give no number; at most 1000). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
+   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = ALL of them — the default when they say \"all\" or give no number; at most 1000). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
    "args": {
     "type": "object",
     "properties": {
@@ -1303,8 +1303,8 @@
    "name": "watchlist.remove",
    "domain": "watchlist",
    "target": "watchlist",
-   "summary": "Remove specific tickers from one of the member's saved watchlists. Never clears a whole list.",
-   "hints": "target = the ref of the watchlist; symbols = exactly the tickers to remove.",
+   "summary": "Remove specific tickers from one of the member's saved watchlists, one or several at once. Undo puts them back with their notes and order.",
+   "hints": "target = the ref of the watchlist; \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. symbols = exactly the tickers to remove (\"the top three\" = the first rows of the listViews entry showing it, or of its symbols when no widget shows it). For \"everything except these\" use watchlist.keepOnly.",
    "args": {
     "type": "object",
     "properties": {
@@ -1321,6 +1321,37 @@
     "additionalProperties": false
    },
    "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.keepOnly",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Remove everything from one of the member's saved watchlists EXCEPT the tickers named (\"keep only these\", \"everything except these\"). One change, always shown as a proposal naming what goes; Undo puts them back with their notes and order.",
+   "hints": "target = the ref of the watchlist; \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. symbols = the tickers to KEEP (\"keep the top three\" = the first rows of the listViews entry showing it, or of its symbols). Every one must be in the list: a name that is not stops the whole change.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "symbols"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
    "reversible": true,
    "undo": "exact",
    "query": false,
@@ -1441,8 +1472,8 @@
    "name": "watchlist.reorder",
    "domain": "watchlist",
    "target": "watchlist",
-   "summary": "Reorder one of the member's saved watchlists: sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.",
-   "hints": "target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). \"Sort my Momentum list\" = az. Sorting by price, change or other data is not available.",
+   "summary": "Reorder one of the member's saved watchlists (the saved order, permanently): sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.",
+   "hints": "target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). \"Sort my Momentum list\" = az. This rewrites the saved order. To order what a widget shows by price, change or other data, use watchlist.sortColumn.",
    "args": {
     "type": "object",
     "properties": {
@@ -1499,6 +1530,219 @@
     "required": [
      "symbol",
      "note"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.sortColumn",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Sort what a Watchlist or Scanner widget shows by one of its columns (price, % change, RVOL, market cap…), the header click. It changes the view, not the saved order. column null = back to the saved order. Undo puts the old sort back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = the column as they said it; direction = asc | desc | null (null = the header's own first click: Symbol A to Z, others high to low; \"biggest / top / highest\" = desc, \"lowest / smallest\" = asc). A column not showing is added. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. For a permanent A to Z of the saved list use watchlist.reorder.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "column": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "direction": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "asc",
+       "desc",
+       null
+      ]
+     }
+    },
+    "required": [
+     "column",
+     "direction"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "direction": {
+     "ascending": "asc",
+     "descending": "desc",
+     "up": "asc",
+     "down": "desc",
+     "low to high": "asc",
+     "high to low": "desc",
+     "a to z": "asc",
+     "z to a": "desc"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"column\":\"RVOL\",\"direction\":\"desc\"}"
+  },
+  {
+   "name": "watchlist.setColumns",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Add or hide columns on a Watchlist or Scanner widget, or reset them to the defaults (the right-click column menu). Undo puts the old columns back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. add / hide = columns as they said them ([] for none); reset = true only for \"reset my columns\" (the defaults, then add / hide). Symbol and the flag star can't be hidden. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. Nothing else exists: a column not listed is refused, never swapped for a near one.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "add": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "hide": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "reset": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "add",
+     "hide",
+     "reset"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"add\":[\"RVOL\"],\"hide\":[\"Volume\"],\"reset\":false}"
+  },
+  {
+   "name": "watchlist.step",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Move to the next or previous ticker in a Watchlist or Scanner widget, in the order it shows them (the arrow keys; the linked chart follows). Also first / last. Undo goes back to the ticker before.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. direction = next | previous | first | last; by = how many rows (null = 1): \"next ticker\" = next, \"skip two\" = next by 3. It wraps at the ends, as the arrow keys do. Never compute the ticker yourself.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "next",
+       "previous",
+       "first",
+       "last"
+      ]
+     },
+     "by": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "direction",
+     "by"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "direction": {
+     "down": "next",
+     "forward": "next",
+     "prev": "previous",
+     "up": "previous",
+     "back": "previous",
+     "top": "first",
+     "bottom": "last"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.readView",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Say what a Watchlist or Scanner widget shows right now: its tickers in on-screen order (its column sort applied), its sort and columns. Use it for \"what's at the top of this list\". Its rows are in the listViews context too, so \"remove the top three\" can name them directly.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. as: name these STOCKS (e.g. \"view1\") when a later op in the same request uses them, e.g. watchlist.add symbols {from:\"view1\", top:3}; else null. It never reports prices.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.setFlag",
+   "domain": "watchlist",
+   "target": "flaggedList",
+   "summary": "Flag or unflag tickers: the star on a row and Shift+F, one Flagged set across the whole app. Undo puts it back.",
+   "hints": "target = the ref of the flagged entry; symbols = the tickers, uppercase; flagged = true to flag, false to unflag. Never type tickers you have not been given: \"this one\" is the chart's symbol, \"the top three\" is the first rows of the listViews entry.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "flagged": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "symbols",
+     "flagged"
     ],
     "additionalProperties": false
    },
