@@ -80,6 +80,49 @@ def compare(a: Path, b: Path) -> tuple[int, str]:
     return p.returncode, p.stdout.strip()
 
 
+def ulp_gap(a: float, b: float) -> int | None:
+    """Distance in representable doubles; None when exactly one side is NaN; 0 for two NaNs."""
+    if a != a or b != b:
+        return 0 if (a != a and b != b) else None
+    if a in (float("inf"), float("-inf")) or b in (float("inf"), float("-inf")):
+        return None  # the JS rule (ulpStats): an infinity on either side is "inf/nan", not a distance
+    ia = struct.unpack("<q", struct.pack("<d", a))[0]
+    ib = struct.unpack("<q", struct.pack("<d", b))[0]
+    if ia < 0:
+        ia = -(1 << 63) - ia
+    if ib < 0:
+        ib = -(1 << 63) - ib
+    return abs(ia - ib)
+
+
+def column_diff(node_raw: dict, other_raw: dict, names) -> dict:
+    """W5-T5 (HP-8): for each named case where both hosts answered ok, every column that differs:
+    rows differing, the largest ulp gap, and the first example."""
+    def cols(r):
+        return {k: struct.unpack(f"<{len(base64.b64decode(t)) // 8}d", base64.b64decode(t)) for k, t in r["encoded"]["columns"].items()}
+    out = {}
+    for n in names:
+        a, b = node_raw["results"].get(n), other_raw.get(n)
+        if not a or not b or not a["ok"] or not b["ok"]:
+            continue
+        ca, cb = cols(a), cols(b)
+        per = {}
+        for k in sorted(set(ca) | set(cb)):
+            xa, xb = ca.get(k), cb.get(k)
+            if xa is None or xb is None or len(xa) != len(xb):
+                per[k] = {"shape": "differs"}
+                continue
+            bad = [(i, ulp_gap(x, y)) for i, (x, y) in enumerate(zip(xa, xb)) if struct.pack("<d", x) != struct.pack("<d", y) and not (x != x and y != y)]
+            if bad:
+                gaps = [g for _, g in bad if g is not None]
+                i0 = bad[0][0]
+                per[k] = {"rows_differ": len(bad), "rows": len(xa), "max_ulp": max(gaps) if gaps else None,
+                          "nan_vs_number": sum(1 for _, g in bad if g is None),
+                          "first": {"row": i0, "node": repr(xa[i0]), "other": repr(xb[i0])}}
+        out[n] = per
+    return out
+
+
 def worker_chunk(dist: Path) -> Path:
     found = sorted((dist / "assets").glob("runtimeWorker-*.js"))
     if len(found) != 1:
@@ -101,6 +144,8 @@ def main(argv=None) -> int:
     ap.add_argument("--dist", required=True, help="a production build's output dir (holds assets/runtimeWorker-*.js)")
     ap.add_argument("--out", required=True, help="a directory for jobs, raw answers and records")
     ap.add_argument("--only", default="", help="comma-separated cases or scripts")
+    ap.add_argument("--browser", default="chromium", choices=["chromium", "webkit", "firefox"],
+                    help="W5-T5 / HP-8: webkit and firefox are REPORT-ONLY (design H8); the verdict is printed, not gated")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -112,7 +157,8 @@ def main(argv=None) -> int:
     print(node("--emit-jobs", str(jobs_file), *only).strip())
     jobs = json.loads(jobs_file.read_text(encoding="utf-8"))
     node_file = out / "node.json"
-    print("node half:", node("--host", "node", "--quiet", "--out", str(node_file), *only).strip() or "ok")
+    node_raw_file = out / "node-raw.json"
+    print("node half:", node("--host", "node", "--quiet", "--out", str(node_file), "--raw-out", str(node_raw_file), *only).strip() or "ok")
     identity = json.loads(node_file.read_text(encoding="utf-8"))["identity"]
 
     from playwright.sync_api import sync_playwright
@@ -129,7 +175,7 @@ def main(argv=None) -> int:
     results = {}
     t_all = time.time()
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = getattr(p, args.browser).launch()
         browser_version = browser.version
         try:
             page = browser.new_page()
@@ -154,8 +200,8 @@ def main(argv=None) -> int:
     print(f"chromium: {len(results)} cases in {time.time() - t_all:.1f} s")
 
     raw_file = out / "chromium-raw.json"
-    print(f"chromium {browser_version}")
-    raw_file.write_text(json.dumps({"host": "chromium", "browser": browser_version, "worker": chunk.name, "identity": identity,
+    print(f"{args.browser} {browser_version}")
+    raw_file.write_text(json.dumps({"host": args.browser, "browser": browser_version, "worker": chunk.name, "identity": identity,
                                     "results": results}), encoding="utf-8")
     chromium_file = out / "chromium.json"
     print(node("--digest-raw", str(raw_file), "--out", str(chromium_file)).strip())
@@ -168,16 +214,20 @@ def main(argv=None) -> int:
     print(f"python codec: {n_ok - len(py_bad)}/{n_ok} ok digests equal the JS codec's" + (f"; RED {py_bad[:5]}" if py_bad else ""))
 
     code_n, text_n = compare(node_file, chromium_file)
-    print("node vs chromium:", text_n.splitlines()[-1] if text_n else "")
+    print(f"node vs {args.browser}:", text_n.splitlines()[-1] if text_n else "")
     if code_n or "REPORTED" in text_n:
         print(text_n)
     if args.only:
         code_e, text_e = 0, "expected: skipped (--only)"
     else:
         code_e, text_e = compare(EXPECTED, chromium_file)
-        print("committed vs chromium:", text_e.splitlines()[-1] if text_e else "")
+        print(f"committed vs {args.browser}:", text_e.splitlines()[-1] if text_e else "")
         if code_e or "REPORTED" in text_e:
             print(text_e)
+    differing = sorted({line.split()[1].rstrip(":") for line in text_n.splitlines() if line.startswith(("RED ", "INCONCLUSIVE ", "REPORTED "))})
+    coldiff = column_diff(json.loads(node_raw_file.read_text(encoding="utf-8")), results, differing)
+    (out / "column-diff.json").write_text(json.dumps(coldiff, indent=1), encoding="utf-8")
+    print(f"column diff: {len(differing)} differing case(s), {sum(len(v) for v in coldiff.values())} differing column(s)")
     codes = [code_n, code_e, 1 if py_bad else 0]
     verdict = 1 if 1 in codes else 2 if 2 in codes else 0
     (out / "verdict.json").write_text(json.dumps({"browser": browser_version, "node_vs_chromium": text_n.splitlines()[-1] if text_n else "",
@@ -185,6 +235,9 @@ def main(argv=None) -> int:
                                                   "reported": [l for l in (text_n + chr(10) + text_e).splitlines() if l.startswith("REPORTED")],
                                                   "python_codec_red": py_bad, "exit": verdict}, indent=1), encoding="utf-8")
     print({0: "HP-2/HP-3 GREEN", 1: "HP-2/HP-3 RED", 2: "HP-2/HP-3 INCONCLUSIVE"}[verdict])
+    if args.browser != "chromium":
+        print("HP-8 is REPORT-ONLY: exit 0 whatever the verdict (design H8)")
+        return 0
     return verdict
 
 

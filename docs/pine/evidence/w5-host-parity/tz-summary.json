@@ -1,0 +1,38 @@
+{
+ "chromium_vs_node": {
+  "transitions": 82,
+  "transitions_equal_to_node": true,
+  "sweep_values": 5031600,
+  "sweep_differ": 0,
+  "sweep_sha": "1350848536b28ce0",
+  "sweep_first_differ": [],
+  "edges": 119800,
+  "edge_ms_differ": 0,
+  "edge_fields_differ": 0,
+  "edge_sha": "f39f48655a1a6ad4"
+ },
+ "firefox_vs_node": {
+  "transitions": 82,
+  "transitions_equal_to_node": true,
+  "sweep_values": 5031600,
+  "sweep_differ": 0,
+  "sweep_sha": "1350848536b28ce0",
+  "sweep_first_differ": [],
+  "edges": 119800,
+  "edge_ms_differ": 0,
+  "edge_fields_differ": 0,
+  "edge_sha": "f39f48655a1a6ad4"
+ },
+ "webkit_vs_node": {
+  "transitions": 82,
+  "transitions_equal_to_node": true,
+  "sweep_values": 5031600,
+  "sweep_differ": 0,
+  "sweep_sha": "1350848536b28ce0",
+  "sweep_first_differ": [],
+  "edges": 119800,
+  "edge_ms_differ": 0,
+  "edge_fields_differ": 0,
+  "edge_sha": "f39f48655a1a6ad4"
+ }
+}
