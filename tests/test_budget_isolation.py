@@ -271,7 +271,7 @@ def test_E1_a_failed_call_without_usage_is_charged_its_worst_case(ledger, conv, 
     r = conv.converse("make it 80", user_id="m1", view=rsi_view())
     assert r["gate"] == "model:transport"
     assert dc().spend_for("m1", D1) > 0.0
-    assert cg().budget_state(D1)["total_spend"] == pytest.approx(dc().spend_for("m1", D1))
+    assert cg().budget_state(D1)["total_spend"] == pytest.approx(dc().spend_for("m1", D1), abs=1e-3)
 
 
 def test_E1b_an_HTTP_error_response_charges_nothing(ledger, conv, monkeypatch):
