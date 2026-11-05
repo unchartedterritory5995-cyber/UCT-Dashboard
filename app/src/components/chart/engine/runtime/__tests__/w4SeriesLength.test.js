@@ -93,7 +93,9 @@ describe('⭐⭐ the qualifier is read from the reference, not typed', () => {
     if (!ref) return // the reference is licence-held and never committed: the heavy job sets it
     const gen = path.resolve(__dirname, '../../../../../../../tools/pine_survey/emit_length_qualifiers.js')
     expect(fs.existsSync(gen)).toBe(true)
-    execFileSync(process.execPath, [gen, '--ref', ref, '--check'], { stdio: 'pipe' })
+    const ref5 = process.env.PINE_V5_REFERENCE
+    expect(ref5, 'PINE_V5_REFERENCE must accompany PINE_V6_REFERENCE').toBeTruthy()
+    execFileSync(process.execPath, [gen, '--ref', ref, '--ref5', ref5, '--check'], { stdio: 'pipe' })
   })
 })
 
@@ -155,9 +157,30 @@ describe('⭐⭐ a per-bar length equals the fixed-length kernel at that bar\'s 
   })
 })
 
+describe('v5: served where the v5 reference declares `series int`', () => {
+  it('the v5 section says `series int` for every served window and `simple int` for ta.ema', () => {
+    for (const f of FNS) expect(QUALS.v5Length[f], f).toBe('series int')
+    expect(QUALS.v5Length['ta.ema']).toBe('simple int')
+  })
+  for (const f of FNS) {
+    it(`v5 ${f}(x, bar_index % 7 + 1) equals the fixed-length kernel at each bar`, () => {
+      const { outs, program } = run(`${X}plot(${f}(x, ${LEN}))\n`, 5)
+      expect(program.windows[0].dynamic).toBe(true)
+      same(outs[0], reference(f, 'close', lenAt), `v5 ${f}`)
+    })
+  }
+  it('v5 over a PRICE column, and the object door keeps master answer', () => {
+    same(run(`plot(ta.highest(high, ${LEN}))\n`, 5).outs[0], reference('ta.highest', 'high', lenAt), 'v5 highest(high)')
+    expect(refusal(`${X}plot(ta.sma(x, ${LEN}))\n`, 5, { objectDoor: true }).guard).toBe('runtime:history-dynamic-offset')
+  })
+  it('v5 ta.ema (simple int) is still refused', () => {
+    expect(build(`${X}plot(ta.ema(x, ${LEN}))\n`, 5).ok).toBe(false)
+  })
+})
+
 describe('⭐⭐ what it does NOT serve keeps its refusal by name', () => {
-  it('⭐ v5 control: the same script in v5 is refused (a v5 length is `simple`)', () => {
-    const r = refusal(`${X}plot(ta.sma(x, ${LEN}))\n`, 5)
+  it('⭐ v4 control: the same script in v4 is refused (no v4 reference section)', () => {
+    const r = refusal(`${X}plot(ta.sma(x, ${LEN}))\n`, 4)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
   })
 

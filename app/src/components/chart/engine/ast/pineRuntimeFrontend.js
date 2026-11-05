@@ -5089,16 +5089,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *
    *  The qualifier is READ from the extracted reference (`windowLengthQualifiers.json`), never
    *  typed here: `ta.sma`/`ta.highest`/`ta.stdev`... say `length (series int)`, `ta.ema`/`ta.rsi`
-   *  say `simple int` and keep their refusal. v6 only (an older version's length is `simple`),
+   *  say `simple int` and keep their refusal. v6 and v5 only, each from its own version reference (v4 and below have no section),
    *  never in a request's value (it has its own series), and ⛔ never at the live OBJECT door:
    *  that door keeps master's answer until a TradingView capture settles the shape (W4-S1).
    *  https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma */
-  const seriesLengthFn = (pineName) => !atObjectDoor && !inRequestValue
-    && pineVersion !== null && pineVersion >= 6
-    && (LENGTH_QUALIFIERS.length[String(pineName)] === 'series int'
-      // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it:
-      // the bare name asks the same reference entry, spelled with its `ta.` namespace
-      || LENGTH_QUALIFIERS.length[`ta.${String(pineName)}`] === 'series int')
+  const seriesLengthFn = (pineName) => {
+    if (atObjectDoor || inRequestValue || pineVersion === null) return false
+    // ⭐ W4-T8 r1 - the table of the script own version: v6 from the v6 reference, v5 from the v5 reference
+    // (both generated). v4 and below have no section, so they serve nothing.
+    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length : (pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length : null)
+    if (!table) return false
+    const name = String(pineName)
+    // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it: the
+    // bare name asks the same reference entry, spelled with its `ta.` namespace
+    return table[name] === 'series int' || table['ta.' + name] === 'series int'
+  }
 
   /** ⭐⭐ THE AUTHORITATIVE FINITE-WINDOW CLASSIFIER (2F-2B).
    *
