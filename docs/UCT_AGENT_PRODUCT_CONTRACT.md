@@ -10,6 +10,32 @@ UCT Agent is, in priority order:
 
 A change that conflicts with this contract is a defect or needs an owner decision. A behaviour counts as delivered only when it has been verified in the environment the owner uses, not when a PR merges or tests pass.
 
+## Foundational principle: generalization first
+
+UCT Agent is a general-purpose operator grounded in UCT's actual capabilities, not a collection of programmed sentences. Owner examples demonstrate a capability family; they are not the boundary of the feature.
+
+- **Compose, don't enumerate.** If the underlying system supports the primitives, the Agent combines them without new application code for each combination.
+- **Fix the reusable layer.** When a request fails, find the root cause first: capability, metadata, schema, interpretation, target resolution, planner composition, UI state, validation, an unsupported primitive, guide metadata, data access or read-back. A handler for one sentence is not a fix.
+- **Prove the family.** A fix is tested with the original request, other phrasings, other parameters, other combinations, negative cases, and held-out requests not used to design it.
+- **Never pretend.** A genuinely missing primitive is said to be missing, never silently substituted, and is added through the canonical system.
+- **Stay constrained.** The model may reason about intent and composition, but execution stays on supported, validated UCT operations, within existing spending limits.
+
+### Explain, teach, do
+
+| Mode | Example | Behaviour |
+|---|---|---|
+| Explain | What is RSI? | Answers in chat |
+| Teach | How do I add RSI? | Visual walkthrough on the real controls |
+| Do | Add RSI to this chart. | Executes through the canonical interface |
+
+Natural variations reach the right mode without an extra question when intent is clear. A user can cancel a walkthrough or switch from teach to do.
+
+### Visual teaching
+
+The existing "Changing the timeframe" guide is the visual reference: gold outline on the real control, a floating dark panel, a step counter, and Next and Close. Teaching uses one shared engine with registered control ids, validated task paths and flexible understanding. It never invents controls or click sequences.
+
+A walkthrough must read the current UI state and start at the relevant step, advance when the user completes a step where supported, recover from unexpected state, and allow forward, back, cancel and restart. The overlay must not cover the control the user needs. Written instructions are not teaching coverage.
+
 ## Roadmap sequence
 
 The owner has set this order. It takes precedence over any other prioritization.
@@ -32,7 +58,8 @@ A phase is substantially complete when all of its criteria pass with evidence.
 - C1, C2, C3 and C4 pass on production, verified by the owner or by a live admin test.
 - A multistep regression set of real Charts workflows passes with no wrong-target action and no false receipt.
 - Simple local commands have a measured median against the speed targets, and any miss is explained.
-- Each Charts area has a working interactive tutorial or a recorded reason for none.
+- Execution coverage and visual teaching coverage are tracked separately. Teaching is VERIFIED only by a walkthrough working in a real browser. Both approach full coverage of supported actions, and every exclusion has a recorded reason.
+- Held-out generalization tests pass for each capability family, including prompts not used in design.
 
 Coverage is reported as verified actions over discovered human actions, by feature area. The denominator counts actions, not phrasings, and may grow as the inventory finds more. Registered capabilities, PRs and commits are not coverage.
 
