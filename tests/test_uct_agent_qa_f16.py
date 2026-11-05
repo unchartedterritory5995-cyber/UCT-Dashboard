@@ -102,10 +102,11 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 #: ⛔ THE SCREENER AS LAST REVIEWED (AUDIT ruling, 2026-11-05). The guard used to diff against `agent/int`, a moving ref long
 #: behind master, so any branch that merged master read as an Agent edit. A pin keeps the guard meaningful: the member
 #: Screener's server code must match this commit exactly. Moving it is a review decision, made in the commit that changes
-#: that code on purpose, and that commit's message says why. This pin is #827's own Screener commit, 920fdcc1bb, the scan primitives.
+#: that code on purpose, and that commit's message says why. This pin is #834's last Screener commit, ab52621501, which holds #827's primitives (920fdcc1bb) and #834's token test,
+#: `logic_enabled`, `live_fields` and clock definitions.
 #: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
 #: then report that very change.
-SCREENER_PIN = "920fdcc1bb4c3d8a13d173188ffc98712e46bad6"
+SCREENER_PIN = "ab52621501fa7261a8d8583a03dba15cd5568890"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
