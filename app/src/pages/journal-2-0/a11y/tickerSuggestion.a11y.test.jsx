@@ -22,8 +22,8 @@ describe('the ticker suggestion', () => {
     )
     const group = screen.getByRole('group', { name: 'Ticker suggestion' })
     if (!group.textContent.includes('Link this note to $NVDA?')) throw new Error('the offer sentence is missing')
-    screen.getByRole('button', { name: 'Link' })
-    screen.getByRole('button', { name: 'No' })
+    screen.getByRole('button', { name: 'Link note to $NVDA' })
+    screen.getByRole('button', { name: "No, don't link" })
     return { root: container }
   })
 })

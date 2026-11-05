@@ -52,14 +52,14 @@ describe('TickerSuggestion', () => {
   it('Link sets the ticker through the given door', () => {
     const onLink = vi.fn(() => Promise.resolve())
     mount(fakeEditor('$NVDA and $NVDA'), { onLink })
-    fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Link note to $NVDA' }))
     expect(onLink).toHaveBeenCalledWith('NVDA')
   })
 
   it('No hides it for this note, and it stays hidden on the next mount', () => {
     const editor = fakeEditor('$NVDA and $NVDA')
     mount(editor)
-    fireEvent.click(screen.getByRole('button', { name: 'No' }))
+    fireEvent.click(screen.getByRole('button', { name: "No, don't link" }))
     expect(screen.queryByRole('group', { name: 'Ticker suggestion' })).toBeNull()
     expect(localStorage.getItem(`${TICKER_SUGGEST_DISMISS_KEY}n1`)).toBe('1')
     cleanup()
@@ -77,5 +77,24 @@ describe('TickerSuggestion', () => {
     cleanup()
     mount(fakeEditor('$NVDA and $NVDA'), { readOnly: true })
     expect(screen.queryByRole('group', { name: 'Ticker suggestion' })).toBeNull()
+  })
+})
+
+// Fix round 1 (review minor 10): the offer appeared silently while the member wrote, and its
+// buttons were named "Link" and "No" out of context.
+describe('TickerSuggestion for a screen reader (fix round 1)', () => {
+  it('the offer is announced through a polite status region that is there before it appears', () => {
+    const editor = fakeEditor('Plain words.')
+    render(<TickerSuggestion editor={editor} noteId="n1" ticker={null} onLink={vi.fn()} />)
+    const region = screen.getByRole('status')
+    expect(region).toHaveTextContent('')
+    act(() => { editor.type('$NVDA looks tight. $NVDA again.'); vi.advanceTimersByTime(500) })
+    expect(screen.getByRole('status')).toHaveTextContent('Link this note to $NVDA?')
+  })
+
+  it('the buttons say what they do', () => {
+    render(<TickerSuggestion editor={fakeEditor('$NVDA and $NVDA')} noteId="n1" ticker={null} onLink={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Link note to $NVDA' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "No, don't link" })).toBeInTheDocument()
   })
 })

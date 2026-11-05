@@ -57,7 +57,8 @@ export default function TickerSuggestion({ editor, noteId, ticker, readOnly = fa
     return () => { clearTimeout(t); editor.off('update', onUpdate) }
   }, [editor, ticker, readOnly, no])
 
-  if (!symbol || ticker || readOnly || no || !noteId) return null
+  const showing = Boolean(symbol && !ticker && !readOnly && !no && noteId)
+  const sentence = showing ? `Link this note to $${symbol}?` : ''
 
   const link = async () => {
     if (busy) return
@@ -69,11 +70,22 @@ export default function TickerSuggestion({ editor, noteId, ticker, readOnly = fa
     setNo(true)
   }
 
+  // Fix round 1 (review minor 10): a polite status region that is THERE before the offer appears,
+  // so a screen reader hears it once when it does (a region mounted with its words is not read).
+  if (!editor || !noteId) return null
   return (
-    <div role="group" aria-label="Ticker suggestion" className={styles.offer} data-export-exclude>
-      <span className={styles.text}>{`Link this note to $${symbol}?`}</span>
-      <button type="button" className={styles.btn} onClick={link} disabled={busy}>Link</button>
-      <button type="button" className={styles.btn} onClick={decline} disabled={busy}>No</button>
-    </div>
+    <>
+      <span role="status" aria-live="polite" className="sr-only">{sentence}</span>
+      {showing && (
+        <div role="group" aria-label="Ticker suggestion" className={styles.offer} data-export-exclude>
+          <span className={styles.text} aria-hidden="true">{sentence}</span>
+          {/* Names that say what they do out of context; each holds its visible word (label in name). */}
+          <button type="button" className={styles.btn} onClick={link} disabled={busy}
+            aria-label={`Link note to $${symbol}`}>Link</button>
+          <button type="button" className={styles.btn} onClick={decline} disabled={busy}
+            aria-label="No, don't link">No</button>
+        </div>
+      )}
+    </>
   )
 }
