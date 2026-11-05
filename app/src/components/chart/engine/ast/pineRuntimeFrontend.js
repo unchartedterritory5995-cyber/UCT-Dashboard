@@ -4906,6 +4906,43 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐⭐ RT3 — a `for` counter's range, for `loopRanges`. Both bounds fold or the
    *  range is `{blocked}`; a body that assigns the counter (`:=` or a compound
    *  form, at any depth) has no range at all. */
+  /** ⭐⭐ W4-T9 — A LOCAL THE FRAME DERIVES FROM ITS PARAMETERS, by slot → the
+   *  binding's parse expression and the scope it was written in. Recorded where a
+   *  function body binds `name = expr` (never `var`, never reassigned anywhere in
+   *  the script; `/` and `%` are refused downstream by the fold: T17), and read only by `frameSubstitute`. */
+  const frameLocalDefs = new Map()
+
+  /** ⭐⭐ W4-T9 — THE FRAME'S NAMES, ANSWERED IN ONE PLACE (`constValueOf`'s and
+   *  `foldConstNode`'s substitution, which were two copies). A parameter the call
+   *  site FIXED is its constant (C35 `frameConsts`); a frame local that is
+   *  `name = <expression over parameters>` is that expression, so a bound written
+   *  `periods = length - 1` ... `for j = 0 to periods` is bounded by `length` and
+   *  the refusal NAMES `length` (the parameter a call site can fix), not the local.
+   *  Any other frame name is `foreign` (the first one met), exactly as before.
+   *  Off at the object door: master's answer there. */
+  const frameSubstitute = (e, scope) => {
+    let foreign = null
+    const sub = (x, sc, d) => {
+      if (!x || typeof x !== 'object' || d > 64) return x
+      if (Array.isArray(x)) return x.map((y) => sub(y, sc, d + 1))
+      if (x.type === 'name' && typeof x.name === 'string') {
+        const s = sc.lookup(x.name)
+        if (s !== null && slots[s] && slots[s].owner === owner) {
+          if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
+          const def = atObjectDoor ? undefined : frameLocalDefs.get(s)
+          if (def !== undefined) return sub(def.expr, def.scope, d + 1)
+          if (foreign === null) foreign = x.name
+        }
+        return x
+      }
+      const out = {}
+      for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, sc, d + 1)
+      return out
+    }
+    const node = sub(e, scope, 0)
+    return { node, foreign }
+  }
+
   /** ⭐⭐ RT3 — a parse expression's value before bar 0, WITHOUT side effects (no
    *  refusal raised, no diagnostic noted): `{value}` when it folds — the frozen
    *  resolver over the frame's own constants first (`constantArgOf`'s rule, so
@@ -4915,24 +4952,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const constValueOf = (e, scope) => {
     let n = substFromSizes(e, scope)
     if (owner !== null && scope) {
-      let foreign = null
-      const sub = (x, d) => {
-        if (!x || typeof x !== 'object' || d > 64) return x
-        if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
-        if (x.type === 'name' && typeof x.name === 'string') {
-          const s = scope.lookup(x.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
-            if (foreign === null) foreign = x.name
-          }
-          return x
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
-        return out
-      }
-      n = sub(e, 0)
-      if (foreign !== null) return { frameName: foreign }
+      const fs = frameSubstitute(e, scope)   // ⭐ W4-T9 — one authority for the frame's names
+      n = fs.node
+      if (fs.foreign !== null) return { frameName: fs.foreign }
     }
     n = simpleValueOf(n, scope)   // ⭐ W4-T2
     let canonical
@@ -5029,25 +5051,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // constant, and any other frame name refuses by name, exactly as an unbound
     // one did. A main-program name (owner `null`) is untouched.
     if (scope && owner !== null) {
-      let foreign = null
-      const sub = (n, depth) => {
-        if (!n || typeof n !== 'object' || depth > 64) return n
-        if (Array.isArray(n)) return n.map((x) => sub(x, depth + 1))
-        if (n.type === 'name' && typeof n.name === 'string') {
-          const s = scope.lookup(n.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) {
-              return frameConstNode(frameConsts.get(s), n.tok)
-            }
-            if (foreign === null) foreign = n.name
-          }
-          return n
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(n)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
-        return out
-      }
-      const e2 = sub(e, 0)
+      const fs = frameSubstitute(e, scope)   // ⭐ W4-T9 — one authority for the frame's names
+      const e2 = fs.node
+      const foreign = fs.foreign
       if (foreign !== null) {
         note('runtime:history-dynamic-offset')
         const err = new RuntimeRefusal('runtime:history-dynamic-offset',
@@ -10142,6 +10148,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           slots[slot].elemText = arrayHoldsText(value, scope)
         }
         markUdtSlot(slot, value, scope, toks, eq)
+        // ⭐⭐ W4-T9 — a frame local bound once to arithmetic over the frame is
+        // what a bound or an offset reads through (`frameSubstitute`)
+        if (!mutable) {
+          frameLocalDefs.set(slot, { expr: value, scope })
+        }
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
