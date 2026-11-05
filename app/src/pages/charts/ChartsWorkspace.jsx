@@ -3115,7 +3115,7 @@ function ChartsWorkspaceBoard() {
   // UCT Agent's settings + navigation reach: the SAME preference writer the Settings page
   // uses (resolves true only once the server accepted it) and the router's navigate().
   const agentPrefsRef = useRef(null)
-  agentPrefsRef.current = { prefs, setPref }
+  agentPrefsRef.current = { prefs, setPref, setPrefMerged }
   const agentNavRef = useRef(null)
   // ⭐ W1-B B-06: Replay Mode for UCT Agent — the SAME handlers the Replay dialog uses (startReplay with no timeframe
   // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
@@ -3170,6 +3170,10 @@ function ChartsWorkspaceBoard() {
         }[k]
         return w ? w(v) : Promise.resolve(false)
       },
+      // the member's saved indicator templates: a list another tab may be writing, so merged, as the Indicator templates bar writes it
+      merge: (k, updater) => (k === 'indicator_templates'
+        ? agentPrefsRef.current.setPrefMerged('indicator_templates', updater)
+        : Promise.resolve(false)),
     },
     navigate: (to) => agentNavRef.current?.(to),
     replay: {

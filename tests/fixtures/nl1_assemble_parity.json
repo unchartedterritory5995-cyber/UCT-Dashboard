@@ -133,6 +133,10 @@
   "pane.resize": "indicatorSetup",
   "indicatorCopy.duplicate": "indicatorSetup",
   "indicatorCopy.copyTo": "indicatorSetup",
+  "indicatorTemplate.list": "chartSetup",
+  "indicatorTemplate.apply": "chartSetup",
+  "indicatorTemplate.save": "chartSetup",
+  "indicatorTemplate.delete": "chartSetup",
   "definition.search": "definitions",
   "definition.describe": "definitions",
   "definition.duplicate": "definitions",
@@ -149,7 +153,7 @@
   },
   {
    "id": "chartSetup",
-   "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+   "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
   },
   {
    "id": "chartGrid",
@@ -289,7 +293,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -447,7 +451,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -612,7 +616,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -786,7 +790,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -940,7 +944,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -1180,6 +1184,10 @@
     "pane.resize",
     "indicatorCopy.duplicate",
     "indicatorCopy.copyTo",
+    "indicatorTemplate.list",
+    "indicatorTemplate.apply",
+    "indicatorTemplate.save",
+    "indicatorTemplate.delete",
     "definition.search",
     "definition.describe",
     "definition.duplicate",

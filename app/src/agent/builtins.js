@@ -23,6 +23,7 @@ import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
 import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
+import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
 import { registerDefinitionCapabilities } from './capabilities/definitions'
 import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
@@ -67,6 +68,7 @@ export function registerBuiltins() {
   registerIndicatorAuthoringCapabilities()
   registerChartSetupCapabilities()
   registerIndicatorControlCapabilities()
+  registerIndicatorTemplateCapabilities()
   registerDefinitionCapabilities()
   registerAboutCapabilities()
   registerGuideCapabilities()

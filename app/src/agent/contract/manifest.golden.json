@@ -1850,7 +1850,7 @@
    "domain": "alert",
    "target": "alertLibrary",
    "summary": "Create ONE price alert in UCT's Alerts: it goes off ONCE when the stock is at or above (direction above) or at or below (direction below) a price level, checked while the market is open. Only price levels — no percent-move, indicator, volume or time alerts; alerts cannot be paused, edited or made repeating.",
-   "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.",
+   "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). An alert on an indicator (RSI, MACD, a moving-average cross…) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.",
    "args": {
     "type": "object",
     "properties": {
@@ -1971,7 +1971,7 @@
    "name": "indicatorAlert.toggle",
    "domain": "indicatorAlert",
    "target": "indicatorAlert",
-   "summary": "Pause or resume ONE indicator alert (the alert manager's own switch). Undo switches it back.",
+   "summary": "Pause or resume ONE indicator alert (the ON / OFF switch on its row in the chart's Indicator Alerts popover). Undo switches it back.",
    "hints": "target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.",
    "args": {
     "type": "object",
@@ -5342,6 +5342,116 @@
     "additionalProperties": false
    },
    "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.list",
+   "domain": "indicatorTemplate",
+   "target": "indicatorTemplates",
+   "summary": "List the member's saved INDICATOR templates and the indicators in each, from the real list. Use this (disposition apply) for \"what indicator templates do I have\".",
+   "hints": "target = the ref of the indicatorTemplateLibrary entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.apply",
+   "domain": "indicatorTemplate",
+   "target": "indicatorEdits",
+   "summary": "Add the indicators of ONE saved INDICATOR template to ONE chart, each exactly as saved. Nothing on the chart is removed; one already there is skipped and said. Undo removes what was added. A CHART template (look and settings) is chart.applyTemplate instead.",
+   "hints": "target = the chart's indicatorEdits entry. template = a name from indicatorTemplateLibrary, exactly. Several charts = one op per chart; if it isn't clear which charts, ask. A name in both that entry and chartTemplates: ask which they mean.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "template": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "template"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.save",
+   "domain": "indicatorTemplate",
+   "target": "indicatorTemplates",
+   "summary": "Save the indicators on ONE chart as a named INDICATOR template (settings, colours, panes; no alerts). A template with that name is replaced only after the member approves it. Undo puts the list back. A chart's whole look is chartSetup.saveTemplate instead.",
+   "hints": "target = the ref of the indicatorTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most 40 characters). It saves every indicator on that chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "chart": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "chart"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.delete",
+   "domain": "indicatorTemplate",
+   "target": "indicatorTemplates",
+   "summary": "Delete one of the member's saved INDICATOR templates. Indicators already on charts stay. Shown first; Undo puts it back. A chart template is chartSetup.deleteTemplate instead.",
+   "hints": "target = the ref of the indicatorTemplateLibrary entry; name = a name from that entry, exactly.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
    "reversible": true,
    "undo": "exact",
    "query": false,
