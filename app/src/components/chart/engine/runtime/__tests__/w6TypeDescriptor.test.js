@@ -148,6 +148,27 @@ describe('⛔ C18 — the object door reads a declared-only collection as master
   })
 })
 
+
+describe('⭐ the getters drive what a slot\'s READERS lower (behaviour, not only the descriptor)', () => {
+  it('a text slot on both sides of `+` is a concatenation', () => {
+    expect(run(build('var s = "ab"\nvar t = "cde"\nu = s + t\nplot(str.length(u))\n'))[0]).toEqual([5, 5, 5, 5, 5, 5])
+  })
+  it('⛔ a text slot handed to `plot` refuses by name (the reader is the text getter)', () => {
+    const b = build('var s = "ab"\ns := s + "c"\nplot(s)\n')
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:statement')
+    expect(b.refusal.message).toContain('a plot draws numbers')
+  })
+  it('a hoisted switch subject keeps its text type, so its text cases match', () => {
+    const src = 'v = switch str.lower(input.string("AB"))\n    "ab" => 1\n    => 0\nplot(v)\n'
+    expect(run(build(src))[0]).toEqual([1, 1, 1, 1, 1, 1])
+  })
+  it('a function whose last line binds a colour slot returns a colour (`bgcolor(f(x))` builds)', () => {
+    const b = build('f(x) =>\n    c = x > open ? color.green : color.red\nbgcolor(f(close))\nplot(close)\n')
+    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+  })
+})
+
 describe('the pure module', () => {
   it('reads written types', () => {
     const udtTypes = new Set(['Foo'])
