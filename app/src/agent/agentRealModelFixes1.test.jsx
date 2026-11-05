@@ -31,7 +31,7 @@ function withHideAll(h, { land = true } = {}) {
     list: () => list().map(see),
     viewDo: (ref, op, arg) => {
       calls.push([ref, op, arg])
-      if (land && op === 'setIndicatorsHidden') hidden.set(ref, arg)
+      if ((typeof land === 'function' ? land(arg) : land) && op === 'setIndicatorsHidden') hidden.set(ref, arg)
       return true
     },
   }
@@ -523,5 +523,101 @@ describe('review of #866, D4: the order is what the plan says, and the answer sa
     const text = await say(words)
     expect(sortSent()).toEqual({ key: 'dist_52w_high_pct', dir })
     expect(text).toMatch(new RegExp(said))
+  }, 40000)
+})
+
+describe('review of #866, round 2: "nothing was left changed" only after a read-back says so', () => {
+  const NOTHING = /nothing was left changed/
+  const REVERSED = /could not be reversed/
+  const liftOnly = (arg) => arg === false       // the lift lands; putting hide-all back does not
+  // the chart takes the write and shows nothing for it
+  const silentWrite = (h) => { h.charts.commit = () => true }
+  const volumeBack = () => planIs('volume.setState', 'c', { state: 'visible' })
+  const averagesBack = () => planIs('chartSetup.setMovingAverages', 'c', { visible: true })
+  async function hiddenVolume(say, v) { await say('hide volume'); v.hidden.set('c', true) }
+  async function hiddenAverages(say, v) {
+    await say('add a 20 ema')
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: false }))
+    await say('hide my moving averages')
+    v.hidden.set('c', true)
+  }
+  it.each([
+    ['volume.setState', hiddenVolume, volumeBack],
+    ['setMovingAverages', hiddenAverages, averagesBack],
+  ])('%s: a write that says yes and never lands puts hide-all back, confirmed', async (_, setup, plan) => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await setup(say, v)
+    silentWrite(h)
+    p.st.envelopes.push(plan())
+    const text = await say('bring that back please')
+    expect(v.hidden.get('c')).toBe(true)
+    expect(text).toMatch(NOTHING)
+  }, 40000)
+  it.each([
+    ['volume.setState', hiddenVolume, volumeBack],
+    ['setMovingAverages', hiddenAverages, averagesBack],
+  ])('%s: when hide-all cannot be put back either, the reply says so', async (_, setup, plan) => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: liftOnly })
+    await setup(say, v)
+    silentWrite(h)
+    p.st.envelopes.push(plan())
+    const text = await say('bring that back please')
+    expect(v.hidden.get('c')).toBe(false)
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('a write the chart refuses, with a revert that fails: said, on the chart path', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: liftOnly })
+    await hiddenVolume(say, v)
+    h.charts.commit = () => false
+    p.st.envelopes.push(volumeBack())
+    const text = await say('bring that back please')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('indicator.show: a failed change with a revert that fails: said', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: liftOnly })
+    await withRsi(say)
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    h.charts.commit = () => false
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    const text = await say('bring that back please')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('indicator.show: a failed change with a revert the chart confirms stays "nothing was left changed"', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    h.charts.commit = () => false
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    expect(await say('bring that back please')).toMatch(NOTHING)
+    expect(v.hidden.get('c')).toBe(true)
+  }, 40000)
+  it('the same rule with no hide-all: half of a chart change lands, and the reply does not say nothing changed', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const { commit } = h.charts
+    h.charts.commit = (ref, { symbol: _dropped, ...rest }) => commit(ref, rest)
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } },
+      { action: 'chart.setSymbol', target: 'c', args: { symbol: 'MSFT' } },
+    ]))
+    const text = await say('put MSFT on the weekly for me')
+    expect(h.charts.read('c').tf).toBe('W')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('NEGATIVE: a chart change where nothing landed still says nothing was left changed', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    silentWrite(h)
+    p.st.envelopes.push(planIs('chart.setTimeframe', 'c', { timeframe: 'W' }))
+    expect(await say('put it on the weekly for me')).toMatch(NOTHING)
   }, 40000)
 })

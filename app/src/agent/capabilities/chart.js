@@ -315,20 +315,47 @@ export const chartKind = {
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
+  // ⛔ AUDIT review of #866: hide-all goes before a setting is written ("show volume" under it does both). A chart that does not
+  // confirm it stops here with nothing saved. Past that point the flip is undone by read-back or the failure says it was not:
+  // "nothing was left changed" is only ever said over a state the chart reported.
   async commit(host, ref, patch, { lines = [] } = {}) {
+    const { viewDo, ...rest } = patch
+    if (viewDo?.op !== 'setIndicatorsHidden') return chartKind.write(host, ref, patch)
+    const read = () => chartKind.read(host, ref)
+    const until = async (done, ms) => {
+      const t0 = Date.now()
+      while (Date.now() - t0 < ms && !done()) await new Promise(r => setTimeout(r, 50))
+      return done()
+    }
+    if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
+    if (!await until(() => viewDone(read()?.view, viewDo), 5000)) return false
+    const stored0 = read()?.stored ?? null
+    const undoFlip = async () => {
+      const back = { op: viewDo.op, arg: !viewDo.arg }
+      if (!host.charts.viewDo?.(ref, back.op, back.arg) || !await until(() => viewDone(read()?.view, back), 5000)) {
+        throw Object.assign(new Error('the change did not land, and hide-all could not be put back'), { unreverted: true })
+      }
+    }
+    let ok
+    try {
+      ok = !Object.keys(rest).length || await chartKind.write(host, ref, rest)
+    } catch (e) {
+      await undoFlip()
+      throw e
+    }
+    // the write reaches the chart on its next render, and a chart can take it and never show it
+    if (!ok || !await until(() => chartKind.landed(read(), rest), 2000)) {
+      await undoFlip()
+      if ('settings' in rest && !sameJson(read()?.stored ?? null, stored0)) throw Object.assign(new Error('the settings only partly changed'), { unreverted: true })
+      return false
+    }
+    if (lines.includes(HIDE_ALL_LIFTED)) return { lines: lines.map(l => (l === HIDE_ALL_LIFTED ? liftedLine(read()?.cs, 'this chart') : l)) }
+    return ok
+  },
+  async write(host, ref, patch) {
     const { goto, replay, volPanePref, viewDo, ...rest } = patch
     let ok = true
-    // ⛔ AUDIT review of #866: hide-all goes before a setting is written ("show volume" under it does both). A chart that does not
-    // confirm it stops here with nothing saved, so "nothing was left changed" stays true; a write it then refuses puts it back.
-    const hideAll = viewDo?.op === 'setIndicatorsHidden'
-    if (hideAll) {
-      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
-      const t0 = Date.now()
-      while (Date.now() - t0 < 5000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
-      if (!viewDone(host.charts.read(ref)?.view, viewDo)) return false
-    }
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
-    if (hideAll && !ok) host.charts.viewDo?.(ref, viewDo.op, !viewDo.arg)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
     if ('volPanePref' in patch && ok) {
       if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw new Error('the server did not confirm the change, so it is not saved')
@@ -338,7 +365,7 @@ export const chartKind = {
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
-    if (viewDo && !hideAll && ok) {
+    if (viewDo && ok) {
       if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
       const t0 = Date.now()
       while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
@@ -350,12 +377,6 @@ export const chartKind = {
         if (viewAt(host.charts.read(ref)?.view, goto)) break
         await new Promise(r => setTimeout(r, 150))
       }
-    }
-    if (ok && lines.includes(HIDE_ALL_LIFTED)) {
-      // the settings written above reach the chart on its next render: the line reads them after that
-      const t0 = Date.now()
-      while ('settings' in rest && Date.now() - t0 < 2000 && !sameJson(host.charts.read(ref)?.stored, rest.settings)) await new Promise(r => setTimeout(r, 50))
-      return { lines: lines.map(l => (l === HIDE_ALL_LIFTED ? liftedLine(host.charts.read(ref)?.cs, 'this chart') : l)) }
     }
     return ok
   },

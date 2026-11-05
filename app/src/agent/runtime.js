@@ -37,6 +37,11 @@ async function waitForTarget(kind, host, ref, budgetMs = 8000) {
 }
 
 const fpOf = (kind, host, snap, item) => (kind.fingerprintFor ? kind.fingerprintFor(host, snap, item) : kind.fingerprint(snap))
+// ⛔ "nothing was left changed" follows a read-back. A step that failed part-way is not compensated (only landed steps are), so its
+// target is read: not as the plan found it, or not readable, is not "nothing". A step that made resources says so itself.
+const leftChanged = (kind, host, p) => {
+  try { return kind.fingerprint(kind.read(host, p.ref)) !== kind.fingerprint(p.snap) } catch { return true }
+}
 
 let _seq = 0
 
@@ -108,7 +113,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       if (e?.created && Object.keys(e.created).length) {
         landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
       }
-      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted, note: e?.keptNote || null,
+      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted || (!e?.created && leftChanged(kind, host, p)), note: e?.keptNote || null,
         say: e?.complete && e?.message ? e.message : null, gate: e?.gate || null })
     }
     if (res && res.created) Object.assign(aliases, res.created)
@@ -121,7 +126,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       if (res && res.created && Object.keys(res.created).length) {
         landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: [], before: p.snap, after: snap, patch: p.patch, partial: res.created })
       }
-      return fail(p.snap.label, 'did not take effect')
+      return fail(p.snap.label, 'did not take effect', { dirty: !res?.created && leftChanged(kind, host, p) })
     }
     // A kind whose commit reports what ACTUALLY happened (`res.lines` — e.g. the Create Indicator
     // opener: prefilled, or a draft restored instead) is receipted from that, not from the plan.

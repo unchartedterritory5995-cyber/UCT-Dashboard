@@ -399,7 +399,9 @@ export const indicatorEditsKind = {
     try {
       res = await indicatorEditsKind.mutate(host, ref, patch)
     } catch (e) {
-      if (!e?.unreverted) await setHideAll(host, chartRef, !hidden).catch(() => {})
+      if (!e?.unreverted) {
+        try { await setHideAll(host, chartRef, !hidden) } catch { throw fail('the change did not land, and hide-all could not be put back', { unreverted: true }) }
+      }
       throw e
     }
     return hidden ? res : { lines: [...res.lines, lifted()], undoData: { lifted: true, token: res.undoData } }
