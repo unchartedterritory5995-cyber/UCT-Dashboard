@@ -16,11 +16,11 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
   const wantLast = useRef(false)
   // ⛔ Tour anchors are LITERAL attributes in JSX (tourAnchors.test.js reads them by AST and
   // refuses an expression), so the voice item's anchor is written on its own element below,
-  // not carried through this list as data. ("From a style" has no anchor: no tour points at it, and a
+  // not carried through this list as data. ("From a template" has no anchor: no tour points at it, and a
   // branch of its own for one costs the Notebook's first open ~200 B.)
   const items = [
     { key: 'outline', label: 'From an outline', run: onFromOutline, icon: 'document' },
-    onFromStyle && { key: 'style', label: 'From a style', run: onFromStyle, icon: 'sliders' },
+    onFromStyle && { key: 'style', label: 'From a template', run: onFromStyle, icon: 'sliders' },
     onVoice && { key: 'voice', label: 'Voice note', run: onVoice, icon: 'mic' },
     onToday && { key: 'today', label: "Today's note", run: onToday, icon: 'sun' },
   ].filter(Boolean)

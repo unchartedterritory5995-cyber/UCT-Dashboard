@@ -53,7 +53,7 @@ describe('Research Home\'s New note split button', () => {
     expect(screen.queryByRole('button', { name: /^New note$/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
     const items = within(screen.getByRole('menu', { name: 'Start a note' })).getAllByRole('menuitem')
-    expect(items.map((b) => b.textContent.trim())).toEqual(['From an outline', 'From a style', 'Voice note', "Today's note"])
+    expect(items.map((b) => b.textContent.trim())).toEqual(['From an outline', 'From a template', 'Voice note', "Today's note"])
     await expectNoAxeViolations(container, { level: 'component' })
   }, 30000)
 

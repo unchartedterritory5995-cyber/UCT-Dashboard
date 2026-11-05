@@ -71,14 +71,14 @@ describe('NewNoteMenu', () => {
   })
 })
 
-describe('NewNoteMenu: From a style (Notebook P1)', () => {
-  it('lists "From a style" only when a handler is passed', () => {
+describe('NewNoteMenu: From a template (Notebook P1)', () => {
+  it('lists "From a template" only when a handler is passed', () => {
     const { rerender } = render(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    expect(screen.queryByRole('menuitem', { name: /From a style/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /From a template/ })).toBeNull()
     const onFromStyle = vi.fn()
     rerender(<NewNoteMenu onBlank={() => {}} onFromOutline={() => {}} onFromStyle={onFromStyle} />)
-    fireEvent.click(screen.getByRole('menuitem', { name: /From a style/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /From a template/ }))
     expect(onFromStyle).toHaveBeenCalledTimes(1)
   })
 })
@@ -97,8 +97,8 @@ describe('NewNoteCaret: the caret alone (the notes list)', () => {
     expect(caret.className).toMatch(/\bbtn btn-primary btn-sm\b/)
     fireEvent.click(caret)
     expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim()))
-      .toEqual(['From an outline', 'From a style', "Today's note"])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'From a style' }))
+      .toEqual(['From an outline', 'From a template', "Today's note"])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From a template' }))
     expect(onFromStyle).toHaveBeenCalledTimes(1)
     expect(document.activeElement).toBe(caret)
   })

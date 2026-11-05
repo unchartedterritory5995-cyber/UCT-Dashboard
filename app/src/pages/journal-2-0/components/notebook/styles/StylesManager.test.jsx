@@ -86,7 +86,7 @@ const OWN_KIND_URL = re(`/api/j2/note-kinds/${OWN_KIND.id}`)
 const MEMBER_END = new RegExp(`${MEMBER.id}$`)
 const RESTORE_END = new RegExp(`${MEMBER.id}/restore$`)
 const OWN_KIND_END = new RegExp(`note-kinds/${OWN_KIND.id}$`)
-const OFFLINE = "You're offline. Changes to styles need a connection."
+const OFFLINE = "You're offline. Changes to templates need a connection."
 const SERVER_SIDE = 'Something went wrong on our side. Try again.'
 const NETWORK = Symbol('network failure')
 const CODE_BUG = Symbol('a bug in our own code')
@@ -243,7 +243,7 @@ describe('the Styles manager', () => {
     await waitFor(() => expect(document.activeElement).toBe(undo))
     fireEvent.click(undo)
     await waitFor(() => expect(called('POST', RESTORE_END)).toHaveLength(1))
-    await screen.findByText('Style restored.')
+    await screen.findByText('Template restored.')
     // the row is back, with its Default badge, and focus is on it (not on <body>)
     const row = (await screen.findByText(NAME)).closest('li')
     expect(within(row).getByText('Default')).toBeInTheDocument()
@@ -515,7 +515,7 @@ describe('the Styles manager', () => {
     fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     await screen.findByLabelText('Name')
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Give the style a name.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Give the template a name.')
     expect(called('POST', /journal-styles$/)).toHaveLength(0)
   })
 

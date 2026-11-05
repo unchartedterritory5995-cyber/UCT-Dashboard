@@ -56,7 +56,7 @@ describe('Save this note\'s setup as a style', () => {
     await waitFor(() => expect(kind).toHaveValue('trade_plan'))
     fireEvent.change(name, { target: { value: 'My trade plan' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-    expect(await screen.findByText('Saved as the style “My trade plan”.')).toBeInTheDocument()
+    expect(await screen.findByText('Saved as the template “My trade plan”.')).toBeInTheDocument()
     // the kind is the note's own and was not changed: the server's fallback (property, then column) decides
     expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'My trade plan' }, { via: 'from_note' })
     expect(order[0]).toBe('flush')
@@ -78,7 +78,7 @@ describe('Save this note\'s setup as a style', () => {
       const kind = await save({ ...NOTE, kindId: 'trade_plan', propertiesJson: { 'builtin:note_kind': 'earnings' } })
       expect(kind).toHaveValue('earnings')
       fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-      await screen.findByText(/^Saved as the style/)
+      await screen.findByText(/^Saved as the template/)
       expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan' }, { via: 'from_note' })
     })
 
@@ -86,7 +86,7 @@ describe('Save this note\'s setup as a style', () => {
       const kind = await save({ ...NOTE, kindId: null, propertiesJson: { 'builtin:note_kind': 'earnings' } })
       fireEvent.change(kind, { target: { value: 'thesis' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-      await screen.findByText(/^Saved as the style/)
+      await screen.findByText(/^Saved as the template/)
       expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan', kindId: 'thesis' }, { via: 'from_note' })
     })
 
@@ -97,7 +97,7 @@ describe('Save this note\'s setup as a style', () => {
       fireEvent.change(kind, { target: { value: 'daily_prep' } })
       expect(screen.getByRole('button', { name: 'Save template' })).not.toBeDisabled()
       fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-      await screen.findByText(/^Saved as the style/)
+      await screen.findByText(/^Saved as the template/)
       expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'NVDA plan', kindId: 'daily_prep' }, { via: 'from_note' })
     })
 
@@ -154,7 +154,7 @@ describe('Save this note\'s setup as a style', () => {
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toBe("Couldn't save this style. Nothing was saved.")
+    expect(alert.textContent).toBe("Couldn't save this template. Nothing was saved.")
   })
 
   // Final review M-4: the server returns what saving the setup left out; the confirmation names it.
@@ -168,7 +168,7 @@ describe('Save this note\'s setup as a style', () => {
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await screen.findByText(
-      `Saved as the style “${answer.style.name}”. Left out: Fundamentals (not a style block yet), another Chart (a style holds each block once).`,
+      `Saved as the template “${answer.style.name}”. Left out: Fundamentals (not a style block yet), another Chart (a style holds each block once).`,
     )).toBeInTheDocument()
   })
 
@@ -178,7 +178,7 @@ describe('Save this note\'s setup as a style', () => {
     fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-    expect(await screen.findByText('Saved as the style “Mine”.')).toBeInTheDocument()
+    expect(await screen.findByText('Saved as the template “Mine”.')).toBeInTheDocument()
   })
 
   // Final review M-5: `maxLength` does not trim an initial value, so a long title reached the server's cap.
@@ -190,7 +190,7 @@ describe('Save this note\'s setup as a style', () => {
     expect(name).toHaveValue('A'.repeat(MAX_STYLE_NAME_CHARS))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save template' })).not.toBeDisabled())
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
-    await screen.findByText(/^Saved as the style/)
+    await screen.findByText(/^Saved as the template/)
     expect(createJournalStyle).toHaveBeenCalledWith({ fromNoteId: 'n1', name: 'A'.repeat(MAX_STYLE_NAME_CHARS) }, { via: 'from_note' })
   })
 

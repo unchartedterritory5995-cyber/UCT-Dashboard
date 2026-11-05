@@ -263,6 +263,21 @@ describe('templateLibrary: the Idempotency-Key on Use and Adopt (W11-R34)', () =
     expect(keyOf(6)).not.toBe(keyOf(0))
   })
 
+  // S9 fix round 1 (review finding 9): leaving every routine out ("not now") and putting one in are two presses. A lost
+  // unticked Use then a ticked one must reach the server as a NEW request, or it replays the first note with no routine.
+  it('a lost "not now" Use and a later ticked Use are two presses; the ticked side keeps its key (W11-R44)', async () => {
+    fetchMock.mockImplementation(async () => { throw new TypeError('Failed to fetch') })   // nothing ever settles
+    await useTemplate('gk-9', { choices: { routine_a: { skip: true } } })
+    await useTemplate('gk-9', { choices: { routine_a: { skip: true } }, title: 'again' })   // control: same press
+    await useTemplate('gk-9', { choices: { routine_a: { create: true } } })
+    await useTemplate('gk-9', { choices: { routine_a: { use: 'r1' } } })               // R44: the routine side holds
+    expect(keyOf(1)).toBe(keyOf(0))
+    expect(keyOf(2)).not.toBe(keyOf(0))
+    expect(keyOf(3)).toBe(keyOf(2))
+    await useTemplate('gk-9', { answers: { p1: 'A' } })                                   // R44: nothing asked: held
+    expect(keyOf(4)).toBe(keyOf(2))
+  })
+
   it('offline sends nothing, and the press is still open when the member is back', async () => {
     setOnline(false)
     expect((await useTemplate('gk-6', {})).code).toBe('offline')

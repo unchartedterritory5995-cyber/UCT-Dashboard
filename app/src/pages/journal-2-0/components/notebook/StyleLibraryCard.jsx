@@ -47,7 +47,15 @@ export function refusalSentence(err, fallback) {
 }
 
 
-export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, onChanged, isAdmin = false, busy = false }) {
+// Audit 2026-11-05, S7/S9 fix round 1 (review finding 3): ONE WORD, ONE OUTCOME. "Use" makes a note in one press, as
+// every other Use does (library/libraryUse.js, the one door), and "Customize first" beside it is what this button did
+// before: the choices (the adoption sheet) or the add-a-copy confirm. Where no note can be made (wave 11 off: the
+// use-template route is dark), the button says what it does instead: "Add to my templates".
+export const ADD_TO_MINE = 'Add to my templates'
+export const addedWords = (name) => `Added "${name}" to your templates.`
+export const notAddedWords = (title) => `Couldn't add "${title}" to your templates. Nothing was changed.`
+
+export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, onChanged, isAdmin = false, busy = false, landNote = null }) {
   const uid = useId()
   const [confirming, setConfirming] = useState(false)
   const [notify, setNotify] = useState(false)
@@ -86,6 +94,24 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   }
 
   const closeConfirm = () => { setConfirming(false); setNotify(false); adoptBtnRef.current?.focus() }
+  // S9: Use, in one press (wave 11 only: the route it needs).
+  const [using, setUsing] = useState(false)
+  const usingRef = useRef(false)
+  const useNow = async () => {
+    if (usingRef.current || busy) return
+    usingRef.current = true
+    setUsing(true)
+    try {
+      const mod = await import('./library/libraryUse')
+      const said = await mod.useLibraryTemplate(item, typeof landNote === 'function' ? { landNote } : {})
+      if (said) onMessage?.({ tone: 'error', text: said })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    } finally {
+      usingRef.current = false
+      setUsing(false)
+    }
+  }
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
 
   const adopt = async () => {
@@ -97,13 +123,13 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       trackNotebookEvent(NOTEBOOK_EVENTS.STYLE_ADOPTED, { notify })
       const name = out?.style?.name || item.title
       const credit = typeof out?.credit === 'string' && out.credit.trim() ? ` ${withStop(out.credit.trim())}` : ''
-      onMessage?.({ tone: 'ok', text: `Added "${name}" to your styles.${credit}` })
+      onMessage?.({ tone: 'ok', text: `${addedWords(name)}${credit}` })
       // The confirm (and the Adopt button that had focus) goes away: focus returns to the card's own
       // Adopt button, as Cancel does, never to the page (review M-1).
       closeConfirm()
       onAdopted?.(out?.style)
     } catch (err) {
-      onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't add "${item.title}" to your styles. Nothing was changed.`) })
+      onMessage?.({ tone: 'error', text: refusalSentence(err, notAddedWords(item.title)) })
     } finally {
       setAdopting(false)
     }
@@ -137,11 +163,18 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
           aria-label={`Preview ${item.title}`}>
           <UIcon name="eye" size={13} gold={false} /> Preview
         </button>
-        {!item.mine && (
-          <button type="button" ref={adoptBtnRef} className={`${styles.btn} ${styles.primary}`}
-            onClick={startAdopt} disabled={busy || checking}
-            aria-expanded={confirming} aria-label={`Use ${item.title}`} data-tour="library-adopt">
+        {!item.mine && w11 && (
+          <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={useNow}
+            disabled={busy || using} aria-label={`Use ${item.title}`} data-tour="library-adopt" data-library-use="">
             Use
+          </button>
+        )}
+        {!item.mine && (
+          <button type="button" ref={adoptBtnRef} className={w11 ? styles.btn : `${styles.btn} ${styles.primary}`}
+            onClick={startAdopt} disabled={busy || checking || using} aria-expanded={confirming}
+            aria-label={w11 ? `Customize first: ${item.title}` : `${ADD_TO_MINE}: ${item.title}`}
+            {...(w11 ? {} : { 'data-tour': 'library-adopt' })}>
+            {w11 ? 'Customize first' : ADD_TO_MINE}
           </button>
         )}
         {!item.mine && (
@@ -162,14 +195,14 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       {/* The 3-day sentence's live region exists before its text (fix round 1, M-3), so the change is announced. */}
       <p className={daysNote ? styles.note : styles.liveIdle} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>
       {confirming && (
-        <div className={styles.confirm} role="group" aria-label={`Use ${item.title}?`}>
+        <div className={styles.confirm} role="group" aria-label={`Add ${item.title} to your templates?`}>
           <label className={styles.check} htmlFor={`${uid}-notify`}>
             <input id={`${uid}-notify`} type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             <span>Notify me when the author updates</span>
           </label>
           <div className={styles.actions}>
             <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={adopt} disabled={adopting || busy}>
-              Use
+              {ADD_TO_MINE}
             </button>
             <button type="button" className={styles.btn} onClick={closeConfirm}>Cancel</button>
           </div>

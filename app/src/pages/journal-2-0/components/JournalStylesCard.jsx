@@ -6,9 +6,9 @@ import { journalStylesEnabled } from '../lib/journalStylesFlag'
 export default function JournalStylesCard() {
   if (!journalStylesEnabled()) return null
   return (
-    <TileCard icon="sliders" title="Journal styles">
-      <p>Set up how each kind of note starts: its outline, its blocks and the properties it fills.</p>
-      <Link to="/journal/notebook?styles=1" className="btn btn-ghost">Open journal styles</Link>
+    <TileCard icon="sliders" title="Templates">
+      <p>Set up how each note type starts: its outline, its blocks and the properties it fills.</p>
+      <Link to="/journal/notebook?styles=1" className="btn btn-ghost">Manage templates</Link>
     </TileCard>
   )
 }

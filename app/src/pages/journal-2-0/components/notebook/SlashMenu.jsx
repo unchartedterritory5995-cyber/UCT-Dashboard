@@ -452,7 +452,9 @@ const ELSEWHERE = [
 ]
 export function noMatchLines(query) {
   const q = String(query || '').trim()
-  if (!q || /\s/.test(q)) return null
+  // Fix round 1 (review finding 8): only a WORD names a block. "/" before a digit or a space is ordinary writing
+  // ("1/2", "target / 200", "and/or" after a space), and one letter is a word still being typed.
+  if (!q || /\s/.test(q) || !/^[A-Za-z][A-Za-z]/.test(q)) return null
   const where = ELSEWHERE.find(([re]) => re.test(q.toLowerCase()))
   return { title: `No block called "${q}".`, where: where ? where[1] : null }
 }
@@ -1215,6 +1217,11 @@ export const SlashList = forwardRef((props, ref) => {
     ? [...compactSlashItems(all), { title: `All ${all.length} blocks…`, description: 'Show every block', expand: true }]
     : all
   const noMatch = !all.length && typed ? noMatchLines(query) : null
+  // The polite region is mounted EMPTY and filled AFTER the commit (review finding 8a): a session that STARTS on a
+  // no-match query (a paste) would otherwise create the region already holding its words, which is not announced.
+  const noMatchWords = noMatch ? `${noMatch.title} ${noMatch.where || ''}`.trim() : ''
+  const [said, setSaid] = useState('')
+  useEffect(() => { setSaid(noMatchWords) }, [noMatchWords])
 
   useEffect(() => setSelectedIndex(0), [all])
   // A new session (the renderer is reused) starts compact again.
@@ -1259,7 +1266,7 @@ export const SlashList = forwardRef((props, ref) => {
 
   // The no-match sentence is also said through a polite region, mounted empty with the list and filled after
   // (a region that arrives already holding its text is not announced).
-  const status = <div className={styles.srOnly} role="status" aria-live="polite">{noMatch ? `${noMatch.title} ${noMatch.where || ''}`.trim() : ''}</div>
+  const status = <div className={styles.srOnly} role="status" aria-live="polite">{said}</div>
 
   if (!items.length) {
     if (!noMatch) return status

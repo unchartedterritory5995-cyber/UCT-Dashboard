@@ -57,6 +57,7 @@ const LIB_ROW = { id: 'g-night', title: 'Night-before prep', description: 'plann
   category: 'journal', author: 'UCT', itemType: 'style', usedBy: 0, helpfulCount: 0, contains: [], inYourTemplates: false }
 const BODY = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'What worked' }] }] }
 let calls
+let libTitle = 'Night-before prep'
 let templateRead
 let templateBody
 beforeEach(() => {
@@ -84,7 +85,7 @@ beforeEach(() => {
     if (u === `/api/j2/template-gallery/${LIB_ROW.id}` && method === 'GET') return ok({ template: { id: LIB_ROW.id, bodyJson: BODY } })
     if (u === `/api/j2/template-gallery/${LIB_ROW.id}/preview-mine`) return ok({ slots: [], cards: [], tools: [], questions: [] })
     if (u === `/api/j2/template-gallery/${LIB_ROW.id}/use-template` && method === 'POST') {
-      return ok({ note: { id: 'lib1', title: 'Night-before prep', bodyJson: BODY, updatedAt: 'L0' }, skipped: [], style: { id: 's1' },
+      return ok({ note: { id: 'lib1', title: libTitle, bodyJson: BODY, updatedAt: 'L0' }, skipped: [], style: { id: 's1' },
         credit: null, created: { routines: [], trackers: [], widgets: [] } })
     }
     return ok({})
@@ -194,6 +195,25 @@ describe('using a Template library template (wave 11, walk D1)', () => {
       expect(appRoot.hasAttribute('inert')).toBe(false)
     } finally {
       appRoot.remove()
+    }
+  })
+
+  // Fix round 1 (review finding 10): only a note the Use NAMED opens at its first field; an untitled one opens in its
+  // title, as every picked note did before.
+  it('an UNTITLED note from a Use opens in its title, never the body', async () => {
+    libTitle = ''
+    try {
+      latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+      renderTab()
+      fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+      const sheet = await screen.findByRole('dialog', { name: 'New note' })
+      fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
+      const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
+      fireEvent.click(within(detail).getByRole('button', { name: 'Use' }))
+      await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'lib1'))
+      expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'title')
+    } finally {
+      libTitle = 'Night-before prep'
     }
   })
 

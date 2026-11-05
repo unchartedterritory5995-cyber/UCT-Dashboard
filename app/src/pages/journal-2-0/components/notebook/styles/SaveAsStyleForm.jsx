@@ -12,7 +12,7 @@ import { reportError } from './styleErrors'
 import styles from './SaveAsStyleForm.module.css'
 
 export const UNSENT_BEFORE_STYLE = 'Some words are still saving. Try again in a moment.'
-const SAVE_FAILED = "Couldn't save this style. Nothing was saved."
+const SAVE_FAILED = "Couldn't save this template. Nothing was saved."
 
 // Review M-4: what the server left out of the style (`leftOut`), said in one plain sentence. A widget is named by
 // its own label (KindSection's rule), else as a block from a newer version.
@@ -75,7 +75,7 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
         ...(picked && picked !== defaultKind ? { kindId: picked } : {}),
       }, { via: 'from_note' })
       mutate()
-      onDone?.(`Saved as the style “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.${leftOutSentence(out?.leftOut)}`)
+      onDone?.(`Saved as the template “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.${leftOutSentence(out?.leftOut)}`)
     } catch (err) {
       setError(reportError(err, SAVE_FAILED))                    // never a bare "500" (review M-2)
     } finally {

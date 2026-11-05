@@ -229,7 +229,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     if (!full.builtin) body.duplicateOf = full.id
     const out = await createJournalStyle(body, { via: 'duplicate' })
     await mutate()
-    if (thenEdit) openEditor(out.style, opener); else setStatus('Style duplicated.')
+    if (thenEdit) openEditor(out.style, opener); else setStatus('Template duplicated.')
   })
   const makeDefault = (s) => run(async () => {
     await setDefaultJournalStyle(s.id)
@@ -248,7 +248,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     await mutate()
     pendingFocus.current = { type: 'row', id: undo.id }
     setUndo(null)
-    setStatus('Style restored.')
+    setStatus('Template restored.')
   }, { keepUndo: true })
   const saved = (s) => {
     setUndo(null); setProblem('')
@@ -381,7 +381,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 )}
               </div>
               {libraryOn && showUpdates && updates.length > 0 && (
-                <section id="js-library-updates" className={styles.kindGroup} aria-label="Updates from the community library">
+                <section id="js-library-updates" className={styles.kindGroup} aria-label="Updates from the Template library">
                   <ul className={styles.styleList}>
                     {updates.map((u) => (
                       <li key={u.styleId} className={styles.styleRow}>

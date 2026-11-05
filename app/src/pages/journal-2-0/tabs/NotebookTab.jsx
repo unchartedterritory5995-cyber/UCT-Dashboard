@@ -478,7 +478,7 @@ export default function NotebookTab() {
   const { propertyDefs, error: propertyDefsError, refresh: refreshPropertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
-  // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
+  // false | true | 'kinds' (Notebook P1: "From a template" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked,
@@ -1821,7 +1821,10 @@ export default function NotebookTab() {
   }
   // S9 (audit 2026-11-05): a Template library Use names the note itself ("{Template} · {Ddd, Mon D}"), so the caret goes
   // to the note's first field, never the title it already has.
-  const landTemplateNote = (created) => landPickedNote(created, { to: 'field' })
+  // Fix round 1 (review finding 10): only a note the Use NAMED skips the title; an untitled one (a members' gallery
+  // template made without a name) opens in its title, as every picked note did before.
+  const landTemplateNote = (created) => landPickedNote(created,
+    typeof created?.title === 'string' && created.title.trim() ? { to: 'field' } : {})
   const landCreatedNote = (created, openOptions) => {
     globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
     // Instant: put it in the tree now, then reconcile from the server.

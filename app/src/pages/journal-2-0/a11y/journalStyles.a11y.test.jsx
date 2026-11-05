@@ -95,6 +95,6 @@ describe('journal styles surfaces (P1, lane C)', () => {
   axeSurface('settings-journal-styles', async () => {
     installFetch([])
     render(<Providers><JournalStylesCard /></Providers>)
-    await screen.findByRole('link', { name: 'Open journal styles' })
+    await screen.findByRole('link', { name: 'Manage templates' })
   })
 })

@@ -15,7 +15,7 @@ import LayoutLibraryCard from './LayoutLibraryCard'
 
 export default function LibraryCard({
   item, libraryOn = false, layoutSharing = false, isAdmin = false, busy = false,
-  onPreview, onStylePreview, onUse, onChanged, onMessage, onOpenAuthor,
+  onPreview, onStylePreview, onUse, onChanged, onMessage, onOpenAuthor, landNote = null,
 }) {
   if (item.itemType === 'page_layout') {
     return libraryOn && layoutSharing
@@ -26,7 +26,7 @@ export default function LibraryCard({
   if (libraryOn && item.itemType === 'style') {
     return (
       <StyleLibraryCard item={item} isAdmin={isAdmin} busy={busy} onPreview={onStylePreview} onChanged={onChanged}
-        onOpenAuthor={onOpenAuthor} onMessage={onMessage} />
+        onOpenAuthor={onOpenAuthor} onMessage={onMessage} landNote={landNote} />
     )
   }
   return (

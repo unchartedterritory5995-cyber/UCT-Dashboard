@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
  * Notebook P1 follow-up (owner GO 2026-10-12): Home's New-note caret on the notes list's "+ New note".
  * Spec P1.4 names "the P0.1 split button AND the list's New note". Through the real NotebookTab, mocked at
  * the same boundaries as NotebookTab.kindPicker.test.jsx. Switch on: a caret beside "+ New note" opens
- * Home's menu (one implementation, NewNoteMenu.jsx), "From a style" opens the sheet on the first kind.
+ * Home's menu (one implementation, NewNoteMenu.jsx), "From a template" opens the sheet on the first kind.
  * Switch off: no caret and no styles request. "+ New note" keeps its one-press blank contract either way.
  */
 vi.mock('../hooks/useJ2Notes', () => ({
@@ -84,14 +84,14 @@ describe('the notes list\'s New note caret (Notebook P1 follow-up)', () => {
     fireEvent.click(caret)
     const menu = within(bar).getByRole('menu', { name: 'Start a note' })
     expect(within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim()))
-      .toEqual(['From an outline', 'From a style', "Today's note"])
+      .toEqual(['From an outline', 'From a template', "Today's note"])
   })
 
-  it('switch on: "From a style" opens the New-note sheet with focus on the first kind', async () => {
+  it('switch on: "From a template" opens the New-note sheet with focus on the first kind', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderList()
     fireEvent.click(within(toolbar()).getByRole('button', { name: CARET }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'From a style' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From a template' }))
     const dialog = await screen.findByRole('dialog', { name: 'New note' })
     const first = await within(dialog).findByLabelText('New Trade plan', {}, T)
     await waitFor(() => expect(document.activeElement).toBe(first))

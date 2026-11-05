@@ -1,3 +1,6 @@
+// S7 fix round 1 (audit 2026-11-05, review finding 3): one word, one outcome. A style card's "Use" makes a note (wave 11);
+// what it did before (the add-a-copy confirm, or the adoption sheet in copy mode) is "Customize first" there, and
+// "Add to my templates" where no note can be made (wave 11 off). These rails follow the new names.
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // P3a Task 9 — the community STYLE library inside the lazy gallery, end to end in the client:
@@ -26,7 +29,7 @@ import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TOOL_I
 import { contract, contractBody } from '../../__fixtures__/contract'
 import { helpfulWords, usedByWords } from './library/LibraryCardFacts'
 import { openAdoptSheet } from './library/openAdoptSheet'
-import { holdsFamilySlot } from './StyleLibraryCard'
+import { holdsFamilySlot, addedWords, notAddedWords } from './StyleLibraryCard'
 
 // Task 11.16 fix round 1 (ruling W11-R25): a style holding a family slot opens the adoption sheet; stood in for here.
 vi.mock('./library/openAdoptSheet', () => ({ openAdoptSheet: vi.fn(() => () => {}) }))
@@ -97,6 +100,9 @@ beforeEach(() => {
     if (m && method === 'PATCH') return answer('template-gallery.admin.hide')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt$/)
     if (m) return answer(server.adoptAnswer)
+    // S9 fix round 1: a style card's one-press Use (wave 11).
+    if (/\/preview-mine$/.test(u.pathname)) return json({ slots: [], cards: [], tools: [], questions: [] })
+    if (/\/use-template$/.test(u.pathname) && method === 'POST') return json({ note: { id: 'n-style', title: body?.title || '' } })
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
     if (m && server.helpfulRefusal) return json(server.helpfulRefusal.body, server.helpfulRefusal.status)
     if (m) return answer(method === 'POST' ? 'template-gallery.helpful' : 'template-gallery.unhelpful')
@@ -134,7 +140,7 @@ async function openGallery() {
 async function openStyles() {
   const user = await openGallery()
   const types = await screen.findByRole('group', { name: 'Filter by type' })
-  await user.click(within(types).getByRole('button', { name: 'Styles' }))
+  await user.click(within(types).getByRole('button', { name: 'Templates' }))
   await screen.findByRole('heading', { name: STYLE.title })
   return user
 }
@@ -162,7 +168,7 @@ describe('the switch', () => {
     await openGallery()
     await screen.findByRole('region', { name: 'UCT picks' })
     expect(screen.queryByRole('group', { name: 'Filter by type' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Styles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Templates' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Filter by trading style' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Following' })).not.toBeInTheDocument()
     expect([...screen.getByLabelText('Sort').options].map((o) => o.textContent)).toEqual(GALLERY_SORTS.map((s) => s.label))
@@ -239,7 +245,7 @@ describe('the Styles chip and trading style', () => {
     render(wrap(<TemplateGallery onBack={vi.fn()} initialType="style" />))
     await screen.findByRole('heading', { name: STYLE.title })
     const types = screen.getByRole('group', { name: 'Filter by type' })
-    expect(within(types).getByRole('button', { name: 'Styles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')
     expect(listCalls()[0].search).toContain('type=style')
   })
 })
@@ -248,26 +254,26 @@ describe('adopt', () => {
   it('with "Notify me" ticked posts notify: true and says what was added, with the credit', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    const confirm = screen.getByRole('group', { name: `Use ${STYLE.title}?` })
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    const confirm = screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })
     const box = within(confirm).getByRole('checkbox', { name: 'Notify me when the author updates' })
     expect(box).not.toBeChecked()                                              // default off
     await user.click(box)
-    await user.click(within(confirm).getByRole('button', { name: 'Use' }))
+    await user.click(within(confirm).getByRole('button', { name: 'Add to my templates' }))
     const sent = sentTo(`/api/j2/template-gallery/${STYLE.id}/adopt`, 'POST')
     expect(sent).toHaveLength(1)
     expect(sent[0].body).toEqual({ notify: true })
     expect(Object.keys(sent[0].body)).toEqual(Object.keys(contract('template-gallery.adopt')._contract.requestBody))
-    // `Added "<title>" to your styles. <credit>.` — the name and credit are the server's
-    expect(await screen.findByText(`Added "${ADOPTED.style.name}" to your styles. ${ADOPTED.credit}.`)).toBeInTheDocument()
+    // `Added "<title>" to your templates. <credit>.` — the name and credit are the server's
+    expect(await screen.findByText(`Added "${ADOPTED.style.name}" to your templates. ${ADOPTED.credit}.`)).toBeInTheDocument()
   })
 
   it('without ticking it posts notify: false', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
-    await screen.findByText(/to your styles\./)
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
+    await screen.findByText(/to your templates\./)
     expect(sentTo(`/api/j2/template-gallery/${STYLE.id}/adopt`, 'POST')[0].body).toEqual({ notify: false })
   })
 
@@ -275,8 +281,8 @@ describe('adopt', () => {
     flags()
     server.adoptAnswer = ADOPT_REFUSED
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
     const sentence = ADOPT_REFUSED.body.detail
     expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
     expect(screen.queryByText(/Added "/)).not.toBeInTheDocument()
@@ -290,9 +296,9 @@ describe('adopt', () => {
       ? { ok: false, status: 429, json: async () => { throw new SyntaxError('Unexpected token <') } }
       : real(url, init)))
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(`Couldn't add "${STYLE.title}" to your styles. Nothing was changed.`)
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Couldn't add "${STYLE.title}" to your templates. Nothing was changed.`)
     expect(screen.getByRole('alert')).not.toHaveTextContent(/request failed/)
     expect(global.fetch.mock.calls.some(([u]) => String(u).endsWith(`/${STYLE.id}/adopt`))).toBe(true)  // non-vacuity
   })
@@ -301,9 +307,9 @@ describe('adopt', () => {
     flags()
     server.adoptAnswer = 'template-gallery.adopt.not-found'
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(`Couldn't add "${STYLE.title}" to your styles. Nothing was changed.`)
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Couldn't add "${STYLE.title}" to your templates. Nothing was changed.`)
     expect(screen.getByRole('alert')).not.toHaveTextContent(contractBody('template-gallery.adopt.not-found').detail)
   })
 })
@@ -350,12 +356,12 @@ describe('telemetry: style_adopted', () => {
   it('fires once after an adopt the server accepted, with the member’s notify choice and nothing of the item', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    const confirm = screen.getByRole('group', { name: `Use ${STYLE.title}?` })
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    const confirm = screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })
     await user.click(within(confirm).getByRole('checkbox', { name: 'Notify me when the author updates' }))
     expect(sentEvents('style_adopted')).toEqual([])                            // the confirm alone sends nothing
-    await user.click(within(confirm).getByRole('button', { name: 'Use' }))
-    await screen.findByText(/to your styles\./)
+    await user.click(within(confirm).getByRole('button', { name: 'Add to my templates' }))
+    await screen.findByText(/to your templates\./)
     expect(sentEvents('style_adopted')).toEqual([{ notify: true }])
     const sent = JSON.stringify(sentEvents('style_adopted'))
     for (const leaked of [STYLE.id, STYLE.title, STYLE.author]) expect(sent).not.toContain(leaked)
@@ -364,9 +370,9 @@ describe('telemetry: style_adopted', () => {
   it('sends notify: false when the box was left unticked', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
-    await screen.findByText(/to your styles\./)
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
+    await screen.findByText(/to your templates\./)
     expect(sentEvents('style_adopted')).toEqual([{ notify: false }])
   })
 
@@ -374,8 +380,8 @@ describe('telemetry: style_adopted', () => {
     flags()
     server.adoptAnswer = ADOPT_REFUSED
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
     await screen.findByRole('alert')
     expect(sentEvents('style_adopted')).toEqual([])
   })
@@ -443,7 +449,7 @@ describe('an author’s page', () => {
     expect(sentTo(`/api/j2/template-gallery/authors/${AUTHOR_PAGE.author.handle}/follow`, 'POST')).toHaveLength(1)
     await user.click(screen.getByRole('button', { name: 'Back to the library' }))
     await screen.findByRole('heading', { name: STYLE.title })
-    expect(within(screen.getByRole('group', { name: 'Filter by type' })).getByRole('button', { name: 'Styles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(screen.getByRole('group', { name: 'Filter by type' })).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(screen.getByRole('group', { name: 'Filter by trading style' })).getByRole('button', { name: 'Swing' })).toHaveAttribute('aria-pressed', 'true')
     expect(listCalls().at(-1).search).toContain('type=style&trading_style=swing')
     await waitFor(() => expect(within(styleCard()).getByRole('button', { name: `See templates by ${STYLE.author}` })).toHaveFocus())
@@ -518,8 +524,8 @@ describe('accessible names', () => {
   it('every new control is named, with the adopt confirm open', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    for (const name of ['Filter by type', 'Filter by trading style', `Use ${STYLE.title}?`]) {
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    for (const name of ['Filter by type', 'Filter by trading style', `Add ${STYLE.title} to your templates?`]) {
       expect(screen.getByRole('group', { name })).toBeInTheDocument()
     }
     const gallery = document.querySelector('[data-template-community-gallery]')
@@ -553,7 +559,7 @@ async function openStylesOnTheDefaultCache() {
   )
   await user.click(await screen.findByRole('button', { name: /Browse the Template library/ }))
   const types = await screen.findByRole('group', { name: 'Filter by type' })
-  await user.click(within(types).getByRole('button', { name: 'Styles' }))
+  await user.click(within(types).getByRole('button', { name: 'Templates' }))
   await screen.findByRole('heading', { name: STYLE.title })
   return user
 }
@@ -588,9 +594,9 @@ describe('fix round 1: focus and refresh', () => {
     const count = (q) => listCalls().filter((c) => c.search === q).length
     const before = lists.map(count)
     expect(before.every((n) => n >= 1)).toBe(true)                     // both lists are mounted
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
-    await screen.findByText(/to your styles\./)
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
+    await screen.findByText(/to your templates\./)
     await settle(80)
     expect(lists.map(count).map((n, i) => n - before[i])).toEqual([1, 1])
   })
@@ -600,11 +606,11 @@ describe('fix round 1: the card', () => {
   it('M-1: after a successful adopt, focus returns to the card’s Adopt button, never the page', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    await user.click(within(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).getByRole('button', { name: 'Use' }))
-    await screen.findByText(/to your styles\./)
-    expect(screen.queryByRole('group', { name: `Use ${STYLE.title}?` })).not.toBeInTheDocument()
-    expect(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` })).toHaveFocus()
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    await user.click(within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).getByRole('button', { name: 'Add to my templates' }))
+    await screen.findByText(/to your templates\./)
+    expect(screen.queryByRole('group', { name: `Add ${STYLE.title} to your templates?` })).not.toBeInTheDocument()
+    expect(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` })).toHaveFocus()
     expect(document.body).not.toHaveFocus()
   })
 
@@ -631,7 +637,7 @@ describe('fix round 1 (P5): admin controls on a style card', () => {
     flags()
     await openStyles()
     const card = styleCard()
-    expect(within(card).getByRole('button', { name: `Use ${STYLE.title}` })).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: `Add to my templates: ${STYLE.title}` })).toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: `Feature ${STYLE.title}` })).toBeNull()
     expect(within(card).queryByRole('button', { name: `Unfeature ${STYLE.title}` })).toBeNull()
     expect(within(card).queryByRole('button', { name: `Hide ${STYLE.title}` })).toBeNull()
@@ -725,13 +731,33 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
     for (const junk of [null, {}, { payload: {} }, { payload: { blocks: 'routine_a' } }]) expect(holdsFamilySlot(junk)).toBe(false)
   })
 
+  // S7/S9 fix round 1 (review finding 3): ONE WORD, ONE OUTCOME. "Use" makes a note in one press, never a copy.
+  it('Use makes a note in one press (one use-template, titled) and makes no copy', async () => {
+    server.library = true
+    latchNotebookFlags(W11)
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/use-template'))).toHaveLength(1))
+    const [use] = calls.filter((c) => c.path.endsWith('/use-template'))
+    expect(use.path).toBe(`/api/j2/template-gallery/${STYLE.id}/use-template`)
+    expect(use.body.title.startsWith(`${STYLE.title} · `)).toBe(true)
+    expect(adopts()).toEqual([])
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+    expect(screen.queryByText(/to your styles/)).toBeNull()
+  })
+
+  it('the add-a-copy words say templates, never styles', () => {
+    expect(addedWords('Weekend prep')).toBe('Added "Weekend prep" to your templates.')
+    expect(notAddedWords('Weekend prep')).toBe("Couldn't add \"Weekend prep\" to your templates. Nothing was changed.")
+  })
+
   it('a style WITHOUT family slots keeps the confirm and adoptStyle (the recorded listing)', async () => {
     server.library = true
     latchNotebookFlags(W11)
     const user = await openStyles()
     expect(holdsFamilySlot(STYLE_ITEM)).toBe(false)                            // non-vacuity: the recorded row has none
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    expect(await screen.findByRole('group', { name: `Use ${STYLE.title}?` })).toBeInTheDocument()
+    await user.click(within(styleCard()).getByRole('button', { name: `Customize first: ${STYLE.title}` }))
+    expect(await screen.findByRole('group', { name: `Add ${STYLE.title} to your templates?` })).toBeInTheDocument()
     expect(itemReads()).toHaveLength(1)
     expect(openAdoptSheet).not.toHaveBeenCalled()
   })
@@ -750,18 +776,18 @@ describe('W11-R25 -- Adopt on a style with family slots', () => {
       }
       return real(url, init)
     })
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
+    await user.click(within(styleCard()).getByRole('button', { name: `Customize first: ${STYLE.title}` }))
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
     expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: STYLE.id, kind: 'template', mode: 'adopt' })
-    expect(screen.queryByRole('group', { name: `Use ${STYLE.title}?` })).toBeNull()
+    expect(screen.queryByRole('group', { name: `Add ${STYLE.title} to your templates?` })).toBeNull()
     expect(adopts()).toEqual([])
   })
 
   it('CONTROL: wave 11 off, Adopt opens the confirm at once and reads nothing', async () => {
     flags()
     const user = await openStyles()
-    await user.click(within(styleCard()).getByRole('button', { name: `Use ${STYLE.title}` }))
-    expect(screen.getByRole('group', { name: `Use ${STYLE.title}?` })).toBeInTheDocument()
+    await user.click(within(styleCard()).getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    expect(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` })).toBeInTheDocument()
     expect(itemReads()).toEqual([])
     expect(openAdoptSheet).not.toHaveBeenCalled()
   })

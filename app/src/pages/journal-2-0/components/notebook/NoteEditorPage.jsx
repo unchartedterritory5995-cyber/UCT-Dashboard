@@ -1123,8 +1123,11 @@ export default function NoteEditorPage({
     const ed = editorRef.current
     if (ed && !ed.isDestroyed) ed.commands.focus('start')
   }
+  // Fix round 1 (review finding 6): Safari sends the Enter that COMMITS an IME conversion with isComposing false and
+  // keyCode 229; that Enter belongs to the IME, never to this handler.
+  const imeEnter = (e) => Boolean(e.nativeEvent?.isComposing) || e.keyCode === 229 || e.nativeEvent?.keyCode === 229
   const onTitleKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.nativeEvent?.isComposing || e.altKey || e.ctrlKey || e.metaKey) return
+    if (e.key !== 'Enter' || imeEnter(e) || e.altKey || e.ctrlKey || e.metaKey) return
     e.preventDefault()
     if (e.shiftKey) {
       setSubtitleFocused(true)
@@ -1136,7 +1139,7 @@ export default function NoteEditorPage({
   }
   // Enter in the subtitle goes on to the body as well.
   const onSubtitleKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.nativeEvent?.isComposing || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+    if (e.key !== 'Enter' || imeEnter(e) || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
     e.preventDefault()
     focusBodyStart()
   }
@@ -5119,7 +5122,7 @@ export default function NoteEditorPage({
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {blockedLabel(durable.persisted)}
           </div>
-        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        ) : durable.unsynced && !isOffline && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {unsyncedLabel(durable.persisted)}
@@ -5146,7 +5149,9 @@ export default function NoteEditorPage({
             its own. Auto-clears the instant `online` fires -- no dismiss
             state to manage for something that already un-shows itself.
             Competitive audit finding Accessibility QW-5, 2026-09-22. */}
-        {isOffline && (
+        {/* Fix round 1 (S10 review finding 5): with unsent words kept here, the save indicator is the one offline
+            message ("Offline, kept on this device"); this banner speaks only when there is nothing unsent. */}
+        {isOffline && !durable.unsynced && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {OFFLINE_VIEWING_BANNER}
@@ -5176,7 +5181,7 @@ export default function NoteEditorPage({
         <span className={styles.savedIndicator} role="status" aria-live="polite" data-save-indicator="">
           {indicatorOn ? saveIndicatorWords({
             status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-            offline: isOffline, blocked: noteIsBlocked,
+            offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
           }) : ''}
         </span>
         {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to

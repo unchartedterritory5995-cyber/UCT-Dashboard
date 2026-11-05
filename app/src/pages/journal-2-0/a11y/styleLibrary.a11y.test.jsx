@@ -1,3 +1,6 @@
+// S7 fix round 1 (audit 2026-11-05, review finding 3): one word, one outcome. A style card's "Use" makes a note (wave 11);
+// what it did before (the add-a-copy confirm, or the adoption sheet in copy mode) is "Customize first" there, and
+// "Add to my templates" where no note can be made (wave 11 off). These rails follow the new names.
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // app/src/pages/journal-2-0/a11y/styleLibrary.a11y.test.jsx
@@ -75,8 +78,8 @@ describe('P3a surfaces (community style library)', () => {
     const user = renderGallery()
     await screen.findByRole('heading', { name: STYLE.title })
     screen.getByRole('group', { name: 'Filter by trading style' })
-    await user.click(screen.getByRole('button', { name: `Use ${STYLE.title}` }))
-    within(screen.getByRole('group', { name: `Use ${STYLE.title}?` }))
+    await user.click(screen.getByRole('button', { name: `Add to my templates: ${STYLE.title}` }))
+    within(screen.getByRole('group', { name: `Add ${STYLE.title} to your templates?` }))
       .getByRole('checkbox', { name: 'Notify me when the author updates' })
     await settle()
   })
@@ -152,7 +155,7 @@ describe('P3a surfaces (the styles/ doors, Task 11)', () => {
     await user.click(screen.getByRole('button', { name: 'Template library' }))
     await screen.findByRole('dialog', { name: 'Template library' })
     await screen.findByRole('heading', { name: STYLE.title })
-    within(screen.getByRole('group', { name: 'Filter by type' })).getByRole('button', { name: 'Styles', pressed: true })
+    within(screen.getByRole('group', { name: 'Filter by type' })).getByRole('button', { name: 'Templates', pressed: true })
     await settle()
   })
 })

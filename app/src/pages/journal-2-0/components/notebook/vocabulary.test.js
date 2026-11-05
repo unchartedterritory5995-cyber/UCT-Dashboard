@@ -25,16 +25,25 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
 const J2 = join(process.cwd(), 'src', 'pages', 'journal-2-0')
-const ROOTS = [join(J2, 'components', 'notebook'), join(J2, 'tabs', 'NotebookTab.jsx')]
+// Fix round 1 (review finding 4): `.js` too (the tours, the capability list, the copy modules), and the two member
+// surfaces outside components/notebook that name the same objects: the Settings card and the library's sort words.
+const ROOTS = [
+  join(J2, 'components', 'notebook'),
+  join(J2, 'tabs', 'NotebookTab.jsx'),
+  join(J2, 'components', 'JournalStylesCard.jsx'),
+  join(J2, 'lib', 'styleLibrary.js'),
+  join(J2, 'lib', 'templateSlots.js'),
+]
 const rel = (p) => relative(J2, p).split(sep).join('/')
 
 /** The retired words, as a member would read them. Each is a whole-word, case-insensitive match. */
 export const RETIRED = [
   { re: /\bjournal styles?\b/i, now: 'Template' },
   { re: /\bkind of note\b/i, now: 'Template (or "Note type" in a filter)' },
-  { re: /\bcommunity (styles|gallery)\b/i, now: 'Template library' },
+  { re: /\bcommunity (styles|gallery|library)\b/i, now: 'Template library' },
   { re: /\bmake it yours\b/i, now: 'Use' },
   { re: /\buse this template\b/i, now: 'Use' },
+  { re: /\buse template\b/i, now: 'Use (or "Add to my templates" for a copy)' },
   { re: /\bsetup as a style\b/i, now: 'Save as template' },
   { re: /\bactive setups\b/i, now: 'Setups' },
   { re: /\badopt(ed|s)?\b/i, now: 'Use' },
@@ -63,6 +72,7 @@ const ALLOW = new Map([
   // The server's own recorded refusal, pinned word for word to the contract fixture: a server change, not this layer's.
   ['components/notebook/styles/LibraryUpdateSheet.jsx|This style changed since you opened the update. Nothing was changed. Look again.',
     "the server's recorded sentence (StyleLibraryDoors.test.jsx pins it to the contract)"],
+  ['components/notebook/SlashMenu.jsx|My presets', 'the slash menu group of CHART presets (lib/notebookSets), not note templates'],
   ['components/notebook/NoteEditorPage.jsx|Insert a chart or preset — pick ticker and timeframe by clicking',
     'the insert palette offers chart presets (lib/notebookSets), not note templates'],
 ])
@@ -75,11 +85,17 @@ function walk(p, out = []) {
   }
   return out
 }
-const FILES = ROOTS.flatMap((r) => walk(r)).filter((p) => /\.jsx$/.test(p) && !/\.test\.jsx$/.test(p))
+const FILES = ROOTS.flatMap((r) => walk(r)).filter((p) => /\.jsx?$/.test(p) && !/\.test\.jsx?$/.test(p))
 
 const JsxParser = Parser.extend(jsx())
-const COPY_ATTRS = new Set(['aria-label', 'title', 'placeholder', 'label', 'alt', 'aria-description', 'confirmLabel', 'body'])
-const COPY_CONST = /(^|_)(LABEL|TITLE|SENTENCE|WORDS|HEADING|HINT)$|^(TITLE|LABEL)$/
+const COPY_ATTRS = new Set(['aria-label', 'title', 'placeholder', 'label', 'alt', 'aria-description', 'confirmLabel', 'body',
+  'what'])
+const COPY_CONST = /(^|_)(LABEL|TITLE|SENTENCE|WORDS|HEADING|HINT|FAILED|TEXT|COPY|MESSAGE)$|^(TITLE|LABEL)$/
+// An object's member copy: a tour step's title/body, a capability's label, a sort's label (fix round 1).
+const COPY_KEYS = new Set(['title', 'label', 'body', 'text', 'line', 'description', 'heading', 'what', 'message', 'hint'])
+/** A string given to a call reads as member copy when it is a sentence: a capital letter and a space (heuristic, fix
+ *  round 1: `onMessage({text: ...})`, `setSaid('...')`, `refusalSentence(err, '...')`). */
+const LOOKS_LIKE_COPY = (t) => /[A-Z]/.test(t) && / /.test(t.trim())
 
 /** Every member-visible string in one file: `[{text, line}]`. */
 export function visibleStrings(src) {
@@ -103,6 +119,16 @@ export function visibleStrings(src) {
     }
     if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier' && COPY_CONST.test(node.id.name)) {
       literalStrings(node.init)
+    }
+    if (node.type === 'Property' && !node.computed) {
+      const k = node.key?.type === 'Identifier' ? node.key.name : node.key?.value
+      if (COPY_KEYS.has(k)) literalStrings(node.value)
+    }
+    if (node.type === 'CallExpression') {
+      for (const a of node.arguments) {
+        if ((a.type === 'Literal' && typeof a.value === 'string' && LOOKS_LIKE_COPY(a.value))
+          || (a.type === 'TemplateLiteral' && LOOKS_LIKE_COPY(a.quasis.map((q) => q.value.cooked).join(' x ')))) literalStrings(a)
+      }
     }
     for (const key of Object.keys(node)) {
       if (key === 'loc' || key === 'start' || key === 'end') continue

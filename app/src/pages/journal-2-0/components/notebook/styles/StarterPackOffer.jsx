@@ -122,7 +122,7 @@ export function resultLines(out) {
   const added = (out?.installed || []).map((i) => i?.title).filter(Boolean)
   const had = (out?.alreadyHad || []).filter(Boolean)
   const skipped = (out?.skipped || []).map((s) => (typeof s === 'string' ? { title: s } : s)).filter((s) => s?.title)
-  if (added.length) lines.push(`Added: ${join(added)}. They are in your Styles.`)
+  if (added.length) lines.push(`Added: ${join(added)}. They are in your templates.`)
   if (had.length) lines.push(`Already had: ${join(had)}.`)
   // Rows refused for the same reason share one line (a member at the style limit has all three refused).
   const byReason = new Map()

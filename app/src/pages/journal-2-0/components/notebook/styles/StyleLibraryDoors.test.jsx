@@ -256,7 +256,7 @@ describe('the doors open the community library at Styles', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Browse the Template library' }))
     const dialog = await screen.findByRole('dialog', { name: 'Template library' })
     const types = await within(dialog).findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getByRole('button', { name: 'Styles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')
     const style = contractBody('template-gallery.list.styles').templates[0]
     // (this fake answers the "UCT picks" read and the full list alike, so the card can appear in both)
     expect((await within(dialog).findAllByRole('heading', { name: style.title })).length).toBeGreaterThan(0)
@@ -272,7 +272,7 @@ describe('the doors open the community library at Styles', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Community' }))
     const dialog = await screen.findByRole('dialog', { name: 'Template library' })
     const types = await within(dialog).findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getByRole('button', { name: 'Styles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 

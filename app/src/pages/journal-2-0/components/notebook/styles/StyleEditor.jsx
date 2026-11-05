@@ -187,7 +187,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
   }
 
   const save = async () => {
-    if (!name.trim()) { setError('Give the style a name.'); return }
+    if (!name.trim()) { setError('Give the template a name.'); return }
     if (mode === 'template' && !templateId) { setError('Choose one of your templates, or pick another outline option.'); return }
     setSaving(true); setError('')
     try {
