@@ -313,7 +313,7 @@ export const GUIDE_FEATURES = [
     id: 'chartType', terms: ['chart type'], control: 'the chart’s settings gear', title: 'Changing the chart type', topic: 'charts',
     words: [/\bchart type\b/, /\b(candlesticks?|candles?|bars?|line|area|hollow|baseline)\b.*\bchart\b/, /\b(line|bar|area|candle) chart\b/],
     caps: ['chart.setType'],
-    explain: 'Chart Settings → Price Style chooses how price is drawn: candles, hollow candles, bars, a line and the others. Right-clicking the chart offers the same choice.',
+    explain: 'Chart Settings → Price Style chooses how price is drawn: candles, hollow candles, bars, a line and the others.',
     steps: [
       GEAR,
       { target: 'chartSettings.tab.price', name: 'the Price Style tab', text: 'Open Price Style.', waitFor: { id: 'chartSettings.tab.price', on: true } },
