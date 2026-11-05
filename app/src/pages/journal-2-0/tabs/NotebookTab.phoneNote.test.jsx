@@ -499,38 +499,36 @@ describe('D-7 -- the phone rule (structural)', () => {
 })
 
 // S12 (audit 2026-11-05, B13): "Phone: open a note, tap Folders -- the Folders button disappears; nothing else
-// changes." Folders inside a note opens the folders panel as a bottom SHEET over the note; the scrim closes it.
-// jsdom applies no CSS: the rendered half proves the state (`data-folder-sheet` on the wrap, the scrim), the
-// structural half proves the phone rule draws the panel while that attribute is set.
+// changes." Folders inside a note opens the folders panel as a bottom SHEET over the note. Fix round 1 (review
+// Important 6): it is the repo's Sheet -- a named dialog, focus moved in, Escape closes it, and focus returns to the
+// Folders button, which stays on screen (aria-expanded says the sheet's state). Closing it never rewrites the stored
+// sidebar preference.
 describe('B13 -- Folders inside a note opens a sheet (phone)', () => {
   afterEach(() => setWidth(realWidth))
-  const door = () => screen.queryByRole('button', { name: 'Show folders' }) || showFoldersBtn()
-  const wrap = () => document.querySelector('[data-note-open]')
+  const door = () => screen.getByRole('button', { name: 'Show folders' })
+  const sheet = () => screen.queryByRole('dialog', { name: 'Folders' })
 
-  it('the door is there inside a note, and a tap opens the sheet instead of vanishing into nothing', () => {
+  it('the door is there inside a note, and a tap opens a NAMED dialog with the folders in it, focus inside', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all&note=n1')
-    expect(door()).not.toBeNull()
+    expect(door()).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(door())
-    expect(wrap()).toHaveAttribute('data-folder-sheet')
-    expect(screen.getByTestId('folder-sidebar')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Close folders' })).toBeInTheDocument()
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    expect(door()).toHaveAttribute('aria-expanded', 'true')
+    expect(sheet().querySelector('[data-testid="folder-sidebar"]')).not.toBeNull()
+    await waitFor(() => expect(sheet().contains(document.activeElement)).toBe(true))
   })
 
-  it('the scrim closes the sheet and the door comes back', () => {
+  it('Escape closes it and focus returns to the Folders button, which never left the page', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all&note=n1')
+    const before = localStorage.getItem('uct.j2.nb.sidebarOpen')
+    door().focus()
     fireEvent.click(door())
-    fireEvent.click(screen.getByRole('button', { name: 'Close folders' }))
-    expect(wrap()).not.toHaveAttribute('data-folder-sheet')
-    expect(door()).not.toBeNull()
-  })
-
-  it('the phone rule draws the panel as a fixed bottom sheet only while the attribute is set', () => {
-    const css = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'tabs', 'NotebookTab.module.css'), 'utf8')
-    const phone = mediaBodiesAt(css, 390).join('\n')
-    expect(phone).toMatch(/\.wrap\[data-note-open\]\[data-folder-sheet\] \.sidebarSlot \{\s*display: block;\s*position: fixed;/)
-    expect(phone).toMatch(/\.noteFoldersBtn \{ display: inline-flex; \}/)
-    expect(mediaBodiesAt(css, 820).join('\n')).not.toMatch(/data-folder-sheet/)
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    await waitFor(() => expect(sheet()).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(door()))
+    expect(localStorage.getItem('uct.j2.nb.sidebarOpen')).toBe(before)
   })
 })

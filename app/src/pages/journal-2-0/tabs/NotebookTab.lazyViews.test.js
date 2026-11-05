@@ -35,6 +35,8 @@ const LAZY = [
   '../components/notebook/styles/StylesManager',
   // Tier 1b fix round 1: the phone "+" sheet, on its first open through `lazyDialog`.
   '../components/notebook/NotebookPlusSheet',
+  // Tier 1b fix round 1: the phone note's folders sheet, on its first open through `lazyDialog`.
+  '../components/notebook/FolderSheet',
   // Wave 7 Task 7.6: the "Save view" name prompt, on its first open through `lazyDialog`.
   '../components/notebook/SavedViewEditor',
   // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).

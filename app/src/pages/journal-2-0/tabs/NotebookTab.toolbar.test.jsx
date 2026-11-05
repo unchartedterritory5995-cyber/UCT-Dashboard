@@ -125,6 +125,17 @@ describe('every action that was on the toolbar is still reachable (S11 enumerati
   })
 })
 
+describe('the phone Folder chip (review Minor 17)', () => {
+  it('discloses the folders panel: aria-expanded and aria-controls name it', async () => {
+    window.localStorage.setItem('uct.j2.nb.sidebarOpen', '0')
+    await renderTab()
+    const chip = within(bar()).getByRole('button', { name: /^Folder:/ })
+    expect(chip).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById(chip.getAttribute('aria-controls'))).not.toBeNull()
+    window.localStorage.removeItem('uct.j2.nb.sidebarOpen')
+  })
+})
+
 describe('the view lives in the address', () => {
   it('?view=board opens the board and KEEPS the address (a reload opens it again)', async () => {
     await renderTab('/journal/notebook?view=board')

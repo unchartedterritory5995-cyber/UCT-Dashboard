@@ -343,9 +343,8 @@
   .toolBtn { min-width: var(--tap-min, 44px); }
 }
 
-/* S12 (B13): the in-note Folders door and the sheet's scrim exist on a phone only. */
+/* S12 (B13): the in-note Folders door exists on a phone only (it opens the FolderSheet). */
 .noteFoldersBtn { display: none; }
-.folderSheetScrim { display: none; }
 
 /* The toggle's word is phone-only: on a wider screen the icon sits beside the panel it opens. */
 .sidebarToggleLabel { display: none; }
@@ -635,35 +634,10 @@
   .wrap[data-note-open] .sidebarSlot {
     display: none;
   }
-  /* S12 (audit 2026-11-05, B13): inside a note, Folders opens the panel as a BOTTOM SHEET over the note (it used
-     to flip the panel "open" behind this very rule, so the button vanished and nothing showed). */
+  /* S12 (audit 2026-11-05, B13): inside a note, Folders is the in-note door, which opens the folders Sheet
+     (FolderSheet); the panel's own floating toggle steps aside there so there is one Folders. */
   .noteFoldersBtn { display: inline-flex; }
-  .wrap[data-note-open][data-folder-sheet] .sidebarSlot {
-    display: block;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: var(--z-modal);
-    max-height: 75vh;
-    height: auto !important;
-    overflow-y: auto;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    border-top: 1px solid var(--border);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-popover);
-  }
-  .folderSheetScrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: calc(var(--z-modal) - 1);
-    border: 0;
-    padding: 0;
-    background: var(--hub-scrim);
-    cursor: pointer;
-  }
+  .wrap[data-note-open] > .sidebarToggle:not(.noteFoldersBtn) { display: none; }
   /* Finish pass (2026-10-10): the way back shares the editor's action row instead of taking a
      row of its own above it: a 44 px chevron at the row's left, with the editor header padded
      by the same amount so its actions can never slide under it (`[data-note-header]`). The

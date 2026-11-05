@@ -193,6 +193,9 @@ const PublishFolderSheet = lazyDialog(() => import('../components/notebook/Publi
 // rendered only while a voice note is in progress, so each start mounts it afresh.
 const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
 // Notebook P1: the Journal styles manager, fetched the first time it is opened (a creating door, gated below).
+const NOOP = () => {}
+// S12 (B13), fix round 1: the folders sheet inside a note on a phone, on its first open through `lazyDialog`.
+const FolderSheet = lazyDialog(() => import('../components/notebook/FolderSheet'), 'folders')
 // S12 (M9): the phone "+" sheet, on its first open through `lazyDialog` (fix round 1: first-open bytes).
 const NotebookPlusSheet = lazyDialog(() => import('../components/notebook/NotebookPlusSheet'), 'add')
 const StylesManager = lazyDialog(() => import('../components/notebook/styles/StylesManager'), 'journal styles')
@@ -594,19 +597,20 @@ export default function NotebookTab() {
     try { localStorage.setItem('uct.j2.nb.sidebarOpen', next ? '1' : '0') } catch { /* private mode */ }
     return next
   })
-  // S12 (audit 2026-11-05, B13): on a phone, inside a note, Folders opens the folders panel as a BOTTOM SHEET. ⚰️ It
+  // S12 (audit 2026-11-05, B13): on a phone, inside a note, Folders opens the folders panel as a bottom SHEET. ⚰️ It
   // flipped `sidebarOpen` while the note-open rule kept the panel hidden, so the button vanished and nothing showed.
-  // The sheet is the same panel (one FolderSidebar), drawn over the note by CSS while `data-folder-sheet` is set;
-  // the scrim, the panel's own Hide button or opening anything closes it.
+  // Fix round 1 (review Important 6): the sheet is the repo's Sheet (FolderSheet, on demand) around the same
+  // FolderSidebar, opened from a Folders button that stays on screen; it never touches the stored sidebar choice.
   const [folderSheet, setFolderSheet] = useState(false)
+  const folderSheetBtnRef = useRef(null)
+  const openFolders = () => {
+    if (noteId) { setFolderSheet(true); return }
+    if (!sidebarOpen) toggleSidebar()
+  }
+  useEffect(() => { setFolderSheet(false) }, [noteId])
   // S12: the phone "+" and its sheet (NotebookPlusSheet, on demand).
   const [plusOpen, setPlusOpen] = useState(false)
   const plusRef = useRef(null)
-  useEffect(() => { setFolderSheet(false) }, [noteId])
-  const openFolders = () => {
-    if (noteId) setFolderSheet(true)
-    if (!sidebarOpen) toggleSidebar()
-  }
 
   // Lane KEYS: the command palette's "Search Notebook" arrives with `#search`
   // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
@@ -2253,6 +2257,35 @@ export default function NotebookTab() {
     }, { replace: true })
   }, [setSearchParams])
 
+  // One FolderSidebar's props, for the panel and for the phone note's folders sheet (fix round 1, Important 6).
+  const folderSidebarProps = {
+    notes: allNotes,
+    notesTotal: allNotesTotal,
+    activeFolderId: folderId,
+    onSelectFolder: handleSelectFolder,
+    activeTag: tag,
+    onSelectTag: handleSelectTag,
+    onOpenNote: openNote,
+    activeNoteId: noteId,
+    onToggleSidebar: toggleSidebar,
+    sidebarOpen: sidebarOpen,
+    searchRequest: searchRequest,
+    searchSeed: searchSeed,
+    onSearchModeChange: setSidebarSearching,
+    savedViews: savedViews,
+    activeViewId: activeView?.id ?? null,
+    onSelectView: handleSelectView,
+    onRenameView: onRenameView,
+    onDeleteView: onDeleteViewRequest,
+    onAddStarterViews: addStarterThesisViews,
+    isHome: isHome,
+    onSelectAllNotes: selectAllNotes,
+    onRenameTag: onRenameTag,
+    extraFolderActions: extraFolderActions,
+    // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
+    // failure is said in the panel with the panel's own reads.
+    extraLoadFailures: [{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }],
+  }
   return (
     // Wave 6 item 7: the split-view door for everything below — the sidebar's
     // Ctrl/Cmd+click and every note link inside either editor (lib/splitView.js).
@@ -2268,7 +2301,6 @@ export default function NotebookTab() {
       // phone rule in NotebookTab.module.css hides the panel; the note is the
       // page, and the phone back control below returns to the list.
       data-note-open={noteId ? 'true' : undefined}
-      data-folder-sheet={noteId && folderSheet && sidebarOpen ? '' : undefined}
     >
       {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
           folder tree, straight to the note or the list. Visually hidden until
@@ -2391,18 +2423,15 @@ export default function NotebookTab() {
       )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
-      {/* B13: inside a note on a phone the panel is hidden by the note-open rule even while "open", so this door
-          is drawn there too (phone only, CSS) and opens the folders sheet. */}
-      {noteId && sidebarOpen && !folderSheet && (
-        <button type="button" className={`${styles.sidebarToggle} ${styles.noteFoldersBtn}`} onClick={openFolders}
-          aria-label="Show folders" title="Show folders">
+      {/* B13: inside a note on a phone the panel is hidden by the note-open rule, so THIS is Folders there (phone only,
+          CSS): it opens the folders sheet and stays on screen, so focus can come back to it. */}
+      {noteId && (
+        <button type="button" ref={folderSheetBtnRef} className={`${styles.sidebarToggle} ${styles.noteFoldersBtn}`}
+          onClick={openFolders} aria-label="Show folders" title="Show folders" aria-haspopup="dialog"
+          aria-expanded={folderSheet}>
           <SidebarToggleIcon />
           <span className={styles.sidebarToggleLabel} aria-hidden="true">Folders</span>
         </button>
-      )}
-      {noteId && folderSheet && sidebarOpen && (
-        <button type="button" className={styles.folderSheetScrim} onClick={() => setFolderSheet(false)}
-          aria-label="Close folders" />
       )}
       {!sidebarOpen && (
         <button
@@ -2422,37 +2451,9 @@ export default function NotebookTab() {
           mounted (so reopening loses nothing), and without `inert` Tab and a screen reader still
           walked its folder tree, All notes and Trash -- controls nobody can see (desktop crawl,
           2026-10-09). */}
-      <div className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined} data-tour-reveal="notebook-sidebar">
+      <div id="notebook-folders-panel" className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined} data-tour-reveal="notebook-sidebar">
         <div className={styles.sidebarInner}>
-          <FolderSidebar
-            key={folderRefreshKey}
-            notes={allNotes}
-            notesTotal={allNotesTotal}
-            activeFolderId={folderId}
-            onSelectFolder={handleSelectFolder}
-            activeTag={tag}
-            onSelectTag={handleSelectTag}
-            onOpenNote={openNote}
-            activeNoteId={noteId}
-            onToggleSidebar={toggleSidebar}
-            sidebarOpen={sidebarOpen}
-            searchRequest={searchRequest}
-            searchSeed={searchSeed}
-            onSearchModeChange={setSidebarSearching}
-            savedViews={savedViews}
-            activeViewId={activeView?.id ?? null}
-            onSelectView={handleSelectView}
-            onRenameView={onRenameView}
-            onDeleteView={onDeleteViewRequest}
-            onAddStarterViews={addStarterThesisViews}
-            isHome={isHome}
-            onSelectAllNotes={selectAllNotes}
-            onRenameTag={onRenameTag}
-            extraFolderActions={extraFolderActions}
-            // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
-            // failure is said in the panel with the panel's own reads.
-            extraLoadFailures={[{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }]}
-          />
+          <FolderSidebar {...folderSidebarProps} key={folderRefreshKey} />
         </div>
       </div>
 
@@ -2689,8 +2690,9 @@ export default function NotebookTab() {
           {/* S12 (V4): on a phone the folders drawer's door joins this row as a labelled dropdown (CSS shows it
               at <=640px and hides the standalone toggle above), so folders, view and sort are ONE 44 px row. */}
           {!sidebarOpen && (
+            // Review Minor 17: it discloses the folders panel, and says so.
             <button type="button" className={`btn btn-secondary btn-sm ${styles.phoneFolders}`} onClick={toggleSidebar}
-            >
+              aria-expanded={sidebarOpen} aria-controls="notebook-folders-panel">
               <span className="sr-only">Folder: </span>{folderId ? activeFolderName : 'All notes'}
               <UIcon name="chevronDown" size={12} gold={false} />
             </button>
@@ -3164,6 +3166,12 @@ export default function NotebookTab() {
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
       {/* S12 (M9): the phone Notebook's one floating "+" (phone only, CSS). Its rows are this tab's own doors; the
           sheet is fetched on its first open (lazyDialog), so the first open pays only for the button. */}
+      {noteId && (
+        <FolderSheet open={folderSheet} onClose={() => setFolderSheet(false)} returnFocusTo={folderSheetBtnRef}>
+          <FolderSidebar {...folderSidebarProps} sidebarOpen onToggleSidebar={() => setFolderSheet(false)}
+            onSearchModeChange={NOOP} />
+        </FolderSheet>
+      )}
       <NotebookPlusFab ref={plusRef} open={plusOpen} onOpen={() => setPlusOpen(true)} />
       <NotebookPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} returnFocusTo={plusRef}
         onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}

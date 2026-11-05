@@ -350,6 +350,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
   // Fix round 1: the "+" sheet is its own chunk; the axe rail reads it OPEN.
   'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
+  // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
+  'components/notebook/FolderSheet.jsx': { recipe: 'folder-sheet:open' },
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
