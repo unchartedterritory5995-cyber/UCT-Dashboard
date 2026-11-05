@@ -438,3 +438,10 @@ open: acceptance capture W4-P1 not done (row in docs/pine/capture-queue-2026-11-
 - 2026-11-05 07:47 LANDING DRY-RUN (git merge-tree, read-only, nothing pushed): all 36 reviewed tips merge CLEAN one at a time onto origin/master c8e8ecb132. The lanes have not been tested merging on top of one another; at landing the engine numbers and the order still apply, with each merge followed by its landing checks. W5-T16 r2 is the only lane still building.
 - 2026-11-05 07:53 W5-T16 r2 5e9363ed82: GO-WITH-NOTES. Order: T3, T11, T16.
 ## BATCH REVIEW COMPLETE 2026-11-05 07:53: all 37 lanes are GO or GO-WITH-NOTES, and each tip merges CLEAN onto current master by itself. The lanes have not been tested merging on top of one another. NOTHING MERGED. Landing waits for explicit owner approval of master merges and production deploys; the permission layer blocks it. At landing, merge in dependency order, assign engine numbers in merge order, and run landing checks after each merge (W5-T5: re-run its 3 rail files; W5-T19: squash or gitignore dist-server).
+
+>>> NEXT STAGE ADOPTED 2026-11-05 08:02 (owner: "analyze progress... make whatever improvements... then proceed"). Plan and adjustments A1-A6: reviews/NEXT-STAGE.md. Starting now:
+- N1: landing train integ/pine-train-2026-11-05 (one branch, all 40 lanes in order, engine numbers assigned on the train; never touches master).
+- N2: W6 breakdown doc.
+- N3: W9 strategy-tester design.
+- N4: editor status panel round-3 delta review.
+Then N5: W0 re-measure on the train tip; N6-N9 build from the train tip. <<<
