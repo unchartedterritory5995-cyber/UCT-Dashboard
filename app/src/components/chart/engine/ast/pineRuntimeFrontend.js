@@ -346,6 +346,10 @@ const BIN = Object.freeze({
   and: '&&', or: '||',
 })
 const PRICE = new Set(['open', 'high', 'low', 'close', 'volume'])
+/** `true` / `false` written as a literal: the boolean it names, else null. They parse to a number
+ *  node whose token is the keyword. ONE reader for every place a call reads a literal flag. */
+export const literalBool = (c) => (c && c.type === 'number' && c.tok && c.tok.kind === 'ident'
+  && (c.tok.value === 'true' || c.tok.value === 'false')) ? c.tok.value === 'true' : null
 const BLOCK_WORDS = new Set(['for', 'while'])
 /** The calls this lane turns into a VALUE SERIES.
  *
@@ -2821,6 +2825,51 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (y) return isBuiltinNa(node.no, scope)
       if (n) return isBuiltinNa(node.yes, scope)
       return false
+    }
+    // W4-T12 - A USER FUNCTION WHOSE RESULT IS PROVABLY A COLOUR IS ONE. The
+    // verdict is `record.colour`, stamped by `defineFunction` from the SAME
+    // `holdsColour` read of the function's result leaves (every arm a colour or
+    // `na`); a function not yet defined, or valueless, answers false.
+    // ⛔ NOT AT THE OBJECT DOOR: master's lane never proved these, and the door builds what master builds.
+    if (!atObjectDoor && node.type === 'call' && typeof node.name === 'string' && fnByName.has(node.name)) {
+      const rec = functions[fnByName.get(node.name)]
+      // ⛔ THE RECORD MUST BE THIS FUNCTION'S. A definition this lane refused is POPPED while its name
+      // stays in `fnByName` (the deferred refusal), and the next definition reuses that index - so the
+      // index alone can name ANOTHER function's record (measured: a refused `ta.*` selector read a
+      // colour helper's verdict and every plot of its result was refused as a colour).
+      return !!(rec && rec.name === node.name && rec.colour === true && !rec.valueless)
+    }
+    // W4-T12 - AN ELEMENT OF A COLOUR ARRAY IS A COLOUR (the text rule's twin).
+    if (!atObjectDoor && node.type === 'call' && ARRAY_READS_ELEMENT.has(node.name)) {
+      const a0 = (node.args || [])[0]
+      const av = a0 && a0.value !== undefined ? a0.value : a0
+      if (av && av.type === 'name') {
+        const s0 = scope.lookup(av.name)
+        if (s0 !== null) return !!(slots[s0] && slots[s0].elemColour)
+        const b0 = env.get(av.name)
+        if (b0 && b0.kind === 'expr') return arrayHoldsColour(b0.node, scope)
+        return false
+      }
+      return arrayHoldsColour(av, scope)
+    }
+    return false
+  }
+
+  /** W4-T12 - does this array-producing expression hold COLOURS? Narrow, like
+   *  `arrayHoldsText`: `array.from` of colours (and `na`), or an array created
+   *  with the `color` type argument. An unknown shape answers false = a refusal. */
+  const arrayHoldsColour = (node, scope, depth = 0) => {
+    if (!node || node.type !== 'call' || depth > 8) return false
+    const n = String(node.name || '')
+    if (n === 'array.new_color') return true
+    if (n === 'array.new') {
+      const ta = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
+      return ta === 'color'
+    }
+    if (n === 'array.from') {
+      const vals = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+      return vals.length > 0 && vals.every((v) => isBuiltinNa(v, scope) || holdsColour(v, scope))
+        && vals.some((v) => holdsColour(v, scope))
     }
     return false
   }
@@ -7968,8 +8017,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ EACH SIDE MUST NAME A PLOT, and the refusal says which one did not.
     // `fill(close, open, color.red)` is a real mistake a member makes, and
     // "expected a plot" without naming the side sends them to check both.
+    // W4-T12 - A PLOT ID CHOSEN BY `?:` over a LITERAL `true` / `false` is the arm it
+    // picks: the choice is fixed before bar 0, so the fill spans ONE plot pair, as
+    // if the script had named that plot. A condition only known while the bar runs
+    // (a series, an input) keeps the refusal below: a fill's two outputs are static
+    // handles, and what TradingView does with a plot id chosen per bar is not
+    // captured (docs/pine/capture-queue-2026-11-03-w4-t12.md, row P2-F1).
+    // (`true` / `false` parse to a number node whose token is the keyword: `literalBool`.)
+    const plotIdNode = (n, depth = 0) => {
+      if (!atObjectDoor && n && n.type === 'ternary' && depth < 8) {
+        const pick = literalBool(n.test !== undefined ? n.test : n.cond)
+        if (pick !== null) return plotIdNode(pick ? n.yes : n.no, depth + 1)
+      }
+      return n
+    }
     const sideOf = (i) => {
-      const node = argOf(positional[i])
+      const node = plotIdNode(argOf(positional[i]))
       const ref = node && node.type === 'name' ? plotRefs.get(node.name) : null
       if (!ref) {
         note('runtime:fill-target')
@@ -8234,6 +8297,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
     vstate.valueless = true
     if (!vstate.end) vstate.end = end
   }
+  /** W4-T12 - record what one leaf of a value block yields (see `armAssignerFor`). */
+  const tallyPaintLeaf = (sink, node, scope) => {
+    const t = sink.paint
+    if (!t) return
+    if (isBuiltinNa(node, scope)) t.na += 1
+    else if (holdsColour(node, scope)) t.colour += 1
+    else t.other += 1
+  }
+  /** a block is a colour when it has a colour leaf and no leaf that is neither a
+   *  colour nor `na` (a missing `else` / default yields `na`, which is a colour). */
+  const paintIsColour = (t) => !!t && t.colour > 0 && t.other === 0
   /** ⭐⭐ W4-T7 - A BLOCK'S ARMS RUN ON SOME BARS ONLY (H9), so INSIDE A FRAME no
    *  arm may hoist a committed series into the enclosing statement list: that
    *  declare would run on EVERY bar while the arm runs only when taken. The
@@ -8276,11 +8350,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const end = h === lines.length - 1 ? valuelessEndOf(head) : null
     if (end) {
+      if (sink.paint) sink.paint.other += 1
       noteValueless(vstate, end, label, at)
       for (const s of lowerStmts(lines.slice(h), scope)) body.push(s)
       return body
     }
     if (isBindingHeader(ht)) {
+      if (sink.paint) sink.paint.other += 1
       for (const s of lowerStmts(lines.slice(h), scope)) body.push(s)
       const vals = boundValuesOf(ht, scope)
       if (!vals || vals.length !== sink.slots.length) {
@@ -8303,6 +8379,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (w && isPunct(ht[1], '(') && isUserFn(w)) {
       const callNode = parseWholeExpression(ht)
       if (callNode && callNode.type === 'call') {
+        tallyPaintLeaf(sink, callNode, scope)
         const lowered = lowerExpr(callNode, scope, { multi: true, effect: true })
         const idx = fnByName.get(w)
         const rec = idx === undefined ? null : functions[idx]
@@ -8324,9 +8401,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const node = parseWholeExpression(ht)
     if (sink.slots.length === 1) {
+      tallyPaintLeaf(sink, node, scope)
       body.push(assign(sink.slots[0], lowerExpr(node, scope)))
       return body
     }
+    if (sink.paint) sink.paint.other += 1
     const lowered = node && node.type === 'collection' ? lowerResult(node, scope)
       : lowerExpr(node, scope, { multi: true })
     const gives = arityOfLowered(lowered)
@@ -8422,6 +8501,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const armAssignerFor = (target, label, parentScope, vstate = null) => {
     const sink = valueSinkOf(target)
+    // W4-T12 - WHAT THE LEAVES OF THIS BLOCK YIELD, tallied where each leaf is
+    // assigned (`lowerBlockValue`): a colour, `na`, or anything else. One tally
+    // per sink, shared by every nested arm, read by the binding / function that
+    // owns the sink to decide whether the block's value is a colour.
+    if (!sink.paint) sink.paint = { colour: 0, na: 0, other: 0 }
     const mk = (sub, atTok) => {
       const lines = sub || []
       if (!lines.length) {
@@ -8438,6 +8522,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return body
     }
     mk.valued = true
+    mk.paint = sink.paint
     return mk
   }
 
@@ -10133,6 +10218,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (holdsArray(value, scope)) {
           slots[slot].collection = true
           slots[slot].elemText = arrayHoldsText(value, scope)
+          slots[slot].elemColour = arrayHoldsColour(value, scope)
         }
         // ⭐⭐ MARKED AT THE BINDING, exactly as text, colour and the element
         // kind are, and for the same reason all three are: without it the NEXT
@@ -10274,6 +10360,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
           blk = lowerSwitchInto(st.sub, toks.slice(eqBlk + 2), scope, mkArm,
             `${nameTok.value} =`, rhsHead)
         }
+        // W4-T12 - `c = switch ... / if ...` WHOSE EVERY LEAF IS A COLOUR OR `na` IS
+        // A COLOUR SLOT, marked at its binding exactly as `c = cond ? a : b` is.
+        if (!atObjectDoor && paintIsColour(mkArm.paint)) slots[slot].colour = true
         if (!once) {
           for (const s of blk) out.push(s)
           continue
@@ -10355,6 +10444,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (isCollection) {
           slots[slot].collection = true
           slots[slot].elemText = arrayHoldsText(value, scope)
+          slots[slot].elemColour = arrayHoldsColour(value, scope)
         }
         markUdtSlot(slot, value, scope, toks, eq)
         // ⭐⭐ W4-T9 — a frame local bound once to arithmetic over the frame is
@@ -10702,6 +10792,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (ty && ty.word === 'array') {
         slots[ps].collection = true
         slots[ps].elemText = ty.typeArg === 'string'
+        slots[ps].elemColour = ty.typeArg === 'color'
         if (ty.typeArg && udtTypes.has(ty.typeArg)) slots[ps].elemUdt = ty.typeArg
       }
       // ⭐ AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver of
@@ -10789,6 +10880,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     try {
       let body = []
       let result = null
+      // W4-T12 - whether the RESULT is provably a colour (`holdsColour`'s call arm)
+      let resultColour = false
       if (arrow === toks.length - 1) {
         const lines = st.sub || []
         if (!lines.length) {
@@ -10827,6 +10920,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const armToks = arm ? arm.toks : sw.fallback
           // no arm and no default: a `switch` that matches nothing is `na`
           result = armToks ? lowerResult(parseWholeExpression(armToks), fnScope) : naValue()
+          if (armToks) resultColour = holdsColour(parseWholeExpression(armToks), fnScope)
         } else if (endsInLoop(lines)
           // ⭐ R1 — A BODY THAT ENDS IN A VOID COLLECTION CALL (`array.set(…)`,
           // `delta-rsi-oscillator-strategy`'s `matrix_set`) returns nothing in
@@ -10872,8 +10966,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             vSlots.push(fnScope.declare(vName, newSlot(vName, false)))
           }
           const vstate = { allow: !atObjectDoor, valueless: false, end: null }
+          const fnSink = { slots: vSlots, paint: { colour: 0, na: 0, other: 0 } }
           const label = chainAt >= 0 ? `${nameTok.value}(…) => if …` : `${nameTok.value}(…) =>`
-          body = lowerBlockValue(lines, fnScope, { slots: vSlots }, label, nameTok, vstate)
+          body = lowerBlockValue(lines, fnScope, fnSink, label, nameTok, vstate)
+          resultColour = n === 1 && paintIsColour(fnSink.paint)
           if (vstate.valueless) {
             record.valueless = true
             record.valuelessEnd = vstate.end === 'loop' ? null : vstate.end
@@ -10904,16 +11000,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // line bound: read it back by its name, as any later line would.
             if (!atObjectDoor && slot === null && bound && bound.kind === 'ident' && env.has(bound.value)
                 && String(bound.value).indexOf('.') < 0) {
-              result = lowerExpr({ type: 'name', name: bound.value, tok: bound }, fnScope)
+              const rn = { type: 'name', name: bound.value, tok: bound }
+              result = lowerExpr(rn, fnScope)
+              resultColour = holdsColour(rn, fnScope)
             } else if (slot === null) {
               throw new RuntimeRefusal('runtime:function',
                 'a body whose last statement binds nothing this front end can return', locate(nameTok))
             } else {
               result = read(slot)
+              resultColour = !!(slots[slot] && slots[slot].colour)
             }
           } else {
             try {
-              result = lowerFrameResult(parseWholeExpression(lt), fnScope, (h) => { body = body.concat(h) })
+              const lastNode = parseWholeExpression(lt)
+              result = lowerFrameResult(lastNode, fnScope, (h) => { body = body.concat(h) })
+              resultColour = holdsColour(lastNode, fnScope)
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
               // slot there), so the refusal it always gave is HELD for the call
@@ -10928,10 +11029,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
         }
       } else {
-        result = lowerFrameResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope, (h) => { body = body.concat(h) })
+        const inlineNode = parseWholeExpression(toks.slice(arrow + 1))
+        result = lowerFrameResult(inlineNode, fnScope, (h) => { body = body.concat(h) })
+        resultColour = holdsColour(inlineNode, fnScope)
       }
       record.body = body
       record.result = result
+      record.colour = resultColour
       // ⭐ HOW MANY VALUES THIS FUNCTION HANDS BACK. A destructuring compares
       // its own name count against this, so a mismatch is named at the call
       // rather than discovered as a stack that does not balance.
