@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
-import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 // 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
 // hooks in this tree (useJ2SavedViews, useJ2PropertyDefs) use real `useSWR`,
 // and the "primes the cache" test below needs the real cache to assert against.
@@ -133,7 +133,7 @@ vi.mock('../lib/templatesLoader', async (importOriginal) => {
 import NotebookTab from './NotebookTab'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { chooseView, offersSaveView, pressToolbar, toolbarOffers, viewOption } from './__tests__/toolbarDoors'
+import { chooseView, currentView, offersSaveView, pressToolbar, toolbarOffers, viewOption } from './__tests__/toolbarDoors'
 import * as settleModule from '../lib/offline/settleNoteWrite'
 import { getTemplate } from '../lib/notebookTemplates'
 import { loadTemplates } from '../lib/templatesLoader'
@@ -1212,5 +1212,23 @@ describe('NotebookTab — P0.13 search in place', () => {
     act(() => lastSidebarProps().onSearchModeChange(true))
     expect(lastSidebarProps().searchRequest).toBe(request)
     expect(lastSidebarProps().searchSeed).toBe('nvda')
+  })
+})
+
+// Tier 1b fix round 1 (review Important 2): the view lives in the address (S11), and a SAVED view pins its own mode.
+// Picking one while the address said `?view=board` left `?view=board` behind, so a reload (or the shared link) opened
+// the board and dropped the saved view. Choosing a saved view takes the mode out of the address.
+describe('a saved view takes a stale ?view= mode out of the address (Important 2)', () => {
+  function Where() {
+    const loc = useLocation()
+    return <output data-testid="where">{loc.search}</output>
+  }
+  it('from ?view=board, picking a list-type saved view leaves no ?view=board', async () => {
+    render(<MemoryRouter initialEntries={['/journal/notebook?view=board']}><NotebookTab /><Where /></MemoryRouter>)
+    expect(screen.getByTestId('where').textContent).toContain('view=board')
+    fireEvent.click(screen.getByText('select view v1'))
+    await waitFor(() => expect(screen.getByTestId('where').textContent).not.toContain('view=board'))
+    expect(currentView()).toBe('List')
+    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()   // the saved view is still on
   })
 })

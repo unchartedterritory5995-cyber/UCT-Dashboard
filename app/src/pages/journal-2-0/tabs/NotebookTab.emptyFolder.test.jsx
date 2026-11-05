@@ -46,6 +46,23 @@ describe('an empty folder (VIS-5)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Move notes…' }))
     expect(await screen.findByText('Select the notes you want, then choose Move to put them in Archive 2025.')).toBeInTheDocument()
     expect(screen.queryByText('No notes in Archive 2025 yet')).toBeNull()
+    // Fix round 1 (review Important 3): the member lands on the LIST, where notes can be selected -- never on
+    // Research Home (the notice is a global stack, so it alone could not tell the two apart).
+    expect(await screen.findByRole('toolbar', { name: 'Notes list tools' })).toBeInTheDocument()
+    expect(document.querySelector('[data-home-skeleton], [data-home-search-wrap]')).toBeNull()
+  })
+
+  it('one solid primary on the screen: "New note here" is secondary beside the toolbar "+ New"', async () => {
+    await renderAt('/journal/notebook?folder=f3')
+    await screen.findByText('No notes in Archive 2025 yet')
+    const primaries = [...document.querySelectorAll('.btn-primary')].map((b) => b.getAttribute('aria-label') || b.textContent.trim())
+    expect(primaries).toEqual(['+ New', 'More ways to start a note'])
+  })
+
+  it('with a ticker filter on too, it says the filters match nothing in the folder', async () => {
+    await renderAt('/journal/notebook?folder=f3&ticker=NVDA')
+    expect(await screen.findByText('No notes match these filters in Archive 2025')).toBeInTheDocument()
+    expect(screen.queryByText('No notes in Archive 2025 yet')).toBeNull()
   })
 
   it('CONTROL: a folder with notes lists them, and no empty sentence', async () => {

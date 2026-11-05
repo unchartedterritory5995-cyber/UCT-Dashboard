@@ -1227,7 +1227,14 @@ export default function NotebookTab() {
     // quiet, which is why the server's SAVEABLE_VIEW_TYPES and this set are
     // pinned against each other by a test.
     setViewMode(SAVEABLE_VIEW_MODES.has(view.viewType) ? view.viewType : 'list')
-    clearViewAllParam()
+    // Fix round 1 (review Important 2): a saved view pins its OWN mode, so the address keeps no `?view=<mode>`
+    // (a stale `?view=board` reopened the board on reload and dropped the saved view). Writing the view's type there
+    // instead would trip the URL effect, which clears a saved view by design.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('view')
+      return next
+    }, { replace: false })
     if (noteId) clearNoteParam()
   }
   const handleQuickFilter = (propertyId, value) => {
@@ -2117,7 +2124,9 @@ export default function NotebookTab() {
   // "Move notes…": back to All notes, where every note can be selected and moved with the bulk bar's Move.
   const moveNotesHere = () => {
     const name = activeFolderName
-    setFolderId(null)
+    // Fix round 1 (review Important 3): selectAllNotes sets the explicit All-notes flag (`view=all`). A bare
+    // setFolderId(null) left neither a filter nor the flag, so the member landed on Research Home.
+    selectAllNotes()
     setBulkNotice({ message: `Select the notes you want, then choose Move to put them in ${name}.`, tone: 'info' })
   }
 
@@ -2872,9 +2881,13 @@ export default function NotebookTab() {
           // does next. ⚰️ It used to say "Your notebook is empty." and render the whole template gallery
           // (536 text nodes) inside a folder of a notebook that was not empty at all.
           <div className={styles.empty} data-empty="folder">
-            <p>No notes in {activeFolderName} yet</p>
+            {/* Fix round 1 (review Minor 18): with a tag, ticker or property filter on too, the folder may hold notes. */}
+            <p>{tag || tickerFilter || propertyFilter
+              ? `No notes match these filters in ${activeFolderName}`
+              : `No notes in ${activeFolderName} yet`}</p>
             <div className={styles.emptyActions}>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => createNote()} disabled={creating}>
+              {/* Review Minor 10: secondary -- the toolbar's "+ New" is the screen's one solid primary (VIS-3). */}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => createNote()} disabled={creating}>
                 New note here
               </button>
               <button type="button" className="btn btn-secondary btn-sm" onClick={moveNotesHere}>
