@@ -328,7 +328,7 @@ checks: 12 green on tip, all 12 red with the two new files moved aside (base pro
 NOT PROVEN: Docker is not installed on the desktop, so the image was never built or run (libstdc++6 on bookworm-slim, non-root and read-only FS are unverified at runtime). Needs one local or CI docker build before T19/T20.
 open (coordinator): after T4 and T9 merge, the Dockerfile must also COPY tools/pine_runtime_host_parity.mjs, runtime/columnDigest.js and runtime/__fixtures__/hostParity/** for the canary, and the rail should check them (canary.mjs/metrics.mjs are covered by the directory-derived rail).
 ## W5-T11 client + lane adapter (needs T3, READY)
-state: READY            round: r1            round: r0            updated: 2026-11-04 13:39 CT
+state: READY            round: r1            updated: 2026-11-04 19:56 CT
 branch: feat/pine-w5-t11-client   tip: 1e384edbfe (r1 docs-only over code tip a74e273652; r0 tip 86218da704)   base: W5-T3 409456ee36 (STACK: merge T3 first)   tested on master: 0afa7645dd (T3's merge-base; DESKTOP-VERIFIED it merges clean with origin/master 9bfd567837)   worktree: pine-dsk-w5t11   model: Opus
 engine bump needed: NO
 evidence: docs/pine/evidence/2026-11-04-w5-t11/EVIDENCE.md
