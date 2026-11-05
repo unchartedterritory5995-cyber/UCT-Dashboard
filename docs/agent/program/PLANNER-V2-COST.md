@@ -11,6 +11,10 @@ turn still finishes under the runtime rule (spent + next worst), but the "under 
 measures the real section and pins that figure as a baseline it may not exceed. **Planner v2 cannot be enabled until an owner
 decision.** The tables are kept as measured then.
 
+`tools/agent_v2_cost_dryrun.py` and the corpus fixture now price the same real section. The fixture was also refreshed from
+46 to 158 intents. Over it the runtime gate peaks at $0.1189 (margin $0.1311; was $0.0693), the summed worst case reaches
+$0.2910, and a single Wave 1 search-layout request reserves $0.2602, over the cap on its own.
+
 ## How it was measured
 `python tools/agent_v2_cost_measure.py` (pinned by `tests/test_uct_agent_v2_cost_measure.py`) drives the REAL server loop
 (`turn_v2.run_turn_v2`) for every case of the scripted acceptance set (`app/src/agent/__fixtures__/program/v2-acceptance.json`,

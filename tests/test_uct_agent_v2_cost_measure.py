@@ -18,7 +18,7 @@ sys.path.insert(0, ROOT)
 
 from tools import agent_eval_ledger as led  # noqa: E402
 from tools import agent_v2_cost_measure as meas  # noqa: E402
-from tools.agent_v2_cost_dryrun import _manifest  # noqa: E402
+from tools.agent_v2_cost_dryrun import _manifest, real_context  # noqa: E402
 from api.services.uct_agent import turn as t1, turn_v2 as v2  # noqa: E402
 
 #: ⛔ PLANNER V2 CANNOT BE ENABLED UNTIL AN OWNER DECISION. The flagship's summed worst case on Haiku 4.5, measured over the
@@ -42,11 +42,11 @@ def _offline(monkeypatch):
 
 def _one(case_id: str, layout: str, model: str) -> dict:
     case = next(c for c in meas._cases() if c["id"] == case_id)
-    return meas.measure_case(case, layout, model, led=led, v2=v2, t1=t1, ctx=meas.real_context(), manifest=_manifest())
+    return meas.measure_case(case, layout, model, led=led, v2=v2, t1=t1, ctx=real_context(), manifest=_manifest())
 
 
 def test_the_context_carries_the_real_screener_section():
-    sec = meas.real_context()["screener"]
+    sec = real_context()["screener"]
     assert len(sec) == 1 and len(sec[0]["fields"]) > 4_000 and sec[0]["savedScreens"]
     catalog = sec[0]["fields"].split(";")
     keys = {f.split(":")[0] for f in catalog}

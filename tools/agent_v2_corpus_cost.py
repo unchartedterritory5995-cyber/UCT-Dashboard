@@ -2,7 +2,9 @@
 
 Deterministic: the requests are the ACTUAL prompts each planner builds, priced without sending anything.
   * The browser side comes from tests/fixtures/agent_v2_corpus_requests.json (regenerate with
-    `V2_COST_EXPORT=<path> npx vitest run src/agent/agentPlannerV2CostExport.test.jsx`):
+    `V2_COST_EXPORT=<path> V2_COST_STARTERS=<json of saved_screens.starters()> npx vitest run
+    src/agent/agentPlannerV2CostExport.test.jsx`; the boards carry the REAL Screener section, the full catalog a screening
+    request sends, so a non-screening intent reads slightly high, never low):
       - the manifest the browser builds;
       - per phrasing, the v1 ROUTED action list and routing block;
       - each fixture board's workspace context.
@@ -73,7 +75,7 @@ def _prefix_text(kw: dict) -> str:
 
 
 def _resolve(target: str, ctx: dict) -> str | None:
-    m = re.match(r"^\$([A-Za-z]+)(?:\[(\d+)\])?$", str(target or ""))
+    m = re.match(r"^\$([A-Za-z]+)(?:\[(\d+)\])?(?:\{\w+\})?$", str(target or ""))
     if not m:
         return target
     sec = ctx.get(m.group(1))

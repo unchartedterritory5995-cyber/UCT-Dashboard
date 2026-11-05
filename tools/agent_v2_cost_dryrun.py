@@ -18,8 +18,10 @@ representative four-chart workspace context) — nothing is sent anywhere. `--ru
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -35,7 +37,8 @@ STEP_RESULT_BYTES = 400
 TOOL_USE_BYTES = 220
 ROUNDS_TABLE = (1, 2, 3, 4, 6)
 
-#: a representative Charts workspace context (four charts, two lists, the libraries) — the VOLATILE part of a request
+#: a representative Charts workspace context (four charts, two lists, the libraries) — the VOLATILE part of a request.
+#: Its Screener section is real_screener_section(): never price against this dict alone (real_context()).
 SAMPLE_CONTEXT = {
     "surface": "charts",
     "charts": [{"ref": f"c{i}", "label": f"Chart ({s})", "symbol": s, "tf": "D", "position": p, "indicators": ["EMA 9", "EMA 20", "SMA 50", "SMA 200"]}
@@ -44,7 +47,6 @@ SAMPLE_CONTEXT = {
     "layouts": [{"ref": "l1", "label": "Layouts", "layouts": [{"id": "1", "name": "Swing Board", "open": True}, {"id": "2", "name": "Day Trading"}]}],
     "watchlists": [{"ref": "w2", "label": "Swing", "count": 12}, {"ref": "w3", "label": "Momentum", "count": 40}],
     "watchlistLibrary": [{"ref": "w4", "label": "Watchlists (create new lists here)"}],
-    "screener": [{"ref": "s1", "label": "Screener", "fields": "price, adr_pct, rel_volume, pct_change, market_cap, sector, industry"}],
     "alertLibrary": [{"ref": "a1", "label": "Price alerts (create new alerts here)", "alerts": 5}],
     "indicatorEdits": [{"ref": f"i{i}", "chart": f"Chart ({s})", "indicators": [{"id": f"x{i}a", "name": "EMA 9"}, {"id": f"x{i}b", "name": "EMA 20"}]} for i, s in enumerate(["NVDA", "AMD", "TSLA", "SPY"], 1)],
     "board": [{"ref": "b1", "label": "Board (arrange, remove, link and configure the widgets on it)"}],
@@ -53,6 +55,46 @@ SAMPLE_CONTEXT = {
 SAMPLE_MESSAGE = ("Find stocks above their 20 EMA with volume at least twice average, drop anything under $10, put the top five "
                   "by 3-month change on a new list called w1test-flagship, open the top two in the bottom row with my 9/20 EMAs, "
                   "and save this as W1 Test")
+
+
+#: the catalog line for a distance field (screener.js DIST_BELOW_HIGH / DIST_ABOVE_LOW, DIST_UNIT)
+_DIST_BELOW_HIGH = re.compile(r"^dist_(?:\w+_)?high_pct$|^dist_ath_pct$")
+_DIST_ABOVE_LOW = re.compile(r"^dist_(?:\w+_)?low_pct$")
+_DIST_UNIT = {"neg": "(%, ≤0: −5 = 5% below the high)", "pos": "(%, ≥0: 5 = 5% above the low)"}
+_SESSION_MEASURES = os.path.join(ROOT, "app", "src", "agent", "capabilities", "sessionMeasures.js")
+
+
+@functools.lru_cache(maxsize=1)
+def real_screener_section() -> list[dict]:
+    """The `screener` context section as the browser sends a member with no saved screens on a screening request:
+    capabilities/screener.js's provider, built from the server's own registry (the /api/screener/fields catalog less
+    hidden fields, the session measures, the starter screens). A stub here makes every v2 figure read low: the section
+    rides every round, and it is several KB."""
+    from api.services.screener import filters, saved_screens
+    from api.services.uct_agent.scan import hidden
+
+    def line(key: str, label: str, typ: str, unit: str | None) -> str:
+        dist = "neg" if _DIST_BELOW_HIGH.match(key) else "pos" if _DIST_ABOVE_LOW.match(key) else None
+        tail = _DIST_UNIT[dist] if dist else f"({unit})" if unit else "(yes/no)" if typ == "bool" else "(list)" if typ == "enum" else ""
+        return f"{key}:{label}{tail}"
+
+    hide = hidden.rating_keys() | hidden.flow_keys()
+    fields = [line(f["key"], f.get("label") or f["key"], f["type"], f.get("unit")) for f in filters.field_catalog()
+              if f.get("key") and f["key"] not in hide and f.get("type") in ("range", "bool", "enum")]
+    with open(_SESSION_MEASURES, encoding="utf-8") as f:
+        measures = re.findall(r"\{ key: '(\w+)', label: '([^']+)', unit: '([^']*)'", f.read())
+    if not fields or not measures:
+        raise RuntimeError("the real screener section could not be built")
+    fields += [line(k, label, "range", unit) for k, label, unit in measures]
+    starters = [{"id": str(s["id"]), "name": s["name"], "kind": "starter"} for s in saved_screens.starters()][:40]
+    return [{"ref": "s1", "label": "Screener", "fields": ";".join(fields), "savedScreens": starters}]
+
+
+def real_context() -> dict:
+    """SAMPLE_CONTEXT with the real Screener section: what every cost tool prices."""
+    ctx = json.loads(json.dumps(SAMPLE_CONTEXT))
+    ctx["screener"] = real_screener_section()
+    return ctx
 
 
 def _manifest() -> list[dict]:
@@ -75,7 +117,7 @@ def build_request(model_id: str, rounds_done: int) -> dict:
     caps = t1.validate_manifest(_manifest(), v2.MAX_CAPABILITIES_V2)
     tools = v2.build_tools(caps, research=True)
     system = [{"type": "text", "text": v2.V2_SYSTEM + "\n\n" + t1.BREADTH_RULE, "cache_control": {"type": "ephemeral"}}]
-    messages = [{"role": "user", "content": t1._block("workspace_context", SAMPLE_CONTEXT) + "\n" + t1._block("member_request", SAMPLE_MESSAGE)}]
+    messages = [{"role": "user", "content": t1._block("workspace_context", real_context()) + "\n" + t1._block("member_request", SAMPLE_MESSAGE)}]
     for i in range(rounds_done):
         messages.append({"role": "assistant", "content": [{"type": "tool_use", "id": f"tu{i}", "name": "chart__setTimeframe", "input": {"target": "c1", "args": {"timeframe": "W"}}, "pad": "x" * (TOOL_USE_BYTES - 120)}]})
         messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": f"tu{i}", "content": "done: " + "x" * (STEP_RESULT_BYTES - 6)}]})

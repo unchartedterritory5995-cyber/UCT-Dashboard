@@ -7,6 +7,7 @@ $0.25 per-turn cap:
   * v1's single call stays under the cap for every intent."""
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
@@ -21,11 +22,19 @@ def index():
 
 def test_index_layout_finishes_every_corpus_intent_under_the_cap_with_margin(index):
     s = index["summary"]
-    assert index["turn_cap_usd"] == 0.25 and s["intents"] == 46
+    assert index["turn_cap_usd"] == 0.25 and s["intents"] == 158
     assert s["v2_finished"] == s["intents"] and s["v2_stopped"] == []
     assert all(r["v2"]["steps_done"] == r["v2"]["steps"] for r in index["rows"])           # no step refused (args / target)
-    assert s["v2_gate_peak_usd_max"] < 0.25 and s["v2_margin_usd"] >= 0.10                  # measured ≈ $0.072 → margin ≈ $0.178
+    # over the real Screener section: measured $0.1189 → margin $0.1311. This is the RUNTIME gate (spent + next worst); the
+    # summed worst case is the stricter figure, $0.2910 here, and it is over the cap (see test_uct_agent_v2_cost_measure.py)
+    assert s["v2_gate_peak_usd_max"] < 0.25 and s["v2_margin_usd"] >= 0.10
     assert all(r["v2"]["rounds"] <= index["rounds_cap"] for r in index["rows"])
+
+
+def test_the_fixture_boards_carry_the_real_screener_section():
+    with open(cc.EXPORT, encoding="utf-8") as f:
+        boards = json.load(f)["boards"]
+    assert boards and all(len(b["screener"][0]["fields"]) > 4_000 and b["screener"][0]["savedScreens"] for b in boards.values())
 
 
 def test_v1_one_call_is_under_the_cap_for_every_intent(index):
