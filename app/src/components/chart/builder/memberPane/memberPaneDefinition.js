@@ -31,7 +31,6 @@ import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
-import { RUNTIME_CANDLE_ROLES } from '../../engine/ast/pineRuntimeFrontend'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
@@ -976,7 +975,6 @@ const RUNTIME_UNDRAWN_KINDS = Object.freeze({
  *  outputs (open, high, low, close - `pine.js::MULTI_OUTPUT_CALLS`) and four run outputs of the
  *  same call, in that order, so the n-th candle of a kind on one lane is the n-th on the other. */
 const RUNTIME_CANDLE_STYLE = Object.freeze({ plotcandle: OHLC_DEF_STYLES[0], plotbar: OHLC_DEF_STYLES[1] })
-const CANDLE_ROLES = RUNTIME_CANDLE_ROLES
 
 /** ⭐⭐ W4-T13 - WHAT A RUNTIME CANDLE / BAR NEEDS TO BE DRAWN, or why it is withheld by name.
  *
@@ -1421,8 +1419,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     if (!ro || !Object.hasOwn(RUNTIME_CANDLE_STYLE, ro.call)) return
     if (!runCandles.has(ro.call)) runCandles.set(ro.call, [])
     const list = runCandles.get(ro.call)
-    if (!list[ro.group]) list[ro.group] = { outs: [], ro: null }
-    list[ro.group].outs[CANDLE_ROLES.indexOf(ro.role)] = k
+    if (!list[ro.group]) list[ro.group] = { byRole: {}, ro: null }
+    // keyed by the role the run NAMES (the pane keeps no second list of them)
+    list[ro.group].byRole[ro.role] = k
     if (ro.role === 'close') list[ro.group].ro = ro
   })
   for (const kind of Object.keys(RUNTIME_CANDLE_STYLE)) {
@@ -1479,8 +1478,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         label,
         line: Number.isInteger(run.ro.line) ? run.ro.line : Infinity,
         index: group[3].index,
-        out: run.outs[3],
-        parts: { open: run.outs[0], high: run.outs[1], low: run.outs[2] },
+        out: run.byRole.close,
+        parts: { open: run.byRole.open, high: run.byRole.high, low: run.byRole.low },
         colours: pres.colours,
       })
     })
