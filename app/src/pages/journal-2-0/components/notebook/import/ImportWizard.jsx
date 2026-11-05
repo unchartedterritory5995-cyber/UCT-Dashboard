@@ -29,6 +29,7 @@ import ConnectTilesCompact from '../../connectors/ConnectTilesCompact'
 import CaptureDoors from '../CaptureDoors'
 import ExportGuide from './ExportGuide'
 import styles from './ImportWizard.module.css'
+import HelpAnswerLink from '../HelpAnswerLink'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
 // Plan B Task 11: the summary's "Couldn't be copied" rows read the SAME sentence the in-note
 // notice reads (one copy table, pinned cross-runtime). A plain module with no imports, so it
@@ -1011,6 +1012,10 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
         <div className={styles.wrap}>
           {step === 'drop' && (
             <div className={styles.dropWrap}>
+              {/* S14: this feature's "?" opens its own Quick Answer. */}
+              <p className={styles.helpRow}>
+                What comes across, and from where <HelpAnswerLink faqId="notebook-import" topic="importing notes" />
+              </p>
               <ConnectTilesCompact />
               <div
                 className={`${styles.dropzone} ${dragOver ? styles.dropzoneActive : ''}`}

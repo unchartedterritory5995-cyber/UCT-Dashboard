@@ -11,6 +11,7 @@ vi.mock('../../../hooks/useHideOnScroll', () => ({ default: () => false }))
 vi.mock('../../../hooks/useScrollLocked', () => ({ default: () => false }))
 
 import FeedbackWidget from '../../../components/FeedbackWidget'
+import HelpAnswerLink from '../components/notebook/HelpAnswerLink'
 
 describe('the Help menu -- axe', () => {
   axeSurface('help-menu:open', async () => {
@@ -21,5 +22,10 @@ describe('the Help menu -- axe', () => {
     expect(screen.getAllByRole('menuitem').map((b) => b.textContent.trim()))
       .toEqual(['Search help', 'Quick answers', 'Keyboard shortcuts', 'Tours', 'Send feedback'])
     release()
+  })
+
+  axeSurface('help-answer-link', async () => {
+    render(<MemoryRouter><main><p>Import notes <HelpAnswerLink faqId="notebook-import" topic="importing notes" /></p></main></MemoryRouter>)
+    expect(screen.getByRole('link', { name: 'Help: importing notes' })).toBeInTheDocument()
   })
 })

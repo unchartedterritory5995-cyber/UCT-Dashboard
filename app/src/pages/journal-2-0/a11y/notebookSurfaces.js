@@ -348,6 +348,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
   // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
   'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
+  // S14 (audit 2026-11-05): a feature's "?" to its own Quick Answer.
+  'components/notebook/HelpAnswerLink.jsx': { recipe: 'help-answer-link' },
   // Fix round 1: the "+" sheet is its own chunk; the axe rail reads it OPEN.
   'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
   // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
