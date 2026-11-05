@@ -463,3 +463,5 @@ Merging to master is still not authorized in this file; the owner approves it di
   - D8 unpinned metrics are shown refused by name.
   Still the owner's: D4 (the rig account's plan) and the act of arming.
 - 2026-11-05 08:23 OWNER-ACTIONS.md: open items decided. Rig plan inferred Premium (cap of about 20K intraday bars). W2 stage 1 GO for adx-only, armed AFTER the train lands; P11 accepted; save door closed; follow-ups F11 (census detector arm) and F12 (stage-2 run counter). The W5-T20 service is created after the train is on production, per the runbook. The acts themselves (merge approval, Railway variables, arming, the rig) stay the owner's.
+- 2026-11-05 08:24 W6-BREAKDOWN @fd8bbd8e93: NO-GO. B1 with-W4 count is 14/7; B2 T3 needs return-type inference (L); B3 three ungated serves. Fix r1 sent.
+- 2026-11-05 08:24 W9-DESIGN @abe065dd80: NO-GO. B1 second history rule; B2 the SPY pin cannot MATCH; B3 12 FE sites; B4 probes/CSV; B5 pins vs engine identity. Fix r1 sent with rulings: one history rule (R10); grade on aligned windows; pins are engine changes, enforced by a rail.
