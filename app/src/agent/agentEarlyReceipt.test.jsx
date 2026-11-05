@@ -7,6 +7,7 @@ import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 import { lastTurns } from './trace'
+import { planCompound } from './compound'
 import { SAVE_WAIT_MS } from './useAgent'
 import { AGENT_INFLIGHT_KEY } from './agentFlag'
 
@@ -139,6 +140,49 @@ describe('the receipt follows the read-back, not the save', () => {
       expect(lastReceipt().getAttribute('data-saving')).toBeNull()
       expect(lastReceipt().getAttribute('data-undoable')).toBeNull()
       expect(rows().filter(r => r.kind === 'save-late')[0]).toMatchObject({ ok: false, reason: 'conflict' })
+    }, 30000)
+    it('the slow note says Undo is not there yet', async () => {
+      await pastDeadline()
+      expect(lastReceipt().textContent).toMatch(/can’t take this change back/)
+    }, 30000)
+    it('AUDIT L1: a late save keeps its place in Undo: the newer change comes back first, then this one', async () => {
+      const { answer, say, board } = await pastDeadline()
+      p.st.persist = async () => ({ ok: true })
+      p.select('c')
+      await say('add rsi')
+      const rsiOn = () => p.instancesOn(board, 'c').some(i => i.defId === 'rsi')
+      expect(rsiOn()).toBe(true)
+      answer({ ok: true })
+      await waitFor(() => expect(receipts()[0].getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
+      await say('undo')
+      expect(rsiOn()).toBe(false)
+      expect(board.state.widgets[0].opts.tf).toBe('W')
+      await say('undo')
+      expect(board.state.widgets[0].opts.tf || 'D').toBe('D')
+    }, 30000)
+    it('AUDIT L2: a late answer is not read as a step of a request started meanwhile', async () => {
+      const { answer, held, board } = await pastDeadline()
+      const multi = 'make this monthly, then undo that change'
+      expect(planCompound(multi, { host: board.host })?.steps).toHaveLength(2)   // a real multi-step request: each step reads its own tap
+      send(multi)
+      await waitFor(() => expect(held.answers.length).toBeGreaterThan(1), { timeout: 4000 })
+      answer({ ok: true })                                                 // the slow save answers while step 1's tap is open
+      await waitFor(() => expect(receipts()[0].getAttribute('data-saving')).toBeNull(), { timeout: 4000 })
+      p.st.persist = async () => ({ ok: true })
+      answer({ ok: true })                                                 // step 1's own save
+      await p.idle()
+      expect(board.state.widgets[0].opts.tf).toBe('W')                     // step 1 ran and step 2 took it back
+      expect(p.transcript()).not.toMatch(/stopped/i)
+    }, 30000)
+    it('AUDIT L2: the late row goes to its own conversation, not the chat open by then', async () => {
+      const { answer } = await pastDeadline()
+      const own = p.st.calls.filter(c => c[1] === '/api/agent/record').at(-1)[2]
+      expect(own.outcomeData.kind).toBe('applied-unsaved')
+      fireEvent.click(screen.getByRole('button', { name: /new chat/i }))
+      answer({ ok: true })
+      await waitFor(() => expect(rows().some(r => r.kind === 'save-late')).toBe(true), { timeout: 4000 })
+      const late = p.st.calls.filter(c => c[1] === '/api/agent/record').map(c => c[2]).find(r => r.outcomeData?.kind === 'save-late')
+      expect(late.conversationId).toBe('ac_1')
     }, 30000)
     it('the in-flight mark stays while the save is out', async () => {
       const { answer } = await pastDeadline()

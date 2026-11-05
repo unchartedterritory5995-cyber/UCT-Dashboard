@@ -529,7 +529,7 @@ const UNSAVED_NOTE = {
   conflict: 'Shown on this screen but NOT saved: your workspace was changed in another window or device. Reload to see the current workspace (reloading discards this change).',
   'not-saved': 'Shown on this screen, but the save was not confirmed — it is not saved yet.',
   'not-synced': 'Drawn on this device, but syncing it to your account was not confirmed yet — keep this tab open a few seconds; closing it now may lose the change.',
-  slow: 'On your screen. The save is taking longer than usual; this updates when it answers, and Undo comes with it.',
+  slow: 'On your screen. The save is taking longer than usual; this updates when it answers. Until then “undo” can’t take this change back.',
 }
 // Drawings reach the account through the tracings sync, not the board save: wait for the server's
 // copy of each touched symbol to match (host.drawings.confirm). Same rule as a board change: until
@@ -578,6 +578,7 @@ async function persistBoard(host, ops) {
 // comes: Undo if it landed, the real reason if not (a conflict stays a conflict). A save queued behind a slow one waits the
 // same way, so it is never reported as failed for the time it spent in the queue.
 export const SAVE_WAIT_MS = 90000
+// (`p` never rejects: its caller turns a throw into a not-saved answer, so there is no rejection to forward)
 const withinSaveWait = (p) => new Promise((resolve) => {
   const t = setTimeout(() => resolve({ ok: false, reason: 'slow', late: p }), SAVE_WAIT_MS)
   p.then((v) => { clearTimeout(t); resolve(v) })
@@ -589,6 +590,11 @@ const stagesOf = (data) => { const s = data?.usage?.stages; return s && typeof s
 let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
 const UNDO_MAX = 20
+// a change's Undo entry goes where the change happened: a save that answers late never puts it on top of newer changes
+const atCommitOrder = (stack, entry) => {
+  const i = stack.findIndex(e => (e.at || 0) > (entry.at || 0))
+  return (i < 0 ? [...stack, entry] : [...stack.slice(0, i), entry, ...stack.slice(i)]).slice(-UNDO_MAX)
+}
 
 // A reason may already be a whole sentence of its own ("I didn't change it: …  Nothing was changed."): it is said once
 const PREFIX_SAID = /^I didn['’]t (?:change|add) (?:it|anything):\s*/
@@ -647,12 +653,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // entry point the panel calls takes it, and the internal calls send() makes
   // ("undo" / "do it" typed) run inside the lock it already holds.
   const lockRef = useRef(false)
+  // ⛔ A late save's Undo entry waits for the running request to end: that request tells its own changes from the entries that
+  // appear while it runs (groupFresh, a step's "undo that"), so an entry landing mid-request would be taken for one of its own
+  const lateUndoRef = useRef([])
   const exclusive = useCallback((fn) => async (...args) => {
     if (lockRef.current) return undefined
     lockRef.current = true
     const traced = turnStart('click')
     setBusy(true)
-    try { return await fn(...args) } finally { lockRef.current = false; setBusy(false); if (traced) turnEnd() }
+    try { return await fn(...args) } finally {
+      lockRef.current = false
+      for (const e of lateUndoRef.current.splice(0)) undoRef.current = atCommitOrder(undoRef.current, e)
+      setBusy(false)
+      if (traced) turnEnd()
+    }
   }, [])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
@@ -1292,21 +1306,28 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (lead) lead.used = true
       if (!saved.ok) {
         const unsaved = (reason) => ({ undoId: null, notes: [UNSAVED_NOTE[reason] || UNSAVED_NOTE['not-saved']], unsaved: true, saving: false })
+        let settleLate = null
         if (saved.late) {
           const id = saying || nid()
           const still = { undoId: null, notes: [UNSAVED_NOTE.slow], saving: true }
           if (saying) patchItem(id, still)
           else push({ id, role: 'receipt', lines, ...still })
           const mark0 = readLocal(AGENT_INFLIGHT_KEY)
-          saved.late.then((s) => {
+          settleLate = (s, conversationId) => {
             if (readLocal(AGENT_INFLIGHT_KEY) === mark0) writeLocal(AGENT_INFLIGHT_KEY, null)      // never a later change's mark
-            if (s.ok && res.undo) undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
+            if (s.ok && res.undo) {
+              if (lockRef.current) lateUndoRef.current.push(res.undo)
+              else undoRef.current = atCommitOrder(undoRef.current, res.undo)
+            }
             patchItem(id, s.ok ? { saving: false, undoId: res.undo?.id || null, notes: receiptNotes() } : unsaved(s.reason))
-            record({ member: null, outcome: s.ok ? `Saved after a wait: ${lines.join(' · ')}` : `${lines.join(' · ')} · NOT SAVED (${s.reason})`, outcomeData: { kind: 'save-late', ok: !!s.ok, actions, ...(s.ok ? {} : { reason: s.reason }) }, telemetry: { path, actions, voice, ...(s.ok ? {} : { refused: true }) } })
-          })
+            // this request's own conversation, and past record(): that feeds the tap of whatever step is running by now
+            agentRecord({ conversationId, member: null, outcome: s.ok ? `Saved after a wait: ${lines.join(' · ')}` : `${lines.join(' · ')} · NOT SAVED (${s.reason})`, outcomeData: { kind: 'save-late', ok: !!s.ok, actions, ...(s.ok ? {} : { reason: s.reason }) }, telemetry: { path, actions, voice, ...(s.ok ? {} : { refused: true }) } })
+          }
         } else if (saying) patchItem(saying, unsaved(saved.reason))
         else push({ role: 'receipt', lines, ...unsaved(saved.reason) })
-        record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        const row = record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        // (the row above names a new chat: read after it, so the late row joins that conversation whatever is open by then)
+        if (settleLate) Promise.all([saved.late, row.catch(() => {}).then(() => conversationRef.current)]).then(([s, c]) => settleLate(s, c))
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
         rememberChange(memoryRef.current, host, ops, null, res.created || null)
         noteCreated(res.created)
