@@ -26,7 +26,15 @@ function isoFridayOf(t) {
   return friday.toISOString().slice(0, 10)
 }
 
-function _aggregate(bars, keyFn) {
+// A bar's `t` is either a date string (D/W/M bases) or unix seconds (intraday). The
+// wrong kind for a bucket has no place in it, and passing it to the key functions
+// throws (Invalid Date / no .slice), which takes the whole chart to its error
+// boundary. Those bars are skipped instead: one bad bar costs one bar, not the chart.
+const isDateT = t => typeof t === 'string' && !Number.isNaN(Date.parse(t + 'T00:00:00Z'))
+const isUnixT = t => t !== '' && !Number.isNaN(new Date(t * 1000).getTime())
+
+function _aggregate(rawBars, keyFn, isValidT) {
+  const bars = rawBars.filter(b => b && b.t != null && isValidT(b.t))
   // bars MUST be ascending by date so the FIRST bar of a bucket supplies the
   // open and the LAST supplies the close (matches the server's iteration).
   const sorted = bars.every((b, i) => i === 0 || b.t >= bars[i - 1].t)
@@ -34,7 +42,6 @@ function _aggregate(bars, keyFn) {
     : [...bars].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
   const buckets = new Map()
   for (const b of sorted) {
-    if (!b || b.t == null) continue
     const key = keyFn(b.t)
     const cur = buckets.get(key)
     if (!cur) {
@@ -52,13 +59,13 @@ function _aggregate(bars, keyFn) {
 // Daily → Weekly, keyed at the ISO Friday of each week.
 export function resampleDailyToWeekly(daily) {
   if (!daily || !daily.length) return []
-  return _aggregate(daily, isoFridayOf)
+  return _aggregate(daily, isoFridayOf, isDateT)
 }
 
 // Daily → Monthly, keyed at the 1st of each calendar month.
 export function resampleDailyToMonthly(daily) {
   if (!daily || !daily.length) return []
-  return _aggregate(daily, t => `${t.slice(0, 7)}-01`)
+  return _aggregate(daily, t => `${t.slice(0, 7)}-01`, isDateT)
 }
 
 // Dispatcher. Returns the resampled bars, or null when the (fromTf, toTf) pair
@@ -101,7 +108,7 @@ export function resampleIntradaySession(bars, bucketMinutes) {
     const minsSinceOpen = _etHM(t) - 570               // 570 = 9:30 ET
     const off = ((minsSinceOpen % B) + B) % B          // 0..B-1, correct for pre-open (negative)
     return t - off * 60                                // unix-sec bucket start
-  })
+  }, isUnixT)
 }
 
 // N-of-a-native-daily-bucket, calendar-anchored for STABILITY:
@@ -115,7 +122,7 @@ function _dayStr(epochDay) { return new Date(epochDay * 86400000).toISOString().
 
 export function resampleNDaily(daily, n) {
   if (!daily || !daily.length || !(n > 1)) return daily || []
-  return _aggregate(daily, t => _dayStr(Math.floor(_epochDay(t) / n) * n))
+  return _aggregate(daily, t => _dayStr(Math.floor(_epochDay(t) / n) * n), isDateT)
 }
 export function resampleNWeekly(weekly, n) {
   if (!weekly || !weekly.length || !(n > 1)) return weekly || []
@@ -124,7 +131,7 @@ export function resampleNWeekly(weekly, n) {
     const wk = Math.floor(_epochDay(t) / 7)
     const bucketWk = Math.floor(wk / n) * n
     return _dayStr(bucketWk * 7)   // representative window-start date (a Thursday); label only
-  })
+  }, isDateT)
 }
 export function resampleNMonthly(monthly, n) {
   if (!monthly || !monthly.length || !(n > 1)) return monthly || []
@@ -133,7 +140,7 @@ export function resampleNMonthly(monthly, n) {
     const idx = y * 12 + (mo - 1)
     const start = Math.floor(idx / n) * n
     return `${Math.floor(start / 12)}-${String((start % 12) + 1).padStart(2, '0')}-01`
-  })
+  }, isDateT)
 }
 
 // Dispatch base bars → the custom timeframe described by `spec` (from
