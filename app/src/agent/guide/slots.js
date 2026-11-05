@@ -111,7 +111,8 @@ export function readIndicator(text) {
   if (!hit) return null
   const n = hit.perLength ? lengthIn(q, hit.word) : null
   const label = n ? `${hit.say} ${n}` : hit.say
-  return { ...hit, label, labelName: n ? label : hit.name }
+  // a new one starts at its default length, so the walkthrough that adds it says how to reach the one asked for
+  return { ...hit, label, labelName: n ? label : hit.name, lengthNote: n ? ` It starts at its default length: set it to ${n} under Period.` : '' }
 }
 
 // widgets/registry.js: the product's own menu, and its own words for each widget

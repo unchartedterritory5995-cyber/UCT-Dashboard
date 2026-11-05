@@ -62,7 +62,10 @@ const widgetFirst = (result) => [
 ]
 const LAYOUTS_MENU = { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Open Layouts ▾.', waitFor: 'workspace.layoutsMenu' }
 // a row shows the indicator's short name, or its full one: "EMA 20", "Relative Strength Index"
-const named = (more = {}) => [{ within: 'chartSettings', attr: 'data-row-primary', text: '{ind.label}', ...more }, { within: 'chartSettings', attr: 'data-row-primary', text: '{ind.labelName}', ...more }]
+const named = (more = {}) => [{ within: 'chartSettings', attr: 'data-row-primary', named: '{ind.label}', ...more }, { within: 'chartSettings', attr: 'data-row-primary', named: '{ind.labelName}', ...more }]
+// the row of a NEW one: it starts at its default length, so it never carries the length asked for
+const ROW_ON = { within: 'chartSettings', attr: 'data-row-primary', on: true }
+const added = () => [{ within: 'chartSettings', attr: 'data-row-primary', text: '{ind.say}' }, { within: 'chartSettings', attr: 'data-row-primary', text: '{ind.name}' }]
 // the row of the indicator asked about; with none named (or not on this chart), any row of the chart's own list
 const ROW = { within: 'chartSettings', attr: 'data-row-primary' }
 const rowStep = (result) => [
@@ -455,8 +458,10 @@ export const GUIDE_FEATURES = [
       // with a row selected the right side shows that indicator; ＋ Add to Chart brings the search back (with none selected it is already there)
       { target: { within: 'chartSettings', guide: 'indicators.add' }, name: 'Add to Chart', text: 'Click ＋ Add to Chart.', waitFor: { within: 'chartSettings', aria: 'Search indicators' } },
       { only: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Type {ind.say} here.', waitFor: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } },
-      { only: 'ind', target: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' }, name: 'the result', text: 'Click {ind.name} to add it to this chart.', waitFor: named() },
-      { only: 'ind', target: named(), name: 'the indicator list', text: '{ind.label} is on the chart. Click it here to change its settings, colours and pane.', noBack: true },
+      // one already on the chart shows Active: its row only selects it, and the ＋ beside it is what adds another
+      { only: 'ind', target: [{ within: 'indicators.addSurface', aria: 'Add another {ind.name}' }, { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' }], name: 'the result', text: '{ind.name} is already on this chart. Click this ＋ to add another.', altText: 'Click {ind.name} to add it to this chart.', waitFor: { not: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } } },
+      // the row just added is the selected one: "SMA 5", not the SMA 50 above it
+      { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.say} is on the chart. Click it here to change its settings, colours and pane.{ind.lengthNote}', noBack: true },
       { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed on the left — click one to change its settings, colours and pane.' },
     ],
     doIt: {
