@@ -49,7 +49,7 @@ import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
 import useToolbarRoving from '../lib/useToolbarRoving'
 import useGridRoving from '../lib/useGridRoving'
-import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { useIsDesktop, useIsPhone } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
 import { openJournalTools, registerJournalToolsDoor } from '../lib/journalToolsDoor'
@@ -283,6 +283,13 @@ const RENAME_TAG_CHUNK_SIZE = 500
 
 /** The phone fold rule (one authority for the seed and the effect): at <=640 px, on a list or Home (not a note, not
  *  the `#search` door, which opens the panel on purpose), the folders panel is folded. Exported for its rail. */
+/** The sort select's choices: the full words, and the compact ones a phone shows (Tier 2). */
+export const SORT_OPTIONS = Object.freeze([
+  { value: 'updated', label: 'Recently updated', short: 'Updated' },
+  { value: 'created', label: 'Recently created', short: 'Created' },
+  { value: 'title', label: 'Title', short: 'Title' },
+])
+
 export function phoneArrivalFolds(noteId, hash) {
   if (typeof window === 'undefined' || window.innerWidth > 640) return false
   return !noteId && hash !== NOTEBOOK_SEARCH_HASH
@@ -867,6 +874,8 @@ export default function NotebookTab() {
   // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
   const listToolbarShown = !noteId && !isHome
+  // the compact sort words, on a phone only (review minor 12)
+  const phoneSortWords = useIsPhone()
   useEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
@@ -2757,10 +2766,9 @@ export default function NotebookTab() {
               aria-label="Sort notes"
             >
               {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
-                  of its own. Compact words; the control's NAME ("Sort notes") says what they order. */}
-              <option value="updated">Updated</option>
-              <option value="created">Created</option>
-              <option value="title">Title</option>
+                  of its own. On a PHONE the words are compact (review minor 12: only there); the control's NAME
+                  ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
             </select>
           )}
           {tickerFilter && (

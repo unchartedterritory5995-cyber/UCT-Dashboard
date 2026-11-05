@@ -20,15 +20,17 @@ function walk(dir, out = []) {
 }
 
 describe('HelpAnswerLink', () => {
-  it('is a link named for what it answers, to that answer on the Support page', () => {
+  it('is a link named for what it answers, to that answer, in a NEW TAB so the feature is never left (review minor 11)', () => {
     render(<MemoryRouter><HelpAnswerLink faqId="notebook-import" topic="importing notes" /></MemoryRouter>)
-    const a = screen.getByRole('link', { name: 'Help: importing notes' })
+    const a = screen.getByRole('link', { name: 'Help: importing notes (opens in a new tab)' })
     expect(a).toHaveAttribute('href', '/support#answer-notebook-import')
+    expect(a).toHaveAttribute('target', '_blank')
+    expect(a.getAttribute('rel')).toMatch(/noopener/)
   })
 
-  it('outside a router it is still a working link to the same address', () => {
+  it('outside a router it is the same link', () => {
     render(<HelpAnswerLink faqId="notebook-ask" topic="Ask" />)
-    expect(screen.getByRole('link', { name: 'Help: Ask' })).toHaveAttribute('href', '/support#answer-notebook-ask')
+    expect(screen.getByRole('link', { name: 'Help: Ask (opens in a new tab)' })).toHaveAttribute('href', '/support#answer-notebook-ask')
   })
 
   it('every "?" in the Notebook names a Quick Answer that exists', () => {

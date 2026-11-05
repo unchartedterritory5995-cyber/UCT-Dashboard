@@ -75,7 +75,7 @@ vi.mock('../components/notebook/NoteTasksView', () => ({
   default: () => <div data-testid="note-tasks" />,
 }))
 
-import NotebookTab, { phoneArrivalFolds } from './NotebookTab'
+import NotebookTab, { SORT_OPTIONS, phoneArrivalFolds } from './NotebookTab'
 import { OPEN_JOURNAL_TOOLS_EVENT, journalToolsDoorMounted } from '../lib/journalToolsDoor'
 
 let realWidth
@@ -162,3 +162,16 @@ describe('"Journal tools" is a row of the list ⋯ menu (Tier 2 fix round 1)', (
   })
 })
 
+
+// Tier 2 fix round 1 (review minor 12): compact sort words on a phone only; wider screens keep the full words.
+describe('the sort words', () => {
+  it('the full words where the screen is wide', () => {
+    width(1200)
+    render(<MemoryRouter initialEntries={['/journal/notebook?view=all']}><NotebookTab /></MemoryRouter>)
+    const sel = screen.getByRole('combobox', { name: 'Sort notes' })
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['Recently updated', 'Recently created', 'Title'])
+  })
+  it('the table of words', () => {
+    expect(SORT_OPTIONS.map((o) => o.short)).toEqual(['Updated', 'Created', 'Title'])
+  })
+})

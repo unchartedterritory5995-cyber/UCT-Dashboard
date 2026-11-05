@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useIsPhone } from '../../../../hooks/useBreakpoint'
 import UIcon from '../../../../components/ui/UIcon'
 import { buildMonthGrid, monthLabel, dowLabels, todayET, monthOffset } from '../../lib/calendar'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
@@ -72,6 +73,7 @@ export default function NoteCalendarView({
   initialDatePropertyId = null, onDatePropertyChange,
 }) {
   const defs = useMemo(() => datedDefs(propertyDefs), [propertyDefs])
+  const phone = useIsPhone()   // the scroll box is a focusable region only where it scrolls (VIS-7)
   const [dragOver, setDragOver] = useState(null)
   const { setProperty, overrideFor, isBusy, error } = useOptimisticNoteProperty({
     notes, blockedNoteIds, onChanged,
@@ -225,10 +227,14 @@ export default function NoteCalendarView({
         ) : null}
       </div>
 
-      {/* VIS-7 (audit 2026-11-05, axe scrollable-region-focusable): on a phone the month scrolls sideways (min-width
-          520 px), and with no note on it nothing inside could take focus, so a keyboard member could not scroll it.
-          The grid itself is a Tab stop, named by its month. */}
-      <div className={styles.grid} role="grid" aria-label={monthLabel(cursor.year, cursor.month)} tabIndex={0}>
+      {/* VIS-7 (audit 2026-11-05, axe scrollable-region-focusable), as corrected by the Tier 2 review (minor 17): on a
+          phone the month scrolls sideways (min-width 520 px) and with no note on it nothing inside could take focus.
+          The SCROLL BOX is the focusable, named region -- on a phone only, where it scrolls -- and the grid stays a
+          plain grid (a grid that takes focus without arrow-key cell moves is half a pattern; a desktop Tab stop on a
+          box that never scrolls is noise). */}
+      <div className={styles.gridScroll} {...(phone ? { role: 'region', tabIndex: 0, 'aria-label': `${monthLabel(cursor.year, cursor.month)}, scrolls sideways` } : {})}
+        data-calendar-scroll="">
+      <div className={styles.grid} role="grid" aria-label={monthLabel(cursor.year, cursor.month)}>
         <div className={styles.dowRow} role="row">
           {dowLabels().map((d) => (
             <div key={d} className={styles.dow} role="columnheader">{d}</div>
@@ -257,6 +263,7 @@ export default function NoteCalendarView({
             })}
           </div>
         ))}
+      </div>
       </div>
 
       {/*

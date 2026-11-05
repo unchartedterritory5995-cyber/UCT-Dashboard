@@ -12,11 +12,11 @@ const css = readFileSync(join(DIR, 'NotebookTab.module.css'), 'utf8').replace(/\
 const phone = [...css.matchAll(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
 
 describe('the phone filter row holds the ⋯', () => {
-  it('the sort words are compact; the select is still named for what it orders', () => {
+  it('the sort words are compact ON A PHONE only (review minor 12); the select is still named for what it orders', () => {
     const sel = jsx.slice(jsx.indexOf('className={styles.sortSelect}'), jsx.indexOf('</select>', jsx.indexOf('className={styles.sortSelect}')))
-    const words = [...sel.matchAll(/<option value="[^"]+">([^<]+)<\/option>/g)].map((m) => m[1])
-    expect(words).toEqual(['Updated', 'Created', 'Title'])
+    expect(sel).toMatch(/SORT_OPTIONS\.map\(\(o\) => <option key=\{o\.value\} value=\{o\.value\}>\{phoneSortWords \? o\.short : o\.label\}<\/option>\)/)
     expect(sel).toMatch(/aria-label="Sort notes"/)
+    expect(jsx).toMatch(/const phoneSortWords = useIsPhone\(\)/)
   })
 
   it('on a phone only, the row\'s labelled buttons give up side padding', () => {

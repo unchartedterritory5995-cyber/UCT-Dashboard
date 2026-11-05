@@ -339,3 +339,19 @@ describe('the orb says when a call is live or failing (data-in-session, html[dat
     expect(html()).toBe(false)
   })
 })
+
+// Tier 2 fix round 1 (review minor 14): on a phone the toast sits above the Journal "+ Log" button. Both numbers are
+// READ from their stylesheets (the button's bottom plus the 44 px tap floor it is drawn at), never retyped here.
+describe('"Meet Compass" on a phone clears the Journal "+ Log" button', () => {
+  it('its bottom offset is above the +Log button\'s top', () => {
+    const SRC = join(process.cwd(), 'src')
+    const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '')
+    const orb = strip(readFileSync(join(SRC, 'components', 'voice', 'FloatingOrb.module.css'), 'utf8'))
+    const jl = strip(readFileSync(join(SRC, 'pages', 'journal-2-0', 'JournalLayout.module.css'), 'utf8'))
+    const card = /@media \(max-width: 640px\) \{\s*\.coachmark \{[^}]*bottom: calc\((\d+)px/.exec(orb)
+    const fab = /\.logFab \{[^}]*bottom: calc\((\d+)px/.exec(jl)
+    expect(card, 'the phone .coachmark bottom').not.toBeNull()
+    expect(fab, 'the phone .logFab bottom').not.toBeNull()
+    expect(Number(card[1])).toBeGreaterThan(Number(fab[1]) + 44)
+  })
+})

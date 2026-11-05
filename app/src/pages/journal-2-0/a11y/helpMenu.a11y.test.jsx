@@ -28,6 +28,6 @@ describe('the Help menu -- axe', () => {
 
   axeSurface('help-answer-link', async () => {
     render(<MemoryRouter><main><p>Import notes <HelpAnswerLink faqId="notebook-import" topic="importing notes" /></p></main></MemoryRouter>)
-    expect(screen.getByRole('link', { name: 'Help: importing notes' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Help: importing notes (opens in a new tab)' })).toBeInTheDocument()
   })
 })
