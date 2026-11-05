@@ -166,7 +166,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
       <div className={c.card} role="dialog" aria-label="Compare Symbols" data-guide="compare.panel">
         <div className={c.head}>
           <span className={c.headTitle}>Compare Symbols</span>
-          {!nothing && <button type="button" className={c.clear} onClick={clearAll} title="Remove all comparisons">Clear all</button>}
+          {!nothing && <button type="button" className={c.clear} data-guide="compare.clear" onClick={clearAll} title="Remove all comparisons">Clear all</button>}
           <button type="button" className={c.close} onClick={onClose} title="Close" aria-label="Close"><UIcon name="x" size={13} gold={false} /></button>
         </div>
 
@@ -183,7 +183,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
           />
 
           {/* Add a whole group */}
-          <div className={c.groupPick}>
+          <div className={c.groupPick} data-guide="compare.groups">
             <div className={c.groupTabs}>
               {GROUP_TYPES.map(t => (
                 <button
@@ -239,9 +239,9 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                       </button>
                       <span className={c.groupBadge}>{g.name}</span>
                       <span className={c.groupN}>· {g.items.length}</span>
-                      <button type="button" className={c.rm} onClick={() => removeGroup(g.name)} title={`Remove ${g.name}`} aria-label={`Remove ${g.name}`}><UIcon name="x" size={10} gold={false} /></button>
+                      <button type="button" className={c.rm} data-guide="compare.removeGroup" onClick={() => removeGroup(g.name)} title={`Remove ${g.name}`} aria-label={`Remove ${g.name}`}><UIcon name="x" size={10} gold={false} /></button>
                     </div>
-                    <div className={c.scaleSeg}>
+                    <div className={c.scaleSeg} data-guide="compare.groupScale">
                       <button type="button" className={`${c.scaleBtn}${scaleMode === 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'same')} title="Share the main price scale">Same % scale</button>
                       <button type="button" className={`${c.scaleBtn}${scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'new')} title="Right % scale — base + all comparisons shown in %">New price scale</button>
                     </div>
@@ -265,9 +265,9 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                   <div className={c.rowMain}>
                     <span className={c.dot} style={{ background: s.color }} />
                     <span className={c.sym}>{s.sym}</span>
-                    <button type="button" className={c.rm} onClick={() => removeSymbol(s.sym)} title={`Remove ${s.sym}`} aria-label={`Remove ${s.sym}`}><UIcon name="x" size={10} gold={false} /></button>
+                    <button type="button" className={c.rm} data-guide="compare.remove" onClick={() => removeSymbol(s.sym)} title={`Remove ${s.sym}`} aria-label={`Remove ${s.sym}`}><UIcon name="x" size={10} gold={false} /></button>
                   </div>
-                  <div className={c.scaleSeg}>
+                  <div className={c.scaleSeg} data-guide="compare.scale">
                     <button type="button" className={`${c.scaleBtn}${s.scaleMode === 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'same')} title="Share the main price scale">Same % scale</button>
                     <button type="button" className={`${c.scaleBtn}${s.scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'new')} title="Right % scale — base + all comparisons shown in %">New price scale</button>
                   </div>
@@ -279,6 +279,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
             <button
               type="button"
               className={`${c.hideBaseToggle}${hideBase ? ' ' + c.hideBaseOn : ''}`}
+              data-guide="compare.hideBase"
               onClick={toggleHideBase}
               title={hideBase ? 'Show the base chart, volume and moving averages again' : 'Hide the base chart so only the comparison lines show'}
             >

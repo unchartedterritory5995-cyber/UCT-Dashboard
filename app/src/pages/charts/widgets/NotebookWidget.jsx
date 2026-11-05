@@ -362,7 +362,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
         <>
           <div className={styles.toolbar}>
             <input className={styles.search} placeholder="Search notes…" aria-label="Search notes" value={q} onChange={e => setQ(e.target.value)} />
-            <button type="button" className={styles.newBtn} onClick={newNote} disabled={creating} title="New note">
+            <button type="button" className={styles.newBtn} data-guide="notebook.new" onClick={newNote} disabled={creating} title="New note">
               <UIcon name="plus" size={13} /> New
             </button>
           </div>

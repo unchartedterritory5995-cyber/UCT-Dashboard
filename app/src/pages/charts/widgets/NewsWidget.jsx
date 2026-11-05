@@ -256,7 +256,7 @@ export default function NewsWidget({
           {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
         {!readOnly && (
-        <div className={styles.filters}>
+        <div className={styles.filters} data-guide="news.filters">
           {FILTERS.map(f => (
             <button
               key={f.key}

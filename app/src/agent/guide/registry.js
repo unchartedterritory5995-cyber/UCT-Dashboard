@@ -48,13 +48,12 @@
 
 import { manifestFor } from '../capabilities'
 import { readIndicator, readWidget, readSetting } from './slots'
+import { GEAR, TOOLS_MENU, actionFeatures } from './actions'
 
 // ── shared openings ──
-const GEAR = { target: 'chart.settings', name: 'the chart’s settings gear', text: 'Open this chart’s settings with the gear.', waitFor: 'chartSettings' }
 const INDICATORS_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indicators tab', text: 'Open the Indicators tab.', waitFor: { id: 'chartSettings.tab.indicators', on: true } }
 // a full board asks where a new widget goes (pages/charts/placement/GhostPreview.jsx)
 const PLACE = { target: 'workspace.place', name: 'the Place button', text: 'Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.', optional: true, late: true }
-const TOOLS_MENU = { target: 'workspace.tools', name: 'the Tools menu', text: 'Open Tools ▾.', waitFor: 'workspace.toolsMenu' }
 // a widget that isn't on the board comes off Widgets ▾ first; one that is, skips straight past (its own control is the result)
 const widgetFirst = (result) => [
   { target: 'workspace.widgets', name: 'the Widgets menu', text: 'That’s in the {widget.label} widget. Open Widgets ▾.', waitFor: ['workspace.widgetsMenu', result] },
@@ -74,6 +73,8 @@ const SWATCH = { within: 'chartSettings', attr: 'data-color-swatch' }
 const FIELD_ROW = { within: 'chartSettings', attr: 'data-field' }
 
 export const GUIDE_FEATURES = [
+  // ⭐ the action families (guide/actions.js): one row per small action, ahead of the features whose words they share
+  ...actionFeatures({ legendChip: { also: readIndicator }, indicatorManage: { also: readIndicator }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
   // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)
   // ── ⭐ GUIDE SYSTEM: the nested, multi-step Charts families ──
   {
@@ -312,7 +313,7 @@ export const GUIDE_FEATURES = [
     id: 'chartType', terms: ['chart type'], control: 'the chart’s settings gear', title: 'Changing the chart type', topic: 'charts',
     words: [/\bchart type\b/, /\b(candlesticks?|candles?|bars?|line|area|hollow|baseline)\b.*\bchart\b/, /\b(line|bar|area|candle) chart\b/],
     caps: ['chart.setType'],
-    explain: 'Chart Settings → Price Style chooses how price is drawn: candles, hollow candles, bars, a line and the others. Right-clicking the chart offers the same choice.',
+    explain: 'Chart Settings → Price Style chooses how price is drawn: candles, hollow candles, bars, a line and the others.',
     steps: [
       GEAR,
       { target: 'chartSettings.tab.price', name: 'the Price Style tab', text: 'Open Price Style.', waitFor: { id: 'chartSettings.tab.price', on: true } },
@@ -354,7 +355,7 @@ export const GUIDE_FEATURES = [
     steps: [
       GEAR,
       { target: 'chartSettings.tab.{setting.tab}', name: 'the {setting.tabLabel} tab', text: 'Open {setting.tabLabel}.', waitFor: { id: 'chartSettings.tab.{setting.tab}', on: true } },
-      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.', altText: 'It’s on this tab: scroll down for {setting.label}.' },
+      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.{setting.note}', altText: 'It’s on this tab: scroll down for {setting.label}.' },
     ],
     doIt: { say: 'Tell me the change — for example “hide the grid” or “make the crosshair dashed”.' },
   },

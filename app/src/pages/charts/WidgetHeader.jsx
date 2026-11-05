@@ -182,7 +182,7 @@ export default function WidgetHeader({
               title="Scroll tabs left"
             >‹</button>
           )}
-          <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs">
+          <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs" data-guide="workspace.widgetTabs">
             {tabs.map((tab, i) => {
               const active = i === activeIndex
               const editing = editingId === tab.id
@@ -216,6 +216,7 @@ export default function WidgetHeader({
                   )}
                   {!tab.isMain && active && !editing && (
                     <span
+                      data-guide="workspace.widgetTabClose"
                       className={`${styles.wtabClose}${confirmCloseId === tab.id ? ' ' + styles.wtabCloseConfirm : ''}`}
                       role="button"
                       aria-label={confirmCloseId === tab.id ? `Confirm close ${tab.label} tab` : `Close ${tab.label} tab`}

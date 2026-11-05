@@ -860,6 +860,7 @@ export default function IndicatorAlertPopover({
                 </div>
                 <button
                   className={`${styles.toggle} ${a.active ? styles.on : ''}`}
+                  data-guide="alert.toggle"
                   onClick={() => toggleIndicatorAlert(a.id)}
                   title={a.active ? 'Disable' : 'Enable'}
                 >

@@ -164,6 +164,7 @@ export default function AlertsWidget({
     return (
       <div
         key={a.id}
+        data-guide="alerts.row"
         className={`${styles.row}${isTriggered ? ' ' + styles.rowTriggered : ''}`}
         onClick={readOnly ? undefined : () => goToSym(a.sym)}
         title={readOnly ? undefined : `Show ${a.sym} on the linked chart`}
@@ -196,7 +197,7 @@ export default function AlertsWidget({
           </span>
         )}
         {!readOnly && (
-        <button type="button" className={styles.delBtn} onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
+        <button type="button" className={styles.delBtn} data-guide="alerts.delete" onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
           <UIcon name="x" size={13} strokeWidth={2.4} gold={false} />
         </button>
         )}

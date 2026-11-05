@@ -416,7 +416,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       )}
 
       {/* Header: ◀ date ▶ + gear */}
-      <div className={styles.bar}>
+      <div className={styles.bar} data-guide="calendar.days">
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, -1))} aria-label="Previous day">‹</button>
         <span className={styles.dateWrap}>
           <span className={styles.dateMain}>{fmtMain(selected)}</span>
@@ -487,6 +487,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
                   <button
                     key={n}
                     type="button"
+                    data-guide="calendar.stars"
                     className={`${styles.starBtn}${n <= econStars ? ' ' + styles.starOn : ''}`}
                     onClick={() => setEconStars(n)}
                     title={n === 1 ? 'All events' : n === 2 ? 'Medium & high impact' : 'High impact only'}

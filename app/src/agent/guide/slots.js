@@ -13,6 +13,7 @@ import { catalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { menuGroups, labelMap } from '../../widgets/registry'
 import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
+import { ACTION_SLOTS } from './actions'
 
 const firstRow = (rows) => (text) => rows.find(r => r.re.test(String(text || '').toLowerCase())) || null
 
@@ -127,6 +128,22 @@ export const HEADER_CONTROLS = [
 
 // components/chart/chartSettingsDescriptors.js: the product's own table of what Chart Settings holds and where
 const TABS = { 'price style': 'price', canvas: 'canvas', indicators: 'indicators', header: 'header', markers: 'markers' }
+// where a row really sits, in the tab's own words, where the product's table says it differently (a controlled row's
+// sentence names what the member has to do first)
+const ONLY_ON = ' Its controls show beside the switch once the line is on.'
+const SETTING_SPOT = {
+  showPriceLabels: { where: 'Price labels' }, showMaLabels: { where: 'Moving average labels' },
+  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Bar thickness', note: ' This shows while the chart type is Bars or HLC.' },
+  'crosshair.style': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the line style.' },
+  'crosshair.width': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the thickness.' },
+  'header.colors.*': { where: 'Title color', note: ' Each info row’s colour is further down this tab.' },
+  'markers.earnings': { where: 'Earnings' }, 'markers.splits': { where: 'Splits' }, 'markers.dividends': { where: 'Dividends' }, 'markers.news': { where: 'News' }, 'markers.desk': { where: 'Desk mentions' },
+  'markers.ipo': { where: 'Event markers' }, 'markers.ipoColor': { where: 'Event markers' },
+}
+for (const [k, label] of [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]) {
+  SETTING_SPOT[`prevDayLevels.${k}.enabled`] = { where: label }
+  for (const f of ['style', 'width', 'color']) SETTING_SPOT[`prevDayLevels.${k}.${f}`] = { where: label, note: ONLY_ON }
+}
 let settingCache = null
 export function settingRows() {
   if (settingCache) return settingCache
@@ -136,7 +153,7 @@ export function settingRows() {
     const tab = m && TABS[m[1].trim().toLowerCase()]
     if (!tab || tab === 'indicators' || d.agent === 'internal' || !d.label) continue
     const words = [d.label, ...(d.words || [])].map(w => escapeRe(String(w).toLowerCase()))
-    rows.push({ id: d.id, label: d.label, tab, tabLabel: m[1].trim(), where: (m[2] || d.label).trim(), re: new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`), len: Math.max(...words.map(w => w.length)) })
+    rows.push({ id: d.id, label: d.label, tab, tabLabel: m[1].trim(), where: (m[2] || d.label).trim(), note: '', ...SETTING_SPOT[d.id], re: new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`), len: Math.max(...words.map(w => w.length)) })
   }
   settingCache = rows.sort((a, b) => b.len - a.len)
   return settingCache
@@ -151,6 +168,7 @@ export const SLOTS = {
   widget: { read: readWidget, get rows() { return widgetRows() } },
   ctl: { read: firstRow(HEADER_CONTROLS), rows: HEADER_CONTROLS, fallback: HEADER_CONTROLS[0] },
   setting: { read: readSetting, get rows() { return settingRows() } },
+  ...ACTION_SLOTS,
 }
 
 /** What a feature's slots read from these words: { tool: row, … } (a slot the words did not fill is absent). */
@@ -174,7 +192,9 @@ function fill(x, v) {
 /** A family's steps for these words: the steps that apply, with the words filled in. */
 export function stepsFor(feature, text) {
   const v = slotValues(feature, text)
-  return feature.steps.filter(s => (!s.only || v[s.only]) && (!s.unless || !v[s.unless])).map(s => fill(s, v))
+  // a family's rows walk different paths: { each: 'slot' } takes the chosen row's own steps (guide/actions.js)
+  const steps = feature.steps.flatMap(s => (s.each ? v[s.each]?.steps || [] : [s]))
+  return steps.filter(s => (!s.only || v[s.only]) && (!s.unless || !v[s.unless])).map(s => fill(s, v))
 }
 /** The feature as these words make it: its title names the one they asked about. */
 export const titleFor = (feature, text) => {

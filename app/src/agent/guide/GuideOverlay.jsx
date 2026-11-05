@@ -99,7 +99,8 @@ export default function GuideOverlay() {
         if (step.pin) pinWidget(el.closest?.('[data-widget-id]')?.getAttribute('data-widget-id'))
         const r = rectOf(el)
         const holder = holderRect(el)
-        const alt = step.altText && Array.isArray(step.target) && !findTarget(step.target[0], st) ? step.altText : null
+        // the last entry of a list is the fallback; any earlier one is the control itself, in another form
+        const alt = step.altText && Array.isArray(step.target) && !step.target.slice(0, -1).some(t => findTarget(t, st)) ? step.altText : null
         const why = isDisabled(el) ? (step.off || OFF) : coveredBy(el) ? COVERED : alt
         setFound(prev => (prev.key === stepKey && sameRect(prev.rect, r) && prev.why === why && !prev.paused && (sameRect(prev.holder, holder) || (!prev.holder && !holder))
           ? prev : { key: stepKey, rect: r, holder, why, paused: false }))

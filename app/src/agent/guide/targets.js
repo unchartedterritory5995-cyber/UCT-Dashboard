@@ -17,6 +17,8 @@
 //   { guide: '…' }                            a `data-guide` id
 //   { attr: 'data-x', value: '…' }            a stable data attribute the product already writes (never a CSS class)
 //   { label: '…' }                            the on-screen label with exactly these words (a settings section, a row)
+//   { cursor: 'row-resize' }                  the element the chart library itself marks with this cursor: a pane divider,
+//                                             which it draws and which carries no attribute of ours
 //   { text: '…' }                             …narrowed to the ones whose visible text holds these words, in any form
 //                                             (a per-indicator row: "RSI"), for controls that only exist per instance
 // and any target may add { on: true }: the control must be in its selected state (a tab selected, a toggle pressed, a
@@ -53,8 +55,11 @@ function inside(box, t) {
     : null
   if (t.label) {
     const want = String(t.label).toLowerCase()
-    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => el.children.length === 0 && String(el.textContent || '').trim().toLowerCase() === want)
+    // the element whose OWN words these are: a row with an icon beside its text has children, and the text is still its own
+    const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
+    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => own(el) === want)
   }
+  if (t.cursor) return [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
   const els = sel ? [...box.querySelectorAll(sel)] : [box]
   return t.text ? els.filter(el => hasWords(el, t.text)) : els
 }
@@ -84,7 +89,9 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
     return pick([...cells].flatMap(c => inside(c, target)), target)
   }
   if (typeof target === 'object' && target.within) {
-    const boxes = document.querySelectorAll(`[data-guide="${esc(target.within)}"]`)
+    // a box on a chart: the chart being talked about, when it has one (a menu it opened may be portalled)
+    const cell = /^chart\.(?!.*Menu$)/.test(String(target.within)) ? cellOf(chartRef) : null
+    const boxes = (cell || document).querySelectorAll(`[data-guide="${esc(target.within)}"]`)
     for (const box of boxes) {
       const hit = pick(inside(box, target), target)
       if (hit) return hit
@@ -93,16 +100,18 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   }
   const id = String(typeof target === 'object' ? target.id : target)
   const on = typeof target === 'object' && target.on
+  const words = typeof target === 'object' ? target.text : null
+  const said = (els) => (words ? els.filter(el => hasWords(el, words)) : els)
   const sel = `[data-guide="${esc(id)}"]`
   // ⭐ PHASE 3: a widget header's own controls (`widget.*` — the link dot) are scoped to the chart talked about, too
   if (id.startsWith('chart.') || id.startsWith('widget.')) {
     const cell = cellOf(chartRef)
-    const inChart = cell ? pick([...cell.querySelectorAll(sel)], { on }) : null
+    const inChart = cell ? pick(said([...cell.querySelectorAll(sel)]), { on }) : null
     if (inChart) return inChart
     // with a chart named, a control on ANOTHER chart is not this one — except what that chart opened (a menu)
     if (cell && !/Menu$/.test(id)) return null
   }
-  return pick([...document.querySelectorAll(sel)], { on })
+  return pick(said([...document.querySelectorAll(sel)]), { on })
 }
 
 // ── a control a narrow row has clipped ──

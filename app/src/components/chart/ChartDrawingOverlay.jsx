@@ -4221,6 +4221,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
       ref={menuRef}
       onPointerDown={(e) => e.stopPropagation()}
       style={shell}
+      data-guide="chart.drawingMenu"
     >
       {sheet && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>

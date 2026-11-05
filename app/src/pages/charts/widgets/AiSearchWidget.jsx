@@ -1251,6 +1251,7 @@ export default function AiSearchWidget({
             ? 'Ask a follow-up…'
             : (scopeSym ? `Ask anything about ${scopeSym}…` : 'Ask anything about the markets…')}
           aria-label={scopeSym ? `Ask anything about ${scopeSym}` : 'Ask anything about the markets'}
+          data-guide="aisearch.ask"
           value={query}
           rows={1}
           onChange={(e) => setQuery(e.target.value)}

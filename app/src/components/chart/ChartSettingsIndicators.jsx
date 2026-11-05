@@ -1875,6 +1875,7 @@ export default function ChartSettingsIndicators({
                     <button
                       type="button" className={styles.insArrBtn}
                       aria-label={`Move ${group.name} pane ${word}`}
+                      data-guide="indicators.movePane"
                       title={why || `Move pane ${word}`}
                       disabled={off}
                       {...(off ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
@@ -2526,6 +2527,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={`${styles.insAction} ${styles.insActionDanger}`}
             aria-label={`Remove ${meta.name}`}
+            data-guide="indicators.remove"
             onClick={() => removeRow(row)}
           >Remove</button>
         </div>
@@ -3358,6 +3360,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.insNewFormula}
             data-testid="settings-create-indicator"
+            data-guide="indicators.create"
             onClick={() => onCreateIndicator()}
             title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
           >
@@ -3657,6 +3660,7 @@ export default function ChartSettingsIndicators({
                       type="button"
                       className={styles.insHeadAct}
                       data-testid="arrange-enter"
+                      data-guide="indicators.arrange"
                       onClick={enterArrange}
                     >Arrange</button>
                   )}
