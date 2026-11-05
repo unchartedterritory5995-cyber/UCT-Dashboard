@@ -5,6 +5,7 @@ import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow } from './harness'
 import { routedNames } from './route'
+import { kindsFor } from './registry'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 import { _resetScreenerCache } from '../../../capabilities/screener'
@@ -166,9 +167,9 @@ export function checkExpect(ctx, e, label) {
  * Replay steps on a fresh panel. step = { say, model?: { ops, disposition }, expect, approve?: true, afterApprove? }.
  * Each step's expectations are retried until they hold (UI work settles asynchronously) and then asserted.
  */
-export async function replay({ board: boardName = 'ONE', steps, seed = {} }, label) {
+export async function replay({ board: boardName = 'ONE', steps, seed = {}, kinds = null }, label) {
   _resetScreenerCache()                               // before the panel mounts (it reads the saved screens on open)
-  const m = mountCase(boardName, { seed })
+  const m = mountCase(boardName, { seed, kinds: kindsFor({ kinds }) })
   const { p, board, say } = m
   _resetScreenerCache()                               // module-level: each case reads its own saved screens
   // a member's panel has read their indicator alerts long before they ask (the cache is module-level: start clean)

@@ -35,6 +35,8 @@ export const BOARDS = {
     boards: { 1: [chart('c1', 0, 0, 24, 20)], 2: [chart('m1', 0, 0, 12, 20), chart('m2', 12, 0, 12, 20)] }, active: 1 } }],
   // saved watchlists behind the real routes' semantics (__fixtures__/board.js)
   WATCH: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
+  // PKG2: a half-width chart (room for new charts) + the saved watchlists — a screen's results go to a list and onto new charts
+  SCAN: () => [[chart('c1', 0, 0, 12, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   // + the chart's drawings (the real drawings store through host.buildDrawingSource) and the indicator-alert library
   //   (the real hook writers through host.buildIndicatorAlertSource over the fixture /api/indicator-alerts below)
   DRAW: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { drawings: true }],
@@ -63,7 +65,12 @@ export const BOARDS = {
 
 // Synthetic screener catalog / universe (never real values)
 const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
-  { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }, { key: 'days_to_earnings', label: 'Days to earnings', type: 'range', unit: 'd' }]
+  { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }, { key: 'days_to_earnings', label: 'Days to earnings', type: 'range', unit: 'd' },
+  // PKG2 (conversational scanning): the catalog keys the owner's screen + refinements use (filters.py), and one LIST field with its values
+  { key: 'chg_pct_1m', label: 'Change 1M', type: 'range', unit: '%' }, { key: 'chg_pct_3m', label: 'Change 3M', type: 'range', unit: '%' },
+  { key: 'dist_52w_high_pct', label: '% From 52W High', type: 'range', unit: '%' }, { key: 'vol_ratio', label: 'Volume vs 30D Avg', type: 'range', unit: 'x' },
+  { key: 'sector', label: 'Sector', type: 'enum', unit: '', category: 'descriptive' }]
+const FIELD_OPTIONS = { sector: { values: ['Technology', 'Healthcare', 'Energy', 'Financial Services'] } }
 // the indicator-alert catalog as the evaluator serves it (indicator_alert_evaluator.alert_catalog), RSI + the MA cross (train 3)
 const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true },
   { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
@@ -92,7 +99,16 @@ const synthBar = (t, i) => { const c = 100 + 20 * Math.sin(i / 17) + i * 0.05; r
 export const SYNTH_BARS = BAR_DAYS.map((t, i) => synthBar(t, i))
 const lastOnOrBefore = (ms) => { let r = BAR_DAYS[0]; for (const t of BAR_DAYS) { if (t <= ms) r = t; else break } return r }
 const LOWER_OK = new Set(['NVDA', 'TSLA', 'AMD', 'AAPL', 'QQQ'])
-const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i }))
+// asset_classes.py's words used by the corpus (word → {kind, asset, label})
+const ASSET_ROUTES = { gold: { kind: 'commodity.quote', asset: 'gold', label: 'gold' }, bitcoin: { kind: 'crypto.quote', asset: 'btc', label: 'Bitcoin' },
+  btc: { kind: 'crypto.quote', asset: 'btc', label: 'Bitcoin' }, dow: { kind: 'index.quote', asset: 'dji', label: 'Dow Jones Industrial Average' } }
+// a made-up event-study answer (the study's own {lead, text, table, caveats} shape) — never a market value
+const SYNTH_STUDY = (sym) => ({ lead: `${sym} synthetic condition: 3 events (fixture)`, text: `${sym} synthetic condition: 3 events (fixture)\nSynthetic fixture study: no market value.`,
+  table: { columns: [{ key: 'window', label: 'Window' }, { key: 'n', label: 'Events' }], rows: [{ window: '1 trading session', n: '3' }] }, caveats: ['Small sample (fixture).'] })
+const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i,
+  // PKG2: made-up values for the conversational-scan fields — every row meets the owner's screen, so a refinement's effect is
+  // asserted on the canonical read's spec, never on a figure
+  chg_pct_1m: 20 + i, chg_pct_3m: 30 + 2 * i, dist_52w_high_pct: -0.4 * i, vol_ratio: 1.1 + 0.1 * i, sector: 'Technology' }))
 
 /** The board's EFFECTIVE state — every widget's cell, and each chart's symbol, timeframe and merged settings (what the
  *  member sees): equality = nothing changed for the member. (A stored `tf: 'D'` written back where nothing was stored
@@ -168,6 +184,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       if (method === 'DELETE') { const id = decodeURIComponent(u.split('/').pop()); st.alerts = st.alerts.filter(r => r.id !== id); return json({ ok: true }) }
       return json(st.alerts)
     }
+    if (u === '/api/screener/fields?options=1') return json({ fields: FIELDS, options: FIELD_OPTIONS })
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
     // the saved screens behind the real routes' semantics (screener saved-screens: GET list, POST create, PUT rename, DELETE)
     if (u === '/api/screener/saved-screens' && method === 'GET') return json({ saved: st.screens, starters: [] })
@@ -176,7 +193,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (ssm && method === 'PUT') { st.screens = st.screens.map(x => (String(x.id) === ssm[1] ? { ...x, ...(body.name ? { name: body.name } : {}), ...(body.spec ? { spec: body.spec } : {}) } : x)); return json(st.screens.find(x => String(x.id) === ssm[1]) || {}) }
     if (ssm && method === 'DELETE') { st.screens = st.screens.filter(x => String(x.id) !== ssm[1]); return json({ ok: true }) }
     if (u === '/api/screener/scan') {
-      const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : true)
+      const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : f.op === 'gte' ? r[f.key] >= f.min : f.op === 'lte' ? r[f.key] <= f.max
+        : f.op === 'in' ? (f.values || []).includes(r[f.key]) : true)
       const rows = UNIVERSE.filter(r => (body.filters || []).every(f => ok(r, f)))
       return json({ total: rows.length, rows: rows.slice(0, body.page_size || 25), snapshot_date: '2026-10-07' })
     }
@@ -185,7 +203,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // one resolves only when §4.7.5 confirms it ('nvda' yes; 'spy', 'gold' no — the neutral ask)
     if (u === '/api/agent/data' && body?.kind === 'instrument.resolve') {
       const results = (body.params?.symbols || []).map(c => { const t = String(c?.text ?? c).replace(/^\$/, ''); return (t === t.toUpperCase() || LOWER_OK.has(t.toUpperCase())) ? { input: c?.text ?? c, class: 'symbol', symbol: t } : { input: c?.text ?? c, class: 'symbol_typed_lowercase', symbol: t.toUpperCase() } })
-      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', notes: [], data: { results } })
+      // the asset-class route (asset_classes.py) rides along for a plain lowercase asset word, parallel to its class
+      const routes = results.map(r => (r.class === 'symbol_typed_lowercase' ? ASSET_ROUTES[String(r.input).replace(/^\$/, '').toLowerCase()] || null : null))
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', notes: [], data: { results, ...(routes.some(Boolean) ? { routes } : {}) } })
     }
     // the SC-1 gateway's screen kinds (served in production): synthetic rows from the fixture universe — the corpus
     // asserts WHICH read ran and what the Agent did with a screen, never a figure
@@ -198,6 +218,17 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       const n = Math.min(Number(body.params?.bars) || 252, SYNTH_BARS.length)
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'historical', as_of: SYNTH_BARS.at(-1).t, stale: false, notes: [], coverage: null,
         data: { symbol: String(body.params?.symbol || '').toUpperCase(), bars: SYNTH_BARS.slice(-n) } })
+    }
+    // PKG2: the dark `history.eventStudy` kind — a SYNTHETIC study (no market value: a fixed made-up table) for a valid request
+    if (u === '/api/agent/data' && body?.kind === 'history.eventStudy') {
+      const sym = String(body.params?.symbol || '').toUpperCase()
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'historical', as_of: '2026-10-30T20:00:00Z', stale: false, notes: [], coverage: null,
+        data: { symbol: sym, request: body.params, study: SYNTH_STUDY(sym), summary: { status: 'ok', events_used: 3, series_label: `${sym} synthetic condition`, price_first: '2025-01-02', price_last: '2026-10-30' },
+          coverage: { price_first: '2025-01-02', price_last: '2026-10-30' } } })
+    }
+    // the asset-class kinds (asset_quotes.py): no licensed source exists, so every read is the honest decline (`refused`)
+    if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)

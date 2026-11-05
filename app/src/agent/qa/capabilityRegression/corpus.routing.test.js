@@ -2,7 +2,7 @@
 // (testing/route.js: the same call useAgent makes) carries every action the intent needs. A capability the model is
 // never shown cannot be used, however good the model is (live LT-4, the 11-03 four-charts regression).
 import { describe, expect } from 'vitest'
-import { registerCatalog } from './testing/registry'
+import { registerCatalog, isDark } from './testing/registry'
 import { corpus, phrasingsOf, gapIt } from './testing/corpus'
 import { routedNames } from './testing/route'
 import { wordsSelect, groupOfAction } from '../../routing'
@@ -13,7 +13,8 @@ pinClock()                   // one fixed instant (testing/clock.js): the market
 
 await registerCatalog()
 
-for (const intent of corpus.intents) {
+// (a DARK intent — `"kinds": "ALL"` — runs in corpus.dark.test.jsx, with every gated kind on)
+for (const intent of corpus.intents.filter(i => !isDark(i))) {
   describe(`(a) routing · ${intent.id}`, () => {
     for (const ph of phrasingsOf(intent)) {
       const { run, tag } = gapIt(ph.gaps?.a)

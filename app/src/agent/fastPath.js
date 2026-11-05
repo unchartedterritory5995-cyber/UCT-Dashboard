@@ -111,6 +111,8 @@ function matchWhole(text, host) {
     if (!cap.fastWhole || typeof cap.fast !== 'function') continue
     if (!onSurface(cap, host?.surface || 'charts')) continue
     const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
+    // PKG2: `__say` — the capability answers this whole sentence in its own FIXED words (an honest decline), no op, no model
+    if (args && typeof args.__say === 'string') { hits.push({ say: args.__say }); continue }
     if (args) {
       // `__explicit`: the capability read the member's OWN words as an explicit request (policy.js explicitOk)
       const { __target, __explicit, ...rest } = args
@@ -303,7 +305,7 @@ export const slashPairs = (s) => (ADD_LEAD.test(s) ? s.replace(/\b(\d{1,3})\/(\d
 /** Capability phrases: whole-sentence ones first, then clause by clause (all or nothing). */
 function capabilityPhrases(text, host) {
   const whole = matchWhole(text, host)
-  if (whole) return { kind: 'ops', ops: [whole], target: null }
+  if (whole) return whole.say ? { kind: 'say', text: whole.say } : { kind: 'ops', ops: [whole], target: null }
   const { text: rest0, target } = extractTarget(text, host)
   const rest = slashPairs(rest0)
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
