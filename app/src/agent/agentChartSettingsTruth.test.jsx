@@ -34,11 +34,11 @@ function withPrefs(h, initial = {}) {
 const say1 = async (say, setting, value, words) => { p.st.envelopes.push(set(setting, value)); return say(words) }
 
 describe('discovery and descriptors say what is true (D3, D4)', () => {
-  it('no topic lists what it can do under what it cannot: `known` never repeats a registered capability's feature', () => {
+  it('no topic lists what it can do under what it cannot: `known` never repeats a feature the topic registers', () => {
     const charts = TOPICS.find(t => t.id === 'charts')
     expect(charts.caps).toContain('chart.replay')
     expect(charts.known().join(' ')).not.toMatch(/replay/i)
-    expect(answerTopic(charts).text.match(/replay/gi)?.length ?? 0).toBeLessThanOrEqual(answerTopic(charts).text.split('In UCT itself')[0].match(/replay/gi)?.length ?? 0)
+    expect(answerTopic(charts).text.split('In UCT itself')[1] || '').not.toMatch(/replay/i)
   })
   it('each descriptor names the capability that really writes it, and nothing the Agent does is listed as not doable', () => {
     expect(settingDescriptor('comparisonSymbols').agent).toBe('specialized:chart.compare')
