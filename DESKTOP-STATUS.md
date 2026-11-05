@@ -508,3 +508,13 @@ Merging to master is still not authorized in this file; the owner approves it di
     - W6-T3b (Opus);
     - W9-T14a then T2 (Sonnet).
   - Claude Code reaped the background watchers on low memory; they were not restarted.
+- 2026-11-05 16:41 POST-LANDING.
+  Deploy: GitHub deployments show 6fe0577df8 success at 20:31Z; production is on it or a descendant.
+  adx re-grade on master: all arming rails pass (parity 4/4, safety 19/19, kill 3/3, switch-on 15/15, revocation 10/10, run-gate 6/6, string-memory 5/5; pytest 65 + 4). adx MATCH on both captures. STAGE 1 IS READY FOR THE OWNER TO ARM.
+  W0 on engine 17 (docs/pine-coverage-2026-11-05 de4371e1e9):
+  - Production door: 218 of 679, unchanged (the runtime lane is off).
+  - Runtime-on: 268, up from 259.
+  - Transfer and MATCH: 47.
+  - Strategies transferring: 6 of 70.
+  - Top sole-blocker walls: drawing-objects 56, imperative 41, strategy 35, request.security 17, imports 12, user-functions 9, translator 7.
+  RE-PRIORITISE: the next waves go by sole-blocker count: drawings (W3 S2+), imperative/runtime grammar, W9 strategy, then W7 request.security. W6 is smaller.
