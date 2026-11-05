@@ -184,12 +184,125 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     expect(screen.getByTestId('guide-notice').textContent).toMatch(/I can’t see that control on screen any more/)
   }, 30000)
 
+  describe('S6b Escape is one press, one action', () => {
+    const start = async () => {
+      const root = controls(['c'])
+      const { say } = p.mount(...ONE())
+      await say('where do I change the timeframe?')
+      await waitFor(() => expect(card()).toBeTruthy())
+      document.activeElement?.blur?.()                                 // focus starts in the Agent's message box
+      return root
+    }
+    // long enough for the guide's own next-task decision to have run
+    const settled = () => new Promise(r => setTimeout(r, 30))
+    const press = (node = document.body, init = {}) => fireEvent.keyDown(node, { key: 'Escape', ...init })
+
+    it('with nothing else open, it ends the guide', async () => {
+      await start()
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('with focus still in the Agent\'s message box after asking, it ends the guide', async () => {
+      await start()
+      screen.getByLabelText('Message UCT Agent').focus()
+      press(screen.getByLabelText('Message UCT Agent'))
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('Ctrl, Alt, Meta or Shift + Escape is not the guide\'s', async () => {
+      await start()
+      for (const mod of ['ctrlKey', 'altKey', 'metaKey', 'shiftKey']) press(document.body, { [mod]: true })
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a text field\'s Escape is the field\'s', async () => {
+      const root = await start()
+      const input = document.createElement('input')
+      root.appendChild(input)
+      input.focus()
+      press(input)
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase', async () => {
+      const root = await start()
+      const input = document.createElement('input')
+      root.appendChild(input)
+      input.focus()
+      document.addEventListener('keydown', () => input.remove(), { once: true })
+      press(input)
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it.each([
+      ['a sheet', 'data-sheet-panel', ''],
+      ['the palette or a dialog', 'aria-modal', 'true'],
+      ['a popup that closes on Escape', 'data-escape-layer', ''],
+    ])('%s owns the press, whether or not it stays open', async (_, attr, value) => {
+      const root = await start()
+      const layer = document.createElement('div')
+      layer.setAttribute(attr, value)
+      root.appendChild(layer)
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+      // a layer closed from its own capture-phase-late listener: the record was taken before it went
+      const close = () => layer.remove()
+      document.addEventListener('keydown', close, { once: true })
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a press another handler consumed is left alone', async () => {
+      await start()
+      const stop = (e) => e.stopPropagation()
+      document.addEventListener('keydown', stop, { once: true })
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+      const prevent = (e) => e.preventDefault()
+      document.addEventListener('keydown', prevent, { once: true })
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a menu the press closed had it: the Widgets menu goes, the guide stays', async () => {
+      const root = await start()
+      const menu = document.createElement('div')
+      menu.setAttribute('data-guide', 'workspace.widgetsMenu')
+      root.appendChild(menu)
+      document.addEventListener('keydown', () => menu.remove(), { once: true })
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a menu that ignores Escape does not keep the guide from ending', async () => {
+      const root = await start()
+      const menu = document.createElement('div')
+      menu.setAttribute('data-guide', 'workspace.widgetsMenu')
+      root.appendChild(menu)
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('after the layer has gone, the next Escape ends the guide', async () => {
+      const root = await start()
+      const layer = document.createElement('div')
+      layer.setAttribute('aria-modal', 'true')
+      root.appendChild(layer)
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+      layer.remove()
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+  })
+
   it('S6 Escape and Exit end it; a new walkthrough replaces the old one', async () => {
     controls(['c'])
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    fireEvent.keyDown(document.body, { key: 'Escape' })              // with focus anywhere: the card never takes it
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })     // focus sits in the Agent's message box: the card never takes it
     await waitFor(() => expect(card()).toBeNull())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())

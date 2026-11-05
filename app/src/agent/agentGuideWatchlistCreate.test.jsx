@@ -320,7 +320,8 @@ describe('WL · Exit and Escape, at any step', () => {
     await start()
     await go()
     expect(card().contains(document.activeElement)).toBe(false)             // the card never has focus
-    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    document.activeElement?.blur?.()                                        // in a text field the key is the field's
+    fireEvent.keyDown(document.body, { key: 'Escape' })
     await waitFor(() => expect(card()).toBeNull())
     expect(ring()).toBeNull()
     expect(notice()).toBeNull()
@@ -329,27 +330,24 @@ describe('WL · Exit and Escape, at any step', () => {
   it('a finished or cancelled walkthrough leaves nothing bound: the next one starts and Escape ends it', async () => {
     const { say } = await start()
     await onIt(/Open Widgets ▾/, widgetsBtn)
+    document.activeElement?.blur?.()
     fireEvent.keyDown(document.body, { key: 'Escape' })
     await waitFor(() => expect(card()).toBeNull())
     await say('show me how to create a watchlist')
     await onIt(/Open Widgets ▾/, widgetsBtn)
+    document.activeElement?.blur?.()
     fireEvent.keyDown(document.body, { key: 'Escape' })
     await waitFor(() => expect(card()).toBeNull())
     expect(document.querySelector('[data-testid="guide-ring"]')).toBeNull()
   }, 30000)
-  it('Escape in the name box ends the guide AND closes the form, and the key is not consumed', async () => {
+  it('🔴 Escape in the name box is the field\'s: the form closes and the walkthrough steps back to ＋ New', async () => {
     await start()
     await toName()
-    const seen = []
-    const spy = (e) => seen.push(e.defaultPrevented)
-    document.addEventListener('keydown', spy)
     fireEvent.keyDown(nameBox(), { key: 'Escape' })
-    document.removeEventListener('keydown', spy)
-    await waitFor(() => expect(card()).toBeNull())
-    expect(seen).toEqual([false])
     await waitFor(() => expect(nameBox()).toBeNull())
-    await new Promise(r => setTimeout(r, LOST_MS / 4))
+    await waitFor(() => expect(card().textContent).toMatch(/Click ＋ New/), { timeout: LOST_MS + 3000 })
     expect(notice()).toBeNull()
+    expect(guideState()).toBeTruthy()
   }, 30000)
   it('Escape does nothing of the guide\'s once no walkthrough is on screen', async () => {
     await start()
