@@ -153,3 +153,17 @@ released, the tree is clean, and no process from the run is left. Per the harnes
 `runs/w6t3a-final2/`. Expected reds: pollingSites, settingsScope, enumerationSites and vendorHarness, plus the
 coverageAudit flake. Then run `ready-check.sh pine-dsk-w6t3a runs/w6t3a-final2`. HEAD must still be `8a5d839b00`
 plus this docs-only commit.
+
+## final-tip, round 2 (re-run after RAM recovered): COMPLETE
+`final-tip.sh pine-dsk-w6t3a w6t3a-final2` (`runs/w6t3a/ft2.sh`): FULL scope, 2 parallel shards, Node 20.20.2 via
+`dsk/node20.sh`, ram_gate passed, lock `heavy-final3.lock`. Logs `runs/w6t3a-final2/` and `runs/w6t3a/ft2b.out`.
+- `TIP c96f59cd8d done` (code tree `8a5d839b00`; c96f59cd8d and this commit are docs only).
+- `scope=full shards=2`, `rc gate=0 hyg=0 py=0 js=1`, `totals=ok`, `errors=0`, `integrity=ok`; pytest 196 passed.
+- jsfail, classified:
+  - baselines: `pollingSites.rail`, `settingsScope.rail`, `enumerationSites`, `vendorHarness`;
+  - `controlDoorCensus`: red on `origin/master` `04b49bd61e` too (`runs/w6t3a/rerun2-master.log`). It names
+    `app/src/agent/guide/slots.js` as missing from BULK_BLOB_SITES, a master file outside this lane: a master baseline;
+  - `vendorHarness.coverageAudit`: the known flake. It is green alone on this tip twice (`ca-alone-1.log`,
+    `ca-alone-2.log`: `185 passed | 7 skipped`) and green on master.
+- ready-check: FAILS only on its allowlist (it names pollingSites and settingsScope only). Every red above is outside
+  this lane.
