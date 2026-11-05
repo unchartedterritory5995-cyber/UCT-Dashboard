@@ -85,6 +85,24 @@ describe('correlation: served, equal to Pearson, in the script own spelling', ()
   it('a length that is an input folds at its default', () => {
     near(run(5, 'len = input.int(6, "len")\nplot(ta.correlation(x, y, len))\n'), pearson(X, Y, 6))
   })
+  // ONE AUTHORITY: the runtime path asks `BUILTIN_CALL_TREE.correlation`, the same builder the
+  // columnar lane runs for a PURE call. So the two lanes must agree to the last digits.
+  it('equals the existing columnar lane on the same inputs (pure call vs runtime state)', () => {
+    const pure = run(5, 'plot(ta.correlation(close * 2 - open, volume, 8))\n')
+    const viaState = run(5, 'plot(ta.correlation(x, y, 8))\n')
+    near(viaState, pure)
+    expect(pure.filter(Number.isFinite).length).toBeGreaterThan(N / 2)
+  })
+  // The committed TradingView capture (tests/fixtures/vendor/r11-corr-pct-spy-2026-09-11.json,
+  // taCorrelation): `na` until the window fills (first defined bar = length - 1), and
+  // self-correlation is exactly 1 on every defined bar. Run here over runtime state.
+  it('TradingView capture rules: na until the window fills, self-correlation is 1', () => {
+    const out = run(5, 'plot(ta.correlation(x, x, 20))\n')
+    out.forEach((v, i) => {
+      if (i < 19) expect(Number.isNaN(v), `bar ${i} must be na`).toBe(true)
+      else expect(Math.abs(v - 1), `bar ${i}`).toBeLessThan(1e-9)
+    })
+  })
   it('control: the reference is not a constant (a wrong formula would be seen)', () => {
     const r = pearson(X, Y, 8).filter(Number.isFinite)
     expect(Math.max(...r) - Math.min(...r)).toBeGreaterThan(0.2)
