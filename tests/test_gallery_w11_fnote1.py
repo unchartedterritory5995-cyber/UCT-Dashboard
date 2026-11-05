@@ -543,8 +543,8 @@ ADDRESS_FORMS = {
                                                   _lk(ACCT, f"https://{HOST}/acct/{ACCT}/", BOLD)],
     "LF inside one text node": [_lk(f"https://{HOST}/acct/\n{ACCT}")],
     "CRLF inside one text node": [_lk(f"https://{HOST}/acct/\r\n{ACCT}")],
-    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
-    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
+    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/\u2028{ACCT}")],
+    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/\u2029{ACCT}")],
     "TAB inside one text node": [_lk(f"https://{HOST}/acct/\t{ACCT}")],
     "ideographic space inside": [_lk(f"https://{HOST}/acct/　{ACCT}")],
     "LF inside the bare host form": [_lk(f"{HOST}/acct/\n{ACCT}")],
@@ -654,7 +654,7 @@ def test_a_line_break_between_two_different_links_does_not_join_them(db):
 def test_the_skeleton_is_nfkc_casefold_letters_and_digits():
     """W11-R47's skeleton, exactly: NFKC, casefold, then only `[a-z0-9]` (the ruling's) or only alphanumerics (every
     script). A fullwidth letter folds, capitals fold, and every space, line break, mark, blank and punctuation goes."""
-    s = "ＡB\n c d̲e⠀f.-_g9é　h\t​i"
+    s = "ＡB\n c\u2028d̲e⠀f.-_g9é　h\t​i"
     assert gallery._skeleton(s, latin=True) == "abcdefg9hi"
     assert gallery._skeleton(s, latin=False) == "abcdefg9éhi"
 

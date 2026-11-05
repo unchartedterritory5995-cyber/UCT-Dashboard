@@ -234,6 +234,11 @@ EXEMPT_TOOLS: dict[str, str] = {
         "back to DATA_DIR, so a pin would make the bare run review an empty sandbox while "
         "reporting PASS. It carries its OWN in-process rails instead: every sqlite3.connect "
         "forced to `mode=ro&immutable=1`, file writes outside --out-dir raise, no network."),
+    "note_import_repair.py": (
+        "Docstring: 'Runs on the web pod as a SEPARATE process (the only place with auth.db)', "
+        "usage lines are `/opt/venv/bin/python tools/note_import_repair.py --out /data/...`. "
+        "A pin would point the dry run (auth.db `mode=ro`) and --apply at an empty sandboxed "
+        "auth.db, so it would report and repair nothing while looking like a clean run."),
     "notebook_volume_report.py": (
         "Existing exemption, carried forward from `tests/test_notebook_bridges_pin_the_root.py`"
         "'s `LIVE_ROOT_READERS`: READ-ONLY by construction, built to measure the LIVE "

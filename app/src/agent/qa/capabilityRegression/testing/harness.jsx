@@ -8,10 +8,14 @@
 // the missing groups (`need_groups`, the bounded reroute — the real protocol); if they are still missing after the
 // reroute it plans nothing. So a capability the routing hides is a FAILURE here, never masked by a script that
 // answers regardless. No paid model call; no real market value (every figure below is synthetic).
+import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
-import { buildDrawingSource, buildIndicatorAlertSource } from '../../../host'
+import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource } from '../../../host'
+import { publishListView } from '../../../../pages/watchlist/watchlistViews'
+import { DEFAULT_COL_ORDER } from '../../../../pages/watchlist/watchlistColumns'
+import { readFlagged, writeFlagged } from '../../../../hooks/flaggedStore'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { setAuthoringSources } from '../../../capabilities/indicatorAuthoring'
 import { storeConversation } from '../../../../components/chart/builder/conversationSave'
@@ -22,6 +26,9 @@ import { mutate } from 'swr'
 import { USER_DEFINITIONS_KEY } from '../../../../hooks/useUserDefinitions'
 import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
+import { captureIndicatorTemplate } from '../../../../components/chart/builder/indicatorTemplates'
+import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
@@ -62,6 +69,14 @@ export const BOARDS = {
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
+  // Agent Phase 1: a Watchlist widget showing the saved list Momentum, beside a chart, published through the REAL registry and
+  // read through the REAL host source (host.js buildListViewSource) and Flagged store. The widget itself is a stand-in with
+  // Watchlists.jsx's published shape: qa/chartsOutcome/listControl.outcome.test.jsx covers the real widget.
+  LISTVIEW: () => [[chart('c1', 0, 0, 16, 20), { id: 'wl', type: 'watchlist', x: 16, y: 0, w: 8, h: 20, color: 'N', opts: { watchKey: 'user:w1', watchName: 'Momentum' } }], { 'N:c1': 'NVDA' },
+    { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA', 'AMD'] }], listView: true }],
+  // Agent Phase 1: a chart with one indicator and the member's saved INDICATOR templates (seed.indicatorTemplates: names, each
+  // holding one MACD, built by the REAL capture; the surface's build flag is on for such a case only)
+  TEMPLATES: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { prefs: true }],
   ONE_DEFAULT_IA: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
@@ -76,8 +91,11 @@ const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { 
   // PKG2 (conversational scanning): the catalog keys the owner's screen + refinements use (filters.py), and one LIST field with its values
   { key: 'chg_pct_1m', label: 'Change 1M', type: 'range', unit: '%' }, { key: 'chg_pct_3m', label: 'Change 3M', type: 'range', unit: '%' },
   { key: 'dist_52w_high_pct', label: '% From 52W High', type: 'range', unit: '%' }, { key: 'vol_ratio', label: 'Volume vs 30D Avg', type: 'range', unit: 'x' },
-  { key: 'sector', label: 'Sector', type: 'enum', unit: '', category: 'descriptive' }]
-const FIELD_OPTIONS = { sector: { values: ['Technology', 'Healthcare', 'Energy', 'Financial Services'] } }
+  { key: 'sector', label: 'Sector', type: 'enum', unit: '', category: 'descriptive' },
+  // SG-2: the industry list holds an IT-services industry whose name contains "Technology" (the live wrong match)
+  { key: 'industry', label: 'Industry', type: 'enum', unit: '', category: 'descriptive' }]
+const FIELD_OPTIONS = { sector: { values: ['Technology', 'Healthcare', 'Energy', 'Financial Services'] },
+  industry: { values: ['Information Technology Services', 'Semiconductors', 'Software - Application', 'Oil & Gas E&P'] } }
 // the indicator-alert catalog as the evaluator serves it (indicator_alert_evaluator.alert_catalog), RSI + the MA cross (train 3)
 const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true },
   { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
@@ -120,10 +138,18 @@ const ASSET_ROUTES = { gold: { kind: 'commodity.quote', asset: 'gold', label: 'g
 // a made-up event-study answer (the study's own {lead, text, table, caveats} shape) — never a market value
 const SYNTH_STUDY = (sym) => ({ lead: `${sym} synthetic condition: 3 events (fixture)`, text: `${sym} synthetic condition: 3 events (fixture)\nSynthetic fixture study: no market value.`,
   table: { columns: [{ key: 'window', label: 'Window' }, { key: 'n', label: 'Events' }], rows: [{ window: '1 trading session', n: '3' }] }, caveats: ['Small sample (fixture).'] })
-const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i,
-  // PKG2: made-up values for the conversational-scan fields — every row meets the owner's screen, so a refinement's effect is
+// SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
+// other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
+const FAR_FROM_HIGH = [-12, -18, -25, -30, -35, -40]
+const UNIVERSE = Array.from({ length: 18 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i,
+  // PKG2: made-up values for the conversational-scan fields — T01–T12 meet the owner's screen, so a refinement's effect is
   // asserted on the canonical read's spec, never on a figure
-  chg_pct_1m: 20 + i, chg_pct_3m: 30 + 2 * i, dist_52w_high_pct: -0.4 * i, vol_ratio: 1.1 + 0.1 * i, sector: 'Technology' }))
+  chg_pct_1m: 20 + i, chg_pct_3m: 30 + 2 * i, dist_52w_high_pct: i < 12 ? -0.4 * i : FAR_FROM_HIGH[i - 12], vol_ratio: 1.1 + 0.1 * i,
+  sector: 'Technology', industry: i % 2 ? 'Semiconductors' : 'Software - Application' }))
+/** The engine's own filter semantics over the fixture universe (wire filters {key, op, min, max, value, values}). */
+export const rowMatches = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : f.op === 'gte' ? r[f.key] >= f.min
+  : f.op === 'lte' ? r[f.key] <= f.max : f.op === 'between' ? r[f.key] >= f.min && r[f.key] <= f.max : f.op === 'eq' ? r[f.key] === f.value
+    : f.op === 'in' ? (f.values || []).includes(r[f.key]) : f.op === 'not_in' ? !(f.values || []).includes(r[f.key]) : true)
 
 /** The board's EFFECTIVE state — every widget's cell, and each chart's symbol, timeframe and merged settings (what the
  *  member sees): equality = nothing changed for the member. (A stored `tf: 'D'` written back where nothing was stored
@@ -156,11 +182,13 @@ export const nlm1Of = (seed = {}) => (seed.nlm1 != null ? !!seed.nlm1 : (globalT
 // v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
+let unpublishListView = null
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   // NLM-1 on (nlm1Of): BOTH switches on for this case (server config routing_v2 + the browser key); off: the browser kill
   // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
   const p = setupPanel()
   const nlm1 = nlm1Of(seed)
+  vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', seed.indicatorTemplates ? '1' : '0')     // the build flag, for this case only
   try { if (nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.setItem('uct.agent.routingV2', '0') } catch { /* */ }
   // NLM-1's third key (in-plan rules, nlm1/inplan.js): ON only for a case seeded nlm1Inplan, cleared otherwise
   try { if (seed.nlm1Inplan) localStorage.setItem('uct.agent.nlm1.inplan', '1'); else localStorage.removeItem('uct.agent.nlm1.inplan') } catch { /* */ }
@@ -214,7 +242,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u.startsWith('/api/watchlist-alerts')) {
       // the real routes' behaviour (agentAlerts.test.jsx): owner-scoped rows, a POST returns the row, a DELETE removes it
       if (method === 'POST') {
-        const row = { id: `new${st.alerts.length + 1}`, user_id: 'me', sym: String(body.sym).toUpperCase(), target_price: body.target_price, direction: body.direction, is_active: 1, triggered_at: null, created_at: '2026-11-04T13:00:00Z', alert_type: body.alert_type || 'price', drawing_id: null }
+        const row = { id: `new${st.alerts.length + 1}`, user_id: 'me', sym: String(body.sym).toUpperCase(), target_price: body.target_price, direction: body.direction, is_active: 1, triggered_at: null, created_at: '2026-11-04T13:00:00Z', alert_type: body.alert_type || 'price', drawing_id: body.drawing_id || null, anchor_t1: body.anchor_t1 ?? null, anchor_p1: body.anchor_p1 ?? null, anchor_t2: body.anchor_t2 ?? null, anchor_p2: body.anchor_p2 ?? null }
         st.alerts = [row, ...st.alerts]
         return json(row)
       }
@@ -230,8 +258,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (ssm && method === 'PUT') { st.screens = st.screens.map(x => (String(x.id) === ssm[1] ? { ...x, ...(body.name ? { name: body.name } : {}), ...(body.spec ? { spec: body.spec } : {}) } : x)); return json(st.screens.find(x => String(x.id) === ssm[1]) || {}) }
     if (ssm && method === 'DELETE') { st.screens = st.screens.filter(x => String(x.id) !== ssm[1]); return json({ ok: true }) }
     if (u === '/api/screener/scan') {
-      const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : f.op === 'gte' ? r[f.key] >= f.min : f.op === 'lte' ? r[f.key] <= f.max
-        : f.op === 'in' ? (f.values || []).includes(r[f.key]) : true)
+      const ok = rowMatches
       const rows = UNIVERSE.filter(r => (body.filters || []).every(f => ok(r, f)))
       return json({ total: rows.length, rows: rows.slice(0, body.page_size || 25), snapshot_date: '2026-10-07' })
     }
@@ -247,7 +274,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // the SC-1 gateway's screen kinds (served in production): synthetic rows from the fixture universe — the corpus
     // asserts WHICH read ran and what the Agent did with a screen, never a figure
     if (u === '/api/agent/data' && (body?.kind === 'screen.run' || body?.kind === 'screen.count')) {
-      const rows = UNIVERSE.map(r => ({ ...r, symbol: r.ticker, company: r.ticker, chg_pct_1d: r.chg_pct }))
+      // SG-1: the engine's semantics — only rows meeting every wire filter come back (a saved id carries no spec: all rows)
+      const rows = UNIVERSE.filter(r => (body.params?.spec?.filters || []).every(f => rowMatches(r, f))).map(r => ({ ...r, symbol: r.ticker, company: r.ticker, chg_pct_1d: r.chg_pct }))
+      st.screenRows = rows
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'eod', as_of: '2026-11-03', stale: false, notes: [], coverage: null,
         data: { rows: rows.slice(0, body.params?.limit || 25), total_matches: rows.length, count: rows.length } })
     }
@@ -277,9 +306,38 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  unpublishListView?.(); unpublishListView = null
+  if (extra.listView) {
+    // synthetic column values, only to order the rows; a sort on any other column keeps the saved order
+    const VALUES = { rvol: { NVDA: 1, TSLA: 3, AMD: 2 } }
+    const view = st.listView = { cfg: {}, selected: 'NVDA' }
+    const rows = () => {
+      const base = ['NVDA', 'TSLA', 'AMD']
+      const s = view.cfg.sort
+      const v = s && VALUES[s.key]
+      return v ? [...base].sort((a, b) => (s.dir === 'asc' ? v[a] - v[b] : v[b] - v[a])) : base
+    }
+    const columns = () => (view.cfg.order || DEFAULT_COL_ORDER).filter(k => !view.cfg.hidden?.[k])
+    unpublishListView = publishListView({ type: 'watchlist', color: 'N', key: 'user:w1' }, () => ({ name: 'Momentum', rows, cfg: view.cfg, sort: view.cfg.sort || null, columns: columns(),
+      fixedColumns: false, persisted: true, selected: view.selected, active: true, saveCols: (cfg) => { view.cfg = cfg }, select: (sym) => { view.selected = sym } }))
+    st.listViewNow = () => ({ rows: rows(), columns: columns(), sort: view.cfg.sort || null, selected: view.selected })
+    mounted.h.listViews = buildListViewSource({ getWidgets: () => mounted.board.state.widgets })
+    writeFlagged(seed.flagged || [])
+    mounted.h.flagged = buildFlaggedSource({ request: async (u, init) => {
+      p.st.calls.push(['POST', u, JSON.parse(init.body)])
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+    } })
+    st.flaggedNow = readFlagged
+  }
   if (extra.prefs) {
     if (!('chart_templates' in st.prefs)) st.prefs.chart_templates = JSON.stringify([{ name: 'Clean', settings: { ...bareSettings(), background: '#000000' } }])
-    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true } }
+    if (seed.indicatorTemplates) {
+      const cs = mergeChartSettings(JSON.stringify({ ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:macd:t', defId: 'macd', inputs: {} }] }))
+      st.prefs.indicator_templates = JSON.stringify(seed.indicatorTemplates.map(name => captureIndicatorTemplate(cs, nativeRegistry, { name }).template))
+    }
+    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true },
+      // setPrefMerged's contract: `undefined` from the merge abandons the write
+      merge: async (k, fn) => { const next = fn(JSON.parse(st.prefs[k] ?? '[]')); if (next === undefined) return undefined; st.prefs = { ...st.prefs, [k]: JSON.stringify(next) }; return { ok: true } } }
   }
   if (extra.authoring) {
     try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
@@ -317,14 +375,25 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   }
   if (extra.timeNav) {
     // ChartsWorkspace's Time Navigator + Replay Mode, as host.buildChartSource exposes them: a per-chart VIEW read-out,
-    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff
+    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff;
+    // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
-    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true })
+    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
+      activeRange: null, atDefaultView: false, indicatorsHidden: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
     st.replay = null
     const charts = mounted.h.charts
     const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
+      // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
+      viewDo: (ref, op, arg) => {
+        const v = viewOf(ref)
+        if (op === 'applyRange') Object.assign(v, { activeRange: arg, atDefaultView: false, frame: { fromRight: 252, toRight: -8, activeRange: arg, locked: true, lock: { hLocked: true } } })
+        if (op === 'restoreView') Object.assign(v, { activeRange: arg.activeRange, atDefaultView: false, frame: { ...arg } })
+        if (op === 'resetView') Object.assign(v, { activeRange: null, atDefaultView: true, frame: { fromRight: 150, toRight: -8, activeRange: null, locked: false, lock: null } })
+        if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
+        return true
+      },
       setReplay: (iso) => { st.replay = iso ?? null; return true } }
     st.views = views
   }

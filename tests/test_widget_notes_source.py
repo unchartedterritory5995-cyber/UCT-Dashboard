@@ -16,7 +16,7 @@ import json
 import re
 import sqlite3
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -205,6 +205,9 @@ def test_a_note_whose_kind_changed_lands_in_its_new_kind(conn, monkeypatch):
     """W10-R60: `kind_id` is provenance and never updated; the current kind is the
     `builtin:note_kind` property, set through the note's own write door."""
     seen: list[str] = []
+    # The scans below run on the pinned RUN_TODAY; the note's own stamps must be pinned before it, or
+    # once the wall clock passes RUN_TODAY the note is "created in the future" and no range holds it.
+    monkeypatch.setattr(j2_notes, "_now_iso", lambda: (RUN_NOW - timedelta(hours=1)).isoformat())
     note = j2_notes.create_note(UID, {"title": "plan"}, conn=conn,
                                 properties={NOTE_KIND: "thesis"})
     conn.commit()

@@ -8,26 +8,26 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery/{gallery_id}/images/{n}  paid  an example note's image copy (P3b; ?rev=pending
                                                                        for the held revision's, author or admin only)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
-  member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
-  member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b; 404 while its switch is off)
-  member  POST   /api/j2/template-gallery/examples            paid     publish / resubmit a note as an example of one of your styles (P3b; 404 while off)
+  member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a)
+  member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b)
+  member  POST   /api/j2/template-gallery/examples            paid     publish / resubmit a note as an example of one of your styles (P3b)
   member  GET    /api/j2/template-gallery/layouts/status      paid     the member's own shared page layouts (P4b; 404 while layout sharing is off)
   member  POST   /api/j2/template-gallery/layouts             paid     share / reshare a page of their saved layout (P4b; 404 while off; publish budget)
-  member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
-  member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
-  member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
+  member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a)
+  member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a)
+  member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a)
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
-  member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a)
   member  POST   /api/j2/template-gallery/{gallery_id}/adopt-layout  paid  the listed layout of a shared page (P4b; 404 while layout sharing is off; adopt budget)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
-  member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 404 while off; 60/hour)
-  member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; 404 while off; same budget)
-  member  GET    /api/j2/template-gallery/feed                paid     what the authors you follow have listed (P3a; 404 while off)
-  member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a; 404 while off)
-  member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 404 while off; 60/hour)
-  member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; 404 while off; same budget)
-  Wave 11 (Task 11.12; each 404 while wave 11 or the library is off, read per request, before the plan and the body):
+  member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 60/hour)
+  member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; same budget)
+  member  GET    /api/j2/template-gallery/feed                paid     what the authors you follow have listed (P3a)
+  member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a)
+  member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 60/hour)
+  member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; same budget)
+  Wave 11 (Task 11.12; each 404 while wave 11 is off, read per request, before the plan and the body):
   member  POST   /api/j2/template-gallery/share/preview       paid     what sharing a widget/routine/tracker/template sends
   member  POST   /api/j2/template-gallery/tools               paid     share a widget, routine or tracker (publish budget)
   member  GET    /api/j2/template-gallery/library             paid     the official templates by group (?group=)
@@ -280,9 +280,9 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     """The gallery as this member sees it; `viewer.admin` lets the client show the review
     queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
-    `?trading_style=` are the library's chips; the service refuses both style filters with a 400 while the
-    library is off (R-P3-10). Before P3a both were unknown parameters, ignored with a 200; no client sends
-    either while the switch is off, so a member sees today's gallery (final review M-13, item 4).
+    `?trading_style=` are the library's chips, always offered: the library switch that once refused both with a
+    400 (R-P3-10) was retired as always on, 2026-11-04; an unknown value is still the service's 400
+    (final review M-13, item 4).
 
     P4b: `capabilities.layoutSharing` is the server-only layout-sharing switch as this answer saw it (R-P4b-10);
     the lazy library reads it from here, so it costs the first-open closure nothing. `?type=page_layout` passes
@@ -515,7 +515,7 @@ def unfollow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[s
 # ── wave 11 (Task 11.12): sharing, adopting, using and previewing templates ─────────────────────
 #
 # ⛔ Every route in this block carries `_require_w11` in `dependencies=[...]`: while wave 11
-# (`notebook_widgets_wave_on(11)`) or the library switch is off, every caller gets the one `public.not_found()` 404,
+# (`notebook_widgets_wave_on(11)`) is off, every caller gets the one `public.not_found()` 404,
 # read PER REQUEST, before the plan check and before the body is read (11.11 m-3). The literal paths are declared
 # here, ABOVE `GET /{gallery_id}`, so "library", "share", "tools" and "notes" are never read as an item id.
 #   * BODIES: `w11_body`, at most W11_MAX_BODY_BYTES and W11_MAX_BODY_DEPTH levels (413 / 400 `invalid`).
@@ -558,7 +558,7 @@ def _w11_on() -> bool:
 
 
 def _require_w11() -> None:
-    """The wave 11 gate, a route dependency (resolved after the router's gate, before the plan check and the
+    """The wave 11 gate, a route dependency (resolved before the plan check and the
     body): off, every caller gets the one 404 a route that does not exist answers."""
     if not _w11_on():
         raise public.not_found()
@@ -1064,7 +1064,7 @@ def adopt_layout_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_b
 @router.post("/{gallery_id}/helpful")
 def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{helpful: true, count}`. One per member per item; 404 for an item they can't see, one that isn't listed,
-    or their own (R-P3-10: 404 for everyone while the library is off; R-P3-11: 60/hour with unmarking).
+    or their own (R-P3-11: 60/hour with unmarking).
     Wave 11 (W11-R8): before the 3rd use day, 409 `{"code": "helpful_days", "message": S_HELPFUL_DAYS}` (`_bad`)."""
     public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
     try:

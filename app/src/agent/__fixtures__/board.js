@@ -55,6 +55,7 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       ref: id, label: `Chart ${id}`, position: pos, cell: { x: w.x, y: w.y, w: w.w, h: w.h }, group: w.color,
       symbol: state.groupSyms[keyOf(w)] || 'SPY', tf: w.opts.tf || 'D',
       stored: w.opts.settings ?? null, cs: mergeChartSettings(w.opts.settings || null),
+      watermarkPos: w.opts.watermarkPos ?? null,
       linkedCount: 0,
     }
   }
@@ -69,6 +70,7 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
         const opts = { ...w.opts }
         if ('settings' in patch) opts.settings = patch.settings
         if ('tf' in patch) opts.tf = patch.tf
+        if ('watermarkPos' in patch) opts.watermarkPos = patch.watermarkPos
         state.widgets = state.widgets.map(x => (x.id === ref ? { ...x, opts } : x))
         if (patch.symbol) state.groupSyms = { ...state.groupSyms, [keyOf(w)]: patch.symbol }
         return true

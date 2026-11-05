@@ -25,9 +25,9 @@ from scripts.study import import_bank as job  # noqa: E402
 
 
 def test_summarise_reads_the_routes_real_keys():
-    resp = {"inserted": 54, "updated": 0, "ids": ["a"] * 54, "terms": 0,
+    resp = {"inserted": 54, "updated": 0, "kept": 15, "ids": ["a"] * 54, "terms": 0,
             "misses": [{"id": "x"}], "rejected": [], "flagged": [{"id": "y"}, {"id": "z"}]}
-    assert job.summarise(resp) == {"inserted": 54, "updated": 0, "terms": 0,
+    assert job.summarise(resp) == {"inserted": 54, "updated": 0, "kept": 15, "terms": 0,
                                    "flagged": 2, "misses": 1, "rejected": 0}
 
 

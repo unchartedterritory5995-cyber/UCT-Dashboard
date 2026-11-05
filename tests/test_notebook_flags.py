@@ -51,6 +51,8 @@ NOTEBOOK_KEYS = [
     "notebook_plan_grading_enabled",
     # Wave 13 lane 13E-1: the market context frozen at the fill — an enablement gate.
     "notebook_entry_context_enabled",
+    # P3b example notes: server-only until retired as always on (2026-11-04); now a payload key, always True.
+    "notebook_example_notes_enabled",
     # Wave 13 lane 13G-1: research capture -- two enablement gates.
     "notebook_transcript_capture_enabled",
     "notebook_passed_setups_enabled",

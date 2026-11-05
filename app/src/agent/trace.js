@@ -100,6 +100,11 @@ export function turnOutput(role) {
   turn.output = since(turn)
   turn.outputRole = role
 }
+/** ms from the start of the open turn to the first mark of `phase` (null when none yet / no turn). */
+export function turnMarkMs(phase) {
+  const m = turn?.marks.find(x => x[0] === phase)
+  return m ? m[1] : null
+}
 /** ms from the start of the open turn to its first useful output (null when none yet / no turn). */
 export const turnOutputMs = () => (turn && turn.output != null ? turn.output : null)
 export function turnEnd() {

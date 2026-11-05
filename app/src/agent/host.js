@@ -9,16 +9,21 @@
 //
 // A chart's ref is its persisted widget id (+ "~tabId" for an extra chart tab).
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
+// While Multi Chart is on screen the targets are its cells instead (gridEntries; a cell's ref is its persisted cell id).
 
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
+import { withoutDerivedOpts } from './derivedOpts'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 import * as drawingsStore from '../components/chart/drawingsStore'
+import { readFlagged, writeFlagged } from '../hooks/flaggedStore'
+import { mountedListViews } from '../pages/watchlist/watchlistViews'
 // ⭐ W1-B B-03 (announced to Indicators): the indicator-alert product's OWN writers, called — never modified
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
+import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -52,8 +57,47 @@ export function positionWord(w, all) {
   return distinct ? spanWord(w, all) : centreWord(w, all)
 }
 
+// ⭐ MULTI CHART. A row or column word only where it means one line of cells: "the top-left chart" on any grid, "the
+// top-middle chart" on 3 across; a cell inside a 4-wide grid has no word and goes by its number ("chart 6").
+const lineWord = (i, n, first, last) => (n === 1 ? '' : i === 0 ? first : i === n - 1 ? last : n === 3 ? 'middle' : null)
+export function gridPositionWord(index, rows, cols) {
+  const v = lineWord(Math.floor(index / cols), rows, 'top', 'bottom')
+  const h = lineWord(index % cols, cols, 'left', 'right')
+  return v == null || h == null ? '' : [v, h].filter(Boolean).join('-')
+}
+const PENDING_CELL = { agent: { commit: () => false } }   // a cell still waiting for its slot in the mount queue
+const gridOf = (chartApiById) => chartApiById.current.get(GRID_BOARD_KEY)?.agent?.gridBoard || null
+
+// The grid's cells as chart targets. There is no link group here: a cell's ticker and timeframe are its own, so a change
+// to one reaches no other (linkedCount 0). There is no Replay on the grid (`replay` stays undefined: chart.replay refuses).
+function gridEntries(chartApiById, grid) {
+  const cells = grid.cells()
+  const { rows, cols } = grid.shape()
+  const sel = grid.selected()
+  return cells.map((c, i) => {
+    const api = chartApiById.current.get(gridCellKey(c.id)) || PENDING_CELL
+    const r = api.agent.read?.() || null
+    const pos = gridPositionWord(i, rows, cols)
+    const name = cells.length === 1 ? 'Chart' : (pos ? `${pos[0].toUpperCase()}${pos.slice(1)} chart` : `Chart ${i + 1}`)
+    return {
+      api, ref: c.id, r,
+      snap: {
+        ref: c.id, label: `${name} (${c.sym || 'empty'})`, position: pos || null,
+        symbol: c.sym, tf: c.tf, cs: r?.cs || {}, stored: r?.stored ?? null,
+        linkedCount: 0, group: null,
+        cell: { x: i % cols, y: Math.floor(i / cols), w: 1, h: 1 },
+        ...(sel === c.id ? { selected: true } : {}),
+        view: api.agent.view?.() || null,
+        drawSym: api.agent.drawSym?.() || c.sym,
+      },
+    }
+  })
+}
+
 export function buildChartSource({ chartApiById, getWidgets, selectedChart = null, replay = null }) {
   function entries() {
+    const grid = gridOf(chartApiById)
+    if (grid) return gridEntries(chartApiById, grid)
     const widgets = getWidgets() || []
     const byId = new Map(widgets.map(w => [w.id, w]))
     const seen = new Set()
@@ -83,6 +127,10 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
         snap: {
           ref: e.ref, label: `${name} (${e.r.symbol})`, position: pos || null,
           symbol: e.r.symbol, tf: e.r.tf, cs: e.r.cs, stored: e.r.stored,
+          // the chart's hand-placed watermark (opts.watermarkPos), which beats cs.watermark.x/y; null = centred
+          watermarkPos: e.r.watermarkPos ?? null,
+          // the workspace chart theme this chart draws with ('sunrise' overrides the member's canvas colors)
+          canvasTheme: e.r.canvasTheme ?? null,
           linkedCount, group: e.r.groupKey,
           // where the chart sits on the board (grid cells) — "the middle chart" (agent/deixis.js ordinalChart)
           cell: { x: e.w.x, y: e.w.y, w: e.w.w, h: e.w.h },
@@ -105,6 +153,7 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     // Multi-Chart grid cells are not counted here.)
     unreachableCount: () => {
       try {
+        if (gridOf(chartApiById)) return 0
         const reached = entries()
         let n = 0
         for (const w of getWidgets() || []) {
@@ -117,6 +166,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     },
     // "this chart": the selected chart's ref, only while it is still on the board (agent/deixis.js)
     selected: () => entries().find(e => e.snap.selected)?.ref || null,
+    // ⭐ MULTI CHART: the grid behind these charts (null on the board) — scopeHostToGrid reads it
+    grid: () => gridOf(chartApiById),
     read: (ref) => entries().find(e => e.ref === ref)?.snap || null,
     commit: (ref, patch) => {
       const e = entries().find(x => x.ref === ref)
@@ -159,6 +210,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
       e.api.agent.goToDate(ms)
       return true
     },
+    // The chart's own view controls (range bar, Reset view, hide all indicators); chart.js waits for the read-back.
+    viewDo: (ref, op, arg) => !!entries().find(x => x.ref === ref)?.api.agent.viewDo?.(op, arg),
   }
 }
 
@@ -173,10 +226,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
  *  approvalState) compare them. A null-valued key is the same widget as an absent one — an Undo that restores a chart's
  *  never-persisted settings writes `settings: null` — and opts that are absent, `{}` or only null keys all sign as
  *  "null", so none of them ever reads as a later edit. Any real value (including one that BECOMES null from a value)
- *  still changes the signature. Top-level keys only: a nested null is content and stays significant. */
+ *  still changes the signature. Top-level keys only: a nested null is content and stays significant. A value the chart
+ *  derives for itself is not an edit either (derivedOpts.js). */
 export function optsSignature(opts) {
   if (!opts || typeof opts !== 'object') return JSON.stringify(null)
-  const kept = Object.entries(opts).filter(([, v]) => v != null)
+  const kept = Object.entries(withoutDerivedOpts(opts)).filter(([, v]) => v != null)
   return JSON.stringify(kept.length ? Object.fromEntries(kept) : null)
 }
 
@@ -298,6 +352,63 @@ export function buildLayoutSource(getLayouts) {
     remove: (id) => getLayouts()?.remove(id),
     create: (name) => getLayouts()?.create(name),
     duplicate: (id, name) => getLayouts()?.duplicate(id, name),
+  }
+}
+
+/**
+ * The Flagged set — the SAME store every star, Shift+F and useFlagged reads (hooks/flaggedStore.js: this browser's copy is
+ * the truth, and every mounted star follows its event), then the same whole-set route useFlagged's sync posts. Awaited
+ * here, where the star's sync is fire-and-forget: a save the server refuses is taken back and the Agent says so.
+ */
+export function buildFlaggedSource({ request = (u, o) => fetch(u, { credentials: 'include', ...o }) } = {}) {
+  return {
+    read: () => [...readFlagged()],
+    async write(symbols) {
+      const before = readFlagged()
+      writeFlagged(symbols)
+      try {
+        const r = await request('/api/watchlists/flagged/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbols }) })
+        if (!r.ok) throw new Error(`saving the flags failed (${r.status})`)
+      } catch (e) { writeFlagged(before); throw e }
+    },
+  }
+}
+
+/**
+ * The Watchlist and Scanner widgets ON THIS BOARD, as drawn (pages/watchlist/watchlistViews.js): each mounted widget
+ * publishes what it shows and its own writers. Keeps nothing; a widget that is not on the visible board is not a target.
+ */
+export function buildListViewSource({ getWidgets }) {
+  function views() {
+    const widgets = getWidgets() || []
+    const seen = new Map()
+    const out = []
+    for (const v of mountedListViews()) {
+      const live = v.live()
+      if (!live) continue
+      const same = widgets.filter(w => w.type === v.type && (v.type === 'watchlist' ? w.opts?.watchKey === v.key : w.opts?.scanKey === v.key))
+      if (!same.length) continue
+      const w = same.find(x => x.color === v.color) || same[0]
+      const base = `${v.type}:${v.color}:${v.key}`
+      const n = (seen.get(base) || 0) + 1
+      seen.set(base, n)
+      out.push({ v, live, w, ref: n > 1 ? `${base}#${n}` : base, siblings: widgets.filter(x => x.type === v.type) })
+    }
+    return out
+  }
+  return {
+    snapshot: () => views().map(({ v, live, w, ref, siblings }) => {
+      const name = live.name || w.opts?.watchName || w.opts?.scanName || 'this list'
+      return {
+        ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
+        label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
+        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+      }
+    }),
+    /** Is a widget showing this saved list sorted by a column? (No rows are read: this runs per list, per turn.) */
+    columnSorted: (listId) => views().some(({ v, live }) => v.type === 'watchlist' && v.key === `user:${listId}` && !!live.sort),
+    saveCols(ref, cfg) { views().find(x => x.ref === ref)?.live.saveCols(cfg) },
+    select(ref, sym) { views().find(x => x.ref === ref)?.live.select(sym) },
   }
 }
 
@@ -506,6 +617,7 @@ export function buildDrawingSource(charts, store = drawingsStore) {
     list: entries,
     read: (ref) => entries().find(e => e.ref === ref) || null,
     add: (sym, d) => store.addDrawing(sym, d),
+    restore: (sym, d) => store.restoreDrawing(sym, d),
     update: (sym, id, u) => store.updateDrawing(sym, id, u),
     remove: (sym, id) => store.removeDrawing(sym, id),
     // AUTHORITATIVE READ-BACK: the drawings reach the member's account only through the tracings
@@ -565,6 +677,54 @@ export function buildIndicatorAlertSource({ fetchFn = (u, o) => fetch(u, o) } = 
   }
 }
 
+/**
+ * ⭐ MULTI CHART: what is one grid cell on the server the same as in THIS tab? The grid's counterpart of buildWidgetSync, over
+ * `multichart_state`. An approved chart change fails closed when it cannot tell (unreadable), and waits out this tab's own
+ * debounced save before it says another window changed the cell. A cell that is gone from the server is a change.
+ */
+export function buildCellSync({ readCells, localCell, settleMs = 700, tries = 2 }) {
+  const content = (c) => (c ? JSON.stringify([c.sym || null, c.tf || 'D', c.chartType ?? null, c.settings ?? null]) : 'gone')
+  return async function cellInSync(id) {
+    for (let i = 0; ; i++) {
+      let server
+      try { server = await readCells() } catch { server = null }
+      if (!Array.isArray(server)) return { ok: false, unreadable: true }
+      if (content(localCell(id)) === content(server.find(c => String(c?.id) === String(id)))) return { ok: true }
+      if (i >= tries) return { ok: false, reason: 'that chart was changed in another window or device' }
+      await sleep(settleMs)
+    }
+  }
+}
+const GRID_KEYS_URL = `${PREFS_URL}?keys=multichart_state`
+async function readServerCells() {
+  const r = await fetch(GRID_KEYS_URL, { credentials: 'include', cache: 'no-store' })
+  if (!r.ok) return null
+  const raw = (await r.json()).multichart_state
+  const state = typeof raw === 'string' ? JSON.parse(raw) : raw
+  return Array.isArray(state?.cells) ? state.cells : null
+}
+
+/**
+ * ⭐ MULTI CHART: the workspace host as it is while the grid is on screen. The board's widgets are still in memory but out of
+ * sight, and the workspace offers none of their controls here, so they are not targets: `widgets` goes, and with it the
+ * board's context, its capabilities' targets and its server checks. The grid is its own board for every staleness rule: its
+ * own epoch and visit, so a proposal, Undo or remembered reference from the board never reaches into the grid, or back.
+ */
+export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
+  if (!host) return host
+  const { widgets: _widgets, boardInSync: _boardInSync, ...rest } = host
+  const grid = () => host.charts?.grid?.() || null
+  return {
+    ...rest,
+    multiChart: true,
+    epoch: () => `multichart:${host.epoch?.() ?? ''}`,
+    boardVisit: () => `multichart:${host.boardVisit?.() ?? 0}`,
+    otherWidgets: () => [],
+    persist: async () => (await grid()?.persist()) || { ok: false, reason: 'not-saved' },
+    widgetInSync: buildCellSync({ readCells, localCell: (id) => grid()?.cells().find(c => c.id === id) || null }),
+  }
+}
+
 export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
@@ -572,7 +732,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     return a ? `${a.scope}:${a.id}` : 'unsaved'
   } : null
   return {
-    ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
+    ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
     indicatorAlerts: buildIndicatorAlertSource(),

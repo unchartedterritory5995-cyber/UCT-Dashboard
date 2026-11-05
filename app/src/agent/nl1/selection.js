@@ -25,6 +25,12 @@ import { GROUPS, ROUTING_VERSION, groupOfAction, routeManifest, selectGroups } f
 
 export const NL1_CORE_GROUPS = ['charts', 'indicators', 'screener', 'agent']
 export const NL1_CORE_MAX = 45
+/** The chart-tab actions, carried by `workspace` (beside widget.addTab) for NL-1 ONLY, not by the core: at 42 actions the core
+ *  left `lists` (17) no room under the budget. Core 37 + lists 17 = 54; + alerts = 57. Legacy and NLM-1 routing keep
+ *  groupOfAction: nothing outside this file's selection reads this. */
+export const NL1_MOVED_FROM_CORE = Object.freeze({ 'chart.addTab': 'workspace', 'chart.selectTab': 'workspace', 'chart.closeTab': 'workspace', 'chart.renameTab': 'workspace', 'chart.linkTab': 'workspace' })
+/** An action's group as NL-1's selector sees it. */
+export const nl1GroupOf = (name) => NL1_MOVED_FROM_CORE[name] || groupOfAction(name)
 /** The server's per-request maximum (60): never raised here. */
 export const NL1_LIMIT = MANIFEST_CONTRACT.limits.maxCapabilities
 /** What one NL-1 request may carry: the routed budget (55), the same as the legacy path. */
@@ -36,7 +42,7 @@ const ALWAYS = GROUPS.filter(g => g.always).map(g => g.id)
 // each group's action count in `full`, one pass (selection reads it per group, per reroute)
 const groupCounts = (full) => {
   const n = new Map()
-  for (const c of full) { const g = groupOfAction(c.name); n.set(g, (n.get(g) || 0) + 1) }
+  for (const c of full) { const g = nl1GroupOf(c.name); n.set(g, (n.get(g) || 0) + 1) }
   return n
 }
 const presentGroups = (full) => { const n = groupCounts(full); return GROUPS.filter(g => n.has(g.id)) }
@@ -58,7 +64,7 @@ export function coreOf(full) {
 /** The groups of these action names that are present (authorized) in `full`. */
 export function groupsOfActions(names, full) {
   const present = new Set(presentGroups(full).map(g => g.id))
-  return [...new Set((names || []).map(groupOfAction).filter(id => id && present.has(id)))]
+  return [...new Set((names || []).map(nl1GroupOf).filter(id => id && present.has(id)))]
 }
 
 /**
@@ -76,7 +82,7 @@ export function selectNl1(full, { text = '', names = null, correct = null, pinAc
   const keep = (ids) => [...new Set(ids)].filter(id => present.includes(id) && !core.includes(id))
   const needed = keep(need)
   const pins = keep([...groupsOfActions(pinActions, full), ...pinGroups])
-  const routed = routeManifest(full, text, { enabled: true, limit: NL1_LIMIT, budget: Math.min(budget, NL1_LIMIT), names, correct },
+  const routed = routeManifest(full, text, { enabled: true, limit: NL1_LIMIT, budget: Math.min(budget, NL1_LIMIT), names, correct, groupOf: nl1GroupOf },
     [...core, ...needed, ...pins])
   const selected = routed.routing ? routed.routing.selected : present
   // the groups the member's own words (names, typo readings) pointed at: reported, and used only to ADD caution
@@ -102,9 +108,9 @@ export function assembleNl1(full, core, picked) {
   const selected = [...new Set([...core, ...picked])]          // the core is always selected (and sent first)
   const present = presentGroups(full)
   if (present.every(g => selected.includes(g.id))) return { manifest: full, routing: null }
-  const inCore = (c) => core.includes(groupOfAction(c.name))
+  const inCore = (c) => core.includes(nl1GroupOf(c.name))
   const head = full.filter(inCore)
-  const tail = full.filter(c => !inCore(c) && (groupOfAction(c.name) === null || selected.includes(groupOfAction(c.name))))
+  const tail = full.filter(c => !inCore(c) && (nl1GroupOf(c.name) === null || selected.includes(nl1GroupOf(c.name))))
   return {
     manifest: [...head, ...tail],
     routing: {

@@ -86,6 +86,28 @@ const mount = (host, surface) => render(<AgentPanel host={host} surface={surface
 const card = () => screen.queryByTestId('guide-card')
 const cardText = () => screen.queryByTestId('guide-text')?.textContent || ''
 
+describe('"show me how to create a watchlist" away from /charts', () => {
+  it.each([
+    ['screener', () => screenerPage().host],
+    ['breadth', breadthPage],
+    ['calendar', calendarPage],
+    ['journal', () => journalPage().host],
+  ])('on /%s it says where that lives, instantly: no highlight, no model turn, no list', async (surface, host) => {
+    mount(host(), surface)
+    type('show me how to create a watchlist')
+    await screen.findAllByText(/Creating a watchlist is on the Charts page — open Charts and ask me again there./)
+    expect(card()).toBeNull()
+    expect(turnBodies).toHaveLength(0)
+    expect(globalThis.fetch.mock.calls.filter(([u, o]) => String(u).startsWith('/api/watchlists') && o?.method === 'POST')).toEqual([])
+  })
+  it('only the feature that asks for it: another Charts walkthrough on a page stays with the model', async () => {
+    mount(screenerPage().host, 'screener')
+    type('where do I change the timeframe?')
+    await screen.findAllByText(/A model answer./)
+    expect(turnBodies).toHaveLength(1)
+  })
+})
+
 describe('W2-C2 · /screener', () => {
   it('EXPLAIN "what are saved screens?" — the Screen menu, from the guide, instantly; nothing changes', async () => {
     const { page, host } = screenerPage()
@@ -206,8 +228,8 @@ describe('W2-C2 · /journal', () => {
 })
 
 describe('W2-C2 · pages never leak into each other, and /charts is unchanged', () => {
-  it('a page offers ONLY its own features; /charts offers exactly the eleven it did', () => {
-    expect(featuresOn('charts').map(f => f.id)).toEqual(['canvas', 'link', 'symbol', 'timeframe', 'indicators', 'charts', 'watchlists', 'layouts', 'hideDrawings', 'drawing', 'settings'])
+  it('a page offers ONLY its own features; /charts offers the eleven it did, plus creating a watchlist', () => {
+    expect(featuresOn('charts').map(f => f.id)).toEqual(['watchlistCreate', 'canvas', 'link', 'symbol', 'timeframe', 'indicators', 'charts', 'watchlists', 'layouts', 'hideDrawings', 'drawing', 'settings'])
     expect(guideFeatures({ surface: 'screener' }).map(f => f.id).sort()).toEqual(['screenerColumns', 'screenerFilters', 'screenerScreens'])
     expect(guideFeatures({ surface: 'breadth' }).map(f => f.id).sort()).toEqual(['breadthTable', 'breadthViews'])
     expect(guideFeatures({ surface: 'calendar' }).map(f => f.id)).toEqual(['calendarNextReport'])

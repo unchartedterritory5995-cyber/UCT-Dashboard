@@ -11,6 +11,11 @@ import { useSyncExternalStore } from 'react'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
+const hostSpy = vi.hoisted(() => ({ widgetOps: null }))
+vi.mock('../../agent/host', async (orig) => {
+  const real = await orig()
+  return { ...real, buildWorkspaceHost: (o) => { hostSpy.widgetOps = o.widgetOps; return real.buildWorkspaceHost(o) } }
+})
 vi.mock('./WidgetHost', async () => {
   const React = await import('react')
   const { useWorkspace } = await import('./WorkspaceContext')
@@ -273,4 +278,44 @@ test('MODEL path: a plan on the selected chart runs as planned', async () => {
   await say('could you put this stock on the weekly view please')
   await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
   expect(tfOf('c-left')).toBe('D')
+}, 45000)
+
+// #823: a board where no widget can give up room. 12 charts at their minimum (6 wide; 6-7 high): see placement/place.test.js
+const NO_ROOM = (() => {
+  const widgets = []
+  for (let c = 0; c < 4; c++) for (const [i, y, h] of [[0, 0, 7], [1, 7, 7], [2, 14, 6]]) widgets.push({ id: `c${c}${i}`, type: 'chart', color: 'A', x: c * 6, y, w: 6, h, opts: { tf: 'D' } })
+  return { id: 4, name: 'Packed', scope: 'user', groups: null, layout: { widgets, cols: 24 } }
+})()
+const banner = () => screen.queryByTestId('board-bound-status')
+const addOneChart = async () => {
+  await act(async () => { fireEvent.click(screen.getByText('Widgets ▾')) })
+  const item = document.querySelector('[data-guide="workspace.widgets.chart"]')
+  await act(async () => { fireEvent.click(item) })
+}
+
+test('no room left: the refusal banner says so, the board is untouched, and Dismiss clears it', async () => {
+    mount(NO_ROOM)
+    await screen.findByTestId('chart-c00')
+    const before = document.querySelectorAll('[data-widget-id]').length
+    await addOneChart()
+    await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
+    expect(document.querySelectorAll('[data-widget-id]').length).toBe(before)
+    await act(async () => { fireEvent.click(banner().querySelector('button')) })
+    expect(banner()).toBeNull()
+}, 45000)
+
+test('a refused add that carries a ticker saves no N:<id> pref (the Agent adding a chart when the board filled after its plan)', async () => {
+  // The Agent's plan refuses a full board first, so this only happens when the board fills between plan and commit. That
+  // is the call capabilities/workspace.js commit makes, through the workspace's real widgetOps.
+  mount(NO_ROOM)
+  await screen.findByTestId('chart-c00')
+  const before = document.querySelectorAll('[data-widget-id]').length
+  await act(async () => { hostSpy.widgetOps.add('chart', null, { symbol: 'TSLA', tf: 'D' }) })
+  await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
+  // the symbol writer saves on a 400ms debounce: wait past it, then read what was stored
+  await act(async () => { await new Promise(r => setTimeout(r, 800)) })
+  const groups = JSON.parse(prefStore.get().charts_workspace_groups || '{}')
+  expect(Object.keys(groups).filter(k => k.startsWith('N:'))).toEqual([])
+  expect(Object.values(groups)).not.toContain('TSLA')
+  expect(document.querySelectorAll('[data-widget-id]').length).toBe(before)
 }, 45000)
