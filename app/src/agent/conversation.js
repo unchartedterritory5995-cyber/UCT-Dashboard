@@ -543,6 +543,9 @@ function scopedToChart(t, ctx) {
   const hits = chartCandidates(m[2], ctx)
   if (!hits.length) return null
   if (hits.length > 1) {
+    // asked only for a clause this reader reads (its SHAPE: an indicator change) — "alert me when … on the TSLA chart" is
+    // another reader's, and its own ambiguity is its own
+    if (!indicatorClausesOn(rest, { dry: true })?.ops) return null
     const names = hits.map(c => (c.symbol ? `the ${c.symbol} chart` : c.label || 'a chart'))
     return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “${m[2]}” could be any of these ${hits.length} — say it by name. Nothing has changed.` }
   }
