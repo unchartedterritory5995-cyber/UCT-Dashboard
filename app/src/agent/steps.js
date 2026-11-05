@@ -22,6 +22,9 @@ import { agentTurnV2, agentResumeV2, agentStepResult } from './agentClient'
 import { bindSourceRefs } from './compose'
 import { translateRefs, withModelRefs, BARE_ACK, scopeChartOps } from './useAgent'
 import { screenModelOps, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
+import { routingV2Active } from './nlm1/flag'
+import { snapshotInstances, addedInstance, readBackStepPlan } from './nlm1/stepPlans'
+import { indicatorEditsRef, chartOfIndicatorEdits } from './capabilities/indicatorEdits'
 
 const STEP_STATUS = {
   applied: 'done', noop: 'done', 'applied-unsaved': 'done', answered: 'query', proposed: 'proposed', failed: 'failed',
@@ -147,6 +150,70 @@ export function undoOutcomeOf(bodies) {
 // (or one of the wrong kind) is refused HERE with the arg's name — before any capability reads a raw short ref as a real
 // one — instead of a capability-specific sentence. Values that are not short refs pass through untouched.
 const SHORT_REF = /^[a-z]{1,3}\d{1,3}$/
+
+// ── NLM-1 · STEP RESULTS ON PLANNER v2 (owner 11-05: structured multi-step work lives on the v2 tool-calling path) ──
+// The indicator a step ADDED is a result the next step may need ("add the 21 EMA, then make it orange"): it has no id
+// in <workspace_context> when the model plans. After a done step, the instance it added is found by STATE (the one new
+// instance matching the step — nlm1/stepPlans addedInstance) and reported like a created chart: a short ref
+// (IND_PREFIX1, …) in "New refs:", which a later step names as its `instance`. A short ref of that shape no earlier step
+// of this turn reported is refused, said (never guessed). At the end of a multi-step turn each step that reached the
+// board is read back from it (readBackStepPlan). Behind the NLM-1 switch; planner v2 itself is off in production.
+const IND_PREFIX = 'ind'
+const IND_REF = /^ind\d{1,3}$/
+function nextShort(refMap, prefix) {
+  let n = 0
+  for (const k of Object.keys(refMap || {})) { const m = /^([a-z]+)(\d+)$/.exec(k); if (m && m[1] === prefix) n = Math.max(n, Number(m[2])) }
+  return `${prefix}${n + 1}`
+}
+const chartKey = (r) => String(r ?? '').split('~')[0]
+/** the chart an op's target is (a chart ref, or a chart's indicator entry), real ref | null */
+function targetChart(target, refMap) {
+  const t = refMap?.[target] || null
+  const ref = t ? t.ref : target
+  const kind = t ? t.kind : null
+  if (kind === 'chart') return ref
+  if (kind === 'indicatorEdits' || (!kind && typeof ref === 'string' && chartOfIndicatorEdits(ref))) return chartOfIndicatorEdits(ref) || null
+  return null
+}
+/**
+ * an `instance` naming an indicator an earlier step reported → { op } with the real instance id | { refusal }.
+ * ⛔ #v2-step-refs review: an instance id is unique per CHART only (inst:<defId>:<n> repeats across charts), so the ref is
+ * (chart, instance): the op runs on the ref's chart — its target bound to it when the step names none — and a step whose
+ * target is ANOTHER chart is refused (it would change a different indicator that happens to share the id).
+ */
+export function bindInstanceRef(op, refMap) {
+  const v = op?.args?.instance
+  if (typeof v !== 'string' || !IND_REF.test(v)) return { op }
+  const hit = refMap?.[v]
+  if (!hit || hit.kind !== 'indicatorInstance') return { refusal: `instance "${v}" is not an indicator an earlier step of this turn added: use one a step reported in "New refs", or the indicator as <workspace_context> lists it` }
+  if (!hit.chart) return { refusal: `instance "${v}": the chart it was added to is not known, so nothing was changed` }
+  const on = targetChart(op.target, refMap)
+  if (on != null && chartKey(on) !== chartKey(hit.chart)) {
+    return { refusal: `instance "${v}" is the indicator added on ${hit.label || 'another chart'}, not on this step's target: aim the step at that chart's indicators` }
+  }
+  return { op: { ...op, target: on != null ? op.target : indicatorEditsRef(hit.chart), args: { ...op.args, instance: hit.ref } } }
+}
+/** after a done step: the instances its indicator.add ops added (found by state), registered as short refs */
+export function addedIndicators(host, ops, before, refMap) {
+  const out = []
+  // the instances already given a ref this turn, keyed on CHART + id (ids repeat across charts)
+  const claimed = new Set(Object.values(refMap).filter(v => v.kind === 'indicatorInstance').map(v => `${chartKey(v.chart)}|${v.ref}`))
+  for (const op of ops || []) {
+    if (op?.action !== 'indicator.add') continue
+    const chart = chartOfIndicatorEdits(op.target) || targetChart(op.target, refMap)
+    const got = addedInstance(host, { args: op.args || {} }, before, { chart, claimed })
+    if (!got.ok) continue
+    const short = nextShort(refMap, IND_PREFIX)
+    let where = ''
+    try { where = host?.charts?.read?.(got.chart)?.label || '' } catch { where = '' }
+    const ins = Object.fromEntries((Array.isArray(op.args?.inputs) ? op.args.inputs : []).map(x => [x.key, x.value]))
+    const what = [op.args?.defId, ins.period, ins.maType].filter(x => x != null && x !== '').join(' ')
+    const label = `${what}${where ? ` on ${where}` : ''}`.slice(0, 60)
+    refMap[short] = { kind: 'indicatorInstance', ref: got.instanceId, chart: got.chart, label }
+    out.push({ ref: short, kind: 'indicatorInstance', label })
+  }
+  return out
+}
 export function argRefProblem(op, refMap) {
   const decl = getCapability(op?.action)?.argRefs
   if (!decl || !op?.args || typeof op.args !== 'object') return null
@@ -248,10 +315,13 @@ export function createStepRunner() {
     const run = []
     for (const ev of evs) {
       if (!getCapability(ev.action)?.query) active.changeSteps += 1
-      const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
-      const argProblem = argRefProblem(op, active.refMap)
-      if (argProblem) out.set(ev.id, { status: 'refused', refusal: argProblem })
-      else run.push({ ev, op, al: aliasOf(op) })
+      let op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
+      let argProblem = argRefProblem(op, active.refMap)
+      if (!argProblem && active.stepRefs) { const b = bindInstanceRef(op, active.refMap); if (b.refusal) argProblem = b.refusal; else op = b.op }
+      if (argProblem) {
+        out.set(ev.id, { status: 'refused', refusal: argProblem })
+        if (active.stepRefs && !getCapability(ev.action)?.query) active.stepLog.push({ action: op.action, target: op.target, args: op.args || {}, refused: true })
+      } else run.push({ ev, op, al: aliasOf(op) })
     }
     if (run.length) {
       const ops = run.map(r => r.op)
@@ -274,6 +344,7 @@ export function createStepRunner() {
       }
       const mode = run.some(r => r.ev.mode === 'propose') && !explicitIndicatorCreate(bound) ? 'propose' : 'apply'
       if (!bodies && !bound.length) bodies = [{ outcome: 'UCT dropped that step before it ran (see above)', outcomeData: { kind: 'refused', actions: ops.map(o => o.action) } }]
+      const pre = active.stepRefs && !bodies ? snapshotInstances(host) : null
       if (!bodies) {
         tapRef.current = []
         try {
@@ -293,6 +364,8 @@ export function createStepRunner() {
         // a step that CREATED targets (a new chart): the board's context is rebuilt and the new refs reported, so the
         // server lets the next step name them and the model learns them from the result
         const added = await newRefs(host, deps.capCtx, active.refMap)
+        // NLM-1: the indicator(s) this step added, as refs the next step can name
+        if (pre) added.push(...addedIndicators(host, bound, pre, active.refMap))
         if (added.length) res.added = added
         for (const r of run) bindAlias(active, r.al, added)
       }
@@ -305,6 +378,17 @@ export function createStepRunner() {
         tapRef.current = []
       }
       const each = groupOutcomes(bodies, ops, res)
+      if (active.stepRefs) {
+        // each step from its OWN result (never the group's): ran = its own status is done; an explicit no-op is known only
+        // for a step that was its group alone (a group's records do not say which op found nothing to do)
+        const lastKind = String((bodies || []).filter(b => b?.outcomeData?.kind).pop()?.outcomeData?.kind || '')
+        run.forEach((r, i) => {
+          if (getCapability(r.op.action)?.query) return
+          const real = bound.length === run.length ? bound[i] : (translateRefs([r.op], active.refMap)[0] || r.op)
+          const ran = each[i]?.status === 'done'
+          active.stepLog.push({ action: real.action, target: real.target, args: real.args || {}, ...(ran ? {} : { refused: true }), ...(ran && run.length === 1 && lastKind === 'noop' ? { noop: true } : {}) })
+        })
+      }
       let addedSent = false
       run.forEach((r, i) => {
         const o = each[i]
@@ -342,9 +426,18 @@ export function createStepRunner() {
     if (data.conversationId && data.conversationId !== conversationRef.current) setConversationId(data.conversationId)
     const env = data.envelope || {}
     if (env.paused === true) return                      // the card above waits; afterCard continues this turn
+    const turn = active
     active = null
     const reply = String(env.reply || '').trim()
     if (reply && !BARE_ACK.test(reply)) push({ role: 'agent', text: reply, sources: data.usage?.citations || [] })
+    // NLM-1: a turn of several changes is read back from the board (what is in place, what is not, what is not saved)
+    if (turn?.stepRefs && turn.stepLog.length >= 2) {
+      try {
+        const rb = await readBackStepPlan({ steps: turn.stepLog.map((x, i) => ({ ...x, index: i, id: null, alias: null, chart: null })), before: turn.before }, deps.host, { reached: true })
+        // (a turn whose steps all failed has nothing to read back: each refusal was said where it happened)
+        for (const line of rb.lines) push({ role: 'outcome', text: line })
+      } catch { /* a read-back never breaks the panel; nothing is claimed */ }
+    }
   }
 
   return {
@@ -372,6 +465,7 @@ export function createStepRunner() {
       }
       active = { turnId: null, refMap, sources: {}, voice, text, chain: Promise.resolve(), changeSteps: 0,
         undoBefore: (deps.undoRef?.current || []).map(e => e.id) }
+      if (routingV2Active()) { active.stepRefs = true; active.stepLog = []; active.before = snapshotInstances(host) }
       mark?.('turn:sent')
       const res = await agentTurnV2(body, onEvent(deps))
       mark?.('turn:received', res.ok ? 'ok' : res.status || 'error')
