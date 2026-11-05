@@ -320,3 +320,33 @@ def test_r1_the_underscore_names_stay_as_aliases(world):
     assert lane_mod._verdict(ROW) == "held"
     sw.refusal = ("runtime:killed", "k")
     assert lane_mod._admission(ROW, "sweep") == ("runtime:killed", "k")
+
+
+# --- r2: the lane column carries the engine's NaN warm-up; a finite one never reaches a lane -----------
+
+def test_r2_the_lane_column_is_nan_on_its_warmup(world):
+    sw, fake, make = world
+    fake.withheld_bars = 2
+    col = call(lane_mod.runtime_column_fn(ROW, "value", "alert", client_factory=make))
+    assert all(math.isnan(v) for v in col[:2]) and col[2:] == [2 * b["c"] for b in bars_fixture(5)][2:]
+    assert col.warmup == {"withheldBars": 2}
+
+
+def test_r2_a_finite_warmup_value_is_raised_never_returned(world):
+    sw, fake, make = world
+    from tests.fakes.pine_runtime_fake import b64_column
+    from api.services import pine_runtime_codec as codec
+    import base64
+    fake.withheld_bars = 2
+
+    def m(reply):
+        r = reply["results"][0]
+        col = codec.decode_column(base64.b64decode(r["columns"]["value"]))
+        col[0] = 9.0
+        r["columns"]["value"] = b64_column(col)
+        r["digest"] = codec.column_digest(fake.identity, {"value": col}, r["refusals"])
+        return reply
+    fake.tamper = m
+    with pytest.raises(lane_mod.ServerLaneWithheld) as e:
+        call(lane_mod.runtime_column_fn(ROW, "value", "sweep", client_factory=make))
+    assert e.value.guard == prc.INTEGRITY

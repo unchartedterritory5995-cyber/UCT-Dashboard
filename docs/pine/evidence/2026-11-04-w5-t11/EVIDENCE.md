@@ -284,3 +284,66 @@ log dir `_resume-2026-11-01/runs/dsk-w5t11r1-final/`.
 - full chart+hooks vitest: Test Files 1 failed | 1334 passed | 27 skipped; Tests 1 failed | 22505 passed | 118 skipped. The only failure is `src/hooks/pollingSites.rail.test.js`, the known baseline. Nothing new.
 - Engine bump: NO (Python only).
 
+## r2 (review B1: the warm-up curtain is VERIFIED, not masked), code tip `20856aff67`
+Finding (`dsk/reviews/W5-T11.md` B1, which the T13, T14 and T15 reviews also hit): r1 checked `warmup`
+for shape only, so finite values in bars [0, withheldBars) could reach alerts, scans and backtests.
+The ENGINE already blanks those bars to na (runtimeWarmupCurtain.test.js:42 on master), so the
+engine stays the one authority. The client now VERIFIES the curtain and does not apply a mask
+(coordinator correction; a mask would be a second curtain).
+
+What changed:
+- `pine_runtime_client._result`: after the decode and the digest check, if any served column holds
+  a non-NaN value at an index below `withheldBars`, the result is `runtime:server-integrity`
+  ("serves output `k` with a value inside its own warm-up"). The digest is still verified over the
+  received bytes. NaN warm-up bars are na and pass through unchanged. `.warmup` stays on
+  `JobResult` and on the lane column.
+- `tests/fakes/pine_runtime_fake.py` answers as the engine does: NaN on bars [0, withheld_bars) in
+  every column.
+- Real T7b captures (`t7b_capture.py e13d282eae SOURCE OUT`, read-only `git show`, T7b's own server
+  and pool):
+  - `tests/fixtures/pine_runtime/t7b_response_echo.json` (stand-in bundle `echo`, withheldBars 0)
+    is the POSITIVE conformance rail.
+  - `t7b_response.json` (`warmup:3`: the stand-in bundle reports 3 withheld bars over FINITE
+    closes) is now a NEGATIVE rail, and both jobs are integrity.
+  - It was not recaptured from the real bundle, because that needs T7b's full tree and the T1
+    build. The negative rail pins exactly the B1 shape.
+
+Rails (`test_r2_*`):
+- client: `a_finite_value_inside_the_warmup_is_integrity` (bar k-1);
+  `batch_a_finite_warmup_value_withholds_that_job_only`;
+  `any_served_column_is_checked_not_only_the_first`;
+  `a_nan_warmup_is_accepted_and_finite_from_withheld_bars_on`; `withheld_bars_n_all_nan_is_accepted`;
+  `withheld_bars_zero_needs_no_nan`;
+  `conformance_a_real_t7b_response_with_finite_warmup_values_is_integrity`.
+- lane: `the_lane_column_is_nan_on_its_warmup`; `a_finite_warmup_value_is_raised_never_returned`.
+
+Red on r1, green on tip:
+- `RED_K=r2 python -B redr0.py 1e384edbfe <both files>` writes r1's client, lane and fake, and
+  restores byte-exact: **8 failed, 1 passed**. The pass is `withheld_bars_zero`, which r1 also
+  satisfied.
+- Tip: **166 passed** (`runs/w5t11r2/r2-tip.log`).
+
+Mutations (lock `dsk/heavy-mut.lock`, `muts_r2.json` from `mkmuts_r2.py`, log
+`runs/w5t11r2/r2-mut.log`): **TOTAL 5, KILLED 4, SURVIVED 1, and the survivor is the no-op
+control**.
+
+| mutation | killed by |
+|---|---|
+| V01 curtain not checked | `test_r2_conformance_a_real_t7b_response_with_finite_warmup_values_is_integrity` |
+| V02 curtain checks one bar short | `test_ok_run_returns_the_full_verified_column` (and the k-1 rail) |
+| V03 first column only | `test_r2_any_served_column_is_checked_not_only_the_first` |
+| V04 curtain over-reaches one bar | `test_ok_run_returns_the_full_verified_column` |
+
+Review notes N1-N6 are non-blocking and not changed in r2: the fake does not enforce the tf set, the
+body size is unbounded per chunk, the owner key is shared with the service, a cache hit returns the
+first caller's `.job`, the identity is re-read per call, and no rail drives the real T12 function.
+
+r2 final-tip (lock `dsk/heavy-final2.lock`, tip `20856aff67`, tested on master `0afa7645dd`):
+`bash $S/final-tip.sh pine-dsk-w5t11 dsk-w5t11r2-final tests/test_pine_runtime_client.py
+tests/test_runtime_server_lane.py tests/test_pine_runtime_codec.py tests/test_script_engine_version_gate.py`,
+log dir `_resume-2026-11-01/runs/dsk-w5t11r2-final/`.
+- gate pytest: 46 passed (rc 0). Hygiene: clean (34618 files).
+- rails pytest (both T11 files, T3 codec, engine-version gate): 383 passed.
+- full chart+hooks vitest: Test Files 1 failed | 1334 passed | 27 skipped; Tests 1 failed | 22505 passed | 118 skipped. The only failure is `src/hooks/pollingSites.rail.test.js`, the known baseline.
+- Engine bump: NO (Python only).
+

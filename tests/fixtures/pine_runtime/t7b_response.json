@@ -1,5 +1,5 @@
 {
- "_about": "A real W5-T7b response (git e13d282eae: server.mjs + pool.mjs + job.mjs over test/fixtures/fakeBundle.mjs 'warmup:3'), captured by docs/pine/evidence/2026-11-04-w5-t11/t7b_capture.py. Fixture secret; no licence-held content.",
+ "_about": "A real W5-T7b response (git e13d282eae: server.mjs + pool.mjs + job.mjs over test/fixtures/fakeBundle.mjs '{SOURCE}'), captured by docs/pine/evidence/2026-11-04-w5-t11/t7b_capture.py. Fixture secret; no licence-held content.",
  "ref": "e13d282eae",
  "identity": {
   "script_engine": 5,
