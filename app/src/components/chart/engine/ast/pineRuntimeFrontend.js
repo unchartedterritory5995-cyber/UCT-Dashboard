@@ -3729,7 +3729,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const declaredTyAt = (toks, eq) => {
     const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
     if (!annot || annot.kind !== 'ident') return null
-    const ty = tyOfTypeWord(annot.value, annot.typeArgs, { udtTypes })
+    return writtenTyOf(annot.value, annot.typeArgs)
+  }
+  /** ⭐ W6-T3b — ONE READING OF A WRITTEN TYPE WORD on this lane: a binding's
+   *  annotation (`declaredTyAt`), a parameter's and a field's written type
+   *  (`exprType`). A drawing family is a type only when the run draws. */
+  const writtenTyOf = (word, typeArgs) => {
+    const ty = tyOfTypeWord(word, typeArgs, { udtTypes })
     return ty && ty.kind === 'drawing' && !objectsInRun ? null : ty
   }
 
@@ -3755,6 +3761,332 @@ function buildRuntimeIrLinked(source, opts, holder) {
    */
   const bindSlotTy = (slot, value, scope, toks, eq) => {
     setSlotTy(slot, bindingTy(declaredTyAt(toks, eq), initialiserTy(value, scope)))
+  }
+
+  // ── ⭐⭐ W6-T3b — `exprType`: THE STATIC TYPE OF AN EXPRESSION ─────────────────
+  //
+  // T3a gave every SLOT one descriptor. An expression that is not a slot read (an
+  // element read `a.get(i)`, a collection built by a call, a method result, a
+  // user function's result) had no type at all, which is what `pine:member`
+  // reports. `exprType(node, scope)` answers a T3a descriptor (`makeTy`) for such a
+  // node, or `null` when it cannot tell. ⛔⛔ A CALLER THAT NEEDS A TYPE REFUSES BY
+  // NAME ON `null`; it never guesses one.
+  //
+  // ⭐ PINE HAS NO DECLARED RETURN TYPES. `f(x) =>` types only its parameters, and
+  // Pine compiles a function once per distinct set of argument types (User-defined
+  // functions; Type system). So a user call's type is INFERRED, per call site: the
+  // body's result is typed with that call's argument types bound to the
+  // parameters (an untyped parameter takes its argument's type, a typed one its
+  // written type), every return path (the arms of a trailing `if` / `switch`) must
+  // agree, a recursive call answers `null`, and the answer is cached per
+  // (function, argument types).
+  //
+  // ⛔ ONE AUTHORITY PER VALUE. A name's type IS `slotTy` (T3a's descriptor, never
+  // restated); a binding inside an inferred body is typed by T3a's own
+  // `bindingTy(declaredTyAt(…), …)`; an element read rides `ARRAY_READS_ELEMENT`,
+  // the roster `udtTypeOf` reads. `udtTypeOf` stays the reader the served paths
+  // ask today; the T3b rail pins that `exprType` agrees with it on every shape it
+  // answers, and T6 / T9 re-point callers here.
+  // ⛔ THE C18 DOOR'S VIEW IS NOT THIS. `slotIsCollection` / `slotElemKind` hide a
+  // declared-only collection at the door; `exprType` answers the TYPE, and every
+  // door decision still goes through those getters.
+
+  /** `na`: a value with no type of its own. INTERNAL ONLY: it takes the other
+   *  arm's type when arms are joined, and leaves `exprType` as `null`. */
+  const NA_TY = Object.freeze({ kind: 'na' })
+  /** A descriptor's identity, for comparison and caching. `declaredOnly` is how a
+   *  slot got its type, not what the type is, so it is not part of it. */
+  const tyKey = (ty) => {
+    if (ty === null || ty === undefined) return '?'
+    if (ty === NA_TY) return 'na'
+    return `${ty.kind}${ty.name ? `:${ty.name}` : ''}${ty.key ? `{${tyKey(ty.key)}}` : ''}${ty.elem ? `<${tyKey(ty.elem)}>` : ''}`
+  }
+  /** The arms' common type. ⛔ `na` takes the other arms' type; an arm that cannot
+   *  be typed (`null`) or two arms that DISAGREE answer `null`, never the first. */
+  const joinTys = (tys) => {
+    let out = null
+    for (const t of tys) {
+      if (t === NA_TY) continue
+      if (!t) return null
+      if (!out) out = t
+      else if (tyKey(out) !== tyKey(t)) return null
+    }
+    return out || NA_TY
+  }
+  /** An expression's type carries no `declaredOnly` (a slot's history, not a type). */
+  const plainTy = (ty) => (ty && ty !== NA_TY && ty.declaredOnly
+    ? makeTy(ty.kind, { elem: ty.elem || null, key: ty.key || null, name: ty.name || null }) : ty)
+  const argNode = (a) => (a && a.value !== undefined ? a.value : a)
+
+  /** ⭐ A BUILT-IN COLLECTION MEMBER'S DECLARED RESULT, from its argument types
+   *  (the receiver first) and the call's `<T>`. `null` for a member not listed:
+   *  "cannot tell", never a guess. */
+  const collectionResultTy = (name, argTys, typeArgs) => {
+    const r = argTys[0] || null
+    const of = (kind) => (r && r !== NA_TY && r.kind === kind ? r : null)
+    // element reads: `array.get` / `first` / `last` / `pop` / `shift` / `remove`
+    if (ARRAY_READS_ELEMENT.has(name)) { const a = of('array'); return a ? elemTy(a) : null }
+    if (name === 'matrix.get') { const m = of('matrix'); return m ? elemTy(m) : null }
+    if (name === 'map.get') { const m = of('map'); return m ? elemTy(m) : null }
+    // a collection of the receiver's own type
+    if (name === 'array.copy' || name === 'array.slice' || name === 'array.concat') return plainTy(of('array'))
+    if (name === 'map.keys') { const m = of('map'); return m ? makeTy('array', { elem: m.key || null }) : null }
+    if (name === 'map.values') { const m = of('map'); return m ? makeTy('array', { elem: m.elem || null }) : null }
+    if (name === 'matrix.row' || name === 'matrix.col') {
+      const m = of('matrix'); return m ? makeTy('array', { elem: m.elem || null }) : null
+    }
+    // built from nothing: the element type is the call's `<T>`, or its suffix
+    const word = (w) => (w ? tyOfTypeWord(w, null, { udtTypes }) : null)
+    const one = typeArgs && typeArgs.length === 1 ? typeArgs[0] : null
+    const nw = /^array\.new(?:_([a-z]+))?$/.exec(name)
+    if (nw) return makeTy('array', { elem: word(nw[1] || one) })
+    if (name === 'matrix.new') return makeTy('matrix', { elem: word(one) })
+    if (name === 'map.new') {
+      return typeArgs && typeArgs.length === 2
+        ? makeTy('map', { key: word(typeArgs[0]), elem: word(typeArgs[1]) }) : makeTy('map')
+    }
+    if (name === 'array.from') {
+      const e = joinTys(argTys)
+      return makeTy('array', { elem: e && e !== NA_TY ? plainTy(e) : null })
+    }
+    if (name === 'str.split') return makeTy('array', { elem: makeTy('text') })
+    return null
+  }
+
+  /** name → `{st, toks, arrow, params}` of the ONE definition with that name, or
+   *  `false` when there are several (an overload: T9 types those by receiver).
+   *  Written by `defineFunction`, read only by `userCallTy`. */
+  const fnSourceByName = new Map()
+  /** `name|argument types` → the inferred result: one answer per distinct
+   *  call-site shape, as C35's `specialisations` keeps one compiled copy. */
+  const fnResultTys = new Map()
+  /** The functions whose result is being inferred right now. A call back into one
+   *  of them is RECURSION, which Pine forbids, and it answers `null`. ⛔ This is
+   *  the ONLY thing that stops a recursive inference (the depth bound restarts in
+   *  each body). */
+  const fnInferring = new Set()
+
+  /** ⭐⭐ THE RESULT TYPE OF A CALL TO USER FUNCTION `name`, given each argument's
+   *  type, inferred from the body (see the band header). */
+  const userCallTy = (name, argTys) => {
+    const src = fnSourceByName.get(name)
+    if (!src || (methodDecls.get(name) || 0) > 1) return null
+    const key = `${name}|${argTys.map(tyKey).join(',')}`
+    if (fnResultTys.has(key)) return fnResultTys.get(key)
+    if (fnInferring.has(name)) return null
+    fnInferring.add(name)
+    let out = null
+    try {
+      const declared = paramTypeHeads(src.toks, src.arrow)
+      const tenv = new Map()
+      src.params.forEach((p, k) => {
+        const d = declared.get(p)
+        const a = argTys[k]
+        tenv.set(p, d ? writtenTyOf(d.word, d.typeArgs) : (a === NA_TY ? null : plainTy(a || null)))
+      })
+      if (src.arrow === src.toks.length - 1) out = listTyIn(src.st.sub || [], root, tenv)
+      else {
+        const rest = src.toks.slice(src.arrow + 1)
+        const lines = oneLineBodyOf(rest)
+        out = lines ? listTyIn(lines, root, tenv) : exprTypeIn(parseWholeExpression(rest), root, tenv)
+      }
+    } catch (e) {
+      // ⛔ only a parse refusal means "cannot tell"; anything else is a bug and is raised
+      if (!(e instanceof PineRefusal || e instanceof RuntimeRefusal)) throw e
+      out = null
+    } finally { fnInferring.delete(name) }
+    fnResultTys.set(key, out)
+    return out
+  }
+  /** The argument types of a user call, in declared parameter order: `pre` are the
+   *  already-typed leading arguments (a method's receiver), a named argument goes
+   *  to its parameter, an omitted one is its declared default. */
+  const userArgTys = (name, args, scope, tenv, depth, pre = []) => {
+    const names = fnParamNamesByName.get(name) || []
+    const defaults = fnDefaultsByName.get(name) || []
+    const out = [...pre]
+    let k = pre.length
+    for (const a of args || []) {
+      const at = a && a.name ? names.indexOf(a.name) : k++
+      if (at < 0) return null
+      out[at] = exprTypeIn(argNode(a), scope, tenv, depth + 1)
+    }
+    for (let j = 0; j < Math.max(names.length, out.length); j += 1) {
+      if (out[j] === undefined) {
+        const d = defaults[j]
+        out[j] = d && typeof d === 'object' && d.type ? exprTypeIn(d, root, null, depth + 1) : null
+      }
+    }
+    return out
+  }
+
+  /** A name's type: `na`; a binding of the body being inferred (`tenv`); a slot
+   *  (`slotTy`, T3a's descriptor); a field path, step by step through each field's
+   *  WRITTEN type; an `env` macro. */
+  const nameTyIn = (name, scope, tenv, depth) => {
+    if (name === 'na') return NA_TY
+    if (tenv && tenv.has(name)) return tenv.get(name)
+    const slot = tenv ? root.lookup(name) : lookupReadable(name, scope)
+    if (slot !== null && slot !== undefined) return slotTy(slot)
+    const parts = String(name).split('.')
+    if (parts.length > 1) {
+      let ty = nameTyIn(parts[0], scope, tenv, depth + 1)
+      for (let i = 1; i < parts.length; i += 1) {
+        const spec = ty && ty !== NA_TY && ty.kind === 'udt' ? fieldSpec(ty.name, parts[i]) : null
+        if (!spec) return null
+        ty = writtenTyOf(spec.type, spec.typeArgs)
+      }
+      return ty
+    }
+    const b = env.get(name)
+    if (b && b.kind === 'expr') return exprTypeIn(b.node, tenv ? root : scope, null, depth + 1)
+    return null
+  }
+
+  /** `recv.m(args)` on a TYPED receiver: a script's own method first (the `ufcs.js`
+   *  shadowing rule: a defined name wins the method form), else the receiver
+   *  collection's own member. ⛔ An overloaded method answers `null` (T9). */
+  const methodResultTy = (recvTy, method, args, scope, tenv, depth) => {
+    if (!recvTy || recvTy === NA_TY) return null
+    if (definedNames.has(method)) {
+      if (!bindableMethod(method)) return null
+      const tys = userArgTys(method, args, scope, tenv, depth, [recvTy])
+      return tys ? userCallTy(method, tys) : null
+    }
+    const ns = methodNsOf(recvTy)
+    if (!ns) return null
+    return collectionResultTy(`${ns}.${method}`,
+      [recvTy, ...(args || []).map((a) => exprTypeIn(argNode(a), scope, tenv, depth + 1))], null)
+  }
+
+  const BOOL_OPS = new Set(['==', '!=', '<', '>', '<=', '>=', 'and', 'or'])
+  const exprTypeIn = (node, scope, tenv, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 48) return null
+    switch (node.type) {
+      case 'number':
+        return makeTy(node.tok && (node.tok.value === 'true' || node.tok.value === 'false') ? 'bool' : 'num')
+      case 'string': return makeTy('text')
+      case 'colour': return makeTy('colour')
+      case 'name': return nameTyIn(node.name, scope, tenv, depth)
+      case 'offset': return exprTypeIn(node.arg, scope, tenv, depth + 1)
+      case 'ternary':
+        return joinTys([exprTypeIn(node.yes, scope, tenv, depth + 1), exprTypeIn(node.no, scope, tenv, depth + 1)])
+      case 'unary': {
+        if (node.op === 'not') return makeTy('bool')
+        const a = exprTypeIn(node.arg, scope, tenv, depth + 1)
+        return a && a.kind === 'num' ? a : null
+      }
+      case 'binary': {
+        if (BOOL_OPS.has(node.op)) return makeTy('bool')
+        const l = exprTypeIn(node.left, scope, tenv, depth + 1)
+        const r = exprTypeIn(node.right, scope, tenv, depth + 1)
+        if (l && r && l.kind === 'num' && r.kind === 'num') return makeTy('num')
+        if (node.op === '+' && l && r && l.kind === 'text' && r.kind === 'text') return makeTy('text')
+        return null
+      }
+      case 'member': {
+        const r = exprTypeIn(node.recv, scope, tenv, depth + 1)
+        const spec = r && r !== NA_TY && r.kind === 'udt' ? fieldSpec(r.name, node.name) : null
+        return spec ? writtenTyOf(spec.type, spec.typeArgs) : null
+      }
+      case 'method':
+        return methodResultTy(exprTypeIn(node.recv, scope, tenv, depth + 1), node.name, node.args, scope, tenv, depth)
+      case 'call': {
+        const name = String(node.name || '')
+        const ctor = udtCtorOf(node)
+        if (ctor) return makeTy('udt', { name: ctor.name })
+        // the method form: a dotted call whose head is a VALUE this lane can type
+        const uf = splitMethodName(name)
+        const recvTy = uf ? nameTyIn(uf.recv, scope, tenv, depth + 1) : null
+        if (recvTy) return methodResultTy(recvTy, uf.method, node.args, scope, tenv, depth)
+        if (isUserFn(name)) {
+          const tys = userArgTys(name, node.args, scope, tenv, depth)
+          return tys ? userCallTy(name, tys) : null
+        }
+        const typeArgs = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs : null
+        return collectionResultTy(name,
+          (node.args || []).map((a) => exprTypeIn(argNode(a), scope, tenv, depth + 1)), typeArgs)
+      }
+      default: return null
+    }
+  }
+
+  /** ⭐ THE VALUE OF A STATEMENT LIST (Pine: its last statement), with the
+   *  bindings in front of it typed into `tenv` as they are met. */
+  const listTyIn = (lines0, scope, tenv) => {
+    const lines = splitStatementCommas(lines0)
+    if (!lines || !lines.length) return null
+    const h = lastStatementAt(lines)
+    for (let k = 0; k < h; k += 1) {
+      const t = lines[k].header || []
+      if (blockKeywordOf(lines[k]) === 'else' || !isBindingHeader(t) || isPunct(t[0], '[')) continue
+      if (findTop(t, (x) => isPunct(x, ':=')) > 0 || findTop(t, isCompoundTok) > 0) continue
+      const eq = findTop(t, (x) => isPunct(x, '='))
+      const nt = boundName(t, eq)
+      if (!nt) continue
+      const v = rhsTyIn(lines, k, eq + 1, scope, tenv)
+      tenv.set(String(nt.value), bindingTy(declaredTyAt(t, eq), v === NA_TY ? null : v))
+    }
+    return lineTyIn(lines, h, scope, tenv)
+  }
+  /** What one line yields: an `if` chain, a `switch`, a binding (the value it
+   *  bound), a loop (`null`: not typed here), or an expression. */
+  const lineTyIn = (lines, h, scope, tenv) => {
+    const t = lines[h].header || []
+    const w = blockKeywordOf(lines[h])
+    if (w === 'if') return ifChainTyIn(lines, h, scope, tenv)
+    if (w === 'switch') return switchTyIn(lines[h].sub, scope, tenv)
+    if (w === 'for' || w === 'while') return null
+    if (isPunct(t[0], '[')) return null
+    const walrus = findTop(t, (x) => isPunct(x, ':='))
+    if (walrus > 0) return rhsTyIn(lines, h, walrus + 1, scope, tenv)
+    if (findTop(t, isCompoundTok) > 0) return null
+    if (isBindingHeader(t)) return rhsTyIn(lines, h, findTop(t, (x) => isPunct(x, '=')) + 1, scope, tenv)
+    if (lines[h].sub && lines[h].sub.length) return null
+    return exprTypeIn(parseWholeExpression(t), scope, tenv)
+  }
+  /** The right-hand side of the binding on line `k`, from token `from`. */
+  const rhsTyIn = (lines, k, from, scope, tenv) => {
+    const t = lines[k].header || []
+    const head = t[from]
+    if (head && head.kind === 'ident' && head.value === 'if') return ifChainTyIn(lines, k, scope, tenv)
+    if (head && head.kind === 'ident' && head.value === 'switch') return switchTyIn(lines[k].sub, scope, tenv)
+    return exprTypeIn(parseWholeExpression(t.slice(from)), scope, tenv)
+  }
+  /** An `if` / `else if` / `else` chain opened on line `at`: its arms' common
+   *  type. ⭐ With no final `else` an unmatched chain is `na` (v6 `bool`: `false`),
+   *  which takes the other arms' type, so a missing `else` adds no arm here. */
+  const ifChainTyIn = (lines, at, scope, tenv) => {
+    const arms = [listTyIn(lines[at].sub || [], scope, new Map(tenv || []))]
+    for (let k = at + 1; k < lines.length && blockKeywordOf(lines[k]) === 'else'; k += 1) {
+      const et = lines[k].header.slice(1)
+      arms.push(listTyIn(lines[k].sub || [], scope, new Map(tenv || [])))
+      if (!(et.length && et[0].kind === 'ident' && et[0].value === 'if')) break
+    }
+    return joinTys(arms)
+  }
+  /** A `switch`'s arms (`match => value`, or `match =>` and a block): their common
+   *  type. ⭐ With no default arm (a bare `=>`) an unmatched switch is `na`, which
+   *  takes the other arms' type, so it adds no arm here. */
+  const switchTyIn = (armLines, scope, tenv) => {
+    const arms = []
+    for (const arm of armLines || []) {
+      const ah = arm.header || []
+      const at = findTop(ah, (x) => isPunct(x, '=>'))
+      if (at < 0) return null
+      arms.push(ah.length > at + 1 ? exprTypeIn(parseWholeExpression(ah.slice(at + 1)), scope, tenv)
+        : listTyIn(arm.sub || [], scope, new Map(tenv || [])))
+    }
+    return joinTys(arms)
+  }
+
+  /** ⭐⭐ THE ENTRY POINT: a T3a descriptor, or `null` = "cannot tell". An `na`
+   *  value has no type of its own and answers `null` too. Body parse refusals
+   *  inside an inference already answer `null` there; one raised by the node
+   *  itself (it was parsed by the caller) cannot occur. */
+  const exprType = (node, scope) => {
+    const ty = exprTypeIn(node, scope, null, 0)
+    return ty === NA_TY ? null : plainTy(ty)
   }
 
   /** Lower an `array.*` call.
@@ -7092,7 +7424,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ W6-T3a — THE RECEIVER'S OWN FAMILY (`methodNsOf`): `m.rows()` on a
             // matrix is `matrix.rows(m)`. Only arrays are served, so only an
             // `array.*` member is ever admitted here.
-            const ns = methodNsOf(slotTy(rslot))
+            // ⭐ W6-T3b — the family is the RECEIVER EXPRESSION's type (`exprType`),
+            // which for a name is its slot's descriptor: identical for every receiver
+            // served today, and the one question T9's chains will ask.
+            const ns = methodNsOf(exprType({ type: 'name', name: uf.recv, tok: node.tok }, scope))
             const rew = methodFormCall(node, () => ns, (m) => definedNames.has(m))
             if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
               return admitArrayCall(rew.node, scope, false)
@@ -10964,7 +11299,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             continue
           }
           if (rslot !== null && slotIsCollection(rslot)) {
-            const ns = methodNsOf(slotTy(rslot))
+            const ns = methodNsOf(exprType({ type: 'name', name: uf.recv, tok: first }, scope))
             const rew = methodFormCall(parseWholeExpression(toks),
               () => ns, (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
@@ -11139,6 +11474,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // before the body compiles, so a definition whose body is HELD still has them.
     if (withDefaults && !spec) fnDefaultsByName.set(nameTok.value, withDefaults.defaults)
     if (!spec) fnParamNamesByName.set(nameTok.value, params)
+    // ⭐ W6-T3b — the definition `exprType` infers a call's result from; a second
+    // definition of the name (an overload) leaves `false`: typed by T9, not here.
+    if (!spec) {
+      const prevSrc = fnSourceByName.get(nameTok.value)
+      fnSourceByName.set(nameTok.value,
+        prevSrc === undefined || (prevSrc && prevSrc.st === st) ? { st, toks, arrow, params } : false)
+    }
     const fnIndex = functions.length
     const record = {
       name: nameTok.value, params: params.length, compiling: true,
@@ -12289,7 +12631,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to
   // render a buffer's value, and which nothing downstream of the program reads.
-  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters }
+  // ⭐ W6-T3b — TEST PROBE ONLY (`opts.exprTypeProbe === true`): `exprTypeOf(text)`
+  // answers `exprType` of one expression read in the finished program's root
+  // scope. Nothing in the engine passes the option, so no served result carries it.
+  const probe = opts.exprTypeProbe === true ? {
+    exprTypeOf: (text) => exprType(parseWholeExpression(lexPine(String(text)).tokens), root),
+  } : {}
+  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters, ...probe }
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.
