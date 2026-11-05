@@ -269,6 +269,22 @@ def calls_today_for_surface(surface: str) -> int:
         return 0
 
 
+def spend_by_model_today(surface_prefix: str) -> dict:
+    """Today's (ET) calls and dollars per model for surfaces starting with `surface_prefix`, from the
+    durable ledger: `{model: {"calls": n, "usd": x}}`. Empty on a read failure."""
+    try:
+        _init()
+        with _conn() as c:
+            rows = c.execute(
+                "SELECT model, COUNT(*), COALESCE(SUM(cost_usd), 0) FROM llm_route_cost_log "
+                "WHERE surface LIKE ? AND at >= ? GROUP BY model",
+                (surface_prefix + "%", _et_midnight_utc_text())).fetchall()
+        return {str(r[0]): {"calls": int(r[1]), "usd": round(float(r[2] or 0.0), 6)} for r in rows}
+    except Exception as exc:  # noqa: BLE001 — a broken ledger must not 500 a read
+        logger.error("[narrative_cost_guard] spend read failed for %s: %s", surface_prefix, exc)
+        return {}
+
+
 def record(surface: str, model: str, input_tokens: int = 0,
            output_tokens: int = 0, web_searches: int = 0,
            cost_usd: float | None = None, cache_read_tokens: int = 0,
