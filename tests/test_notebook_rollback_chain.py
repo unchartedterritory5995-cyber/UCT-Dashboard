@@ -194,7 +194,7 @@ def chain():
     mod = _load()
     # What the rail walks must be present (a shallow clone cut above wave 5 cannot see the
     # landings). NOT `--is-shallow-repository`: this box's clone is shallow far below wave 5.
-    need = [f"{WAVE5}^", mod.MEASURED_AT, *mod.GUARD_PICKS]
+    need = [f"{WAVE5}^", mod.MEASURED_AT, R1H_FROM, *mod.GUARD_PICKS]   # R1H_FROM: the R1h rebuild's base
     absent = [r for r in need if not _have(r)]
     if absent:
         pytest.skip(f"history this rail audits is not in the clone: {absent}")
