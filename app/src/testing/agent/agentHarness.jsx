@@ -73,6 +73,7 @@ const LIB = LAYOUTS ? {
     { id: 13, scope: 'user', name: 'Momentum', layout: { version: 1, cols: 24, widgets: [lw('m-one', 'chart', 'A', 0, 0, 24, 20)] } },
     { id: 14, scope: 'user', name: 'Momentum 2', layout: { version: 1, cols: 24, widgets: [lw('m2-one', 'chart', 'A', 0, 0, 24, 20)] } },
     { id: 15, scope: 'user', name: 'Momentum Swing', layout: { version: 1, cols: 24, widgets: [lw('ms-one', 'chart', 'A', 0, 0, 24, 20)] } },
+    ...(params.has('multichart') ? [{ id: 17, scope: 'user', name: 'Fixture Grid', layout: { kind: 'multichart', version: 1, layout: '2x2', cells: [] } }] : []),
     { id: 16, scope: 'user', name: 'Main Trading', layout: { version: 1, cols: 24, widgets: [lw('mt-one', 'chart', 'A', 0, 0, 18, 20), lw('mt-watch', 'watchlist', 'A', 18, 0, 6, 20)] } },
   ],
 } : { global: [], mine: [] }
@@ -306,6 +307,16 @@ window.fetch = async (input, init) => {
   if (path.startsWith('/api/')) {
     // Everything else (bars, quotes, widgets' data): try the local backend if one
     // is running; an error just leaves that widget empty. Never a write.
+    // ?defs=1 — an in-page definitions store (nothing leaves this page), so a formula saved in the real builder is listed
+    if (params.get('defs') === '1' && path === '/api/user-definitions') {
+      H.defs = H.defs || []
+      if (method === 'GET') return json(H.defs)
+      if (method === 'POST') {
+        const row = { def_id: `u_fixture${String(H.defs.length + 1).padStart(4, '0')}`, version: 1, rev: 1 }
+        H.defs.push({ ...row, definition: { ...JSON.parse(init.body).definition, id: row.def_id, version: 1 } })
+        return json(row)
+      }
+    }
     if (method !== 'GET') { H.refused.push({ method, path, body: null, at: Date.now() }); return json({ ok: false }, 403) }
     try { return await realFetch(input, init) } catch { return json({}, 503) }
   }

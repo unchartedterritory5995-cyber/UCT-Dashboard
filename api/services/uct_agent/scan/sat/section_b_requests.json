@@ -4547,6 +4547,8 @@
       "feature": {
        "type": "string",
        "enum": [
+        "builderAction",
+        "gridAction",
         "drawingEdit",
         "indicatorManage",
         "layoutAction",

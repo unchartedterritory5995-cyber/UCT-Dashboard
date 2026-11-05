@@ -2566,7 +2566,7 @@ export default function BuilderSheet({
               — a starter that was special-cased would be a second class of
               object, and `BuilderSheet.starters.test.jsx` asserts the saved
               blob carries no trace of where it came from. */}
-          <div className={styles.modeRow} role="tablist" aria-label="How to build this">
+          <div className={styles.modeRow} role="tablist" aria-label="How to build this" data-guide="builder.modes">
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'library' ? styles.modeTabActive : ''}`}
@@ -3520,6 +3520,7 @@ export default function BuilderSheet({
                 className={styles.plotStyle}
                 value={target}
                 aria-label="Placement"
+                data-guide="builder.placement"
                 onChange={(e) => setTarget(e.target.value)}
               >
                 <option value="pane">Own pane</option>
@@ -3537,6 +3538,7 @@ export default function BuilderSheet({
                 value={levelsText}
                 placeholder="70, 30"
                 aria-label="Levels"
+                data-guide="builder.levels"
                 aria-invalid={levelsProblem ? 'true' : undefined}
                 onChange={(e) => setLevelsText(e.target.value)}
               />
@@ -3616,7 +3618,7 @@ export default function BuilderSheet({
               <p className={styles.inputProblem} role="alert" data-testid="intent-refusal">{intentBlock}</p>
             )}
             {intent === INTENTS.SIGNAL && signalSelected && isTruthType(signalSelected.type) && (
-              <div className={styles.placementRow} data-testid="signal-look">
+              <div className={styles.placementRow} data-testid="signal-look" data-guide="builder.signalLook">
                 <label className={styles.plotToggle}>
                   <input
                     type="checkbox"
@@ -3770,6 +3772,7 @@ export default function BuilderSheet({
             <label className={styles.label} htmlFor="uct-formula-name">Name</label>
             <input
               id="uct-formula-name"
+              data-guide="builder.name"
               className={styles.nameField}
               type="text"
               maxLength={48}
@@ -3900,7 +3903,7 @@ export default function BuilderSheet({
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
-            <button type="button" className="btn btn-ghost" onClick={requestClose}>Cancel</button>
+            <button type="button" className="btn btn-ghost" data-guide="builder.cancel" onClick={requestClose}>Cancel</button>
             {/* ⛔ UIE PHASE 5 (M1) — while a stored SCRIPT is open for edit, the formula
                 save is not offered: it would PUT the formula draft over the script. The
                 script's own save is the member pane's ("Save changes"). */}
@@ -3908,6 +3911,7 @@ export default function BuilderSheet({
               type="button"
               className="btn btn-primary"
               data-testid="sheet-save"
+              data-guide="builder.save"
               onClick={converseActive ? () => converseCommitRef.current?.save() : save}
               disabled={converseActive ? !converseCommit.canSave : !canSave}
             >{converseActive
@@ -3930,6 +3934,7 @@ export default function BuilderSheet({
                       type="button"
                       className="btn btn-ghost"
                       aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
+                      data-guide="builder.edit"
                       onClick={() => openForEdit(row)}
                     ><UIcon name="edit" size={14} /></button>
                     {pendingDelete === row.def_id ? (

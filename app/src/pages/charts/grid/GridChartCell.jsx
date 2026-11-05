@@ -380,6 +380,7 @@ function GridChartCell({
           value={cell.chartType || ''}
           onChange={(e) => handleTypeChange(e.target.value)}
           aria-label="Chart style (this cell)"
+          data-guide="chart.cellStyle"
           title="Chart style for this cell — 'Style' inherits your global chart settings"
         >
           {CELL_CHART_TYPES.map(([code, label]) => (
@@ -390,6 +391,7 @@ function GridChartCell({
           <button
             type="button"
             className={styles.cellResetBtn}
+            data-guide="chart.cellReset"
             onClick={resetToMyChart}
             title="This chart has its own settings. Reset it to match your main chart."
           >
@@ -404,12 +406,14 @@ function GridChartCell({
             onClick={() => onOpenSettings?.()}
             title="Shared chart settings (all charts)"
             aria-label="Shared chart settings"
+            data-guide="chart.cellSettings"
           >
             <UIcon name="gear" size={15} />
           </button>
           <button
             type="button"
             className={styles.cellIconBtn}
+            data-guide="chart.cellMaximize"
             onClick={() => onToggleMaximize?.()}
             title={isMaximized ? 'Restore grid' : 'Maximize this chart'}
             aria-label={isMaximized ? 'Restore grid' : 'Maximize this chart'}
@@ -463,7 +467,7 @@ function GridChartCell({
         {sym && (
           <div className={`${wsStyles.tfBarRight} ${styles.gridSession}`}>
             {isDWMtf ? (
-              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart session view">
+              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart session view" data-guide="chart.session">
                 <button
                   type="button"
                   className={`${wsStyles.sessionBtn} ${sessionView === 'regular' ? wsStyles.sessionBtnActive : ''}`}
@@ -479,7 +483,7 @@ function GridChartCell({
                 >{extLabel}</button>
               </div>
             ) : (
-              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart extended hours">
+              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart extended hours" data-guide="chart.session">
                 <button
                   type="button"
                   className={`${wsStyles.sessionBtn} ${!extHoursOn ? wsStyles.sessionBtnActive : ''}`}
@@ -604,9 +608,9 @@ function GridChartCell({
             onClick={closeCtx}
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
-          <div className={wsStyles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y }} role="menu">
+          <div className={wsStyles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y }} role="menu" data-guide="chart.contextMenu">
             {Number.isFinite(ctxMenu.price) && (
-              <button type="button" className={wsStyles.chartCtxItem} onClick={handleSetAlert}>
+              <button type="button" className={wsStyles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                 <UIcon name="bell" size={14} className={wsStyles.chartCtxIcon} />
                 Set alert @ ${ctxMenu.price.toFixed(2)}
               </button>
