@@ -20,6 +20,7 @@ const CASES = JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath
 const RUN_RULE = 'Positive counts consecutive sessions above, negative consecutive sessions below. +1 is the session it crossed up, -1 the session it crossed down. Measured at the last completed session.'
 const META = (logic) => ({
   ...(logic === undefined ? {} : { logic_enabled: logic }),
+  live_fields: ['price', 'rsi14'],
   fields: [
     { key: 'price', label: 'Price', type: 'range', unit: '$' },
     { key: 'pt_target', label: 'Price Target', type: 'range', unit: '$' },
@@ -245,6 +246,23 @@ describe('field against field', () => {
   ])('refused: %s', async (_w, f, re) => {
     expect(text(await run({ filters: [f] }))).toMatch(re)
     expect(scans()).toHaveLength(0)
+  })
+})
+
+describe('⛔ two clocks in one comparison', () => {
+  const CLOCKS = /mixes two clocks while the market is open/
+  it('a live field against a nightly one is said, either way round', async () => {
+    expect(text(await run({ filters: [{ field: 'pt_target', op: 'gt_col', other: 'price' }] }))).toMatch(/Price updates with the live price during the session and Price Target does not/)
+    expect(text(await run({ filters: [{ field: 'price', op: 'gt_col', other: 'pt_target' }] }))).toMatch(/Price updates with the live price during the session and Price Target does not/)
+  })
+  it('two live fields, or two nightly ones, read one clock: nothing to say', async () => {
+    expect(text(await run({ filters: [{ field: 'price', op: 'gt_col', other: 'rsi14' }] }))).not.toMatch(CLOCKS)
+    expect(text(await run({ filters: [{ field: 'chg_pct_1w', op: 'gt_col', other: 'chg_pct_3m' }] }))).not.toMatch(CLOCKS)
+  })
+  it('inside a group too', async () => {
+    logicFlag = true
+    const a = await run({ logic: JSON.stringify({ any: [{ field: 'price', op: 'gt_col', other: 'pt_target' }, F('chg_pct_1w', 'gt', 5)] }) })
+    expect(text(a)).toMatch(CLOCKS)
   })
 })
 

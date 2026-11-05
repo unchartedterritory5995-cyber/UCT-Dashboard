@@ -162,8 +162,9 @@ export function loadMeta() {
   if (!cache.metaP) {
     cache.metaP = req('/api/screener/fields').then(r => json(r, 'Reading the Screener fields')).then(m => {
       const list = Array.isArray(m.fields) ? m.fields : []
+      const live = new Set(Array.isArray(m.live_fields) ? m.live_fields : [])
       cache.meta = {
-        fields: list.filter(f => f && f.key && !isHidden(f.key) && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null, ...(f.description ? { description: String(f.description) } : {}) })),
+        fields: list.filter(f => f && f.key && !isHidden(f.key) && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null, ...(f.description ? { description: String(f.description) } : {}), ...(live.has(f.key) ? { live: true } : {}) })),
         // SCREENER_LOGIC_ENABLED as the server reports it. Absent (an older server) reads as unknown: the screen is tried
         // and the engine's own refusal is the answer. The engine stays the authority either way.
         logic: typeof m.logic_enabled === 'boolean' ? m.logic_enabled : null,
@@ -433,6 +434,8 @@ export function toWireFilters(filters, { lenient = false } = {}) {
       // the engine compares two snapshot columns; a latest-session measure is checked here, after it, on another clock
       if (f.provider || g.provider) return { error: `${(f.provider ? f : g).label} is checked after the Screener's own filters, so it can't be compared with another field` }
       out.push({ key: f.key, op: x.op, other: g.key })
+      // ⛔ TWO CLOCKS: during the session one side can follow the live price while the other stands at the last close
+      if (!!f.live !== !!g.live) notes.push(`${(f.live ? f : g).label} updates with the live price during the session and ${(f.live ? g : f).label} does not, so this comparison mixes two clocks while the market is open`)
       continue
     }
     const v0 = Number(x.value)

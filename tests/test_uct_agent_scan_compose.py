@@ -106,6 +106,26 @@ def test_the_fields_route_reports_the_logic_flag(monkeypatch, flag, want):
     assert route.screener_fields(options=0, _user=None)["logic_enabled"] is want
 
 
+def test_the_fields_route_names_the_live_fields():
+    from api.routers import screener as route
+    from api.services.screener import live_tier
+    keys = route.screener_fields(options=0, _user=None)["live_fields"]
+    assert {"price", "pct_vs_sma50", "pct_vs_sma200", "pct_vs_ema20"} <= set(keys)
+    assert not {"pct_vs_ema9", "run_close_sma50", "new_high_lookback", "avg_volume_50d"} & set(keys), "nightly primitives"
+    assert all(filters.FILTERS[k]["column"] in live_tier.LIVE_COLUMNS for k in keys)
+
+
+def test_a_live_distance_says_its_clock():
+    for key in ("pct_vs_sma50", "pct_vs_sma200", "pct_vs_ema20"):
+        assert "mixes two clocks" in filters.FILTERS[key]["description"], key
+
+
+def test_every_nightly_primitive_says_when_it_is_measured():
+    live = set(filters.live_field_keys())
+    for key in ("pct_vs_ema9", "pct_vs_ema10", "run_close_ema20", "avg_volume_10d", "new_high_lookback"):
+        assert key not in live and "last completed session" in filters.FILTERS[key]["description"], key
+
+
 # ── flattening: a flat spec only when it is EXACTLY the tree ──────────────────────────────────────────────────────────
 ROWS = [
     {"ticker": "EN", "sector": "Energy", "industry": "Oil", "price": 50.0, "rsi14": 20.0, "chg_pct_1d": 6.0, "is_etf": 0, "candle_matches": ",doji,"},
