@@ -431,3 +431,4 @@ open: acceptance capture W4-P1 not done (row in docs/pine/capture-queue-2026-11-
 - W5-T14 r1: tip ab034f0d28 (code tip 8fa5e69a98). Built on T11 r2; uses the public admission() and one store_time_seconds helper. Mutations 39/40 killed; the survivor is the no-op control. Delta re-review is in progress.
 - Still building: W4-T12 r1 then W4-T13 r1, W5-T16 r2, W5-T19 r1 (waits for T4 r3).
 - Merging: NOTHING MERGED. The permission layer still blocks it.
+- 2026-11-05 05:13 W5-T14 r1 ab034f0d28: GO-WITH-NOTES. B1 is closed: finite warm-up values now count as withheld. Notes: an admission() exception, including a mistyped lane, silently becomes unavailable (follow-up); T15 should adopt store_time_seconds; the Q2 sweep cap is unowned.
