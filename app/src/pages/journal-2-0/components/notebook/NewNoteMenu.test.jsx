@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NewNoteMenu, { MenuRows, useMenuButton } from './NewNoteMenu'
@@ -264,3 +264,41 @@ describe.each([["Home's form", (p) => <NewNoteMenu onBlank={vi.fn()} {...p} />],
     })
   },
 )
+
+// Tier 1b fix round 1 (review Important 4): a row with NO BOX (the ⋯ menu's phone-only rows, `display: none` on a
+// desktop) is not a stop. Focus went to the hidden first row (a no-op), so the menu hung open with focus on the
+// trigger, and ArrowUp from Export got stuck on the hidden Import. jsdom has no layout, so the hidden rows' boxes are
+// stubbed; where NOTHING has a box (a layout-less test) every row counts, as useToolbarRoving does.
+describe('rows with no box are skipped (Important 4)', () => {
+  function Menu() {
+    const menu = useMenuButton()
+    return (
+      <div>
+        <button {...menu.triggerProps} type="button">More</button>
+        {menu.open && <div {...menu.menuProps} aria-label="More"><MenuRows menu={menu} items={[
+          { key: 'today', label: 'Today', run: () => {}, className: 'phoneOnly' },
+          { key: 'import', label: 'Import', run: () => {}, className: 'phoneOnly' },
+          { key: 'export', label: 'Export', run: () => {} },
+          { key: 'tools', label: 'My tools', run: () => {} },
+        ]} /></div>}
+      </div>
+    )
+  }
+  const real = HTMLElement.prototype.getClientRects
+  beforeEach(() => {
+    HTMLElement.prototype.getClientRects = function rects() { return this.classList.contains('phoneOnly') ? [] : [{}] }
+  })
+  afterEach(() => { HTMLElement.prototype.getClientRects = real })
+
+  it('opening on ArrowDown lands on the first SHOWN row; ArrowUp from it wraps past the hidden ones', () => {
+    render(<Menu />)
+    const trigger = screen.getByRole('button', { name: 'More' })
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Export' }))
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'My tools' }))
+    fireEvent.keyDown(document.activeElement, { key: 'Home' })
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Export' }))
+  })
+})

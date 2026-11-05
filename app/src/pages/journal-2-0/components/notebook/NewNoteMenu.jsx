@@ -21,7 +21,7 @@ export function useMenuButton() {
 
   useEffect(() => {
     if (!open) return undefined
-    const rows = menuRef.current?.querySelectorAll(ROW) || []
+    const rows = rowsOf(menuRef.current)
     rows[wantLast.current ? rows.length - 1 : 0]?.focus()
     wantLast.current = false
     const away = (e) => {
@@ -43,7 +43,7 @@ export function useMenuButton() {
     e.preventDefault()
     const last = e.key === 'ArrowUp'
     if (!open) { wantLast.current = last; setOpen(true); return }
-    const rows = menuRef.current?.querySelectorAll(ROW) || []
+    const rows = rowsOf(menuRef.current)
     rows[last ? rows.length - 1 : 0]?.focus()
   }
   // Tab (or a click) that takes focus out of the open menu closes it, so it is not left hanging open
@@ -56,7 +56,7 @@ export function useMenuButton() {
     setOpen(false)
   }
   const onMenuKey = (e) => {
-    const list = [...menuRef.current.querySelectorAll(ROW)]
+    const list = rowsOf(menuRef.current)
     const i = list.indexOf(document.activeElement)
     if (e.key === 'Escape') { e.preventDefault(); close() }
     else if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length]?.focus() }
@@ -90,6 +90,14 @@ export function useMenuButton() {
   }
 }
 const ROW = '[role="menuitem"], [role="menuitemradio"]'
+// Tier 1b fix round 1 (review Important 4): a row with NO BOX (the list's phone-only ⋯ rows on a desktop) is not a
+// stop -- focusing it is a no-op that left the menu open with focus nowhere useful. Where NOTHING has a box (a test
+// environment with no layout) every row counts: the same rule as lib/useToolbarRoving.js.
+function rowsOf(menuEl) {
+  const all = [...(menuEl?.querySelectorAll(ROW) || [])]
+  const shown = all.filter((el) => el.getClientRects().length > 0)
+  return shown.length ? shown : all
+}
 
 /** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, separator?, className?}. A row whose
  *  `checked` is a boolean is a `menuitemradio` (the View menu's modes); `separator: true` draws a rule. */

@@ -40,7 +40,10 @@ export function pressToolbar(name) {
   const [t, row] = WHERE[name] || [null, null]
   if (!t) throw new Error(`toolbarDoors: no door named ${name}`)
   const menu = openMenu(t)
-  fireEvent.click(within(menu).getByRole('menuitem', { name: row }))
+  // The old "Templates" button opened the sheet with its SEARCH focused: with the template switch on that door is
+  // the ▾'s "From an outline" (fix round 1, Minor 11), and "From a template" focuses the note types instead.
+  const outline = name === 'Templates' && within(menu).queryByRole('menuitem', { name: 'From an outline' })
+  fireEvent.click(outline || within(menu).getByRole('menuitem', { name: row }))
 }
 
 /** Whether the toolbar offers that action at all (its menu is opened, read, and closed again). */

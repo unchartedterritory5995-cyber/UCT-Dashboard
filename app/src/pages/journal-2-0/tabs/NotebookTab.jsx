@@ -2160,7 +2160,11 @@ export default function NotebookTab() {
   ]
   const newMenuItems = [
     { key: 'blank', label: 'Blank', icon: 'document', run: () => createNote() },
-    { key: 'template', label: 'From a template', icon: 'library', run: openNewNoteSheet },
+    // Fix round 1 (review Minor 11): with the template switch on, the ▾ carries BOTH of Home's doors -- "From an
+    // outline" (the sheet, search first) and "From a template" (the same sheet, focus on the first note type, the old
+    // list caret's door). With it off there are no note types, and "From a template" is the plain sheet.
+    fromStyle && { key: 'outline', label: 'From an outline', icon: 'document', run: openNewNoteSheet },
+    { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet },
     recordVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport },
   ].filter(Boolean)

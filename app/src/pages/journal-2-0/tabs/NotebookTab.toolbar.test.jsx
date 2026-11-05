@@ -98,6 +98,17 @@ describe('every action that was on the toolbar is still reachable (S11 enumerati
     for (const m of VIEW_MODES) expect(viewOption(m.short), m.short).toBeTruthy()
   })
 
+  // Fix round 1 (review Minor 11): the enumeration now names the two doors it had missed.
+  it('Clear filter is on the row while a filter is on, and the note-type door is in the ▾ (gate on)', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    await renderTab('/journal/notebook?view=all&ticker=NVDA')
+    expect(within(bar()).getByRole('button', { name: 'Clear filter' })).toBeTruthy()
+    fireEvent.click(within(bar()).getByRole('button', { name: 'More ways to start a note' }))
+    const menu = screen.getByRole('menu', { name: 'Start a note' })
+    expect(within(menu).getByRole('menuitem', { name: 'From an outline' })).toBeTruthy()
+    expect(within(menu).getByRole('menuitem', { name: 'From a template' })).toBeTruthy()
+  })
+
   it('a gate that is off leaves no door that opens nothing', async () => {
     await renderTab()
     expect(toolbarOffers('Manage templates')).toBe(false)
