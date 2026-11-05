@@ -188,6 +188,18 @@ const labelFor = (a) => {
 const phrase = (a) => indicatorAlertPhrase(a, labelFor(a))
 const statusOf = (a) => (a.active ? 'active' : 'paused')
 
+/** The indicator half of "what alerts do I have" (alert.list), read as indicatorAlert.list reads it: { rows: [line] },
+ *  { unread: true } when the list can't be read now, or null where indicator alerts aren't reachable at all. Never throws. */
+export async function indicatorAlertBook(host, { symbol = null, activeOnly = false } = {}) {
+  const from = host?.indicatorAlerts ? host : hostRef
+  if (!from?.indicatorAlerts) return null
+  try {
+    const all = await loadIndicatorAlerts(from, { force: true })
+    const shown = all.filter(a => (!symbol || a.sym === symbol) && (!activeOnly || a.active))
+    return { rows: shown.map(a => `${phrase(a)} — ${statusOf(a)}${alertNeedsAttention(a) || a.instanceMissing ? ' (needs attention: it can\'t fire)' : ''}`) }
+  } catch { return { unread: true } }
+}
+
 function libSnap() {
   return { ref: 'indicatorAlerts', label: 'Indicator alerts', loaded: !!cache.rows, alerts: rows() }
 }

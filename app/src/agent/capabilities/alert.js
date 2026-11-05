@@ -22,6 +22,7 @@ import { registerCapability, registerTargetKind, registerContextProvider, regist
 import { unknownSymbols } from '../agentClient'
 import { mutate as globalMutate } from 'swr'
 import { kindServed, readQuoteMap } from './marketDataFacts'
+import { indicatorAlertBook } from './indicatorAlerts'
 
 const ROUTE = '/api/watchlist-alerts'
 const TTL_MS = 20_000
@@ -264,7 +265,9 @@ export function registerAlertCapabilities() {
     },
     fastWhole: true,
     fast: ({ lower }) => (/^((show|list)( me)?( all)?( of)? my( price)? alerts|what alerts do i have|my alerts)[?.!]?$/.test(lower) ? { symbol: null, status: null, triggered_today: null } : null),
-    async answer(_snap, { symbol, status, triggered_today: today }) {
+    // ⭐ "what alerts do I have" is about the member's WHOLE book: each half is named, and a half that wasn't read is said to
+    // be missing — never "you have no alerts" from the price half alone. "Went off" is a price-alert reading only.
+    async answer(_snap, { symbol, status, triggered_today: today }, host) {
       let all
       try { all = await loadAlerts({ force: true }) } catch (e) { return `I couldn't read your alerts right now (${e?.message || 'error'}).` }
       const sym = symbol ? upper(symbol) : null
@@ -274,11 +277,18 @@ export function registerAlertCapabilities() {
       if (st === 'active') xs = xs.filter(a => a.active)
       if (st === 'triggered') xs = xs.filter(a => !a.active && a.triggeredAt)
       if (today) xs = xs.filter(a => etDay(a.triggeredAt) === todayET)
-      const what = `${today ? 'alerts that went off today' : st === 'active' ? 'active alerts' : st === 'triggered' ? 'alerts that went off' : 'alerts'}${sym ? ` on ${sym}` : ''}`
-      if (!xs.length) return `You have no ${what}.`
+      const what = (kind) => `${today ? `${kind}alerts that went off today` : st === 'active' ? `active ${kind}alerts` : st === 'triggered' ? `${kind}alerts that went off` : `${kind}alerts`}${sym ? ` on ${sym}` : ''}`
       const line = (a) => `${alertPhrase(a)} — ${statusOf(a)}${a.type !== 'price' ? ` (${kindWord(a)})` : ''}`
-      const head = `Your ${what} (${xs.length}):`
-      return [head, ...xs.slice(0, 30).map(a => `• ${line(a)}`), ...(xs.length > 30 ? [`…and ${xs.length - 30} more.`] : [])].join('\n')
+      const block = (kind, lines) => (lines.length
+        ? [`Your ${what(kind)} (${lines.length}):`, ...lines.slice(0, 30).map(l => `• ${l}`), ...(lines.length > 30 ? [`…and ${lines.length - 30} more.`] : [])].join('\n')
+        : `You have no ${what(kind)}.`)
+      const price = block('price ', xs.map(line))
+      if (st === 'triggered') return `${price}\n\nThat covers price alerts only: indicator alerts re-arm by themselves and aren't listed by when they went off.`
+      const book = await indicatorAlertBook(host, { symbol: sym, activeOnly: st === 'active' })
+      if (!book) return `${price}\n\nThat covers price alerts only: indicator alerts aren't included here.`
+      if (book.unread) return `${price}\n\nI couldn't read your indicator alerts right now, so they aren't included.`
+      if (!xs.length && !book.rows.length) return `You have no ${what('')}.`
+      return `${price}\n\n${block('indicator ', book.rows)}`
     },
   })
 
