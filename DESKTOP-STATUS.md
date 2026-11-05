@@ -469,3 +469,9 @@ Merging to master is still not authorized in this file; the owner approves it di
 - 2026-11-05 08:36 W9-DESIGN r1 a967e01a14: NO-GO (the pin field breaks W5 identity and HP-1; T14 imports scan_evaluator against a rail; vacuous MATCH on zero-trade scripts). r2 sent with rulings: each pin landing takes an engine bump, guarded by a rail; T14 reads the constant through a neutral module; zero-trade or refused = UNGRADABLE, with a minimum trade count.
 - 2026-11-05 08:36 TRAIN progress: W4/W3/W2/E merged (21 lanes); M1 full final-tip running.
 - 2026-11-05 08:49 W9-DESIGN r3 59bf931484: GO-WITH-NOTES. Ruling R13 for the T14a brief: do NOT fold DEEP_BARS into bars_window. It is a different quantity (the all-time-high lookback behind dist_ath_pct/new_ath) and keeps its own named constant; the runtime/backtest window is its one authority. The tester report shows both trade counts (ours and TradingView's). First W9 tasks from the train tip: T0, T3a, T3b, T2, T14a.
+- 2026-11-05 09:59 TRAIN M1 at 1b8b4616d8: gate, hygiene, pytest and integrity all ok. Four vitest reds beyond the baselines:
+  - enumerationSites and vendorHarness are also red on master 646dca8cbf (a new master harness.jsx; a Node 20 V8 1e-4 difference). They are NEW MASTER BASELINES.
+  - coverageMapDoorCensus: W0 x W4-T15 (log.* now served); fixed on the train.
+  - coverageAudit delta-rsi: a 1000 ms wall-clock flake; passes on re-run.
+  W5 merges are next.
+- 2026-11-05 09:59 STARTED from train 1b8b4616d8: W6-T3a (Opus), W9-T3a/b capture tooling (Sonnet), W9-T0 census (Sonnet).
