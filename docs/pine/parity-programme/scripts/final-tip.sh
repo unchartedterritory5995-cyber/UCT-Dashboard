@@ -75,13 +75,17 @@ else
 fi
 strip $O/js.log | grep -a -E "^ *(Test Files|Tests) |^ *FAIL |✗|×" | sort -u | tail -40
 JSFAIL=$(strip $O/js.log | grep -a -E '^ *FAIL +' | sed -E 's/^ *FAIL +([^ >]+).*/\1/' | sort -u | sed -E 's#.*/##' | paste -sd, -)
+# vitest's "Errors  N error(s)" summary = unhandled errors, which carry no FAIL line (r2 B8); summed over all shards
+errs_of() { strip "$1" | grep -a -E '^ *Errors +[0-9]' | sed -E 's/^ *Errors +([0-9]+).*/\1/' | awk '{s+=$1} END{print s+0}'; }
+ERRS=$(errs_of $O/js.log); ERRS=${ERRS:-0}
+SHARD_ERRS=na; if [ "$N" -gt 1 ] && [ "$SCOPE" != affected ]; then SHARD_ERRS=""; for i in $(seq 1 $N); do e=$(errs_of $O/js-shard$i.log); SHARD_ERRS="$SHARD_ERRS,${e:-0}"; done; SHARD_ERRS=${SHARD_ERRS#,}; fi
 cd "$TIP"
 INTEG=ok
 [ "$(git rev-parse HEAD)" = "$SHA" ] || INTEG="HEAD-moved-to-$(git rev-parse HEAD)"
 [ -z "$(git status --porcelain | grep -v -F '.uct-session-owner')" ] || INTEG="tree-changed-during-run"
 { echo "TIP $SHA done"; echo "scope=$SCOPE shards=$N parallel=${FINAL_TIP_PARALLEL:-0}"
   echo "rc gate=$GATE_RC hyg=$HYG_RC py=$PY_RC js=$JS_RC"; echo "shard_rcs=${SHARD_RCS:-na}"; echo "totals=$TOTALS"
-  echo "jsfail=${JSFAIL:-none}"; echo "integrity=$INTEG"; } > $O/FINAL_DONE
+  echo "jsfail=${JSFAIL:-none}"; echo "errors=$ERRS"; echo "shard_errors=$SHARD_ERRS"; echo "integrity=$INTEG"; } > $O/FINAL_DONE
 tail -n +2 $O/FINAL_DONE
 date +%T; echo FINAL_DONE
 [ "$INTEG" = ok ] && [ "$TOTALS" != missing ] || { echo "final-tip: INCOMPLETE (integrity=$INTEG totals=$TOTALS)"; exit 6; }

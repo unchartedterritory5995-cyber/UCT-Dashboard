@@ -26,6 +26,7 @@ SCOPE=$(fd scope); [ "$SCOPE" = full ] || fail "final-tip scope is '${SCOPE:-unk
 [ "$(fd totals)" = ok ] || fail "totals=$(fd totals): a vitest run/shard reported no totals"
 for k in gate hyg; do [ "$(fd $k)" = 0 ] || fail "$k rc=$(fd $k)"; done
 PYRC=$(fd py); case "$PYRC" in NA|0) ;; *) fail "py rc=$PYRC";; esac
+ERRS=$(fd errors); [ "$ERRS" = 0 ] || fail "vitest reported errors=${ERRS:-missing} (unhandled errors have no FAIL line; shard_errors=$(fd shard_errors))"
 JSRC=$(fd js); JF=$(fd jsfail)
 if [ "$JSRC" != 0 ]; then
   [ -n "$JF" ] && [ "$JF" != none ] || fail "js rc=$JSRC with no named failing test file (crash/unhandled error)"
