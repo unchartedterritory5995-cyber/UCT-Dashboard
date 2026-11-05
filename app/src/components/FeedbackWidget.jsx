@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
@@ -15,9 +15,6 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     zIndex: 500, transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
     lineHeight: 1,
-  },
-  backdrop: {
-    position: 'fixed', inset: 0, zIndex: 498, background: 'transparent',
   },
   menu: {
     position: 'fixed', top: 40, right: 14, width: 170,
@@ -71,6 +68,33 @@ export default function FeedbackWidget() {
   const [hovered, setHovered] = useState(null)
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
+  const triggerRef = useRef(null)
+  const panelRef = useRef(null)
+
+  // ⛔ Audit 2026-11-05, spec S5 (B10): Esc did not close this, and a transparent full-page
+  // backdrop (z-index 498) sat over the whole app while it was open -- the member's next click on
+  // the page was eaten just to close it. The backdrop is gone. While open: Esc closes and hands
+  // focus back to the "?" button; a press OUTSIDE the panel and the button closes it and still
+  // reaches whatever was pressed (a capture-phase listener that never stops the event).
+  useEffect(() => {
+    if (!mode) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      closeAndReturn()
+    }
+    const onDown = (e) => {
+      const inside = panelRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)
+      if (!inside) close()
+    }
+    document.addEventListener('keydown', onKey, true)
+    document.addEventListener('pointerdown', onDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('pointerdown', onDown, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
 
   if (!user || location.pathname.startsWith('/admin')) return null
   // Hide when a modal/sheet is open so the "?" never covers its bottom CTA.
@@ -80,6 +104,7 @@ export default function FeedbackWidget() {
   const tucked = hiddenOnScroll && !mode
 
   function close() { setMode(null); setSent(false); setMessage(''); setRating(0) }
+  function closeAndReturn() { close(); triggerRef.current?.focus() }
 
   async function handleSend() {
     if (!message.trim()) return
@@ -100,10 +125,8 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      {mode && <div style={S.backdrop} onClick={close} />}
-
       {mode === 'menu' && (
-        <div style={S.menu} className={fb.panel}>
+        <div style={S.menu} className={fb.panel} ref={panelRef}>
           <div
             style={{ ...S.menuItem, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
             className={fb.menuItem}
@@ -126,7 +149,7 @@ export default function FeedbackWidget() {
       )}
 
       {mode === 'feedback' && (
-        <div style={S.popup} className={fb.panel}>
+        <div style={S.popup} className={fb.panel} ref={panelRef}>
           {sent ? (
             <div style={S.success}>Thanks! We read every message.</div>
           ) : (
@@ -158,10 +181,14 @@ export default function FeedbackWidget() {
       )}
 
       <button
+        ref={triggerRef}
+        type="button"
         style={S.btn}
         className={`${fb.fab} ${tucked ? fb.hidden : ''}`}
         onClick={() => mode ? close() : setMode('menu')}
         title="Help & Feedback"
+        aria-label="Help & Feedback"
+        aria-expanded={Boolean(mode)}
       >
         ?
       </button>
