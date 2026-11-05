@@ -112,7 +112,12 @@ describe('the sort face, on the touch tier (stylesheet)', () => {
   })
 
   it('fix round 1 (review 3): hovering the sort lights the face exactly as View\'s btn-secondary hover does', () => {
-    const hover = inTouch['.sortWrap:hover > .sortFace']
+    // Fix round 3 (R3): only for a pointer that hovers (a tap must not leave the face lit), so the rule sits in a
+    // nested `@media (hover: hover)` inside the touch block, and nowhere outside it.
+    const nested = /@media \(hover: hover\)\s*\{\s*\.sortWrap:hover > \.sortFace\s*\{([^}]*)\}/.exec(CSS)
+    expect(nested, 'the hover rule inside @media (hover: hover)').toBeTruthy()
+    expect(CSS.match(/\.sortWrap:hover > \.sortFace/g)).toHaveLength(1)
+    const hover = nested[1]
     const btn = /\.btn-secondary:hover\s*\{([^}]*)\}/.exec(BUTTONS)[1]
     expect(decl(hover, 'background')).toBe(decl(btn, 'background'))
     expect(decl(hover, 'border-color')).toBe(decl(btn, 'border-color'))

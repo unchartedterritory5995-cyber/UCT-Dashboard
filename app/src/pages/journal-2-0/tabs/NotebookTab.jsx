@@ -847,13 +847,18 @@ export default function NotebookTab() {
   // this same unfiltered fetch, handed to FolderSidebar for its "All notes"
   // badge instead of `allNotes.length`.
   const {
-    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal,
+    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal, error: allNotesError,
   } = useJ2Notes({ sort: 'title' })
   // Wave 8 seam S8-3: "is this member new?" is derived ONCE, here, and handed to both the
   // first-run screen (ResearchHome) and the tour, so the two can never disagree about it.
   // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
   const hasAnyNotes = allNotesTotal > 0
   const notesKnown = allNotesTotal !== undefined
+  // Tier 4 fix round 3 (R1): Research Home waits for the count (round 2's CLS fix), but a FAILED count read leaves
+  // `allNotesTotal` undefined forever, and Home would sit on its skeleton for good. A failure is an answer for Home:
+  // it renders (and says its own load failure if it has one). ⛔ Only Home reads this: the first-run and tour gates
+  // keep `notesKnown`, so a member whose list failed is never shown the new-member first run.
+  const homeNotesKnown = notesKnown || Boolean(allNotesError)
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -2779,7 +2784,7 @@ export default function NotebookTab() {
             onCreateThesis={createThesisNote}
             onImport={openImport}
             hasAnyNotes={hasAnyNotes}
-            notesKnown={notesKnown}
+            notesKnown={homeNotesKnown}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
             titleOf={titleOfAnyNote}
