@@ -78,16 +78,36 @@ describe('P6 — the step counter counts what is shown', () => {
   // ⛔ Fix round 1 (review finding 3): an anchor that is IN the page but not on screen until the
   // tour marks it (the chart toolbar, revealed by [data-tour-active]) is a step the tour will show.
   // It is counted from the first card, so the total never grows as the tour reaches it.
-  it('a step whose anchor exists but is hidden until the tour reaches it is counted from the first card', async () => {
+  // Fix round 2 (re-review N5): the reveal is modelled the way the engine can show it -- an anchor
+  // in the page with NO BOX yet (CSS keyed on [data-tour-active] gives it one), never a `hidden`
+  // attribute, which `anchorFor` refuses for ever.
+  it('an anchor in the page with no box until the tour reveals it is counted from the first card', async () => {
     render(<Page entry={tour(['a', 'b'])} anchors={['anchor-a']} />)
-    const hiddenUntilMarked = document.createElement('div')
-    hiddenUntilMarked.setAttribute('data-tour', 'anchor-b')
-    hiddenUntilMarked.setAttribute('hidden', '')
-    document.body.appendChild(hiddenUntilMarked)
+    const revealedLater = document.createElement('div')
+    revealedLater.setAttribute('data-tour', 'anchor-b')
+    revealedLater.setAttribute('data-test-box', 'none')      // display:none until the tour marks it
+    document.body.appendChild(revealedLater)
     try {
       expect((await progress()).textContent).toBe('Step 1 of 2')
     } finally {
-      hiddenUntilMarked.remove()
+      revealedLater.remove()
+    }
+  })
+
+  it('an anchor the engine can never show (inside [hidden] or aria-hidden) is not counted', async () => {
+    render(<Page entry={tour(['a', 'b', 'c'])} anchors={['anchor-a']} />)
+    const never = document.createElement('div')
+    never.setAttribute('hidden', '')
+    never.innerHTML = '<span data-tour="anchor-b"></span>'
+    const alsoNever = document.createElement('div')
+    alsoNever.setAttribute('aria-hidden', 'true')
+    alsoNever.innerHTML = '<span data-tour="anchor-c"></span>'
+    document.body.append(never, alsoNever)
+    try {
+      expect((await progress()).textContent).toBe('Step 1 of 1')
+    } finally {
+      never.remove()
+      alsoNever.remove()
     }
   })
 

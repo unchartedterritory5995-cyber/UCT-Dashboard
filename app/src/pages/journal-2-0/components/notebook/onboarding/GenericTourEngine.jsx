@@ -44,7 +44,7 @@ import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
-import { anchorFor, requestReveal } from './tourAnchorVisibility'
+import { anchorFor, requestReveal, NEVER_SHOWN } from './tourAnchorVisibility'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
@@ -88,10 +88,15 @@ function explainerSlot() {
   return el
 }
 
-/** The anchor is IN the page (on screen or not). */
+/** The anchor is IN the page and the engine COULD show it: on screen or not yet (a box comes when
+ *  the tour marks it), but never inside `[hidden]` or `aria-hidden="true"`, which `anchorFor`
+ *  refuses for ever (fix round 2, re-review N5: one visibility rule with the engine). */
 function anchorExists(anchor) {
   if (typeof document === 'undefined' || !anchor) return false
-  try { return Boolean(document.querySelector(`[data-tour="${anchor}"]`)) } catch { return false }
+  try {
+    const el = document.querySelector(`[data-tour="${anchor}"]`)
+    return Boolean(el) && !el.closest(NEVER_SHOWN)
+  } catch { return false }
 }
 
 function presentFrom(steps, from, dir) {
