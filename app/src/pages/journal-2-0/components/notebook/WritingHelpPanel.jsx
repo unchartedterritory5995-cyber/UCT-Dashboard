@@ -80,7 +80,8 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
       {(status === 'idle' || status === 'error') && (
         <>
           <button type="button" className={styles.primary} onClick={write}>Write it</button>
-          <button type="button" className={styles.secondary} onClick={discard}>Cancel</button>
+          {/* S5 (B16): one word for leaving, before a draft and after it. */}
+          <button type="button" className={styles.secondary} onClick={discard}>Discard</button>
         </>
       )}
     </div>
@@ -130,7 +131,9 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
       </div>
       <p className={styles.fine}>
         Nothing is added to your note until you choose Accept.
-        {meta?.model ? ` Written by ${meta.model}.` : ''}
+        {/* ⛔ Audit 2026-11-05, S5 (B16): never the raw model id ("Written by claude-sonnet-5.").
+            The inserted block still records its model (askInsert's `model` attr) for the record. */}
+        {meta?.model ? ' Drafted by AI.' : ''}
       </p>
     </Sheet>
   )

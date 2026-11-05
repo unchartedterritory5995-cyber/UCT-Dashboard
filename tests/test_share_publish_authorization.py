@@ -724,7 +724,7 @@ def test_1_the_owner_list_holds_only_the_callers_things(app, client, world):
     # The editor's context read: A asking about B's note learns nothing about it.
     ctx = client.get(f"/api/j2/publish?note_id={world['B_note']}").json()["note"]
     assert ctx == {"noteId": world["B_note"], "exists": False, "publishable": False,
-                   "folderId": None, "folderName": None}
+                   "folderId": None, "folderName": None, "folderNoteCount": None}
 
 
 def test_1_M3_an_archived_note_gets_no_share_link_and_answers_like_a_trashed_one(app, client, world):

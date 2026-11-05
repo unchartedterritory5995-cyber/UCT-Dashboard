@@ -2028,14 +2028,28 @@ def list_notes_endpoint(
     # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
     # Model Book call this same endpoint and would otherwise receive rows that
     # match no word typed, with nothing to say why (and spend an embed each).
+    meaning_pending = None
     if meaning:
         from api.services.journal_two import note_semantic
+        only_query = not (folder_id or tag or ticker or embed_symbol or embed_widget
+                          or deleted or date_from or date_to or symbol_in is not None
+                          or savedViewId or property_filter)
         rows = note_semantic.append_meaning_hits(
             user["id"], q, rows, total=total, offset=offset, limit=limit,
-            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
-                            or deleted or date_from or date_to or symbol_in is not None
-                            or savedViewId or property_filter),
+            only_query=only_query,
         )
+        # Audit 2026-11-05, spec S4 (B18): a search that found nothing by meaning says how many of
+        # the member's notes the index has not reached yet (the sweep runs every 15 minutes).
+        # ⛔ Fix round 1 (review finding 5): WHATEVER THE QUERY'S SHAPE -- the count does not depend
+        # on it, and the B18 report was a two-word query ("consolidation pattern"), which
+        # `query_shape` classes LEXICAL. Armed, unfiltered, first page, a real query only; dark
+        # issues no SQL here. The count is cached per member (note_semantic.pending_count).
+        if (only_query and (q or "").strip() and note_semantic.semantic_enabled()
+                and not offset and not any(r.get("matchKind") == "meaning" for r in rows)):
+            try:
+                meaning_pending = note_semantic.pending_count(user["id"])
+            except Exception:  # noqa: BLE001 -- a status line never fails the search
+                meaning_pending = None
     # Wave 11 (lane 11B): each live row of THIS page carries its formula/rollup values
     # (`computed`), so every view can show them. A member with no computed property
     # leaves the payload untouched.
@@ -2051,7 +2065,12 @@ def list_notes_endpoint(
         if vals:
             for r in rows:
                 r["computed"] = vals.get(r["id"], {})
-    return {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    out = {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    if meaning_pending is not None:
+        out["meaningPending"] = meaning_pending
+        if note_semantic.pending_count_capped(meaning_pending):
+            out["meaningPendingCapped"] = True   # N4: the panel says "1,000+"
+    return out
 
 
 @router.get("/notes/backlinks")
