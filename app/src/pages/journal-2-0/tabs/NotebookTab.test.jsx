@@ -560,6 +560,18 @@ describe('NotebookTab — import', () => {
     fireEvent.click(await screen.findByText('fire onImported'))
     expect(mockRefresh).toHaveBeenCalled()
   })
+
+  // Fix round 1 (review minor 13): the import door reaches the ONE note-views helper -- the folder
+  // counts, folder rows, Recents and the Tasks view are asked again, never only this tab's lists.
+  it('a completed import revalidates every note view (the S6 helper)', async () => {
+    renderTab()
+    fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
+    swrMutateSpy.mockClear()
+    fireEvent.click(await screen.findByText('fire onImported'))
+    const predicates = swrMutateSpy.mock.calls.map(([k]) => k).filter((k) => typeof k === 'function')
+    expect(predicates.some((p) => p('/api/j2/notes/folder-counts') && p('/api/j2/notes/tasks?status=open')
+      && !p('/api/j2/notes/n1'))).toBe(true)
+  })
 })
 
 describe('NotebookTab — export', () => {

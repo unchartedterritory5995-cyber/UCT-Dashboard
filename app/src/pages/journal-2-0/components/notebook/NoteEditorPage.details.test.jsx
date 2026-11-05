@@ -50,7 +50,7 @@ vi.mock('../../lib/offline/invalidateNoteViews', async (importOriginal) => ({
   ...(await importOriginal()),
   invalidateNoteViews: (...args) => invalidateSpy(...args),
 }))
-vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [{ id: 'f9', name: 'Swing ideas', parentId: null }] }) }))
 
 const derived = (id, name, value) => ({ id, name, type: 'text', source: 'financial_derived', value })
 const NVDA_PROPERTIES = [
@@ -414,5 +414,16 @@ describe('S5 (B4): the editor speaks of an image only when its body holds it', (
     await renderEditor()
     const region = await screen.findByRole('status', { name: 'Attachment text status' })
     expect(region).toHaveTextContent('Image has no readable text, so Search and Ask cannot use it.')
+  })
+})
+
+// Fix round 1 (review minor 13): the folder select (B2's door) reaches the note-views helper.
+describe('S6: a move from the editor revalidates the note views', () => {
+  it('changing the folder calls invalidateNoteViews once the move is settled', async () => {
+    invalidateSpy.mockClear()
+    await renderEditor()
+    fireEvent.change(screen.getAllByRole('combobox', { name: 'Folder' })[0], { target: { value: 'f9' } })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith({ folderId: 'f9' }))
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith())
   })
 })
