@@ -1914,11 +1914,11 @@ export default function FolderSidebar({
           {/* S13 (audit 2026-11-05, detail #67): My Playbook, from the Notebook's own sidebar. It opens INSIDE the
               Journal shell (the tabs stay, "Back to Notebook"); its data is the same read. Only while its gate is on. */}
           {playbookEnabled() && (
-            <nav className={styles.section} aria-label="Trading tools">
+            <div className={styles.section}>
               <Link to={PLAYBOOK_IN_NOTEBOOK_PATH} className={styles.row} data-sidebar-playbook="">
                 <span><UIcon name="book" size={12} gold={false} /> My Playbook</span>
               </Link>
-            </nav>
+            </div>
           )}
           <RecencySection
             label="Favorites"

@@ -355,8 +355,9 @@
 .coachmarkDismiss:hover { border-color: var(--ut-gold); }
 .coachmarkDismiss:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 @media (max-width: 640px) {
-  /* A phone: full width less a 12 px gutter, still above the orb's corner. */
-  .coachmark { left: 12px; right: 12px; width: auto; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  /* A phone: full width less a 12 px gutter, above the orb's corner AND above the Journal's "+ Log" button
+     (JournalLayout.module.css `.logFab`: bottom 70 px, 44 px tall, so its top is at 114 px) -- Tier 2 review minor 14. */
+  .coachmark { left: 12px; right: 12px; width: auto; bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* S12 + VIS-4 (audit 2026-11-05, M9): on a PHONE's Notebook the orb cluster (Compass, Train Me, the paperclip and

@@ -360,6 +360,8 @@ export const SURFACES = Object.freeze({
   // S13 (audit 2026-11-05): the one-time tips; the slot (empty status line) and the card it loads on demand.
   'components/notebook/NotebookTipSlot.jsx': { recipe: 'notebook-tip-slot' },
   'components/notebook/NotebookTip.jsx': { recipe: 'notebook-tip' },
+  // Tier 2 fix round 1 (Important 2): the quick thought's own "Set alert" offer.
+  'components/notebook/CaptureAlertOffer.jsx': { recipe: 'capture-alert-offer' },
   // Fix round 1: the "+" sheet is its own chunk; the axe rail reads it OPEN.
   'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
   // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.

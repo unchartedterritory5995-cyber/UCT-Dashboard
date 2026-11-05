@@ -1,6 +1,7 @@
 // The Help & Feedback menu's door for a surface that does not draw its "?" (the phone Notebook, S12: its "+" sheet's
-// "Help & feedback" row). It opens the SAME FeedbackWidget menu -- Send Feedback and Submit a ticket -- never a second
-// form. Tier 1b fix round 1, review Minor 8.
+// "Help & feedback" row). It opens the SAME FeedbackWidget menu -- the one Help menu (S14: Search help, Quick answers,
+// Keyboard shortcuts, Tours, Send feedback; a ticket is one step on, from Send feedback) -- never a second form.
+// Tier 1b fix round 1, review Minor 8.
 export const OPEN_FEEDBACK_EVENT = 'uct:open-feedback'
 
 // Fix round 2 (re-review N2): `returnTo` is the control that opened it (the "+"): Escape hands focus back THERE, not to

@@ -67,16 +67,16 @@ describe('VIS-7: the serious axe rules', () => {
     expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
   })
 
-  it('the phone calendar grid is a named Tab stop (axe needs layout to see the sideways scroll; jsdom has none)', () => {
+  it('the phone calendar: the SCROLL BOX is a named, focusable region on a phone only; the grid stays plain (review minor 17)', () => {
     const src = readFileSync(join(J2_DIR, 'components/notebook/NoteCalendarView.jsx'), 'utf8')
+    const box = src.match(/<div className=\{styles\.gridScroll\}[^\n]*/)
+    expect(box, 'the scroll box').not.toBeNull()
+    expect(box[0]).toMatch(/phone \? \{ role: 'region', tabIndex: 0, 'aria-label':/)
     const grid = src.match(/<div className=\{styles\.grid\}[^>]*>/)
-    expect(grid, 'the month grid element').not.toBeNull()
     expect(grid[0]).toMatch(/role="grid"/)
-    expect(grid[0]).toMatch(/aria-label=\{monthLabel\(/)
-    expect(grid[0]).toMatch(/tabIndex=\{0\}/)
-    // CONTROL: the rule is about the phone's sideways scroll, so that scroll must still be there
+    expect(grid[0]).not.toMatch(/tabIndex/)
     const css = readFileSync(join(J2_DIR, 'components/notebook/NoteCalendarView.module.css'), 'utf8')
-    expect(css).toMatch(/\.grid\s*\{\s*overflow-x:\s*auto;/)
+    expect(css).toMatch(/\.gridScroll \{ overflow-x: auto; \}/)
   })
 
   it('the Browser Capture links paint the theme accent with no dimming parent (axe colour needs layout)', () => {
