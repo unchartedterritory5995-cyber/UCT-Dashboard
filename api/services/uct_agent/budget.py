@@ -212,7 +212,7 @@ def _add_turn_column(conn) -> None:
             try:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
             except sqlite3.OperationalError as e:
-                if "duplicate column" not in str(e).lower():
+                if "duplicate column" not in str(e).lower() and "no such table" not in str(e).lower():
                     raise
     conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_spend_turn ON agent_spend(turn_request_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_spend_open ON agent_spend(status, created_at)")   # the stale sweep
