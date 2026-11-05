@@ -8,6 +8,7 @@ import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { AuthContext } from '../context/AuthContext'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -15,6 +16,8 @@ import AgentPanel from './AgentPanel'
 registerBuiltins()
 
 let envelopes, calls
+// NLM-1 (on by default in production since #806): every case runs with it ON (server routing_v2 + the browser key) and OFF
+let nlm1 = false
 const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
 beforeEach(() => {
   envelopes = []; calls = []
@@ -28,6 +31,7 @@ beforeEach(() => {
       return json({ conversationId: 'ac_1', envelope: typeof e === 'function' ? e(body) : (e || env('answer', [], 'NO SCRIPTED MODEL TURN')), usage: { research_calls: 0, citations: [] } })
     }
     if (url === '/api/agent/record') return json({ conversationId: 'ac_1' })
+    if (url === '/api/agent/config') return json(nlm1 ? { conversations: [], routing_v2: true } : { conversations: [] })
     const q = /ticker-search\?q=([^&]+)/.exec(String(url))
     if (q) return json({ results: [{ ticker: decodeURIComponent(q[1]).toUpperCase() }] })
     if (String(url).startsWith('/api/live-prices')) return json({})
@@ -41,6 +45,9 @@ const transcript = () => screen.getByTestId('agent-transcript').textContent
 const idle = () => waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull(), { timeout: 10000 })
 
 function mount(widgets, groupSyms, extra = {}) {
+  try { localStorage.setItem('uct.agent.routingV2', nlm1 ? '1' : '0') } catch { /* */ }
+  _resetAgentConfig()
+  if (nlm1) loadAgentConfig()
   const board = makeBoard(widgets, groupSyms)
   const base = board.host.charts
   const h = {
@@ -64,7 +71,8 @@ const rsiOf = (board, id) => (board.state.widgets.find(w => w.id === id).opts?.s
 const ORANGE = '#f59e0b'
 const orangeOn = (board) => chartsOf(board).filter(w => rsiOf(board, w.id)?.inputs?.color === ORANGE).map(w => w.id)
 
-describe('IT-ON-THAT-CHART · a chart phrase narrows a pronoun to THAT chart\'s instance — or asks; never several', () => {
+for (const on of [true, false]) describe(`IT-ON-THAT-CHART [NLM-1 ${on ? 'on' : 'off'}] · a chart phrase narrows a pronoun to THAT chart's instance — or asks; never several`, () => {
+  beforeEach(() => { nlm1 = on })
   for (const [name, board0, add, ids] of [['2 charts', TWO, 'add rsi to both charts', ['c1', 'c2']], ['4 charts', FOUR, 'add rsi to all four charts', ['c1', 'c2', 'c3', 'c4']]]) {
     it(`${name}, RSI on every chart: "make it orange on that chart" asks which chart (naming them); nothing changes, no model turn`, async () => {
       const { board, say } = mount(...board0())
