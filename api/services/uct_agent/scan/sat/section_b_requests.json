@@ -10779,7 +10779,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -11100,12 +11099,6 @@
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
      }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
-     }
     ]
    },
    "manifestVersion": 1,
@@ -11358,7 +11351,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -11417,12 +11409,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -11674,7 +11660,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -11733,12 +11718,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -11996,7 +11975,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -12055,12 +12033,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -12311,7 +12283,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -12370,12 +12341,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -12627,7 +12592,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -12686,12 +12650,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -12943,7 +12901,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -13002,12 +12959,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -13265,7 +13216,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -13585,12 +13535,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -13843,7 +13787,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -13902,12 +13845,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -14158,7 +14095,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -14217,12 +14153,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -14473,7 +14403,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -14794,12 +14723,6 @@
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
      }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
-     }
     ]
    },
    "manifestVersion": 1,
@@ -15050,7 +14973,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -15109,12 +15031,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -15372,7 +15288,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -15692,12 +15607,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -15949,7 +15858,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -16269,12 +16177,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -16526,7 +16428,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -16847,12 +16748,6 @@
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
      }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
-     }
     ]
    },
    "manifestVersion": 1,
@@ -17103,7 +16998,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -17162,12 +17056,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -17425,7 +17313,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -17746,12 +17633,6 @@
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
      }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
-     }
     ]
    },
    "manifestVersion": 1,
@@ -18002,7 +17883,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -18061,12 +17941,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -18324,7 +18198,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -18383,12 +18256,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -18646,7 +18513,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -18705,12 +18571,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -18968,7 +18828,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -19027,12 +18886,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -19284,7 +19137,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -19343,12 +19195,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -19600,7 +19446,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -19659,12 +19504,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -19915,7 +19754,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -19974,12 +19812,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -20231,7 +20063,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -20290,12 +20121,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -20546,7 +20371,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -20866,12 +20690,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -21124,7 +20942,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -21444,12 +21261,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -21701,7 +21512,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -22021,12 +21831,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },
@@ -22278,7 +22082,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -22599,12 +22402,6 @@
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
      }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
-     }
     ]
    },
    "manifestVersion": 1,
@@ -22854,7 +22651,6 @@
        "cols": 24,
        "rows": 20
       },
-      "controls": {},
       "widgets": [
        {
         "id": "c",
@@ -22913,12 +22709,6 @@
      {
       "ref": "a2",
       "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ],
-    "calendar": [
-     {
-      "ref": "c2",
-      "label": "The earnings calendar (the reports on a day; read only)"
      }
     ]
    },

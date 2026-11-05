@@ -13,6 +13,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { etToday, isoDayMs, fmtDay } from '../dateWords'
+import { wordsSelect } from '../routing'
 
 const REF = 'calendar'
 const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/
@@ -92,11 +93,17 @@ export function registerCalendarCapabilities() {
   if (registered) return
   registered = true
   registerTargetKind(calendarKind)
+  let routedHere = false
   registerContextProvider({
     key: 'calendar',
-    build: (host, refFor) => {
+    // /charts: sent only with the calendar group, armed by this turn's routing (refreshContext), a reroute included
+    refreshGroup: 'calendar',
+    refresh: ({ groups } = {}) => { if (groups) routedHere = true },
+    build: (host, refFor, { message = '', nl1 = false } = {}) => {
       const s = snap(host)
-      if (!s.page) return host?.widgets ? [{ ref: refFor('calendar', REF), label: 'The earnings calendar (the reports on a day; read only)' }] : undefined
+      const asked = routedHere || nl1 || wordsSelect('calendar', message)
+      routedHere = false
+      if (!s.page) return host?.widgets && asked ? [{ ref: refFor('calendar', REF) }] : undefined
       const p = s.page
       const days = Object.entries(p.days || {}).map(([ds, d]) => `${ds}:${(d.bmo?.length || 0) + (d.amc?.length || 0) + (d.tbd?.length || 0)} reports`)
       return [{ ref: refFor('calendar', REF), label: 'The earnings calendar page (next report for a symbol; the reports on a day; read only)', week: p.weekLabel || p.weekStart || null, view: p.view, days }]

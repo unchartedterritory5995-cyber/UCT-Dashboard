@@ -3484,7 +3484,7 @@
    "domain": "widget",
    "target": "board",
    "summary": "Change ONE control of a widget on the board, exactly as the widget's own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.",
-   "hints": "target = the board entry; widget = the widget id; key = a name from that entry's controls for the widget's type (never invented); value = one of the choices in brackets (“ask widget.readOptions” = the widget's own list right now: a name is enough). (+/-) takes \"+member\" or \"-member\". A type not in controls has none. A widget's `set` is what it is set to now.",
+   "hints": "target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget's own list right now, and a name is enough. (+/-) takes \"+member\" or \"-member\". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.",
    "args": {
     "type": "object",
     "properties": {

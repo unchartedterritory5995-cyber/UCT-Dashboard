@@ -484,6 +484,6 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     // fill the budget so the model can act without a reroute, from the context already loaded (every op
     // is re-validated against live state before it runs). Recognised → every selected group, as before.
     refresh: matched ? present.filter(g => want.has(g.id)).map(g => g.id)
-      : [...new Set([...pinned, ...(soft || []), 'charts'])].filter(id => want.has(id)),
+      : [...new Set([...pinned, ...(soft || []), 'charts', 'boardEdit', 'calendar'])].filter(id => want.has(id)),   // these two: a section sent only with its group (widgetControls, the /charts calendar ref)
   }
 }

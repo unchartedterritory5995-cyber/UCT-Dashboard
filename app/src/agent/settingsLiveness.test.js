@@ -106,7 +106,7 @@ describe('widget.setOption: exactly what the widget reads', () => {
       }
       expect(new Set(offered).size, t).toBe(offered.length)
     }
-    expect(getCapability('widget.setOption').hints).not.toMatch(/\b(?:fundamentals|optionsflow):/)    // the board entry carries them
+    expect(getCapability('widget.setOption').hints).not.toMatch(/\b(?:fundamentals|optionsflow):/)    // the routed section carries them
   })
   it('a `controls` row kept in opts is read back from opts by its mounted widget, at the head of its path', () => {
     const silent = mounted.flatMap(([t, file]) => {

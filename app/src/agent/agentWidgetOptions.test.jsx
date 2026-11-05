@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
-import { buildContext, getCapability, shapeError } from './capabilities'
+import { buildContext, getCapability, refreshContext, shapeError } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { makeBoard } from './__fixtures__/board'
@@ -40,7 +40,8 @@ describe('widget.setOption — options the widget reads, off the Widgets menu to
   }
   it('News: pause (follow) and the linked filter; a Period Sort: its grouping; each listed for the model, each undone exactly', async () => {
     const { host, state } = makeBoard(BOARD2(), {})
-    const said = buildContext(host, CTX).context.board[0].controls
+    await refreshContext(1500, { groups: ['boardEdit'] })
+    const said = buildContext(host, CTX).context.widgetControls[0].controls
     expect(said.tradeExchangeNews).toMatch(/^follow\(on\/off\), linked\(on\/off\)/)
     expect(said.periodsort).toBe('group(theme|sector|industry)')
     for (const [widget, key, value, want] of [['tn', 'follow', 'off', false], ['rl', 'linked', 'on', true], ['ps', 'group', 'Sector', 'sector']]) {
@@ -120,11 +121,12 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     expect(shapeError('widget.setOption', { widget: 'th', key: 'period' }, CTX)).toBeTruthy()                        // a closed schema
     expect(JSON.stringify(state.widgets)).toBe(before)
   })
-  it('the offered keys are exactly the registry\'s controls; the capability is local and exactly undoable; the board entry names them per widget type', () => {
+  it('the offered keys are exactly the registry\'s controls; the capability is local and exactly undoable; the routed section names them per widget type', async () => {
     const c = getCapability('widget.setOption')
     expect([c.target, c.risk, c.undo]).toEqual(['board', 'local', 'exact'])
     const { host } = makeBoard(WORKSPACE_MENU_TYPES.map((t, i) => w(`t${i}`, t, 0, 0)), {})
-    const said = buildContext(host, CTX).context.board[0].controls
+    await refreshContext(1500, { groups: ['boardEdit'] })
+    const said = buildContext(host, CTX).context.widgetControls[0].controls
     for (const type of WORKSPACE_MENU_TYPES) {
       if (widgetControls(type).length) expect(said[type], type).toBeTruthy()
       else expect(said[type], type).toBeUndefined()
@@ -155,6 +157,20 @@ describe('through the REAL panel (panelHarness)', () => {
     await say('undo')
     expect(JSON.stringify(board.state.widgets)).toBe(before)
     expect(p.turns()).toBe(1)
+  }, 40000)
+  it('⛔ a reroute to the group brings the control list: not on the first call, on the second, and the write lands', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('nw', 'news', 18, 0, {})], syms)
+    p.st.envelopes.push({ disposition: 'clarify', reply: '', ops: [], unsupported_category: null, question: { text: 'Looking at more of UCT…', choices: [] }, need_groups: ['boardEdit'] })
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'nw', key: 'filter', value: 'up' })]))
+    const out = await say('only the up ones')
+    const turns = p.st.calls.filter(c => c[1] === '/api/agent/turn').map(c => c[2])
+    expect(turns.length).toBe(2)
+    expect(turns[0].context.widgetControls).toBeUndefined()
+    expect(turns[1].reroute).toBe(true)
+    expect(turns[1].context.widgetControls[0].controls.news).toBe('filter(all|up|down)')
+    expect(out).toMatch(/filter is now up/)
+    expect(optsOf(board, 'nw').filter).toBe('up')
   }, 40000)
   it('"show the theme tracker by week" (scripted) with no mounted tracker to take it: it refuses and nothing is stored', async () => {
     const [[chart], syms] = ONE('NVDA')

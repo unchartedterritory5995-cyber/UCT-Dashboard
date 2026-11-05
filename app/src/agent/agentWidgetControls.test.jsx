@@ -6,7 +6,7 @@
 // each row against the widget's own source.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { registerBuiltins } from './builtins'
-import { buildContext, getCapability, manifestFor, MANIFEST_CONTRACT } from './capabilities'
+import { buildContext, getCapability, manifestFor, refreshContext, MANIFEST_CONTRACT } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { makeBoard } from './__fixtures__/board'
@@ -247,27 +247,55 @@ describe('widget.readOptions: how a widget is set, read back', () => {
 })
 
 describe('what the model is told: the types on THIS board, not every type on every request', () => {
-  const entry = (host) => buildContext(host, CTX).context.board[0]
-  it('each type once, with its choices; a widget says only what differs from how it starts', () => {
+  const ROUTED = { groups: ['boardEdit'] }
+  const entry = async (host, message = '') => {
+    await refreshContext(1500, ROUTED)
+    return buildContext(host, { ...CTX, message }).context.widgetControls?.[0]
+  }
+  const noRoute = (host, message) => buildContext(host, { ...CTX, message }).context.widgetControls
+  it('each type once, with its choices; a widget says only what differs from how it starts', async () => {
     const { host } = makeBoard([w('a', 'news', { filter: 'up' }), w('b', 'news'), w('c', 'fundamentals', { view: 'quarterly' }), w('d', 'chart')], {})
-    const e = entry(host)
+    const e = await entry(host)
     expect(e.controls).toEqual({ news: 'filter(all|up|down)', fundamentals: 'view(annual|quarterly|analyst|ownership)' })
-    expect(e.widgets.find(x => x.id === 'a').set).toEqual({ filter: 'up' })
-    expect(e.widgets.find(x => x.id === 'b').set).toBeUndefined()
-    expect(e.widgets.find(x => x.id === 'c').set).toBeUndefined()
+    expect(e.set).toEqual({ a: { filter: 'up' } })
   })
-  it('a widget\'s own state is in its `set`, and a list only it knows says to ask', () => {
+  it('a widget\'s own state is in `set`, and a list only it knows says to ask', async () => {
     const { host } = makeBoard([w('t', 'themes')], {})
     publish('t', door({ period: '1w', sortDir: 'desc', openTheme: 'SMH', themeSet: null }))
-    const e = entry(host)
-    expect(e.widgets[0].set).toEqual({ period: '1w', openTheme: 'SMH' })
+    const e = await entry(host)
+    expect(e.set.t).toEqual({ period: '1w', openTheme: 'SMH' })
     expect(e.controls.themes).toContain('openTheme(ask widget.readOptions)')
     expect(e.controls.themes).toContain('period(1d|1w|1m|3m|1y|ytd)')
   })
-  it('every row the registry describes reaches the model; a type with none is absent', () => {
+  it('⛔ a turn that does not touch widgets carries none of it, and the board entry stays as it was', () => {
+    const { host } = makeBoard([w('a', 'news', { filter: 'up' }), w('t', 'themes'), w('b', 'breadth')], {})
+    for (const m of ['make it weekly', 'thanks', 'add the 50 day', 'what is a pullback', '']) expect(noRoute(host, m), m).toBeUndefined()
+    const board = buildContext(host, { ...CTX, message: 'thanks' }).context.board[0]
+    expect(board.controls).toBeUndefined()
+    expect(board.widgets.some(x => 'set' in x)).toBe(false)
+  })
+  it('the routing that carries the group sends it, once: the next turn starts clean, and a reroute is armed the same way', async () => {
+    const { host } = makeBoard([w('a', 'news')], {})
+    await refreshContext(1500, { groups: ['charts'] })
+    expect(noRoute(host, 'make it weekly')).toBeUndefined()
+    await refreshContext(1500, ROUTED)
+    expect(noRoute(host, 'make it weekly')).toBeTruthy()
+    expect(noRoute(host, 'make it weekly')).toBeUndefined()
+    await refreshContext(1500)                                          // no routing to read (planner v2): the message decides
+    expect(noRoute(host, 'make it weekly')).toBeUndefined()
+  })
+  it('a message that names a widget on this board brings that type alone, in the registry\'s words', () => {
+    const { host } = makeBoard([w('f', 'fundamentals'), w('n', 'news'), w('m', 'scatter')], {})
+    expect(noRoute(host, 'show annual on the fundamentals')[0].controls).toEqual({ fundamentals: expect.any(String) })
+    expect(Object.keys(noRoute(host, 'use spotlight labels on the market map')[0].controls)).toEqual(['scatter'])
+    expect(noRoute(host, 'hide the breadth heatmap')).toBeUndefined()   // no Breadth widget here
+    expect(noRoute(host, 'switch to quarterly')).toBeUndefined()        // one word alone: routing decides (a reroute arms it)
+    expect(noRoute(host, 'any news on TSLA')).toBeUndefined()
+  })
+  it('every row the registry describes reaches the model; a type with none is absent', async () => {
     for (const type of Object.keys(WIDGET_REGISTRY)) {
       const { host } = makeBoard([w('x', type)], {})
-      const line = entry(host).controls[type]
+      const line = (await entry(host))?.controls[type]
       const rows = widgetControls(type)
       if (!rows.length) { expect(line, type).toBeUndefined(); continue }
       for (const f of rows) expect(line, `${type}.${f.key}`).toContain(`${f.key}(`)
@@ -353,8 +381,10 @@ describe('who reports on /charts: the calendar\'s own reads, on the board too', 
     const names = manifestFor(CTX).map(c => c.name)
     expect(names).toContain('calendar.day')
     expect(names).not.toContain('calendar.nextReport')
-    const entry = buildContext(host, CTX).context.calendar[0]
-    expect(entry.label).toMatch(/earnings calendar/)
+    expect(buildContext(host, { ...CTX, message: 'make it weekly' }).context.calendar).toBeUndefined()
+    await refreshContext(1500, { groups: ['calendar'] })
+    expect(buildContext(host, { ...CTX, message: 'hello' }).context.calendar[0].ref).toBeTruthy()
+    expect(buildContext(host, { ...CTX, message: 'who reports on friday' }).context.calendar[0].ref).toBeTruthy()
     const out = await getCapability('calendar.day').answer(collectTargets(host, ['calendar']).get('calendar')?.snap, { date: '2026-11-05' })
     expect(fetch).toHaveBeenCalled()
     expect(String(out?.text ?? out)).toMatch(/AAA/)

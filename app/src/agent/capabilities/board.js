@@ -40,6 +40,7 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
+import { wordsSelect } from '../routing'
 import { labelMap, WIDGET_REGISTRY, widgetControls } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
@@ -183,24 +184,35 @@ const controlWord = (f) => {
   if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
   return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : `${f.min}–${f.max}`})`
 }
-function controlLines(raw) {
-  const out = {}
-  for (const w of raw) {
-    if (w.type in out) continue
-    const ctrl = widgetControls(w.type)
-    if (ctrl.length) out[w.type] = ctrl.map(controlWord).join(', ')
-  }
-  return out
+// ── The `widgetControls` context section: sent only on a turn that may need it ──
+// Each type once, with its choices, and what a widget is set to where that differs from how it starts. It is sent when the
+// turn's routing carries boardEdit (the action group's own refresh arms it, on a reroute too), whole; and when the message
+// names a widget on this board AND one of the choices it offers ("annual" and "fundamentals"), for that type alone: routing
+// v2 can carry the group on a turn whose refresh list does not. Those words are the registry's, so there is no phrase list
+// here, and either word alone ("any news on TSLA") is no reason to pay. Otherwise the hint points at widget.readOptions.
+const MIN_WORD = 4
+const wordsOf = (v) => String(v).toLowerCase().split(/[^a-z0-9&]+/).filter(x => x.length >= MIN_WORD)
+function namedHere(type, said) {
+  const labels = Object.values(WIDGET_REGISTRY[type]?.labels || {}).flatMap(wordsOf)
+  const choices = widgetControls(type).flatMap(f => (f.options || []).flatMap(wordsOf)).filter(x => !labels.includes(x))
+  return labels.some(x => said.has(x)) && choices.some(x => said.has(x))
 }
-// what this widget is set to, where that differs from what it starts with
-function withSet(w, s) {
+function widgetControlSection(s, message, whole) {
+  const said = new Set(wordsOf(message))
+  const types = [...new Set(s.raw.map(w => w.type))].filter(t => widgetControls(t).length)
+    .filter(t => whole || namedHere(t, said))
+  if (!types.length) return undefined
+  const controls = Object.fromEntries(types.map(t => [t, widgetControls(t).map(controlWord).join(', ')]))
   const set = {}
-  for (const f of widgetControls(w.type)) {
-    const v = valueOf(f, w, s.doors)
-    if (v == null || v === '' || (Array.isArray(v) && !v.length) || same(v, f.default)) continue
-    set[f.key] = v
+  for (const w of s.raw) {
+    if (!types.includes(w.type)) continue
+    for (const f of widgetControls(w.type)) {
+      const v = valueOf(f, w, s.doors)
+      if (v == null || v === '' || (Array.isArray(v) && !v.length) || same(v, f.default)) continue
+      set[w.id] = { ...set[w.id], [f.key]: v }
+    }
   }
-  return Object.keys(set).length ? { set } : {}
+  return [{ controls, ...(Object.keys(set).length ? { set } : {}) }]
 }
 
 export const boardKind = {
@@ -715,12 +727,9 @@ export function registerBoardCapabilities() {
         label: 'Board (arrange, remove, link and configure the widgets on it)',
         grid: s.grid,
         ...(s.extraGroups ? { extraLinkColors: true } : {}),
-        // each type on this board once: what widget.setOption may set on it (the manifest would carry every type on every turn)
-        controls: controlLines(s.raw),
         widgets: s.raw.map(w => ({
           id: w.id, type: w.type, label: label(w.type), position: positionWord(w, s.raw) || null,
           x: w.x, y: w.y, w: w.w, h: w.h, link: w.color || null,
-          ...withSet(w, s),
           ...(w.type === 'watchlist' ? { shows: w.opts?.watchName || (w.opts?.source ? 'a list chosen by UCT' : null) } : {}),
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
           // a widget's own tabs (the WidgetHost tab strip, any widget type): main + extras
@@ -728,6 +737,21 @@ export function registerBoardCapabilities() {
           ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map(t => ({ tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color })) } : {}),
         })),
       }]
+    },
+  })
+
+  // armed by this turn's routing (refreshContext), spent by the next build
+  let routedHere = false
+  registerContextProvider({
+    key: 'widgetControls',
+    refreshGroup: 'boardEdit',
+    refresh: ({ groups } = {}) => { if (groups) routedHere = true },
+    compact: () => [{ left: 'ask widget.readOptions' }],
+    build: (host, refFor, { message = '', nl1 = false } = {}) => {
+      const whole = routedHere || nl1 || wordsSelect('boardEdit', message)
+      routedHere = false
+      const s = snapOf(host)
+      return s ? widgetControlSection(s, message, whole) : undefined
     },
   })
 
@@ -1074,7 +1098,7 @@ export function registerBoardCapabilities() {
     ...common,
     name: 'widget.setOption',
     summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
-    hints: 'target = the board entry; widget = the widget id; key = a name from that entry\'s controls for the widget\'s type (never invented); value = one of the choices in brackets (“ask widget.readOptions” = the widget\'s own list right now: a name is enough). (+/-) takes "+member" or "-member". A type not in controls has none. A widget\'s `set` is what it is set to now.',
+    hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
     check(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
