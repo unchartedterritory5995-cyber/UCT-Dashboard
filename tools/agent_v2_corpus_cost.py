@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import math
 import os
 import re
@@ -228,15 +229,16 @@ def measure(model: str = "claude-haiku-4-5", layout: str = "index", export: str 
     from api.services.uct_agent import turn as t1
     real_record = t1._record_cost
     t1._record_cost = lambda r: 0.0               # BEFORE any call (v1 first): a scripted response is never recorded
+    real_disable = logging.root.manager.disable
+    logging.disable(logging.WARNING)              # the scripted v1 reply is priced, not judged: its parse notes are noise here
     try:
         return _measure(model, layout, export)
-    finally:
+    finally:                                      # both are process-wide: a caller's logging and recorder come back as they were
+        logging.disable(real_disable)
         t1._record_cost = real_record
 
 
 def _measure(model: str, layout: str, export: str) -> dict:
-    import logging
-    logging.disable(logging.WARNING)              # the scripted v1 reply is priced, not judged: its parse notes are noise here
     from api.services.uct_agent import turn_v2 as v2
     with open(export, encoding="utf-8") as f:
         d = json.load(f)

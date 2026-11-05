@@ -7,7 +7,9 @@ $0.25 per-turn cap:
   * v1's single call stays under the cap for every intent."""
 from __future__ import annotations
 
+import importlib.util
 import json
+import logging
 import os
 
 import pytest
@@ -61,6 +63,41 @@ def test_the_tool_never_records_a_cost_and_restores_the_recorder(monkeypatch):
     monkeypatch.setattr(t1, "_record_cost", sentinel)
     cc.measure("claude-haiku-4-5", "index")
     assert seen == [] and t1._record_cost is sentinel
+
+
+def test_the_tool_restores_the_process_logging_level():
+    before = logging.root.manager.disable
+    cc.measure("claude-haiku-4-5", "index")
+    assert logging.root.manager.disable == before == logging.NOTSET
+
+
+def test_the_tool_restores_the_logging_level_when_the_measurement_fails_and_keeps_a_callers_own(monkeypatch):
+    seen = []
+
+    def boom(*a):
+        seen.append(logging.root.manager.disable)
+        raise RuntimeError("boom")
+    monkeypatch.setattr(cc, "_measure", boom)
+    with pytest.raises(RuntimeError):
+        cc.measure()
+    assert seen == [logging.WARNING] and logging.root.manager.disable == logging.NOTSET
+    logging.disable(logging.INFO)
+    try:
+        with pytest.raises(RuntimeError):
+            cc.measure()
+        assert logging.root.manager.disable == logging.INFO
+    finally:
+        logging.disable(logging.NOTSET)
+
+
+def test_the_contract_skew_log_is_still_seen_after_the_tool_ran(caplog):
+    """The order that failed: this module before test_uct_agent_contract.py silenced that file's logged-skew test."""
+    cc.measure("claude-haiku-4-5", "index")
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_uct_agent_contract.py")
+    spec = importlib.util.spec_from_file_location("contract_after_the_cost_tool", path)
+    contract = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contract)
+    contract.test_manifest_version_skew_is_served_and_logged(caplog)
 
 
 def test_the_tool_refuses_unless_the_auth_db_is_a_temp_file(monkeypatch):
