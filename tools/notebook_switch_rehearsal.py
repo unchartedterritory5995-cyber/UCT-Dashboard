@@ -310,8 +310,9 @@ NOT_REHEARSED = {
                                      " types absent while off; its rendered evidence is the wave 11 walk (Task "
                                      "11.20), not a probe here"),
     # Connector fidelity Plan F: a KILL SWITCH, not an enablement gate. Unset (production), the sweep it stops RUNS.
-    "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED": ("dark (docs/feature_flags.json records it pending: the switch is unset, so "
-                                            "the j2_doc_pending_sweep job it stops runs): a scheduled re-queue of "
+    "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED": ("dark = the kill switch is UNSET, so in production the sweep RUNS "
+                                            "(docs/feature_flags.json records it pending; setting it to 1 is what "
+                                            "stops the j2_doc_pending_sweep job): a scheduled re-queue of "
                                             "searchable documents left pending, with no member surface and no payload "
                                             "key, so no rendered probe in this tool; its stop evidence is "
                                             "tests/test_document_pending_sweep.py "
