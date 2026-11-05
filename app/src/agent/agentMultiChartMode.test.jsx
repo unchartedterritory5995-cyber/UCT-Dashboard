@@ -521,27 +521,37 @@ describe('Multi Chart: what does not carry over', () => {
     it('promises nothing up front', () => { expect(screenGridOps(op, hostOf({}))).toBe(null) })
     it('sync off: nothing to watch', () => { expect(watchGridSync(op, hostOf({}, false))).toBe(null) })
     it('only a date jump is watched', () => { expect(watchGridSync([{ action: 'chart.setTimeframe', target: 'c0', args: {} }], hostOf({}))).toBe(null) })
-    it('every cell moved', async () => {
-      const e = { c1: 1, c2: 1 }
+    const DAY = 86400000
+    const NOW = Date.UTC(2026, 10, 5), THEN = Date.UTC(2025, 5, 2)
+    it('every cell arrived', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
       const done = watchGridSync(op, hostOf(e))
-      e.c1 = 2; e.c2 = 2
+      e.c0 = THEN; e.c1 = THEN; e.c2 = THEN - 3 * DAY
       expect(await done()).toMatch(/other charts in this grid moved with it/)
     })
     it('no cell moved: says so, and an empty cell is not counted', async () => {
-      const e = { c1: 1, c2: 1 }
-      expect(await watchGridSync(op, hostOf(e))()).toBe('Time-range sync is on, but the other charts stayed where they were.')
-    })
-    it('one moved, one did not: each is named', async () => {
-      const e = { c1: 1, c2: 1 }
+      const e = { c0: NOW, c1: NOW, c2: NOW }
       const done = watchGridSync(op, hostOf(e))
-      e.c1 = 2
+      e.c0 = THEN
+      expect(await done()).toBe('Time-range sync is on, but the other charts stayed where they were.')
+    })
+    it('one arrived, one did not: each is named', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN; e.c1 = THEN
       expect(await done()).toBe('Time-range sync is on: AMD moved with it, TSLA stayed where it was.')
     })
-    it('a cell that moves a little later still counts', async () => {
-      const e = { c1: 1, c2: 1 }
+    it('a live chart scrolling by itself is not reported as following', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
       const done = watchGridSync(op, hostOf(e))
-      e.c1 = 2
-      setTimeout(() => { e.c2 = 2 }, 120)
+      e.c0 = THEN; e.c1 = THEN; e.c2 = NOW + DAY
+      expect(await done()).toBe('Time-range sync is on: AMD moved with it, TSLA stayed where it was.')
+    })
+    it('a cell that arrives a little later still counts', async () => {
+      const e = { c0: NOW, c1: NOW, c2: NOW }
+      const done = watchGridSync(op, hostOf(e))
+      e.c0 = THEN; e.c1 = THEN
+      setTimeout(() => { e.c2 = THEN }, 120)
       expect(await done()).toMatch(/moved with it/)
     })
   })

@@ -815,12 +815,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // ⛔ A RECEIPT DOES NOT OUTLIVE ITS CHART. Everything that confirms a change reads the chart's settings, and those hold it
   // while the chart itself goes to its error boundary, up to a bar fetch later. So a receipt keeps listening for a short while,
   // and a chart that faulted takes the success back, in words, with Undo only where the chart is still there to take it.
-  const watchChartFaults = useCallback((refs, { receiptId, startedAt, label, actions }) => {
+  const watchChartFaults = useCallback((refs, { receiptId, undoId, startedAt, label, actions }) => {
     if (!refs.length) return
     const report = (ref) => {
       const alive = (() => { try { return !!host?.charts?.read?.(ref) } catch { return false } })()
       const text = `${label || 'That chart'} hit an error after that change, so it isn't showing it. ${alive ? 'Say “undo” to take the change back.' : 'Remove the chart and add it again.'}`
       patchItem(receiptId, alive ? { faulted: true } : { faulted: true, undoId: null })
+      // a chart that is gone can't be changed back: the words, the card and "undo" all say the same
+      if (!alive && undoId) undoRef.current = undoRef.current.filter(e => e.id !== undoId)
       push({ role: 'refusal', text })
       record({ member: null, outcome: text, outcomeData: { kind: 'failed', actions, gates: ['chart-fault'] }, telemetry: { refused: true, actions } })
     }
@@ -1260,7 +1262,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
       const receiptId = nid()
       const shown = receiptCharts(host, plan, res)
-      watchChartFaults(plannedChartRefs(plan, res), { receiptId, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
+      watchChartFaults(plannedChartRefs(plan, res), { receiptId, undoId: res.undo?.id || null, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
       if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the

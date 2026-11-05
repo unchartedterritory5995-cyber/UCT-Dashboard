@@ -43,6 +43,7 @@ def _step(fragment: str) -> dict:   # an EXACT step name
 # hints: src/agent, the builder's agentMutations, and the page tests that drive the Agent outside src/agent
 AGENT_PAGE_TESTS = [
     "src/components/chart/builder/studio/agentRoute.test.jsx",
+    "src/components/StockChart.timeRangeSync.test.jsx",
     "src/pages/breadth/breadthTabHookOrder.test.jsx",
     "src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx",
     "src/pages/charts/ChartsWorkspace.previousLayout.test.jsx",

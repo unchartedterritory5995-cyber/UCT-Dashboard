@@ -11,6 +11,7 @@
 
 import { getCapability, getTargetKind } from './capabilities'
 import { chartRefOf } from './deixis'
+import { viewAt } from './capabilities/chart'
 
 const BOARD_KINDS = new Set(['board', 'workspace'])
 export const GRID_BOARD_REFUSAL = 'that changes the Charts board, which is hidden while Multi Chart is on. Exit Multi Chart (Layouts ▸ Multi Chart) and ask again.'
@@ -28,7 +29,8 @@ function behindMaximized(op, cap, host, maximized) {
 }
 
 const SYNC_WAIT_MS = 600
-const rightEdgeOf = (host, ref) => { try { return host?.charts?.read?.(ref)?.view?.rightMs ?? null } catch { return null } }
+const viewOf = (host, ref) => { try { return host?.charts?.read?.(ref)?.view ?? null } catch { return null } }
+const rightEdgeOf = (host, ref) => viewOf(host, ref)?.rightMs ?? null
 const pause = (ms) => new Promise(r => setTimeout(r, ms))
 const andNames = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 /** What a receipt says of the other cells, from what they did. */
@@ -52,7 +54,9 @@ export function watchGridSync(ops, host) {
   const before = new Map(others.map(c => [c.ref, rightEdgeOf(host, c.ref)]))
   return async () => {
     const t0 = Date.now()
-    const movedNow = () => others.filter(c => rightEdgeOf(host, c.ref) !== before.get(c.ref))
+    // arrived, not merely moved: a live chart's right edge moves by itself, so a cell counts only once it stands where the jump went
+    const target = rightEdgeOf(host, jump.target)
+    const movedNow = () => others.filter(c => rightEdgeOf(host, c.ref) !== before.get(c.ref) && target != null && viewAt(viewOf(host, c.ref), target))
     while (movedNow().length < others.length && Date.now() - t0 < SYNC_WAIT_MS) await pause(50)
     const moved = movedNow()
     return gridSyncSentence(moved.map(c => c.symbol), others.filter(c => !moved.includes(c)).map(c => c.symbol))
