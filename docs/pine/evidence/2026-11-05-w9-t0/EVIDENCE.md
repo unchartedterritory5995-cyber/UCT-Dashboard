@@ -160,7 +160,9 @@ rc gate=0 hyg=0 py=0 js=1; totals ok; integrity ok. vitest failing files:
 `enumerationSites.test.js`, `vendorHarness.test.js` (master baselines at 646dca8cbf), `settingsScope.rail.test.js`,
 `pollingSites.rail.test.js` (named baselines), `vendorHarness.coverageAudit.test.js` (train red; re-run alone
 (`runs/w9t0/ca-alone.log`): the same one test, `delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHES`, still
-red, 1 failed | 184 passed). No failure involves a file this lane touched.
+red, 1 failed | 184 passed). Coordinator ruling: this is the train-wide 1000 ms wall-clock instrument limit of
+`delta-rsi` on this machine (master itself runs it at 761-942 ms), not caused by this lane; solo log
+`runs/w9t0/ca-alone.log`. No failure involves a file this lane touched.
 
 ## Open items
 
