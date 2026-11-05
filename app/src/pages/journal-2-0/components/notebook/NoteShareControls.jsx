@@ -31,8 +31,9 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteShareEndpoint, sharedNoteUrl, SHARE_EXPIRY_CHOICES } from '../../lib/noteShareLink'
 import {
-  FOLDER_PUBLISH_SCOPE_SENTENCE, PUBLISH_ENDPOINT, PUBLISH_FAILED_SENTENCE, PUBLISH_PUBLIC_SENTENCE,
-  copyText, findLivePublication, pageCopiedSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
+  FOLDER_PUBLISH_SCOPE_SENTENCE, PUBLISH_CONFIRM_NOTE_TITLE, PUBLISH_ENDPOINT, PUBLISH_FAILED_SENTENCE,
+  PUBLISH_PUBLIC_SENTENCE, copyText, findLivePublication, pageCopiedSentence, publishConfirmFolderTitle,
+  publishConfirmNoteSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
 } from '../../lib/notePublishLink'
 import editorStyles from './NoteEditorPage.module.css'
 import LoadFailed from '../LoadFailed'
@@ -54,7 +55,7 @@ function whenText(expiresAt) {
   return `It stops working on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
 }
 
-export default function NoteShareControls({ noteId, onMessage }) {
+export default function NoteShareControls({ noteId, noteTitle = '', onMessage }) {
   const { isPaid } = useAuth()
   const [open, setOpen] = useState(false)
   const shareOn = notebookFlag('j2_share_links_enabled') === true
@@ -76,14 +77,14 @@ export default function NoteShareControls({ noteId, onMessage }) {
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title="Share this note" ariaLabel="Share this note" maxWidth={460}>
         {open && (
-          <SharePanel noteId={noteId} shareOn={shareOn} publishOn={publishOn} onMessage={onMessage} />
+          <SharePanel noteId={noteId} noteTitle={noteTitle} shareOn={shareOn} publishOn={publishOn} onMessage={onMessage} />
         )}
       </Sheet>
     </>
   )
 }
 
-function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
+function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
   const [loading, setLoading] = useState(true)
   const [share, setShare] = useState(null)
   const [pubs, setPubs] = useState([])
@@ -91,6 +92,14 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
   const [expiry, setExpiry] = useState('never')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  // ⛔ Audit 2026-11-05, spec S1 (bug: one press published). "Publish this note" and "Publish
+  // folder" used to call publishTarget on the FIRST press while the sidebar's folder door
+  // (PublishFolderSheet) asked first. Each now opens a confirm step -- a nested Sheet, the same
+  // component the sidebar uses, which owns Escape (the topmost sheet answers, and only it), the
+  // Tab trap and focus return -- and nothing is sent until its Publish button. `confirm` is
+  // 'note' | 'folder' | null; `confirmStatus` is the step's own line (busy, refusal).
+  const [confirm, setConfirm] = useState(null)
+  const [confirmStatus, setConfirmStatus] = useState('')
   // Wave 10 F7 (Part A, 5d): the two reads that fill this panel. A failed one used to be
   // swallowed, and the panel then offered "Create link" as if no link existed.
   const [shareLoadError, setShareLoadError] = useState(null)
@@ -200,16 +209,35 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     }
   })
 
+  // S1: the first press only ASKS. The confirm step's Publish is what publishes.
+  const askPublish = (kind) => {
+    if (busy) return
+    setConfirmStatus('')
+    setConfirm(kind)
+  }
+  const cancelPublish = () => {
+    if (busy) return
+    setConfirm(null)
+    setConfirmStatus('')
+  }
+
   const publish = (kind) => run(async () => {
     try {
       const pub = await publishTarget(kind, kind === 'note' ? noteId : ctx.folderId)
       setPubs((prev) => [pub, ...prev.filter((p) => p.slug !== pub.slug)])
       trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'publish', kind, door: 'editor' })
       focusNextRef.current = kind === 'note' ? 'copyPage' : 'copyFolder'
+      // The confirm step closes once the page exists; focus then goes to Copy page link (the
+      // M-1 effect above runs after the nested Sheet's own focus return, so it has the last word).
+      setConfirm(null)
+      setConfirmStatus('')
       const copied = await copyText(publishedUrl(pub.slug))
       say(publishedSentence(kind === 'note' ? null : ctx.folderName, copied))
     } catch (e) {
-      say(memberDetail(e, PUBLISH_FAILED_SENTENCE))
+      // A refusal keeps the step open with its sentence, so the member can retry or cancel.
+      const msg = memberDetail(e, PUBLISH_FAILED_SENTENCE)
+      setConfirmStatus(msg)
+      say(msg)
     }
   })
 
@@ -323,7 +351,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
             <p className={styles.caption}>This note is archived. Unarchive it from the note menu to publish it.</p>
           ) : (
             <div className={styles.row}>
-              <button type="button" ref={focusRefs.publishNote} className={styles.action} onClick={() => publish('note')} disabled={busy}>Publish this note</button>
+              <button type="button" ref={focusRefs.publishNote} className={styles.action} onClick={() => askPublish('note')} disabled={busy}>Publish this note</button>
             </div>
           )}
           {ctx?.folderId && (
@@ -346,7 +374,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
             ) : (
               <>
                 <div className={styles.row}>
-                  <button type="button" ref={focusRefs.publishFolder} className={styles.action} onClick={() => publish('folder')} disabled={busy}>
+                  <button type="button" ref={focusRefs.publishFolder} className={styles.action} onClick={() => askPublish('folder')} disabled={busy}>
                     {`Publish folder "${ctx.folderName}"`}
                   </button>
                 </div>
@@ -358,6 +386,62 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       )}
 
       <p className={styles.status} role="status" aria-live="polite">{status}</p>
+      {publishOn && (
+        <PublishConfirmSheet
+          kind={confirm}
+          noteTitle={noteTitle}
+          folderName={ctx?.folderName}
+          folderNoteCount={ctx?.folderNoteCount}
+          busy={busy}
+          status={confirmStatus}
+          onCancel={cancelPublish}
+          onPublish={() => publish(confirm)}
+        />
+      )}
     </div>
+  )
+}
+
+// S1's confirm step. Initial focus is Cancel, the safe default. Escape closes this sheet only -- the Share sheet underneath
+// stays open, because the Sheet answers Escape on the topmost panel alone.
+function PublishConfirmSheet({ kind, noteTitle, folderName, folderNoteCount, busy, status, onCancel, onPublish }) {
+  const uid = useId()
+  const bodyId = `${uid}-body`
+  const open = kind === 'note' || kind === 'folder'
+  const cancelRef = useRef(null)
+  // Cancel takes focus once the sheet has mounted (a frame later: the Sheet focuses its panel
+  // on the next frame when nothing inside holds focus, and this must land after that).
+  useEffect(() => {
+    if (!open) return undefined
+    const t = requestAnimationFrame(() => requestAnimationFrame(() => cancelRef.current?.focus()))
+    return () => cancelAnimationFrame(t)
+  }, [open])
+  const title = kind === 'folder'
+    ? publishConfirmFolderTitle(folderName || 'this folder', folderNoteCount)
+    : PUBLISH_CONFIRM_NOTE_TITLE
+  return (
+    <Sheet open={open} onClose={onCancel} title={title} ariaLabel={title} maxWidth={420}>
+      {open && (
+        <div className={styles.panel} data-publish-confirm={kind}>
+          <p id={bodyId} className={styles.lede}>
+            {kind === 'folder' ? PUBLISH_PUBLIC_SENTENCE : publishConfirmNoteSentence(noteTitle)}
+          </p>
+          {kind === 'folder' && <p className={styles.caption}>{FOLDER_PUBLISH_SCOPE_SENTENCE}</p>}
+          <div className={styles.row}>
+            <button type="button" ref={cancelRef} className={styles.action} onClick={onCancel} disabled={busy}>Cancel</button>
+            <button
+              type="button"
+              className={styles.action}
+              onClick={onPublish}
+              disabled={busy}
+              aria-describedby={bodyId}
+            >
+              {busy ? 'Publishing…' : 'Publish'}
+            </button>
+          </div>
+          <p className={styles.status} role="status" aria-live="polite">{status}</p>
+        </div>
+      )}
+    </Sheet>
   )
 }
