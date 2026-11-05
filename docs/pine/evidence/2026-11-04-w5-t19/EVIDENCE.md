@@ -161,3 +161,9 @@ lock `dsk/heavy-final3.lock`, log `_resume-2026-11-01/runs/w5t19r1/final.out`, t
 T4 r3 `86c2cf4e7c` merged `--no-ff`, clean (r3 changes T4's stale vitest rail and evidence only; the tool file is still byte-for-byte T4's).
 Node v20.18.0 CLI re-run on the merged tree (`runs/w5t19r1/n20.out`): build+import rc 0; `--check` rc 0, `HP-1 GREEN: 164/166 ...; 2 REPORTED`; `--mutation-control` rc 0, red on 35 cases; `node --test` rc 0.
 The r1 final-tip above predates this merge; the final-tip for the pushed tip is the next block (second r1 run).
+
+### r1 FINAL final-tip (tested tree `569b07903f` = pushed tip's code; includes master `ceee4597a0`, T4 r3 `86c2cf4e7c`)
+Command as before, label `dsk-w5t19r1-final2`, lock `heavy-final3.lock` (held 32.5 min), log `_resume-2026-11-01/runs/w5t19r1/final2.out`.
+Gate pytest 46 passed; hygiene clean; rails pytest 66 passed, 0 failed; full chart+hooks vitest: Test Files 2 failed | 1337 passed | 27 skipped (the two baselines `pollingSites.rail` and `settingsScope.rail`).
+Vitest rails under Node v20.20.2 (portable, scratch): `hostParity.v8.rail.test.js` + T4's `hostParity.rail.test.js` = 2 files, 34 tests passed (the V8 end-to-end test ran on V8 11.3 and saw the 2 REPORTED lines).
+(An accidentally committed `app/dist-server` build output was untracked in `569b07903f` before this run.)
