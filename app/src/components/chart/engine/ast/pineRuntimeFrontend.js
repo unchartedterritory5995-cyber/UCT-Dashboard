@@ -344,6 +344,10 @@ const BIN = Object.freeze({
   and: '&&', or: '||',
 })
 const PRICE = new Set(['open', 'high', 'low', 'close', 'volume'])
+/** `true` / `false` written as a literal: the boolean it names, else null. They parse to a number
+ *  node whose token is the keyword. ONE reader for every place a call reads a literal flag. */
+export const literalBool = (c) => (c && c.type === 'number' && c.tok && c.tok.kind === 'ident'
+  && (c.tok.value === 'true' || c.tok.value === 'false')) ? c.tok.value === 'true' : null
 const BLOCK_WORDS = new Set(['for', 'while'])
 /** The calls this lane turns into a VALUE SERIES.
  *
@@ -7349,9 +7353,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // (a series, an input) keeps the refusal below: a fill's two outputs are static
     // handles, and what TradingView does with a plot id chosen per bar is not
     // captured (docs/pine/capture-queue-2026-11-03-w4-t12.md, row P2-F1).
-    // (`true` / `false` parse to a number node whose token is the keyword.)
-    const literalBool = (c) => (c && c.type === 'number' && c.tok && c.tok.kind === 'ident'
-      && (c.tok.value === 'true' || c.tok.value === 'false')) ? c.tok.value === 'true' : null
+    // (`true` / `false` parse to a number node whose token is the keyword: `literalBool`.)
     const plotIdNode = (n, depth = 0) => {
       if (!atObjectDoor && n && n.type === 'ternary' && depth < 8) {
         const pick = literalBool(n.test !== undefined ? n.test : n.cond)
