@@ -11,7 +11,7 @@ import { startRelay, open, sleep } from './lib.mjs'
 
 const OUT = process.env.BA_OUT || 'browser-acceptance.json'
 const SHOTS = process.env.BA_SHOTS || null
-const filter = process.argv[2] ? new RegExp(process.argv[2]) : null
+const filter = process.argv[2] && process.argv[2] !== '.' ? new RegExp(process.argv[2]) : null
 const { groupOfAction } = await import(`file:///${process.env.BA_ROUTING}`)
 
 // fixture boards
@@ -632,11 +632,124 @@ scn('multi chart gate', [], { prefs: { multichart_state: JSON.stringify({ mode: 
   t.ok('recorded', true, await p.last())
 })
 
+// ── Multi Chart (needs #835 and #839: run only on a build holding them, filter "^mc ") ─────────────────────
+// ?multichart=1: a 2x2 grid, g0 NVDA, g1 AMD, g2 TSLA, g3 empty. =sync: time-range sync seeded on.
+const MC = { query: 'multichart=1' }
+const tf1 = (id, label) => p => realClick(p, '[data-grid-cell-id="' + id + '"] [data-guide="chart.timeframe"] button', label)
+const FILLED = ['g0', 'g1', 'g2']
+const others = (id) => FILLED.filter(x => x !== id)
+const tfs = async (p) => (await p.charts()).map(c => c.tf).join(' ')
+const refOf = (b, sym) => b.context.charts.find(c => c.symbol === sym)?.ref
+const setTf = (sym, tf) => (b) => ({ ops: [{ action: 'chart.setTimeframe', target: refOf(b, sym), args: { timeframe: tf } }] })
+
+scn('mc timeframe on a clicked cell', ['C3-056'], MC, async (p, t) => {
+  await p.select('g1')
+  const snap = await p.read()
+  const r = await act(p, t, { say: 'make this chart weekly', plan: setTf('AMD', 'W'), touch: ['g1'], receipt: /weekly/i, undoable: true })
+  t.ok('the clicked cell is weekly and its header says so', r.chart('g1').tf === '1W', r.chart('g1').tf)
+  t.ok('weekly bars loaded for AMD only', (await p.bars()).filter(x => x.tf === 'W' && !/warm=1/.test(x.url)).every(x => x.sym === 'AMD'))
+  await undoTo(p, t, snap)
+})
+scn('mc no click asks', [], MC, async (p, t) => {
+  await act(p, t, { say: 'make this chart weekly', plan: setTf('NVDA', 'W'), touch: [], noReceipt: true, busy: false })
+  t.ok('it asks which chart', /which/i.test(await p.last()), await p.last())
+})
+scn('mc top-left', [], MC, async (p, t) => {
+  const r = await act(p, t, { say: 'make the top-left chart weekly', plan: setTf('NVDA', 'W'), touch: ['g0'], receipt: /weekly/i, undoable: true })
+  t.ok('NVDA, top-left, changed', r.chart('g0').tf === '1W', await tfs(p))
+})
+scn('mc chart 3', [], MC, async (p, t) => {
+  const r = await act(p, t, { say: 'make chart 3 weekly', plan: setTf('TSLA', 'W'), touch: ['g2'], receipt: /weekly/i, undoable: true })
+  t.ok('TSLA, third in reading order, changed', r.chart('g2').tf === '1W', await tfs(p))
+})
+scn('mc the one you changed', [], MC, async (p, t) => {
+  await p.select('g0')
+  await act(p, t, { say: 'make the top-right chart weekly', plan: setTf('AMD', 'W'), touch: ['g1'] })
+  const r = await act(p, t, { say: 'make the one you just changed daily', plan: setTf('AMD', 'D'), touch: ['g1'], receipt: /daily/i })
+  t.ok('"you" beat the clicked chart', r.chart('g1').tf === '1D' && r.chart('g0').tf === '1D', await tfs(p))
+})
+scn('mc you versus I', [], MC, async (p, t) => {
+  await tf1('g2', '1M')(p)
+  t.ok('the member changed the third cell by hand', (await p.read('g2'))[0].tf === '1M', await tfs(p))
+  await act(p, t, { say: 'make the top-right chart weekly', plan: setTf('AMD', 'W'), touch: ['g1'] })
+  // the Agent acted last; "I" is still the member's cell
+  const r1 = await act(p, t, { say: 'make the one I just changed daily', plan: setTf('TSLA', 'D'), touch: ['g2'], receipt: /daily/i })
+  t.ok('"I" is the member\'s cell', r1.chart('g2').tf === '1D' && r1.chart('g1').tf === '1W', await tfs(p))
+  await tf1('g0', '1M')(p)
+  // the member acted last; "you" is still the Agent's last change, which was on the third cell
+  const r2 = await act(p, t, { say: 'make the one you just changed weekly', plan: setTf('TSLA', 'W'), touch: ['g2'], receipt: /weekly/i })
+  t.ok('"you" is the Agent\'s cell, not the member\'s newer one', r2.chart('g2').tf === '1W' && r2.chart('g0').tf === '1M' && r2.chart('g1').tf === '1W', await tfs(p))
+})
+scn('mc you with only a member change', [], MC, async (p, t) => {
+  await tf1('g2', '1M')(p)
+  await act(p, t, { say: 'make the one you just changed weekly', plan: setTf('TSLA', 'W'), touch: [], noReceipt: true, busy: false })
+  t.ok('asked, never guessed', /which/i.test(await p.last()), await p.last())
+})
+const wheelCell = async (p, id) => { await wheelChart(p, id) }
+scn('mc sync off is the control', [], MC, async (p, t) => {
+  await p.select('g0')
+  const a = await p.read()
+  await wheelCell(p, 'g0')
+  const b = await p.read()
+  t.ok('a wheel moved the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
+  t.ok('and no other cell', others('g0').every(id => b.find(x => x.id === id).pixels === a.find(x => x.id === id).pixels))
+})
+scn('mc sync a member move', [], { query: 'multichart=sync' }, async (p, t) => {
+  await p.select('g0')
+  const a = await p.read()
+  await wheelCell(p, 'g0')
+  const b = await p.read()
+  t.ok('a wheel moved the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
+  for (const id of others('g0')) t.ok(id + ' followed', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels)
+  const axis = (c) => c.text.filter(x => /^[A-Z][a-z][a-z]$|^20[0-9][0-9]$/.test(x)).join()
+  t.ok('all three show the same months', new Set(FILLED.map(id => axis(b.find(x => x.id === id)))).size === 1, FILLED.map(id => axis(b.find(x => x.id === id))).join(' | '))
+})
+scn('mc sync an Agent date jump', [], { query: 'multichart=sync' }, async (p, t) => {
+  await p.select('g0')
+  const r = await act(p, t, { say: 'go to march 3 2025', plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date: '2025-03-03' } }] }), touch: FILLED, says: /follow/i })
+  t.ok('March is on the clicked cell\'s axis', axisHas(r.chart('g0'), /^Mar/), r.chart('g0').text.slice(-6).join(' '))
+  for (const id of others('g0')) t.ok(id + ' followed to March', axisHas(r.chart(id), /^Mar/), r.chart(id).text.slice(-6).join(' '))
+})
+scn('mc hidden cell refused', [], MC, async (p, t) => {
+  const q = await p.b.evaluate('(() => { const e = document.querySelector(\'[data-grid-cell-id="g0"] [aria-label="Maximize this chart"]\'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()')
+  await p.b.click(q.x, q.y)
+  await p.b.hover(2, 2)
+  await p.settle()
+  const face = async () => (await p.b.evaluate('[...document.querySelectorAll("[data-grid-cell-id]")].filter(e => e.getBoundingClientRect().width > 0).map(e => e.dataset.gridCellId).join()'))
+  t.ok('only the maximized cell is on screen', (await face()) === 'g0', await face())
+  const before = (await p.read('g0'))[0]
+  await act(p, t, { say: 'make the top-right chart weekly', plan: setTf('AMD', 'W'), noReceipt: true, says: /hidden behind the maximized/i, busy: false })
+  await act(p, t, { say: 'make chart 3 weekly', plan: setTf('TSLA', 'W'), noReceipt: true, says: /hidden behind the maximized/i, busy: false })
+  t.ok('the maximized cell did not move', (await p.read('g0'))[0].pixels === before.pixels)
+  // the model names the hidden cell itself: refused at the same gate
+  await act(p, t, { say: 'please set the amd one to the weekly timeframe', plan: setTf('AMD', 'W'), noReceipt: true, says: /hidden behind the maximized/i, busy: false })
+  const stored = JSON.parse((await p.written()).multichart_state || '{}')
+  t.ok('nothing behind it changed', !(stored.cells || []).some(c => c.tf === 'W'), JSON.stringify((stored.cells || []).map(c => c.tf)))
+  const r = await act(p, t, { say: 'make the top-left chart weekly', plan: setTf('NVDA', 'W'), touch: ['g0'], receipt: /weekly/i })
+  t.ok('the maximized cell itself still works', r.chart('g0').tf === '1W', r.chart('g0').tf)
+})
+scn('mc what does not carry over', [], MC, async (p, t) => {
+  await act(p, t, { say: 'add a news widget', plan: { ops: [{ action: 'widget.add', target: '$workspace', args: { type: 'news', as: null } }] }, touch: [], noReceipt: true, says: /hidden while Multi Chart|Exit Multi Chart/i, busy: false })
+  await p.select('g0')
+  await act(p, t, { say: 'show me this chart as of may 1 2025', plan: (b) => ({ ops: [{ action: 'chart.replay', target: refOf(b, 'NVDA'), args: { date: '2025-05-01' } }] }), touch: [], noReceipt: true, busy: false })
+  t.ok('replay is refused in words, no false receipt', true, await p.last())
+})
+scn('mc cell ticker and indicator', [], MC, async (p, t) => {
+  await p.select('g1')
+  const snap = await p.read()
+  const r = await act(p, t, { say: 'add rsi', plan: (b) => ({ ops: [{ action: 'indicator.add', target: b.context.indicatorEdits.find(e => e.symbol === 'AMD').ref, args: { defId: 'rsi', inputs: null } }] }), touch: ['g1'], receipt: /RSI/, undoable: true })
+  t.ok('an RSI pane on that cell only', r.chart('g1').panes.length === r.was('g1').panes.length + 1, JSON.stringify(r.chart('g1').panes))
+  await undoTo(p, t, snap)
+  const r2 = await act(p, t, { say: 'put SPY on chart 4', plan: (b) => ({ ops: [{ action: 'chart.setSymbol', target: b.context.charts.at(-1).ref, args: { symbol: 'SPY' } }] }), touch: ['g3'], receipt: /SPY/, undoable: true })
+  t.ok('the empty cell filled, and only it', r2.chart('g3').sym === 'SPY' && FILLED.every(id => r2.chart(id).sym === r2.was(id).sym), JSON.stringify(r2.after.map(c => c.sym)))
+})
+
 // ── runner ─────────────────────────────────────────────────────────────────────────────────────────────
 const R = await startRelay({ groupOfAction })
 const results = []
 for (const s of S) {
   if (filter && !filter.test(s.id)) continue
+  if (!filter && s.id.startsWith('mc ')) continue
   console.log(`\n== ${s.id}`)
   const t = tracker(s.id)
   let p = null

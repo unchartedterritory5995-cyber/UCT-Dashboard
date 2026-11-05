@@ -188,8 +188,8 @@ const READ = `(() => {
     for (const e of document.querySelectorAll('[data-widget-id]')) {
       if (id && e.dataset.widgetId !== id) continue
       const r = e.getBoundingClientRect()
-      const row = { id: e.dataset.widgetId, type: e.dataset.widgetType, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }
-      if (e.dataset.widgetType === 'chart') {
+      const row = { id: e.dataset.widgetId, type: e.dataset.widgetType || (e.dataset.gridCellId ? 'chart' : undefined), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }
+      if (row.type === 'chart') {
         row.sym = e.querySelector('[data-testid="sym-label"]')?.textContent?.trim() || null
         row.tf = [...e.querySelectorAll('[data-guide="chart.timeframe"] button')].filter(b => /Active/.test(b.className)).map(b => b.textContent.trim()).join(',')
         row.pixels = chartHash(e)
