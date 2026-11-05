@@ -102,3 +102,22 @@
     min-height: var(--tap-min, 44px);
   }
 }
+
+/* Audit 2026-11-05, spec S1 (B19): Revoke asks first, inline in the token's row. */
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 60%;
+}
+.confirmText {
+  font-size: 13px;
+  color: var(--text);
+  flex-basis: 100%;
+  text-align: right;
+}
+@media (max-width: 640px) {
+  .confirm { max-width: 100%; }
+}

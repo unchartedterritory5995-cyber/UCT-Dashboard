@@ -22,7 +22,7 @@ import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOW
          passageFromNavigationState } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
-import DocumentTextStatus from './DocumentTextStatus'
+import DocumentTextStatus, { isImageDocument } from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useThesisSummary from '../../hooks/useThesisSummary'
@@ -96,7 +96,11 @@ import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
-import ThesisSection, { isThesisShaped } from './ThesisSection'
+import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
+import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
+import TickerSuggestion from './TickerSuggestion'
+import { noteDocumentTitle } from '../../../../surfaces/pageTitle.js'
+import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
@@ -891,6 +895,9 @@ export default function NoteEditorPage({
   // title, no template -- the next act is writing), null for an open aimed
   // inside the note (a task, a page, an excerpt), which places focus itself.
   openFocus = null, onOpenFocused = null,
+  // Audit 2026-11-05, S5 (B11): the MAIN pane's editor names the browser tab after its note; the
+  // side pane of a split view does not (one tab, one title). NotebookTab passes it.
+  ownsDocumentTitle = false,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
@@ -1395,6 +1402,12 @@ export default function NoteEditorPage({
 
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
+  // S5 (B11): "{title} · Notebook · UCT Intelligence" while this note is open, following the title
+  // as it is typed (the tab read "Journal" on every note). Only once the note has loaded.
+  useEffect(() => {
+    if (!ownsDocumentTitle || !note) return
+    document.title = noteDocumentTitle(title)
+  }, [ownsDocumentTitle, note, title])
   const [subtitle, setSubtitle] = useState('')
   // Wave 0 (P1-10): mirrored synchronously in the onChange handlers below
   // (never via a `useEffect` on `title`/`subtitle`) so the local-draft write
@@ -2120,6 +2133,18 @@ export default function NoteEditorPage({
   // never as a document. See CapturedSourceSheet for what that means.
   const [capturedSource, setCapturedSource] = useState(null)
   const { documents: noteDocuments, error: documentsError, refresh: refreshDocuments } = useNoteDocuments(noteId)
+  // S5 (B4): the images this note's body HOLDS, so DocumentTextStatus speaks only of those (a
+  // widget's archived snapshot is an image document too, and is not in the body). Walked only
+  // when there is an image document to judge; read at render, which every transaction triggers.
+  const bodyImageUrls = (() => {
+    if (!noteDocuments?.some?.(isImageDocument)) return []
+    const ed = editorRef.current
+    const out = []
+    try {
+      ed?.state?.doc?.descendants((n) => { if (n.type?.name === 'image' && n.attrs?.src) out.push(n.attrs.src) })
+    } catch { /* an editor mid-teardown holds nothing */ }
+    return out
+  })()
   const { excerpts: noteExcerpts, error: excerptsError, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
   // ⛔ Wave 10 F7 (Part A, 5d): the side reads of an open note, asked here for their ERRORS --
   // the same SWR keys ThesisSection and the fact nodes read, so no request is added. A failed
@@ -2139,6 +2164,23 @@ export default function NoteEditorPage({
     && isThesisShaped(note, thesisEvidence, thesisChangelog)
   const { completed: thesisReviewsDone, isLoading: reviewsLoading, error: reviewsError } =
     useThesisReviews(detailsThesis ? noteId : null)
+  // S2: the note menu's "Make this a thesis" -- kind Thesis through the property door.
+  const [makingThesis, setMakingThesis] = useState(false)
+  const makeThesis = async () => {
+    if (makingThesis) return
+    setMakingThesis(true)
+    try {
+      // ⛔ Fix round 1 (review finding 1): a METADATA door, so it settles like the folder, ticker,
+      // tag and unlock doors -- or the editor's save baseline stays on the old revision and the
+      // next autosave 409s into the reconcile.
+      await settleMetadataRevision(await update({ properties: { [NOTE_KIND_PROPERTY]: THESIS_KIND } }))
+      setChromeMsg('This note is now a thesis. Evidence, the changelog and reviews are under its details.')
+    } catch (e) {
+      setChromeMsg(e?.message || "Couldn't make this note a thesis. Try again.")
+    } finally {
+      setMakingThesis(false)
+    }
+  }
 
   // Wave J: opens the preview Sheet for a document_excerpt evidence row in
   // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
@@ -2451,7 +2493,7 @@ export default function NoteEditorPage({
   }, [])
   const onVoiceNoteSaved = useCallback((created) => {
     if (!created?.id) return
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+    invalidateNoteViews({ tags: true })   // S6: the one note-views helper (fix round 2, N1's twins)
     setUploadToast({ message: `Saved as a new note: “${created.title || 'Voice note'}”`, tone: 'success' })
   }, [])
   // ── Wave 11 lane 11D: the trade-plan canvas ───────────────────────────────
@@ -2492,7 +2534,7 @@ export default function NoteEditorPage({
         live.chain().focus().insertContent([
           { type: 'noteLink', attrs: { noteId: created.id } }, { type: 'text', text: ' ' },
         ]).run()
-        globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+        invalidateNoteViews({ tags: true })   // S6: the one note-views helper (fix round 2)
         setUploadToast({ message: `Trade plan created and linked: “${created.title}”. Open it from the link.`, tone: 'success' })
       } else if (created?.id) {
         setUploadToast({ message: `Trade plan created: “${created.title}”. This note could not take the link.`, tone: 'error' })
@@ -4120,6 +4162,8 @@ export default function NoteEditorPage({
       // a different body with its own writer.
       // (Read BEFORE `captureLocalState` below, whose stamp this decides.)
       if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
+      // S6 (post-#816): did this save land a NEW title? Read before the baseline moves.
+      const titleLanded = (lastSavedRef.current.title || '') !== (title || '')
       lastSavedRef.current = {
         title, subtitle, bodyJson,
         updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
@@ -4160,6 +4204,12 @@ export default function NoteEditorPage({
       // Wave 0 (P1-10): the server now has this content — the local safety
       // net for it is no longer needed.
       clearDraftLocally()
+      // ⛔ Audit 2026-11-05, S6 (found on production after #816): a title typed into a new note
+      // stayed "Untitled" in Recents, the list cards and the folder rows while the editor showed
+      // the new one -- only the sidebar's own tree was patched as it was typed. Once the title
+      // has LANDED, every view that shows a title asks the server again (never the counts, which
+      // a title cannot move, and never this note's own key, which this save just settled).
+      if (titleLanded) invalidateNoteViews({ titleOnly: true })
     } catch (e) {
       const status = e?.status
       // A 409 reaches here only when it was not reconciled above: a second one
@@ -4398,6 +4448,9 @@ export default function NoteEditorPage({
 
   const onFolderChange = async (folderId) => {
     await settleMetadataRevision(await update({ folderId: folderId || null }))
+    // S6 (B2): a move changes two folders' counts and which lists hold the note. The tab never
+    // heard of it, so "Unfiled 1" stayed after the note left Unfiled.
+    invalidateNoteViews()
   }
   // The Ticker field is checked against the server's rule BEFORE it is sent, and a refusal is
   // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
@@ -4509,11 +4562,8 @@ export default function NoteEditorPage({
         // P2 Tier 3 final fix I1: a copy, so the server starts its check-ins unpicked.
         isCopy: true,
       })
-      // Same predicate NotebookTab's own refreshSidebarCounts uses -- the
-      // sidebar's note lists (All notes/Recents/per-folder) are OTHER
-      // components' SWR hooks, unreachable from here except through the
-      // shared global cache.
-      globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+      // The one note-views helper (S6): every list, count and the folder tree, never this editor's note.
+      invalidateNoteViews({ tags: true })
       setSearchParams((prev) => applyTargetToParams(prev, { noteId: created.id, depth: 'note' }))
     } catch (e) {
       console.error('[notebook] duplicate failed', e)
@@ -5120,7 +5170,7 @@ export default function NoteEditorPage({
               Find
             </button>
           )}
-          <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
+          <NoteShareControls noteId={noteId} noteTitle={title} onMessage={setChromeMsg} />
           {/* Wave 8 (8A): the header's select and inputs carry names -- a
               placeholder vanishes once there is a value, and a select has none. */}
           <select
@@ -5209,6 +5259,23 @@ export default function NoteEditorPage({
               <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               {duplicating ? 'Duplicating…' : 'Duplicate'}
             </button>
+            {/* Audit 2026-11-05, spec S2: thesis controls appear only for a real thesis, so a member
+                who wants them on a plain note asks here. It writes kind Thesis through the note's
+                own property door (`update`, the one PropertiesSection uses); ThesisSection and the
+                details line then read it from the note. Never offered on a thesis, a trade-plan
+                canvas, or a locked note. */}
+            {note && !detailsThesis && !thesisLoading && !thesisError && !isCanvas && !locked && !unreadable && (
+              <button
+                type="button"
+                className={styles.chromeBtn}
+                onClick={makeThesis}
+                disabled={makingThesis}
+                title="Add evidence, a changelog and reviews to this note"
+              >
+                <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                Make this a thesis
+              </button>
+            )}
             {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
                 actions (Lock, Archive, Save as template, Open beside). Lane E's
                 own file (NoteMenuActions.jsx) renders itself; this is the one
@@ -5743,6 +5810,10 @@ export default function NoteEditorPage({
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+        {/* Audit 2026-11-05, spec S2: a note is never stamped with the charted symbol any more;
+            once the body names a $TICKER twice it OFFERS the link, through the Ticker field's door. */}
+        <TickerSuggestion editor={editor} noteId={noteId} ticker={note?.ticker || null}
+          readOnly={locked || unreadable || isCanvas} onLink={(sym) => onTickerChange(sym)} />
         {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
             the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
             What only this editor can do is handed over as `api`; the host does the rest. */}
@@ -5822,7 +5893,7 @@ export default function NoteEditorPage({
         {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
             NOTHING when every document's text is complete — the common case
             gets no chrome. */}
-        <DocumentTextStatus documents={noteDocuments} />
+        <DocumentTextStatus documents={noteDocuments} imageUrls={bodyImageUrls} />
         {/* Wave 10 F7 (Part A, 5d): ONE sentence for the note's side reads that failed. */}
         <LoadFailed compact failures={[
           { what: "this note's attachments", error: documentsError, retry: refreshDocuments },

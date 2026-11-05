@@ -317,6 +317,10 @@
   padding: 12px 6px;
   line-height: 1.5;
 }
+/* Audit 2026-11-05, spec S4 (B18): the meaning index's "{n} are waiting" line under an empty search. */
+.searchEmptyHint {
+  margin: 6px 0 0;
+}
 .row {
   display: flex;
   align-items: center;

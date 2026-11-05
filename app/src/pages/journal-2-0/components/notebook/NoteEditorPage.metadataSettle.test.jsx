@@ -205,3 +205,35 @@ describe('the Ticker field checks what was typed before it sends anything', () =
     expect(field.value).toBe('')
   })
 })
+
+// ⛔ Audit 2026-11-05 fix round 1 (review finding 1): "Make this a thesis" is a metadata door. It
+// wrote through `update` alone, so the editor's save baseline stayed on the old revision and the
+// next autosave PUT a stale baseUpdatedAt -- a 409 into the reconcile, spending its budget.
+describe('"Make this a thesis" settles like every other metadata door', () => {
+  it('the door settles the durable copy onto its revision, so the next save is not stale (no 409)', async () => {
+    global.fetch = vi.fn(async (url, opts = {}) => {
+      const u = String(url)
+      if (u === '/api/j2/notes/n1/thesis-summary') return { ok: true, json: async () => ({ evidence: [], changelog: [] }) }
+      if (u === '/api/j2/notes/tags') return { ok: true, json: async () => ({ tags: [], tree: null }) }
+      if (u === '/api/j2/notes/n1' && (opts.method || 'GET') === 'GET') return { ok: true, json: async () => ({ note: { ...server } }) }
+      return { ok: true, json: async () => ({}) }
+    })
+    NOTE = { ...baseNote(), tags: [] }
+    server = { ...NOTE }
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Make this a thesis/ }))
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith({ properties: { 'builtin:note_kind': 'thesis' } }))
+    await act(async () => { await settleIdb(8) })
+    // The landing is recorded AND the durable copy moved onto the door's revision -- the same
+    // proof the folder/ticker/tag CONTROL above reads. Without the settle the copy stays on T1,
+    // and the next save (or a drain) carries a stale base into a 409.
+    expect(store('meta').find((m) => m.name === landedKeyFor('n1'))?.value ?? []).toContain(T3)
+    const rec = store('notes').find((r) => r.noteId === 'n1')
+    expect(rec?.baseUpdatedAt).toBe(T3)
+    expect(store('outbox')).toEqual([])
+    // and a drain after the note closes has nothing stale to send
+    await drainAfterTheNoteCloses()
+    expect(server.updatedAt).toBe(T3)
+  })
+})
