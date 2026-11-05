@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 21:57 CT
+updated: 2026-11-04 21:58 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -39,7 +39,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn. SECOND clock note: blocks stamped 03:45, 04:20 and 04:35 CT on 2026-11-04 (W4-T15 start, W5-T7 READY, W5-T8 READY) were written ahead of the clock, at about 03:20-03:40 CT; from 2026-11-04 04:13 CT every stamp is read from the local clock.
 
 >>> DESKTOP IS NOW THE MERGE COORDINATOR (2026-11-04 21:57 CT). Owner, asked whether the desktop should merge on independent GO: "Whatever you think is most optimal" (after "okay lets do it all"); the desktop chose merge-on-GO. Deviation 12 from DESKTOP-PROMPT (no merge / no PR / no master push). Procedure = LAPTOP-PROMPT STEP 4 unchanged: independent Opus review GO before every merge (reviews in dsk/reviews/<lane>.md, pushed with this file); merge origin/master into the branch + landing checks (REFRESH final-tip + measure-pair when the master delta touches an engine path); SCRIPT_ENGINE_VERSION bumped by 1 at merge when translator output changes, numbers in merge order recorded here (master is at 5; W4-T4 carries 6; T3 -> 7 and W3 -> 8 per ASSIGNMENTS, then the next free number); one master merge at a time, only when production == master, the latest web deploy is SUCCESS/SKIPPED and uptime >= 600 s; gh pr create + gh pr merge --merge + verify_deploy_nologin.sh (railway CLI used READ-ONLY for logs/deploy list); never in the freeze (weekdays 15:30-16:15 ET, Wed 09:00-11:00 ET). Still forbidden: arming, flags, Railway changes, captures, force-push. LAPTOP COORDINATOR: if you resume, read this block and the merge log below before touching the queue; do not merge in parallel with the desktop. <<<
->>> MERGE LOG (desktop): (none yet) <<<
+>>> MERGE LOG (desktop): NOTHING MERGED. 2026-11-04 21:58 CT: the merge-train agent was BLOCKED by the session permission layer as a production deploy; the desktop does not work around it. Merging waits for an explicit owner approval of production deploys in this session (or the laptop coordinator). Reviews and fix rounds continue. <<<
 >>> BATCH 4 COMPLETE (2026-11-04 21:43 CT). Every lane the desktop started is READY; nothing is building. READY this batch: W4-T8 r1 87566dbb4f · W4-T13 spike a561fc12ba · W4-T13 build 7e05c067bf · W5-T2 0b45a9707a · W5-T4 r1 09753c9426 · W5-T7b e13d282eae · W5-T9 c169b1ce16 · W5-T10 a1523b3897 · W5-T11 r1 1e384edbfe · W5-T13 a21ad7df75 · W5-T14 176b78683f · W5-T15 r1 b27d098da4 · W5-T16 5a85b9b23f · W5-T17 f777d2c427 · W5-T18 d85b35af49 · W5-T19 b6c5668922. W5-T12 was already on master (PR #737). Engine bumps needed at merge: W4-T8, W4-T13 (plus the earlier engine lanes). Waiting on the coordinator: review + merge in the R9 order; engine numbers. Waiting on the owner: W5-T20 (Railway service), TradingView captures W4-S1 / W4-P1. Remaining plan work not startable from the desktop: W4-T5/T6/T17-later (capture-gated). <<<
 >>> DISK (2026-11-04 18:50 CT): free disk fell to 19.8 GB (alert floor 20). Each lane worktree is ~1.6 GB. The desktop removed 29 worktrees of READY lanes that were clean with local == origin (node_modules junctions unlinked first, git worktree remove without --force): elows, w4t0, w4t2, w4t3, w4t7, w4t9, w4t10, w4t11, w4t12, w4t13 (spike), w4t14, w4t15, w4t17, w5t1-w5t10 except w5t11/w5t15/w5t19 (in use), w5t13, w5t14, w5t16, w5t17, w5t18, w5t7b. Every branch is on origin; a fix round re-adds its worktree from origin. Kept: running lanes (w4t8, w4t13b, w5t11, w5t15, w5t19), the mp bases, and w2/w3 (local branch names differ). Free disk now 65 GB. <<<
 >>> DESKTOP RULINGS UNDER OWNER DELEGATION (2026-11-04 18:31 CT, owner: "you decide and get it all done asap"). Each is a branch-level, reversible choice; the coordinator may overturn any at review. Merging and engine numbers stay with the coordinator.
@@ -194,7 +194,7 @@ note on "baseline": the desktop baseline (1 failed file) is for final-tip's char
 desktop check: PASS (all changed files under docs/, local == origin, worktree clean)
 
 ## W4-T14 (picked per 063fe2ba8e: dependencies met)
-state: READY            round: r0            updated: 2026-11-04 04:22 CT
+state: FIX r1            round: r0            updated: 2026-11-04 04:22 CT
 branch: feat/pine-w4-t14   tip: 27c2d0fa1d (EVIDENCE over code tip 458c914961)   tested on master: 03a42b201a
 engine bump needed: YES (SCRIPT_ENGINE_VERSION not edited)
 evidence: docs/pine/evidence/2026-11-04-w4-t14/EVIDENCE.md
@@ -202,6 +202,7 @@ report: ast/pineRuntimeFrontend.js T14 bands only. A v6 unmatched `if` (no else)
 settingsScope.rail = NEW MASTER RED, not this branch (desktop-verified): it is a static acorn scan failing on app/src/lab/StudyChart.jsx:32; src/lab and the rail are byte-identical to origin/master on this branch; StudyChart.jsx came from 96582cd549 (2026-11-02 Study workbench round 3), which is NOT in the desktop baseline master 5d95103c8a but IS in 03a42b201a. Every lane tested on a master at or after 96582cd549 will show it. The desktop baseline for such lanes is 2 failed files.
 open: Q-A3 TradingView capture not taken: the documented v6 reading (false) is served; if the capture disagrees, revert only the falseFallback branch.
 desktop check: PASS (scope, rails, 15/16 with 1 equivalent, measure-pair both lanes, final-tip at baseline + one master red, local == origin, worktree clean)
+r1 BUILDING (2026-11-04 21:58 CT): independent review NO-GO (reviews/W4-T14.md, B1 HIGH): serves false for an unmatched v6 bool if/switch before capture Q-A3 (spec + standing ruling 2) and rewrote 7 refusal rails in p3WsaReviewFixes.test.js. Fix: keep the typing code, keep the served value refused by name until Q-A3 MATCHes, restore the 7 rails, re-measure, final-tip last.
 
 ## W5-T7 (picked per 063fe2ba8e: needs T1 + T6, both READY; stacked on T6)
 state: READY            round: r0            updated: 2026-11-04 04:20 CT
