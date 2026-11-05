@@ -161,6 +161,16 @@ describe('history.afterEvent: pure answer', () => {
     expect(says(answerFromEventStudy({ ...STUDY, status: 'refused', data: null }, { symbol: 'NVDA' }))).toBe("I couldn't run that study for NVDA: that request wasn't allowed for this question, so no study was run. No figure is stated.")
     expect(says(answerFromEventStudy({ ...STUDY, status: 'unavailable', data: null }, { symbol: 'AMD' }))).toBe("I couldn't run that study for AMD: UCT's stored daily history could not answer it. No figure is stated.")
   })
+  it('unavailable says the real reason from notes[0], in fixed words, and never echoes the note', () => {
+    const with0 = (note, sym = 'NVDA') => says(answerFromEventStudy({ ...STUDY, status: 'unavailable', data: null, notes: [note] }, { symbol: sym }))
+    expect(with0('The history is still loading. Run the study again in a moment.')).toBe("I couldn't run that study for NVDA: UCT is still loading that stored daily history. Ask again in a moment. No figure is stated.")
+    expect(with0('Too many studies are running. Run this one again in a moment.')).toBe("I couldn't run that study for NVDA: UCT is running too many studies right now. Ask again in a moment. No figure is stated.")
+    expect(with0('UCT has no stored daily history for that symbol. UCT has no stored daily history for NOPE.', 'NOPE')).toBe("I couldn't run that study for NOPE: UCT has no stored daily history for that symbol. No figure is stated.")
+    expect(with0("That study isn't available. NVDA price history could not be read.")).toBe("I couldn't run that study for NVDA: UCT's stored daily history could not be read just now. No figure is stated.")
+    expect(with0('price 123.45 secret detail')).toBe("I couldn't run that study for NVDA: UCT's stored daily history could not answer it. No figure is stated.")
+    expect(says(answerFromEventStudy({ status: 'unavailable', data: null, notes: [42] }, { symbol: 'NVDA' }))).toBe("I couldn't run that study for NVDA: UCT's stored daily history could not answer it. No figure is stated.")
+    expect(says(answerFromEventStudy({ status: 'refused', data: null, notes: ['still loading'] }, { symbol: 'NVDA' }))).toContain("wasn't allowed")
+  })
 })
 
 describe('history.afterEvent: served vs dark, local-only', () => {
