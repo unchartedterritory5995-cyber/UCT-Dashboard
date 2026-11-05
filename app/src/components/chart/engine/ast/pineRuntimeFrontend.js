@@ -2431,7 +2431,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
   const servedCondCall = (node, scope) => {
-    if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
+    if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
@@ -6040,13 +6040,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // form is reached operator by operator (`splitForArms`), never as one column
       const splitForArms = armHistoryGuard(node, scope, true)
       lexForeign = false
-      const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
+      // ⭐ W3W4-D1 — THE DRAWING BUILD ASKS THE SAME QUESTION AS THE PLOT LANE, in a block
+      // of the main body only (a function body keeps its refusal): history WRITTEN in a block that
+      // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
+      // other shape is refused BY NAME below (never read from the every-bar column, which for a
+      // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
+      const condHistory = (!objectsInRun || (owner === null && r4Level() > 0))
+        && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
       if (condHistory && r4Level() > 0) {
-        if (lexForeign) r4Guard('a series with history bound in another branch', locate(node.tok))
+        // the drawing build's refusal, by name (`r4Guard` itself stays the plot lane's)
+        const drawRefuse = (what) => {
+          note('runtime:conditional-history')
+          throw new RuntimeRefusal('runtime:conditional-history',
+            `${what} inside a block that does not run on every bar — `
+            + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', locate(node.tok))
+        }
+        if (lexForeign) {
+          if (objectsInRun) drawRefuse('a series with history bound in another branch')
+          r4Guard('a series with history bound in another branch', locate(node.tok))
+        }
         const served = servedCondCall(node, scope)
         if (served) return served
         if (!condTransparent(node)) {
+          if (objectsInRun) drawRefuse(node.type === 'call' ? `\`${node.name}\`` : 'a series with history')
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
         }
       } else if (!splitForArms && !mbbDynamicColumn(node, scope)) try {
