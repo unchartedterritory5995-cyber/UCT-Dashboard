@@ -255,7 +255,8 @@ DOORS: dict[str, Door] = {
         "engine's earnings cache + 60/min per IP", gap="no counter exists"),
     "api/services/engine.py": Door(
         "member", "GET /api/earnings-analysis/{sym}; shared Anthropic client factory",
-        "60/min per IP + 12h cache + generate-once store", gap="no counter exists"),
+        "60/min per IP + 12h cache + generate-once store; the warm passes take one failed attempt "
+        "per name per ET day (daily_counters, durable)", gap="no counter exists"),
     "api/routers/earnings.py": Door(
         "member", "GET /api/debug/earnings-sources/{sym} (no route auth)",
         "nothing", gap="a debug ping, gated only by OPEN_READS_GATE (off)"),
