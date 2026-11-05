@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import PrepWireBlock from './PrepWireBlock'
+import { PREP_NAMES_ASK } from './PrepCapture'
 import PrepEarningsBlock from './PrepEarningsBlock'
 import PrepMoversBlock from './PrepMoversBlock'
 import PrepLevelsBlock from './PrepLevelsBlock'
@@ -141,10 +142,19 @@ describe('each gap is named', () => {
     expect(screen.queryByText(/Before the open/)).toBeNull()
   })
 
-  it("CONTROL: a gap that never fills itself is the server's own sentence", () => {
+  it("CONTROL: a gap that never fills itself is the server's own sentence (read-only)", () => {
+    const empty = { ...contractBody('trader-blocks.prep.earnings'), missing: 'no_names', detail: 'Add names to a watchlist.' }
+    render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} />)
+    expect(screen.getByText('Add names to a watchlist.')).toBeTruthy()
+  })
+
+  it('S17: an editable block with no names ASKS for them (sentence, input, three suggestions), with no Capture button', () => {
     const empty = { ...contractBody('trader-blocks.prep.earnings'), missing: 'no_names', detail: 'Add names to a watchlist.' }
     render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} editable />)
-    expect(screen.getByText('Add names to a watchlist.')).toBeTruthy()
+    expect(screen.getByTestId('prep-names-ask')).toBeTruthy()
+    expect(screen.getByText(PREP_NAMES_ASK)).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /^Add (NVDA|SPY|QQQ)$/ })).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: /Capture/ })).toBeNull()
   })
 
   it('the wire with nothing published names its gap', () => {

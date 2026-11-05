@@ -33,6 +33,7 @@ import { settleNoteWrite } from './offline/settleNoteWrite'
 import { noteHasUnsentWork, STILL_SYNCING_MESSAGE } from './offline/noteHasUnsentWork'
 import { openNotebookDb } from './offline/notebookDb'
 import { notebookSchemaHeaders } from './notebookSchema'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 // The flag's one authority is `reviewDraftsFlag.js` (wave 14 perf lane): Research Home reads it
 // without loading this file. Re-exported so every existing import is unchanged.
@@ -515,5 +516,7 @@ export async function draftDailyReview({ accountId, day } = {}) {
   }
   const updated = (await res.json()).note
   await settleNoteWrite(updated?.id ?? daily.id, updated)
+  // S20 (audit 2026-11-05): the recap rate counts a recap that LANDED (never the second click that found one).
+  trackNotebookEvent(NOTEBOOK_EVENTS.RECAP_WRITTEN, { created: created === true })
   return { note: updated || daily, payload, created }
 }
