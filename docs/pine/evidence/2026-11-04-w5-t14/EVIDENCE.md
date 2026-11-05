@@ -166,3 +166,31 @@ test_c45_withheld_doors.py::test_the_question_is_not_vacuous_and_can_answer_no; 
 (Only the off-request-path file's `test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes` remains of the earlier
 extra failures; it is on base. The run also printed the harness NOTE of two reads of `c:\data\signal_ledger.db` from
 `test_definition_record.py::test_the_record_NEVER_TOUCHES_the_real_ledger_file...`, identical on both sides.)
+
+## FIX r1 (independent review NO-GO @176b78683f, `reviews/W5-T14.md`)
+Base for this round: this branch merged with W5-T11 r1 (`a74e273652`..`1e384edbfe`) and then **W5-T11 r2 (`7df06fe3fd`)**.
+Coordinator correction applied: the engine already NaNs its own warm-up and T11 r2 REFUSES a column with a finite value inside the
+warm-up as `runtime:server-integrity` (no masking). So here, warm-up bars arrive as na (NaN), the 0/1 scan already skips na, an as-of
+bar that is na is `not_computable` (never a non-hit), and a service that serves a finite warm-up value is `withheld`.
+- B1 closed by rails: `test_warmup_na_bars_are_skipped_by_the_condition_check_and_the_symbol_answers`,
+  `test_a_symbol_whose_whole_run_is_warmup_is_not_computable_never_a_non_hit`, `test_a_non_condition_value_AFTER_the_warmup_is_still_not_computable`,
+  and `test_a_finite_value_inside_the_warmup_withholds_the_symbol_never_a_non_hit` (a tampered-but-honestly-digested reply with finite warm-up
+  values: counted `withheld`, not answered, no hit, no receipt).
+- N1: admission goes through T11's public `runtime_server_lane.admission(row, plot, lane)` (`scan_runtime.runtime_admission(row, lane, plot)` is a
+  fail-closed wrapper; the private `_verdict` / `_admission` are no longer named here). The plot comes from `runtime_scan_spec`; the sweep filter hands
+  an unscannable document on (counted `refused` by name) rather than asking for a plot it does not have. `test_admission_is_the_public_server_lane_admission_with_the_plot`,
+  `test_an_admission_that_cannot_answer_admits_nothing`.
+- N2: the store-key-to-service-seconds conversion is now ONE function, `scan_runtime.store_time_seconds(t)`, a light module both lanes can import.
+  T15's `screener_backtest._epoch_seconds` is T15's file and is not edited here: **T15 should call `scan_runtime.store_time_seconds`** (the home is
+  `api/services/screener/scan_runtime.py`; `indicator_compute.bar_open_instant` stays the one underlying authority). Rail:
+  `test_the_shared_store_time_helper_is_the_one_conversion`. The "Review round 1: daily bar time" section above is superseded: T15 r1 adopted 09:30 ET.
+- Scannability is asked once, in `_load_definition` (the duplicate in `submit_run` was removed; an earlier mutation showed it redundant).
+- **Live mode departs from spec 5.1 text**: 5.1 says the live sweep uses profile `sweep`; this lane refuses a runtime document in the live cycle with
+  `gate:cadence` (closed bars only, Q3). Desktop ruling R8 accepted the departure; `_RUNTIME_PROFILES["live"] == "sweep"` is kept for when Q3 allows it.
+- **Unowned: the ruling Q2 cap of 25 runtime documents per nightly sweep (stages admins, cohort) is NOT enforced here and no T-row owns it.** It must exist
+  before `PINE_RUNTIME_SERVER_STAGE` is set above `off`.
+- Rails: `tests/test_scan_runtime_lane.py` 57 passed. Mutations (`runs/w5t14r1/mut2.log`, `heavy-mut.lock`): **TOTAL 40, KILLED 39, SURVIVED 1 = the no-op
+  control**. New rows: N01/N02 (plot not passed to admission, door and chunk), N03/N04 (na/warm-up handling of the condition scan), M25 (an admission that cannot
+  answer must refuse), and **T11a: T11's own check `if any(v == v for v in col[:wb])` in `api/services/pine_runtime_client.py` replaced by `if False:`
+  goes RED on `test_a_finite_value_inside_the_warmup_withholds...` and is restored byte-exact** (`mutate_pytest.py` asserts the restore; `git status` shows
+  no change to T11's file). The S05 row was dropped with the duplicate it covered.
