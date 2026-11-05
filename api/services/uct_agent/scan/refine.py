@@ -30,7 +30,8 @@ from api.services.uct_agent.scan import spec as scan_spec
 STATE_KEY = "lastScreen"
 ROW_CAP = scan_spec.ROW_CAP
 _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,11}$")
-_OPS = frozenset({"gt", "gte", "lt", "lte", "eq", "between", "in", "not_in"})
+_OPS = frozenset({"gt", "gte", "lt", "lte", "eq", "between", "in", "not_in", "contains",
+                  "gt_col", "gte_col", "lt_col", "lte_col"})
 UNIVERSE_KEYS = frozenset({"sector", "industry"})
 
 from api.services.uct_agent.scan import hidden
@@ -127,14 +128,18 @@ def validate_last_screen(value: Any) -> dict:
     sort = spec.get("sort")
     if sort is not None and (not isinstance(sort, dict) or not isinstance(sort.get("key"), str)):
         raise RefineError("`sort` must be {key, dir}")
-    keys = _filter_keys(filters) + _filter_keys(post) + ([sort["key"]] if sort else [])
+    logic, rank = spec.get("logic") or None, spec.get("rank") or None
+    # every name the record carries, in every shape: a compared field, a leaf of the group, a rank measure
+    keys = (_filter_keys(filters) + _filter_keys(post) + ([sort["key"]] if sort else [])
+            + scan_spec.named_fields({"filters": filters, "logic": logic, "rank": rank}))
     why = refusal_for(keys)
     if why:
         raise RefineError(why)
     try:
         # the catalog decides what a filter key is; `list` / `universe` scopes pass as the screener's own specials
         checked = scan_spec.validate({"filters": [{k: v for k, v in f.items() if k != "label"} for f in filters],
-                                      **({"sort": sort} if sort else {})})
+                                      **({"sort": sort} if sort else {}), **({"logic": logic} if logic else {}),
+                                      **({"rank": rank} if rank else {})})
     except scan_spec.SpecError as e:
         raise RefineError(str(e)) from None
     syms = value.get("symbols") or []
@@ -145,7 +150,9 @@ def validate_last_screen(value: Any) -> dict:
     total = value.get("total")
     if total is not None and (not isinstance(total, int) or isinstance(total, bool) or total < 0):
         raise RefineError("`total` must be a count")
-    out = {"spec": {"filters": filters, "post": post, "sort": checked.get("sort") if sort else None},
+    # ⛔ the group and the rank are the screen: stored without them, a restored spec would refine a LOOSER screen
+    out = {"spec": {"filters": filters, "post": post, "sort": checked.get("sort") if sort else None,
+                    **({"logic": logic} if logic else {}), **({"rank": rank} if rank else {})},
            "symbols": syms, "total": total, "asOf": value.get("asOf") if isinstance(value.get("asOf"), str) else None,
            "name": value.get("name") if isinstance(value.get("name"), str) else None,
            "savedId": str(value["savedId"]) if value.get("savedId") not in (None, "") else None}
@@ -160,8 +167,9 @@ def validate_last_screen(value: Any) -> dict:
 def compose(last: dict, delta: dict) -> dict:
     """A new {filters, post, sort, show?} from `last` and the SC-2 §3 delta
     {add: [wire filters], post: [measure filters], universe: [list filters on sector/industry], remove: [keys],
-     sort: {key, dir} | None, show: int | None}. Pure; raises RefineError for a hidden key or a `remove` of a key the
-    last screen does not have."""
+     sort: {key, dir} | None, logic: tree | None, rank: {criteria} | None, show: int | None}. Pure; raises RefineError
+    for a hidden key or a `remove` of a key the last screen does not have. A group stays: a new one is ANDed onto it, so
+    a refinement narrows it and never loses it. One order at a time: a sort clears a rank, a rank clears the sort."""
     last = last or {}
     filters = [dict(f) for f in (last.get("filters") or []) if isinstance(f, dict)]
     post = [dict(f) for f in (last.get("post") or []) if isinstance(f, dict)]
@@ -171,7 +179,10 @@ def compose(last: dict, delta: dict) -> dict:
     add_post = _check_filters(delta.get("post") or [], "post")
     universe = _check_filters(delta.get("universe") or [], "universe")
     new_sort = delta.get("sort")
-    keys = _filter_keys(add) + _filter_keys(add_post) + _filter_keys(universe) + ([new_sort["key"]] if isinstance(new_sort, dict) else [])
+    new_logic, new_rank = delta.get("logic") or None, delta.get("rank") or None
+    keys = (_filter_keys(add) + _filter_keys(add_post) + _filter_keys(universe)
+            + ([new_sort["key"]] if isinstance(new_sort, dict) else [])
+            + scan_spec.named_fields({"filters": add, "logic": new_logic, "rank": new_rank}))
     why = refusal_for(keys)
     if why:
         raise RefineError(why)
@@ -188,9 +199,19 @@ def compose(last: dict, delta: dict) -> dict:
     mine = {f["key"] for f in add} | {f["key"] for f in add_post}
     filters = [f for f in filters if f.get("key") not in mine] + add       # add / narrow: replace by key
     post = [f for f in post if f.get("key") not in mine] + add_post
+    rank = last.get("rank") or None
     if isinstance(new_sort, dict) and isinstance(new_sort.get("key"), str):
         sort = {"key": new_sort["key"], "dir": "asc" if new_sort.get("dir") == "asc" else "desc"}
+        rank = None
+    if new_rank:
+        rank, sort = new_rank, None
+    logic = last.get("logic") or None
+    logic = {"all": [logic, new_logic]} if logic and new_logic else (new_logic or logic)
     out = {"filters": filters, "post": post, "sort": sort}
+    if logic:
+        out["logic"] = logic
+    if rank:
+        out["rank"] = rank
     if delta.get("show") is not None:
         try:
             out["show"] = max(1, min(ROW_CAP, int(delta["show"])))
