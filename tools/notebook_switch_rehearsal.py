@@ -297,17 +297,25 @@ NOT_REHEARSED = {
     "NOTEBOOK_WIDGETS_W10_ENABLED": ("armed on web 2026-10-26 02:11:33Z (docs/feature_flags.json): notebook widgets wave 10, formulas, the options and notes sources, the ready-made and shelf widgets and the size calculator; "
                                     "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w10_enabled on the auth payload; no rendered on/off probe in this tool; "
                                     "its off evidence is tests/test_widget_definitions_w10_router.py (test_wave10_plans_404_everywhere_when_off), tests/test_shelf_widgets_router.py (test_dark_and_unknown_kind_are_one_404) and the ship walk's W10.9 flag-off phase (tools/notebook_widgets_p2_walk.py)"),
-    # Wave 11 (this branch). Dark, so it is NOT in the window's armed set and no payload row is judged for it.
-    "NOTEBOOK_WIDGETS_W11_ENABLED": ("dark (notebook widgets wave 11): the template library, sharing and adopting "
-                                     "widgets, routines and trackers (needs NOTEBOOK_STYLE_LIBRARY_ENABLED and "
-                                     "NOTEBOOK_JOURNAL_STYLES_ENABLED); every wave 11 door answers the one 404 while "
+    # Wave 11. Armed on web 2026-10-28, so the window's armed set carries it and the judge verifies its payload key.
+    "NOTEBOOK_WIDGETS_W11_ENABLED": ("armed on web 2026-10-28 ~00:26Z (docs/feature_flags.json) (notebook widgets "
+                                     "wave 11): the template library, sharing and adopting widgets, routines and "
+                                     "trackers; payload key only: the window verifies notebook_widgets_w11_enabled "
+                                     "on the auth payload; every wave 11 door answers the one 404 while "
                                      "off, read per request, before the plan and the body "
                                      "(tests/test_gallery_router_w11.py (test_every_new_route_404_when_w11_off, "
                                      "test_flag_read_per_request)), the contract fixtures pin each door's 401 and "
                                      "flags-off 404, and tests/test_gallery_item_types_w11.py "
                                      "(test_tool_types_hidden_while_w11_off_and_listed_when_on) shows the new library"
                                      " types absent while off; its rendered evidence is the wave 11 walk (Task "
-                                     "11.20), not a probe here; waits for the owner's arming"),
+                                     "11.20), not a probe here"),
+    # Connector fidelity Plan F: a KILL SWITCH, not an enablement gate. Unset (production), the sweep it stops RUNS.
+    "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED": ("dark (docs/feature_flags.json records it pending: the switch is unset, so "
+                                            "the j2_doc_pending_sweep job it stops runs): a scheduled re-queue of "
+                                            "searchable documents left pending, with no member surface and no payload "
+                                            "key, so no rendered probe in this tool; its stop evidence is "
+                                            "tests/test_document_pending_sweep.py "
+                                            "(test_the_kill_switch_stops_the_sweep_per_tick)"),
 }
 
 
