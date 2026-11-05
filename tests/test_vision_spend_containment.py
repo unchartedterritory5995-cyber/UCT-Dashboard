@@ -241,3 +241,58 @@ def test_no_vision_model_call_escapes_the_reservation():
     src = Path("api/services/indicator_from_image.py").read_text(encoding="utf-8")
     assert len(re.findall(r"\.messages\.create\(", src)) == 1
     assert src.index("reserve_member_call(") < src.index(".messages.create(")
+
+
+# ═══ one member's share of the lane ══════════════════════════════════════════════════════════════
+def test_one_members_timeouts_stop_at_their_share_and_the_lane_stays_open(real):
+    """Before: one member's timeouts could reserve the whole $4 and refuse everyone else for the day."""
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    share = real.guard.interactive_limit_usd() * real.svc.MEMBER_LANE_SHARE
+    outs = [ask(real, client, user="heavy") for _ in range(40)]
+    assert client.calls == int(share / worst)
+    assert outs[-1]["gate"] == "vision:member-share"
+    assert interactive(real) <= share
+    assert ask(real, Client(), user="someone-else").get("gate") not in ("vision:spend-cap", "vision:member-share")
+
+
+def test_the_share_is_inside_the_lane_and_the_lanes_total_is_unchanged(real):
+    assert 0 < real.svc.MEMBER_LANE_SHARE < 1
+    assert real.guard.interactive_limit_usd() == 4.0 and real.guard.hard_cap_usd() == 15.0
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    outs = [ask(real, client, user=f"u{i // 2}") for i in range(80)]
+    assert client.calls == int(real.guard.interactive_limit_usd() / worst)
+    assert outs[-1]["gate"] == "vision:spend-cap"
+
+
+def test_settled_reads_give_their_room_back_to_the_member(real):
+    """The share counts dollars, so ordinary reads cost what they cost, not their reservation."""
+    client, actual = Client(lambda: reply((1200, 300))), real.guard.estimate_cost(real.svc.MODEL, 1200, 300)
+    outs = [ask(real, client, user="ordinary") for _ in range(40)]
+    assert all(o.get("gate") != "vision:member-share" for o in outs)
+    assert client.calls == 40 and interactive(real) == pytest.approx(actual * 40)
+
+
+def test_racing_uploads_of_one_member_hold_the_share(real):
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    share = real.guard.interactive_limit_usd() * real.svc.MEMBER_LANE_SHARE
+    barrier = threading.Barrier(12)
+
+    def one():
+        barrier.wait()
+        ask(real, client, user="racer")
+
+    threads = [threading.Thread(target=one) for _ in range(12)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert client.calls == int(share / worst)
+
+
+def test_a_share_refusal_makes_no_ledger_row(real):
+    worst = real.svc.worst_case_usd()
+    slot = real.guard.reserve_member_call(real.day, "indicator-vision:x", real.svc.MODEL, worst,
+                                          member_limit_usd=worst / 2)
+    assert slot == {"refused": "member-share"} and interactive(real) == 0
+
+
+def test_a_caller_with_no_share_is_unchanged(real):
+    assert real.guard.reserve_member_call(real.day, "concierge:x", real.svc.MODEL, 0.5).get("id")
