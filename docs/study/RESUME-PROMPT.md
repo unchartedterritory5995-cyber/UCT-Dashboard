@@ -1,4 +1,4 @@
-# STUDY RESUME PROMPT (v1, 2026-11-04 evening) — paste this into Claude Code on the new computer
+# STUDY RESUME PROMPT (v1.1, 2026-11-04 night) — paste this into Claude Code on the new computer
 
 You are continuing the Study programme for UCT Intelligence (repo `unchartedterritory5995-cyber/UCT-Dashboard`,
 the Railway app at uctintelligence.com). Study is "Duolingo for stocks" inside The Desk → Courses: a daily
@@ -50,6 +50,46 @@ ALL changes to the level and effect and magnitude that my feedback mandated."
 - The mark's own throb owns its transform: any centring of the mark (ring, journey walker) goes on a WRAPPER.
 - Patch scripts are idempotent (assert anchors; skip when the replacement is already there).
 - Files in `app/src/pages/study` are mostly CRLF: patch with newline-aware code and assert the anchor matched.
+
+## Before you trust the workbench (first-run checklist)
+- `curl http://127.0.0.1:8077/api/health` is 200 and the shell's "Sign the sandbox in" card is green (a lapsed session
+  reads as "couldn't load the stuff"; one tap fixes it).
+- The bank import printed a TOTAL and every item is approved (reset_local.sh does both); `pw_drill.py` runs with
+  "page errors: []" and six PNGs; `pw_parts.py <piece>` writes every part for desktop AND phone.
+- The sandbox member's chart settings are the owner's (walkthrough/data/owner_chart_settings.json) so the drill chart
+  looks like his Charts tab.
+
+## Definition of done for a round
+A round is done when the owner has ranked every part on the shell AND seen the six screens on his phone AND his words
+are in owner_verdicts.jsonl and pushed. "Tests green" and "PR open" are never done. A deploy is done when the merge is
+an ancestor of origin/production, /api/health shows a fresh uptime, and the served Courses chunk contains a string
+unique to the round (fetch /, follow index-*.js -> Desk-*.js -> CoursesSection-*.js). Never read the GitHub
+deployments API for this; read commit statuses and check-run annotations.
+
+## Tool traps that cost hours (do not rediscover them)
+- A quoted bash heredoc halves backslashes: write regex literals with the Edit tool or a Write-then-run script.
+- Most files under app/src/pages/study are CRLF: a patch with LF anchors prints "done" and changes nothing. Assert the
+  anchor matched; make every patch script idempotent (a re-run after a failure applied one sub three times).
+- The classifier refuses: `gh pr merge` (the owner merges with `! gh pr merge N --merge --repo ...`), exposing local
+  ports to the LAN, railway ssh reads of production.
+- A CI job that fails in 3 s with no steps is a runner/billing problem: `gh run view --log` says "log not found";
+  read `gh api repos/<r>/check-runs/<job>/annotations`.
+- Discord's composer ignores text inserted by script; type it as keystrokes, keep it under 2,000 characters, send from
+  a fresh tab.
+- The mark's own throb animation owns its transform: centre it with a wrapper, never on the mark.
+
+## The owner's own words (calibrate on these)
+- 2026-11-04, on the live site before round 16: "it looks nothing like the work we did in the local host the charts
+  the words the graphics the production the quality."
+- Batch 16 notes (score 50): bubble "I want the logo ... to be moving in our animation work ... text ... standout a bit
+  more"; chip "Dont need the bar count, if anything have % down from highs and % extended from MAs in a table graph";
+  prog "an animated bar of a journey that our logo is filling up"; chart "not our complete and perfect UCT charts that
+  each user has in their settings"; pointer "significantly higher quality ... ALSO quit calling us THE FIRM"; cards /
+  check / runon / colours / reveal "horrible", "UGLY", "low quality"; stamp "it should take over the entire screen as
+  like a pop up uncovered answer like a normal app or game or test would have it"; end "okay but ... could be much
+  higher quality."
+- After round 17: "You did not make ALL changes to the level and effect and magnitude that my feedback mandated."
+  After 17b: "This was good i have some feedback but want my peers to check out this version."
 
 ## Next
 1. The owner's batch-17 ranks + his team's notes → round 18 on a new branch off `origin/master`
