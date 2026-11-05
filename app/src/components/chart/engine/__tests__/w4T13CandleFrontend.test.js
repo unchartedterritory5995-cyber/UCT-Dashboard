@@ -5,7 +5,7 @@
 // colour outputs. Everything else - the live OBJECT door, a build that did not ask - keeps the
 // refusal master gives, by name.
 import { describe, it, expect } from 'vitest'
-import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_CANDLE_ROLES } from '../ast/pineRuntimeFrontend.js'
 import { probeObjectRuntime } from '../runtime/runtimeColumns.js'
 
 const H = '//@version=6\nindicator("t", overlay = true)\n'
@@ -74,5 +74,14 @@ describe('W4-T13 - the front end', () => {
     const num = build('plotcandle(open, high, low, close, color = close)\n', { plotColours: true })
     expect(num.ok).toBe(true)
     expect(num.ir.outputs[3].colour.refused).toBeTruthy()
+  })
+
+  it('r1: `group` is the ordinal WITHIN a call kind (the pane pairs per kind), and the roles are the exported list', () => {
+    const k = 'color = color.green, wickcolor = color.green, bordercolor = color.green'
+    const r = build(`plotcandle(open, high, low, close, ${k})\nplotbar(open, high, low, close, color = color.red)\nplotcandle(open, high, low, close, ${k})\nplotbar(open, high, low, close, color = color.red)\n`, { plotColours: true })
+    expect(r.ok, JSON.stringify(r.refusal)).toBe(true)
+    const closes = r.ir.outputs.filter((o) => o.role === 'close').map((o) => [o.call, o.group])
+    expect(closes).toEqual([['plotcandle', 0], ['plotbar', 0], ['plotcandle', 1], ['plotbar', 1]])
+    expect(r.ir.outputs.slice(0, 4).map((o) => o.role)).toEqual([...RUNTIME_CANDLE_ROLES])
   })
 })

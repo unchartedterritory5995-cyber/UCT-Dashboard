@@ -366,6 +366,10 @@ export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
  *  and that difference has to be declared somewhere or the emitter cannot refuse
  *  `plot(color.red)` and `bgcolor(close)` — which are the same mistake pointing
  *  in opposite directions. */
+/** W4-T13 - the four prices of a candle / bar, in the order the front end emits them. The ONE list:
+ *  the member pane reads it to pair the run's outputs with the host's (`pine.js::MULTI_OUTPUT_CALLS`
+ *  emits the same order, held by `w4T13CandleFrontend.test.js`). */
+export const RUNTIME_CANDLE_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
 export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolor']))
 
 /** ⭐ The cross family this lane serves over RUNTIME state, Pine spelling ->
@@ -7290,8 +7294,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     plotbar: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'editable',
       'show_last', 'display', 'format', 'precision', 'force_overlay']),
   })
-  const CANDLE_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
-  let candleGroups = 0
+  const CANDLE_ROLES = RUNTIME_CANDLE_ROLES
+  // ⭐ NUMBERED PER CALL KIND: the pane pairs the n-th `plotcandle` with the n-th host `plotcandle`
+  // and the n-th `plotbar` with the n-th `plotbar`, so `group` is that ordinal. (A counter shared by
+  // both calls left a sparse list per kind and crashed the pane on a script that wrote both.)
+  const candleGroups = { plotcandle: 0, plotbar: 0 }
   const emitCandleCall = (callName, call, scope, out, at) => {
     const names = CANDLE_PARAMS[callName]
     const given = new Map()
@@ -7311,8 +7318,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         position += 1
       }
     }
-    const group = candleGroups
-    candleGroups += 1
+    const group = candleGroups[callName]
+    candleGroups[callName] += 1
     const descs = []
     for (const role of CANDLE_ROLES) {
       const node = given.get(role)
@@ -7334,13 +7341,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // What the call says around its numbers, for the pane to read (it decides what it can draw).
     const displayNode = given.get('display')
     const overlayNode = given.get('force_overlay')
-    const literalBool = (n) => (n && n.type === 'number' && n.tok && n.tok.kind === 'ident'
-      && (n.tok.value === 'true' || n.tok.value === 'false')) ? n.tok.value === 'true' : 'unread'
     const titleNode = given.get('title')
     close.candle = {
       ...(titleNode && titleNode.type === 'string' && titleNode.value ? { title: String(titleNode.value).slice(0, 60) } : {}),
       ...(displayNode ? { display: displayNode.type === 'name' ? displayNode.name : 'unread' } : {}),
-      ...(overlayNode ? { forceOverlay: literalBool(overlayNode) } : {}),
+      ...(overlayNode ? { forceOverlay: literalBool(overlayNode) ?? 'unread' } : {}),
       ...(given.has('show_last') ? { showLast: true } : {}),
     }
     if (!wantColours) return

@@ -203,4 +203,77 @@ describe('W4-T13 - the series payload the chart is handed', () => {
     expect(a.bars[0].color).toBe('rgba(0, 0, 0, 0)') // an na colour is the transparent entry
     expect(a.bars[1].color).toMatch(/^#/)
   })
+
+  // W4-T13 r1 (review B1): a script that writes BOTH calls. The front end numbers candles per call
+  // kind and the pane pairs per kind, so each row gets ITS host output and ITS run columns.
+  describe('a script with both plotcandle and plotbar', () => {
+    const C = (hi, title) => `plotcandle(up ? open : na, high + ${hi}, mn, close, "${title}", color = color.green, wickcolor = color.blue, bordercolor = color.green)\n`
+    const B = (hi, title) => `plotbar(up ? open : na, high + ${hi}, mn, close, "${title}", color = color.red)\n`
+    const rowsOf = (src, id) => {
+      const { built, series, fake } = drawn(src, id)
+      const styles = built.definition.plots.filter((p) => p.style === 'candles' || p.style === 'ohlcBars')
+        .map((p) => [p.label, p.style])
+      return { styles, series, fake, built }
+    }
+    const highs = (fake, sr) => dataOf(fake, sr).filter((p) => p.high !== undefined).map((p) => p.high)
+    const upBars = BARS.filter(up)
+
+    it.each([
+      ['candle then bar', `${H}${C(0, 'C1')}${B(1, 'B1')}`, [['C1', 'candles'], ['B1', 'ohlcBars']], [0, 1]],
+      ['bar then candle', `${H}${B(1, 'B1')}${C(0, 'C1')}`, [['B1', 'ohlcBars'], ['C1', 'candles']], [1, 0]],
+    ])('%s draws two rows, each from its own call', (_n, src, expectedRows, plus) => {
+      const { styles, series, fake } = rowsOf(src, `u_t13_mix_${plus.join('')}`)
+      expect(styles).toEqual(expectedRows)
+      expect(series.length).toBe(2)
+      series.forEach((sr, k) => {
+        expect(highs(fake, sr), `series ${k}`).toEqual(upBars.map((b) => b.h + plus[k]))
+      })
+    })
+
+    it('candle, bar, candle draws three rows paired in order', () => {
+      const src = `${H}${C(0, 'C1')}${B(1, 'B1')}${C(2, 'C2')}`
+      const { styles, series, fake } = rowsOf(src, 'u_t13_mix_cbc')
+      expect(styles).toEqual([['C1', 'candles'], ['B1', 'ohlcBars'], ['C2', 'candles']])
+      expect(series.length).toBe(3)
+      ;[0, 1, 2].forEach((plus, k) => {
+        expect(highs(fake, series[k]), `series ${k}`).toEqual(upBars.map((b) => b.h + plus))
+      })
+    })
+
+    it('two bars then a candle pair per kind as well', () => {
+      const src = `${H}${B(1, 'B1')}${B(2, 'B2')}${C(3, 'C1')}`
+      const { styles, series, fake } = rowsOf(src, 'u_t13_mix_bbc')
+      expect(styles).toEqual([['B1', 'ohlcBars'], ['B2', 'ohlcBars'], ['C1', 'candles']])
+      ;[1, 2, 3].forEach((plus, k) => {
+        expect(highs(fake, series[k]), `series ${k}`).toEqual(upBars.map((b) => b.h + plus))
+      })
+    })
+  })
+
+  it('a declared OHLC row whose columns are missing draws NOTHING (never the scalar close)', () => {
+    const built = door(CANDLE, 'u_t13_nocols')
+    const def = JSON.parse(JSON.stringify(built.definition))
+    const row = def.plots.find((p) => p.style === 'candles')
+    // the row's price columns are gone from the compute table: the binder is handed no such columns
+    for (const key of Object.values(row.ohlc)) delete def.compute.outputs[key]
+    for (const key of Object.values(row.ohlc)) def.plots = def.plots.filter((p) => p.key !== key)
+    row.ohlc = { open: 'zz1', high: 'zz2', low: 'zz3' }
+    const fake = createFakeChart()
+    const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    const price = fake.chart.addSeries(fake.LWC.CandlestickSeries, {}, 0)
+    const reg = {
+      getDefinition: () => def,
+      computeFor: () => ({ [row.key]: Float64Array.from(BARS.map((b) => b.c)) }),
+      hasAnyFinite: (c) => c.some(Number.isFinite),
+      columnKeys: () => [row.key],
+    }
+    binder.sync({
+      enabled: true, instances: [{ instanceId: 'i:x', defId: def.id, inputs: {} }], registry: reg, bars: BARS,
+      adjustTime: (t) => t, plan: { fresh: true }, applyData: (sr, data) => sr.setData(data),
+      resolvePlacement: () => ({ paneIndex: 0, scaleId: 'right', scaleOptions: null }), priceSeries: () => price,
+      tf: 'D', newestBarIsForming: false, historyFromListing: true,
+    })
+    const mine = fake.seriesCreated.filter((sr) => sr !== price)
+    for (const sr of mine) expect(dataOf(fake, sr) || []).toEqual([])
+  })
 })

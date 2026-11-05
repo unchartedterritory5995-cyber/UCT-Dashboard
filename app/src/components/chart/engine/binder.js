@@ -1971,8 +1971,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const computedBars = computedPlot && computedOhlcDeclared(computedPlot)
           && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
           ? computedOhlcPayload(computedPlot, cols, bars) : null
+        // ⛔ A DECLARED OHLC ROW WHOSE COLUMNS ARE MISSING DRAWS NOTHING: the scalar close must never
+        // be handed to a candlestick series. (`validateOhlc` makes it unreachable for a valid document.)
+        const declaredNoColumns = computedPlot && computedOhlcDeclared(computedPlot) && !computedBars
+          && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
         columns.set(bindingKey(inst.instanceId, plotKey),
-          ohlcBars ? ohlcPayload(ohlcBars) : (computedBars || cols[plotKey]))
+          ohlcBars ? ohlcPayload(ohlcBars) : (computedBars || (declaredNoColumns ? ohlcPayload([]) : cols[plotKey])))
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
