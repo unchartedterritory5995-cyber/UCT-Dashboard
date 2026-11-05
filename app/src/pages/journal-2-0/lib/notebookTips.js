@@ -79,6 +79,25 @@ export function insertedChart(tr) {
   return false
 }
 
+/** S20 trust incidents: the transaction is an UNDO (prosemirror-history's meta, `{redo: false}`) that put a widget
+ *  back -- so a widget the member deleted was restored by undo. A redo, a paste or an insert is not one. */
+export function restoredWidgetByUndo(tr) {
+  const meta = tr?.getMeta?.('history$')
+  if (!meta || meta.redo !== false) return false
+  for (const step of tr?.steps || []) {
+    const content = step?.slice?.content
+    if (!content || !content.size) continue
+    let found = false
+    content.descendants((node) => {
+      if (found) return false
+      if (node.type?.name === 'widgetEmbed') found = true
+      return !found
+    })
+    if (found) return true
+  }
+  return false
+}
+
 /** Which tip (if any) this editor update earns: the chart tip on a chart insert, the ticker tip on a written ticker. */
 export function tipFor(tr, state) {
   if (insertedChart(tr)) return TIP_IDS.chart

@@ -33,7 +33,7 @@ import { noteShareEndpoint, sharedNoteUrl, SHARE_EXPIRY_CHOICES } from '../../li
 import {
   FOLDER_PUBLISH_SCOPE_SENTENCE, PUBLISH_CONFIRM_NOTE_TITLE, PUBLISH_ENDPOINT, PUBLISH_FAILED_SENTENCE,
   PUBLISH_PUBLIC_SENTENCE, copyText, findLivePublication, pageCopiedSentence, publishConfirmFolderTitle,
-  publishConfirmNoteSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
+  publishConfirmNoteSentence, publishTarget, publishedSentence, publishedUrl, publishUndoneMs, requestJson,
 } from '../../lib/notePublishLink'
 import editorStyles from './NoteEditorPage.module.css'
 import LoadFailed from '../LoadFailed'
@@ -252,6 +252,8 @@ function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMessage }) {
       await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(pub.slug)}`, { method: 'DELETE' })
       setPubs((prev) => prev.filter((p) => p.slug !== pub.slug))
       trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'unpublish', kind: pub.kind, door: 'editor' })
+      const undoneMs = publishUndoneMs(pub)
+      if (undoneMs != null) trackNotebookEvent(NOTEBOOK_EVENTS.TRUST_INCIDENT, { kind: 'publish_undone', ms: undoneMs })
       focusNextRef.current = pub.kind === 'folder' ? 'publishFolder' : 'publishNote'
       say('Unpublished. The page no longer works.')
     } catch (e) {

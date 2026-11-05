@@ -8,7 +8,8 @@
 import { Component, Suspense, useEffect, useRef, useState } from 'react'
 import usePreferences from '../../../../hooks/usePreferences'
 import { lazyLeaf } from '../../lib/lazyChunk'
-import { TIPS_PREF, TIP_COPY, seenTips, tipAvailable, tipFor, withTipSeen } from '../../lib/notebookTips'
+import { TIPS_PREF, TIP_COPY, restoredWidgetByUndo, seenTips, tipAvailable, tipFor, withTipSeen } from '../../lib/notebookTips'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 
 const NotebookTip = lazyLeaf(() => import('./NotebookTip'))
 
@@ -31,6 +32,9 @@ export default function NotebookTipSlot({ editor }) {
   useEffect(() => {
     if (!editor || editor.isDestroyed) return undefined
     const onUpdate = ({ transaction }) => {
+      // S20 (audit 2026-11-05): a widget deleted and then brought back by undo is a trust incident. Counted on the
+      // same update listener, before any tip rule (it is counted whatever the tips say).
+      if (restoredWidgetByUndo(transaction)) trackNotebookEvent(NOTEBOOK_EVENTS.TRUST_INCIDENT, { kind: 'widget_restored' })
       const { prefs: p, loading: l, setPrefMerged, tip: showing } = live.current
       if (l || showing || !editor.isEditable) return
       const id = tipFor(transaction, editor.state)

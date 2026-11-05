@@ -1,0 +1,231 @@
+"""The Notebook's return metrics (audit 2026-11-05, spec S20) -- the admin READ.
+
+The write side is the Notebook's one telemetry door: `POST /api/j2/telemetry`, which records each
+allow-listed event in the shared `activity_log` as `action = "j2:<event>"` (api/routers/journal_two.py).
+This module reads those rows back and answers the six numbers of S20's table. Nothing is written.
+
+  Day-1 return       of the members whose FIRST Notebook visit fell in the window (and at least one ET day
+                     ago), the share who opened it again on the next ET calendar day.
+  Day-7 return       of the members whose first visit fell in the window and whose first 7 trading days have
+                     all passed, the share who opened it on 3 or more of those 7 trading days.
+  First "aha"        of the same cohort, the share with a `first_live_widget`, and the median / p90 time from the
+                     first visit to it.
+  Morning open rate  over the window: of the member trading days with any Notebook open, the share with an open
+                     before 09:30 ET.
+  Recap rate         over the window: of the same member trading days, the share with a `recap_written`.
+  Trust incidents    over the window: `trust_incident` counts by kind, and per 100 active members.
+
+Definitions that are choices, stated once (the admin panel shows the same words):
+  * A "visit" is `notebook_tab_visit` (one per Notebook mount, Stage A). An ET day is America/New_York.
+  * A trading day is a weekday; market holidays are NOT removed (a holiday counts as a trading day nobody
+    trades). This keeps the read free of a calendar dependency and moves every rate the same way.
+  * The member-day denominator (morning, recap) is days the member opened the Notebook at all, so the two rates
+    say "on the days they used it", not "of all days".
+
+⛔ BOUNDED. Every query reads `activity_log` by `action` (indexed, `idx_activity_action_created`) and is capped
+at `MAX_ROWS` rows; a capped read says so (`capped: true`) instead of quietly undercounting. The whole read is a
+handful of indexed selects and an in-process fold, on the request thread of an ADMIN only.
+
+⛔ NEVER CONTENT. Only `user_id`, `created_at` and, for trust incidents, the `kind` enum are read.
+"""
+from __future__ import annotations
+
+import json
+import statistics
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Iterable
+from zoneinfo import ZoneInfo
+
+from api.services import auth_db
+
+ET = ZoneInfo("America/New_York")
+WINDOWS = (7, 30, 90)
+MAX_ROWS = 200_000
+MORNING_CUTOFF = (9, 30)
+DAY7_TRADING_DAYS = 7
+DAY7_MIN_DAYS = 3
+
+VISIT = "j2:notebook_tab_visit"
+AHA = "j2:first_live_widget"
+RECAP = "j2:recap_written"
+TRUST = "j2:trust_incident"
+FIRST_RUN = "j2:first_run_completed"
+
+DEFINITIONS = {
+    "day1": "Members whose first Notebook visit was in the window who opened it again the next ET day.",
+    "day7": "Members whose first visit was in the window who opened it on 3+ of their first 7 trading days.",
+    "aha": "Time from the first visit to the first widget showing the member's own tickers.",
+    "morning": "Of member trading days with a Notebook open, the share with an open before 09:30 ET.",
+    "recap": "Of member trading days with a Notebook open, the share with a recap written.",
+    "trust": "Publishes undone within 10 minutes; widgets deleted then restored by undo.",
+    "tradingDay": "A weekday; market holidays are not removed.",
+}
+
+
+def _parse(ts: Any) -> datetime | None:
+    """`activity_log.created_at` (SQLite CURRENT_TIMESTAMP, UTC, 'YYYY-MM-DD HH:MM:SS') as an aware UTC time."""
+    if not isinstance(ts, str) or not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00").replace(" ", "T", 1))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _et(dt: datetime) -> datetime:
+    return dt.astimezone(ET)
+
+
+def _is_trading_day(d: date) -> bool:
+    return d.weekday() < 5
+
+
+def _trading_days_from(start: date, n: int) -> list[date]:
+    out: list[date] = []
+    d = start
+    while len(out) < n:
+        if _is_trading_day(d):
+            out.append(d)
+        d += timedelta(days=1)
+    return out
+
+
+def _rows(conn, action: str, since: str | None, cols: str = "user_id, created_at") -> tuple[list, bool]:
+    if since is None:
+        rows = conn.execute(
+            f"SELECT {cols} FROM activity_log WHERE action = ? ORDER BY created_at LIMIT ?",
+            (action, MAX_ROWS + 1)).fetchall()
+    else:
+        rows = conn.execute(
+            f"SELECT {cols} FROM activity_log WHERE action = ? AND created_at >= ? ORDER BY created_at LIMIT ?",
+            (action, since, MAX_ROWS + 1)).fetchall()
+    return list(rows[:MAX_ROWS]), len(rows) > MAX_ROWS
+
+
+def _first_by_user(conn, action: str) -> dict[str, datetime]:
+    """Each member's FIRST row of `action`, ever. One grouped, indexed read."""
+    out: dict[str, datetime] = {}
+    for r in conn.execute(
+            "SELECT user_id, MIN(created_at) AS first FROM activity_log WHERE action = ? GROUP BY user_id",
+            (action,)).fetchall():
+        dt = _parse(r["first"])
+        if dt is not None:
+            out[r["user_id"]] = dt
+    return out
+
+
+def _rate(num: int, den: int) -> float | None:
+    return round(num / den, 4) if den else None
+
+
+def _seconds_summary(vals: Iterable[float]) -> dict[str, Any]:
+    v = sorted(vals)
+    if not v:
+        return {"n": 0, "medianS": None, "p90S": None}
+    p90 = v[min(len(v) - 1, int(round(0.9 * (len(v) - 1))))]
+    return {"n": len(v), "medianS": round(statistics.median(v), 1), "p90S": round(p90, 1)}
+
+
+def compute(days: int = 30, *, now: datetime | None = None, conn=None) -> dict[str, Any]:
+    """The six S20 numbers over the last `days` days (`days` in WINDOWS)."""
+    if days not in WINDOWS:
+        raise ValueError(f"days must be one of {WINDOWS}")
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    start = now - timedelta(days=days)
+    since = start.strftime("%Y-%m-%d %H:%M:%S")
+    today_et = _et(now).date()
+    owned = conn is None
+    conn = conn or auth_db.get_connection()
+    capped = False
+    try:
+        first_visit = _first_by_user(conn, VISIT)
+        first_aha = _first_by_user(conn, AHA)
+        # Every visit by a member whose first visit is in the window, so their first 7 trading days are whole.
+        cohort = {u: t for u, t in first_visit.items() if t >= start}
+        visits, c1 = _rows(conn, VISIT, (start - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"))
+        recaps, c2 = _rows(conn, RECAP, since)
+        trust, c3 = _rows(conn, TRUST, since, "user_id, created_at, details")
+        built, c4 = _rows(conn, FIRST_RUN, since)
+        capped = c1 or c2 or c3 or c4
+    finally:
+        if owned:
+            conn.close()
+
+    visit_days: dict[str, set[date]] = defaultdict(set)
+    morning_days: dict[str, set[date]] = defaultdict(set)
+    for r in visits:
+        dt = _parse(r["created_at"])
+        if dt is None:
+            continue
+        local = _et(dt)
+        visit_days[r["user_id"]].add(local.date())
+        if dt >= start and (local.hour, local.minute) < MORNING_CUTOFF:
+            morning_days[r["user_id"]].add(local.date())
+
+    # Day-1 return.
+    d1_den = d1_num = 0
+    # Day-7 return.
+    d7_den = d7_num = 0
+    for user, first in cohort.items():
+        d0 = _et(first).date()
+        if d0 < today_et:
+            d1_den += 1
+            if (d0 + timedelta(days=1)) in visit_days.get(user, ()):
+                d1_num += 1
+        window = _trading_days_from(d0, DAY7_TRADING_DAYS)
+        if window[-1] < today_et:
+            d7_den += 1
+            if len(set(window) & visit_days.get(user, set())) >= DAY7_MIN_DAYS:
+                d7_num += 1
+
+    # First "aha".
+    aha_secs = [(first_aha[u] - t).total_seconds() for u, t in cohort.items()
+                if u in first_aha and first_aha[u] >= t]
+
+    # Member trading days with an open, inside the window (the morning and recap denominators).
+    member_days = {(u, d) for u, ds in visit_days.items() for d in ds
+                   if _is_trading_day(d) and d >= _et(start).date()}
+    morning = {(u, d) for (u, d) in member_days if d in morning_days.get(u, ())}
+    recap_days = set()
+    for r in recaps:
+        dt = _parse(r["created_at"])
+        if dt is not None:
+            recap_days.add((r["user_id"], _et(dt).date()))
+    recap_hit = member_days & recap_days
+
+    by_kind: dict[str, int] = defaultdict(int)
+    for r in trust:
+        try:
+            kind = json.loads(r["details"] or "{}").get("kind")
+        except (ValueError, AttributeError):
+            kind = None
+        by_kind[kind if kind in ("publish_undone", "widget_restored") else "other"] += 1
+    active = set()
+    for r in visits:
+        dt = _parse(r["created_at"])
+        if dt is not None and dt >= start:
+            active.add(r["user_id"])
+
+    return {
+        "days": days,
+        "asOf": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "capped": bool(capped),
+        "definitions": DEFINITIONS,
+        "activeMembers": len(active),
+        "newMembers": len(cohort),
+        "firstRunCompleted": len({r["user_id"] for r in built}),
+        "day1": {"returned": d1_num, "of": d1_den, "rate": _rate(d1_num, d1_den)},
+        "day7": {"returned": d7_num, "of": d7_den, "rate": _rate(d7_num, d7_den)},
+        "aha": {"reached": len(aha_secs), "of": len(cohort), "rate": _rate(len(aha_secs), len(cohort)),
+                **_seconds_summary(aha_secs)},
+        "morning": {"days": len(morning), "of": len(member_days), "rate": _rate(len(morning), len(member_days))},
+        "recap": {"days": len(recap_hit), "of": len(member_days), "rate": _rate(len(recap_hit), len(member_days))},
+        "trust": {
+            "publishUndone": by_kind.get("publish_undone", 0),
+            "widgetRestored": by_kind.get("widget_restored", 0),
+            "total": sum(by_kind.values()),
+            "per100Active": round(100 * sum(by_kind.values()) / len(active), 2) if active else None,
+        },
+    }

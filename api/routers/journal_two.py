@@ -225,6 +225,10 @@ _J2_TELEMETRY_EVENTS = {
     # P5 (starter packs, Task 6) - a note made from a style or a style applied to one, a style created, and a
     # trader block inserted. Closed enums only: never a style id, a name, a note or a block's params.
     "style_applied", "style_created", "block_used",
+    # Audit 2026-11-05, S16 + S20 (return metrics): the first run's Build and Skip, the first widget that showed
+    # the member's own tickers, a recap written, and a trust incident. Counts, enums and bools only. Read back by
+    # GET /api/admin/notebook-return-metrics (journal_two/notebook_return_metrics.py).
+    "first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -349,6 +353,27 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
         "kind": ("chart", "preEntryChecklist", "priceStamps", "positionSizing", "myRules", "prepWire",
                  "prepEarnings", "prepMovers", "prepLevels", "tradeReview", "moodCheckIn", "marketcontext",
                  "reminder"),
+    },
+    # S16 / S20 (audit 2026-11-05). `names` is a COUNT of tickers, never the tickers.
+    "first_run_completed": {
+        "names": "num",
+        "pack": ("swing", "day", "prop", "options", "earnings", "none"),
+        "plan": "bool",
+        "ms": "num",
+    },
+    "first_run_skipped": {
+        "step": "num",
+    },
+    "first_live_widget": {
+        "source": ("watchlist", "reporting", "first_run"),
+        "names": "num",
+    },
+    "recap_written": {
+        "created": "bool",
+    },
+    "trust_incident": {
+        "kind": ("publish_undone", "widget_restored"),
+        "ms": "num",
     },
 }
 

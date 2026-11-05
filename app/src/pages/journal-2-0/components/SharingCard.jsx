@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import TileCard from '../../../components/TileCard'
 import { notebookFlag } from '../lib/offline/notebookFlags'
 import { noteShareEndpoint, SHARE_LINKS_ENDPOINT } from '../lib/noteShareLink'
-import { PUBLISH_ENDPOINT } from '../lib/notePublishLink'
+import { PUBLISH_ENDPOINT, publishUndoneMs } from '../lib/notePublishLink'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../lib/notebookTelemetry'
 import styles from './SharingCard.module.css'
 
 /**
@@ -113,6 +114,8 @@ function SharingList({ shareOn, publishOn }) {
     try {
       await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(p.slug)}`, { method: 'DELETE' })
       setPubs((prev) => prev.filter((x) => x.slug !== p.slug))
+      const undoneMs = publishUndoneMs(p)
+      if (undoneMs != null) trackNotebookEvent(NOTEBOOK_EVENTS.TRUST_INCIDENT, { kind: 'publish_undone', ms: undoneMs })
       focusListRef.current = true
       setStatus(`"${p.name}" unpublished. The page no longer works.`)
     } catch (e) {

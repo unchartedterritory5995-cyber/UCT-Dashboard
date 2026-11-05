@@ -38,6 +38,14 @@
  * P5 (starter packs, Task 6): `style_applied` (a note made from a style, or a style switched or updated on a note,
  * after the server's yes), `style_created` (a new style from the editor, a duplicate or a note) and `block_used`
  * (a trader block inserted into a note). Closed enums only: never a style id, a name, a note or a block's params.
+ *
+ * Audit 2026-11-05, S16 and S20 (the return metrics). `first_run_completed` (the 60-second first run's Build: how many
+ * names, which pack, whether today's plan was written) and `first_run_skipped`; `first_live_widget` (once per browser:
+ * the first time a widget shows the member's OWN tickers -- the "aha", read against the first `notebook_tab_visit`);
+ * `recap_written` (today's recap landed in the daily note); `trust_incident` (a publish undone within 10 minutes, or a
+ * widget deleted and then brought back by undo). Day-1 return, Day-7 return and the morning open rate need no new
+ * event: they are read from `notebook_tab_visit`'s own timestamps. The admin read is
+ * api/services/journal_two/notebook_return_metrics.py. Counts, enums and booleans only: never a ticker or a title.
  */
 
 export const NOTEBOOK_EVENTS = Object.freeze({
@@ -61,6 +69,11 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   STYLE_APPLIED: 'style_applied',
   STYLE_CREATED: 'style_created',
   BLOCK_USED: 'block_used',
+  FIRST_RUN_COMPLETED: 'first_run_completed',
+  FIRST_RUN_SKIPPED: 'first_run_skipped',
+  FIRST_LIVE_WIDGET: 'first_live_widget',
+  RECAP_WRITTEN: 'recap_written',
+  TRUST_INCIDENT: 'trust_incident',
 })
 
 /**
@@ -194,6 +207,29 @@ export const EVENT_SCHEMAS = Object.freeze({
   block_used: {
     kind: oneOf('chart', 'preEntryChecklist', 'priceStamps', 'positionSizing', 'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn', 'marketcontext', 'reminder'),
   },
+  // S16: the first run's Build. `names` is a COUNT, never the tickers; `pack` is a starter pack key or 'none'.
+  first_run_completed: {
+    names: num,
+    pack: oneOf('swing', 'day', 'prop', 'options', 'earnings', 'none'),
+    plan: bool,
+    ms: num,
+  },
+  first_run_skipped: {
+    step: num,
+  },
+  // S20 "First aha": fired once per browser; the admin read takes each member's FIRST one.
+  first_live_widget: {
+    source: oneOf('watchlist', 'reporting', 'first_run'),
+    names: num,
+  },
+  recap_written: {
+    created: bool,
+  },
+  // S20 "Trust incidents": a publish undone within 10 minutes; a widget deleted then restored by undo.
+  trust_incident: {
+    kind: oneOf('publish_undone', 'widget_restored'),
+    ms: num,
+  },
 })
 
 const KNOWN = new Set(Object.values(NOTEBOOK_EVENTS))
@@ -235,6 +271,27 @@ export function trackNotebookEvent(event, props, { fetchImpl } = {}) {
     if (p && typeof p.catch === 'function') p.catch(() => {})
   } catch { /* the action being measured already happened */ }
   return clean
+}
+
+/** Where the once-per-browser `first_live_widget` mark lives. */
+export const FIRST_LIVE_WIDGET_KEY = 'uct.nb.firstLiveWidget'
+
+/**
+ * S20 "First aha": the first time a widget shows the member's OWN tickers, sent ONCE per browser (the admin read
+ * keeps each member's first, so a second browser costs one extra row and never moves the number). Best-effort: a
+ * blocked store sends nothing rather than sending on every render.
+ * @returns the props sent, or null
+ */
+export function markFirstLiveWidget(source, names, { fetchImpl, storage } = {}) {
+  if (!(Number(names) > 0)) return null
+  let store = storage
+  try { store = store || globalThis.localStorage } catch { return null }
+  if (!store) return null
+  try {
+    if (store.getItem(FIRST_LIVE_WIDGET_KEY)) return null
+    store.setItem(FIRST_LIVE_WIDGET_KEY, String(Date.now()))
+  } catch { return null }
+  return trackNotebookEvent(NOTEBOOK_EVENTS.FIRST_LIVE_WIDGET, { source, names }, { fetchImpl })
 }
 
 /**

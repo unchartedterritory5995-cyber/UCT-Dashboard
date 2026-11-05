@@ -3,7 +3,7 @@
 // tests/test_notebook_telemetry_events.py, which reads THIS module's source.
 import { describe, it, expect, vi } from 'vitest'
 import {
-  NOTEBOOK_EVENTS, EVENT_SCHEMAS, CORE_ACTION_EVENTS, sanitizeProps, trackNotebookEvent, startNoteOpenTimer,
+  NOTEBOOK_EVENTS, EVENT_SCHEMAS, CORE_ACTION_EVENTS, sanitizeProps, trackNotebookEvent, startNoteOpenTimer, markFirstLiveWidget,
 } from './notebookTelemetry'
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
@@ -25,10 +25,13 @@ describe('the event set', () => {
   it('is the core Notebook actions (the seven of wave 6, the R-16 eight of wave 10, the two of P3a and the three of P5), each with a schema', () => {
     expect(Object.values(NOTEBOOK_EVENTS).sort()).toEqual([
       'ask_used', 'block_used', 'bulk_used', 'capture_used', 'conflict_forked', 'dictation_used', 'export_used',
-      'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'save_failed', 'save_success', 'search_used',
-      'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'writing_help_used',
+      'first_live_widget', 'first_run_completed', 'first_run_skipped',
+      'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'recap_written', 'save_failed', 'save_success',
+      'search_used', 'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'trust_incident',
+      'writing_help_used',
     ])
-    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(20)
+    // Audit 2026-11-05 (S16, S20): + the first run's two, the first live widget, a recap written, a trust incident.
+    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(25)
     for (const name of Object.values(NOTEBOOK_EVENTS)) expect(EVENT_SCHEMAS[name]).toBeTruthy()
   })
 })
@@ -175,5 +178,27 @@ describe('P5 - style_applied, style_created and block_used', () => {
     expect(sanitizeProps('style_applied', { via: 'switch', styleId: 's1', name: TITLE })).toEqual({ via: 'switch' })
     expect(sanitizeProps('style_created', { via: TITLE })).toEqual({ via: 'other' })
     expect(sanitizeProps('block_used', { kind: 'free text', params: { entry: 1 } })).toEqual({ kind: 'other' })
+  })
+})
+
+describe('S20 - the return-metric events carry counts and enums, never a ticker or a title', () => {
+  it('first_run_completed keeps the COUNT of names; a ticker list or a pack name typed by hand cannot ride along', () => {
+    const clean = sanitizeProps('first_run_completed', { names: 3, pack: 'swing', plan: true, ms: 41000.4, tickers: ['NVDA'] })
+    expect(clean).toEqual({ names: 3, pack: 'swing', plan: true, ms: 41000 })
+    expect(sanitizeProps('first_run_completed', { pack: 'NVDA swing' }).pack).toBe('other')
+  })
+  it('trust_incident is one of its two kinds', () => {
+    expect(sanitizeProps('trust_incident', { kind: 'publish_undone', ms: 1 })).toEqual({ kind: 'publish_undone', ms: 1 })
+    expect(sanitizeProps('trust_incident', { kind: 'my note title' }).kind).toBe('other')
+  })
+  it('markFirstLiveWidget sends ONCE per browser, and nothing for zero names', () => {
+    const store = new Map()
+    const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+    const f = vi.fn(() => Promise.resolve({ ok: true }))
+    expect(markFirstLiveWidget('watchlist', 0, { fetchImpl: f, storage })).toBeNull()
+    expect(markFirstLiveWidget('watchlist', 3, { fetchImpl: f, storage })).toEqual({ source: 'watchlist', names: 3 })
+    expect(markFirstLiveWidget('reporting', 2, { fetchImpl: f, storage })).toBeNull()
+    expect(f).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(f.mock.calls[0][1].body).event).toBe('first_live_widget')
   })
 })
