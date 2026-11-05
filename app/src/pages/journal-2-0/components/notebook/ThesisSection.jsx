@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
@@ -8,7 +8,7 @@ import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useEvidenceCandidates from '../../hooks/useEvidenceCandidates'
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
-import ThesisReviewSection from './ThesisReviewSection'
+import lazyChunk from '../../lib/lazyChunk'
 // ⛔ Wave M's canonical source-kind labeller. The picker used to format
 // `${documentName} · p.${pageNumber}` itself — a THIRD formatter over one
 // truth, and the one place the '· p.2' defect would have survived Wave M.
@@ -16,6 +16,10 @@ import { searchResultTitle } from '../../lib/searchResultLabel'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ThesisSection.module.css'
+
+// Tier 1a bytes (perf-budgets.md): the review section is fetched only for a note that IS a thesis (this section renders
+// nothing otherwise), never on the Notebook's first open.
+const ThesisReviewSection = lazyChunk(() => import('./ThesisReviewSection'))
 import Input from '../../../../components/ui/Input'
 
 const THESIS_RESEARCH_TYPES = new Set(['long_thesis', 'short_thesis'])
@@ -603,9 +607,11 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
           review opens in place already knowing what it is about. It is passed
           the SAME evidence array this section renders, so the counts it shows
           and the rows above it can never disagree. */}
-      <ThesisReviewSection noteId={noteId} evidence={evidence}
-                           anchorReviewId={anchorReviewId}
-                           onAnchorConsumed={onReviewAnchorConsumed} />
+      <Suspense fallback={null}>
+        <ThesisReviewSection noteId={noteId} evidence={evidence}
+                             anchorReviewId={anchorReviewId}
+                             onAnchorConsumed={onReviewAnchorConsumed} />
+      </Suspense>
 
       <CollapsibleSection id={`thesis-changelog-${noteId}`} title="Changelog" defaultOpen={false}>
         {changelog.length === 0 ? (

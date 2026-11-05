@@ -401,10 +401,11 @@ describe('NotebookTab — selecting notes', () => {
     expect(toolbar()).toBeNull()
   })
 
-  it('the table view selects too, with a select-all header', () => {
+  // Tier 1a bytes: the table view mode is fetched on its first use (lazyView), so its header is awaited.
+  it('the table view selects too, with a select-all header', async () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: /table view/i }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all notes in view' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select all notes in view' }))
     expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
   })
 

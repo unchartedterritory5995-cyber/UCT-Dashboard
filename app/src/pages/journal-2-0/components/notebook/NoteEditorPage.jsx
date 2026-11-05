@@ -93,7 +93,6 @@ import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
-import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
 import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
@@ -189,6 +188,9 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Tier 1a bytes (perf-budgets.md): version history (and the AI change-set history and aiActions it pulls in) is fetched
+// on its FIRST open from More, then stays mounted so its own close and focus return run exactly as before.
+const NoteHistoryPanel = lazyChunk(() => import('./NoteHistoryPanel'))
 // Notebook P2 Tier 2 part A, item 8: the "Set alert" chip for a sentence like "alert me if NVDA closes below
 // 120". LAZY, and mounted only while the smart-chips switch is on (an off switch never fetches it). Its mount
 // is also what switches the alert plugin on (lib/alertPhraseOffer.js: HOSTED ONLY).
@@ -1163,6 +1165,9 @@ export default function NoteEditorPage({
 
   // Wave C: version history / trust panel.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Tier 1a bytes: the history chunk mounts on the first open and stays (a closed Sheet renders nothing either way).
+  const [historyEverOpen, setHistoryEverOpen] = useState(false)
+  if (historyOpen && !historyEverOpen) setHistoryEverOpen(true)
   // Notebook P1: how many times /style was pressed in THIS editor. The style host is fetched on demand: a styled
   // note (the banner check) or the first /style; it answers the count itself once it is there.
   const [styleAsk, setStyleAsk] = useState(false)   // false, then the number of presses
@@ -6061,13 +6066,17 @@ export default function NoteEditorPage({
           <div className={styles.railRight}><NoteRailRight insights={insights} /></div>
         )}
       </div>
-      <NoteHistoryPanel
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        noteId={noteId}
-        currentNote={note}
-        onRestored={onVersionRestored}
-      />
+      {historyEverOpen && (
+        <Suspense fallback={null}>
+          <NoteHistoryPanel
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            noteId={noteId}
+            currentNote={note}
+            onRestored={onVersionRestored}
+          />
+        </Suspense>
+      )}
       {resurfaceVersionId && (
         <Suspense fallback={null}>
           <ResurfaceVersionSheet noteId={noteId} versionId={resurfaceVersionId} onClose={clearResurfaceParam} />
