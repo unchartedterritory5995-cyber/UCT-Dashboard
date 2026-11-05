@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 // Widget palette — the point-and-click twin of the slash commands (owner ask:
@@ -211,6 +211,28 @@ describe('WidgetPalette keyboard escape (UX #13)', () => {
       expect(document.activeElement).toBe(opener)
     },
   )
+
+  // Fix round 1 (review Minor 13): the opener is NAMED, not guessed from whatever held focus at the first render -- a
+  // toolbar button that keeps the editor's selection on a press (mousedown prevented) never takes focus itself.
+  it('with returnFocusTo, Escape returns to THAT button even when focus was elsewhere at open', () => {
+    const { editor } = makeEditor()
+    function Named() {
+      const [open, setOpen] = useState(false)
+      const ref = useRef(null)
+      return (
+        <div>
+          <input aria-label="Elsewhere" />
+          <button ref={ref} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen(true)}>Insert widget</button>
+          {open && <WidgetPalette editor={editor} onClose={() => setOpen(false)} returnFocusTo={ref} />}
+        </div>
+      )
+    }
+    render(<Named />)
+    screen.getByLabelText('Elsewhere').focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Insert widget' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Insert widget' }))
+  })
 
   it('the type cards take the full column width, and the panel stops 16 px above the bottom of the screen', () => {
     const css = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'WidgetPalette.module.css'), 'utf8')

@@ -2508,6 +2508,9 @@ export default function NoteEditorPage({
   // keeps the editor's selection on a mouse press (mousedown is prevented), so the Sheet's own restore read
   // the wrong opener. Opened from the button, focus goes back to the button; from the slash menu, the
   // Sheet's default restore (the editor) stands.
+  // Fix round 1 (review Minor 13): which Insert door opened the widget palette (the toolbar's, or the phone "+"
+  // menu's), so its Escape and close return focus THERE.
+  const paletteOpenerRef = useRef(null)
   const writingHelpButtonRef = useRef(null)
   const writingHelpFromButtonRef = useRef(false)
   const openWritingHelpFromButton = useCallback(() => {
@@ -5731,7 +5734,7 @@ export default function NoteEditorPage({
           <button
             type="button"
             className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
-            onClick={() => { setOutlineOpen(false); setPaletteOpen((o) => !o) }}
+            onClick={(e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }}
             title="Insert a chart or preset — pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
@@ -5749,7 +5752,7 @@ export default function NoteEditorPage({
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
         <Suspense fallback={null}>
-          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} />
         </Suspense>
       )}
       {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
@@ -5763,7 +5766,7 @@ export default function NoteEditorPage({
             { label: 'Image', onClick: () => fileInputRef.current?.click() },
             { label: 'Attach a file', onClick: () => attachFileInputRef.current?.click() },
             { label: 'Scan with camera', onClick: () => scanInputRef.current?.click() },
-            { label: 'Chart or block', onClick: () => { setOutlineOpen(false); setPaletteOpen(true) } },
+            { label: 'Chart or block', onClick: () => { paletteOpenerRef.current = insertPhoneRef.current; setOutlineOpen(false); setPaletteOpen(true) } },
           ]}
         />
       )}

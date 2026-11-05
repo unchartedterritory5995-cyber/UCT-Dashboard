@@ -80,7 +80,7 @@ function selectLastInsertedEmbed(editor) {
   } catch { /* a stub editor (or one mid-teardown) keeps its caret */ }
 }
 
-export default function WidgetPalette({ editor, onClose }) {
+export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
   const [kind, setKind] = useState(null)   // null = the type list
   const [sym, setSym] = useState('')
   const [tfTok, setTfTok] = useState('D')
@@ -121,9 +121,11 @@ export default function WidgetPalette({ editor, onClose }) {
   // Insert button). It used to drop to <body>, the top of the page, so a keyboard member lost their place.
   // Read once, at the first render -- before the effect above moves focus into the panel. A chart that was
   // just inserted keeps its own focus (S3): only a close without an insert returns to the opener.
+  // Fix round 1 (review Minor 13): a NAMED opener (`returnFocusTo`, the toolbar's Insert button) wins -- that button
+  // keeps the editor's selection on a press, so it never held focus itself; else whatever held focus at the first render.
   const openerRef = useRef(typeof document !== 'undefined' ? document.activeElement : null)
   const dismiss = () => {
-    const opener = openerRef.current
+    const opener = returnFocusTo?.current || openerRef.current
     onClose?.()
     if (opener && opener !== document.body && opener.isConnected) opener.focus?.()
   }
