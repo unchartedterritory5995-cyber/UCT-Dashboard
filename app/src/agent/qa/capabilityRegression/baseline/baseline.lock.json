@@ -3651,6 +3651,66 @@
      "modes": {}
     }
    }
+  },
+  "scan.near-high.sign": {
+   "digest": "c23f7abe79a7c0ec",
+   "phrasings": {
+    "find stocks up 20% this month near 52-week highs with volume above average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "stocks up 20% in a month within 5% of their 52-week high, volume above average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me names up 20%+ this month close to 52 week highs with above average volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.near-high.between": {
+   "digest": "f43ad88b749e6aca",
+   "phrasings": {
+    "stocks within 0 to 5% of their 52-week high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "find stocks between 0 and 5 percent below the 52 week high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scan for names 0-5% off their 52-week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scan.sector-word": {
+   "digest": "348c0fbc5da622e8",
+   "phrasings": {
+    "only tech": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "just the technology names": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep only tech stocks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -3841,6 +3901,16 @@
   },
   "followup.other-charts.plural-four": {
    "digest": "b88f595574307c6f",
+   "gap": false,
+   "mode": null
+  },
+  "followup.it-on-chart.two": {
+   "digest": "a33d2352e079c520",
+   "gap": false,
+   "mode": null
+  },
+  "followup.it-on-chart.four": {
+   "digest": "9211f771f5a80c2d",
    "gap": false,
    "mode": null
   }

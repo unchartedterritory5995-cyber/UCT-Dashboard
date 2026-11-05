@@ -30,6 +30,7 @@ def test_validate_routing_keeps_only_well_formed_groups():
     assert turn.validate_routing(None) is None and turn.validate_routing({"groups": "x"}) is None
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_schema_and_prompt_name_only_the_withheld_groups():
     un = turn.validate_routing(ROUTING)["unselected"]
     schema = turn.envelope_schema(turn.validate_manifest(CAPS), un)

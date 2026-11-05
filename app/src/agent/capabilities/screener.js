@@ -246,11 +246,49 @@ const suggestFor = (options, word) => {
 
 /** One list filter → the engine's `in` / `not_in`, resolved against the real values. With the
  *  values not loaded yet (`lenient`), the words are kept for describing; apply re-resolves. */
+// ⛔ SG-2 (AUDIT live prod f591d31720, 2026-11-04): "only tech" became Industry = "Information Technology Services" (one
+// small IT-services industry) instead of the Technology SECTOR. A word that NAMES a sector — the sector's own value, or a
+// common name for it — is the `sector` field's whenever the catalog has one, whichever list field the model chose; only a
+// value the sector field really holds is used. Words naming a sector AND words that don't, together on the industry
+// field, are asked about, never guessed.
+const SECTOR_NAMES = [
+  [/^(?:tech|techs|technology|technologies|info(?:rmation)? tech(?:nology)?|tech stocks?|tech sector)$/, ['Technology', 'Information Technology']],
+  [/^(?:energy|energy stocks?)$/, ['Energy']],
+  [/^(?:health ?care|health|healthcare stocks?)$/, ['Healthcare', 'Health Care']],
+  [/^(?:financials?|finance|financial services)$/, ['Financial Services', 'Financials']],
+  [/^(?:utilities|utility)$/, ['Utilities']],
+  [/^(?:real estate)$/, ['Real Estate']],
+  [/^(?:materials|basic materials)$/, ['Basic Materials', 'Materials']],
+  [/^(?:industrials?)$/, ['Industrials']],
+  [/^(?:consumer staples|staples|consumer defensive|defensives?)$/, ['Consumer Defensive', 'Consumer Staples']],
+  [/^(?:consumer discretionary|discretionary|consumer cyclicals?|cyclicals?)$/, ['Consumer Cyclical', 'Consumer Discretionary']],
+  [/^(?:communications?|communication services)$/, ['Communication Services']],
+]
+/** The sector value (one the sector field holds) a member's word names, or null. Pure over the options. */
+export function sectorNamed(word, sectorValues) {
+  const w = tok(word).trim()
+  const exact = (sectorValues || []).find(v => tok(v).trim() === w)
+  if (exact) return exact
+  const hit = SECTOR_NAMES.find(([re]) => re.test(w))
+  return hit ? (hit[1].find(n => (sectorValues || []).includes(n)) || null) : null
+}
 function listFilter(f, x, { lenient = false } = {}) {
   const op = x.op === 'not_in' ? 'not_in' : (LIST_OPS.includes(x.op) || x.op === 'eq') ? 'in' : null
   if (!op) return { error: `${f.label} takes a list of values (in / not in)` }
   const words = (Array.isArray(x.values) ? x.values : []).map(v => String(v || '').trim()).filter(Boolean)
   if (!words.length) return { error: `which ${f.label.toLowerCase()}?` }
+  const sectorField = (cache.meta?.fields || []).find(g => g.key === 'sector' && g.type === 'list')
+  const sectorValues = cache.options?.sector?.values
+  if (sectorField && sectorValues && (f.key === 'sector' || f.key === 'industry')) {
+    const named = words.map(w => sectorNamed(w, sectorValues))
+    if (named.every(Boolean)) {
+      const values = [...new Set(named)]
+      return { filter: { key: 'sector', op, values }, ...(f.key !== 'sector' ? { note: `“${words.join(', ')}” ${words.length === 1 ? 'is a sector' : 'are sectors'}, so I used Sector: ${values.join(', ')}` } : {}) }
+    }
+    if (f.key === 'industry' && named.some(Boolean)) {
+      return { error: `“${words.filter((_, i) => named[i]).join(', ')}” ${named.filter(Boolean).length === 1 ? 'is a sector' : 'are sectors'} and “${words.filter((_, i) => !named[i]).join(', ')}” is not — say whether to screen by sector or by industry` }
+    }
+  }
   const opts = cache.options?.[f.key]?.values
   if (!opts) return lenient ? { filter: { key: f.key, op, values: words, pending: true } } : { error: `the ${f.label} values couldn't be read right now` }
   const m = matchValues(opts, words)
@@ -262,6 +300,41 @@ function listFilter(f, x, { lenient = false } = {}) {
   if (fits.length === 1) return { filter: { key: fits[0].g.key, op, values: fits[0].m.values }, note: `“${words.join(', ')}” is ${/^[aeiou]/i.test(fits[0].g.label) ? 'an' : 'a'} ${fits[0].g.label}, so I matched it there` }
   const w = m.unmatched[0]
   return { error: `the Screener has no ${f.label} matching “${w}” (it has ${suggestFor(opts, w).join(', ')}${opts.length > 8 ? ', …' : ''})` }
+}
+
+// ⛔ SG-1 (AUDIT live prod f591d31720, 2026-11-04): "near 52-week highs" was built as "Dist from 52W High ≤ 5%". The
+// Screener stores a distance from a HIGH as a NEGATIVE percent (price / high − 1: 0 at the high, −5 five percent below,
+// screener/technicals.py `_pct`) and a distance from a LOW as a POSITIVE one, so "≤ 5" passed EVERY stock. A threshold on
+// the wrong side of zero for such a field is a magnitude said the member's way ("within 5% of the high", "more than 20%
+// off it"): it is read on the field's own side — the value negated, the comparison mirrored — and the answer says so.
+// The sign is the field's (its key names a high or a low), never a guess about the member.
+const DIST_BELOW_HIGH = /^dist_(?:\w+_)?high_pct$|^dist_ath_pct$/
+const DIST_ABOVE_LOW = /^dist_(?:\w+_)?low_pct$/
+/** 'neg' (≤ 0: below a high), 'pos' (≥ 0: above a low) or null — the sign convention of a distance field. */
+export const distanceSign = (key) => (DIST_BELOW_HIGH.test(String(key || '')) ? 'neg' : DIST_ABOVE_LOW.test(String(key || '')) ? 'pos' : null)
+// SG-1: the catalog line the model reads says the sign ("near the 52-week high" = dist_52w_high_pct gte -5)
+const DIST_UNIT = { neg: '(%, ≤0: −5 = 5% below the high)', pos: '(%, ≥0: 5 = 5% above the low)' }
+const MIRROR = { gt: 'lt', gte: 'lte', lt: 'gt', lte: 'gte', eq: 'eq' }
+/** A range filter {op, value, max} on a distance field, put on the field's own side of zero → { x, note } (x unchanged
+ *  and note null when it already was). Pure; exported for tests. */
+export function signedDistance(x, f) {
+  const sign = distanceSign(f?.key)
+  if (!sign || !x) return { x, note: null }
+  const v = Number(x.value)
+  const wrong = (n) => Number.isFinite(n) && (sign === 'neg' ? n > 0 : n < 0)
+  let y = null
+  if (x.op === 'between') {
+    const hi = Number(x.max)
+    // mirrored onto the field's side ("between 0 and 5% of the high" → −5..0; "2 to 5% off it" → −5..−2)
+    if (Number.isFinite(v) && Number.isFinite(hi)) {
+      if (sign === 'neg' && hi > 0) y = v >= 0 ? { ...x, value: -hi, max: -v || 0 } : { ...x, value: Math.min(v, -hi), max: 0 }
+      if (sign === 'pos' && v < 0) y = hi <= 0 ? { ...x, value: -hi, max: -v } : { ...x, value: 0, max: Math.max(hi, -v) }
+    }
+  } else if (MIRROR[x.op] && wrong(v)) y = { ...x, op: MIRROR[x.op], value: -v }
+  if (!y) return { x, note: null }
+  const side = sign === 'neg' ? `below the high, so 0 is at the high and −5 is 5% below it` : `above the low, so 0 is at the low and 5 is 5% above it`
+  const shown = y.op === 'between' ? `between ${y.value}% and ${y.max}%` : `${OP_WORD[y.op]} ${y.value}%`
+  return { x: y, note: `${f.label} is measured ${side} — read as ${f.label} ${shown}` }
 }
 
 /** The model's filters → { filters (the engine's wire filters), post (measure conditions), notes }. */
@@ -280,22 +353,27 @@ export function toWireFilters(filters, { lenient = false } = {}) {
       if (r.note) notes.push(r.note)
       continue
     }
-    const v = Number(x.value)
+    const v0 = Number(x.value)
     if (f.type === 'bool') {
-      if (!(v === 0 || v === 1)) return { error: `${f.label} is yes/no` }
-      out.push({ key: f.key, op: 'eq', value: v })
+      if (!(v0 === 0 || v0 === 1)) return { error: `${f.label} is yes/no` }
+      out.push({ key: f.key, op: 'eq', value: v0 })
       continue
     }
     if (!RANGE_OPS.includes(x.op)) return { error: `“${x.op}” isn't a Screener comparison` }
-    if (x.value == null || !Number.isFinite(v)) return { error: `${f.label} needs a number` }
+    if (x.value == null || !Number.isFinite(v0)) return { error: `${f.label} needs a number` }
+    // SG-1: a distance from a high / low is read on the field's own side of zero (see signedDistance)
+    const sd = signedDistance(x, f)
+    if (sd.note) notes.push(sd.note)
+    const y = sd.x
+    const v = Number(y.value)
     let w
-    if (x.op === 'between') {
-      const hi = Number(x.max)
+    if (y.op === 'between') {
+      const hi = Number(y.max)
       if (!Number.isFinite(hi) || hi <= v) return { error: `${f.label} “between” needs a higher upper bound` }
       w = { key: f.key, op: 'between', min: v, max: hi }
-    } else if (x.op === 'lt' || x.op === 'lte') w = { key: f.key, op: x.op, max: v }
-    else if (x.op === 'eq') w = { key: f.key, op: 'eq', value: v }
-    else w = { key: f.key, op: x.op, min: v }
+    } else if (y.op === 'lt' || y.op === 'lte') w = { key: f.key, op: y.op, max: v }
+    else if (y.op === 'eq') w = { key: f.key, op: 'eq', value: v }
+    else w = { key: f.key, op: y.op, min: v }
     ;(f.provider ? post : out).push(w)
   }
   return { filters: out, post, notes }
@@ -690,7 +768,7 @@ export function registerScreenerCapabilities() {
         ref: refFor('screener', 'screener'), label: 'Screener',
         // The live catalog. Use ONLY these keys.
         fields: !cache.meta ? 'loading' : full
-          ? [...cache.meta.fields, ...allMeasures()].map(f => `${f.key}:${f.label}${f.unit ? `(${f.unit})` : f.type === 'bool' ? '(yes/no)' : f.type === 'list' ? '(list)' : ''}`).join(';')
+          ? [...cache.meta.fields, ...allMeasures()].map(f => `${f.key}:${f.label}${DIST_UNIT[distanceSign(f.key)] || (f.unit ? `(${f.unit})` : f.type === 'bool' ? '(yes/no)' : f.type === 'list' ? '(list)' : '')}`).join(';')
           : [...cache.meta.fields, ...allMeasures()].map(f => f.key).join(','),
         ...(full ? {} : { fieldsDetail: 'keys only (labels and units omitted for this request)' }),
         ...(last ? { lastScreen: { ref: 'lastScreen', filters: [...(last.spec.filters || []), ...(last.spec.post || [])].map(describeFilter), sort: last.spec.sort ? `${last.spec.sort.key} ${last.spec.sort.dir}` : null, matches: last.total, name: last.name } } : {}),

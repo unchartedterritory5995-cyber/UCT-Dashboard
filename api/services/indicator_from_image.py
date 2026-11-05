@@ -57,12 +57,14 @@ workers (the 2026-07-01 outage class, and the reason
 concierge buys one because it has ONE answer to get right; this door already
 returns several, and a refused candidate is information rather than a failure.
 
-⚠️ SPEND IS LEDGERED GLOBALLY, INVOCATIONS ARE BOUNDED AT THE DOOR. ``cost_guard``
-sees every call here, under the same market date the concierge's ledger uses. The
-PER-USER USD allowance is deliberately NOT re-implemented: it is process-local
-state inside ``definition_concierge`` with a private recorder, and a second ledger
-would be a second authority over one member's allowance. The router bounds how
-many pictures one member may send instead, under its own name.
+⚠️ SPEND IS RESERVED BEFORE THE CALL, ON THE SHARED LEDGER. ``cost_guard`` admits
+each call against its WORST CASE and writes that figure before the model runs, under
+the same market date the concierge's ledger uses; the provider's usage replaces it
+afterwards. A timeout, a reply with no usage or a crash stays at the worst case, so
+the $4 interactive limit holds for calls that never report a cost. The hourly count
+per member is read from the same rows, so a restart cannot reset it. The PER-USER USD
+allowance is deliberately NOT re-implemented: a second ledger would be a second
+authority over one member's allowance.
 """
 from __future__ import annotations
 
@@ -104,6 +106,11 @@ MODEL: str = os.environ.get("INDICATOR_VISION_MODEL", "claude-opus-5")
 #: ceiling sized for the call alone truncates a thought into a refusal. Output is
 #: billed as GENERATED, so headroom costs nothing on a short answer.
 MAX_TOKENS: int = 8192
+
+#: The most one picture can bill as input: the documented ceiling at this model family's
+#: 2576 px long edge. The image's BYTES are not its tokens (a 5 MB upload is resized), so
+#: the byte bound `budget.worst_case_usd` uses for text does not apply to it.
+IMAGE_TOKENS_WORST: int = 4784
 
 #: ⛔ ONE BILLED ATTEMPT. See the header: a timed-out call has already generated
 #: tokens and reports no ``usage``, so an SDK retry is spend the ledger counts as
@@ -186,6 +193,8 @@ REFUSALS: Mapping[str, str] = MappingProxyType({
         "the chart is holding more history than one request can carry"),
     "vision:spend-cap": (
         "the picture reader has reached its spending limit for today"),
+    "vision:hourly": (
+        "you have sent as many pictures as one hour allows"),
     "vision:transport": (
         "the picture reader could not be reached"),
     "vision:no-tool": (
@@ -469,13 +478,24 @@ def _confidence(value: Any) -> int:
         return 0
 
 
+def worst_case_usd(note: str = "") -> float:
+    """The most one call may bill: `budget.worst_case_usd`'s bound on the prompt and
+    every output token, plus the picture at its ceiling, priced as a cache write."""
+    from api.services.uct_agent import budget
+    return budget.worst_case_usd(dict(
+        model=MODEL, max_tokens=MAX_TOKENS, system=system_prompt(), tools=[anthropic_tool()],
+        tool_choice={"type": "tool", "name": TOOL_NAME},
+        messages=user_turn(b"", "image/png", note))) + budget._price(MODEL, cache_write=IMAGE_TOKENS_WORST)
+
+
 # --------------------------------------------------------------------------- #
 # the door
 # --------------------------------------------------------------------------- #
 
 def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
                           bars: Optional[List[dict]] = None, note: str = "",
-                          client: Any = None) -> Dict[str, Any]:
+                          client: Any = None,
+                          max_per_hour: Optional[int] = None) -> Dict[str, Any]:
     """A picture in; ranked, VALIDATED candidates out -- or a refusal by name.
 
     ``{ok: True, saw, candidates: [...], refused: [...], model, tokens, cost_usd,
@@ -511,6 +531,21 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
     if not cost_guard.may_member_spend(market_date):
         return _refusal("vision:spend-cap")
 
+    # ⛔ RESERVED BEFORE THE CALL, FAILS CLOSED. See `cost_guard.reserve_member_call`.
+    ticker = f"indicator-vision:{user_id}"
+    worst = worst_case_usd(note)
+    try:
+        slot = cost_guard.reserve_member_call(market_date, ticker, MODEL, worst,
+                                              max_per_hour=max_per_hour)
+    except Exception:                               # noqa: BLE001 -- never raises out
+        logger.exception("[indicator-vision] ledger unavailable; call refused")
+        return _refusal("vision:spend-cap")
+    if slot.get("refused") == "hourly":
+        return _refusal("vision:hourly", retry_after=slot.get("retry_after"))
+    if slot.get("refused"):
+        return _refusal("vision:spend-cap")
+    rowid = slot["id"]
+
     try:
         msg = (client or _default_client()).messages.create(
             model=MODEL,
@@ -522,6 +557,11 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
         )
     except Exception as exc:                        # noqa: BLE001 -- never raises out
         logger.warning("[indicator-vision] model call failed: %s", exc)
+        # ⛔ ONLY AN HTTP ERROR RESPONSE IS FREE. A timeout or a dropped connection
+        # may have generated every token, so its row keeps the worst case.
+        from api.services.uct_agent import budget
+        if budget._is_provider_error_response(exc):
+            cost_guard.release_member_call(rowid, ticker)
         return _refusal("vision:transport")
 
     usage = getattr(msg, "usage", None)
@@ -529,9 +569,11 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
     out_tokens = int(getattr(usage, "output_tokens", 0) or 0)
     # ⛔ RECORDED WHATEVER THE ANSWER TURNS OUT TO BE. A refused reply is billed
     # exactly like an accepted one, and a ledger that only counts successes is a
-    # cap that leaks.
-    cost_usd = cost_guard.record(market_date, f"indicator-vision:{user_id}", MODEL,
-                                 in_tokens, out_tokens)
+    # cap that leaks. A reply with no usage keeps its worst case.
+    cost_usd = worst if usage is None else cost_guard.settle_member_call(
+        rowid, ticker, MODEL, in_tokens, out_tokens,
+        cache_read_tokens=int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        cache_creation_tokens=int(getattr(usage, "cache_creation_input_tokens", 0) or 0))
     tokens = {"input": in_tokens, "output": out_tokens}
 
     tool_input = _tool_input(msg)

@@ -242,9 +242,12 @@ DOORS: dict[str, Door] = {
         pop_cap="api/routers/screener_nl.py",
         gap="no ai_meters key yet; the durable daily counter is the bound"),
     "api/services/indicator_from_image.py": Door(
-        "member", "POST /api/indicator-vision/candidates (INDICATOR_VISION_ENABLED, dark)",
-        "10/hour/member in-process + catalyst member budget",
-        gap="in-process hourly window, not a daily counter"),
+        "member", "POST /api/indicator-vision/candidates (INDICATOR_VISION_ENABLED, on in production)",
+        "10/hour/member on the durable ledger + catalyst member budget, reserved at worst case",
+        gap="no population cap; the $4 interactive reservation is the global bound"),
+    "api/services/uct_agent/knowledge/evidence.py": Door(
+        "operator", "inside POST /api/agent/turn while Brain knowledge is on (off in production)",
+        "budget.Meter per call: Agent daily cap, shared stop, per-turn dollars; off the 2-call ceiling"),
     "api/services/earnings_enrichment.py": Door(
         "member", "inside GET /api/earnings-analysis/{sym}",
         "engine's earnings cache + 60/min per IP", gap="no counter exists"),

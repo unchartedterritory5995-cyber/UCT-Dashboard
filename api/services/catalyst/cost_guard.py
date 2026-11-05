@@ -11,6 +11,7 @@ Server-side web search: $10 per 1,000 searches.
 """
 import logging
 import os
+import time
 
 from api.services.catalyst import store
 
@@ -233,7 +234,8 @@ def may_member_spend(market_date: str) -> bool:
     ⚠️ Checked BEFORE a call, so the last admitted call may overshoot the
     reservation by its own cost; the per-member allowance and the per-user
     in-flight guard (`definition_concierge.interactive_slot`) bound that to one call
-    per member."""
+    per member. indicator-vision does not rely on this: it also takes
+    `reserve_member_call`, which admits against the worst case."""
     s = spend_by_kind(market_date)
     hard, limit = hard_cap_usd(), interactive_limit_usd()
     if s["total"] >= hard or s[INTERACTIVE] >= limit:
@@ -244,6 +246,76 @@ def may_member_spend(market_date: str) -> bool:
             market_date, s[INTERACTIVE], limit, s["total"], hard)
         return False
     return True
+
+
+HOUR_SECONDS = 3600
+
+
+def reserve_member_call(market_date: str, ticker: str, model: str, worst_usd: float,
+                        *, max_per_hour: int | None = None,
+                        now: float | None = None) -> dict:
+    """THE INTERACTIVE GATE AS A RESERVATION: admit one call against its WORST CASE
+    and write that worst case to the ledger before the model is called.
+
+    Same limits as `may_member_spend`, read from the same functions: no new number.
+    Returns ``{"id": rowid}``, ``{"refused": "spend-cap"}`` or
+    ``{"refused": "hourly", "retry_after": seconds}``. A ledger failure RAISES: the
+    caller refuses the call, because no paid call runs without a readable ledger.
+
+    ⛔ `max_per_hour` COUNTS THIS TICKER'S LEDGER ROWS, so a restart, a deploy or a
+    second instance cannot reset it, and a refused or failed read still uses a place
+    (every admitted call keeps its row).
+
+    ⛔ AN UNSETTLED ROW STAYS AT ITS WORST CASE. A timeout, a dropped connection, a
+    reply with no usage and a process that died mid-call were all billed or may have
+    been, and none of them reports a figure: charging them $0 is what let the cap
+    stay unreached while the bill grew.
+    """
+    if lane_kind(ticker) != INTERACTIVE:
+        raise ValueError("reserve_member_call is for interactive lanes")
+    stamp = int(time.time() if now is None else now)
+    hard, limit = hard_cap_usd(), interactive_limit_usd()
+
+    def admit(rows, recent):
+        if max_per_hour is not None and len(recent) >= max_per_hour:
+            return {"refused": "hourly",
+                    "retry_after": max(1, recent[0] + HOUR_SECONDS - stamp)}
+        total = sum(usd for _, usd in rows)
+        interactive = sum(usd for t, usd in rows if lane_kind(t) == INTERACTIVE)
+        if round(total + worst_usd, 6) > round(hard, 6) \
+                or round(interactive + worst_usd, 6) > round(limit, 6):
+            return {"refused": "spend-cap"}
+        return None
+
+    rowid, verdict = store.reserve_cost(
+        market_date=market_date, ticker=ticker, model=model, worst_usd=worst_usd,
+        since_ts=stamp - HOUR_SECONDS, now=stamp, admit=admit)
+    return {"id": rowid} if rowid is not None else verdict
+
+
+def settle_member_call(rowid: int, ticker: str, model: str, input_tokens: int,
+                       output_tokens: int, *, cache_read_tokens: int = 0,
+                       cache_creation_tokens: int = 0) -> float:
+    """The provider's usage replaces the reservation. Returns the cost. Never raises
+    into a request: a failed write leaves the row at its worst case."""
+    cost = estimate_cost(model, input_tokens, output_tokens,
+                         cache_read_tokens=cache_read_tokens,
+                         cache_creation_tokens=cache_creation_tokens)
+    try:
+        store.settle_cost(rowid, ticker=ticker, input_tokens=input_tokens,
+                          output_tokens=output_tokens, cost_usd=cost)
+    except Exception:                               # noqa: BLE001
+        logger.exception("[cost_guard] settle failed; the row keeps its worst case")
+    return cost
+
+
+def release_member_call(rowid: int, ticker: str) -> None:
+    """An HTTP error response: nothing was generated or billed, so the row costs $0.
+    The row stays, so the call still uses its place in the hourly window."""
+    try:
+        store.settle_cost(rowid, ticker=ticker, input_tokens=0, output_tokens=0, cost_usd=0.0)
+    except Exception:                               # noqa: BLE001
+        logger.exception("[cost_guard] release failed; the row keeps its worst case")
 
 
 def record(market_date: str, ticker: str, model: str,

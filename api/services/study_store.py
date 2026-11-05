@@ -460,9 +460,14 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
     """Insert or update bank items. `review_status` defaults to 'draft' and a
     re-import with a HIGHER version resets an approved item to draft (nothing
     goes live unreviewed, §8.8); a re-import at the same version keeps the
-    status the owner gave it. Returns {inserted, updated, ids}."""
+    status the owner gave it, and his grade on the example (review 'grade'
+    writes reveal_json.example_grade, which the bank never carries). A row
+    whose version is HIGHER than the bank's was edited on the pod (review
+    'fix' bumps it: the owner's own words on a lesson, 2026-10-25) and is
+    KEPT as it stands; the bank at a lower version never writes over it.
+    Returns {inserted, updated, kept, ids}."""
     stamp = _iso(now or _now_utc())
-    inserted = updated = 0
+    inserted = updated = kept = 0
     ids: list[str] = []
     with _write() as c:
         for raw in items:
@@ -479,7 +484,7 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
             vals["review_lane"] = vals.get("review_lane") or "manual"
             version = int(it.get("version") or 1)
             status = it.get("review_status") or STATUS_DRAFT
-            row = c.execute("SELECT version, review_status FROM study_items WHERE id=?",
+            row = c.execute("SELECT version, review_status, reveal_json FROM study_items WHERE id=?",
                             (iid,)).fetchone()
             if row is None:
                 c.execute(
@@ -490,9 +495,27 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 )
                 inserted += 1
             else:
+                row_version = int(row["version"] or 1)
+                if version < row_version:
+                    # The pod row outranks the bank: its version was raised by an
+                    # owner fix on the pod, so the bank at a lower version keeps its
+                    # hands off (a bank that means to replace the row carries a
+                    # higher version, and the row goes back to draft for review).
+                    kept += 1
+                    ids.append(iid)
+                    continue
                 new_status = row["review_status"]
                 reviewed = None
-                if version > int(row["version"] or 1):
+                if version == row_version:
+                    # the owner's grade on the example rides a same-version re-import
+                    old_reveal = _loads(row["reveal_json"], {}) or {}
+                    new_reveal = _loads(vals["reveal_json"], {}) or {}
+                    if (isinstance(old_reveal, dict) and isinstance(new_reveal, dict)
+                            and old_reveal.get("example_grade") is not None
+                            and new_reveal.get("example_grade") is None):
+                        new_reveal["example_grade"] = old_reveal["example_grade"]
+                        vals["reveal_json"] = _dumps(new_reveal)
+                if version > row_version:
                     new_status = STATUS_DRAFT
                 elif status == STATUS_APPROVED and row["review_status"] == STATUS_DRAFT:
                     # The save file carries the owner's approval (corrections.py
@@ -507,15 +530,14 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 sets = ", ".join(f"{k}=?" for k in _ITEM_CONTENT_FIELDS)
                 c.execute(
                     f"UPDATE study_items SET {sets}, version=?, review_status=? WHERE id=?",
-                    (*[vals[k] for k in _ITEM_CONTENT_FIELDS],
-                     max(version, int(row["version"] or 1)), new_status, iid),
+                    (*[vals[k] for k in _ITEM_CONTENT_FIELDS], version, new_status, iid),
                 )
                 if reviewed:
                     c.execute("UPDATE study_items SET reviewed_by=?, reviewed_at=? WHERE id=?",
                               (reviewed, stamp, iid))
                 updated += 1
             ids.append(iid)
-    return {"inserted": inserted, "updated": updated, "ids": ids}
+    return {"inserted": inserted, "updated": updated, "kept": kept, "ids": ids}
 
 
 def upsert_bars(bars_id: str, tf: str, bars: list, forward: Optional[list] = None,

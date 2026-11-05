@@ -8978,6 +8978,259 @@
           "text": "add another two charts for SPY and QQQ"
         }
       ]
+    },
+    {
+      "id": "scan.near-high.sign",
+      "source": "SG (AUDIT live prod f591d31720, 2026-11-04): the scan sign and sector defects, with the LIVE wrong plans",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "chg_pct_1m",
+                  "op": "gte",
+                  "value": 20,
+                  "max": null,
+                  "values": null
+                },
+                {
+                  "field": "dist_52w_high_pct",
+                  "op": "lte",
+                  "value": 5,
+                  "max": null,
+                  "values": null
+                },
+                {
+                  "field": "vol_ratio",
+                  "op": "gt",
+                  "value": 1,
+                  "max": null,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*\"key\":\"dist_52w_high_pct\",\"op\":\"gte\",\"min\":-5"
+        ],
+        "noCalls": [
+          "\"key\":\"dist_52w_high_pct\",\"op\":\"lte\""
+        ],
+        "screenRows": {
+          "min": 1,
+          "all": [
+            {
+              "key": "dist_52w_high_pct",
+              "op": "gte",
+              "value": -5
+            }
+          ]
+        },
+        "unchanged": true
+      },
+      "phrasings": [
+        "find stocks up 20% this month near 52-week highs with volume above average",
+        "stocks up 20% in a month within 5% of their 52-week high, volume above average",
+        "show me names up 20%+ this month close to 52 week highs with above average volume"
+      ]
+    },
+    {
+      "id": "scan.near-high.between",
+      "source": "SG (AUDIT live prod f591d31720, 2026-11-04): the scan sign and sector defects, with the LIVE wrong plans",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "dist_52w_high_pct",
+                  "op": "between",
+                  "value": 0,
+                  "max": 5,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*\"key\":\"dist_52w_high_pct\",\"op\":\"between\",\"min\":-5,\"max\":0"
+        ],
+        "screenRows": {
+          "min": 1,
+          "all": [
+            {
+              "key": "dist_52w_high_pct",
+              "op": "gte",
+              "value": -5
+            }
+          ]
+        },
+        "unchanged": true
+      },
+      "phrasings": [
+        "stocks within 0 to 5% of their 52-week high",
+        "find stocks between 0 and 5 percent below the 52 week high",
+        "scan for names 0-5% off their 52-week highs"
+      ]
+    },
+    {
+      "id": "scan.sector-word",
+      "source": "SG (AUDIT live prod f591d31720, 2026-11-04): the scan sign and sector defects, with the LIVE wrong plans",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "industry",
+                  "op": "in",
+                  "value": null,
+                  "max": null,
+                  "values": [
+                    "technology"
+                  ]
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "refine",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*\"key\":\"sector\",\"op\":\"in\",\"values\":\\[\"Technology\"\\]"
+        ],
+        "noCalls": [
+          "Information Technology Services",
+          "\"key\":\"industry\""
+        ],
+        "screenRows": {
+          "min": 1,
+          "all": [
+            {
+              "key": "dist_52w_high_pct",
+              "op": "gte",
+              "value": -5
+            },
+            {
+              "key": "sector",
+              "op": "in",
+              "value": [
+                "Technology"
+              ]
+            }
+          ]
+        },
+        "unchanged": true
+      },
+      "phrasings": [
+        "only tech",
+        "just the technology names",
+        "keep only tech stocks"
+      ]
     }
   ],
   "refusals": [
@@ -10564,6 +10817,124 @@
               "exclude": [
                 "rsi(14)"
               ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.it-on-chart.two",
+      "source": "IT-ON-THAT-CHART (11-04, v1 with NLM-1 off): an explicit chart phrase narrows a pronoun to THAT chart's instance; an ambiguous one asks — never several (live: RSI on two charts, \"make it orange on that chart\" recoloured both) — 2 charts",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "TWO",
+      "steps": [
+        {
+          "say": "add rsi to both charts",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "make it orange on that chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make it orange on the AMD chart",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "chart": 1,
+              "find": {
+                "defId": "rsi"
+              },
+              "colour": {
+                "key": "inputs.color",
+                "family": "orange"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "chart": 1,
+              "find": {
+                "defId": "rsi"
+              },
+              "has": {
+                "inputs.color": "#7b68ee"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "followup.it-on-chart.four",
+      "source": "IT-ON-THAT-CHART (11-04, v1 with NLM-1 off): an explicit chart phrase narrows a pronoun to THAT chart's instance; an ambiguous one asks — never several (live: RSI on two charts, \"make it orange on that chart\" recoloured both) — 4 charts (\"the left one\" is two charts)",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to all four charts",
+          "expect": {
+            "receipt": true
+          }
+        },
+        {
+          "say": "make it orange on that chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make it orange on the left one",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make it orange on the top left one",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "chart": 0,
+              "find": {
+                "defId": "rsi"
+              },
+              "colour": {
+                "key": "inputs.color",
+                "family": "orange"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "chart": 0,
+              "find": {
+                "defId": "rsi"
+              },
+              "has": {
+                "inputs.color": "#7b68ee"
+              }
             }
           }
         }

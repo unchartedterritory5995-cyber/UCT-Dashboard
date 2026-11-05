@@ -222,6 +222,9 @@ NOTEBOOK_ALWAYS_ON_KEYS: tuple[str, ...] = (
     "notebook_earnings_followup_enabled",
     "notebook_earnings_prep_enabled",
     "notebook_entry_context_enabled",
+    # Server-only until 2026-11-04 (P3b had no payload key), so the Support strip said "not measured";
+    # hard-coded True like the rest, it now says what is true: always on.
+    "notebook_example_notes_enabled",
     "notebook_find_similar_enabled",
     "notebook_formulas_enabled",
     "notebook_getting_started_enabled",
