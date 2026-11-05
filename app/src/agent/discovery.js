@@ -4,7 +4,7 @@
 //   • the live capability registry  — what UCT Agent can execute right now (a topic's `caps`
 //     count only if they are actually registered), and
 //   • the PRODUCT's own registries  — what UCT has but the Agent cannot operate yet (chart
-//     settings classified `known`, the drawing tool schema), and
+//     settings classified `known`), and
 //   • the roadmap (docs/agent/ROADMAP.md) — what is PLANNED, always worded as future.
 // It never executes anything and never calls the model. A roadmap item is never described as
 // working; a topic with no registered capability is never "available".
@@ -20,10 +20,8 @@
 
 import { allCapabilityNames } from './capabilities'
 import { CHART_SETTING_DESCRIPTORS } from '../components/chart/chartSettingsDescriptors'
-import { SCHEMA as DRAWING_SCHEMA, RETIRED_TYPES } from '../components/chart/drawingSettingsSchema'
 
 const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label).map(d => d.label)
-const drawingTools = () => Object.keys(DRAWING_SCHEMA).filter(t => !RETIRED_TYPES.has(t))
 const sample = (xs, n = 6) => (xs.length > n ? `${xs.slice(0, n).join(', ')} and ${xs.length - n} more` : xs.join(', '))
 
 /**
@@ -94,9 +92,9 @@ export const TOPICS = [
   {
     id: 'indicators', title: 'Indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/],
-    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo'], productHas: true,
-    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change',
-    known: () => ['indicator alerts (set them on the chart)', 'classic overlay averages and Volume Profile (Chart Settings)'],
+    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo', 'indicatorAlert.list', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'], productHas: true,
+    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change. Also: alert on an indicator that is on a chart (a level, a line crossing, a 9 / 20 moving-average cross, or one of your own yes/no signals, on that chart’s timeframe or another standard one — always shown to you first), list those alerts with what is wrong with any that can’t fire, and pause, resume or delete them; list your saved indicator templates, add one to one chart or several, save a chart’s indicators as one, and delete one (replacing or deleting a template is shown to you first)',
+    known: () => ['classic overlay averages and Volume Profile (Chart Settings)'],
     planned: null,
   },
   {
@@ -104,9 +102,11 @@ export const TOPICS = [
     words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|fib\w*|rectangles?|channels?|pitchforks?|annotat\w+)\b/],
     caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list',
       // W1-B: the time-anchored tools, from the dates and prices the member gives
-      'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'], productHas: true,
-    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw a trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note or anchored VWAP from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded); change one drawing\'s colour, line style or width, show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
-    known: () => [`the rest of the drawing toolbar (${drawingTools().length} tools: ${sample(drawingTools())}) — channels, pitchforks, arrows, measurements and the others are drawn on the chart`],
+      'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap',
+      // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
+      'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert'], productHas: true,
+    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level (always shown to you first); show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
+    known: () => ['duplicating a drawing, Save as default, reordering drawings and switching Drawing Boards — those are done on the chart'],
     planned: null,
   },
   {
@@ -120,9 +120,9 @@ export const TOPICS = [
   {
     id: 'charts', title: 'Chart symbol, timeframe, type, scale and session',
     words: [/\b(timeframe|symbol|ticker|chart type|log scale|percent scale|extended hours|pre-?market|post-?market|weekly|daily|monthly|intraday|tabs?|compare|overlay|go to|scroll)\b/],
-    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.replay', 'chart.compare', 'chartSetup.compareDisplay', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab'], productHas: true,
-    canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date (view only); overlay comparison symbols and set their scale or Group only; and add, switch, rename, link and close chart tabs — with Undo',
-    known: () => ['replay (hiding the bars after a date)', 'resetting the view or zoom'],
+    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.replay', 'chartSetup.setRange', 'chartSetup.resetView', 'chartSetup.setIndicatorsHidden', 'chartSetup.setMovingAverages', 'chart.compare', 'chartSetup.compareDisplay', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab'], productHas: true,
+    canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date, replay it from a date, show a range (3M, 6M, YTD, 1Y, 5Y, Origin) or reset the view (views only); hide or show every moving average or every indicator at once; overlay comparison symbols and set their scale or Group only; and add, switch, rename, link and close chart tabs — with Undo',
+    known: () => ['free zooming in or out'],
     planned: null,
   },
   {
@@ -144,8 +144,8 @@ export const TOPICS = [
   {
     id: 'watchlists', title: 'Watchlists',
     words: [/\bwatch ?lists?\b/, /\blists?\b/],
-    caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote'], productHas: true,
-    canDo: 'show, create, rename, add to, remove from, clear and delete your watchlists, sort one A–Z or put tickers at the top, write a note on a ticker, copy one into a new list, and open one in your workspace',
+    caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.keepOnly', 'watchlist.sortColumn', 'watchlist.setColumns', 'watchlist.step', 'watchlist.readView', 'watchlist.setFlag', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote'], productHas: true,
+    canDo: 'show, create, rename, add to, remove from, clear and delete your watchlists, keep only the tickers you name, sort one A–Z or put tickers at the top, write a note on a ticker, copy one into a new list, and open one in your workspace; on a Watchlist or Scanner widget, sort by a column, add or hide columns, go to the next or previous ticker and read what it shows; and flag or unflag tickers',
     known: () => ['sorting a list by price, change or other data', 'flagging (starring) tickers', 'tags and colours'],
     planned: null,
   },

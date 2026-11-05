@@ -95,9 +95,7 @@ BASE = cen.repo_root()
 #    behind would have been a hole nobody could see —
 #    `test_every_quarantined_path_still_has_something_to_quarantine` is what
 #    forces the deletion.
-QUARANTINE: dict[str, int] = {
-    "api/services/call_recap_grounded.py": 1,
-}
+QUARANTINE: dict[str, int] = {}
 
 
 def _fmt(items) -> str:

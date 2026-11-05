@@ -14,6 +14,7 @@
 
 import { GROUPS, groupOfAction } from '../routing'
 import { addableRows } from '../capabilities/indicatorEdits'
+import { isReservedWord } from '../nl/tickers'
 import vocabulary from './vocabulary.json'
 
 export const INDEX_VERSION = 1
@@ -209,7 +210,8 @@ export const ENTITY_GROUPS = vocabulary.entities || {}
 export function tickerWordsOf(raw) {
   const s = String(raw || '')
   if (!/[a-z]/.test(s) && s.trim().split(/\s+/).length >= 3) return []      // "ADD RSI TO THIS CHART" is shouting, not tickers
-  return (s.match(/(?:^|[\s$(,:])\$?([A-Z]{1,5})(?=['’]s\b|[\s,.!?):]|$)/g) || []).map(w => w.trim().replace(/^[$(,:]+/, '').replace(/^\$/, '')).filter(w => !NOT_TICKER.has(w))
+  return (s.match(/(?:^|[\s$(,:])\$?([A-Z]{1,5})(?=['’]s\b|[\s,.!?):]|$)/g) || []).map(w => w.trim().replace(/^[(,:]+/, ''))
+    .filter(w => !isReservedWord(w)).map(w => w.replace(/^\$/, '')).filter(w => !NOT_TICKER.has(w))
 }
 
 /** BM25 of each group for query tokens — `weights` (token → factor, default 1) discounts weak evidence. */

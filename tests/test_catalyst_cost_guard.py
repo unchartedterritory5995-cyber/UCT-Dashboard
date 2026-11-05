@@ -32,7 +32,7 @@ def test_estimate_call_cost():
 def test_unknown_model_falls_back_to_priciest_rate():
     """An unknown model must NOT cost $0 (that would disable the caps)."""
     cost = cost_guard.estimate_cost("claude-made-up-9", 1_000_000, 1_000_000)
-    assert cost == pytest.approx(30.0, rel=1e-3)  # $5 + $25 (priciest known)
+    assert cost == pytest.approx(60.0, rel=1e-3)  # $10 + $50 (Fable, the priciest known)
 
 
 def test_haiku_pricing_is_cheaper():
@@ -89,12 +89,12 @@ def test_opus_5_is_priced_BY_NAME_not_by_the_fallback(caplog):
     assert not [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
         "claude-opus-5 was priced by the FALLBACK — add it to _PRICING")
 
-    # (3) the control: the probe CAN fail. A bogus id prices to the same $30.00
-    #     and is still distinguishable, which is the whole point of using the log.
+    # (3) the control: the probe CAN fail. A bogus id takes the fallback ($60.00,
+    #     Fable's rate) and the guard's own log says so.
     caplog.clear()
     with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
         bogus = cost_guard.estimate_cost("claude-made-up-9", 1_000_000, 1_000_000)
-    assert bogus == pytest.approx(30.0, rel=1e-3), "the fallback rate moved — reread this test"
+    assert bogus == pytest.approx(60.0, rel=1e-3), "the fallback rate moved — reread this test"
     assert [r for r in caplog.records if "unknown model pricing" in r.getMessage()]
 
 

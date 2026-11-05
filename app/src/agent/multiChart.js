@@ -29,6 +29,7 @@
 import { matchPosition } from './fastPath'
 import { ordinalChart, selectedChart } from './deixis'
 import { plainSymbolWord, SHORT_FIXES } from './nl/lexicon'
+import { isReservedWord } from './nl/tickers'
 import { getTargetKind } from './capabilities'
 
 // ── tickers as typed (capitals, or $-prefixed) — never a lowercase word ──
@@ -38,7 +39,7 @@ export function tickersIn(raw) {
   const out = []
   for (const m of String(raw || '').matchAll(TICKER_RE)) {
     const t = m[1].replace(/^\$/, '').replace(/\.$/, '').toUpperCase()
-    if (!m[1].startsWith('$') && NOT_TICKERS.has(t)) continue
+    if (!m[1].startsWith('$') && (NOT_TICKERS.has(t) || isReservedWord(t))) continue
     if (!out.includes(t)) out.push(t)
   }
   return out

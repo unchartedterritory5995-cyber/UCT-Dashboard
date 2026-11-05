@@ -8978,6 +8978,1312 @@
           "text": "add another two charts for SPY and QQQ"
         }
       ]
+    },
+    {
+      "id": "scan.near-high.sign",
+      "source": "SG (AUDIT live prod f591d31720, 2026-11-04): the scan sign and sector defects, with the LIVE wrong plans",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "chg_pct_1m",
+                  "op": "gte",
+                  "value": 20,
+                  "max": null,
+                  "values": null
+                },
+                {
+                  "field": "dist_52w_high_pct",
+                  "op": "lte",
+                  "value": 5,
+                  "max": null,
+                  "values": null
+                },
+                {
+                  "field": "vol_ratio",
+                  "op": "gt",
+                  "value": 1,
+                  "max": null,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*\"key\":\"dist_52w_high_pct\",\"op\":\"gte\",\"min\":-5"
+        ],
+        "noCalls": [
+          "\"key\":\"dist_52w_high_pct\",\"op\":\"lte\""
+        ],
+        "screenRows": {
+          "min": 1,
+          "all": [
+            {
+              "key": "dist_52w_high_pct",
+              "op": "gte",
+              "value": -5
+            }
+          ]
+        },
+        "unchanged": true
+      },
+      "phrasings": [
+        "find stocks up 20% this month near 52-week highs with volume above average",
+        "stocks up 20% in a month within 5% of their 52-week high, volume above average",
+        "show me names up 20%+ this month close to 52 week highs with above average volume"
+      ]
+    },
+    {
+      "id": "scan.near-high.between",
+      "source": "SG (AUDIT live prod f591d31720, 2026-11-04): the scan sign and sector defects, with the LIVE wrong plans",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "dist_52w_high_pct",
+                  "op": "between",
+                  "value": 0,
+                  "max": 5,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*\"key\":\"dist_52w_high_pct\",\"op\":\"between\",\"min\":-5,\"max\":0"
+        ],
+        "screenRows": {
+          "min": 1,
+          "all": [
+            {
+              "key": "dist_52w_high_pct",
+              "op": "gte",
+              "value": -5
+            }
+          ]
+        },
+        "unchanged": true
+      },
+      "phrasings": [
+        "stocks within 0 to 5% of their 52-week high",
+        "find stocks between 0 and 5 percent below the 52 week high",
+        "scan for names 0-5% off their 52-week highs"
+      ]
+    },
+    {
+      "id": "scan.sector-word",
+      "source": "SG (AUDIT live prod f591d31720, 2026-11-04): the scan sign and sector defects, with the LIVE wrong plans",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "industry",
+                  "op": "in",
+                  "value": null,
+                  "max": null,
+                  "values": [
+                    "technology"
+                  ]
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "refine",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*screen\\.run.*\"key\":\"sector\",\"op\":\"in\",\"values\":\\[\"Technology\"\\]"
+        ],
+        "noCalls": [
+          "Information Technology Services",
+          "\"key\":\"industry\""
+        ],
+        "screenRows": {
+          "min": 1,
+          "all": [
+            {
+              "key": "dist_52w_high_pct",
+              "op": "gte",
+              "value": -5
+            },
+            {
+              "key": "sector",
+              "op": "in",
+              "value": [
+                "Technology"
+              ]
+            }
+          ]
+        },
+        "unchanged": true
+      },
+      "phrasings": [
+        "only tech",
+        "just the technology names",
+        "keep only tech stocks"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorAlert.list",
+      "capabilities": [
+        "indicatorAlert.list"
+      ],
+      "board": "IALERTS",
+      "seed": {
+        "indicatorAlerts": [
+          {
+            "id": 7,
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D",
+            "params_json": {
+              "period": 14
+            },
+            "instance_id": "inst:rsi:1"
+          }
+        ]
+      },
+      "needs": [
+        "indicatorAlert.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.list",
+            "args": {
+              "symbol": null,
+              "status": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.list",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "symbol": null,
+              "status": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/indicator-alerts"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "show my indicator alerts",
+          "det": "required"
+        },
+        {
+          "text": "list my indicator alerts",
+          "det": "required"
+        },
+        "what indicator alerts do I have",
+        "which indicator alerts are on my account"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.list",
+      "capabilities": [
+        "indicatorTemplate.list"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.list"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorTemplate.list",
+            "target": "$indicatorTemplateLibrary",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "says": [
+          "Swing Setup"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what indicator templates do I have",
+        "list my indicator templates",
+        "show my indicator templates"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.apply",
+      "capabilities": [
+        "indicatorTemplate.apply"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.apply"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorTemplate.apply",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "template": "Swing Setup"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "defId": "macd"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "apply my Swing Setup indicator template to this chart",
+        "add the Swing Setup indicator template to this chart",
+        "put my Swing Setup indicator template on this chart"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.save",
+      "capabilities": [
+        "indicatorTemplate.save"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.save"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorTemplate.save",
+            "target": "$indicatorTemplateLibrary",
+            "args": {
+              "name": "Momentum",
+              "chart": "$ctx:charts.0.ref"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "indicatorTemplates": {
+          "include": [
+            "Swing Setup",
+            "Momentum"
+          ]
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "indicatorTemplates": {
+            "include": [
+              "Swing Setup"
+            ],
+            "exclude": [
+              "Momentum"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "save these indicators as an indicator template called Momentum",
+        "save the indicators on this chart as my Momentum indicator template",
+        "make an indicator template called Momentum from this chart"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
+      "id": "indicatorTemplate.delete",
+      "capabilities": [
+        "indicatorTemplate.delete"
+      ],
+      "board": "TEMPLATES",
+      "seed": {
+        "indicatorTemplates": [
+          "Swing Setup"
+        ]
+      },
+      "needs": [
+        "indicatorTemplate.delete"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "indicatorTemplate.delete",
+            "target": "$indicatorTemplateLibrary",
+            "args": {
+              "name": "Swing Setup"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true,
+        "indicatorTemplates": {
+          "include": [
+            "Swing Setup"
+          ]
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorTemplates": {
+          "exclude": [
+            "Swing Setup"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete my Swing Setup indicator template",
+        "remove the Swing Setup indicator template",
+        "get rid of my Swing Setup indicator template"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.sortColumn",
+      "capabilities": [
+        "watchlist.sortColumn"
+      ],
+      "needs": [
+        "watchlist.sortColumn"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.sortColumn",
+            "target": "$listViews[0]",
+            "args": {
+              "column": "RVOL",
+              "direction": "desc"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "listView": {
+          "rows": [
+            "TSLA",
+            "AMD",
+            "NVDA"
+          ],
+          "sort": {
+            "key": "rvol",
+            "dir": "desc"
+          },
+          "columns": [
+            "rvol"
+          ]
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "listView": {
+            "rows": [
+              "NVDA",
+              "TSLA",
+              "AMD"
+            ],
+            "sort": null,
+            "noColumns": [
+              "rvol"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "sort my watchlist by RVOL",
+        "sort this list by relative volume, highest first",
+        "put the biggest RVOL at the top of my watchlist",
+        "sort the Momentum list by RVOL high to low"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.setColumns",
+      "capabilities": [
+        "watchlist.setColumns"
+      ],
+      "needs": [
+        "watchlist.setColumns"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.setColumns",
+            "target": "$listViews[0]",
+            "args": {
+              "add": [
+                "RVOL"
+              ],
+              "hide": [
+                "Volume"
+              ],
+              "reset": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "listView": {
+          "columns": [
+            "rvol"
+          ],
+          "noColumns": [
+            "vol"
+          ]
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "listView": {
+            "columns": [
+              "vol"
+            ],
+            "noColumns": [
+              "rvol"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add the RVOL column to my watchlist and hide the volume column",
+        "show RVOL and hide Volume on this watchlist",
+        "on my watchlist add an RVOL column and take off volume"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.step",
+      "capabilities": [
+        "watchlist.step"
+      ],
+      "needs": [
+        "watchlist.step"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.step",
+            "target": "$listViews[0]",
+            "args": {
+              "direction": "next",
+              "by": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "listView": {
+          "selected": "TSLA"
+        },
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "listView": {
+            "selected": "NVDA"
+          }
+        }
+      },
+      "phrasings": [
+        "next ticker in my watchlist",
+        "go to the next name on this list",
+        "next one on my watchlist"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.readView",
+      "capabilities": [
+        "watchlist.readView"
+      ],
+      "needs": [
+        "watchlist.readView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.readView",
+            "target": "$listViews[0]",
+            "args": {
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "says": [
+          "NVDA, TSLA, AMD"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's at the top of my watchlist",
+        "what does this watchlist show right now",
+        "read me the tickers on this list in order"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.setFlag",
+      "capabilities": [
+        "watchlist.setFlag"
+      ],
+      "needs": [
+        "watchlist.setFlag"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.setFlag",
+            "target": "$flagged[0]",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ],
+              "flagged": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "flagged": {
+          "include": [
+            "NVDA"
+          ]
+        },
+        "writes": [
+          "^POST /api/watchlists/flagged/sync .*NVDA"
+        ],
+        "unchanged": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "flagged": {
+            "exclude": [
+              "NVDA"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add NVDA to my flagged list",
+        "put NVDA on my flagged list",
+        "add NVDA to flagged"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
+      "board": "LISTVIEW",
+      "id": "watchlist.keepOnly",
+      "capabilities": [
+        "watchlist.keepOnly"
+      ],
+      "needs": [
+        "watchlist.keepOnly"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "watchlist.keepOnly",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "NVDA",
+            "TSLA",
+            "AMD"
+          ]
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "NVDA"
+          ],
+          "exclude": [
+            "TSLA",
+            "AMD"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "keep only NVDA on my Momentum watchlist",
+        "remove everything from Momentum except NVDA",
+        "clear Momentum except for NVDA"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setAnchors"
+      ],
+      "id": "drawing.setAnchors",
+      "capabilities": [
+        "drawing.setAnchors"
+      ],
+      "before": [
+        {
+          "say": "draw an arrow from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.add",
+                "target": "$drawings[0]",
+                "args": {
+                  "tool": "arrow",
+                  "points": [
+                    {
+                      "date": "2026-09-02",
+                      "price": 100
+                    },
+                    {
+                      "date": "2026-10-28",
+                      "price": 180
+                    }
+                  ],
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "arrow"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setAnchors",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "points": [
+                {
+                  "point": 2,
+                  "date": null,
+                  "price": 200
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "points.0.price": 100,
+            "points.1.price": 200
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1,
+            "has": {
+              "points.1.price": 180
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "drag the arrow's end point up to 200",
+        "drag this drawing's end point up to 200",
+        "drag the end point of the drawing to 200"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setProps"
+      ],
+      "id": "drawing.setProps",
+      "capabilities": [
+        "drawing.setProps"
+      ],
+      "before": [
+        {
+          "say": "draw an arrow from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.add",
+                "target": "$drawings[0]",
+                "args": {
+                  "tool": "arrow",
+                  "points": [
+                    {
+                      "date": "2026-09-02",
+                      "price": 100
+                    },
+                    {
+                      "date": "2026-10-28",
+                      "price": 180
+                    }
+                  ],
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "arrow"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setProps",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "set": [
+                {
+                  "prop": "arrowSize",
+                  "value": "large",
+                  "opacity": null
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "arrowSize": 16
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "make that drawing a large arrow",
+        "set the arrow size on that drawing to large",
+        "use a large arrow size on the drawing"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setFibLevels"
+      ],
+      "id": "drawing.setFibLevels",
+      "capabilities": [
+        "drawing.setFibLevels"
+      ],
+      "before": [
+        {
+          "say": "draw a fib from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addFib",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "fib"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setFibLevels",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "levels": [
+                {
+                  "level": 78.6,
+                  "visible": false,
+                  "color": null
+                }
+              ],
+              "bands": [],
+              "reset": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "fibHidden": 0.786
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "hide the 78.6 level on that fib",
+        "remove the 0.786 level from the fib drawing",
+        "turn off the 78.6 fib level"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setAlert"
+      ],
+      "id": "drawing.setAlert",
+      "capabilities": [
+        "drawing.setAlert"
+      ],
+      "before": [
+        {
+          "say": "draw a trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.setAlert",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "direction": "below",
+              "level": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"direction\":\"below\""
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        "alert me if it breaks below this trendline",
+        "set an alert when price loses that trendline",
+        "alert me when NVDA breaks below that trendline"
+      ]
+    },
+    {
+      "id": "chartSetup.setRange",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.setRange"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.setRange"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setRange",
+            "target": "$charts[0]",
+            "args": {
+              "range": "1Y"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "activeRange": 12
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "activeRange": null
+          }
+        }
+      },
+      "phrasings": [
+        "show one year on this chart",
+        "set the chart range to 1Y",
+        "frame this chart on the last year",
+        "show 1Y on the chart"
+      ]
+    },
+    {
+      "id": "chartSetup.resetView",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.resetView"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.resetView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.resetView",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "atDefaultView": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "reset the view",
+        "reset the chart view",
+        "reset the zoom on this chart",
+        "put this chart back to its default view"
+      ]
+    },
+    {
+      "id": "chartSetup.setIndicatorsHidden",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.setIndicatorsHidden"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.setIndicatorsHidden"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setIndicatorsHidden",
+            "target": "$charts[0]",
+            "args": {
+              "hidden": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "indicatorsHidden": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "indicatorsHidden": false
+          }
+        }
+      },
+      "phrasings": [
+        "hide all indicators on this chart",
+        "hide all my indicators for now",
+        "hide every indicator on the chart",
+        "hide all of the indicators and volume for a second"
+      ]
+    },
+    {
+      "id": "chartSetup.setMovingAverages",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.setMovingAverages"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "chartSetup.setMovingAverages"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setMovingAverages",
+            "target": "$charts[0]",
+            "args": {
+              "visible": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "movingAveragesOn": false,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "movingAveragesOn": true
+        }
+      },
+      "phrasings": [
+        "hide all moving averages",
+        "hide every moving average on this chart",
+        "hide all my moving averages",
+        "turn off all the moving averages"
+      ]
     }
   ],
   "refusals": [

@@ -1,12 +1,16 @@
 // CAPABILITY REGRESSION (Mission 2) — replay one case (a corpus phrasing at level c, or a golden workflow) through
 // the REAL panel and assert its STATE: the board, the charts' indicators, which canonical reads / writes ran, a
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
+import { anyAverageOn } from '../../../../components/chart/averageVisibility'
+import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
 import { routedNames } from './route'
 import { kindsFor } from './registry'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
+import { resolveLevels } from '../../../../components/chart/drawingFib'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 import { _resetScreenerCache } from '../../../capabilities/screener'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
@@ -113,6 +117,7 @@ export function checkExpect(ctx, e, label) {
     const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
     if (e.drawings.count != null) expect(ds.length, `${label}: drawings on ${sym}`).toBe(e.drawings.count)
     if (e.drawings.has) expect(ds.some(d => Object.entries(e.drawings.has).every(([k, v]) => get(d, k) === v)), `${label}: a drawing ${JSON.stringify(e.drawings.has)} (have ${JSON.stringify(ds.map(d => [d.type, d.points?.[0]?.price, d.color]))})`).toBe(true)
+    if (e.drawings.fibHidden != null) expect(ds.some(d => d.type === 'fib' && resolveLevels(d).some(l => l.level === e.drawings.fibHidden && !l.visible)), `${label}: Fibonacci level ${e.drawings.fibHidden} hidden`).toBe(true)
     if (e.drawings.colour) expect(ds.some(d => hueFamily(d.color) === e.drawings.colour), `${label}: a ${e.drawings.colour} drawing`).toBe(true)
   }
   if (e.chartTabs) {
@@ -181,13 +186,47 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  if (e.listView) {
+    // what the Watchlist widget shows (the LISTVIEW board): only the fields a case names
+    const now = ctx.st.listViewNow()
+    if (e.listView.rows) expect(now.rows, `${label}: the widget's rows, in order`).toEqual(e.listView.rows)
+    if ('sort' in e.listView) expect(now.sort, `${label}: the widget's sort`).toEqual(e.listView.sort)
+    if (e.listView.selected) expect(now.selected, `${label}: the widget's selected row`).toBe(e.listView.selected)
+    for (const k of e.listView.columns || []) expect(now.columns, `${label}: a ${k} column`).toContain(k)
+    for (const k of e.listView.noColumns || []) expect(now.columns, `${label}: no ${k} column`).not.toContain(k)
+  }
+  if (e.flagged) {
+    const syms = ctx.st.flaggedNow()
+    for (const s of e.flagged.include || []) expect(syms, `${label}: ${s} flagged`).toContain(s)
+    for (const s of e.flagged.exclude || []) expect(syms, `${label}: ${s} not flagged`).not.toContain(s)
+  }
+  if (e.indicatorTemplates) {
+    const names = JSON.parse(ctx.st.prefs.indicator_templates || '[]').map(t => t.name)
+    for (const n of e.indicatorTemplates.include || []) expect(names, `${label}: an indicator template ${n}`).toContain(n)
+    for (const n of e.indicatorTemplates.exclude || []) expect(names, `${label}: no indicator template ${n}`).not.toContain(n)
+  }
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
+  // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
+  if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
+  // is any moving average on the first chart showing (the same answer Ctrl+M reads)
+  if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
     for (const want of e.indicators.include || []) expect(got, `${label}: indicator ${want} on chart ${e.indicators.chart || 0}`).toContain(want)
     for (const no of e.indicators.exclude || []) expect(got, `${label}: no ${no}`).not.toContain(no)
     if (e.indicators.count != null) expect(got.length, `${label}: indicator count`).toBe(e.indicators.count)
+  }
+  if (e.screenRows) {
+    // SG-1: the rows the screen RETURNED (the fixture applies the engine's semantics to the wire spec) — each satisfies the
+    // member's stated condition, written here in the Screener's own sign ({key, op, value}); `min` rows at least
+    const rows = ctx.st.screenRows || []
+    const cmp = { gt: (a, b) => a > b, gte: (a, b) => a >= b, lt: (a, b) => a < b, lte: (a, b) => a <= b, eq: (a, b) => a === b, in: (a, b) => b.includes(a) }
+    if (e.screenRows.min != null) expect(rows.length, `${label}: rows returned`).toBeGreaterThanOrEqual(e.screenRows.min)
+    for (const c of e.screenRows.all || []) {
+      const bad = rows.filter(r => !cmp[c.op](r[c.key], c.value)).map(r => r.ticker)
+      expect(bad, `${label}: every returned row has ${c.key} ${c.op} ${JSON.stringify(c.value)}`).toEqual([])
+    }
   }
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)

@@ -117,7 +117,7 @@ describe('drawing.style / drawing.remove — ONE drawing, by id', () => {
     expect(back.color).toBe('#222222')
     expect(back.lineStyle).toBe(undefined)
   })
-  it('remove: gone from the store; Undo puts back the same drawing (a new id, same type, points and style)', async () => {
+  it('remove: gone from the store; Undo puts back the same drawing (its own id, type, points and style)', async () => {
     const h = host()
     const id = store.addDrawing(SYM, { type: 'rect', points: [{ time: '2026-09-01', price: 5 }, { time: '2026-09-05', price: 6 }], color: '#abcdef', lineWidth: 2 })
     const { p, env } = await plan(h, [op('drawing.remove', { drawing: id })])

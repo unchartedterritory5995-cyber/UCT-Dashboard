@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 /**
  * Wave 12, lane 12B-2 -- the Position Tracker through the REAL NotebookTab create path
  * (`?new=position-tracker` -> createFromTemplate -> createNote -> createNoteViaApi), in
- * BOTH states of NOTEBOOK_FORMULAS_ENABLED. The network is a recording fake; the sidebar
+ * BOTH states of the notebook_formulas_enabled key. The network is a recording fake; the sidebar
  * and editor are stubbed, as in NotebookTab.templates.test.jsx.
  *
  * What it holds: the member's definitions are read, then created, THEN the note is made;

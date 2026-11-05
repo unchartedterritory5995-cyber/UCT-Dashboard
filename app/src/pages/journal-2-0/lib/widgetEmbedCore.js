@@ -11,7 +11,7 @@ import { notebookFlag } from './offline/notebookFlags'
 
 /** Wave 13 lane 13H-2: the ONE client gate for the chart-plan doors -- the plan panel, bar
  *  replay, the weekly /mtf stack and /vs. It is 13H-1's flag, reused (never a second one):
- *  `NOTEBOOK_CHART_PLAN_ENABLED` on the server, latched per tab. Absent => OFF. */
+ *  always true from the server (NOTEBOOK_CHART_PLAN_ENABLED was retired, 2026-11-04), latched per tab. Absent => OFF. */
 export const CHART_PLAN_FLAG = 'notebook_chart_plan_enabled'
 export const chartPlanEnabled = () => notebookFlag(CHART_PLAN_FLAG) === true
 

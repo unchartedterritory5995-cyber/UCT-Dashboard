@@ -532,3 +532,42 @@ def test_corrections_overlay_sets_the_accept_list_and_names_who_wrote_a_lesson()
 
 def test_run_all_lists_every_generator():
     assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs, gen_terms}
+
+
+# ── a template never prints a missing number ─────────────────────────────────
+
+def test_the_committed_bank_never_prints_a_missing_number():
+    """A lesson template that read a fact the scan had not stored printed
+    'None%' (seen live 2026-11-04 on three Gap Support items). The grounding
+    check cannot catch it (None is not a number), so this reads every
+    committed segment: the bars decide the number or the clause is left out."""
+    bad = []
+    for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
+        for it in json.loads(path.read_text(encoding="utf-8")):
+            for field, text in si.lesson_texts(it):
+                if re.search(r"\bNone\b", text):
+                    bad.append(f"{path.stem}:{it.get('id')}:{field}")
+    assert not bad, bad[:12]
+
+
+def test_setup_fact_lines_leave_a_clause_out_rather_than_print_none():
+    from scripts.study import gen_setup_examples as gse
+    thin_gap = {"gap_pct": 4.49, "bars_since_gap": 7, "first_test": True, "levels_touched": ["top", "mid"]}
+    line = gse.fact_line("Gap Support", {"facts": thin_gap})
+    assert "None" not in line and line.startswith("Here the gap was 4.49% 7 sessions earlier.")
+    thin_go = {"dcr": 0.98, "red_to_green": True, "swept": ["prior_low"]}
+    line = gse.fact_line("Go Signal", {"facts": thin_go})
+    assert "None" not in line and line.startswith("Here the session opened weak, swept the prior day's low")
+    # the full Gap Support line reads the geometry against the GAP-UP DAY'S LOW
+    # (owner rulings 2026-10-26/27), never a verdict word
+    full = dict(thin_gap, test_low_vs_gap_low_pct=-3.2, close_vs_gap_low_pct=-0.7, close_vs_gap_top_pct=1.3,
+                reclaim_sessions=1, dcr_pct=54)
+    line = gse.fact_line("Gap Support", {"facts": full})
+    assert line == ("Here the gap was 4.49% 7 sessions earlier. The test day undercut the gap-up day's low by 3.2% "
+                    "and closed 0.7% under it, 1.3% above the gap top, so the gap stayed open; the close was back "
+                    "above the gap-up low the next session. It was the first test of the gap, and the day closed "
+                    "at 54% of its range.")
+    for word in ("failed", "held the gap", "breach"):
+        assert word not in gse.fact_line("Gap Support", {"facts": dict(full, reclaim_sessions=None)})
+    held = dict(full, test_low_vs_gap_low_pct=-0.2, close_vs_gap_low_pct=3.7, close_vs_gap_top_pct=4.4)
+    assert "held the gap-up day's low to within 0.2% and closed 3.7% above it" in gse.fact_line("Gap Support", {"facts": held})

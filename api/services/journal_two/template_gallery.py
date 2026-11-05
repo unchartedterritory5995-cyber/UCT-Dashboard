@@ -819,7 +819,7 @@ _check_select_shapes()
 _VISIBLE = "g.status = 'approved' AND g.hidden = 0"
 #: R-P3b-2: an example note belongs to a style and is never a list row of its own. Every list read (the gallery's
 #: `all` and `picks` sections, an author's page and its count, the feed) carries this; the author's own `mine`
-#: carries it only while the example switch is off (ruling P3b-R12).
+#: never does, so it lists their example notes too (ruling P3b-R12).
 _NEVER_LISTED = f"g.item_type != '{EXAMPLE_ITEM}'"
 
 
@@ -966,14 +966,14 @@ def _library_hides(row: sqlite3.Row) -> bool:
     """`_hidden_styles()` for one row. A hidden row reads exactly like one that does not exist: for its author
     and an admin as much as for a browsing member. `row` must carry `item_type` and `kind`.
 
-    P4b (R-P4b-10): a page-layout row reads the same way while layout sharing is off (all three of its switches),
+    P4b (R-P4b-10): a page-layout row reads the same way while layout sharing is off (either of its two switches),
     so `GET /{id}`, Helpful, report, the admin routes and adopt all 404 a layout without a route gate of their own.
     ⛔ ONE ORDER (P4b final T1): the layout branch, then the tool branch, then P5's style rule. The non-style
     branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`).
 
     ⛔ C1 (P5 landing review M-1, P4b final): BOTH columns are read here for EVERY row, before any branch. A narrow
     SELECT that leaves `kind` out then fails in every test of every switch state, never only for a style row in
-    the one state (library on, starter packs off) that reads `kind`, which is how C1 hid."""
+    the one state (then: library on, starter packs off) that reads `kind`, which is how C1 hid."""
     item_type, kind = row["item_type"], row["kind"]
     if item_type == LAYOUT_ITEM:
         return LAYOUT_ITEM in _hidden_item_types()
@@ -2941,7 +2941,7 @@ def example_image_path(viewer_id: str, item_id: Any, n: Any, *, is_admin: bool =
     """The file `GET /{item_id}/images/{n}` serves, or None (the route's one 404).
 
     The item must be an example note the viewer may see -- approved and not hidden, or the viewer is its author or
-    an admin (`_can_see`, the one visibility rule, which also hides it while the switch is off). `rev` "pending" asks
+    an admin (`_can_see`, the one visibility rule). `rev` "pending" asks
     for the HELD revision's copy: only the author or an admin, and only while a revision is held. Any other `rev`,
     or a number that is not a plain small integer, is None."""
     if rev not in (None, "", REV_PENDING):
@@ -2992,7 +2992,7 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
                     images_on: Any, title: Any) -> dict | None:
     """Submit (or resubmit) one of the member's own notes as an example of one of their shared styles.
 
-    None when the switch is off or the note may not be an example (the route answers 404).
+    None when the note may not be an example (the route answers 404).
     `GalleryError` for a style that is not theirs to link (`EXAMPLE_STYLE_SENTENCE`), a note of another
     kind (`EXAMPLE_KIND_SENTENCE`), a note too long to be one (`EXAMPLE_TOO_LONG_SENTENCE`), or a bad title.
     `ValueError` for a caller's connection that already holds a transaction (review M-8): this function owns
@@ -3607,8 +3607,8 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
     """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
 
     ONE body, called by `adopt_style` (`commit=True`), by
-    `use_library_template` (Task 11.8) and by the starter-pack install (`starter_packs.install`, behind its own two
-    switches, `commit=False`), so every rule an adopt obeys holds for all of them. With `commit=False` nothing here
+    `use_library_template` (Task 11.8) and by the starter-pack install (`starter_packs.install`, `commit=False`),
+    so every rule an adopt obeys holds for all of them. With `commit=False` nothing here
     commits or rolls back: the caller owns the transaction (the install wraps each row in a SAVEPOINT and commits
     once). Raises `GalleryError` for a row that cannot be adopted: an unreadable payload, a kind that is not built
     in, or a style the member's account refuses.

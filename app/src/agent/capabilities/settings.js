@@ -37,6 +37,8 @@ function snap(host) {
   return { ref: 'settings', label: 'Your settings', values: v }
 }
 const sigOf = (values, keys) => JSON.stringify(keys.map(k => values[k]))
+// The state with these values, or the SAME state when nothing changes (the executor's noop test is `next === st`).
+const withValues = (st, set) => (Object.entries(set).every(([k, v]) => st.values[k] === v) ? st : { ...st, values: { ...st.values, ...set } })
 
 export const settingsKind = {
   name: 'settings',
@@ -57,7 +59,7 @@ export const settingsKind = {
       if (!ok) {
         // Put back what this step already saved, then say it plainly.
         for (const d of done) { try { await host.prefs.write(d, patch.from[d]) } catch { /* reported below */ } }
-        throw new Error('the server did not confirm the change, so it is not saved')
+        throw new Error('the server did not confirm the change, so it is not saved (this tab may keep showing it until you reload)')
       }
       done.push(k)
     }
@@ -112,7 +114,7 @@ export function registerSettingsCapabilities() {
     hints: `target = the ref of the settings entry. theme: dark = Graphite (the default dark), oled = OLED Black, light = Light; or one of UCT's themes: ${APP_THEMES.map(t => `${t.id} (${t.name}, ${t.family})`).join(', ')}. "Dark mode" = dark; "light mode" = light.`,
     args: { type: 'object', properties: { theme: { type: 'string', enum: THEME_IDS } }, required: ['theme'], additionalProperties: false },
     check: (st, { theme }) => (THEME_IDS.includes(theme) ? null : `“${theme}” isn't one of UCT's app themes.`),
-    apply: (st, { theme }) => ({ ...st, values: { ...st.values, theme: themeValue(theme) } }),
+    apply: (st, { theme }) => withValues(st, { theme: themeValue(theme) }),
     noop: (st) => `Your app theme is already ${themeLabel(st.values.theme)}`,
     describe: (b, a) => (a.values.theme !== b.values.theme ? `App theme: ${themeLabel(b.values.theme)} → ${themeLabel(a.values.theme)}` : null),
   })
@@ -125,7 +127,7 @@ export function registerSettingsCapabilities() {
     hints: 'target = the ref of the settings entry. timeframe: 5 | 30 | 60 (minutes), D (daily), W (weekly) — the only choices Settings offers.',
     args: { type: 'object', properties: { timeframe: { type: 'string', enum: TF.map(t => t.value) } }, required: ['timeframe'], additionalProperties: false },
     check: (st, { timeframe }) => (TF.some(t => t.value === timeframe) ? null : `The default chart timeframe can be ${TF.map(t => t.label).join(', ')}.`),
-    apply: (st, { timeframe }) => ({ ...st, values: { ...st.values, default_chart_tf: timeframe } }),
+    apply: (st, { timeframe }) => withValues(st, { default_chart_tf: timeframe }),
     noop: (st) => `New charts already open on ${tfLabel(st.values.default_chart_tf)}`,
     describe: (b, a) => (a.values.default_chart_tf !== b.values.default_chart_tf ? `Default chart timeframe: ${tfLabel(b.values.default_chart_tf)} → ${tfLabel(a.values.default_chart_tf)} (new charts)` : null),
   })
@@ -146,10 +148,7 @@ export function registerSettingsCapabilities() {
       if (sound != null && !ALERT_SOUNDS.some(s => s.key === sound)) return `“${sound}” isn't one of the alert sounds.`
       return null
     },
-    apply: (st, { enabled, sound }) => ({
-      ...st,
-      values: { ...st.values, ...(enabled != null ? { alert_sound: enabled ? 'on' : 'off' } : {}), ...(sound ? { alert_sound_type: sound, ...(enabled == null ? { alert_sound: 'on' } : {}) } : {}) },
-    }),
+    apply: (st, { enabled, sound }) => withValues(st, { ...(enabled != null ? { alert_sound: enabled ? 'on' : 'off' } : {}), ...(sound ? { alert_sound_type: sound, ...(enabled == null ? { alert_sound: 'on' } : {}) } : {}) }),
     noop: () => 'The alert sound is already set that way',
     describe(b, a) {
       const out = []

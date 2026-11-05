@@ -2,7 +2,7 @@
 //
 // Wave 12, lane 12A: the community template gallery through 8A's axe harness (the ONE way
 // a Notebook rail asks axe-core). The tab and picker recipes run with
-// NOTEBOOK_TEMPLATE_GALLERY_ENABLED off, so they never render these components -- hence
+// the notebook_template_gallery_enabled key unset, so they never render these components -- hence
 // their own recipes here rather than a `coveredBy` entry that would be untrue. Each recipe
 // proves the state it is about rendered before axe runs, so an empty screen can never pass
 // as a clean one:

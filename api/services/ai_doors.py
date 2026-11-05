@@ -190,7 +190,7 @@ DOORS: dict[str, Door] = {
         "narrative_cost_guard $10/day global, durable", gap="no per-member counter exists"),
     "api/services/company_about.py": Door(
         "member", "GET /api/about/{sym} (get_current_user)",
-        "30-day in-process cache only", gap="no counter exists to meter"),
+        "30-day in-process cache; a failure is remembered 1h", gap="no counter exists to meter"),
     "api/services/groups.py": Door(
         "member", "GET /api/groups/peers; GET /api/about/{sym}",
         "6h cache + 3 concurrent", gap="no counter exists to meter"),
@@ -212,7 +212,8 @@ DOORS: dict[str, Door] = {
         "CALL_RECAP_DAILY_CAP_USD $10/day, durable"),
     "api/services/cot_narrative.py": Door(
         "member", "POST /api/cot/{symbol}/narrative (require_paid); Friday prewarm",
-        "300 generations/UTC day global (cot.db); cached per facts hash",
+        "300 model calls/UTC day global (daily_counters, durable; rejected replies count); "
+        "cached per facts hash",
         gap="no per-member counter"),
     "api/services/definition_concierge.py": Door(
         "member", "POST /api/user-definitions/propose (require_paid)",
@@ -230,8 +231,10 @@ DOORS: dict[str, Door] = {
     "api/services/uct_agent/turn.py": Door(
         "operator", "POST /api/agent/turn (require_paid + require_admin: ADMIN-ONLY while UCT Agent "
         "is dark, 2026-10-07); opt-in research via the shared Perplexity client",
-        "UCT_AGENT_DAILY_CAP 300/member/ET day (daily_counters scope uct_agent_turn, durable) + "
-        "ai_population_cap 'uct_agent'; narrative_cost_guard surface 'uct_agent' records spend; "
+        "budget.py ledger: $0.25/turn, $5/ET day, stops at the shared $15, all reserved at worst case, "
+        "durable; UCT_AGENT_DAILY_CAP a COUNT per member, not financial (daily_counters scope "
+        "uct_agent_turn) + ai_population_cap 'uct_agent'; narrative_cost_guard surface 'uct_agent' "
+        "records spend for reporting; "
         "<= 2 model calls and <= 1 research call per turn (research only when the model declares "
         "it on an answer), 0 HTTP retries",
         pop_cap="api/routers/uct_agent.py"),
@@ -242,15 +245,19 @@ DOORS: dict[str, Door] = {
         pop_cap="api/routers/screener_nl.py",
         gap="no ai_meters key yet; the durable daily counter is the bound"),
     "api/services/indicator_from_image.py": Door(
-        "member", "POST /api/indicator-vision/candidates (INDICATOR_VISION_ENABLED, dark)",
-        "10/hour/member in-process + catalyst member budget",
-        gap="in-process hourly window, not a daily counter"),
+        "member", "POST /api/indicator-vision/candidates (INDICATOR_VISION_ENABLED, on in production)",
+        "10/hour/member on the durable ledger + catalyst member budget, reserved at worst case",
+        gap="no population cap; the $4 interactive reservation is the global bound"),
+    "api/services/uct_agent/knowledge/evidence.py": Door(
+        "operator", "inside POST /api/agent/turn while Brain knowledge is on (off in production)",
+        "budget.Meter per call: Agent daily cap, shared stop, per-turn dollars; off the 2-call ceiling"),
     "api/services/earnings_enrichment.py": Door(
         "member", "inside GET /api/earnings-analysis/{sym}",
         "engine's earnings cache + 60/min per IP", gap="no counter exists"),
     "api/services/engine.py": Door(
         "member", "GET /api/earnings-analysis/{sym}; shared Anthropic client factory",
-        "60/min per IP + 12h cache + generate-once store", gap="no counter exists"),
+        "60/min per IP + 12h cache + generate-once store; the warm passes take one failed attempt "
+        "per name per ET day (daily_counters, durable)", gap="no counter exists"),
     "api/routers/earnings.py": Door(
         "member", "GET /api/debug/earnings-sources/{sym} (no route auth)",
         "nothing", gap="a debug ping, gated only by OPEN_READS_GATE (off)"),

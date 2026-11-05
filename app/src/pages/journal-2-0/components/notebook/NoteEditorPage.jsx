@@ -5544,8 +5544,8 @@ export default function NoteEditorPage({
             {/* Wave 7 (lane G's G5, built by H): photograph a page on a phone or
                 tablet. The touch tier only (`.scanBtn` is display:none above
                 1024px); the photo goes through the SAME image upload as Insert
-                image, so with NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED and
-                J2_OCR_ENABLED on it becomes a searchable document. */}
+                image, so with J2_OCR_ENABLED on it becomes a searchable
+                document. */}
             <button
               type="button"
               className={`${styles.toolBtn} ${styles.scanBtn}`}

@@ -36,10 +36,47 @@ def test_a_draft_on_the_pod_goes_live_when_the_bank_says_approved(store):
     assert store.get_item_full("si_a")["review_status"] == "draft"
     res = store.upsert_items([_item("si_a", review_status="approved",
                                     reviewed={"by": "owner", "ts": "2026-10-21", "words": "good"})])
-    assert res == {"inserted": 0, "updated": 1, "ids": ["si_a"]}
+    assert res == {"inserted": 0, "updated": 1, "kept": 0, "ids": ["si_a"]}
     row = store.get_item_full("si_a")
     assert row["review_status"] == "approved" and row["reviewed_by"] == "owner" and row["reviewed_at"]
     assert row["version"] == 1
+
+
+def test_a_row_the_owner_fixed_on_the_pod_is_kept_against_a_lower_bank_version(store):
+    """review 'fix' bumps the pod row to version 2 (the owner's own words on a
+    lesson, owner_notes_pod.py 2026-10-25); the bank still says version 1. A
+    re-import must leave the row as it stands, or the owner's words are lost."""
+    store.upsert_items([_item("si_f", lesson_text="the generated lesson")])
+    store.fix("si_f", "owner", "lesson_text", "the generated lesson Owner's note: perfect.", reason="his words")
+    store.approve("si_f", "owner")
+    before = store.get_item_full("si_f")
+    assert before["version"] == 2 and before["review_status"] == "approved"
+    res = store.upsert_items([_item("si_f", lesson_text="the generated lesson, regenerated")])
+    assert res == {"inserted": 0, "updated": 0, "kept": 1, "ids": ["si_f"]}
+    after = store.get_item_full("si_f")
+    assert after["lesson_text"] == "the generated lesson Owner's note: perfect."
+    assert after["version"] == 2 and after["review_status"] == "approved"
+    # a bank that means to replace it carries a higher version, and the row goes back to draft
+    store.upsert_items([_item("si_f", version=3, lesson_text="rewritten")])
+    row = store.get_item_full("si_f")
+    assert row["lesson_text"] == "rewritten" and row["version"] == 3 and row["review_status"] == "draft"
+
+
+def test_the_owners_grade_on_the_example_rides_a_same_version_reimport(store):
+    """review 'grade' writes reveal_json.example_grade on the pod; the bank
+    never carries it (apply_verdicts_*_pod.py, 2026-10-24..27). A same-version
+    re-import regenerates reveal_json and must not drop the grade."""
+    store.upsert_items([_item("si_g", reveal_json={"facts": {"gap_pct": 4.1}})])
+    store.approve("si_g", "owner")
+    store.review("si_g", "grade", "owner", reason="Keep, great", after="great")
+    assert store.get_item_full("si_g")["reveal_json"]["example_grade"] == "great"
+    store.upsert_items([_item("si_g", reveal_json={"facts": {"gap_pct": 4.1, "gap_low": 40.0}})])
+    row = store.get_item_full("si_g")
+    assert row["reveal_json"] == {"facts": {"gap_pct": 4.1, "gap_low": 40.0}, "example_grade": "great"}
+    assert row["review_status"] == "approved" and row["version"] == 1
+    # the bank's own grade, when it carries one, wins
+    store.upsert_items([_item("si_g", reveal_json={"facts": {}, "example_grade": "good"})])
+    assert store.get_item_full("si_g")["reveal_json"]["example_grade"] == "good"
 
 
 def test_the_bank_without_a_reviewed_block_still_names_the_reviewer(store):
