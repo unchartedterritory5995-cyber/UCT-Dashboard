@@ -2801,6 +2801,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                                                              claim_repaired=bool(usage.get("false_claim")),
                                                              knowledge_no_web=kn_no_web,
                                                              answer_only=answer_only), env), caps)
+        # ⛔ SG-3 v2: a talk answer that read nothing states no market-outcome figure UCT never gave (grounded_figures.py);
+        # "given" = the request context and the outcome rows exactly as replayed to the model (outcome_for_model)
+        from api.services.uct_agent import grounded_figures
+        replayed = [{"role": "outcome", "text": outcome_for_model(t)} for t in (history or [])
+                    if isinstance(t, dict) and t.get("role") == "outcome"]
+        envelope = grounded_figures.guard(envelope, context=context, history=replayed, research_read=bool(research_read),
+                                          coach_turn=bool(coach_turn), answer_only=bool(answer_only))
         if coach_turn:
             envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
