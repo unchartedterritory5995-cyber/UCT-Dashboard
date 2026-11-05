@@ -385,15 +385,9 @@ const DIST_ABOVE_LOW = /^dist_(?:\w+_)?low_pct$/
 export const distanceSign = (key) => (DIST_BELOW_HIGH.test(String(key || '')) ? 'neg' : DIST_ABOVE_LOW.test(String(key || '')) ? 'pos' : null)
 // SG-1: the catalog line the model reads says the sign ("near the 52-week high" = dist_52w_high_pct gte -5)
 const DIST_UNIT = { neg: '(%, ≤0: −5 = 5% below the high; sort desc = closest to the high first)', pos: '(%, ≥0: 5 = 5% above the low; sort asc = closest to the low first)' }
-// ⛔ REAL-MODEL VERIFICATION 2026-11-05: "near their 52-week highs" sorted `asc`, the smallest distance as the model thought of it,
-// and asc on a field that is 0 at the high and negative below it lists the stocks FURTHEST from the high first. The same magnitude
-// reading SG-1 corrects in a threshold: a new screen that keeps a field near its high and sorts that field ascending means nearest
-// first. A later "sort them…" (a refine) is a statement about the order, and is read as the catalog line says.
-export function nearHighFirst(sort, filters) {
-  if (sort?.dir !== 'asc' || distanceSign(sort.key) !== 'neg') return sort
-  const near = filters.some(f => f.key === sort.key && ['gte', 'gt', 'between'].includes(f.op) && Number.isFinite(f.min) && !(Number(f.max) < 0))
-  return near ? { ...sort, dir: 'desc' } : sort
-}
+// ⛔ REAL-MODEL VERIFICATION 2026-11-05: "near their 52-week highs" sorted `asc`, which on a field that is 0 at the high and negative
+// below it lists the stocks FURTHEST from the high first. The catalog line above states the sign, the plan's order stands (AUDIT
+// review of #866: a flip here overrode a deliberate "furthest first"), and the answer says which way it runs.
 // The order in the words of a signed distance: "lowest first" on one reads backwards.
 export const orderWords = ({ key, dir }) => {
   const sign = distanceSign(key)
@@ -920,7 +914,6 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
     const sf = fieldOf(sortField)
     if (!sf || sf.provider || sf.type === 'list') return { error: `the Screener has no field “${sortField}” to sort by` }
     sort = { key: sortField, dir: sortDir === 'asc' ? 'asc' : 'desc' }
-    if (mode !== 'refine' || fresh) sort = nearHighFirst(sort, wire)
   }
   if (mode === 'refine' && !fresh) {
     // SC-2 §3 (W1-C C-01): a follow-up is a DELTA on the last screen — add / narrow replace by key, a sector or

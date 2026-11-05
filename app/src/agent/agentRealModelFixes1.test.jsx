@@ -9,7 +9,7 @@ import { buildContext } from './capabilities'
 import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
 import { preflightRefusals } from './nl1/interpreter'
 import { addChartTab } from '../pages/charts/chartTabs'
-import { nearHighFirst, orderWords } from './capabilities/screener'
+import { orderWords, loadMeta, _resetScreenerCache } from './capabilities/screener'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -353,23 +353,6 @@ describe('defect 5: chart tabs', () => {
 })
 
 describe('defect 6: a sort on a signed distance', () => {
-  const NEAR = [{ key: 'dist_52w_high_pct', op: 'gte', min: -10 }]
-  it.each([
-    ['dist_52w_high_pct', NEAR, 'asc', 'desc'],
-    ['dist_ath_pct', [{ key: 'dist_ath_pct', op: 'gte', min: -3 }], 'asc', 'desc'],
-    ['dist_52w_high_pct', [{ key: 'dist_52w_high_pct', op: 'between', min: -5, max: 0 }], 'asc', 'desc'],
-  ])('a screen near the high, %s asc, sorts nearest first', (key, filters, dir, want) => {
-    expect(nearHighFirst({ key, dir }, filters).dir).toBe(want)
-  })
-  it.each([
-    ['already nearest first', { key: 'dist_52w_high_pct', dir: 'desc' }, NEAR, 'desc'],
-    ['no filter on that field', { key: 'dist_52w_high_pct', dir: 'asc' }, [{ key: 'sector', op: 'in', value: ['Technology'] }], 'asc'],
-    ['a band away from the high', { key: 'dist_52w_high_pct', dir: 'asc' }, [{ key: 'dist_52w_high_pct', op: 'between', min: -30, max: -10 }], 'asc'],
-    ['a field with no sign', { key: 'chg_pct_1m', dir: 'asc' }, [{ key: 'chg_pct_1m', op: 'gte', min: -10 }], 'asc'],
-    ['near a low, where asc already is nearest', { key: 'dist_52w_low_pct', dir: 'asc' }, [{ key: 'dist_52w_low_pct', op: 'lte', max: 10 }], 'asc'],
-  ])('NEGATIVE: %s stays', (_, sort, filters, want) => {
-    expect(nearHighFirst(sort, filters).dir).toBe(want)
-  })
   it.each([
     ['dist_52w_high_pct', 'desc', 'closest to the high first'],
     ['dist_52w_high_pct', 'asc', 'furthest from the high first'],
@@ -504,5 +487,41 @@ describe('review of #866, D3: a lift says only what became visible', () => {
     const text = await say('turn hide-all off please')
     expect(text).toMatch(/Volume stays hidden/)
     expect(text).not.toMatch(/showing again/)
+  }, 40000)
+})
+
+describe('review of #866, D4: the order is what the plan says, and the answer says which way it is', () => {
+  const FIELDS = { fields: [{ key: 'dist_52w_high_pct', label: 'Dist from 52W High', type: 'range', unit: '%' }, { key: 'sector', label: 'Sector', type: 'enum', unit: null }] }
+  const nearScan = (dir) => p.env('apply', [{ action: 'screener.run', target: 'screener', args: { filters: [{ field: 'dist_52w_high_pct', op: 'gte', value: -10, max: null, values: null }], sort_field: 'dist_52w_high_pct', sort_dir: dir, mode: 'new', show: null, as: null, within: null } }])
+  const sortSent = () => p.st.scans.at(-1)?.sort
+  beforeEach(async () => {
+    _resetScreenerCache()
+    p.st.scans = []
+    const inner = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url)
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (u.startsWith('/api/screener/fields')) return json(u.includes('options') ? { options: {} } : FIELDS)
+      if (u === '/api/screener/saved-screens') return json({ saved: [], starters: [] })
+      if (u.startsWith('/api/screener/scan')) {
+        p.st.scans.push(JSON.parse(init.body))
+        return json({ total: 2, rows: [{ ticker: 'NEAR', company: 'Near', price: 10, dist_52w_high_pct: -1 }, { ticker: 'FAR', company: 'Far', price: 10, dist_52w_high_pct: -9 }], snapshot_date: '2026-10-31', snapshot: {} })
+      }
+      return inner(url, init)
+    })
+    await loadMeta()
+  })
+  it.each([
+    ['stocks near their 52-week highs', 'desc', 'closest to the high first'],
+    ['stocks within 10% of the high, nearest first', 'desc', 'closest to the high first'],
+    ['stocks near their highs, furthest from the high first', 'asc', 'furthest from the high first'],
+    // held out: no word here was used in writing the fix, and none of them is read
+    ['of the names still within ten percent of the top, which have slipped the most', 'asc', 'furthest from the high first'],
+  ])('"%s" sent %s stays %s', async (words, dir, said) => {
+    const { say } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(nearScan(dir))
+    const text = await say(words)
+    expect(sortSent()).toEqual({ key: 'dist_52w_high_pct', dir })
+    expect(text).toMatch(new RegExp(said))
   }, 40000)
 })
