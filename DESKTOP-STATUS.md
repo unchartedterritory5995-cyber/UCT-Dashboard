@@ -475,3 +475,11 @@ Merging to master is still not authorized in this file; the owner approves it di
   - coverageAudit delta-rsi: a 1000 ms wall-clock flake; passes on re-run.
   W5 merges are next.
 - 2026-11-05 09:59 STARTED from train 1b8b4616d8: W6-T3a (Opus), W9-T3a/b capture tooling (Sonnet), W9-T0 census (Sonnet).
+- 2026-11-05 11:05 TRAIN all 41 lanes merged; train-added changes reviewed (reviews/TRAIN.md) GO-WITH-NOTES @1eb3ba53e5:
+  - 7 conflict merges keep both sides; 8/10 resolution mutations killed; every fix tied to a real red.
+  - Engine 5 -> 17 in merge order; W4-T14 rightly has no bump.
+  - Host-parity at engine 5: 164/166, the 2 misses being the known Node 20 sin/cos cases.
+  - The T19 squash is clean.
+  - Follow-ups F13-F17: N1-N2 two unrailed resolved lines; N3 a dead check in serverBundle.rail; N4 editorStatus phrase authority; N5 a stale comment.
+  - N6: SCORE, W4-T1 and W4-T4 were reviewed by the laptop coordinator (merge queue of 11-03), so there are no desktop review files.
+  M2 and the measure-pair are running.
