@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 17:44 CT
+updated: 2026-11-04 18:18 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -368,10 +368,12 @@ built (files: api/services/definition_record.py, tests/test_definition_record_ru
 checks: 25 new tests, red on base (no record_runtime_pass), green on tip; mutations 12/12 killed. final-tip (heavy-final3): gate 46, hygiene clean, rails pytest 139 (new + existing test_definition_record + test_runtime_server_lane, no difference from base), vitest Tests 2 failed | 22512 passed | 118 skipped = pollingSites.rail + settingsScope.rail baselines (DESKTOP-VERIFIED by name).
 SCHEMA GAP (coordinator): JobResult and the wire schema carry no warm-up, so EVERY real run is refused (runtime:warmup-unreported) until T6/T7 report the run's warm-up; together with T11's finding (T7 results carry no digest) the protocol needs one fix round to carry digest + warm-up.
 ## W5-T18 editor status (optional in the design; needs T17, READY)
-state: BUILDING   round: r0   updated: 2026-11-04 15:11 CT (free RAM back to 9.4 GB)
-branch: feat/pine-w5-t18-editor-status   base: W5-T17 f777d2c427 (STACK)   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
-
+state: READY            round: r0            updated: 2026-11-04 18:18 CT
+branch: feat/pine-w5-t18-editor-status   tip: d85b35af49 (docs-only over code tip a59597320b, the final-tip tree)   base: W5-T17 f777d2c427 (STACK: merge T17 first)   worktree: pine-dsk-w5t18   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t18/EVIDENCE.md
+built (files: app/src/components/chart/builder/RunsOnLine.jsx NEW, BuilderSheet.jsx +8 lines mounting it beside the repaint notice for the open row, BuilderSheet.runsOn.test.jsx): no status panel existed, so a new RunsOnLine renders from server_lanes. All true -> "Runs on: chart, alerts, screener, scans"; a refused lane -> "<lane>: <sentence>" verbatim and never listed as running; ast row (no key / null) -> nothing; malformed stamp -> only "Not confirmed for: <lanes>", never a claim (fails closed).
+checks: rail 17 tests run by path with the count checked; base has no component or mount (M1 = remove the mount = base behaviour, goes red; not run against a base checkout). Mutations 10/10 killed (M2 null-stamp survivor fixed with component-alone tests; M5 array guard equivalent, removed). final-tip (heavy-final2): gate 46, hygiene clean, vitest Tests 2 failed | 22378 passed | 118 skipped = pollingSites.rail + settingsScope.rail baselines (DESKTOP-VERIFIED).
 ## W5-T19 gate + runbook (needs T4, T10, T11, all READY)
 state: BUILDING   round: r0   updated: 2026-11-04 14:37 CT
 branch: feat/pine-w5-t19-gate   base: W5-T10 a1523b3897 + local merges of W5-T4 09753c9426 and W5-T11 86218da704 (STACK)   model: Sonnet
