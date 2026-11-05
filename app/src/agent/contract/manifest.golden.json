@@ -4215,7 +4215,7 @@
    "name": "drawing.addLevel",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Draw a HORIZONTAL LINE at a price on a chart's symbol — the price axis's own \"Draw horizontal line at $X\". Every chart on that symbol shows it; Undo removes it. Only horizontal levels: trendlines, rectangles, Fibonacci and text are not available.",
+   "summary": "Draw a HORIZONTAL LINE at a price on a chart's symbol — the price axis's own \"Draw horizontal line at $X\". Every chart on that symbol shows it; Undo removes it. A level that starts on a date is drawing.addHorizontalRay; every other tool has its own capability or drawing.add.",
    "hints": "target = the drawings entry for the chart's symbol; price = the level (a number, as the member said it — never invented); color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid. One op per level. A level the member describes without a number (\"the recent high\", \"support\") has no price — clarify, never guess.",
    "args": {
     "type": "object",
@@ -4483,6 +4483,372 @@
     "type": "object",
     "properties": {},
     "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.add",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw any other toolbar tool from dates and prices: extended line, vertical line, circle, arrow, Fibonacci extension, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time or Price Move. Every chart on that symbol shows it; Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; points = [{date, price}, …] in the tool's order: extended: first point, second point; vertical: the date (price null); circle: one corner, opposite corner; arrow: tail, tip; fibext: move start, move end; pitchfork: pivot, left shoulder, right shoulder; channel: base start, base end, a point on the parallel line; cup: left rim, bottom, right rim; measure: start, end; priceRange: start, end; dateRange: start, end; advance: setup candle, candle where the move tops. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; a point with no number (\"the low\") has no anchor — clarify, never guess. color / style null = defaults.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "tool": {
+      "type": "string",
+      "enum": [
+       "extended",
+       "vertical",
+       "circle",
+       "arrow",
+       "fibext",
+       "pitchfork",
+       "channel",
+       "cup",
+       "measure",
+       "priceRange",
+       "dateRange",
+       "advance"
+      ]
+     },
+     "points": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "date": {
+         "type": "string"
+        },
+        "price": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "date",
+        "price"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "tool",
+     "points",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setAnchors",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Move the anchors of ONE drawing (what dragging its points does): any tool, any point, a new date and/or price. \"Flatten that line\" sets every point to the first point's price. Refused for a locked drawing. A drawing with an alert is shown first (its alert follows). Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = its id (the recent one for \"it\"); points = [{point, date, price}]: point 1 = the first of that drawing's `anchors`, date / price null = keep it. \"Move the second point to Nov 1 at 210\" = one item; a whole drawing up $5 = one item per point, from its anchors. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "points": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "point": {
+         "type": "integer"
+        },
+        "date": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "price": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "point",
+        "date",
+        "price"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "drawing",
+     "points"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setProps",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note's words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Colour, width and line style are drawing.style. Undo puts them back.",
+   "hints": "target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a colour, null = back to default. opacity = 0-100 for a colour, null = default.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "set": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "prop": {
+         "type": "string",
+         "enum": [
+          "showPriceLabel",
+          "fontFamily",
+          "fontSize",
+          "bold",
+          "italic",
+          "bgEnabled",
+          "bgColor",
+          "borderEnabled",
+          "borderColor",
+          "text",
+          "fillColor",
+          "showPercentChange",
+          "arrowSize",
+          "showDollar",
+          "showPercent",
+          "showBars",
+          "showTime",
+          "labelPos"
+         ]
+        },
+        "value": {
+         "type": [
+          "string",
+          "number",
+          "boolean",
+          "null"
+         ]
+        },
+        "opacity": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "prop",
+        "value",
+        "opacity"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "drawing",
+     "set"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setFibLevels",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Edit a Fibonacci retracement or extension's Levels… menu: show or hide a level, colour a level, turn the fill between two neighbouring levels on or off and colour it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.",
+   "hints": "target = the drawings entry; drawing = the Fibonacci's id. levels = [{level, visible, color}], level as the member says it (0.786 or 78.6), visible false = \"remove the 78.6\"; null = leave. bands = [{from, to, enabled, color, opacity}] between two neighbouring levels, color null = its default, opacity = 0-100 or null. reset = true for \"reset the fib levels\" (levels and bands then both []). Levels are the tool's own table: there are no custom levels.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "levels": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "level": {
+         "type": "number"
+        },
+        "visible": {
+         "type": [
+          "boolean",
+          "null"
+         ]
+        },
+        "color": {
+         "type": [
+          "string",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "level",
+        "visible",
+        "color"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "bands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "from": {
+         "type": "number"
+        },
+        "to": {
+         "type": "number"
+        },
+        "enabled": {
+         "type": "boolean"
+        },
+        "color": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "opacity": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "from",
+        "to",
+        "enabled",
+        "color",
+        "opacity"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "reset": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "drawing",
+     "levels",
+     "bands",
+     "reset"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setAlert",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Set an alert that FOLLOWS a drawing (the drawing menu's \"Set alert…\"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line's level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.",
+   "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "above",
+       "below"
+      ]
+     },
+     "level": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "drawing",
+     "direction",
+     "level"
+    ],
     "additionalProperties": false
    },
    "risk": "confirm",

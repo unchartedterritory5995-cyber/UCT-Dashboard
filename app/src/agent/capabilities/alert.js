@@ -128,7 +128,8 @@ export const alertLibraryKind = {
     // proposal is refused, never doubled.
     const cur = await loadAlerts({ force: true })
     for (const c of patch.create) {
-      const dup = cur.find(a => a.active && a.sym === c.sym && a.direction === c.direction && a.price === c.price)
+      // an alert bound to a drawing is that drawing's: its price moves with the line, so the binding is what repeats
+      const dup = cur.find(a => a.active && a.sym === c.sym && a.direction === c.direction && (c.body?.drawing_id ? a.drawingId === c.body.drawing_id : a.price === c.price))
       if (dup) throw new Error(`you already have an active alert for ${alertPhrase(dup)}`)
     }
     const created = {}
@@ -136,7 +137,7 @@ export const alertLibraryKind = {
       try {
         const row = await json(await req(ROUTE, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sym: c.sym, target_price: c.price, direction: c.direction, alert_type: 'price' }),
+          body: JSON.stringify(c.body || { sym: c.sym, target_price: c.price, direction: c.direction, alert_type: 'price' }),
         }), 'Creating the alert')
         created[`#${i}`] = String(row.id)
       } catch (e) {

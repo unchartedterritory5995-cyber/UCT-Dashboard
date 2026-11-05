@@ -142,15 +142,15 @@ export const GROUPS = [
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
-  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
-    actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
+  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move', domains: [], fillLast: true,
+    actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap', 'drawing.add'],
     // CG-29..32 (corpus #774): "connect … with a trend line", "draw a line from <date> to <date>", a bare "fib retracement
     // sep 2 100 to oct 28 180", "write breakout on the chart at …", "anchor a vwap to oct 1"
     words: [/\b(draw|add|put|place|plot|anchor|drop|mark|connect|join|link)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
       /\b(?:draw|put|add|plot)\b.*\blines? from\b.*\bto\b/, /\bfib(?:onacci)?(?: retracement)?\b|\bretracement\b/,
       /\b(?:write|type|label|annotate)\b.*\b(?:on (?:the|my|this) chart|at \$?\d)/, /\banchor(?:ed)? (?:a |an |the )?vwap\b/,
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
-  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
+  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), move any drawing\'s anchors, restyle, every setting in a drawing\'s menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
@@ -196,7 +196,7 @@ export const GROUPS = [
       /\b(gainers?|losers?|movers?|gap(ped|ping|s)? (up|down)|new highs?|near (the )?highs?|all[- ]time highs?|pull(ing|s)?[- ]?backs?|pulling back|tagging|tight (bases?|flags?|ranges?)|bases?|flags?|breakouts?|unusual volume|big volume|leaders?|leading groups?|laggards?|acting well|working)\b/,
       /\b(over|under|above|below) \$?\d+ (bucks|dollars)\b|\b\d+ (million|mil|m|billion|bn?) (a day|dollar volume)\b|\bliquid (names|stocks)\b/,
       /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
-  { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
+  { id: 'alerts', title: 'Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level', domains: ['alert'], actions: ['drawing.setAlert'],
     // CG-12 (corpus #769): "tell me about TSM" is a question, never an alert — only "tell me when / if …" is
     words: [/\balerts?\b/, /\b(notify|ping) me\b/, /\btell me (when|if|once|as soon as)\b/, /\b(crosses|breaks|hits)\b/] },
   // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the

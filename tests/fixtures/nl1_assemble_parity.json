@@ -109,6 +109,11 @@
   "drawing.setLevel": "drawings",
   "drawing.setAllVisible": "drawings",
   "drawing.clear": "drawings",
+  "drawing.add": "drawingTools",
+  "drawing.setAnchors": "drawings",
+  "drawing.setProps": "drawings",
+  "drawing.setFibLevels": "drawings",
+  "drawing.setAlert": "alerts",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -181,11 +186,11 @@
   },
   {
    "id": "drawingTools",
-   "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+   "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
   },
   {
    "id": "drawings",
-   "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+   "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
   },
   {
    "id": "lists",
@@ -197,7 +202,7 @@
   },
   {
    "id": "alerts",
-   "title": "Price alerts (list, create, delete)"
+   "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
   },
   {
    "id": "indicatorAlerts",
@@ -321,11 +326,11 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
@@ -337,7 +342,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -479,11 +484,11 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
@@ -495,7 +500,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -601,7 +606,8 @@
     "alert.list",
     "alert.create",
     "alert.delete",
-    "watchlist.open"
+    "watchlist.open",
+    "drawing.setAlert"
    ],
    "routing": {
     "version": 1,
@@ -644,11 +650,11 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
@@ -660,7 +666,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -775,7 +781,10 @@
     "drawing.lock",
     "drawing.setLevel",
     "drawing.setAllVisible",
-    "drawing.clear"
+    "drawing.clear",
+    "drawing.setAnchors",
+    "drawing.setProps",
+    "drawing.setFibLevels"
    ],
    "routing": {
     "version": 1,
@@ -818,11 +827,11 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
@@ -834,7 +843,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -972,11 +981,11 @@
      },
      {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
@@ -988,7 +997,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -1156,6 +1165,11 @@
     "drawing.setLevel",
     "drawing.setAllVisible",
     "drawing.clear",
+    "drawing.add",
+    "drawing.setAnchors",
+    "drawing.setProps",
+    "drawing.setFibLevels",
+    "drawing.setAlert",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",

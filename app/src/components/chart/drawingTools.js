@@ -26,6 +26,9 @@ export const POINT_COUNT = Object.freeze({
 // The tools whose one point is a PRICE ONLY (a level has no time anchor — the price-axis menu's own
 // "Draw horizontal line at $X" stores `[{price}]`).
 const PRICE_ONLY = new Set(['horizontal'])
+// …and the one tool whose point needs no price: a vertical line is a time marker (the overlay's "vertical only needs
+// time": toPixel leaves y empty, and its painter and hit test ask for x alone). A price it does carry is still checked.
+const TIME_ONLY = new Set(['vertical'])
 const FUTURE_BARS_CAP = 500
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
@@ -49,7 +52,7 @@ export function validateDrawing(type, points, { tf = 'D' } = {}) {
   for (let i = 0; i < points.length; i += 1) {
     const p = points[i]
     if (!p || typeof p !== 'object' || Array.isArray(p)) return { ok: false, reason: `point ${i + 1} is not a point` }
-    if (!Number.isFinite(p.price)) return { ok: false, reason: `point ${i + 1} has no price` }
+    if (!Number.isFinite(p.price) && !(TIME_ONLY.has(type) && p.price == null)) return { ok: false, reason: `point ${i + 1} has no price` }
     if (PRICE_ONLY.has(type)) continue
     const okTime = dateTf ? (typeof p.time === 'string' && ISO_DAY.test(p.time)) : (typeof p.time === 'number' && Number.isFinite(p.time) && p.time > 0)
     if (!okTime) return { ok: false, reason: `point ${i + 1} needs a ${dateTf ? 'YYYY-MM-DD date' : 'display time (ET-shifted seconds)'} on this timeframe` }
