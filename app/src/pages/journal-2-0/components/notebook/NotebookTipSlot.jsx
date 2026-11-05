@@ -4,7 +4,9 @@
 //
 // ⛔ Never steals focus: the member is typing. The card is announced through ONE status line that is mounted empty
 // and filled when a tip shows (a live region added together with its text is often not read).
-// ⛔ Recorded when it SHOWS (setPrefMerged, merged with the freshest cache), so it appears once per account.
+// ⛔ Recorded when its card has RENDERED (`onShown`, from the card's own mount effect: a chunk that fails to load never
+// burns the tip -- Tier 2 review minor 6), through setPrefMerged; the server merges the seen ids as a union, so two
+// tabs never erase each other's record (review minor 7). It then appears once per account.
 import { Component, Suspense, useEffect, useRef, useState } from 'react'
 import usePreferences from '../../../../hooks/usePreferences'
 import { lazyLeaf } from '../../lib/lazyChunk'
@@ -36,7 +38,6 @@ export default function NotebookTipSlot({ editor }) {
       const id = tipFor(transaction, editor.state)
       if (!id || !tipAvailable(id) || seenTips(p?.[TIPS_PREF]).has(id)) return
       setTip({ id, text: id === 'ticker' ? TIP_COPY.ticker(touchNow()) : TIP_COPY.chart() })
-      setPrefMerged(TIPS_PREF, (current) => withTipSeen(current, id))
     }
     editor.on('update', onUpdate)
     return () => editor.off('update', onUpdate)
@@ -46,9 +47,10 @@ export default function NotebookTipSlot({ editor }) {
     <>
       <p role="status" className="sr-only" data-notebook-tip-status="">{tip ? `${TIP_COPY.label}: ${tip.text}` : ''}</p>
       {tip && (
-        <Quiet>
+        <Quiet key={tip.id}>
           <Suspense fallback={null}>
-            <NotebookTip id={tip.id} text={tip.text} onDismiss={() => setTip(null)} />
+            <NotebookTip id={tip.id} text={tip.text} onDismiss={() => setTip(null)}
+              onShown={() => setPrefMerged(TIPS_PREF, (current) => withTipSeen(current, tip.id))} />
           </Suspense>
         </Quiet>
       )}

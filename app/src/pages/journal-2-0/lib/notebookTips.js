@@ -51,8 +51,11 @@ export function tipAvailable(id) {
   return false
 }
 
-/** The member has just WRITTEN a `$TICKER`: the caret sits at the end of one in its text block (typing the last
- *  letter, or the space after it). A note opened with tickers in it, or a caret parked elsewhere, is not writing. */
+/** The member has just WRITTEN a `$TICKER`: a whole symbol of 2+ letters, closed by the boundary they just typed
+ *  (the space or punctuation right after it, with the caret after that). Typing "$N" -- the first letter -- is not a
+ *  ticker yet (Tier 2 review minor 8). A note opened with tickers in it, or a caret parked elsewhere, is not writing.
+ *  The block is read with each inline atom (a mention, an inline image) as ONE character, the same count ProseMirror's
+ *  `parentOffset` uses, so an atom earlier in the line never shifts the match. */
 export function wroteTicker(state) {
   const sel = state?.selection
   if (!sel || !sel.empty) return false
@@ -60,7 +63,9 @@ export function wroteTicker(state) {
   const block = $head.parent
   if (!block?.isTextblock || block.type.spec.code) return false
   const at = $head.parentOffset
-  return findTickerRanges(block.textContent).some((r) => at === r.to || at === r.to + 1)
+  const text = block.textBetween(0, block.content.size, undefined, '￼')
+  if (at < 1 || /[\w$]/.test(text[at - 1] || '')) return false            // the last key was the boundary
+  return findTickerRanges(text).some((r) => r.symbol.length >= 2 && at === r.to + 1)
 }
 
 /** The transaction INSERTED a chart block (a `widgetEmbed` whose widget is `chart`). */
