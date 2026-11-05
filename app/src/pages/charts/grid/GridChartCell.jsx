@@ -140,18 +140,17 @@ function GridChartCell({
   }, [crosshairBus, sym])
 
   // ── Time-range sync (mirrors the crosshair ref-bus; echo-guarded in StockChart) ──
-  const [externalTimeRange, setExternalTimeRange] = useState(null)
-  const reportRange = useCallback((payload) => {
-    rangeBus?.emit(cellIdRef.current, payload)
+  // Only a move the member made is sent. A chart framing its own new ticker or
+  // timeframe must not pull every other cell out of the place they were left.
+  const reportRange = useCallback((payload, { memberMoved } = {}) => {
+    if (memberMoved) rangeBus?.emit(cellIdRef.current, payload)
   }, [rangeBus])
-  useEffect(() => {
-    if (!rangeBus || !sym) return undefined
+  const subscribeTimeRange = useCallback((cb) => {
+    if (!rangeBus || !sym) return () => {}
     return rangeBus.subscribe(({ sourceId, payload }) => {
-      if (sourceId !== cellIdRef.current) setExternalTimeRange(payload)
+      if (sourceId !== cellIdRef.current) cb(payload)
     })
   }, [rangeBus, sym])
-  useEffect(() => { setExternalTimeRange(null) }, [sym])
-  useEffect(() => { if (!rangeBus) setExternalTimeRange(null) }, [rangeBus])
 
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
@@ -531,7 +530,7 @@ function GridChartCell({
             onCrosshairMove={crosshairBus ? reportCrosshair : null}
             subscribeCrosshair={subscribeCrosshair}
             onTimeRangeChange={rangeBus ? reportRange : null}
-            externalTimeRange={externalTimeRange}
+            subscribeTimeRange={subscribeTimeRange}
             /* Grid lite profile — the workspace chart look without the
                speculative warms, patterns, or per-instance hotkey ownership.
                hideReplay/hidePatterns/hideCompare are inert today (the toolbar

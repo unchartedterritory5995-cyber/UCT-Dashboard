@@ -38,7 +38,7 @@ export function screenGridOps(ops, host) {
     if (behindMaximized(o, cap, host, grid?.maximized?.())) return { refuse: GRID_HIDDEN_REFUSAL }
     if (o.action === 'chart.setSymbol' && grid?.groupsMode()) return { refuse: GRID_GROUPS_REFUSAL }
     if (o.action === 'chart.setSetting' && String(o.args?.setting).startsWith('watermark.')) return { refuse: GRID_WATERMARK_REFUSAL }
-    if (o.action === 'chart.goToDate' && grid?.syncTimeRange()) note = 'Time-range sync is on, so the other charts in this grid may follow that view.'
+    if (o.action === 'chart.goToDate' && grid?.syncTimeRange()) note = 'Time-range sync is on, so the other charts in this grid follow that view, as far as their history goes.'
     if (cap.target === 'drawing' && !note) {
       const shownOn = host?.drawings?.read?.(o.target)?.charts || []
       if (shownOn.length > 1) note = `Drawings belong to the symbol, so this shows on ${shownOn.join(' and ')}.`
