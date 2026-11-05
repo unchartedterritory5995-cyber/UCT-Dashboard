@@ -1,4 +1,4 @@
-// ── NLM-1 D1 · ROUTING V2: registry-derived capability discovery (DARK: UCT_AGENT_ROUTING_V2 + browser switch) ─
+// ── NLM-1 D1 · ROUTING V2: registry-derived capability discovery (LIVE, on by default: nlm1/flag.js has its kill switches) ─
 //
 // v1 (routing.js) picks groups with hand-written per-group regexes. v2 SCORES every group against a lexical index
 // GENERATED from the capability manifest (capabilityIndex.js: names, summaries, argument names and enum values, group
@@ -155,6 +155,8 @@ function bytesFor(manifest, opts) {
   return BYTES_MEMO.val
 }
 
+const SENT_WITH_GROUP = ['boardEdit', 'calendar']
+
 /** Route a manifest — routeManifest's contract (manifest, routing, overBudget, refresh), plus `v2` diagnostics. */
 export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const k = T()
@@ -256,6 +258,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
     if ((used + n > budget || usedBytes + b > cap) && want.size >= always.length) { if (needed.includes(id)) over.push(id); continue }
     want.add(id); used += n; usedBytes += b
   }
+  const sentWith = sel.undoSignal ? [] : SENT_WITH_GROUP.filter(id => (scoreOf.get(id) || 0) >= k.EVID_FLOOR)
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
   const diag = { version: ROUTING_V2_VERSION, scores: sel.scores, vocabulary: sel.vocabulary, strong: sel.strong, v1: sel.v1, context, matched: sel.matched }
@@ -266,8 +269,10 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
     routing: { version: ROUTING_VERSION, groups: present.map(g => ({ id: g.id, title: g.title })), selected: present.filter(g => want.has(g.id)).map(g => g.id) },
     overBudget: over,
     // re-read live data for what the message is about (tiers 1–3); weak / context / fill act on the context loaded
-    refresh: sel.matched ? present.filter(g => want.has(g.id) && needed.includes(g.id)).map(g => g.id)
-      : [...new Set([...pinned, ...(sel.soft || []), 'charts'])].filter(id => want.has(id)),
+    // boardEdit, calendar: a context section sent only with its group (widgetControls, the /charts calendar ref), and only
+    // on the message's own evidence, and not on an undo signal (Undo reads no options; capability text says "Undo" often).
+    refresh: sel.matched ? present.filter(g => want.has(g.id) && (needed.includes(g.id) || sentWith.includes(g.id))).map(g => g.id)
+      : [...new Set([...pinned, ...(sel.soft || []), 'charts', ...sentWith])].filter(id => want.has(id)),
     v2: diag,
   }
 }

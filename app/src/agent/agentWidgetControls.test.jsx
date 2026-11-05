@@ -13,6 +13,7 @@ import { makeBoard } from './__fixtures__/board'
 import { publishWidgetDoor } from '../pages/charts/widgetDoors'
 import { WIDGET_REGISTRY, widgetControls } from '../widgets/registry'
 import { etToday } from './dateWords'
+import { routeManifestV2 } from './nlm1/routingV2'
 
 const send = vi.hoisted(() => ({ fn: null }))
 vi.mock('../components/journalCaptureLoader', () => ({ loadJournalCapture: async () => ({ sendCaptureToJournal: (...a) => send.fn(...a) }) }))
@@ -283,6 +284,14 @@ describe('what the model is told: the types on THIS board, not every type on eve
     expect(noRoute(host, 'make it weekly')).toBeUndefined()
     await refreshContext(1500)                                          // no routing to read (planner v2): the message decides
     expect(noRoute(host, 'make it weekly')).toBeUndefined()
+  })
+  it.each(['undo', 'undo that', 'take that back', 'roll back what you just did'])('routing v2: "%s" may pack the group, but its evidence does not load the list', (m) => {
+    const opts = { enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
+    expect(routeManifestV2(manifestFor(CTX), m, opts).refresh || []).not.toContain('boardEdit')
+  })
+  it('routing v2: a request with evidence for the group does load it', () => {
+    const opts = { enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
+    expect(routeManifestV2(manifestFor(CTX), 'show the theme tracker by week', opts).refresh).toContain('boardEdit')
   })
   it('a message that names a widget on this board brings that type alone, in the registry\'s words', () => {
     const { host } = makeBoard([w('f', 'fundamentals'), w('n', 'news'), w('m', 'scatter')], {})

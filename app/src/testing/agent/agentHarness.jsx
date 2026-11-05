@@ -272,6 +272,7 @@ window.fetch = async (input, init) => {
       { ticker: 'SMH', name: 'Semiconductors', id: 1, group_return: r(1, 5), holdings: [hold('NVDA', 2, 6), hold('AMD', 1, 4)] },
       { ticker: 'IGV', name: 'Software', id: 2, group_return: r(2, 1), holdings: [hold('MSFT', 2, 1)] },
     ] })
+    if (route === '/api/agent/config') return json({ conversations: [], routing_v2: true })   // the live router
     if (route === '/api/theme-rotation') return json({})
     if (path.startsWith('/api/calendar/')) return json({})
     if (route === '/api/calendar') return json({ days: {}, econ: {} })

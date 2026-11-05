@@ -12,6 +12,8 @@ import { commitPlan, undoEntry } from './runtime'
 import { makeBoard } from './__fixtures__/board'
 import { setupPanel, ONE } from './testing/panelHarness'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, widgetControls } from '../widgets/registry'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
+import { routingV2Active } from './nlm1/flag'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -178,5 +180,49 @@ describe('through the REAL panel (panelHarness)', () => {
     p.st.envelopes.push(p.env('apply', [op({ widget: 'th', key: 'period', value: '1w' })]))
     expect(await say('show the theme tracker by week')).toMatch(/isn't showing right now/)
     expect(optsOf(board, 'th')).toEqual({ period: '1d', sortDir: 'desc' })
+  }, 40000)
+})
+
+// Routing v2 is the live path for admins (nlm1/flag.js), and its router has its own refresh list.
+describe('through the REAL panel with routing v2 on: a control request carries its list on the FIRST call', () => {
+  let p
+  const config = async (on) => {
+    const base = globalThis.fetch
+    globalThis.fetch = async (url, init) => (url === '/api/agent/config'
+      ? new Response(JSON.stringify({ conversations: [], routing_v2: on }), { status: 200, headers: { 'content-type': 'application/json' } }) : base(url, init))
+    localStorage.setItem('uct.agent.routingV2', on ? '1' : '0')
+    _resetAgentConfig()
+    await loadAgentConfig()
+  }
+  beforeEach(async () => { p = setupPanel(); await config(true) })
+  afterEach(async () => { cleanup(); await config(false); localStorage.clear() })
+  const firstTurn = () => p.st.calls.find(c => c[1] === '/api/agent/turn')[2]
+  it('"show the theme tracker from the open": one model call, the list on it, the option set, Undo exact', async () => {
+    expect(routingV2Active()).toBe(true)
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('th', 'themes', 18, 0, {})], syms)
+    const before = JSON.stringify(board.state.widgets)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'th', key: 'todayBasis', value: 'open' })]))
+    const out = await say('show the theme tracker from the open')
+    expect(p.turns()).toBe(1)
+    const body = firstTurn()
+    expect(body.capabilities.map(c => c.name)).toContain('widget.setOption')
+    expect(body.context.widgetControls[0].controls.themes).toContain('todayBasis(close|open)')
+    expect(out).toMatch(/todayBasis is now open/)
+    expect(optsOf(board, 'th').todayBasis).toBe('open')
+    await say('undo')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it('⛔ the F-16 screen claim is not widened: "only show calls on the options flow" stays its honest refusal, with no model call, even with the widget on the board', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    expect(await say('only show calls on the options flow')).toMatch(/can't screen on options-flow/)
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it('a turn that does not touch widgets carries no list, on the same board', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    await say('what does a pullback mean for momentum names')
+    expect(firstTurn().context.widgetControls).toBeUndefined()
   }, 40000)
 })
