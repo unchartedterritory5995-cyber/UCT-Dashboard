@@ -20,7 +20,7 @@ M = [
  ("def_hash constant", at("def_hash = runtime_definitions.handle(definition)", "def_hash = 'sha256:' + '0' * 64")),
  ("def_hash stripped of the runtime prefix", at("def_hash = runtime_definitions.handle(definition)", "def_hash = runtime_definitions.handle(definition).split(':', 1)[1]")),
  ("runtime key shape refused", src.replace('[0-9a-f]{64}$")', '[0-9a-f]{65}$")', 1)),
- ("tree shape replaced by a copy", src.replace("_HASH_RE = _defs.RESULT_IDENTITY_RE", "_HASH_RE = re.compile(_defs.RESULT_IDENTITY_RE.pattern)", 1)),
+ ("tree shape replaced by a copy", src.replace("_HASH_RE = _defs.RESULT_IDENTITY_RE", "_HASH_RE = re.compile(_defs.RESULT_IDENTITY_RE.pattern, re.ASCII)", 1)),
  ("key shape ignores the tree identity", src.replace("bool(_HASH_RE.match(value) or _runtime_key_re().match(value))", "bool(_runtime_key_re().match(value))", 1)),
  ("column length unchecked", at("or len(column) != len(bars):", ":")),
  ("runtime check removed", at("if not runtime_definitions.is_runtime(definition):", "if False:")),
