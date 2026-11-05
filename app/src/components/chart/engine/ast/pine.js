@@ -19375,7 +19375,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (m[2] === 'date' || m[2] === 'time') return `has a \`{N,${m[2]},…}\` element: a UTC date or time the reference formats by a pattern no capture has measured`
       return `has a \`{N,${m[2]}}\` element this reader does not hold`
     }
-    if (m) return `has a number pattern \`${m[2]}\` no capture or published example pins (\`#.##\` and \`percent\` are read)`
+    if (m) return `has a number pattern \`${m[2]}\` no capture or published example pins (\`#.##\` is read; \`percent\` stays refused until capture Q-W3-3 matches)`
     const plain = {
       'format:quote': 'has an apostrophe, MessageFormat\'s quote character',
       'format:brace': 'has an unbalanced brace',

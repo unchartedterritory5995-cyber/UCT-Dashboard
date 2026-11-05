@@ -7,9 +7,9 @@
 // gave up without saying on what. Read at their source lines they are seven SHAPES
 // (`docs/pine/capture-queue-2026-11-02-w3.md`), and this file pins what S1 did with each:
 //
-//   A  `str.format`'s `{N,number,percent}` element is READ — TradingView's published rule
-//      (`pineTextFormat.js::MESSAGE_NUMBER_PRESETS`, the reference's own examples), with
-//      every corner the rule's words do not settle WITHHELD per value;
+//   A  `str.format`'s `{N,number,percent}` element is REFUSED BY NAME (r3): the published rule
+//      names no sign, and no capture shows a percent, so nothing is drawn until Q-W3-3 matches
+//      (`pineTextFormat.js::PERCENT_CAPTURED`); the formatting code is kept and unit-railed;
 //   B  every other shape is refused BY NAME: `cellTextWhy` carries the guard and the
 //      spelled shape, never "no refusal recorded" — the `{N,date,…}` and bare `{N,number}`
 //      elements, the `integer` preset, and the per-pass loop shapes (an element picked out of
@@ -26,6 +26,7 @@ import { translatePine } from './pine'
 import { assertObjectProgram } from './objectProgram'
 import {
   compileMessagePattern, formatMessageNumber, percentMessageNumber, percentWithheldWhy,
+  percentFormatUncaptured, percentCornerWhy, PERCENT_CAPTURED, servedPreset, isMessageNumberFormat,
   MESSAGE_NUMBER_PRESETS, MESSAGE_NUMBER_PATTERNS,
 } from '../pineTextFormat.js'
 import { buildObjectLane, runObjectLane } from '../runtime/objectLane.js'
@@ -70,149 +71,133 @@ const P = {
   helperParam: script('f_cell(table _t, int _r, string _s) =>', '    table.cell(_t, 0, _r, _s)', 'if barstate.islast', `    ${TBL}`, '    f_cell(t, 0, "hello")', '    f_cell(t, 1, "A " + str.tostring(close, "#.##"))'),
 }
 
-describe('A — `{N,number,percent}` is read by the published rule', () => {
-  it('⭐ the grammar admits the keyword, spaced as the reference spells it, and nothing else new', () => {
-    expect(compileMessagePattern('{0,number,percent}', 1)).toEqual({ ok: true, parts: [{ arg: 0, fmt: 'percent' }] })
-    expect(compileMessagePattern('Expected return is {0, number, percent} - {1, number, percent}', 2))
-      .toEqual({ ok: true, parts: [{ lit: 'Expected return is ' }, { arg: 0, fmt: 'percent' }, { lit: ' - ' }, { arg: 1, fmt: 'percent' }] })
-    expect(Object.keys(MESSAGE_NUMBER_PRESETS)).toEqual(['percent'])
+describe('A — `{N,number,percent}` is REFUSED BY NAME until capture Q-W3-3 matches (r3, B1+B2)', () => {
+  // The rule's words ("multiplies by 100, rounds to the nearest whole number") name no sign, no
+  // sign character and no placement, and no capture shows a percent: every percent value,
+  // positive or negative, is withheld. The formatting code is KEPT behind `PERCENT_CAPTURED`.
+  const SAMPLE = [0.5, 0.1, 0.2, 0.296, 0.004, 0, 1, 9.994, -0.126, -0.004, -0.575, -0.124, -0.5, 0.575, 0.125, -0.125, 10, NaN]
+  it('⛔ the gate is shut and nothing is served', () => {
+    expect(PERCENT_CAPTURED).toBe(false)
+    expect(servedPreset('percent')).toBe(false)
+    expect(isMessageNumberFormat('percent')).toBe(false)
+    expect(Object.keys(MESSAGE_NUMBER_PRESETS)).toEqual(['percent']) // the rule stays on file
     expect(Object.keys(MESSAGE_NUMBER_PATTERNS)).toEqual(['#.##'])
-    // ⛔ the other two presets the reference names stay refused BY NAME (capture row Q-W3-3)
+  })
+
+  it('⛔ the grammar refuses the keyword BY NAME, spaced or not, as master did', () => {
+    expect(compileMessagePattern('{0,number,percent}', 1)).toEqual({ ok: false, why: 'format:number-pattern:percent' })
+    expect(compileMessagePattern('Expected return is {0, number, percent} - {1, number, percent}', 2).why).toBe('format:number-pattern: percent')
+    expect(compileMessagePattern('{0, number ,	percent }', 1).ok).toBe(false)
     expect(compileMessagePattern('{0,number,integer}', 1).why).toBe('format:number-pattern:integer')
     expect(compileMessagePattern('{0,number,currency}', 1).why).toBe('format:number-pattern:currency')
-    expect(compileMessagePattern('{0,number, #.##}', 1).why).toBe('format:number-pattern: #.##')
+    expect(compileMessagePattern('{0,number,#.##}', 1).ok).toBe(true) // control: the captured pattern still reads
   })
 
-  it('⛔ r2 — the keywords are trimmed as Java\'s String.trim does: U+0000..U+0020 only, never NBSP', () => {
-    // ⭐ positive: ASCII space and tab around either keyword are trimmed
-    expect(compileMessagePattern('{0, number ,\tpercent }', 1)).toEqual({ ok: true, parts: [{ arg: 0, fmt: 'percent' }] })
-    // ⛔ negative: an NBSP (U+00A0) or an em space (U+2003) is part of the keyword to Java
+  it('⛔ the type keyword is trimmed as Java String.trim does: U+0000..U+0020 only, never NBSP', () => {
     const NBSP = String.fromCharCode(0xa0)
-    const EMSP = String.fromCharCode(0x2003)
-    expect(compileMessagePattern(`{0,number,${NBSP}percent}`, 1).why).toBe(`format:number-pattern:${NBSP}percent`)
-    expect(compileMessagePattern(`{0,number,percent${EMSP}}`, 1).why).toBe(`format:number-pattern:percent${EMSP}`)
-    expect(compileMessagePattern(`{0,${NBSP}number,percent}`, 1).why).toBe(`format:element:${NBSP}number`)
-    expect(compileMessagePattern(`{0,number${NBSP},percent}`, 1).why).toBe(`format:element:number${NBSP}`)
+    expect(compileMessagePattern('{0, number ,#.##}', 1).ok).toBe(true)
+    expect(compileMessagePattern(`{0,${NBSP}number,#.##}`, 1).why).toBe(`format:element:${NBSP}number`)
+    expect(compileMessagePattern(`{0,number${NBSP},#.##}`, 1).why).toBe(`format:element:number${NBSP}`)
   })
 
-  it('⭐ the reference\'s three examples, character for character', () => {
-    expect(percentMessageNumber(0.5)).toBe('50%')
-    expect(percentMessageNumber(0.1)).toBe('10%')
-    expect(percentMessageNumber(0.2)).toBe('20%')
-    expect(formatMessageNumber(0.5, 'percent')).toBe('50%')
+  it('⛔ every value, positive AND negative, is withheld by name `percent:uncaptured`', () => {
+    for (const n of SAMPLE) {
+      expect(percentMessageNumber(n), String(n)).toBeNull()
+      expect(percentWithheldWhy(n), String(n)).toBe('percent:uncaptured')
+      expect(formatMessageNumber(n, 'percent'), String(n)).toBeNull()
+    }
+    expect(formatMessageNumber(0.5, '#.##')).toBe('0.5') // control: the captured pattern still formats
   })
 
-  it('⭐ "rounds the result to the nearest whole number": rounded, not truncated, either sign', () => {
-    expect(percentMessageNumber(0.296)).toBe('30%')
-    expect(percentMessageNumber(0.294)).toBe('29%')
-    expect(percentMessageNumber(-0.126)).toBe('-13%')
-    expect(percentMessageNumber(-0.124)).toBe('-12%')
-    expect(percentMessageNumber(0)).toBe('0%')
-    expect(percentMessageNumber(1)).toBe('100%')
-    expect(percentMessageNumber(9.994)).toBe('999%')
+  it('⛔ the translator drops the cell BY NAME, with the capture row in the sentence', () => {
+    for (const src of [P.percent, P.percentSpaced]) {
+      const { cells: got, dropped, why } = cells(src)
+      expect(got).toHaveLength(0)
+      expect(dropped['cell:text']).toBeGreaterThan(0)
+      expect(why[0]).toMatch(/number pattern `[ ]?percent` no capture or published example pins/)
+      expect(why[0]).toMatch(/Q-W3-3/)
+    }
   })
 
-  it('⭐ r2 — off a tie in EITHER reading the value is drawn: the neighbours of the decimal ties', () => {
+  it('⛔ the document validator refuses a forged `percent` node', () => {
+    const t = translatePine(P.control, {})
+    const forged = JSON.parse(JSON.stringify(t.objects))
+    findNum(forged.ops.find((o) => o.k === 'cell').props.text.node).fmt = 'percent'
+    expect(() => assertObjectProgram(forged)).toThrow(/str\.format pattern "percent" is not one a capture or published rule pins/)
+  })
+
+  it('⛔ the object lane draws NOTHING for a percent label, whatever the value', () => {
+    const N = 12
+    for (const close of [150, 100 * 0.874, 112.5]) {
+      const BARS = Array.from({ length: N }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 160, l: 90, c: close, v: 1000000 }))
+      const src = script('if barstate.islast', '    label.new(bar_index, close, str.format("Return {0,number,percent}", close / open - 1))')
+      const lane = buildObjectLane(src, { tf: 'D', newestBarIsForming: false, bars: BARS })
+      expect(lane.ok, `close ${close}`).toBe(false)
+    }
+  })
+
+  it('⭐ KEPT, NOT SERVED — the reference\'s three examples, character for character', () => {
+    expect(percentFormatUncaptured(0.5)).toBe('50%')
+    expect(percentFormatUncaptured(0.1)).toBe('10%')
+    expect(percentFormatUncaptured(0.2)).toBe('20%')
+  })
+
+  it('KEPT, NOT SERVED — "rounds the result to the nearest whole number": rounded, not truncated, either sign', () => {
+    expect(percentFormatUncaptured(0.296)).toBe('30%')
+    expect(percentFormatUncaptured(0.294)).toBe('29%')
+    expect(percentFormatUncaptured(-0.126)).toBe('-13%')
+    expect(percentFormatUncaptured(-0.124)).toBe('-12%')
+    expect(percentFormatUncaptured(0)).toBe('0%')
+    expect(percentFormatUncaptured(1)).toBe('100%')
+    expect(percentFormatUncaptured(9.994)).toBe('999%')
+  })
+
+  it('KEPT, NOT SERVED — r2 off a tie in EITHER reading the value is drawn: the neighbours of the decimal ties', () => {
     // each sits 0.1 % from a decimal tie: binary and decimal readings, HALF_UP and HALF_EVEN agree
     const drawn = [
       [0.574, '57%'], [0.576, '58%'], [0.144, '14%'], [0.146, '15%'], [0.034, '3%'], [0.036, '4%'],
       [-0.574, '-57%'], [-0.576, '-58%'], [-0.144, '-14%'], [-0.146, '-15%'],
     ]
     for (const [n, out] of drawn) {
-      expect(percentWithheldWhy(n), String(n)).toBeNull()
-      expect(percentMessageNumber(n), String(n)).toBe(out)
+      expect(percentCornerWhy(n), String(n)).toBeNull()
+      expect(percentFormatUncaptured(n), String(n)).toBe(out)
     }
-    expect(percentMessageNumber(0.004)).toBe('0%') // a positive zero is the rule's own "0%"
+    expect(percentFormatUncaptured(0.004)).toBe('0%') // a positive zero is the rule's own "0%"
   })
 
-  it('⛔ WITHHELD where the rule\'s words do not settle the characters', () => {
-    expect(percentMessageNumber(0.125)).toBeNull() // an exact tie at the whole percent (12.5)
-    expect(percentMessageNumber(-0.125)).toBeNull()
-    expect(percentMessageNumber(10)).toBeNull() // 1000 %: the grouping comma is unmeasured
-    expect(percentMessageNumber(-10)).toBeNull()
+  it('KEPT, NOT SERVED — WITHHELD where the rule\'s words do not settle the characters', () => {
+    expect(percentFormatUncaptured(0.125)).toBeNull() // an exact tie at the whole percent (12.5)
+    expect(percentFormatUncaptured(-0.125)).toBeNull()
+    expect(percentFormatUncaptured(10)).toBeNull() // 1000 %: the grouping comma is unmeasured
+    expect(percentFormatUncaptured(-10)).toBeNull()
     // the bound is on the ROUNDED whole: 999.6 % rounds to 1000 ("1,000%" under `#,###%`)
-    expect(percentMessageNumber(9.996)).toBeNull()
-    expect(percentMessageNumber(-9.996)).toBeNull()
-    expect(percentMessageNumber(-0.004)).toBeNull() // rounds to a negative zero
-    expect(percentWithheldWhy(-0.004)).toBe('percent:negative-zero')
+    expect(percentFormatUncaptured(9.996)).toBeNull()
+    expect(percentFormatUncaptured(-9.996)).toBeNull()
+    expect(percentFormatUncaptured(-0.004)).toBeNull() // rounds to a negative zero
+    expect(percentCornerWhy(-0.004)).toBe('percent:negative-zero')
     // ⛔ r2 — `-0` itself: Java's DecimalFormat prints "-0%"; the docs do not say
-    expect(percentMessageNumber(-0)).toBeNull()
-    expect(percentWithheldWhy(-0)).toBe('percent:negative-zero')
-    expect(percentWithheldWhy(0)).toBeNull()
-    expect(percentWithheldWhy(0.125)).toBe('percent:tie')
-    expect(percentWithheldWhy(9.996)).toBe('percent:grouping')
-    expect(percentWithheldWhy(NaN)).toBe('percent:na')
-    expect(percentMessageNumber(NaN)).toBeNull()
-    expect(percentMessageNumber(Infinity)).toBeNull()
-    expect(percentMessageNumber('0.5')).toBeNull()
-    expect(formatMessageNumber(0.125, 'percent')).toBeNull()
+    expect(percentFormatUncaptured(-0)).toBeNull()
+    expect(percentCornerWhy(-0)).toBe('percent:negative-zero')
+    expect(percentCornerWhy(0)).toBeNull()
+    expect(percentCornerWhy(0.125)).toBe('percent:tie')
+    expect(percentCornerWhy(9.996)).toBe('percent:grouping')
+    expect(percentCornerWhy(NaN)).toBe('percent:na')
+    expect(percentFormatUncaptured(NaN)).toBeNull()
+    expect(percentFormatUncaptured(Infinity)).toBeNull()
+    expect(percentFormatUncaptured('0.5')).toBeNull()
   })
 
-  it('⛔ r2 — a DECIMAL half tie is withheld by name although the binary product is not x.5', () => {
+  it('KEPT, NOT SERVED — r2 a DECIMAL half tie is withheld by name although the binary product is not x.5', () => {
     // 0.575 * 100 === 57.49999999999999: a binary product draws "57%", a decimal reading
     // "58%" under HALF_UP and HALF_EVEN alike; no published source says which TradingView uses
     const ties = [0.035, 0.145, 0.275, 0.285, 0.545, 0.555, 0.565, 0.575]
     expect(0.575 * 100).toBe(57.49999999999999)
     for (const n of [...ties, ...ties.map((v) => -v)]) {
-      expect(percentWithheldWhy(n), String(n)).toBe('percent:decimal-tie')
-      expect(percentMessageNumber(n), String(n)).toBeNull()
-      expect(formatMessageNumber(n, 'percent'), String(n)).toBeNull()
+      expect(percentCornerWhy(n), String(n)).toBe('percent:decimal-tie')
+      expect(percentFormatUncaptured(n), String(n)).toBeNull()
     }
   })
 
-  it('⭐ the translator carries the cell with a message number under the `percent` preset', () => {
-    for (const src of [P.percent, P.percentSpaced]) {
-      const { cells: got, dropped } = cells(src)
-      expect(dropped['cell:text']).toBeUndefined()
-      expect(got).toHaveLength(1)
-      expect(got[0].props.text.v).toBe('text')
-      expect(findNum(got[0].props.text.node)).toMatchObject({ t: 'num', form: 'message', fmt: 'percent' })
-    }
-  })
-
-  it('⭐ the document validator asks the SAME authority: `percent` passes, `integer` is refused', () => {
-    const t = translatePine(P.percent, {})
-    expect(() => assertObjectProgram(t.objects)).not.toThrow()
-    const forged = JSON.parse(JSON.stringify(t.objects))
-    findNum(forged.ops.find((o) => o.k === 'cell').props.text.node).fmt = 'integer'
-    expect(() => assertObjectProgram(forged)).toThrow(/str\.format pattern "integer" is not one a capture or published rule pins/)
-  })
-
-  describe('the object runtime draws the rule\'s text, and holds back a withheld value', () => {
-    const N = 12
-    const barsOf = (c) => Array.from({ length: N }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 160, l: 90, c, v: 1000000 }))
-    const run = (close, text) => {
-      const BARS = barsOf(close)
-      const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
-      const src = script('if barstate.islast', `    label.new(bar_index, close, ${text})`)
-      const lane = buildObjectLane(src, { tf: 'D', newestBarIsForming: false, bars: BARS })
-      expect(lane.ok, lane.ok ? '' : `refused ${(lane.refusal || {}).guard}`).toBe(true)
-      const r = runObjectLane(lane, { bars: N, series: SERIES, confirmed: true, readTime: (i) => BARS[i].t })
-      expect(r.status, r.reason).toBe(OBJECT_STATUS.OK)
-      const state = toRenderState(r.live, { bars: BARS.map((b) => ({ ...b })), tf: 'D' })
-      return { r, held: r.live.filter((o) => o.family === 'label'), state }
-    }
-    it('⭐ close / open − 1 = 0.5 draws "Return 50%"', () => {
-      const { held, state } = run(150, 'str.format("Return {0,number,percent}", close / open - 1)')
-      expect(held.map((o) => o.props.text)).toEqual(['Return 50%'])
-      expect(state.labels.map((l) => l.text)).toEqual(['Return 50%'])
-    })
-    it('⛔ an exact tie (0.125) is HELD, NOT DRAWN, and counted', () => {
-      const { r, held, state } = run(112.5, 'str.format("Return {0,number,percent}", close / open - 1)')
-      expect(held).toHaveLength(1)
-      expect(held[0].props.text).toBeNull()
-      expect(state.labels).toHaveLength(0)
-      expect(r.stats.textsWithheld).toBeGreaterThan(0)
-    })
-    it('⛔ r2 — a decimal half tie (0.575) is HELD, NOT DRAWN, and counted', () => {
-      const { r, held, state } = run(115, 'str.format("Return {0,number,percent}", close / 200)')
-      expect(115 / 200).toBe(0.575)
-      expect(held).toHaveLength(1)
-      expect(held[0].props.text).toBeNull()
-      expect(state.labels).toHaveLength(0)
-      expect(r.stats.textsWithheld).toBeGreaterThan(0)
-    })
-  })
 })
 
 describe('B — every other S1 shape is refused BY NAME, never "no refusal recorded"', () => {

@@ -43,8 +43,8 @@
 //   * a result that would read "-0" — the sign of a rounded-away negative;
 //   * every other format element (`{N,number}`, `integer`, `currency`, `date`,
 //     `time`, `choice`, any other number pattern), a quote (`'`), an unbalanced
-//     brace — none of them is in any capture. ⭐ `percent` is the ONE keyword
-//     preset read, by the published rule (`MESSAGE_NUMBER_PRESETS`, W3-S1).
+//     brace — none of them is in any capture. ⛔ `percent` too, until Q-W3-3 matches
+//     (`PERCENT_CAPTURED`, W3-S1 r3): the published rule does not settle a negative's sign.
 // The captures that would settle each are named in docs/pine/vendor-harness/
 // objects-triage-2026-09-28.md, step 13.
 
@@ -79,7 +79,23 @@ export const MESSAGE_NUMBER_PRESETS = Object.freeze({
  *  document's `{t:'num', form:'message'}` node against, so the two cannot drift. */
 export function isMessageNumberFormat(fmt) {
   return typeof fmt === 'string'
-    && (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, fmt) || Object.hasOwn(MESSAGE_NUMBER_PRESETS, fmt))
+    && (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, fmt) || servedPreset(fmt))
+}
+
+/** ⛔⛔ W3-S1 r3 (2026-11-04) — THE Q-W3-3 GATE. `false` until the capture row Q-W3-3
+ *  (`docs/pine/capture-queue-2026-11-02-w3.md`: -0.126, -0.004, -0.575 and the positives)
+ *  MATCHES. While `false`, `percent` is NOT an accepted keyword (`servedPreset`;
+ *  `compileMessagePattern` refuses it BY NAME, `format:number-pattern:percent`, as master
+ *  does) and `percentMessageNumber` returns `null` / `percentWithheldWhy` says
+ *  `percent:uncaptured`: the formatting code below is KEPT, behind this one switch, because
+ *  the published rule names neither the sign nor its placement, and the house rule is to
+ *  refuse by name anything not proven exact against TradingView. */
+export const PERCENT_CAPTURED = false
+
+/** ONE answer to "may a `{N,number,KEYWORD}` keyword be drawn?" — a preset with a published
+ *  rule AND (for `percent`) the Q-W3-3 capture. */
+export function servedPreset(keyword) {
+  return Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword) && (keyword !== 'percent' || PERCENT_CAPTURED)
 }
 
 /** The largest magnitude any captured `str.format` number reached, as a bound:
@@ -135,7 +151,7 @@ export function compileMessagePattern(pattern, argCount) {
       // the element with optional spaces (`{0, number, percent}` → "10%"), so the keyword
       // is trimmed. A `#`/`0` pattern is still matched exactly as a capture spelled it.
       const keyword = javaTrim(p)
-      if (Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword)) fmt = keyword
+      if (servedPreset(keyword)) fmt = keyword
       else if (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, p)) fmt = p
       else return { ok: false, why: `format:number-pattern:${p}` }
     }
@@ -202,7 +218,15 @@ function trimmedFixed(n, max) {
  * @returns {string|null}
  */
 export function percentMessageNumber(n) {
-  if (percentWithheldWhy(n) !== null) return null
+  if (!PERCENT_CAPTURED) return null // ⛔ r3 — percent:uncaptured, every value, either sign
+  return percentFormatUncaptured(n)
+}
+
+/** ⛔ W3-S1 r3 — the formatting rule itself, UNGATED and NOT SERVED: nothing in the engine
+ *  calls it; it is kept (and unit-railed) so the Q-W3-3 switch is `PERCENT_CAPTURED = true`
+ *  plus whatever the capture says of the sign. */
+export function percentFormatUncaptured(n) {
+  if (percentCornerWhy(n) !== null) return null
   return `${Math.round(n * 100)}%`
 }
 
@@ -211,9 +235,14 @@ export function percentMessageNumber(n) {
  * when the published rule settles every character (the cases are listed there).
  *
  * @param {number} n
- * @returns {'percent:na'|'percent:tie'|'percent:decimal-tie'|'percent:grouping'|'percent:negative-zero'|null}
+ * @returns {'percent:uncaptured'|'percent:na'|'percent:tie'|'percent:decimal-tie'|'percent:grouping'|'percent:negative-zero'|null}
  */
 export function percentWithheldWhy(n) {
+  return PERCENT_CAPTURED ? percentCornerWhy(n) : 'percent:uncaptured'
+}
+
+/** The corners of the (unserved) rule, by name; see `percentFormatUncaptured`. */
+export function percentCornerWhy(n) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return 'percent:na'
   const p = n * 100
   if (exactTieAt(p, 0)) return 'percent:tie'
