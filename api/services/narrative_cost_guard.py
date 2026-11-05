@@ -300,6 +300,23 @@ def record(surface: str, model: str, input_tokens: int = 0,
     return cost
 
 
+@contextlib.contextmanager
+def charge_if_failed(surface: str, request: dict):
+    """Around ONE model call with no SDK retries: a failure that may have been billed is charged its
+    worst case, because it reports no usage and a $0 row leaves the cap unreachable. Only an HTTP error
+    response is free. Never hides the call's own error."""
+    try:
+        yield
+    except Exception as exc:
+        try:
+            from api.services.uct_agent import budget
+            if not budget._is_provider_error_response(exc):
+                record(surface, str(request.get("model") or ""), cost_usd=budget.worst_case_usd(request))
+        except Exception:  # noqa: BLE001
+            logger.exception("[narrative_cost_guard] could not charge a failed call on %s", surface)
+        raise
+
+
 def record_from_response(surface: str, model: str, response) -> float:
     """Accrue from an Anthropic message. Reads `usage.input_tokens` /
     `usage.output_tokens`, the prompt-cache token fields, and
