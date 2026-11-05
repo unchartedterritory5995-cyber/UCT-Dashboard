@@ -76,3 +76,4 @@ Reviewed GO and unmerged: 37 lanes, plus 3 held since 11-03 (language scoreboard
 ## 7. Rulings 2026-11-05
 - F8 / R10: one history rule (5,000 bars, W5-T14); T15 derives from it.
 - F9 / R11: the sweep cap is owned by the scans lane, as a named constant with a coverage line.
+- F10: the editor status panel reads the server_lanes stamp and shows one 'Runs on' line (EDITOR-E2 N1); build from the train tip.
