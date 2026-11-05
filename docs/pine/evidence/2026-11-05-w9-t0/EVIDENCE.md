@@ -152,3 +152,18 @@ The change is Python tooling only, so `vitest --changed` selects nothing; the ra
   - `vendorHarness.coverageAudit.test.js`: FAIL (`delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHES ...`),
     the train red the coordinator named. This change touches no JS and no vendor fixture, so it is not the cause.
 - integrity: ok (HEAD and tree did not move). The full chart+hooks vitest was not run (scope as briefed).
+
+### FULL final-tip (coordinator rerun), tip `92986fa77d`
+
+Node 20.20.2 via `dsk/node20.sh`; scope full (chart + hooks vitest, 1 shard); logs `runs/w9t0/full/`, `full.out`.
+rc gate=0 hyg=0 py=0 js=1; totals ok; integrity ok. vitest failing files:
+`enumerationSites.test.js`, `vendorHarness.test.js` (master baselines at 646dca8cbf), `settingsScope.rail.test.js`,
+`pollingSites.rail.test.js` (named baselines), `vendorHarness.coverageAudit.test.js` (train red; re-run alone
+(`runs/w9t0/ca-alone.log`): the same one test, `delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHES`, still
+red, 1 failed | 184 passed). No failure involves a file this lane touched.
+
+## Open items
+
+- Wall "values outside S1's set" (design: 4) is not measured by the tool (needs S1's 23-value set).
+- Wall "repaint-class inputs" (design: 17) is not measured by the tool.
+- The measured differences above (OCA 4 vs 3, `opentrades` 7 vs 6, only-W9 41 vs 40) stand as reported.
