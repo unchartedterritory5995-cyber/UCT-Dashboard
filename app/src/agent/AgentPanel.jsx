@@ -7,7 +7,7 @@
 // keypress propagation (the Create Indicator panel's measured lesson — chart
 // shortcuts listen at the document and would otherwise eat "B", "W", Delete…).
 
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import useAgent from './useAgent'
 import { AuthContext } from '../context/AuthContext'
@@ -16,6 +16,7 @@ import { quickReplies } from './quickReplies'
 import { continues } from './chatTime'
 import { searchChat, snippet } from './chatSearch'
 import { agentConversations } from './agentClient'
+import { isWorking, subscribeWorking } from './trace'
 import AgentHistory from './AgentHistory'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
@@ -300,6 +301,7 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
   const [firstTime] = useState(() => readLocal(welcomedKey(member.id)) !== '1')
   const firstName = member.name === 'User' ? '' : member.name.split(/\s+/)[0]
   const agent = useAgent({ host, gridMode, surface })
+  const working = useSyncExternalStore(subscribeWorking, isWorking)   // a website write is in flight (agent/trace.js)
   const [text, setText] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -414,10 +416,12 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
         <span className={styles.avatar} aria-hidden="true"><img src={compassMark} alt="" /><i className={styles.online} /></span>
         <span className={styles.contactText}>
           <span className={styles.contactName}>UCT Agent</span>
-          <span className={styles.contactStatus} aria-live="polite">
-            {(agent.busy || greetingTyping)
-              ? <span className={styles.typingNow}>typing<i /><i /><i /></span>
-              : <span className={styles.onlineWord}>Online</span>}
+          <span className={styles.contactStatus} aria-live="polite" data-testid="agent-status">
+            {working
+              ? <span className={styles.typingNow}>UCT Agent is working<i /><i /><i /></span>
+              : (agent.busy || greetingTyping)
+                ? <span className={styles.typingNow}>typing<i /><i /><i /></span>
+                : <span className={styles.onlineWord}>Online</span>}
           </span>
         </span>
         <span className={styles.headSpacer} />
