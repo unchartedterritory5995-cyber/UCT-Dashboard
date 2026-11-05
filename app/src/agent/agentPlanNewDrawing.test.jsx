@@ -2,13 +2,15 @@
 // breaks". The store mints the real id only at commit, so the alert must end up bound to THAT id. Whatever a plan does with a
 // drawing it adds, the member gets a sentence: no capability may throw out of planning (an unanswered request).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { cleanup } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { buildContext, getCapability } from './capabilities'
-import { planOps, collectTargets, prepareOps } from './executor'
+import { planOps, collectTargets, prepareOps, INTERNAL_ERROR } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { buildDrawingSource } from './host'
 import { _resetAlertCache } from './capabilities/alert'
 import * as store from '../components/chart/drawingsStore'
+import { setupPanel, ONE } from './testing/panelHarness'
 
 registerBuiltins()
 const CTX = { surface: 'charts' }
@@ -49,7 +51,7 @@ beforeEach(() => {
     return new Response(JSON.stringify(alerts), JSON_OK)
   })
 })
-afterEach(() => { vi.restoreAllMocks() })
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 describe('an alert on the drawing the same plan draws', () => {
   it('"draw a trendline and alert me when it breaks": both land, the alert bound to the STORE\'s id; one Undo takes back both', async () => {
@@ -146,14 +148,41 @@ describe('the class: every capability that takes a drawing id, given the plan-lo
   }
 })
 
-describe('the net: a capability that throws while planning', () => {
+describe('a capability that throws while planning', () => {
+  const crash = (action, fn) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    return vi.spyOn(getCapability(action), fn).mockImplementation(() => { throw new TypeError('boom') })
+  }
   for (const fn of ['check', 'apply', 'describe']) {
-    it(`in ${fn}: refused in words, nothing thrown`, async () => {
-      vi.spyOn(console, 'error').mockImplementation(() => {})
-      vi.spyOn(getCapability('drawing.addLevel'), fn).mockImplementation(() => { throw new TypeError('boom') })
+    it(`in ${fn}, under test: rethrown, so the suite fails on it`, async () => {
+      crash('drawing.addLevel', fn)
+      const h = host()
+      buildContext(h, CTX)
+      const ops = [LEVEL()]
+      const env = await prepareOps(ops)
+      expect(() => planOps(collectTargets(h, ['drawing']), ops, env, CTX)).toThrow('boom')
+      expect(console.error).toHaveBeenCalled()
+    })
+    it(`in ${fn}, in production: refused in words, logged, coded`, async () => {
+      vi.stubEnv('MODE', 'production')                               // the non-test path, forced
+      crash('drawing.addLevel', fn)
       const { p } = await plan(host(), [LEVEL()])
       expect(p.ok).toBe(false)
+      expect(p.refusals[0]).toMatchObject({ code: INTERNAL_ERROR })
       expect(p.refusals[0].reason).toMatch(/changed nothing/)
+      expect(console.error).toHaveBeenCalled()
     })
   }
+  it('in production, through the real panel: the member gets the sentence and the outcome row says internal-error, with no actions', async () => {
+    vi.stubEnv('MODE', 'production')
+    const panel = setupPanel()
+    crash('chart.setTimeframe', 'describe')
+    const { say } = panel.mount(...ONE())
+    const said = await say('switch to weekly')
+    expect(said).toMatch(/changed nothing/)
+    const rows = vi.mocked(globalThis.fetch).mock.calls.filter(c => c[0] === '/api/agent/record').map(c => JSON.parse(c[1].body).outcomeData)
+    expect(rows).toContainEqual({ kind: 'internal-error' })
+    expect(rows.filter(r => r?.kind === 'refused')).toEqual([])
+    cleanup()
+  })
 })

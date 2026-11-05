@@ -73,11 +73,15 @@ export function splitMixedOps(opsIn) {
   return { parts }
 }
 
-/** ⛔ A capability that throws while planning is a bug, but the member still gets a sentence: nothing has been written yet,
- *  and an exception here would leave the request unanswered. */
+/** A refusal's `code` when a capability threw while planning: useAgent records it as its own outcome kind, so it can be counted. */
+export const INTERNAL_ERROR = 'internal-error'
+/** ⛔ A capability that throws while planning is a bug. In the product the member still gets a sentence: nothing has been
+ *  written yet, and an exception here would leave the request unanswered. Under test it is rethrown, so the suite fails on it
+ *  instead of a refusal hiding it. */
 function unplanned(op, e) {
   console.error(`planning ${op?.action} threw`, e)
-  return 'I couldn’t work that request out, so I changed nothing. Try asking for it in smaller steps.'
+  if (import.meta.env?.MODE === 'test') throw e
+  return { code: INTERNAL_ERROR, reason: 'I couldn’t work that request out, so I changed nothing. Try asking for it in smaller steps.' }
 }
 
 export function planOps(targets, opsIn, env = {}, ctx = null) {
@@ -158,15 +162,15 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
       // `explicit`: the member's own words asked for this op (fast path / a capability's screen) — policy.js
       // `copy`: the member's own words asked for ANOTHER one (a capability's screen) — never the model's
       const oenv = op.trusted || op.explicit || op.copy ? { ...opEnv, ...(op.trusted ? { trusted: true } : {}), ...(op.explicit === true ? { explicit: true } : {}), ...(op.copy === true ? { copy: true } : {}) } : opEnv
-      let why, next
+      let why, next, crashed = null
       try {
         why = cap.check(st, op.args, oenv)
         if (!why) {
           if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
           next = cap.apply(st, op.args, oenv)
         }
-      } catch (e) { why = unplanned(op, e) }
-      if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
+      } catch (e) { crashed = unplanned(op, e); why = crashed.reason }
+      if (why) { refusals.push({ index, action: op.action, target: ref, reason: why, ...(crashed ? { code: crashed.code } : {}) }); continue }
       // hotfix 2026-11-03 (live T1: "Already Daily · Already Daily" for two charts that did not exist yet): a NEW target's
       // defaults are only the planner's stand-in — an op that matches them is still carried into its creation
       // (createFlags), so it is never reported as "already" so
@@ -221,7 +225,7 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
       seen.add(key)
       let line
       try { line = getCapability(op.action).describe(p.before, p.after, op.args, p.env) } catch (e) {
-        return { ok: false, refusals: [{ index: -1, action: op.action, target: p.ref, reason: unplanned(op, e) }] }
+        return { ok: false, refusals: [{ index: -1, action: op.action, target: p.ref, ...unplanned(op, e) }] }
       }
       if (line && !p.lines.includes(line)) p.lines.push(line)
     }

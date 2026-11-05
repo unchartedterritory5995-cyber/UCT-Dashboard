@@ -30,7 +30,7 @@ import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } fr
 import { scopeHostToGrid } from './host'
 import { screenGridOps } from './gridMode'
 import { bindCreated } from './createdBinding'
-import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
+import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps, INTERNAL_ERROR } from './executor'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -848,6 +848,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       record({ member, outcome: text, outcomeData: { kind: 'refused-stale-board', actions: ops.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
       return false
     }
+    // a plan's refusal, recorded as what it is: a planning crash (executor INTERNAL_ERROR) has no actions to name, and is counted apart
+    const planRefused = (text, refusals, acts, extra = {}) => {
+      refusalPush(text)
+      if ((refusals || []).some(r => r.code === INTERNAL_ERROR)) record({ member, outcome: text, outcomeData: { kind: 'internal-error' }, telemetry: { path, refused: true, voice } })
+      else record({ member, outcome: text, outcomeData: { kind: 'refused', actions: acts }, telemetry: { path, refused: true, ...extra, voice } })
+    }
     const refuse = (why) => {
       const text = `I didn't change anything: ${why}`
       refusalPush(text)
@@ -891,9 +897,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (rest.length) {
             const gate = planOps(collectTargets(host, kindsOf(rest)), rest, await prepareOps(rest), capCtx)
             if (!gate.ok) {
-              const text = refusalText(gate.refusals)
-              refusalPush(text)
-              record({ member, outcome: text, outcomeData: { kind: 'refused', actions: rest.map(o => o.action) }, telemetry: { path, refused: true, voice } })
+              planRefused(refusalText(gate.refusals), gate.refusals, rest.map(o => o.action))
               return
             }
             // ⛔ the member approved the RULE (the query + selection) on the consumers' state as it was:
@@ -995,8 +999,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
         const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
         if (why) {
-          refusalPush(why)
-          record({ member, outcome: why, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
+          planRefused(why, one.refusals, actions, { actions })
           return
         }
         lines.push(...(one.lines.length ? one.lines : one.noops))
@@ -1051,7 +1054,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           const pre = []
           for (const part of sp.parts) {
             const pp = planOps(collectTargets(host, kindsOf(part.ops)), part.ops, env, capCtx)
-            if (!pp.ok) return { text: refusalText(pp.refusals) }
+            if (!pp.ok) return { text: refusalText(pp.refusals), refusals: pp.refusals }
             const g = protectionRefusal(host, pp, pp.normalizedOps || part.ops)
             if (g) return { text: `I didn't change anything: ${g}` }
             if (decideMode('apply', pp) !== 'apply') return 'needs-approval'
@@ -1066,13 +1069,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const text = why?.text || `I didn't change anything: ${why === 'needs-approval'
           ? 'adding new widgets and changing existing ones in one request only works when both parts can run straight away, and part of this one needs your approval first. Ask in two steps: the new widgets first, then the change to the ones you already have.'
           : plan.refusals[0].reason}`
-        refusalPush(text)
-        record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
+        planRefused(text, why?.refusals, actions, { actions })
         return
       }
-      const text = refusalText(plan.refusals)
-      refusalPush(text)
-      record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
+      planRefused(refusalText(plan.refusals), plan.refusals, actions, { actions })
       return
     }
     // PROTECTED LAYOUTS (Main Trading…): checked after planning — so it covers a new request, a
