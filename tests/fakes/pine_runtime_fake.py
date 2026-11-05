@@ -141,6 +141,9 @@ class PineRuntimeFake:
             return {"job": job["job"], "status": "withheld", "refusals": refusals,
                     "digest": codec.column_digest(self.identity, {}, refusals, rows=n), "ms": 1}
         out = self.script(cols)
+        k = self.withheld_bars
+        # the engine's curtain (runtimeWarmupCurtain.test.js): bars [0, withheldBars) are na in every column
+        out = {key: [float("nan")] * min(k, len(col)) + list(col[k:]) for key, col in out.items()}
         keys = job.get("want") or list(out)
         columns, refusals, plain = {}, [], {}
         for key in keys:

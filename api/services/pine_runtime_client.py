@@ -642,6 +642,12 @@ class PineRuntimeClient:
             if any(math.isinf(v) for v in col):
                 raise bad(f"holds output `{key}` with a non-finite value")
             columns[key] = tuple(col)
+        # r2: THE ENGINE BLANKS ITS OWN WARM-UP (runtimeWarmupCurtain.test.js): bars [0, withheldBars)
+        # are na in every column of an ok run. A value there means the service and the engine
+        # disagree, so it is refused by name, never masked here (a mask would be a second curtain).
+        for key, col in columns.items():
+            if any(v == v for v in col[:wb]):
+                raise bad(f"serves output `{key}` with a value inside its own warm-up")
         for key in job.want:
             if key not in columns and key not in refused_keys:
                 raise bad(f"neither serves nor refuses output `{key}`")

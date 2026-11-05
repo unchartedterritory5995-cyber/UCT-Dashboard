@@ -1,4 +1,4 @@
-"""t7b_capture.py [REF] : capture a REAL W5-T7b service response for the T11 conformance rail.
+"""t7b_capture.py [REF [SOURCE OUT]] : capture a REAL W5-T7b service response for the T11 conformance rail.
 
 Reads W5-T7b's service files READ-ONLY with `git show REF:<path>` into a temp tree (never into the
 repo): services/pine_runtime/{auth,job,pool,protocol,sandbox,server}.mjs, its stand-in bundle
@@ -12,6 +12,10 @@ sys.path.insert(0, os.getcwd())
 from api.services import pine_runtime_client as prc
 
 REF = sys.argv[1] if len(sys.argv) > 1 else 'e13d282eae'
+# the fake bundle's behaviour: 'warmup:3' reports withheldBars 3 over FINITE bars 0-2 (a stand-in that
+# does not curtain, so the client must refuse it); 'echo' reports no warm-up (withheldBars 0).
+SOURCE = sys.argv[2] if len(sys.argv) > 2 else 'warmup:3'
+OUT = sys.argv[3] if len(sys.argv) > 3 else 'tests/fixtures/pine_runtime/t7b_response.json'
 SECRET = 'fixture-secret-not-a-real-key-0123456789abcdef'
 T = 1_762_200_000
 IDENTITY = {"script_engine": 5, "runtime_language": "pine", "runtime_frontend": 1, "runtime_ir": 1,
@@ -19,7 +23,7 @@ IDENTITY = {"script_engine": 5, "runtime_language": "pine", "runtime_frontend": 
 N = 8
 BARS = [{"t": 1_700_000_000 + 86_400 * i, "o": 100.0 + i, "h": 102.0 + i, "l": 99.0 + i,
          "c": 100.5 + i * 1.25, "v": 1000.0 + i} for i in range(N)]
-DOC = {"id": "u_0123456789ab", "meta": {}, "compute": {"kind": "runtime", "source": "warmup:3",
+DOC = {"id": "u_0123456789ab", "meta": {}, "compute": {"kind": "runtime", "source": SOURCE,
                                                        "outputs": ["value"]}}
 JOBS = [{"job": "AAPL|D", "ticker": "AAPL", "exchange": "NASDAQ"}, {"job": "MSFT|D", "ticker": "MSFT", "exchange": "NASDAQ"}]
 FILES = ['services/pine_runtime/auth.mjs', 'services/pine_runtime/job.mjs', 'services/pine_runtime/pool.mjs',
@@ -80,12 +84,12 @@ process.exit(res.status === 200 ? 0 : 1)
     if r.returncode != 0:
         sys.exit(1)
     out = {"_about": f"A real W5-T7b response (git {REF}: server.mjs + pool.mjs + job.mjs over test/fixtures/"
-                     "fakeBundle.mjs 'warmup:3'), captured by docs/pine/evidence/2026-11-04-w5-t11/t7b_capture.py. "
+                     "fakeBundle.mjs '{SOURCE}'), captured by docs/pine/evidence/2026-11-04-w5-t11/t7b_capture.py. "
                      "Fixture secret; no licence-held content.",
            "ref": REF, "identity": IDENTITY, "bars": BARS, "doc": DOC, "jobs": JOBS,
            "request_sha256": hashlib.sha256(cap['body']).hexdigest(), "status": 200,
            "response": resp.decode('utf-8')}
-    p = 'tests/fixtures/pine_runtime/t7b_response.json'
+    p = OUT
     open(p + '.tmp', 'w', encoding='utf-8', newline='\n').write(json.dumps(out, indent=1, ensure_ascii=True) + '\n')
     os.replace(p + '.tmp', p)
     print('wrote', p)
