@@ -24,6 +24,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  window.history.replaceState(null, '', '/')
   cleanup()
   vi.useRealTimers()
   vi.unstubAllGlobals()
@@ -44,13 +45,39 @@ describe('IntroAnimation: the film once a week per device, a 0.6 s fade otherwis
     expect(screen.getByLabelText('Skip intro')).toBeTruthy()
   })
 
-  it('the next load -- a new tab, the same day -- gets the fade, not the film', () => {
+  it('the next load -- a new tab, the same day -- gets the fade on the Notebook, not the film', () => {
     const first = render(<IntroAnimation />)
     first.unmount()
     window.sessionStorage.clear()
+    window.history.replaceState(null, '', '/journal/notebook')
     render(<IntroAnimation />)
     expect(film()).toBeNull()
     expect(fade()).not.toBeNull()
+  })
+
+  // Fix round 1 (review Minor 12): M9 is the PHONE NOTEBOOK's mockup, and its "otherwise a 0.6 s fade" is the
+  // Notebook's. Off the Notebook a load between two films shows nothing, as before (the film itself stays app-wide).
+  it('off the Notebook, a load between two films shows no fade', () => {
+    markFullIntroPlayed()
+    window.history.replaceState(null, '', '/dashboard')
+    render(<IntroAnimation />)
+    expect(film()).toBeNull()
+    expect(fade()).toBeNull()
+  })
+
+  // Fix round 1 (review Minor 12): the old daily key (`uct_intro_last_et_day`) counts as the film having played that
+  // day -- no member sees the 9 s film on the first load after the deploy just because the key's name changed -- and
+  // it is retired once read.
+  it('the old daily key counts as seen, and is removed', () => {
+    window.localStorage.setItem('uct_intro_last_et_day', daysAgo(1))
+    expect(fullIntroDue()).toBe(false)
+    expect(window.localStorage.getItem('uct_intro_last_et_day')).toBeNull()
+    expect(window.localStorage.getItem(KEY)).toBe(daysAgo(1))
+  })
+
+  it('an old key a week old migrates and the film is due again', () => {
+    window.localStorage.setItem('uct_intro_last_et_day', daysAgo(FULL_INTRO_EVERY_DAYS))
+    expect(fullIntroDue()).toBe(true)
   })
 
   it('six days later it is still the fade; seven days later the film plays again', () => {
@@ -66,6 +93,7 @@ describe('IntroAnimation: the film once a week per device, a 0.6 s fade otherwis
   it('the fade lasts 0.6 s, is hidden from assistive tech, and never blocks a press', () => {
     vi.useFakeTimers()
     markFullIntroPlayed()
+    window.history.replaceState(null, '', '/journal/notebook')
     render(<IntroAnimation />)
     expect(QUICK_FADE_MS).toBe(600)
     expect(fade()).toHaveAttribute('aria-hidden', 'true')

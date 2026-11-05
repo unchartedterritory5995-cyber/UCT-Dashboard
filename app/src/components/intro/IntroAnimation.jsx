@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { prefersReducedMotion, fullIntroDue, markFullIntroPlayed } from './introStorage'
+import { isCompactHeaderRoute } from '../../pages/journal-2-0/lib/compactHeaderRoute'
 import useFocusTrap from '../mobile/useFocusTrap'
 import compassMark from './assets/compass-mark.png'
 import parchmentMark from './assets/parchment-mark.png'
@@ -29,14 +30,18 @@ export default function IntroAnimation() {
   }, [])
 
   // S12 (audit 2026-11-05, M9): the film plays in full ONCE A WEEK PER DEVICE (Eastern Time days, introStorage.js);
-  // every other page load gets a 0.6 s fade that never blocks a press. ⚰️ It was once per day (owner decision
+  // every other load OF THE NOTEBOOK gets a 0.6 s fade that never blocks a press. ⚰️ It was once per day (owner decision
   // 2026-10-08). Internal route changes don't remount App, so neither replays during in-app navigation. Reduced
   // motion keeps its own short still version on the weekly gate, and skips the fade (a fade is motion).
   useEffect(() => {
     if (phase !== 'idle') return
     if (loading) return
     if (!fullIntroDue()) {
-      setPhase(reducedMotion ? 'done' : 'fading')
+      // Fix round 1 (review Minor 12): the 0.6 s fade is the phone Notebook mockup's (M9), so it plays on a load of the
+      // Notebook only; any other page between two films opens straight to the app, as it did. Read from the address
+      // the page LOADED at -- the intro never replays on in-app navigation.
+      const onNotebook = typeof window !== 'undefined' && isCompactHeaderRoute(window.location.pathname)
+      setPhase(reducedMotion || !onNotebook ? 'done' : 'fading')
       return
     }
     markFullIntroPlayed()

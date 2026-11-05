@@ -70,8 +70,20 @@ const dayNumber = (ymd) => {
 }
 
 /** Is the full film due in this browser (never played, or played FULL_INTRO_EVERY_DAYS or more ET days ago)? */
+// Fix round 1 (review Minor 12): the daily gate's key. A member who saw the film under it has seen it on that day,
+// so it seeds the weekly key once (no 9 s film on the first load after the deploy because a key was renamed), and is
+// removed.
+const OLD_DAY_KEY = 'uct_intro_last_et_day'
+function migrateOldKey() {
+  const old = localStorage.getItem(OLD_DAY_KEY)
+  if (old == null) return
+  if (!localStorage.getItem(FULL_KEY) && /^\d{4}-\d{2}-\d{2}$/.test(old)) localStorage.setItem(FULL_KEY, old)
+  localStorage.removeItem(OLD_DAY_KEY)
+}
+
 export function fullIntroDue(now = new Date()) {
   try {
+    migrateOldKey()
     const last = localStorage.getItem(FULL_KEY)
     if (!last || !/^\d{4}-\d{2}-\d{2}$/.test(last)) return true
     return dayNumber(etDay(now)) - dayNumber(last) >= FULL_INTRO_EVERY_DAYS
