@@ -202,8 +202,9 @@ export default function GuideOverlay() {
       <div
         ref={cardRef}
         className={styles.card}
-        role="dialog"
-        aria-modal="false"
+        // not role="dialog": utils/modalOpen.js reads any dialog as a modal and the chart then ignores its keys, so a card
+        // saying "press Alt+Shift+A" would disable that very key. The card never takes focus or blocks anything
+        role="region"
         aria-labelledby={titleId}
         data-escape-layer=""
         data-chart-portal-popup=""
