@@ -390,8 +390,11 @@ def test_G2_every_ledger_writer_is_classified_as_audited():
     interactive = {
         "api/services/definition_concierge.py": 'f"concierge:{user_id}"',
         "api/services/definition_conversation.py": 'f"concierge:{user_id}"',
-        "api/services/indicator_from_image.py": 'f"indicator-vision:{user_id}"',
     }
+    # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
+    vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")
+    assert 'ticker = f"indicator-vision:{user_id}"' in vision
+    assert "reserve_member_call(market_date, ticker" in vision
     background = ("api/services/catalyst/synthesize.py", "api/services/catalyst/hunter.py",
                   "api/services/catalyst/curator.py", "api/services/catalyst/rule_learner.py",
                   "api/services/call_recap.py", "api/services/calendar_sector_read.py")
