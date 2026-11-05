@@ -29,6 +29,21 @@ const arm = () => {
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP']) process.on(sig, () => { sweep(); process.exit(130) })
   for (const ev of ['uncaughtException', 'unhandledRejection']) process.on(ev, (e) => { console.error(e); sweep(); process.exit(1) })
 }
+/** A rig that spawns Chrome itself: its profile and its process join the same sweep. */
+export function tempProfile(prefix) {
+  arm()
+  const d = mkdtempSync(join(tmpdir(), prefix))
+  ours.add(d)
+  return d
+}
+export function trackChrome(chrome) {
+  live.add(chrome)
+  chrome.once('exit', () => live.delete(chrome))
+  // the rig's own chrome.kill() must take the whole tree too, or the renderers keep the profile locked
+  if (process.platform === 'win32') chrome.kill = () => { spawnSync('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], { stdio: 'ignore', timeout: 5000 }); return true }
+  return chrome
+}
+
 /** One profile for a whole run. Removed when the process ends. The caller clears site data between pages (the rig's `open`). */
 export function runProfile() {
   arm()
