@@ -18,6 +18,10 @@ const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|mid
 
 // NL (2026-10-12): "the 5 minute chart", "the daily chart" — a chart named by its TIMEFRAME
 const TF_NAMED = /\b(?:this|that|the)\s+(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)\s+chart\b/i
+// a chart named by its STATE (a Multi Chart cell with no ticker yet) or by an INDICATOR it carries
+const STATE_NAMED = /\b(?:this|that|the|my)\s+(empty|blank|unused|vacant)\s+(?:chart|cell|slot|spot|pane|panel|one)\b/i
+const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showing)\s+(?:the\s+|an?\s+)?([a-z]{2,8})\b/i
+const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
 function tfOfWord(w) {
   const s = String(w || '').toLowerCase().trim()
   if (s === 'daily') return 'D'
@@ -30,12 +34,19 @@ function tfOfWord(w) {
 }
 
 /**
- * "the AMD chart" / "the 5 minute chart" — a chart named by the SYMBOL or TIMEFRAME it shows right now.
+ * "the AMD chart" / "the 5 minute chart" / "the empty chart" / "the chart with RSI" — a chart named by what it IS right
+ * now: the SYMBOL or TIMEFRAME it shows, its STATE, an INDICATOR on it (autotest multi-chart-04: every word the board can
+ * answer for names a chart; "which chart?" is for words it can't).
  * → { match, word, hits: [chart snapshots] } | null. Only live charts count: a word that names no
  * chart on this board is not a qualifier (the fast path then leaves the sentence as it was).
  */
 export function chartQualifier(text, charts = []) {
   const s = String(text || '')
+  const st = STATE_NAMED.exec(s)
+  if (st) {
+    const hits = charts.filter(c => !String(c.symbol || '').trim())
+    if (hits.length) return { match: withPrep(s, st), word: st[1], hits }
+  }
   const tf = TF_NAMED.exec(s)
   if (tf) {
     const code = tfOfWord(tf[1])
@@ -47,6 +58,15 @@ export function chartQualifier(text, charts = []) {
     const sym = nm[1].toUpperCase()
     const hits = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
     if (hits.length) return { match: withPrep(s, nm), word: nm[1], hits }
+    const shown = charts.filter(c => carries(c, nm[1]))
+    if (shown.length) return { match: withPrep(s, nm), word: nm[1], hits: shown }
+  }
+  const wi = WITH_NAMED.exec(s)
+  if (wi) {
+    const sym = wi[1].toUpperCase()
+    const onIt = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
+    const hits = onIt.length ? onIt : charts.filter(c => carries(c, wi[1]))
+    if (hits.length) return { match: withPrep(s, wi), word: wi[1], hits }
   }
   return null
 }
@@ -162,6 +182,9 @@ export function chartsNamedBy(text, charts = []) {
   // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
   if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
+  // what the chart IS right now (chartQualifier), when that fits exactly one chart ("the empty one", "the one with RSI")
+  const q = chartQualifier(s, charts)
+  if (q?.hits.length === 1) named.add(q.hits[0].ref)
   for (const m of s.matchAll(POS_WORDS)) {
     const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
     const parts = w.split('-')
