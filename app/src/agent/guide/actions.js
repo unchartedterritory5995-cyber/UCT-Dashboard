@@ -58,7 +58,7 @@ export const CHART_MENU = [
 // ── a legend chip's menu (components/chart/legend/chipMenu.js) ──
 const chipItem = (id) => ({ within: 'chart.chipMenu', attr: 'data-menu-id', value: id })
 const chip = (id, name, say, ask = 'Click {ind.label} in the chart’s legend, at the top left.') => [
-  { only: 'ind', target: [{ id: 'chart.chip', text: '{ind.label}' }, { id: 'chart.chip', text: '{ind.labelName}' }, 'chart.chip'], name: 'the chart’s legend', text: ask, altText: '{ind.label} isn’t on this chart. Add it first, or click another indicator here.', waitFor: chipItem(id) },
+  { only: 'ind', target: [{ id: 'chart.chip', named: '{ind.label}' }, { id: 'chart.chip', named: '{ind.labelName}' }, 'chart.chip'], name: 'the chart’s legend', text: ask, altText: '{ind.label} isn’t on this chart. Add it first, or click another indicator here.', waitFor: chipItem(id) },
   { unless: 'ind', target: 'chart.chip', name: 'the chart’s legend', text: 'Click the indicator in the chart’s legend, at the top left.', waitFor: chipItem(id) },
   { target: chipItem(id), name, text: say, endsOnClick: true },
 ]
@@ -274,7 +274,7 @@ export const DRAWING_ACTIONS = [
 const IND_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indicators tab', text: 'Open the Indicators tab.', waitFor: { id: 'chartSettings.tab.indicators', on: true } }
 const IND_ROW = { within: 'chartSettings', attr: 'data-row-primary' }
 const indRow = (result) => [
-  { only: 'ind', target: [{ ...IND_ROW, text: '{ind.label}' }, { ...IND_ROW, text: '{ind.labelName}' }, IND_ROW], name: 'the indicator list', text: 'Click {ind.label} in this list.', altText: '{ind.label} isn’t on this chart. Click another indicator here, or add it first.', waitFor: result },
+  { only: 'ind', target: [{ ...IND_ROW, named: '{ind.label}' }, { ...IND_ROW, named: '{ind.labelName}' }, IND_ROW], name: 'the indicator list', text: 'Click {ind.label} in this list.', altText: '{ind.label} isn’t on this chart. Click another indicator here, or add it first.', waitFor: result },
   { unless: 'ind', target: IND_ROW, name: 'the indicator list', text: 'Click the indicator in this list.', waitFor: result },
 ]
 const inSettings = (guide) => ({ within: 'chartSettings', guide })

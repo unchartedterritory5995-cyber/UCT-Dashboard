@@ -73,7 +73,7 @@ describe('every walkthrough points at a real control', () => {
           if (t.attr === 'data-menu-id') { expect(source.includes(`data-menu-id="${t.value}"`) || source.includes(`key: '${t.value}'`) || String(t.value).startsWith('settings-'), t.value).toBe(true); continue }
           if (t.attr) { expect(source, t.attr).toMatch(new RegExp(`${t.attr}[={ ]|${t.attr}$|${t.attr}\\s`, 'm')); continue }
           // PickerHeader names its ＋ New button from the picker's `newTitle` (aria-label={newTitle})
-          expect(source.includes(`aria-label="${t.aria}"`) || source.includes(`aria-label={\`${t.aria}`) || source.includes(`newTitle="${t.aria}"`), t.aria).toBe(true)
+          expect(source.includes(`aria-label="${t.aria}"`) || source.includes(`aria-label={\`${t.aria}`) || source.includes(`newTitle="${t.aria}"`) || (/^Add another /.test(t.aria) && source.includes('aria-label={`Add another ${row.name}`}')), t.aria).toBe(true)
           continue
         }
         if (typeof t === 'object' && t.id) { t = t.id }
