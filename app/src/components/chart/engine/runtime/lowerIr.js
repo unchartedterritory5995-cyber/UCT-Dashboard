@@ -555,6 +555,7 @@ export function lowerIrProgram(ir, opts = {}) {
         // the answer rather than merely the types.
         expr(e.cond)
         expr(e.source)
+        if (e.third !== undefined) expr(e.third)   // W4 T10: the VM pops it first
         emit(OP.CARRIED2, e.site)
         return
       }

@@ -360,9 +360,15 @@ export function execute(program, ctx, limits, opts) {
   const carAlpha = carPlan.map((c, i) => (carSpec[i].alpha ? carSpec[i].alpha(c.n) : undefined))
   const carOffset = new Int32Array(carPlan.length)
   let carCells = 0
-  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carSpec[i].cells }
+  // ⭐ W4 T10 — `cells` IS A NUMBER FOR EVERY MEMBER THAT HOLDS A FIXED HANDFUL OF
+  // SCALARS AND A FUNCTION OF THE LENGTH FOR ONE THAT HOLDS A RING (the pivots),
+  // exactly as `CARRIED2`'s always was; `init` receives the length for the same
+  // reason. Existing members' `init(st, off)` ignore the extra argument.
+  const carCellsOf = (i) => (typeof carSpec[i].cells === 'function'
+    ? carSpec[i].cells(carPlan[i].n) : carSpec[i].cells)
+  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carCellsOf(i) }
   const carState = new Float64Array(carCells)
-  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i])
+  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i], carPlan[i].n)
   if (carPlan.length) {
     budget.peak('CARRIED_INSTANCES', carPlan.length)
     budget.peak('CARRIED_CELLS', carCells)
@@ -1121,7 +1127,9 @@ export function execute(program, ctx, limits, opts) {
           // the history commit phase does for a skipped site (it re-commits a
           // HELD value). Two lifetimes, two rules, one wave apart.
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
-          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
+          // ⭐ W4 T10 — `m` is the plan entry's SECOND number where a member needs
+          // one (`ta.pivothigh`'s `rightbars`); every other member ignores it.
+          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci], carPlan[ci].m)
           break
         }
                 case 90 /* OP.CARRIED2 */: {
@@ -1131,12 +1139,15 @@ export function execute(program, ctx, limits, opts) {
           // ⭐⭐ RT7 — THE SITE IS FRAME-RELATIVE, as `OP.CARRIED`'s: `carried2Base`
           // is the call site's block, so two invocations of one body keep two
           // rings (`ta.valuewhen`) or two previous-bar pairs (the cross family).
+          // ⭐ W4 T10 — A THREE-INPUT MEMBER (`inputs: 3`: `ta.stoch`, `ta.vwap`)
+          // has its third value on top of the stack, pushed last.
+          const c2 = carried2Base + a
+          const v2third = car2Spec[c2].inputs === 3 ? stack[--sp] : NaN
           const v2src = stack[--sp]
           const v2cond = stack[--sp]
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
-          const c2 = carried2Base + a
           stack[sp++] = car2Spec[c2].step(
-            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n)
+            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n, v2third)
           break
         }
                 case 71 /* OP.RET */: {
