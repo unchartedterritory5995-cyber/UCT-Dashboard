@@ -384,6 +384,38 @@ Branch `agent/nlm1/package1` on master `29830442d0`: #790 (D1 routing, D2/D3 fol
 7. "add rsi to both charts" → "remove it from the right one" (an approval card; nothing is removed until you approve) → "undo"
 8. Kill switch: in the console, `__uctAgentRoutingV2(false)` → the panel is v1 again; `__uctAgentRoutingV2(null)` → back on.
 
+## 4b. Description-driven capability discovery (Phase 1, branch `agent/pl/discovery`, on `ca3315ffee`)
+
+Owner rule: the Agent understands capabilities generally, not by phrase lists. `need_groups` was the only way some capabilities reached the model when a request named them and nothing else. Routing v2 now scores each capability's own description as well as each group's, so a word that identifies one action reaches it whatever its group's size. A capability that ships tomorrow is reachable by its own words. `vocabulary.json` is unchanged and no phrase rule was added.
+
+**What changed.**
+- `capabilityIndex.js`: each capability is its own document, built from its name (with the verb of a multi-word action weighed as prose), summary, the examples quoted in its summary, hints and shape, enum values and argument names at any depth, coerce words and hints. Pointers to other capabilities are stripped. A query word the registry doesn't have resolves onto one it does (`unwatermark`, `gridlines`, `pre market`). The stemmer now gives one root across a word's forms (`flag` / `flagged`, `save` / `saved`).
+- `routingV2.js`: the best capabilities' groups are ADDED to the request (`CAP_FLOOR` 6, `CAP_REL` 0.8, at most `CAP_GROUPS` 3). They are packed after v1's own hits and never change `top` or `uncertain`, so a message in doubt keeps charts and the fill. Budgets, `routingThreshold` and `MAX_CAPABILITIES` are unchanged.
+- `routing.js`: the Reset view and hide-all regexes from #825 are `V1_ONLY_WORDS`: v2 no longer reads them, and v1 still does, so the kill-switch path stays byte-identical. This edits `routing.js`, which §2 records as untouched by NLM-1.
+
+**Still in live routing:** the #825 range regex. It carries one measured phrasing, "show 1Y on the chart". `1y` is also in `widget.showScan`'s and `stock.themes`' data, those groups pack first, and `chartSetup` overflows the budget by 4 actions. The ranking changes tried did not fix that without costing elsewhere, so it stays tagged temporary.
+
+**Results** (recall@manifest = every needed action is in the FIRST request):
+
+| Set | v1 | v2 before | v2 after | Own-groups before → after | Fallback | Largest manifest |
+|---|---|---|---|---|---|---|
+| Held-out (298, `dev/discovery.heldout.json`, committed before any index change) | 74.8% | 89.6% | **92.6%** | 89.3% → 92.3% | 0% | 56,508 B = v1 |
+| Tuning (97, `dev/discovery.tuning.json`, inspected) | 72.2% | 95.9% | **99.0%** | n/a → 99.0% | 0% | ≤ v1 |
+| dev paraphrases (162) | 87.7% | 98.8% | **99.4%** | 98.1% → 98.1% | 0% | = v1 |
+| capreg corpus (660; 17 need `history.afterEvent`, not in this manifest) | 97.4% | 97.4% | 97.4% | 99.7% → 99.7% | 0% | = v1 |
+
+Per phrasing against pristine v2, on all four sets: 0 lost, 13 gained (9 held-out). Held-out by family, v2 before → after: chart 87.1 → 91.4, indicators 87.0 → 91.3, workspace 93.3 → 93.3, drawings 93.5 → 95.7, lists 82.1 → 89.7, alerts 100 → 100, scans 88.9 → 88.9; unusual wording 77.6 → 85.7.
+
+**This proves the capability reaches the model, not that the model uses it.** The sealed set is AUDIT's to score: the 95.3 / 90 gates are defined on it, and the held-out set above was written by the same worker who read the summaries. No model call was made.
+
+**Rail** (`nlm1/discoveryRail.test.js`): with every phrase layer off (no regex, no vocabulary, no fill), every capability on all five surfaces reaches the request from a query built out of its own description. `UNREACHABLE` is empty.
+
+**Cost of the larger routed set.** Average request +1.6 KB to +1.8 KB across the sets, about +$0.0023 per turn at §3's rate. Largest request through the real builder, constant schema on: v2 $0.0877 worst case for one call (v1 $0.0893), $0.1209 at the highest context and history reachable (v1 $0.1225). `reserve()` still holds the whole turn to $0.25.
+
+**Latency, per routed message:** p50 0.46 → 0.62 ms, p95 2.2 → 3.4 ms, p99 3.3 → 5.2 ms. Index build 2.9 → 11.8 ms, once per manifest. Routing stays local, with no model call.
+
+**Kill switches:** v1 at `ca3315ffee` hashed `9527df1d…` over 4,920 routed answers (corpus, collisions, golden, dev and held-out × 4 contexts). This branch gives the same hash directly, through `pickRouter` with the server switch off, and through `pickRouter` with the browser switch `'0'`.
+
 ## 5. Commits
 
 | Head | What |
