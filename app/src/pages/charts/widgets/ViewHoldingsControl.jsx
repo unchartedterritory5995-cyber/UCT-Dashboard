@@ -106,6 +106,7 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
         <button
           ref={btnRef}
           type="button"
+          data-guide="chart.viewHoldings"
           className={styles.viewHoldingsBtn}
           onClick={toggle}
           title={String(sym).startsWith('$IDX:') ? 'View the stocks in this index' : `View ${String(sym).toUpperCase()} holdings`}

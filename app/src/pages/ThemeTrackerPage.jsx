@@ -267,6 +267,7 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
   return (
     <>
       <div
+        data-guide="themes.group"
         className={`${styles.groupRow} ${flash ? styles.groupFlash : ''}`}
         ref={el => { if (groupRefs) groupRefs.current[tk] = el }}
         onClick={() => onToggle(tk)}
@@ -406,7 +407,7 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, 
   const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null) }
   return (
     <div className={styles.setPicker}>
-      <button ref={btnRef} className={styles.setPickerBtn} onClick={() => setOpen(o => !o)} title="Choose a preset">
+      <button ref={btnRef} className={styles.setPickerBtn} data-guide="themes.sets" onClick={() => setOpen(o => !o)} title="Choose a preset">
         {activeSet ? activeSet.name : 'UCT Default'} <span className={styles.setCaret}>▾</span>
       </button>
       {/* Default is read-only → "Customize" (forks an auto-saving preset on first edit); a preset
@@ -1273,7 +1274,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
         {/* Period tabs + the Journal / ⚙ cluster on the right (same layout as the
             Watchlist / Scanner pickers — buttons ride the tab row, not the search). */}
-        <div className={styles.periodBar}>
+        <div className={styles.periodBar} data-guide="themes.periods">
           {RANK_TABS.map(tab => (
             <button
               key={tab}
@@ -1389,7 +1390,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             // sort label (asc/desc) — no extra header height (it overflows left into the
             // empty header space). The pill conveys the basis; the label stays "1D".
             <span className={styles.headerBasis}>
-              <span className={styles.basisToggle} role="group" aria-label="Today basis">
+              <span className={styles.basisToggle} role="group" aria-label="Today basis" data-guide="themes.basis">
                 <button
                   type="button"
                   className={`${styles.basisBtn} ${todayBasis === 'close' ? styles.basisBtnActive : ''}`}

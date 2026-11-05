@@ -5651,6 +5651,8 @@
        "tabAction",
        "watchlistAction",
        "alertAction",
+       "widgetAction",
+       "dockAction",
        "panelAction",
        "compareAction",
        "chartMenu",

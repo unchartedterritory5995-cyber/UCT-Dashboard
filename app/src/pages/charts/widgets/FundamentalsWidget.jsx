@@ -237,7 +237,7 @@ export default function FundamentalsWidget({
           {company && <span className={styles.companyName}>{company}</span>}
         </div>
         {!readOnly && (
-        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
+        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view" data-guide="fundamentals.view">
         <button
           type="button"
           role="tab"
