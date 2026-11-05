@@ -75,6 +75,22 @@ describe('P6 — the step counter counts what is shown', () => {
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Title c')
   })
 
+  // ⛔ Fix round 1 (review finding 3): an anchor that is IN the page but not on screen until the
+  // tour marks it (the chart toolbar, revealed by [data-tour-active]) is a step the tour will show.
+  // It is counted from the first card, so the total never grows as the tour reaches it.
+  it('a step whose anchor exists but is hidden until the tour reaches it is counted from the first card', async () => {
+    render(<Page entry={tour(['a', 'b'])} anchors={['anchor-a']} />)
+    const hiddenUntilMarked = document.createElement('div')
+    hiddenUntilMarked.setAttribute('data-tour', 'anchor-b')
+    hiddenUntilMarked.setAttribute('hidden', '')
+    document.body.appendChild(hiddenUntilMarked)
+    try {
+      expect((await progress()).textContent).toBe('Step 1 of 2')
+    } finally {
+      hiddenUntilMarked.remove()
+    }
+  })
+
   it('Back onto an earlier step keeps its number', async () => {
     render(<Page entry={tour(['a', 'b', 'c'])} anchors={['anchor-b', 'anchor-c']} />)
     await progress()
