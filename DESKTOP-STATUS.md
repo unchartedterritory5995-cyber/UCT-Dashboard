@@ -518,3 +518,9 @@ Merging to master is still not authorized in this file; the owner approves it di
   - Strategies transferring: 6 of 70.
   - Top sole-blocker walls: drawing-objects 56, imperative 41, strategy 35, request.security 17, imports 12, user-functions 9, translator 7.
   RE-PRIORITISE: the next waves go by sole-blocker count: drawings (W3 S2+), imperative/runtime grammar, W9 strategy, then W7 request.security. W6 is smaller.
+- 2026-11-05 17:11 W3W4-NEXT-BREAKDOWN fe4f84b78c: GO-WITH-NOTES.
+  - Track A, owner arming: 22 sole-blocked scripts unblock with no build.
+  - B1: the '39 dropped every op' claim is unproven; T0 fixes it.
+  - B2: D2 builds on W6-T3a, not T3b.
+  Started W34-T0 census, W34-D3 undeclared names, W34-D1 drawing history (Sonnet; common brief dsk/BUILDER-BRIEF-COMMON.md).
+- 2026-11-05 17:11 W9-T14a/T2 39e0e6a755 READY-CHECK PASS; in review, chiefly whether member behaviour changes on any re-pointed constant. W6-T3a landing as engine 18 is in progress. W6-T3b is building.
