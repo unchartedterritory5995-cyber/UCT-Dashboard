@@ -498,3 +498,4 @@ Merging to master is still not authorized in this file; the owner approves it di
   READY TO LAND. Waiting on the owner's explicit approval of the master merge and production deploy.
 - 2026-11-05 13:24 OWNER APPROVED the train merge and production deploy, in chat ("approve do it all"). PR #857 integ/pine-train-2026-11-05 -> master opened; CI running.
 - 2026-11-05 13:24 W9-T3 r1 45def73c2f: GO-WITH-NOTES. B1 fixed (5000-vs-100000 now INCONCLUSIVE). Note for the W9-T2 brief: scripts with no literal settings always read INCONCLUSIVE, and T2 must not block them on that.
+- 2026-11-05 13:33 MERGED: PR #857, the landing train, is on master as be5fd05ea2 (19:32Z, owner-approved). The gh token lacks the workflow scope, so the owner directed a merge via the GitHub web UI in the owner's browser. Master deploy gate and production promotion are running; engine 17 on master.
