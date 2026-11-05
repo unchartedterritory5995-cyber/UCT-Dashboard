@@ -170,8 +170,12 @@ export function registerGuideCapabilities() {
     fast: ({ raw, host }) => {
       const q = String(raw || '').trim()
       if (!SHOW.test(q)) return null
-      const f = matchFeature(q, null, host?.surface || 'charts')
-      return f ? { feature: f.id } : null
+      const here = host?.surface || 'charts'
+      const f = matchFeature(q, null, here)
+      if (f) return { feature: f.id }
+      // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
+      const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
+      return charts?.everyPage ? { feature: charts.id } : null
     },
     answer: (_snap, { feature }, host, ctx) => {
       const f = guideFeature(feature)

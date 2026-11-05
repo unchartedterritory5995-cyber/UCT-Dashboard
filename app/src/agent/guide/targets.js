@@ -6,6 +6,11 @@
 //                                             where the control belongs to another team's surface and needs no
 //                                             attribute of ours — e.g. Indicators' search box)
 //   { widgetType: 'watchlist' }               a board cell of that widget type (data-widget-type)
+//   { widgetType: 'watchlist', guide: '…' }   a `data-guide` id inside a board cell of that type (for a control the
+//                                             shared list view also renders for other widgets — a Scanner's back button)
+//   { inWidget: 'watchlist.addSymbol' }       a `data-guide` id inside the cell the walkthrough pinned (a `pin` step), and
+//                                             nowhere else: the same control on another widget proves nothing
+//   ['a', 'b']                                any of these (for a `waitFor` that more than one route satisfies)
 //
 // `chart.*` and `widget.*` targets are looked for inside the chart being talked about (`[data-widget-id="<chart>"]`, the board cell
 // the chart ref names), then anywhere (a menu the chart opened may be portalled). A target counts only when the
@@ -23,10 +28,19 @@ const cellOf = (chartRef) => {
 const visible = (els) => [...els].find(el => { try { return isOnScreen(el) } catch { return false } }) || null
 
 /** The element a target means right now, visible to the member — or null. */
-export function findTarget(target, { chartRef = null } = {}) {
+export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   if (typeof document === 'undefined' || !target) return null
+  if (Array.isArray(target)) {
+    for (const t of target) { const hit = findTarget(t, { chartRef, widgetRef }); if (hit) return hit }
+    return null
+  }
+  if (typeof target === 'object' && target.inWidget) {
+    const cell = cellOf(widgetRef)
+    return cell ? visible(cell.querySelectorAll(`[data-guide="${esc(target.inWidget)}"]`)) : null
+  }
   if (typeof target === 'object' && target.widgetType) {
-    return visible(document.querySelectorAll(`[data-widget-type="${esc(target.widgetType)}"]`))
+    const type = `[data-widget-type="${esc(target.widgetType)}"]`
+    return visible(document.querySelectorAll(target.guide ? `${type} [data-guide="${esc(target.guide)}"]` : type))
   }
   if (typeof target === 'object' && target.within) {
     const boxes = document.querySelectorAll(`[data-guide="${esc(target.within)}"]`)
