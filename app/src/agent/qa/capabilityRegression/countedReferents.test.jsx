@@ -13,7 +13,8 @@ vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ defau
 await registerCatalog()
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
-const NOTHING = { unchanged: true, modelTurns: 0, says: ['not (?:two|three|2)', 'Nothing has changed'] }
+// the panel names the charts, so the member can just answer (#807's form)
+const NOTHING = { unchanged: true, modelTurns: 0, says: ['here \(the .* charts?\), not [23]', 'Say which', 'Nothing has changed'] }
 const MISMATCH = [
   ['M1.owner-sentence', 'FOUR', 'add rsi to the top right chart', 'Actually, do the same for the other two.'],
   ['M2.same-for', 'FOUR', 'add rsi to the top right chart', 'same for the other two'],

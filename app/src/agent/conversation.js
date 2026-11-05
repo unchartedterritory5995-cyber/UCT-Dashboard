@@ -316,10 +316,23 @@ const R_OTHERS = new RegExp(`^(?:all )?(?:of )?(?:my |the |our )?(?:${NUMW} )?ot
 const R_ALL = new RegExp(`^(?:all(?: of)? (?:my |the |these |those )?charts|all (?:of )?(?:them|those|these)|(?:all )?(?:${NUMW}) (?:of them|charts)|all ${NUMW}(?: of them| charts)?|every chart|each chart|each of them|every one of them|everywhere|everything|every single chart|both(?: charts| of them)?|the whole board|my whole board)$`)
 
 const NUM_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6 }
+const COUNT_WORDS = { 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six' }
 /** The number a chart-set phrase states ("the other two", "all 3", "two charts"), or null when it states none. */
 function statedCount(p) {
   const hit = String(p).toLowerCase().split(' ').find(w => w in NUM_WORDS)
   return hit ? NUM_WORDS[hit] : null
+}
+/** "the QQQ, NVDA and TSLA charts" / "the AMD chart": the charts by what they show, so the member can just answer. */
+function chartList(list) {
+  const names = list.map(c => c.symbol || c.label || 'unnamed')
+  if (names.length === 1) return `the ${names[0]} chart`
+  return `the ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} charts`
+}
+/** A count that does not match the board: says what is there and asks. No ops, no model. */
+function countMismatch(list, want, noun) {
+  const have = list.length === 1 ? `is 1 ${noun}` : `are ${list.length} ${noun}s`
+  const ask = list.length > want ? `Say which ${COUNT_WORDS[want] || want} you mean.` : 'Say which charts you mean.'
+  return `There ${have} here (${chartList(list)}), not ${want}. ${ask} Nothing has changed.`
 }
 
 /**
@@ -346,19 +359,13 @@ export function chartSet(phrase, { host, sources = [] } = {}) {
       return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “The other one” could be any of these ${others.length} — say it by name. Nothing has changed.` }
     }
     const want = statedCount(p)
-    if (want != null && others.length !== want) {
-      const have = others.length === 1 ? 'is 1 other chart' : `are ${others.length} other charts`
-      return { say: `There ${have} here, not ${want} — name the ones you mean. Nothing has changed.` }
-    }
+    if (want != null && others.length !== want) return { say: countMismatch(others, want, 'other chart') }
     return { refs: others.map(c => c.ref) }
   }
   if (R_ALL.test(p)) {
     if (/^both/.test(p) && charts.length !== 2) return { say: `There are ${charts.length} charts here, not two — say “all charts” or name the ones you mean. Nothing has changed.` }
     const want = statedCount(p)
-    if (want != null && charts.length !== want) {
-      const have = charts.length === 1 ? 'is 1 chart' : `are ${charts.length} charts`
-      return { say: `There ${have} here, not ${want} — say “all charts” or name the ones you mean. Nothing has changed.` }
-    }
+    if (want != null && charts.length !== want) return { say: countMismatch(charts, want, 'chart') }
     return { refs: charts.map(c => c.ref) }
   }
   const one = oneChart(p, charts, host)
