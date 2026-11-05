@@ -507,8 +507,8 @@ def submit_run(user_id: Any, def_id: str, *,
         # DISCARDED here: the run's hash is `evaluate_one`'s own, read off the
         # artifact when the worker hands it back. One object, one hash.
         if runtime_definitions.is_runtime(definition):
+            # scannability was asked once, in `_load_definition`
             definition = scan_runtime.runtime_scan_doc(row)
-            scan_runtime.runtime_scan_spec(definition)
         else:
             scan_definition.assert_scannable(definition)
     except scan_definition.ScanRefused as exc:

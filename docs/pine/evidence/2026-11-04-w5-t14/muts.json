@@ -206,14 +206,8 @@
  [
   "S04 submit_run still refuses runtime as kind",
   "api/services/screener/scan_run.py",
-  "        if runtime_definitions.is_runtime(definition):\r\n            definition = scan_runtime.runtime_scan_doc(row)",
-  "        if False:\r\n            definition = scan_runtime.runtime_scan_doc(row)"
- ],
- [
-  "S05 submit_run does not check the scan plot",
-  "api/services/screener/scan_run.py",
-  "            scan_runtime.runtime_scan_spec(definition)\r\n        else:",
-  "            pass\r\n        else:"
+  "        if runtime_definitions.is_runtime(definition):\r\n            # scannability was asked once, in `_load_definition`\r\n            definition = scan_runtime.runtime_scan_doc(row)",
+  "        if False:\r\n            # scannability was asked once, in `_load_definition`\r\n            definition = scan_runtime.runtime_scan_doc(row)"
  ],
  [
   "N01 admission asked without the plot at the door",
