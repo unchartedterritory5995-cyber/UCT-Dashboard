@@ -264,9 +264,23 @@ def test_D3_there_is_no_rolling_window(ledger):
 
 # ═══ E. COST ══════════════════════════════════════════════════════════════
 
-def test_E1_a_failed_call_without_usage_charges_nothing(ledger, conv, monkeypatch):
+def test_E1_a_failed_call_without_usage_is_charged_its_worst_case(ledger, conv, monkeypatch):
+    """A timeout or dropped connection may have been billed and reports nothing: $0 here left both caps unreached."""
     monkey_day(conv, D1)
     monkeypatch.setattr(conv, "_call_model", lambda _m: (_ for _ in ()).throw(RuntimeError("down")))
+    r = conv.converse("make it 80", user_id="m1", view=rsi_view())
+    assert r["gate"] == "model:transport"
+    assert dc().spend_for("m1", D1) > 0.0
+    assert cg().budget_state(D1)["total_spend"] == pytest.approx(dc().spend_for("m1", D1))
+
+
+def test_E1b_an_HTTP_error_response_charges_nothing(ledger, conv, monkeypatch):
+    import anthropic
+    import httpx
+    err = anthropic.InternalServerError("x", response=httpx.Response(
+        500, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")), body=None)
+    monkey_day(conv, D1)
+    monkeypatch.setattr(conv, "_call_model", lambda _m: (_ for _ in ()).throw(err))
     r = conv.converse("make it 80", user_id="m1", view=rsi_view())
     assert r["gate"] == "model:transport"
     assert dc().spend_for("m1", D1) == 0.0 and cg().budget_state(D1)["total_spend"] == 0.0
