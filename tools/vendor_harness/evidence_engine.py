@@ -17,8 +17,8 @@ with no TradingView access. `batch` hands the page work to `batch_capture.py run
   * batches a row that needs a live session (NEEDS_LIVE);
   * re-queues a capture already committed anywhere under tests/fixtures/vendor/;
   * commits, or overwrites an existing fixture (evidence is appended, never replaced);
-  * lets a capture into git whose source licence is not clear (LICENCE_HOLD: graded
-    locally, verdict filed in the ledger with the source sha, capture kept out of git);
+  * lets a capture into git whose source licence is not clear (such a capture is LEDGER_ONLY at
+    promote: its verdict is filed in the ledger with the source sha, the capture stays out of git);
   * grades without the machine-wide heavy lock (no lock tool found: grade REFUSES);
   * promotes anything without `--packet-sha` naming the packet as it is NOW.
 
@@ -83,7 +83,13 @@ DEFAULT_LIMIT = 40
 LEDGER_HEADERS = {"settled", "served", "was", "now", "witness"}
 LEDGER_FIRST_HEADERS = {"refused as"}
 #: A heading that files the tables below it as a RECORD of captures already taken.
-FINISHED_HEAD_RX = re.compile(r"^(?:CAPTURED|READINGS?|BUILT|TAKEN|Taken)\b")
+FINISHED_HEAD_RX = re.compile(r"^(?:(?:\d+(?:\.\d+)*|[A-Za-z]\d*)[.):]\s+|\d+(?:\.\d+)*\s+)?"
+                              r"(?:captured|readings?|built|taken)\b(?!-)", re.I)
+#: A column whose header marks it PROSE (a question, a "what it settles", what ships today): a probe or capture
+#: named in it is a reference to something else, never a request. ⛔ Every other column (probe, script, capture, chart,
+#: an unheaded one, the first) can still ask. Matched on the cleaned, lowercased header.
+PROSE_HEAD_RX = re.compile(r"^(?:what\b|question|settles|why\b|notes?\b|shipped|gap\b|errs\b|where\b|alternative|"
+                           r"candidates|withheld|served|rule\b|reading|evidence|ruling|grade when|witnessed)")
 #: A capture id written out in a doc: `<stem>-...-<yyyy-mm-dd>`, optionally `.json`.
 ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2})(?:\.json)?`")
 #: Anything shaped `EXCH:SYM`, known exchange or not (an unknown one is a chart this parser cannot read).
@@ -475,7 +481,7 @@ def finished_table(world: World, header, trows, heads):
     context: read as a queue, its rows re-queue finished work on a guessed chart (the 2026-09-27
     CAPTURED table made seven targets that way)."""
     for h in heads:
-        if FINISHED_HEAD_RX.match(re.sub(r"^[\s*`_]+", "", h)):
+        if FINISHED_HEAD_RX.match(re.sub(r"^[\s_]+", "", re.sub(r"[*`]+", "", h))):
             return f"under the heading {h[:48]!r}"
     for ci, name in enumerate(header):
         if "capture" not in name:
@@ -486,8 +492,10 @@ def finished_table(world: World, header, trows, heads):
     return None
 
 
-def resolve_sources(world: World, text: str):
+def resolve_sources(world: World, text: str, refs_only: bool = False):
     """(sources [(kind, path)], owed [names], fixture_stems [stems]) named in `text`.
+    ⛔ `refs_only` is for a PROSE cell (see PROSE_HEAD_RX): every probe it names, as `x.pine` or as a bare stem,
+    is a fixture reference and nothing in it is a source or an owed probe.
     ⛔ A token `<probe stem>-<chart>[-<date>]` names a CAPTURE of that probe: it is filed as a fixture
     reference, never read as the row's source (`vw-bool-cast-spy-60` in a prose cell is not a request to
     run vw-bool-cast; the row's section says what to run)."""
@@ -495,6 +503,10 @@ def resolve_sources(world: World, text: str):
     seen = set()
     for name in PINE_RX.findall(text):
         kind, p = world.resolve_pine(name)
+        if refs_only:
+            if kind == "probe" and p.stem not in fx:
+                fx.append(p.stem)
+            continue
         if p is None:
             base = pathlib.PurePosixPath(name).name
             if base not in owed:
@@ -505,6 +517,10 @@ def resolve_sources(world: World, text: str):
     stems = sorted(world.probes, key=len, reverse=True)
     for tok in TICK_RX.findall(text):
         if tok.endswith(".pine"):
+            continue
+        if tok in world.probes and refs_only:
+            if tok not in fx:
+                fx.append(tok)
             continue
         if tok in world.probes:
             p = world.probes[tok]
@@ -578,7 +594,12 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             ids[rid] += 1
             key = f"{path.stem}#{rid}" + (f"~{ids[rid]}" if ids[rid] > 1 else "")
             rtext = " | ".join(cells)
-            sources, owed, fx = resolve_sources(world, rtext)
+            # ⛔ Only the row's REQUEST cells can ask for a probe; a prose cell ("covered by `x`", "the old `y.pine`
+            # read 0") only refers to one.
+            prose = [ci < len(header) and bool(PROSE_HEAD_RX.match(header[ci])) for ci in range(len(cells))]
+            sources, owed, fx = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if not pr))
+            _, _, fx_prose = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if pr), refs_only=True)
+            fx = fx + [x for x in fx_prose if x not in fx]
             inherited = False
             variant = bool(VARIANT_RX.search(rtext))
             if not sources and not owed and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
@@ -904,8 +925,9 @@ def licence_of_capture(world: World, capture: dict) -> str:
         return "held"
 
 
-def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathlib.Path) -> dict:
-    """Every problem with promoting this capture, plus its licence class. Never raises."""
+def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathlib.Path, manifest_entry=None) -> dict:
+    """Every problem with promoting this capture, plus its licence class. Never raises.
+    `manifest_entry`: the run manifest's own script entry for this capture (or None)."""
     path = pathlib.Path(path)
     problems = []
     try:
@@ -919,16 +941,24 @@ def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathl
         problems.append(f"verify_capture.mjs refused it ({v.get('verdict')}): {v.get('tail')}")
     if cid != path.stem:
         problems.append(f"the file is {path.name} but the capture id is {cid!r}")
-    # ⛔ THE ID RULE: for a source the world knows, the id must open with THAT source's capture stem (the
-    # one the manifest asked the driver for); for any other source, the house form.
-    src = world.sources_by_sha.get((cap.get("source") or {}).get("sha256"))
+    # ⛔ THE ID RULE: the id must open with the capture stem the driver was ASKED for. That is the run manifest's
+    # own `captureStem`, taken when the manifest entry is for this very source (same sha): the stem of a
+    # source depends on which other files share its slug TODAY, and a same-slug file added between the capture and
+    # the promote must not make a valid capture unpromotable (nor the packet differ from what was read).
+    # With no such entry: the stem of the source the world knows by sha; for any other source, the house form.
+    sha = (cap.get("source") or {}).get("sha256")
+    src = world.sources_by_sha.get(sha)
+    asked = (manifest_entry or {}).get("captureStem")
+    if not (isinstance(asked, str) and STEM_RX.fullmatch(asked) and (manifest_entry or {}).get("sha256") == sha):
+        asked = None
     if not isinstance(cid, str):
         problems.append(f"id {cid!r} is not <script>-<sym>-<tf>-<yyyy-mm-dd>")
-    elif src is not None:
-        want = capture_stem(world, src[1])
+    elif asked is not None or src is not None:
+        want = asked if asked is not None else capture_stem(world, src[1])
         if not (cid.startswith(want + "-") and TAIL_RX.fullmatch(cid[len(want) + 1:])):
-            problems.append(f"id {cid!r} is not {want}-<sym>-<tf>-<yyyy-mm-dd>: {want} is the capture stem of its "
-                            f"source, {rel(src[1])}")
+            why = (f"the captureStem the run manifest asked the driver for" if asked is not None
+                   else f"the capture stem of its source, {rel(src[1])}")
+            problems.append(f"id {cid!r} is not {want}-<sym>-<tf>-<yyyy-mm-dd>: {want} is {why}")
     elif not ID_RX.match(cid):
         problems.append(f"id {cid!r} is not <script>-<sym>-<tf>-<yyyy-mm-dd>")
     # ⛔ NEVER REPLACED: not in the directory it would be filed in, and not anywhere in the fixture tree
@@ -979,7 +1009,8 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
     items = []
     caps = sorted((run_dir / "captures").glob("*.json")) if (run_dir / "captures").exists() else []
     for f in caps:
-        g = gate_capture(world, f, verifier, fixtures_dir)
+        man = by_slug.get((by_capture.get(f.stem) or {}).get("slug")) or {}
+        g = gate_capture(world, f, verifier, fixtures_dir, manifest_entry=man)
         cap = g.pop("capture") or {}
         res = by_capture.get(g["id"]) or {}
         man = by_slug.get(res.get("slug")) or {}
@@ -1184,7 +1215,6 @@ def main(argv=None) -> int:
         p.add_argument("--wave", default=None, help="a queue doc's wave tag, e.g. wsc-history or E-census")
         p.add_argument("--plan-wave", default=None, help="W1..W9 or E")
         p.add_argument("--include-stale", action="store_true")
-        p.add_argument("--local-evidence", action="store_true", help="also take LICENCE_HOLD targets (kept out of git)")
         p.add_argument("--only", action="append", default=None, help="a queue target id (repeatable)")
 
     m = sub.add_parser("manifest")
@@ -1234,7 +1264,7 @@ def main(argv=None) -> int:
             if heavy_lock_tool() is None:
                 print(f"[batch] REFUSED before any browser: {no_lock_reason()}; the grade step would refuse.")
                 return 2
-        statuses = ("QUEUED", "LICENCE_HOLD") if args.local_evidence else ("QUEUED",)
+        statuses = ("QUEUED",)
         world = World()
         qd = build_queue(world)
         man = build_manifest(qd, top=args.top, wave=args.wave, plan=args.plan_wave, statuses=statuses,

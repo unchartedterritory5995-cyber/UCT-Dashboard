@@ -346,6 +346,12 @@ export const SURFACES = Object.freeze({
   // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
   // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
+  'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
+  // Fix round 1: the "+" sheet is its own chunk; the axe rail reads it OPEN.
+  'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
+  // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
+  'components/notebook/FolderSheet.jsx': { recipe: 'folder-sheet:open' },
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
@@ -355,6 +361,9 @@ export const SURFACES = Object.freeze({
   // L3 (2026-11-03): the note view's notice for a connector note its source app no longer has.
   // The editor's rail opens an untagged note, so it has its own; rail a11y/sourceRemovedNotice.a11y.test.jsx.
   'components/notebook/SourceRemovedNotice.jsx': { recipe: 'source-removed-notice' },
+  // Audit 2026-11-05, spec S2: the "Link this note to $NVDA?" offer under the title. The editor's rail
+  // opens a note whose body names no $TICKER twice, so it has its own; rail a11y/tickerSuggestion.a11y.test.jsx.
+  'components/notebook/TickerSuggestion.jsx': { recipe: 'ticker-suggestion' },
   // Notebook P2 Tier 2 part B: the earnings follow-up card a notice links to (dark behind
   // notebook_earnings_followup_enabled + Journal styles, so no tab recipe renders it); a11y/followupCard.a11y.test.jsx
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.

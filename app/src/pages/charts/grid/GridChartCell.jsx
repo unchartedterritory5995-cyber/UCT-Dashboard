@@ -14,6 +14,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
+import ErrorBoundary from '../../../components/ErrorBoundary'
+import { noteChartFault } from '../chartFaults'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ChartDayGain from '../widgets/ChartDayGain'
 import ChartMarketClock from '../widgets/ChartMarketClock'
@@ -510,6 +512,7 @@ function GridChartCell({
         onKeyDown={handleCellKeyDown}
       >
         {sym ? (
+          <ErrorBoundary key={cell.id} resetKey={`${sym}|${cell.tf}`} onError={() => noteChartFault(cell.id)} fallback={<div className={styles.cellError} role="alert">This chart hit an error. Change its ticker or timeframe to try again.</div>}>
           <StockChart
             sym={sym}
             tf={cell.tf}
@@ -583,6 +586,7 @@ function GridChartCell({
             sessionView={sessionView}
             hideExtHoursToolbarToggle
           />
+          </ErrorBoundary>
         ) : (
           <button
             type="button"

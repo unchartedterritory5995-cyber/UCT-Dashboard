@@ -11,6 +11,7 @@
 
 import { getCapability, getTargetKind } from './capabilities'
 import { chartRefOf } from './deixis'
+import { viewAt } from './capabilities/chart'
 
 const BOARD_KINDS = new Set(['board', 'workspace'])
 export const GRID_BOARD_REFUSAL = 'that changes the Charts board, which is hidden while Multi Chart is on. Exit Multi Chart (Layouts ▸ Multi Chart) and ask again.'
@@ -27,6 +28,41 @@ function behindMaximized(op, cap, host, maximized) {
   return !!cell && cell !== maximized
 }
 
+const SYNC_WAIT_MS = 600
+const viewOf = (host, ref) => { try { return host?.charts?.read?.(ref)?.view ?? null } catch { return null } }
+const rightEdgeOf = (host, ref) => viewOf(host, ref)?.rightMs ?? null
+const pause = (ms) => new Promise(r => setTimeout(r, ms))
+const andNames = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+/** What a receipt says of the other cells, from what they did. */
+export function gridSyncSentence(moved, stayed) {
+  if (!stayed.length) return 'Time-range sync is on, so the other charts in this grid moved with it.'
+  const verb = stayed.length === 1 ? 'was' : 'were'
+  if (!moved.length) return `Time-range sync is on, but the other charts stayed where they ${verb}.`
+  return `Time-range sync is on: ${andNames(moved)} moved with it, ${andNames(stayed)} stayed where ${stayed.length === 1 ? 'it' : 'they'} ${verb}.`
+}
+/**
+ * A date jump with time-range sync on: whether the other cells follow is decided by each cell, on a later frame, and depends
+ * on the view and on their history. Called BEFORE the change, this keeps their right edges; the function it returns is called
+ * after, and answers with the sentence for what moved. null when no cell can follow.
+ */
+export function watchGridSync(ops, host) {
+  const grid = host?.charts?.grid?.() || null
+  const jump = (ops || []).find(o => o?.action === 'chart.goToDate')
+  if (!jump || !grid?.syncTimeRange?.()) return null
+  const others = (host.charts.list?.() || []).filter(c => c.ref !== jump.target && c.symbol)
+  if (!others.length) return null
+  const before = new Map(others.map(c => [c.ref, rightEdgeOf(host, c.ref)]))
+  return async () => {
+    const t0 = Date.now()
+    // arrived, not merely moved: a live chart's right edge moves by itself, so a cell counts only once it stands where the jump went
+    const target = rightEdgeOf(host, jump.target)
+    const movedNow = () => others.filter(c => rightEdgeOf(host, c.ref) !== before.get(c.ref) && target != null && viewAt(viewOf(host, c.ref), target))
+    while (movedNow().length < others.length && Date.now() - t0 < SYNC_WAIT_MS) await pause(50)
+    const moved = movedNow()
+    return gridSyncSentence(moved.map(c => c.symbol), others.filter(c => !moved.includes(c)).map(c => c.symbol))
+  }
+}
+
 /** → { refuse: sentence } (nothing runs) | { note: sentence for the receipt } | null. */
 export function screenGridOps(ops, host) {
   const grid = host?.charts?.grid?.() || null
@@ -38,7 +74,6 @@ export function screenGridOps(ops, host) {
     if (behindMaximized(o, cap, host, grid?.maximized?.())) return { refuse: GRID_HIDDEN_REFUSAL }
     if (o.action === 'chart.setSymbol' && grid?.groupsMode()) return { refuse: GRID_GROUPS_REFUSAL }
     if (o.action === 'chart.setSetting' && String(o.args?.setting).startsWith('watermark.')) return { refuse: GRID_WATERMARK_REFUSAL }
-    if (o.action === 'chart.goToDate' && grid?.syncTimeRange()) note = 'Time-range sync is on, so the other charts in this grid follow that view, as far as their history goes.'
     if (cap.target === 'drawing' && !note) {
       const shownOn = host?.drawings?.read?.(o.target)?.charts || []
       if (shownOn.length > 1) note = `Drawings belong to the symbol, so this shows on ${shownOn.join(' and ')}.`

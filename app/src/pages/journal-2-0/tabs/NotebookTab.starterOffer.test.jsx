@@ -27,6 +27,7 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/noteboo
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { contractBody } from '../__fixtures__/contract'
 import { OFFER_TITLE } from '../components/notebook/styles/StarterPackOffer'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 const EMPTY = contractBody('journal-styles.list.empty')           // built-ins only: the member has no styles
 beforeAll(async () => { await import('../components/notebook/styles/StyleSurfaces') })
@@ -64,13 +65,13 @@ describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {
   it('with the New note sheet open: one card, in the sheet, and one kind picker on the page', async () => {
     render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
     await screen.findByRole('region', { name: OFFER_TITLE }, T)
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const dialog = await screen.findByRole('dialog', {}, T)
     await waitFor(() => expect(offers().length).toBeGreaterThan(0), T)
     await settle()
     expect(offers()).toHaveLength(1)
     expect(dialog.contains(offers()[0])).toBe(true)
-    expect(screen.getAllByRole('group', { name: 'Start from a kind of note' })).toHaveLength(1)
+    expect(screen.getAllByRole('group', { name: 'Start from a template' })).toHaveLength(1)
   })
 
   // Item 9: the Community library tour's step 1 waits for this door, and moves on when it is a NEW element
@@ -84,7 +85,7 @@ describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {
     const doors = () => [...document.querySelectorAll('[data-tour="template-gallery-door"]')]
     await waitFor(() => expect(doors()).toHaveLength(1), T)                 // non-vacuity: the inline door
     const inline = doors()[0]
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const dialog = await screen.findByRole('dialog', {}, T)
     await waitFor(() => expect(doors().some((d) => dialog.contains(d))).toBe(true), T)
     expect(doors()).toHaveLength(1)
@@ -94,8 +95,8 @@ describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {
   it('with the Styles manager open over it: one card, in the manager', async () => {
     render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
     await screen.findByRole('region', { name: OFFER_TITLE }, T)
-    fireEvent.click(document.querySelector('[data-tour="styles-button"]'))
-    const manager = await screen.findByRole('dialog', { name: 'Journal styles' }, T)
+    pressToolbar('Manage templates')   // S11: in the ⋯ menu (its trigger carries the styles-button anchor)
+    const manager = await screen.findByRole('dialog', { name: 'Manage templates' }, T)
     await waitFor(() => expect(offers().some((o) => manager.contains(o))).toBe(true), T)
     await settle()
     expect(offers()).toHaveLength(1)

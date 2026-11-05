@@ -65,3 +65,11 @@
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .fab { display: none !important; }
 }
+
+/* S12 + VIS-4 (audit 2026-11-05, M9): on a PHONE's Notebook the Help "?" gives way to the Notebook's one floating
+   "+" (NotebookPlusFab), whose sheet carries Help. Every other page keeps it. */
+@media (max-width: 640px) {
+  :global(html[data-notebook-route]) .fab {
+    display: none !important;
+  }
+}

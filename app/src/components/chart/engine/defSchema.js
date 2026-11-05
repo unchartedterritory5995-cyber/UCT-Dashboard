@@ -186,7 +186,18 @@ export const TIME_INPUT_MAX_ABS_MS = 8.64e15
  *  and `validateBandEdges` below. */
 export const PLOT_STYLES = Object.freeze([
   'line', 'stepline', 'histogram', 'area', 'baseline', 'hlines', 'markers', 'band',
+  // W4-T13 - a candle / an OHLC bar drawn from FOUR computed columns of the document
+  // (`plotcandle` / `plotbar` from the run). Only with `plots[].ohlc` (`validateOhlc`).
+  'candles', 'ohlcBars',
 ])
+
+/** W4-T13 - the two styles whose data is four columns, and the parts whose colour a document
+ *  may name (`plots[].ohlcColors`): a candle has three, a bar one. ONE list per fact. */
+export const OHLC_DEF_STYLES = Object.freeze(['candles', 'ohlcBars'])
+export const OHLC_COLOUR_PARTS = Object.freeze({
+  candles: Object.freeze(['body', 'wick', 'border']),
+  ohlcBars: Object.freeze(['body']),
+})
 
 /** Schema-reserved plot styles — renderer lands later. Same distinct-message
  *  treatment as RESERVED_INPUT_TYPES.
@@ -1847,6 +1858,57 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   }
 }
 
+/** ⭐⭐ W4-T13 - A CANDLE / BAR ROW NAMES THE COLUMNS IT IS DRAWN FROM.
+ *
+ *  `candles` / `ohlcBars` on a document row mean "draw open, high, low and close", and the row's
+ *  own column is the CLOSE: `ohlc` names the other three (`{open, high, low}`, plot keys of this
+ *  document) and `ohlcColors` the colour columns (`{body, wick, border}` for a candle, `{body}`
+ *  for a bar; each a plot key whose column holds a packed colour, `na` where the script's colour
+ *  is `na`). A candle that named no columns would register happily and draw an empty series, the
+ *  failure this schema exists to prevent, so the declaration is REQUIRED, and it is FORBIDDEN on
+ *  any other style (two renderers over one row). */
+function validateOhlc(plots, columnKeys, errors) {
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot)) return
+    const path = `plots[${index}]`
+    const isOhlc = OHLC_DEF_STYLES.includes(plot.style)
+    if (!isOhlc) {
+      for (const f of ['ohlc', 'ohlcColors']) {
+        if (plot[f] !== undefined) {
+          errors.push(`${path}.${f}: only a "candles" or "ohlcBars" plot names OHLC columns, this one is ${fmt(plot.style)}`)
+        }
+      }
+      return
+    }
+    const refOk = (v, p) => {
+      if (!isNonEmptyString(v)) { errors.push(`${p}: expected a plot key, got ${fmt(v)}`); return }
+      if (v === plot.key) { errors.push(`${p}: ${fmt(v)} is this plot's own column (its close); name another`); return }
+      if (!columnKeys.has(v)) {
+        errors.push(`${p}: ${fmt(v)} references a column no plot declares (available: ${list([...columnKeys]) || 'none'})`)
+      }
+    }
+    if (!isPlainObject(plot.ohlc)) {
+      errors.push(`${path}.ohlc: style ${fmt(plot.style)} requires {open, high, low} naming three plot keys, got ${fmt(plot.ohlc)}`)
+    } else {
+      for (const k of Object.keys(plot.ohlc)) {
+        if (!['open', 'high', 'low'].includes(k)) errors.push(`${path}.ohlc.${k}: unknown part (expected open, high, low)`)
+      }
+      for (const k of ['open', 'high', 'low']) refOk(plot.ohlc[k], `${path}.ohlc.${k}`)
+    }
+    if (plot.ohlcColors !== undefined) {
+      if (!isPlainObject(plot.ohlcColors)) {
+        errors.push(`${path}.ohlcColors: expected an object, got ${fmt(plot.ohlcColors)}`)
+      } else {
+        const parts = OHLC_COLOUR_PARTS[plot.style]
+        for (const k of Object.keys(plot.ohlcColors)) {
+          if (!parts.includes(k)) errors.push(`${path}.ohlcColors.${k}: unknown part for ${fmt(plot.style)} (expected ${list(parts)})`)
+          else refOk(plot.ohlcColors[k], `${path}.ohlcColors.${k}`)
+        }
+      }
+    }
+  })
+}
+
 /** `colorMode` is checked after ALL plots and events are known because its
  *  parametric form `column:<key>` references a compute column, and columns are
  *  exactly the plot keys plus the event keys (spec §4). */
@@ -2509,6 +2571,7 @@ export function validateDefinition(def) {
     // ─ cross-section checks ─
     validateColorModes(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateBandEdges(plots, errors)
+    validateOhlc(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateFills(plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)

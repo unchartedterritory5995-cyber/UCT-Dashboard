@@ -550,7 +550,7 @@ export const FAQS = [
     q: 'How do I link notes together?',
     keywords: 'link links linking backlinks unlinked mentions graph wiki brackets mention at date connect related',
     a: <>Type <code>[[</code> in a note and pick another note to link to it. Each note lists the
-      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>
+      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>{' '}
       shows notes that name it without linking to it yet. Type <code>@</code> and a day —
       <code> @today</code>, <code>@tomorrow</code>, <code>@monday</code> — to put a date in a note.
       The <strong>Graph view</strong> draws every link between your notes, and its list view gives
@@ -593,7 +593,7 @@ export const FAQS = [
     keywords: 'capture clip clipper web browser save page article selection share sheet phone android',
     a: <>On a computer, connect browser capture in <Link to="/settings?section=connections">Settings →
       Connections</Link>, then save a page or a selection straight into your Notebook. On an Android
-      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>
+      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>{' '}
       menu, and whatever you share lands in the Notebook.</>,
   },
   {

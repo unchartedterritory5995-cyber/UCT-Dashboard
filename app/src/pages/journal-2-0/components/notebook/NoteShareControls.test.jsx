@@ -49,7 +49,7 @@ beforeEach(() => {
     }
     if (u === `/api/j2/publish?note_id=${NOTE}`) {
       return json(200, { publications: S.pubs, shares: [],
-        note: { noteId: NOTE, exists: true, folderId: 'f1', folderName: 'Weekly plans',
+        note: { noteId: NOTE, exists: true, folderId: 'f1', folderName: 'Weekly plans', folderNoteCount: 3,
           ...(S.publishable === undefined ? {} : { publishable: S.publishable }) } })
     }
     if (u === `/api/j2/publish/notes/${NOTE}` && method === 'POST') {
@@ -72,7 +72,7 @@ afterEach(() => {
 
 function mount(flags, onMessage = vi.fn()) {
   if (flags) latchNotebookFlags(flags)
-  const r = render(<NoteShareControls noteId={NOTE} onMessage={onMessage} />)
+  const r = render(<NoteShareControls noteId={NOTE} noteTitle="NVDA plan" onMessage={onMessage} />)
   return { ...r, onMessage }
 }
 
@@ -81,6 +81,13 @@ async function openDoor() {
   const dialog = await screen.findByRole('dialog', { name: 'Share this note' })
   await waitFor(() => expect(within(dialog).queryByText('Loading…')).toBeNull())
   return dialog
+}
+
+// S1: a publish press opens the confirm step; this presses its Publish button.
+async function confirmPublish(name = 'Publish to the web?') {
+  const confirmDialog = await screen.findByRole('dialog', { name })
+  fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Publish' }))
+  return confirmDialog
 }
 
 const statusText = (dialog) => within(dialog).getAllByRole('status').map((n) => n.textContent).join(' ')
@@ -187,6 +194,7 @@ describe('publish to the web', () => {
     const { onMessage } = mount({ notebook_publish_enabled: true })
     const dialog = await openDoor()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    await confirmPublish()
     await within(dialog).findByText('Published. Page link copied.')
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(publishedUrl('slugN'))
     expect(onMessage).toHaveBeenCalledWith('Published. Page link copied.')
@@ -201,6 +209,7 @@ describe('publish to the web', () => {
     mount({ notebook_publish_enabled: true })
     const dialog = await openDoor()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish folder "Weekly plans"' }))
+    await confirmPublish('Publish "Weekly plans" and the 3 notes inside it?')
     await within(dialog).findByText('Published "Weekly plans". Page link copied.')
     expect(S.calls.some((c) => c.method === 'POST' && c.url === '/api/j2/publish/folders/f1')).toBe(true)
     expect(within(dialog).getByRole('button', { name: 'Copy folder link' })).toBeInTheDocument()
@@ -267,6 +276,7 @@ describe('focus follows the swap (M-1)', () => {
     mount({ notebook_publish_enabled: true })
     const dialog = await openDoor()
     press(dialog, 'Publish this note')
+    await confirmPublish()
     await within(dialog).findByText('Published. Page link copied.')
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy page link' })))
     press(dialog, 'Unpublish')
@@ -278,6 +288,7 @@ describe('focus follows the swap (M-1)', () => {
     mount({ notebook_publish_enabled: true })
     const dialog = await openDoor()
     press(dialog, 'Publish folder "Weekly plans"')
+    await confirmPublish('Publish "Weekly plans" and the 3 notes inside it?')
     await within(dialog).findByText('Published "Weekly plans". Page link copied.')
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy folder link' })))
     press(dialog, 'Unpublish folder')
@@ -331,9 +342,21 @@ describe('the 44px touch floor', () => {
   it('every control in the popover reaches var(--tap-min) on the touch tier (<=1024px)', () => {
     const touch = /@media \(max-width: 1024px\) \{([\s\S]*?)\n\}/.exec(css)
     expect(touch, 'no touch-tier block').not.toBeNull()
-    for (const cls of ['.action', '.select', '.field']) {
+    // VIS-3 (audit 2026-11-05): the actions are buttons.css `.btn`s now, whose own rule gives every button the
+    // floor at <=1024px (styles/buttons.css); the popover's own fields keep theirs here.
+    for (const cls of ['.select', '.field']) {
       expect(touch[1]).toMatch(new RegExp(`\\${cls} \\{ min-height: var\\(--tap-min\\); \\}`))
     }
+    const buttons = readFileSync(join(process.cwd(), 'src/styles/buttons.css'), 'utf8')
+    expect(buttons).toMatch(/@media \(max-width: 1024px\) \{\s*\.btn \{\s*min-height: var\(--tap-min\);/)
+  })
+
+  it('VIS-3: Create link is the one solid primary; Publish is an outline; no bespoke .action class', () => {
+    const jsx = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteShareControls.jsx'), 'utf8')
+    expect(jsx).toMatch(/className="btn btn-primary btn-sm" onClick=\{createLink\}/)
+    expect(jsx).toMatch(/className="btn btn-outline btn-sm" onClick=\{\(\) => askPublish\('note'\)\}/)
+    expect(jsx).not.toMatch(/styles\.action/)
+    expect(css).not.toMatch(/^\.action \{/m)
   })
 })
 
@@ -364,6 +387,7 @@ describe('share_used and publish_used — the editor door counts actions, and no
     mount({ notebook_publish_enabled: true })
     const dialog = await openDoor()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    await confirmPublish()
     await within(dialog).findByText('Published. Page link copied.')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Unpublish' }))
     await within(dialog).findByText('Unpublished. The page no longer works.')
@@ -381,5 +405,78 @@ describe('share_used and publish_used — the editor door counts actions, and no
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
     await waitFor(() => expect(statusText(dialog)).toContain('Share links require a paid plan'))
     expect(telemetry()).toEqual([])
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S1: one press used to publish. Now the press only asks.
+describe('S1: publishing asks first', () => {
+  const publishCalls = () => S.calls.filter((c) => c.method === 'POST' && c.url.startsWith('/api/j2/publish/'))
+
+  it('one press on Publish this note sends nothing and opens the confirm step; its Publish sends ONE', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Publish to the web?' })
+    expect(confirmDialog).toHaveTextContent(
+      '"NVDA plan" will be readable by anyone with its address. Search engines are asked not to index it. Price charts are not shown. You can unpublish anytime.')
+    expect(publishCalls()).toEqual([])
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Publish' }))
+    await within(dialog).findByText('Published. Page link copied.')
+    expect(publishCalls()).toHaveLength(1)
+    expect(publishCalls()[0].url).toBe(`/api/j2/publish/notes/${NOTE}`)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Publish to the web?' })).toBeNull())
+  })
+
+  it('Publish folder asks with the folder name and its note count, and sends nothing until confirmed', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish folder "Weekly plans"' }))
+    await screen.findByRole('dialog', { name: 'Publish "Weekly plans" and the 3 notes inside it?' })
+    expect(publishCalls()).toEqual([])
+  })
+
+  it('focus starts on Cancel; Cancel closes the step, sends nothing, and leaves the Share sheet open', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Publish to the web?' })
+    await waitFor(() => expect(document.activeElement).toBe(within(confirmDialog).getByRole('button', { name: 'Cancel' })))
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Publish to the web?' })).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Share this note' })).toBeInTheDocument()
+    expect(publishCalls()).toEqual([])
+  })
+
+  it('Escape closes the confirm step only; the Share sheet stays open and nothing is sent', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    await screen.findByRole('dialog', { name: 'Publish to the web?' })
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Publish to the web?' })).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Share this note' })).toBeInTheDocument()
+    expect(publishCalls()).toEqual([])
+  })
+
+  it('a refusal keeps the step open and says nothing was made public', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    const realFetch = globalThis.fetch
+    vi.stubGlobal('fetch', vi.fn((url, opts = {}) => (String(url).startsWith('/api/j2/publish/notes/') && opts.method === 'POST'
+      ? json(500, { detail: 'boom-marker' }) : realFetch(url, opts))))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    const confirmDialog = await confirmPublish()
+    await waitFor(() => expect(within(confirmDialog).getAllByRole('status').map((n) => n.textContent).join(' '))
+      .toContain("Couldn't publish. Nothing was made public."))
+    expect(screen.getByRole('dialog', { name: 'Publish to the web?' })).toBeInTheDocument()
+  })
+
+  it('after a confirmed publish, focus lands on Copy page link', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    await confirmPublish()
+    await within(dialog).findByText('Published. Page link copied.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy page link' })))
   })
 })

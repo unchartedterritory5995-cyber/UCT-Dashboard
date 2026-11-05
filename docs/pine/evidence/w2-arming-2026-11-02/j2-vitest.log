@@ -1,0 +1,22 @@
+[hl] 18:22:01 free RAM 1232 MB before 'w2-j2-vitest'
+[heavy-lock] 'w2-j2-vitest' waiting: held by 'w1fix2-post' (pid 26204) for 5.7 min
+
+ RUN  v4.0.18 C:/Users/pgosz/uct-worktrees/pine-w2/app
+
+ ✓ src/components/chart/engine/__tests__/runtimeSwitchOn.test.js (15 tests) 2171ms
+     ✓ ⛔ an EMPTY list attaches nothing (and nothing latched is an empty list)  1571ms
+ ✓ src/lib/runtimePaneRevocation.test.js (10 tests) 18ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimePaneSafety.test.jsx (19 tests) 1108ms
+     ✓ ⭐ a chart that does not start at the listing, too short to prove a warm-up: the strip names the refusal and the chart still binds  346ms
+ ✓ src/components/chart/engine/runtime/__tests__/graphRuntimeDifferential.test.js (28 tests) 119ms
+ ✓ src/components/chart/engine/__tests__/runtimeKillSwitch.test.js (3 tests) 128ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimeStopBeacon.test.js (7 tests) 114ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimeStringMemory.test.js (5 tests) 58ms
+ ✓ src/components/chart/engine/__tests__/runtimeRunGate.test.js (6 tests) 9ms
+
+ Test Files  8 passed (8)
+      Tests  93 passed (93)
+   Start at  18:40:31
+   Duration  25.08s (transform 21.02s, setup 5.37s, import 30.34s, tests 3.73s, environment 7.43s)
+
+[heavy-lock] 'w2-j2-vitest' released after 26s

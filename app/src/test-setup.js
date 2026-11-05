@@ -33,6 +33,9 @@ import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
+// ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
+// registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
+import './components/chart/engine/lowerTfGate.js'
 import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──

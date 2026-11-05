@@ -355,3 +355,13 @@
 @media (min-width: 1025px) {
   .coachmark { margin-right: 48px; }
 }
+
+/* S12 + VIS-4 (audit 2026-11-05, M9): on a PHONE's Notebook the orb cluster (Compass, Train Me, the paperclip and
+   the agent menu) gives way to the Notebook's one floating "+" (NotebookPlusFab, which writes
+   `data-notebook-route` on <html> while the Notebook is on screen). Every other page keeps it, and an orb in a live
+   call is never hidden: its controls are the way out of the call. */
+@media (max-width: 640px) {
+  :global(html[data-notebook-route]) .orbCluster:not([data-in-session]) {
+    display: none;
+  }
+}

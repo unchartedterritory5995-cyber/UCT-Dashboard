@@ -48,9 +48,18 @@ import { money } from '../../../../lib/journal-2-0/format'
 import { etDayOf } from '../../lib/calendar'
 import BarReplay, { barTs } from './BarReplay'
 import styles from './ChartPlanPanel.module.css'
+import { planRoleColor } from '../../lib/planColors'
 
 const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
-const ROLE_COLOR = { entry: '#c9a84c', stop: '#ef4444', target: '#22c55e' }
+// VIS-5 (issue 20): one plan colour language (lib/planColors.js). It was the retired legacy gold #c9a84c here.
+const ROLE_COLOR = { get entry() { return planRoleColor('entry') }, get stop() { return planRoleColor('stop') }, get target() { return planRoleColor('target') } }
+// Fix round 2 (re-review N5): the replay's price lines, pure and exported so the chart-colour rail
+// (lib/planColors.canvas.test.js) reads them. Each colour is resolved once per build, not per access.
+export function replayPriceLines(plan) {
+  return PRICE_ROLES
+    .filter((r) => Number.isFinite(plan?.[r]))
+    .map((r) => ({ price: plan[r], color: planRoleColor(r), title: ROLE_LABEL[r].toLowerCase() }))
+}
 const SIZE_DEBOUNCE_MS = 300
 const NATIVE_TFS = new Set(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
 const REPLAY_BEFORE = 40      // context bars revealed before the note's as-of
@@ -300,9 +309,7 @@ export default function ChartPlanPanel({
     (all) => windowAfterNote(all, { day: asOfDay, sec: asOf, daily }),
     [asOf, asOfDay, daily],
   )
-  const replayLines = useMemo(() => PRICE_ROLES
-    .filter((r) => Number.isFinite(plan?.[r]))
-    .map((r) => ({ price: plan[r], color: ROLE_COLOR[r], title: ROLE_LABEL[r].toLowerCase() })), [plan])
+  const replayLines = useMemo(() => replayPriceLines(plan), [plan])
   const [replayStart, setReplayStart] = useState(null)
   const firstHit = useCallback((bars, from, test) => {
     for (let i = from; i < bars.length; i++) if (test(bars[i])) return i

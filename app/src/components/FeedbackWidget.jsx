@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
@@ -6,6 +6,7 @@ import useHideOnScroll from '../hooks/useHideOnScroll'
 import useScrollLocked from '../hooks/useScrollLocked'
 import fb from './FeedbackWidget.module.css'
 import Textarea from './ui/Textarea'
+import { OPEN_FEEDBACK_EVENT } from './feedbackDoor'
 
 const S = {
   btn: {
@@ -15,9 +16,6 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     zIndex: 500, transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
     lineHeight: 1,
-  },
-  backdrop: {
-    position: 'fixed', inset: 0, zIndex: 498, background: 'transparent',
   },
   menu: {
     position: 'fixed', top: 40, right: 14, width: 170,
@@ -39,6 +37,10 @@ const S = {
     borderRadius: 10, padding: 18, zIndex: 499,
     boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
     display: 'flex', flexDirection: 'column', gap: 10,
+  },
+  menuButton: {
+    width: '100%', textAlign: 'left', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0,
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
   },
   title: { fontSize: 12, color: '#c9a84c', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' },
   textarea: {
@@ -71,6 +73,53 @@ export default function FeedbackWidget() {
   const [hovered, setHovered] = useState(null)
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
+  const triggerRef = useRef(null)
+  const returnToRef = useRef(null)   // fix round 2 (N2): the opener, when the feedback door opened it
+  const panelRef = useRef(null)
+  const firstItemRef = useRef(null)
+  const messageRef = useRef(null)
+  // Opening the menu moves focus into it (fix round 1, minor 8); choosing Send Feedback unmounts the
+  // pressed item, so focus goes to the message field, never <body> (fix round 2, re-review N7).
+  useEffect(() => {
+    if (mode === 'menu') firstItemRef.current?.focus()
+    if (mode === 'feedback') messageRef.current?.focus()
+  }, [mode])
+
+  // ⛔ Audit 2026-11-05, spec S5 (B10): Esc did not close this, and a transparent full-page
+  // backdrop (z-index 498) sat over the whole app while it was open -- the member's next click on
+  // the page was eaten just to close it. The backdrop is gone. While open: Esc closes and hands
+  // focus back to the "?" button; a press OUTSIDE the panel and the button closes it and still
+  // reaches whatever was pressed (a capture-phase listener that never stops the event).
+  useEffect(() => {
+    if (!mode) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      closeAndReturn()
+    }
+    const onDown = (e) => {
+      const inside = panelRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)
+      if (!inside) close()
+    }
+    document.addEventListener('keydown', onKey, true)
+    document.addEventListener('pointerdown', onDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('pointerdown', onDown, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  // Tier 1b fix round 1 (review Minor 8): the phone Notebook does not draw the "?" (S12); its "+" sheet opens this
+  // menu through components/feedbackDoor.js.
+  useEffect(() => {
+    const onOpen = (e) => {
+      returnToRef.current = e.detail?.returnTo || null
+      setMode(e.detail?.mode === 'feedback' ? 'feedback' : 'menu')
+    }
+    window.addEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+  }, [])
 
   if (!user || location.pathname.startsWith('/admin')) return null
   // Hide when a modal/sheet is open so the "?" never covers its bottom CTA.
@@ -80,6 +129,15 @@ export default function FeedbackWidget() {
   const tucked = hiddenOnScroll && !mode
 
   function close() { setMode(null); setSent(false); setMessage(''); setRating(0) }
+  // Fix round 2 (N2): opened through the feedback door, focus goes back to the control that opened it (the phone
+  // Notebook's "+"); otherwise to the "?" as before.
+  function closeAndReturn() {
+    close()
+    const back = returnToRef.current
+    returnToRef.current = null
+    if (back && back.isConnected) back.focus()
+    else triggerRef.current?.focus()
+  }
 
   async function handleSend() {
     if (!message.trim()) return
@@ -100,33 +158,35 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      {mode && <div style={S.backdrop} onClick={close} />}
-
       {mode === 'menu' && (
-        <div style={S.menu} className={fb.panel}>
-          <div
-            style={{ ...S.menuItem, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+        <div style={S.menu} className={fb.panel} ref={panelRef}>
+          {/* Fix round 1 (review minor 8): real buttons -- in the Tab order, Enter and Space work. */}
+          <button
+            type="button"
+            ref={firstItemRef}
+            style={{ ...S.menuItem, ...S.menuButton, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
             className={fb.menuItem}
             onMouseEnter={() => setHovered('feedback')}
             onMouseLeave={() => setHovered(null)}
             onClick={() => setMode('feedback')}
           >
             <UIcon name="chat" size={15} /> Send Feedback
-          </div>
-          <div
-            style={{ ...S.menuItem, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+          </button>
+          <button
+            type="button"
+            style={{ ...S.menuItem, ...S.menuButton, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
             className={fb.menuItem}
             onMouseEnter={() => setHovered('ticket')}
             onMouseLeave={() => setHovered(null)}
             onClick={() => { close(); navigate('/support') }}
           >
             <UIcon name="document" size={15} /> Support Ticket
-          </div>
+          </button>
         </div>
       )}
 
       {mode === 'feedback' && (
-        <div style={S.popup} className={fb.panel}>
+        <div style={S.popup} className={fb.panel} ref={panelRef}>
           {sent ? (
             <div style={S.success}>Thanks! We read every message.</div>
           ) : (
@@ -137,7 +197,7 @@ export default function FeedbackWidget() {
                 placeholder="What's on your mind?"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                autoFocus
+                ref={messageRef}
               />
               <div style={S.starsRow}>
                 <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginRight: 3 }}>Rating:</span>
@@ -158,10 +218,14 @@ export default function FeedbackWidget() {
       )}
 
       <button
+        ref={triggerRef}
+        type="button"
         style={S.btn}
         className={`${fb.fab} ${tucked ? fb.hidden : ''}`}
         onClick={() => mode ? close() : setMode('menu')}
         title="Help & Feedback"
+        aria-label="Help & Feedback"
+        aria-expanded={Boolean(mode)}
       >
         ?
       </button>

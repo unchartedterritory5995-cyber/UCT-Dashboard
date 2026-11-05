@@ -42,6 +42,7 @@ import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorStopFor } from './runtimeErrorStop'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
+import { registeredObjectRuntimeValues } from './objectRuntimeSeam.js'
 
 // ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
 //
@@ -57,10 +58,9 @@ import { barOpenInstant } from '../indicators.js'
 // ⛔ UNTIL IT IS REGISTERED, every placeholder reads UNKNOWN (`runtime:not-loaded`)
 // — withheld, never guessed. A chart that opens a SAVED document before the member
 // door has loaded in that session draws those objects only once it has.
-let runtimeObjectValuesFn = null
-export function registerObjectRuntimeValues(fn) {
-  runtimeObjectValuesFn = typeof fn === 'function' ? fn : null
-}
+// ⭐ W5-T2 — the slot itself lives in a leaf (`objectRuntimeSeam.js`), so the runtime
+// lane can fill it without importing this module (and, through it, the registry).
+export { registerObjectRuntimeValues } from './objectRuntimeSeam.js'
 
 /** ⭐ C18 — did the member leave every input at the author's default, and edit no
  *  folded parameter? The runtime lane runs the script AS WRITTEN; a knob the
@@ -699,6 +699,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // ⭐⭐ C18 — the placeholders' columns, from ONE runtime run (or withheld).
   let runtime = null
   if (program.runtime) {
+    const runtimeObjectValuesFn = registeredObjectRuntimeValues()
     runtime = runtimeObjectValuesFn
       ? runtimeObjectValuesFn(program.runtime, bars, {
         tf: evalOpts.tf,

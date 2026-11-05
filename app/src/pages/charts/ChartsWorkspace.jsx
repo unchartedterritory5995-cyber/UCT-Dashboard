@@ -3142,6 +3142,7 @@ function ChartsWorkspaceBoard() {
       remove: (id) => agentWidgetOpsRef.current.remove(id),
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
+      raiseBound: (sentence) => setBoardRefusal(sentence),
       groupSyms: () => agentGroupSymsRef.current,
       persist: (opts) => agentWidgetOpsRef.current.persist(opts),
       grid: () => agentWidgetOpsRef.current.grid(),

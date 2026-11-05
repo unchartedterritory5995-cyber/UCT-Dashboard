@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
 const NOTES = [
@@ -85,6 +85,7 @@ vi.mock('../components/notebook/NoteTasksView', () => ({
 
 import NotebookTab from './NotebookTab'
 import { requestReveal, TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
+import { chooseView } from './__tests__/toolbarDoors'
 
 function Where() {
   const loc = useLocation()
@@ -288,7 +289,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('switching to an icon-row mode (Table) at phone width collapses the panel', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     expect(showFoldersBtn()).not.toBeNull()
   })
@@ -296,7 +297,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('the SAME switch at 820px (not a phone) never collapses the panel', async () => {
     setWidth(820)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     expect(showFoldersBtn()).toBeNull()
   })
@@ -304,7 +305,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('the floating toggle -- the EXISTING control, never a new one -- reopens the panel', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     fireEvent.click(showFoldersBtn())
     expect(showFoldersBtn()).toBeNull()
@@ -326,7 +327,7 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
   it('CONTROL: the panel is genuinely reachable while collapsed -- toggling shows the real FolderSidebar again', async () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
-    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    chooseView('Table')
     await screen.findByTestId('notes-table')
     expect(screen.getByTestId('folder-sidebar')).toBeInTheDocument() // never unmounted, only hidden by CSS
     fireEvent.click(showFoldersBtn())
@@ -494,5 +495,84 @@ describe('D-7 -- the phone rule (structural)', () => {
     const old = mediaBodiesAt('@media (max-width: 640px) { .wrap.collapsed .sidebarSlot { width: 100% !important; } }', 390).join('\n')
     expect(declaresProp(old, '.wrap.collapsed .sidebarSlot', 'width', /^100%/)).toBe(true)
     expect(declaresProp(old, '.wrap.collapsed .sidebarSlot', 'width', /^0/)).toBe(false)
+  })
+})
+
+// S12 (audit 2026-11-05, B13): "Phone: open a note, tap Folders -- the Folders button disappears; nothing else
+// changes." Folders inside a note opens the folders panel as a bottom SHEET over the note. Fix round 1 (review
+// Important 6): it is the repo's Sheet -- a named dialog, focus moved in, Escape closes it, and focus returns to the
+// Folders button, which stays on screen (aria-expanded says the sheet's state). Closing it never rewrites the stored
+// sidebar preference.
+describe('B13 -- Folders inside a note opens a sheet (phone)', () => {
+  afterEach(() => setWidth(realWidth))
+  const door = () => screen.getByRole('button', { name: 'Show folders' })
+  const sheet = () => screen.queryByRole('dialog', { name: 'Folders' })
+
+  it('the door is there inside a note, and a tap opens a NAMED dialog with the folders in it, focus inside', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    expect(door()).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(door())
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    expect(door()).toHaveAttribute('aria-expanded', 'true')
+    expect(sheet().querySelector('[data-testid="folder-sidebar"]')).not.toBeNull()
+    await waitFor(() => expect(sheet().contains(document.activeElement)).toBe(true))
+  })
+
+  it('Escape closes it and focus returns to the Folders button, which never left the page', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    const before = localStorage.getItem('uct.j2.nb.sidebarOpen')
+    door().focus()
+    fireEvent.click(door())
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    await waitFor(() => expect(sheet()).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(door()))
+    expect(localStorage.getItem('uct.j2.nb.sidebarOpen')).toBe(before)
+  })
+})
+
+// Tier 1b fix round 2 (re-review N1, N3, N4).
+describe('the folders sheet is phone-only, single, and closes before it navigates (fix round 2)', () => {
+  afterEach(() => { setWidth(realWidth); localStorage.removeItem('uct.j2.nb.sidebarOpen'); document.body.style.overflow = '' })
+  const sheet = () => screen.queryByRole('dialog', { name: 'Folders' })
+
+  // N1: on a desktop with a note open and the panel collapsed, "Show folders panel" EXPANDS the panel. The sheet
+  // (and its second copy of the tree) is a phone thing.
+  it('N1: 1200 px, a note open, the panel collapsed: "Show folders panel" expands the panel and opens no dialog', async () => {
+    setWidth(1200)
+    localStorage.setItem('uct.j2.nb.sidebarOpen', '0')
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(showFoldersBtn())
+    await waitFor(() => expect(showFoldersBtn()).toBeNull())   // the panel is open: its toggle is gone
+    expect(sheet()).toBeNull()
+    expect(screen.getAllByTestId('folder-sidebar')).toHaveLength(1)
+  })
+
+  // N3: while the sheet is open, the hidden in-page panel is inert (it is still mounted, so nothing is lost), so its
+  // ids, tour anchors and controls are not live twice.
+  it('N3: with the sheet open the in-page panel is inert, and only the sheet\'s copy is live', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(screen.getByRole('button', { name: 'Show folders' }))
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    const inPage = document.getElementById('notebook-folders-panel')
+    expect(inPage.hasAttribute('inert')).toBe(true)
+    expect(sheet().contains(inPage)).toBe(false)
+  })
+
+  // N4: choosing a folder from the sheet closes the sheet FIRST, then leaves the note: the scroll lock is released and
+  // focus lands on a real element (the list's heading), never <body>.
+  it('N4: a folder chosen in the sheet: the sheet closes, the scroll lock is released, focus is on a real element', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(screen.getByRole('button', { name: 'Show folders' }))
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Pick Swing ideas' }))
+    await waitFor(() => expect(sheet()).toBeNull())
+    await waitFor(() => expect(document.body.style.overflow).not.toBe('hidden'))
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body))
+    expect(document.activeElement.isConnected).toBe(true)
   })
 })

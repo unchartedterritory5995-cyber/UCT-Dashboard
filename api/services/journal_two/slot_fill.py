@@ -668,9 +668,32 @@ def prevalidate_answers(style: dict, choices: Any, *, user_id: str, conn: sqlite
         choice = answers.get(b["block"])
         if isinstance(choice, dict) and choice.get("use") is not None:
             _owned_choice(family, user_id, choice.get("use"), conn, kind=(made or {}).get("kind"))
-        elif not (isinstance(choice, dict) and choice.get("create") is True):
+        elif not (isinstance(choice, dict) and choice.get("create") is True) and not is_skip_choice(choice):
             tt = _tt()
             raise tt.LibraryError(tt.S_CHOOSE_ROUTINE if family == "routine" else tt.S_CHOOSE_TRACKER)
+
+
+def is_skip_choice(choice: Any) -> bool:
+    """Spec S9 (audit 2026-11-05): `{"skip": True}` answers a routine or tracker question with "not now": the note
+    gets the slot as plain content and NO tool is made or adopted. Only ever sent by a member's own Use."""
+    return (isinstance(choice, dict) and choice.get("skip") is True and choice.get("use") is None
+            and choice.get("create") is not True)
+
+
+def skipped_tool_node(family: str, made: dict) -> dict:
+    """What a skipped tool slot leaves in the note: a routine's items as an unticked checklist (the steps without the
+    daily routine), a tracker's name as a line to fill in. Plain note content, never a tool embed."""
+    def para(text: str) -> dict:
+        return {"type": "paragraph", "content": [{"type": "text", "text": text}]} if text else {"type": "paragraph"}
+    name = made.get("name") if isinstance(made.get("name"), str) else ""
+    if family == "routine":
+        items = [i.get("text") for i in made.get("items") or [] if isinstance(i, dict)
+                 and isinstance(i.get("text"), str) and i["text"].strip()]
+        if items:
+            return {"type": "taskList", "content": [
+                {"type": "taskItem", "attrs": {"checked": False}, "content": [para(t.strip())]} for t in items]}
+        return para(name.strip())
+    return para(f"{name.strip()}: " if name.strip() else "")
 
 
 def _create_from_template(family: str, s: dict, made: dict, uid: str, ctx: dict) -> dict:
@@ -736,6 +759,11 @@ def build_tool_slot(block: dict, ctx: dict) -> tuple[dict | None, str | None]:
             got = _create_from_template(family, s, made, uid, ctx)
             ctx.setdefault("created", {})[bid] = got["id"]
             ctx.setdefault("chosen", {})[bid] = got["id"]
+        elif is_skip_choice(choice):
+            # Audit 2026-11-05, spec S9: a one-step Use whose "Also start this every weekday" is NOT ticked makes no
+            # routine or tracker. The slot becomes plain note content (`skipped_tool_node`), nothing is remembered
+            # on the copy (`chosen` is not set), so a later Use asks again.
+            return skipped_tool_node(family, made), None
         else:
             tt = _tt()
             raise tt.LibraryError(tt.S_CHOOSE_ROUTINE if family == "routine" else tt.S_CHOOSE_TRACKER)

@@ -204,7 +204,13 @@ export function undoEntryFor(host, { kind: kindName, ref, label, lines, undoData
     epoch: boardBound && typeof host.epoch === 'function' ? host.epoch() : null }
 }
 
+// The marks feed the panel header's working signal (agent/trace.js), in a finally so a throw can't strand it.
 export async function undoEntry(host, entry) {
+  mark('undo:start')
+  try { return await runUndoEntry(host, entry) } finally { mark('undo:end') }
+}
+
+async function runUndoEntry(host, entry) {
   if (!entry) return { ok: false, lines: [], reason: 'There is nothing of mine to undo.' }
   // Never across a board change: after a layout switch the same refs can name
   // widgets on a DIFFERENT board.

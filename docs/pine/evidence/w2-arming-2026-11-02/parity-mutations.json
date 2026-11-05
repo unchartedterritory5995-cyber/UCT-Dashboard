@@ -1,0 +1,41 @@
+{
+ "generatedBy": "mutate.py over app/src/components/chart/engine/__tests__/vendorHarness/runtimeAllowlistParity.test.js, run through hl (the heavy lock); log C:/Users/pgosz/uct-worktrees/_resume-laptop/runs/w2/parity-mutations.log",
+ "controlRun": "the same file unmutated: Test Files 1 passed, Tests 4 passed (parity-run.log)",
+ "restore": "each file restored from saved bytes by mutate.py; afterwards the CR-stripped sha256 of the worktree file equals that of git cat-file blob HEAD:<path> for both mutated files (runtimeKill.js 62862f42f91c134d, runtimeAllowlistParity.test.js 90a50875dbc8d5f4) and git status shows no modified tracked file",
+ "results": [
+  {
+   "mutation": "a-latch-empty-list-instead-of-listedHashes",
+   "verdict": "KILLED",
+   "failingRails": [
+    "⛔ the gate is the production gate: flags on, member permitted, the committed list latched",
+    "⭐ adx-and-di-for-v4 · adx-and-di-for-v4-rddt-1d-2026-09-27: drawn by the runtime lane and graded MATCH",
+    "⭐ adx-and-di-for-v4 · adx-and-di-for-v4-spy-1d-2026-10-03: drawn by the runtime lane and graded MATCH"
+   ],
+   "file": "src/components/chart/engine/__tests__/vendorHarness/runtimeAllowlistParity.test.js",
+   "old": "setRuntimeAllowList(listedHashes)",
+   "new": "setRuntimeAllowList([])"
+  },
+  {
+   "mutation": "b-break-allowlist-latch-line-in-runtimeNotGradedOf",
+   "verdict": "KILLED",
+   "failingRails": [
+    "⛔ control: a runtime-only script the allowlist does not name is declined BY THE GATE, by name"
+   ],
+   "file": "src/components/chart/engine/runtimeKill.js",
+   "old": "if (h && _allow.some((e) => h.startsWith(e))) return null",
+   "new": "if (h) return null"
+  },
+  {
+   "mutation": "c-normaliseAllowList-drops-every-entry",
+   "verdict": "KILLED",
+   "failingRails": [
+    "⛔ the gate is the production gate: flags on, member permitted, the committed list latched",
+    "⭐ adx-and-di-for-v4 · adx-and-di-for-v4-rddt-1d-2026-09-27: drawn by the runtime lane and graded MATCH",
+    "⭐ adx-and-di-for-v4 · adx-and-di-for-v4-spy-1d-2026-10-03: drawn by the runtime lane and graded MATCH"
+   ],
+   "file": "src/components/chart/engine/runtimeKill.js",
+   "old": "if (HASH_RE.test(v)) out.push(v)",
+   "new": "if (false && HASH_RE.test(v)) out.push(v)"
+  }
+ ]
+}

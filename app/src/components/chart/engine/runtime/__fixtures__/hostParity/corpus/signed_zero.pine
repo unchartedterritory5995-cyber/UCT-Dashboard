@@ -1,0 +1,6 @@
+//@version=5
+indicator("hp signed zero", overlay=false)
+z = (close - close) * -1
+plot(z, "negzero")
+plot(math.sign(close - open), "sign")
+plot(math.abs(close - open) * -0.0, "mulzero")

@@ -117,6 +117,8 @@ describe('PersonalApiCard', () => {
     expect(within(row).getByText(/iPhone Shortcuts/)).toBeInTheDocument()
     expect(within(row).getByText(/not used yet/)).toBeInTheDocument()
     fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    // S1: the first press asks; the confirm's Revoke is what revokes.
+    fireEvent.click(within(screen.getByRole('group', { name: 'Confirm revoke' })).getByRole('button', { name: 'Revoke' }))
     await waitFor(() => expect(screen.queryByTestId('personal-api-token')).not.toBeInTheDocument())
     expect(global.fetch).toHaveBeenCalledWith(`${TOKENS}/t1`, expect.objectContaining({ method: 'DELETE' }))
   })
@@ -150,6 +152,7 @@ describe('PersonalApiCard', () => {
         ? json(402, { detail: 'Personal API tokens require a paid plan' })
         : json(200, { tokens: [] })))
     renderCard()
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Token name' }), { target: { value: 'Mac' } })
     fireEvent.click(await screen.findByRole('button', { name: 'Make a token' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Making a Personal API token needs a paid plan.')
   })
@@ -160,7 +163,85 @@ describe('PersonalApiCard', () => {
         ? json(400, { detail: 'You already have 20 personal tokens. Revoke one you no longer use, then make a new one.' })
         : json(200, { tokens: [] })))
     renderCard()
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Token name' }), { target: { value: 'Mac' } })
     fireEvent.click(await screen.findByRole('button', { name: 'Make a token' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('You already have 20 personal tokens.')
+  })
+
+  // ⛔ Audit 2026-11-05, spec S1 (B19): a token was made on the first press with no name, and
+  // Revoke took a working Shortcut's key away on one press.
+  it('Make a token stays disabled until the token has a name (spaces are not a name)', async () => {
+    global.fetch = vi.fn(async () => json(200, { tokens: [] }))
+    renderCard()
+    const make = await screen.findByRole('button', { name: 'Make a token' })
+    expect(make).toBeDisabled()
+    const field = screen.getByRole('textbox', { name: 'Token name' })
+    fireEvent.change(field, { target: { value: '   ' } })
+    expect(make).toBeDisabled()
+    fireEvent.click(make)
+    fireEvent.submit(field.closest('form'))
+    expect(global.fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+    fireEvent.change(field, { target: { value: 'iPhone' } })
+    expect(make).toBeEnabled()
+  })
+
+  it('Revoke asks first, by name; Cancel keeps the token and sends nothing', async () => {
+    const tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async (url, init = {}) => (
+      init.method === 'DELETE' ? json(200, { revoked: true }) : json(200, { tokens })))
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    const ask = screen.getByRole('group', { name: 'Confirm revoke' })
+    expect(ask).toHaveTextContent('Revoke "iPhone Shortcuts"? Shortcuts using this key stop working at once.')
+    expect(global.fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+    await waitFor(() => expect(document.activeElement).toBe(within(ask).getByRole('button', { name: 'Cancel' })))
+    fireEvent.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('group', { name: 'Confirm revoke' })).toBeNull()
+    expect(global.fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+    expect(screen.getByTestId('personal-api-token')).toBeInTheDocument()
+  })
+
+  // Fix round 1 (review minor 9): Cancel returned focus to <body> (the Revoke button it brings back
+  // is a new element), Esc did nothing, and the buttons were not tied to the sentence.
+  it('Esc cancels the confirm, and focus goes back to that row’s Revoke', async () => {
+    const tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async (url, init = {}) => (init.method === 'DELETE' ? json(200, {}) : json(200, { tokens })))
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    const ask = screen.getByRole('group', { name: 'Confirm revoke' })
+    const sentence = within(ask).getByText(/Shortcuts using this key stop working at once/)
+    expect(within(ask).getByRole('button', { name: 'Revoke' }).getAttribute('aria-describedby')).toBe(sentence.id)
+    fireEvent.keyDown(within(ask).getByRole('button', { name: 'Cancel' }), { key: 'Escape' })
+    expect(screen.queryByRole('group', { name: 'Confirm revoke' })).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' })))
+    expect(global.fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
+  it('Cancel also puts focus back on that row’s Revoke', async () => {
+    const tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async () => json(200, { tokens }))
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Confirm revoke' })).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' })))
+  })
+
+  // Fix round 3 (re-review m-9): after a confirmed revoke the row (and the focused button) is gone;
+  // focus goes to the "Make a token" name field, never <body>.
+  it('a confirmed revoke puts focus on the token name field', async () => {
+    let tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method === 'DELETE') { tokens = []; return json(200, { revoked: true }) }
+      return json(200, { tokens })
+    })
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Confirm revoke' })).getByRole('button', { name: 'Revoke' }))
+    await waitFor(() => expect(screen.queryByTestId('personal-api-token')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Token name' })))
   })
 })

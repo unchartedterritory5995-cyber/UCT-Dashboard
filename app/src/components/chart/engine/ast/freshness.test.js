@@ -118,7 +118,10 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               so no formula, saved scan or alert can key
     //                               on it (owner decision 3), and blank whenever
     //                               the archive is off.
-    expect(Object.keys(excluded).length).toBe(77)
+    //   excluded 77 + 21 = 98        the scan primitives (2026-11-05), filterable
+    //                               through the screener catalog; a formula
+    //                               scalar over them is a separate decision.
+    expect(Object.keys(excluded).length).toBe(98)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

@@ -198,7 +198,7 @@ import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
-import { shouldApplyRange, rangeFitsBars, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
+import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
 // The engine's "nothing to draw" answer. Module-scope and frozen so a chart with
 // no instances allocates nothing per paint and nobody can mutate the "no engine"
 // answer into a "some engine" one.
@@ -16163,7 +16163,8 @@ export default function StockChart({
       // The latch lasts one frame; an echo that lands later is still our own range.
       if (!shouldApplyRange(range, lastAppliedRangeRef.current)) return
       lastAppliedRangeRef.current = null
-      onTimeRangeChange({ from: range.from, to: range.to }, {
+      const held = filteredBarsRef.current
+      onTimeRangeChange({ from: range.from, to: range.to, barsTo: rangeBarsEnd(range.to, held?.length ? adjustTime(held[held.length - 1].t) : null) }, {
         memberMoved: userViewMovedRef.current && !framingViewRef.current
           && viewMostlyBars(ts.getVisibleLogicalRange(), filteredBarsRef.current?.length),
       })
@@ -16185,7 +16186,8 @@ export default function StockChart({
     let raf = null
     const off = subscribeTimeRange((range) => {
       const bars = filteredBarsRef.current
-      if (!bars?.length || !rangeFitsBars(range, adjustTime(bars[0].t), adjustTime(bars[bars.length - 1].t))) return
+      // Whether it fits is judged on the bars the sender shows (`barsTo`): the empty axis right of its newest bar is no history to hold.
+      if (!bars?.length || !rangeFitsBars({ from: range.from, to: range.barsTo ?? range.to }, adjustTime(bars[0].t), adjustTime(bars[bars.length - 1].t))) return
       applyingExternalRangeRef.current = true
       try {
         if (!shouldApplyRange(range, ts.getVisibleRange())) return

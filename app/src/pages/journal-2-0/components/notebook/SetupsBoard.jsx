@@ -98,7 +98,7 @@ function Board({ onFindSimilar }) {
   return (
     <section className={styles.board} aria-labelledby="board-title" data-setups-board="">
       <div className={styles.header}>
-        <h2 id="board-title" className={styles.title}>Active setups</h2>
+        <h2 id="board-title" className={styles.title}>Setups</h2>
         <span className={styles.scope}>
           Open plans with levels drawn on a chart, closest to the entry first.
         </span>
