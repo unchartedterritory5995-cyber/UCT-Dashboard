@@ -37,7 +37,7 @@ export function planRoleColor(role) {
 
 /** For a CHART (a canvas, which cannot paint `var()`): a plan role's colour, or the muted ink for a line with no plan
  *  role (the canvas's plain "Level"). Always a real colour value -- review Critical 1, rail planColors.canvas.test.js. */
-const MUTED_FALLBACK = '#cfcac0' // tokens.css :root --text-muted
+export const MUTED_FALLBACK = '#cfcac0' // tokens.css :root --text-muted (pinned by planColors.canvas.test.js)
 export function planLineColor(role) {
   const plan = planRoleColor(role)
   if (plan) return plan

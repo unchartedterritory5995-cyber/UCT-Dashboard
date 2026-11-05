@@ -4,7 +4,10 @@
 // price lines and drawing annotations -- and fails if any value is a CSS function rather than a real colour.
 // `var()` stays only where CSS reads it (the level chips' `--level-color`).
 import { describe, expect, it } from 'vitest'
-import { colorPlanAnnotations, planLineColor, PLAN_ROLE_FALLBACK } from './planColors'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { colorPlanAnnotations, planLineColor, PLAN_ROLE_FALLBACK, MUTED_FALLBACK } from './planColors'
+import { replayPriceLines } from '../components/notebook/ChartPlanPanel'
 import { levelAnnotations, LEVEL_ROLES } from './tradeCanvas'
 import { planPriceLines as boardLines } from '../components/notebook/BoardCard'
 import { planPriceLines as tradeLines } from '../components/trade/TradeBeforeAfter'
@@ -26,6 +29,24 @@ describe('every colour handed to a chart is a colour a canvas can paint', () => 
   it('the Setups board and the trade page price lines', () => {
     const plan = { entry: 10, stop: 9, target: 12 }
     for (const l of [...boardLines(plan), ...tradeLines(plan)]) expect(l.color).toSatisfy(isPaintable)
+  })
+
+  // Fix round 2 (re-review N5): the plan panel's replay price lines join the rail.
+  it('the plan panel replay price lines', () => {
+    const lines = replayPriceLines({ entry: 10, stop: 9, target: 12 })
+    expect(lines).toHaveLength(3)
+    for (const l of lines) expect(l.color).toSatisfy(isPaintable)
+    expect(lines.find((l) => l.title === 'stop').color).toBe(PLAN_ROLE_FALLBACK.stop)
+  })
+
+  // N5: the muted fallback IS tokens.css :root --text-muted (read, never restated twice).
+  it('MUTED_FALLBACK is the :root value of --text-muted', () => {
+    const tokens = readFileSync(join(process.cwd(), 'src', 'styles', 'tokens.css'), 'utf8')
+    const at = tokens.search(/^:root\s*\{/m)
+    const root = tokens.slice(at, tokens.indexOf('}', at))
+    const m = root.match(/--text-muted:\s*(#[0-9a-fA-F]{6})/)
+    expect(m).toBeTruthy()
+    expect(MUTED_FALLBACK.toLowerCase()).toBe(m[1].toLowerCase())
   })
 
   it('the chart embed role lines, and the line colour for a role with no plan colour', () => {
