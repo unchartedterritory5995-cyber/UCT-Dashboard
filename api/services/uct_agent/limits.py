@@ -35,6 +35,9 @@ DEFAULTS = {
     "UCT_AGENT_RATE_MEMBER_HOUR": 300,
     "UCT_AGENT_RATE_GLOBAL_MINUTE": 120,
     "UCT_AGENT_INFLIGHT_PER_MEMBER": 1,
+    # Half of anyio's 40 worker threads, each blocking for a turn: dollars are already held by the ledger's
+    # reservations, so this protects the pod, and the threads left over keep the rest of the site answering.
+    "UCT_AGENT_INFLIGHT_GLOBAL": 20,
     "UCT_AGENT_INFLIGHT_LEASE_S": 150,
 }
 
@@ -99,6 +102,8 @@ def admit(user_id: Any, *, new_request: bool, now: float | None = None) -> str |
                 busy = c.execute("SELECT COUNT(*) FROM agent_inflight WHERE user_id = ?", (uid,)).fetchone()[0]
                 if busy >= limit("UCT_AGENT_INFLIGHT_PER_MEMBER"):
                     raise Refused("in_flight", IN_FLIGHT, 5)
+                if c.execute("SELECT COUNT(*) FROM agent_inflight").fetchone()[0] >= limit("UCT_AGENT_INFLIGHT_GLOBAL"):
+                    raise Refused("global_in_flight", GLOBAL_RATE, 10)
                 if new_request:
                     c.execute("DELETE FROM agent_rate_events WHERE at < ?", (now - 3600,))
                     g = c.execute("SELECT COUNT(*) FROM agent_rate_events WHERE at >= ?", (now - 60,)).fetchone()[0]
