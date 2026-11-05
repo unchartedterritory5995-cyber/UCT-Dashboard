@@ -71,7 +71,15 @@ CREATE TABLE IF NOT EXISTS agent_telemetry (
   research_calls  INTEGER NOT NULL DEFAULT 0,
   unsupported     TEXT,
   voice           INTEGER NOT NULL DEFAULT 0,
-  created_at      INTEGER NOT NULL
+  created_at      INTEGER NOT NULL,
+  model_calls     INTEGER,                -- speed: numbers and one mode word, never content (tools/agent_latency_telemetry.py)
+  input_tokens    INTEGER,
+  output_tokens   INTEGER,
+  cache_read_tokens  INTEGER,
+  cache_write_tokens INTEGER,
+  schema_mode     TEXT,                   -- constant | routed
+  visible_ms      INTEGER,                -- browser: Enter to the change on screen (commit done)
+  verified_ms     INTEGER                 -- browser: Enter to the change read back and saved
 );
 CREATE TABLE IF NOT EXISTS agent_conversation_state (
   conversation_id TEXT NOT NULL,
@@ -99,6 +107,11 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+_TELEMETRY_ADDED = (("model_calls", "INTEGER"), ("input_tokens", "INTEGER"), ("output_tokens", "INTEGER"),
+                    ("cache_read_tokens", "INTEGER"), ("cache_write_tokens", "INTEGER"), ("schema_mode", "TEXT"),
+                    ("visible_ms", "INTEGER"), ("verified_ms", "INTEGER"))
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Additive, idempotent column adds for tables created before the column existed."""
     cols = {r[1] for r in conn.execute("PRAGMA table_info(agent_conversations)").fetchall()}
@@ -108,6 +121,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "title_source" not in cols:  # NULL = first message (placeholder) | 'auto' (model) | 'user' (renamed)
         conn.execute("ALTER TABLE agent_conversations ADD COLUMN title_source TEXT")
         conn.commit()
+    tel = {r[1] for r in conn.execute("PRAGMA table_info(agent_telemetry)").fetchall()}
+    for col, kind in _TELEMETRY_ADDED:
+        if col not in tel:
+            conn.execute(f"ALTER TABLE agent_telemetry ADD COLUMN {col} {kind}")
+            conn.commit()
 
 
 def _uid(user_id: Any) -> str:
@@ -370,7 +388,12 @@ def get_conversation(user_id: int, conversation_id: str) -> dict | None:
 
 
 _TELEMETRY_COLS = ("path", "disposition", "refused", "clarified", "undo", "latency_ms", "model",
-                   "cost_usd", "research_calls", "unsupported", "voice")
+                   "cost_usd", "research_calls", "unsupported", "voice", "model_calls", "input_tokens", "output_tokens",
+                   "cache_read_tokens", "cache_write_tokens", "schema_mode", "visible_ms", "verified_ms")
+
+
+def _int_or_none(v: Any) -> int | None:
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
 def record_telemetry(user_id: int, conversation_id: str | None, row: dict) -> None:
@@ -381,8 +404,9 @@ def record_telemetry(user_id: int, conversation_id: str | None, row: dict) -> No
         with _WRITE_LOCK, contextlib.closing(_connect()) as c:
             c.execute(
                 "INSERT INTO agent_telemetry (user_id, conversation_id, path, disposition, actions, refused, "
-                "clarified, undo, latency_ms, model, cost_usd, research_calls, unsupported, voice, created_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "clarified, undo, latency_ms, model, cost_usd, research_calls, unsupported, voice, created_at, "
+                "model_calls, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, schema_mode, "
+                "visible_ms, verified_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (_uid(user_id), conversation_id, _clip(vals["path"], 16), _clip(vals["disposition"], 16),
                  json.dumps([_clip(a, 40) for a in actions][:16]),
                  int(bool(vals["refused"])), int(bool(vals["clarified"])), int(bool(vals["undo"])),
@@ -390,7 +414,10 @@ def record_telemetry(user_id: int, conversation_id: str | None, row: dict) -> No
                  _clip(vals["model"], 64) or None,
                  float(vals["cost_usd"]) if isinstance(vals["cost_usd"], (int, float)) else None,
                  int(vals["research_calls"] or 0), _clip(vals["unsupported"], 40) or None,
-                 int(bool(vals["voice"])), _now()))
+                 int(bool(vals["voice"])), _now(),
+                 *(_int_or_none(vals[k]) for k in ("model_calls", "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens")),
+                 (vals["schema_mode"] if vals["schema_mode"] in ("constant", "routed") else None),
+                 _int_or_none(vals["visible_ms"]), _int_or_none(vals["verified_ms"])))
             c.commit()
     except Exception:  # noqa: BLE001 -- telemetry never breaks a turn
         pass
