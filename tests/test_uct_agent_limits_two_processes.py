@@ -144,3 +144,33 @@ def test_VISION_a_second_process_sees_what_the_first_already_spent(world):
     world.race(b)
     assert world.line(b)["calls"] == 1
     assert _vision_ledger(world)[1] <= 1.0
+
+
+# ═══ the limits above hold on one volume, so web must stay on one instance ═══════════════════════
+#: Flip this only when these limits really live on a store instances share. It protects the $1-a-day vision member
+#: share and the 20 global in-flight turns: both count in SQLite on web's own volume, so a second instance would
+#: count separately and each limit would silently double.
+SHARED_STORE_EXISTS = False
+
+
+def _replica_counts(node):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "numReplicas":
+                yield value
+            yield from _replica_counts(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _replica_counts(value)
+
+
+def test_REPLICAS_the_walk_finds_a_multi_region_setting():
+    config = {"deploy": {"multiRegionConfig": {"us-west2": {"numReplicas": 2}}}}
+    assert list(_replica_counts(config)) == [2]
+
+
+@pytest.mark.parametrize("name", ["railway.json", "railway.web.json"])
+def test_REPLICAS_web_config_stays_on_one_instance_until_a_shared_store_exists(name):
+    """Reads the repo's config only: the Railway dashboard can still set replicas, and this cannot see that."""
+    counts = list(_replica_counts(json.loads((ROOT / name).read_text("utf-8"))))
+    assert SHARED_STORE_EXISTS or all(int(n) <= 1 for n in counts), f"{name} sets numReplicas {counts}"
