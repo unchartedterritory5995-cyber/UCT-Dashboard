@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 19:56 CT
+updated: 2026-11-04 20:02 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -367,15 +367,15 @@ checks: 50 lane rails (47 red on base copies; 3 test the new module directly); m
 decisions to confirm (coordinator): the scan plot is the document's one output (more than one refused by name); the plot must be a 0/1 condition; live mode refuses runtime documents with gate:cadence because the service reads closed bars only (Q3).
 open: real sweeps withhold every symbol until W5-T7b merges and T11 r1 lands; T11 should expose a public admission function (this lane uses its underscore names); T17 needs a result_identity runtime branch; adopt T17's server_lane_composition after T17 merges.
 ## W5-T15 backtest (needs T11 READY + T12 on master)
-state: BUILDING r1 (READY at r0)            round: r0            updated: 2026-11-04 16:21 CT
-branch: feat/pine-w5-t15-backtest   tip: 96340d3186 (docs-only addendum over code tip 560d8e6958, the final-tip tree)   base: merge e710d36d6a = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t15   model: Sonnet
+state: READY            round: r1            updated: 2026-11-04 20:02 CT
+branch: feat/pine-w5-t15-backtest   tip: b27d098da4 (r1 docs-only over code tip 69761bfa87, the r1 final-tip tree; r0 tip 96340d3186)   base: merge e710d36d6a = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t15   model: Sonnet
 engine bump needed: NO
 evidence: docs/pine/evidence/2026-11-04-w5-t15/EVIDENCE.md
 built (files: api/routers/screener_backtest.py, api/services/screener/backtest.py seam, tests/test_screener_backtest_runtime.py): a stored runtime document replays through T11's client (profile backtest) instead of the 400; the verdict and server_lane_refusal(lane="backtest") are asked at the door and again before every 50-symbol chunk; new optional body field plot (several outputs with none named = 409); refusals map 503 (unavailable/auth/busy), 500 (integrity), 409 (all else); daily bar time sent as unix seconds (railed); the engine takes a column_for column and runs the same tally; any refusal fails the whole request. Stage unset: railed through the real admission chain -> 409 runtime:server-stage, inline and background, no client built.
 checks: 26 new tests (base 23 fail / 1 pass, the job_id digest test already works there; tip 26 pass). Mutations 20 run, 18 killed; 2 equivalent survivors (engine and router column-length checks; the client already refuses a mismatched length). final-tip: gate 46, hygiene clean, 8 backtest pytest files 175 passed, vitest Tests 2 failed | 22512 passed | 118 skipped = settingsScope.rail + pollingSites.rail baselines (DESKTOP-VERIFIED by name).
 open: real runs refuse server-integrity until results carry a digest (W5-T7b building); the service reading daily t as UTC-midnight epoch seconds is an unconfirmed assumption (W5-T7b asked); warm-up is a fixed 500-bar fetch lead until runtimeWarmupOf is on the wire; reuses T11's private runtime_server_lane._verdict and _admission rather than editing T11 (coordinator may want them made public).
 r1 BUILDING (2026-11-04 17:35 CT): daily bar time switches to the one rule (unix seconds of the 09:30 America/New_York open, barOpenInstant / indicator_compute.bar_open_instant, as T14 uses), replacing UTC midnight. Locks: mut _resume-2026-11-01/dsk/heavy-mut.lock, final _resume-2026-11-01/dsk/heavy-final3.lock.
-
+r1 RESULT (2026-11-04 20:02 CT; DESKTOP-VERIFIED local == origin b27d098da4, clean, final-tip started 19:19 after the 17:44 code commit): `_epoch_seconds` in api/routers/screener_backtest.py now calls indicator_compute.bar_open_instant(date, "D") (ruling R3: the 09:30 America/New_York open), re-implementing nothing; handles ISO and YYYYMMDD; an unreadable value is returned unchanged so the client refuses it by name. Rail pins 2024-01-02, 2024-03-08 and 2024-03-11 (spring-forward) and 2024-11-04 (after fall-back) for ISO, YYYYMMDD and timestamped input; the byte-level test expects 1704205800. Mutations 5/5 killed (UTC midnight, fixed offset, YYYYMMDD not normalised, wrong tf, unreadable guessed). final-tip: gate 46, hygiene clean, 175 backtest pytest, vitest Tests 2 failed | 22512 passed = settingsScope.rail + pollingSites.rail baselines. Open: the fixed 500-bar fetch lead remains until runtimeWarmupOf is used here (T7b now carries warmup on the wire).
 ## W5-T16 rule record (needs T11 READY + T12 on master)
 state: READY            round: r0            updated: 2026-11-04 16:07 CT
 branch: feat/pine-w5-t16-rule-record   tip: 5a85b9b23f (docs-only EVIDENCE over code tip c2afcfb06c, the final-tip tree)   base: merge e5ed2f5c76 = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t16   model: Sonnet
