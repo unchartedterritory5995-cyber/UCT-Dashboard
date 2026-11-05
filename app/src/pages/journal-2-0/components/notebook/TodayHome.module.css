@@ -50,13 +50,26 @@
   border-radius: var(--radius-md, 6px);
 }
 .wide { grid-column: 1 / -1; }
-/* The reserved heights: each card's usual size, held while it loads. */
-.card_plan { min-height: 196px; border-color: rgba(220, 187, 94, 0.45); }
-.card_recap { min-height: 120px; border-color: rgba(220, 187, 94, 0.45); }
+/* Tier 3b fix round 1 (I7): the reserved heights are each card's FILLED height, at the most rows it can show --
+   the plan's 6 items with its notice and button (--today-plan-h); 8 names or 8 open items with their "N more" line
+   (--today-half-h, the tallest half card). EVERY half-width card reserves that same height, so whatever order the
+   session puts them in, the grid's total height is the same and nothing below it moves (rail:
+   TodayHome.layout.test.js reads these numbers against the row caps). */
+.today {
+  --today-row-h: 44px;
+  --today-plan-h: 300px;
+  --today-half-h: 460px;
+  --today-recap-h: 130px;
+}
+.card_plan { min-height: var(--today-plan-h); border-color: rgba(220, 187, 94, 0.45); }
+.card_recap { min-height: var(--today-recap-h); border-color: rgba(220, 187, 94, 0.45); }
 .card_setups,
-.card_names { min-height: 188px; }
+.card_names,
 .card_yesterday,
-.card_onThisDay { min-height: 132px; }
+.card_onThisDay { min-height: var(--today-half-h); }
+.unavailable { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+/* The inline first-run ask's slot, below the cards, holding its height while its chunk loads. */
+.firstRunSlot { min-height: 420px; }
 
 .cardHead {
   display: flex;
@@ -100,7 +113,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--today-row-h);
   padding: 6px 8px;
   background: transparent;
   border: 1px solid transparent;
@@ -126,7 +139,7 @@ button.row:hover { background: var(--bg-hover); border-color: rgba(220, 187, 94,
   flex-direction: column;
   gap: 4px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--today-row-h);
   padding: 6px 8px;
   background: transparent;
   border: 1px solid transparent;

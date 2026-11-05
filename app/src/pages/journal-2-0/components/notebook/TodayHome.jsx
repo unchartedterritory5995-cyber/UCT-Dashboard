@@ -27,7 +27,11 @@ import EmptyNamesAsk from './EmptyNamesAsk'
 import FirstPlanAsk from './FirstPlanAsk'
 import { FirstRunInlineSlot } from './FirstRunGate'
 import { importWithOneRetry } from '../../lib/lazyChunk'
-import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING } from '../../lib/dailyNote'
+import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, openDailyNote } from '../../lib/dailyNote'
+import { openCapture } from '../../lib/captureBus'
+import { firstRunInlineIsDue } from '../../lib/firstRun'
+import { starterPacksEnabled } from '../../lib/starterPacksFlag'
+import { TIPS_PREF } from '../../lib/notebookTips'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
@@ -40,6 +44,14 @@ export const TODAY_URL = '/api/j2/notes/today'
 /** S18's button, verbatim. */
 export const RECAP_ACTION = "Write today's recap (about 1 minute)"
 export const RECAP_WRITTEN = "Today's recap is in today's note."
+/** I3: the plan card when today's note is in the Trash (the coordinator's ruling, verbatim). */
+export const TRASHED_NOTE = "Today's note is in Trash."
+export const RESTORE_ACTION = 'Restore'
+export const FRESH_ACTION = 'Start a fresh one'
+/** I7: the order the cards are reserved in before the server has said which session it is. Every half-width card
+ *  reserves the SAME height (TodayHome.module.css), so the answer's own order fills the same total space whatever it
+ *  is (a holiday's "closed" order included) and nothing below the grid moves. */
+export const SKELETON_ORDER = Object.freeze(['plan', 'setups', 'names', 'yesterday', 'onThisDay'])
 
 /** The cards, in each ET session's order (S15). `recap` is drawn only when the server offers it (S18). */
 export const CARD_ORDER = Object.freeze({
@@ -134,7 +146,7 @@ function Card({ id, title, aside, wide = false, children, testId }) {
     <section className={`${styles.card} ${styles[`card_${id}`] || ''} ${wide ? styles.wide : ''}`}
       aria-labelledby={`${uid}-t`} data-today-card={id} data-testid={testId}>
       <div className={styles.cardHead}>
-        <h2 id={`${uid}-t`} className={styles.cardTitle}>{title}</h2>
+        <h3 id={`${uid}-t`} className={styles.cardTitle}>{title}</h3>
         {aside != null && <span className={styles.cardAside}>{aside}</span>}
       </div>
       {children}
@@ -142,13 +154,74 @@ function Card({ id, title, aside, wide = false, children, testId }) {
   )
 }
 
-function Unavailable({ reason }) {
-  if (reason === 'paid_plan') return <p className={styles.quiet}>The setups board comes with a paid plan.</p>
-  return <p className={styles.quiet}>This could not be read just now. Try again in a minute.</p>
+/** A section the server did not send. `plan` (fix round 1, I6): a figure the member's plan does not include -- the
+ *  card's own neutral empty line, never an upsell. Anything else could not be read: said, with a retry (M7). */
+function Unavailable({ reason, empty, onRetry }) {
+  if (reason === 'plan') return <p className={styles.quiet}>{empty}</p>
+  return (
+    <div className={styles.unavailable}>
+      <p className={styles.quiet}>This could not be read just now.</p>
+      {onRetry && <button type="button" className={styles.action} onClick={onRetry}>Try again</button>}
+    </div>
+  )
 }
 
-function PlanCard({ note, reason, onOpenNote }) {
-  if (!note) return <Card id="plan" title="Today's plan" wide><Unavailable reason={reason} /></Card>
+/** I3: today's note is in the Trash. The read never replaces it; the member chooses. */
+function TrashedPlan({ note, templateId, onChanged }) {
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState('')
+  const run = async (which, fn) => {
+    if (busy) return
+    setBusy(which)
+    setError('')
+    try {
+      await fn()
+      invalidateNoteViews({ tags: true })
+      onChanged?.()
+    } catch (e) {
+      setError(e?.message && !/^\d+$/.test(e.message) ? e.message : 'That did not go through. Nothing was changed.')
+    } finally {
+      setBusy(null)
+    }
+  }
+  const restore = () => run('restore', async () => {
+    // The batch door: it lands the restored revision (settleNoteWrites) before anything refreshes.
+    const { runNoteBatch } = await importWithOneRetry(() => import('../../lib/noteBatch'))
+    const out = await runNoteBatch({ ids: [note.id], op: 'restore' })
+    if (!out?.results?.some((r) => r.status === 'changed' || r.status === 'unchanged')) throw new Error('')
+  })
+  const fresh = () => run('fresh', () => openDailyNote({ templateId: templateId || undefined, seedToday: true }))
+  return (
+    <>
+      <p className={styles.quiet}>{TRASHED_NOTE}</p>
+      <div className={styles.cardFoot}>
+        <button type="button" className={styles.action} disabled={Boolean(busy)} onClick={restore}>{RESTORE_ACTION}</button>
+        <button type="button" className={styles.action} disabled={Boolean(busy)} onClick={fresh}>{FRESH_ACTION}</button>
+      </div>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+    </>
+  )
+}
+
+function PlanCard({ note, reason, onOpenNote, onRetry, templateId, onChanged }) {
+  if (!note) {
+    return <Card id="plan" title="Today's plan" wide><Unavailable reason={reason} onRetry={onRetry} /></Card>
+  }
+  if (note.trashed) {
+    return (
+      <Card id="plan" title="Today's plan" wide testId="today-plan">
+        <TrashedPlan note={note} templateId={templateId} onChanged={onChanged} />
+      </Card>
+    )
+  }
+  if (note.missing) {
+    // I9: the first run is pending or open; its Build writes today's plan.
+    return (
+      <Card id="plan" title="Today's plan" wide testId="today-plan">
+        <p className={styles.quiet}>Today’s plan is written when you set up your Notebook.</p>
+      </Card>
+    )
+  }
   const aside = note.templateName ? `Started from “${note.templateName}”` : null
   const open = () => onOpenNote?.({ id: note.id, title: note.title })
   return (
@@ -188,8 +261,22 @@ function setupDistance(r) {
   return null
 }
 
-function SetupsCard({ setups, reason, onOpenNote }) {
-  if (!setups) return <Card id="setups" title="Setups near entry"><Unavailable reason={reason} /></Card>
+function setupFacts(r) {
+  if (r.state === 'invalidated') return 'below stop, review'
+  if (r.state === 'triggered') return 'triggered'
+  if (r.state === 'no_price') return 'no price yet'
+  return [isNum(r.distancePct) ? `${Math.abs(r.distancePct).toFixed(1)}% away` : null,
+    isNum(r.distanceR) ? `${r.distanceR}R` : null, isNum(r.entry) ? `entry ${r.entry}` : null].filter(Boolean).join(', ')
+}
+
+function SetupsCard({ setups, reason, onOpenNote, onRetry }) {
+  if (!setups) {
+    return (
+      <Card id="setups" title="Setups near entry">
+        <Unavailable reason={reason} empty="No setups to show." onRetry={onRetry} />
+      </Card>
+    )
+  }
   const rows = setups.rows || []
   return (
     <Card id="setups" title="Setups near entry" aside={rows.length ? 'closest first' : null} testId="today-setups">
@@ -198,7 +285,7 @@ function SetupsCard({ setups, reason, onOpenNote }) {
           {rows.map((r) => (
             <li key={`${r.noteId}:${r.symbol}`}>
               <button type="button" className={styles.row} onClick={() => onOpenNote?.({ id: r.noteId })}
-                aria-label={`${r.symbol}, ${r.noteTitle || 'plan'}${r.state === 'invalidated' ? ', below stop: review' : ''}`}>
+                aria-label={[r.symbol, r.setupTag || r.noteTitle || 'plan', setupFacts(r)].filter(Boolean).join(', ')}>
                 <span className={styles.tk}>{r.symbol}</span>
                 <span className={styles.rowMain}>{r.setupTag || r.noteTitle || 'Plan'}{r.state === 'waiting' || r.state === 'watching' ? ` · ${r.state}` : ''}</span>
                 <span className={styles.rowNum}>{setupDistance(r)}</span>
@@ -242,7 +329,8 @@ function nameEnd(r) {
 
 function NamesCard({ names, reason, onChanged }) {
   const [adding, setAdding] = useState(false)
-  if (!names) return <Card id="names" title="Your names"><Unavailable reason={reason} /></Card>
+  // M7: a names read that failed is said with a retry -- never the "add tickers" ask to a member who has names.
+  if (!names) return <Card id="names" title="Your names"><Unavailable reason={reason} onRetry={onChanged} /></Card>
   const rows = names.rows || []
   const empty = names.count === 0
   return (
@@ -274,8 +362,8 @@ function NamesCard({ names, reason, onChanged }) {
   )
 }
 
-function YesterdayCard({ open, reason, onOpenNote }) {
-  if (!open) return <Card id="yesterday" title="Open from yesterday"><Unavailable reason={reason} /></Card>
+function YesterdayCard({ open, reason, onOpenNote, onRetry }) {
+  if (!open) return <Card id="yesterday" title="Open from yesterday"><Unavailable reason={reason} onRetry={onRetry} /></Card>
   const items = open.items || []
   return (
     <Card id="yesterday" title="Open from yesterday" aside={open.count ? String(open.count) : null} testId="today-yesterday">
@@ -288,7 +376,7 @@ function YesterdayCard({ open, reason, onOpenNote }) {
           {items.map((it) => (
             <li key={`${it.noteId}:${it.index}`}>
               <button type="button" className={styles.row} onClick={() => onOpenNote?.({ id: it.noteId })}
-                aria-label={`${it.text}, in ${it.noteTitle || 'a note'}${it.from === 'overdue' ? ', overdue' : ''}`}>
+                title={`In ${it.noteTitle || 'a note'}`}>
                 <span className={styles.box} aria-hidden="true" />
                 <span className={styles.rowMain}>{it.text}</span>
                 <span className={`${styles.rowEnd} ${it.from === 'overdue' ? styles.dn : ''}`}>
@@ -304,8 +392,8 @@ function YesterdayCard({ open, reason, onOpenNote }) {
   )
 }
 
-function OnThisDayCard({ onThisDay, reason, onOpenNote }) {
-  if (!onThisDay) return <Card id="onThisDay" title="On this day"><Unavailable reason={reason} /></Card>
+function OnThisDayCard({ onThisDay, reason, onOpenNote, onRetry }) {
+  if (!onThisDay) return <Card id="onThisDay" title="On this day"><Unavailable reason={reason} onRetry={onRetry} /></Card>
   const items = onThisDay.items || []
   const first = items[0]
   const aside = first ? (first.yearsAgo === 1 ? '1 year ago' : `${first.yearsAgo} years ago`) : null
@@ -331,7 +419,8 @@ function OnThisDayCard({ onThisDay, reason, onOpenNote }) {
 
 /** S18: after 16:05 ET, the existing review drafts written into today's note (never a new folder or note). */
 function RecapCard({ note, onOpenNote, onNotice, onWritten }) {
-  const { accountId } = useJ2SelectedAccount(true)
+  // M8: the selected account is read from this tab's own choice; the accounts list is not fetched for it.
+  const { accountId } = useJ2SelectedAccount(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const written = note?.recapWritten === true
@@ -404,13 +493,57 @@ function LandingChoice() {
 
 // ── the page ─────────────────────────────────────────────────────────────────────────────────
 
-export default function TodayHome({ onOpenNote, onCreateNote, onSelectAllNotes, onOpenResearchHome, onNoteMade, onNotice }) {
+/** Milliseconds to the next ET wall-clock time `hh:mm` (today's, else tomorrow's). */
+export function msUntilET(hh, mm, now = new Date()) {
+  const { hour, minute } = etParts(now)
+  const nowMin = hour * 60 + minute
+  let diff = hh * 60 + mm - nowMin
+  if (diff <= 0) diff += 24 * 60
+  return diff * 60_000 - now.getSeconds() * 1000 - now.getMilliseconds() + 1000
+}
+
+/** M1: Today re-reads when the tab comes back into view, and at the session boundaries that change what it shows --
+ *  the recap's start (16:05 ET, the server's own `recapFrom` on a half-day) and ET midnight (a new day's note). */
+function useTodayRefresh(mutate, recapFrom) {
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible') mutate() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [mutate])
+  useEffect(() => {
+    const [h, m] = String(recapFrom || '16:05').split(':').map(Number)
+    const timers = [setTimeout(() => mutate(), msUntilET(h, m)), setTimeout(() => mutate(), msUntilET(0, 0))]
+    return () => timers.forEach(clearTimeout)
+  }, [mutate, recapFrom])
+}
+
+/** I7: the inline first-run ask after a Skip sits BELOW the cards, in a slot that holds its height from the first
+ *  paint when the preferences already say it is due, so it never pushes a card. */
+function FirstRunSlot({ onOpenNote, onOpenToday }) {
+  const on = starterPacksEnabled()
+  const { prefs, loading, readFailed } = usePreferences(on)
+  const due = firstRunInlineIsDue({ enabled: on, prefsReady: !loading && !readFailed, tipsRaw: prefs?.[TIPS_PREF] })
+  return (
+    <div className={due ? styles.firstRunSlot : undefined} data-today-first-run={due ? 'due' : ''}>
+      <FirstRunInlineSlot onOpenNote={onOpenNote} onOpenToday={onOpenToday} />
+    </div>
+  )
+}
+
+export default function TodayHome({
+  onOpenNote, onCreateNote, onSelectAllNotes, onOpenResearchHome, onNoteMade, onNotice, holdMake = false,
+  dailyTemplateId = '',
+}) {
   const auth = useContext(AuthContext)
-  const { data, error, mutate } = useSWR(TODAY_URL, fetchToday, { revalidateOnFocus: false, shouldRetryOnError: false })
+  // I9: while the first run is pending or open the read never MAKES the day's note (`?make=0`); when it closes the
+  // key changes and Today reads again, making the note if Build did not.
+  const key = holdMake ? `${TODAY_URL}?make=0` : TODAY_URL
+  const { data, error, mutate } = useSWR(key, fetchToday,
+    { revalidateOnFocus: false, shouldRetryOnError: false, keepPreviousData: true })
   const recapOn = reviewDraftsEnabled()
-  const session = data?.session || clientSession()
-  const order = cardOrder(session, { recapOn })
+  const order = data ? cardOrder(data.session, { recapOn }) : SKELETON_ORDER
   const reasons = data?.reasons || {}
+  useTodayRefresh(mutate, data?.session?.recapFrom)
 
   // The day's note was MADE by this read: the tree and the counts are told (S6), once per note.
   const madeRef = useRef(null)
@@ -434,22 +567,31 @@ export default function TodayHome({ onOpenNote, onCreateNote, onSelectAllNotes, 
 
   const name = String(auth?.user?.display_name || '').trim().split(/\s+/)[0]
   const refresh = () => mutate()
+  // M3: the Notebook's one quick capture (CaptureHost's dialog, which teaches and offers the alert phrasing).
+  const quickCapture = () => openCapture({})
 
   const card = (id) => {
     const wide = id === 'plan' || id === 'recap'
     if (!data) return <SkeletonCard key={id} id={id} wide={wide} />
     switch (id) {
-      case 'plan': return <PlanCard key={id} note={data.todayNote} reason={reasons.todayNote} onOpenNote={onOpenNote} />
+      case 'plan': return (
+        <PlanCard key={id} note={data.todayNote} reason={reasons.todayNote} onOpenNote={onOpenNote} onRetry={refresh}
+          templateId={dailyTemplateId} onChanged={refresh} />
+      )
       case 'recap': return (
         <RecapCard key={id} note={data.todayNote} onOpenNote={onOpenNote} onNotice={onNotice} onWritten={refresh} />
       )
-      case 'setups': return <SetupsCard key={id} setups={data.setups} reason={reasons.setups} onOpenNote={onOpenNote} />
+      case 'setups': return (
+        <SetupsCard key={id} setups={data.setups} reason={reasons.setups} onOpenNote={onOpenNote} onRetry={refresh} />
+      )
       case 'names': return <NamesCard key={id} names={data.names} reason={reasons.names} onChanged={refresh} />
       case 'yesterday': return (
-        <YesterdayCard key={id} open={data.openFromYesterday} reason={reasons.openFromYesterday} onOpenNote={onOpenNote} />
+        <YesterdayCard key={id} open={data.openFromYesterday} reason={reasons.openFromYesterday} onOpenNote={onOpenNote}
+          onRetry={refresh} />
       )
       case 'onThisDay': return (
-        <OnThisDayCard key={id} onThisDay={data.onThisDay} reason={reasons.onThisDay} onOpenNote={onOpenNote} />
+        <OnThisDayCard key={id} onThisDay={data.onThisDay} reason={reasons.onThisDay} onOpenNote={onOpenNote}
+          onRetry={refresh} />
       )
       default: return null
     }
@@ -459,17 +601,19 @@ export default function TodayHome({ onOpenNote, onCreateNote, onSelectAllNotes, 
     <div className={styles.today} data-today-home="" aria-busy={!data && !error ? true : undefined}>
       <header className={styles.head}>
         <div className={styles.headText}>
-          <h1 className={styles.hello}>{name ? `${greeting()}, ${name}` : greeting()}</h1>
+          {/* M4: the page's h1 is the Journal's ("Trade Journal"); the greeting is the section's heading. */}
+          <h2 className={styles.hello}>{name ? `${greeting()}, ${name}` : greeting()}</h2>
           <p className={styles.sub} data-today-line="">{headerLine(data)}</p>
         </div>
         <div className={styles.headActions}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={quickCapture}>Quick capture</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelectAllNotes?.()}>All notes</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New note</button>
         </div>
       </header>
-      <FirstRunInlineSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
       {!error && <div className={styles.grid}>{order.map(card)}</div>}
+      <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
       <footer className={styles.foot}>
         <LandingChoice />
         {onOpenResearchHome && (

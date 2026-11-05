@@ -10,7 +10,6 @@ import NoteCard from '../components/notebook/NoteCard'
 import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
-import ResearchHome from '../components/notebook/ResearchHome'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
@@ -77,6 +76,9 @@ import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
 import { HOME_VIEW, LANDING_PREF, TODAY_VIEW, resolveLanding, todayLandingOn } from '../lib/todayHome'
+import { firstRunIsDue, useFirstRunShowing } from '../lib/firstRun'
+import { starterPacksEnabled } from '../lib/starterPacksFlag'
+import { TIPS_PREF } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
@@ -157,7 +159,22 @@ const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalen
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
 // Audit 2026-11-05, S15: the Today home, fetched the first time it is shown (lib/todayHome.js is the eager half).
-const TodayHome = lazyView(() => import('../components/notebook/TodayHome'), 'today')
+// Tier 3b fix round 1 (I1): it is the DEFAULT landing, so its chunk is asked for in the Notebook's FIRST render, beside
+// the preferences read (`preloadTodayHome` below) -- never after the landing is known, which made three round trips
+// in a row (preferences, then this chunk, then /notes/today).
+// ONE import in flight for both callers (the preload and the view): a failed one is forgotten, so the view's own
+// retry (lazyChunk) asks again.
+let todayHomeImport = null
+const loadTodayHome = () => {
+  if (!todayHomeImport) {
+    todayHomeImport = import('../components/notebook/TodayHome')
+    todayHomeImport.catch(() => { todayHomeImport = null })
+  }
+  return todayHomeImport
+}
+const TodayHome = lazyView(loadTodayHome, 'today')
+// I1: Research Home is no longer the first view, so it is a chunk of its own too (the opt-in landing, ?view=home).
+const ResearchHome = lazyView(() => import('../components/notebook/ResearchHome'), 'research home')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 // Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
 // says there is one to show, so the first-open bytes are unchanged for everyone else.
@@ -877,15 +894,32 @@ export default function NotebookTab() {
   // they chose ("Open the Notebook on", the `notebook_landing` preference), else the Today home (lib/todayHome.js).
   // `?view=today` is the Today home and `?view=home` Research Home, whatever the landing. Until the preferences
   // answer, a bare Notebook shows neither home (`landingPending`): opening Today makes the day's note.
-  const { prefs: landingPrefs, loading: landingPrefsLoading } = usePreferences()
+  const { prefs: landingPrefs, loading: landingPrefsLoading, readFailed: landingReadFailed } = usePreferences()
   const bareNotebook = !noteId && !hasActiveFilters && !viewParam && !isTrashView
-  const landing = resolveLanding(landingPrefs?.[LANDING_PREF])
+  // Fix round 1 (M11): a preferences read that FAILED cannot say what the member chose, so a bare Notebook falls
+  // back to Research Home, which makes nothing; the Today home would make the day's note for a member who may have
+  // opted out of it.
+  const landing = landingReadFailed ? 'home' : resolveLanding(landingPrefs?.[LANDING_PREF])
   const landingPending = bareNotebook && todayLandingOn() && Boolean(landingPrefsLoading)
+  // I1: the Today chunk is asked for in this first render, in parallel with the preferences read above.
+  useState(() => {
+    if (todayLandingOn() && !noteId && (!viewParam || viewParam === TODAY_VIEW)) loadTodayHome().catch(() => {})
+    return null
+  })
   const isToday = !noteId && !hasActiveFilters && !isTrashView
     && (viewParam === TODAY_VIEW || (bareNotebook && !landingPending && landing === 'today'))
   const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
     || (bareNotebook && !landingPending && landing === 'all')
-  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView && !isToday
+  // M4: never Research Home while the landing is still being read (the pane heading said "Research home", then
+  // "Today").
+  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView && !isToday && !landingPending
+  // I9: while the 60-second first run is due (or not yet decidable) or on screen, the Today home must not MAKE the day's
+  // note: Build makes it, with the names the member typed. Undecidable = the preferences or the notes count have not
+  // answered; a note made in that gap would also stop the first run from opening (it opens only with no notes).
+  const firstRunShowing = useFirstRunShowing()
+  const firstRunPending = starterPacksEnabled() && (Boolean(landingPrefsLoading) || !notesKnown
+    || firstRunIsDue({ enabled: true, prefsReady: !landingReadFailed, tipsRaw: landingPrefs?.[TIPS_PREF], notesKnown, hasAnyNotes }))
+  const todayHoldMake = firstRunPending || firstRunShowing
   // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
   // S15: the Today home and the landing's pending frame have no list toolbar either.
@@ -2716,6 +2750,8 @@ export default function NotebookTab() {
             onSelectAllNotes={selectAllNotes}
             onOpenResearchHome={openResearchHome}
             onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
+            holdMake={todayHoldMake}
+            dailyTemplateId={dailyTemplateId}
             onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
           />
           </>
