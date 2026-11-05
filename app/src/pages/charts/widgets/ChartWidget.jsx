@@ -27,6 +27,7 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { chartJournalCapture } from './chartJournalCapture'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
@@ -546,6 +547,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const buildJournalCapture = useCallback(() => chartJournalCapture({
     pane: paneRef.current, symbol: symRef.current, tf: tfRef.current, settings: chartCsRef.current,
   }), [])
+
+  useWidgetDoor(() => ({ capture: () => ({ kind: 'chart', capture: buildJournalCapture() }) }))
 
   const handleSendToJournal = useCallback(async () => {
     closeCtx()

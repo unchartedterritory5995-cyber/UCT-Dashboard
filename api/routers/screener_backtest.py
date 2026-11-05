@@ -67,6 +67,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import ast_interpret, bars_fetch, bars_sqlite
+from api.services.bars_window import HISTORY_WINDOW_BARS
 from api.services import pine_runtime_client as runtime_client
 from api.services import runtime_definitions
 from api.services import runtime_server_lane
@@ -155,12 +156,13 @@ def max_cells() -> int:
     return n if n > 0 else DEFAULT_MAX_CELLS
 
 
-#: ⛔ THE PER-SYMBOL BAR CEILING, DECLARED HERE BECAUSE THIS SURFACE OWNS IT.
+#: ⛔ THE PER-SYMBOL BAR CEILING IS THE ONE HISTORY WINDOW, `bars_window`'s.
 #: The obvious move was `scan_evaluator._MAX_BARS`, and a standing rail refuses a
-#: router to import that module at all (see `_bars_reader`). It matches the chart
-#: lane's own depth (`/api/bars?bars=5000`, `warm_universe(bars=5000)`) — ~20 years
-#: of daily sessions, which is more history than `bars.db` holds for most names.
-MAX_BARS_PER_SYMBOL = 5000
+#: router to import that module at all (see `_bars_reader`); `bars_window` is the
+#: neutral module both sides read instead (design 3.4, R10), so the sweep and this
+#: surface cannot disagree about how much history a server lane sees. ~20 years of
+#: daily sessions, which is more history than `bars.db` holds for most names.
+MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS
 
 #: Calendar slack when turning a bar count into a date span: five sessions a week,
 #: plus a week for holidays. Deliberately generous in ONE direction — reading a few
