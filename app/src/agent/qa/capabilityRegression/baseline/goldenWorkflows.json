@@ -1692,6 +1692,239 @@
           }
         }
       ]
+    },
+    {
+      "id": "GW-30.chartSetup-setRange-1y",
+      "source": "Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "chartSetup.setRange"
+      ],
+      "board": "TIMED",
+      "steps": [
+        {
+          "say": "show one year on this chart",
+          "model": {
+            "ops": [
+              {
+                "action": "chartSetup.setRange",
+                "target": "$charts[0]",
+                "args": {
+                  "range": "1Y"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "view": {
+              "activeRange": 12
+            },
+            "unchanged": true,
+            "receipt": true,
+            "refusal": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-31.chartSetup-resetView",
+      "source": "Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "chartSetup.resetView"
+      ],
+      "board": "TIMED",
+      "steps": [
+        {
+          "say": "reset the chart view",
+          "model": {
+            "ops": [
+              {
+                "action": "chartSetup.resetView",
+                "target": "$charts[0]",
+                "args": {}
+              }
+            ]
+          },
+          "expect": {
+            "view": {
+              "atDefaultView": true,
+              "activeRange": null
+            },
+            "unchanged": true,
+            "receipt": true,
+            "refusal": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-32.chartSetup-hideAllIndicators",
+      "source": "Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "chartSetup.setIndicatorsHidden"
+      ],
+      "board": "TIMED",
+      "steps": [
+        {
+          "say": "hide all indicators for now",
+          "model": {
+            "ops": [
+              {
+                "action": "chartSetup.setIndicatorsHidden",
+                "target": "$charts[0]",
+                "args": {
+                  "hidden": true
+                }
+              }
+            ]
+          },
+          "expect": {
+            "view": {
+              "indicatorsHidden": true
+            },
+            "unchanged": true,
+            "receipt": true,
+            "refusal": false
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "view": {
+              "indicatorsHidden": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-33.chartSetup-hideMovingAverages",
+      "source": "Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "chartSetup.setMovingAverages"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "steps": [
+        {
+          "say": "hide my moving averages",
+          "model": {
+            "ops": [
+              {
+                "action": "chartSetup.setMovingAverages",
+                "target": "$charts[0]",
+                "args": {
+                  "visible": false
+                }
+              }
+            ]
+          },
+          "expect": {
+            "averagesHidden": true,
+            "receipt": true,
+            "refusal": false
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-34.watchlist-setFlag-bare",
+      "source": "Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "watchlist.setFlag"
+      ],
+      "board": "LISTVIEW",
+      "steps": [
+        {
+          "say": "flag NVDA",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.setFlag",
+                "target": "$flagged[0]",
+                "args": {
+                  "symbols": [
+                    "NVDA"
+                  ],
+                  "flagged": true
+                }
+              }
+            ]
+          },
+          "expect": {
+            "flagged": {
+              "include": [
+                "NVDA"
+              ]
+            },
+            "writes": [
+              "^POST /api/watchlists/flagged/sync .*NVDA"
+            ],
+            "unchanged": true,
+            "receipt": true,
+            "refusal": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-35.drawing-add-arrow",
+      "source": "Agent integration 1 (11-05): through the real panel and the real drawings store, reached by the need_groups reroute. A golden workflow rather than a corpus intent because the legacy router does not send drawing.add for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "drawing.add"
+      ],
+      "board": "TIMED",
+      "steps": [
+        {
+          "say": "draw an arrow from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.add",
+                "target": "$drawings[0]",
+                "args": {
+                  "tool": "arrow",
+                  "points": [
+                    {
+                      "date": "2026-09-02",
+                      "price": 100
+                    },
+                    {
+                      "date": "2026-10-28",
+                      "price": 180
+                    }
+                  ],
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "arrow",
+                "points.1.price": 180
+              }
+            },
+            "receipt": true,
+            "refusal": false
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "drawings": {
+              "count": 0
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -7,6 +7,7 @@ import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, propo
 import { routedNames } from './route'
 import { kindsFor } from './registry'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
+import { resolveLevels } from '../../../../components/chart/drawingFib'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 import { _resetScreenerCache } from '../../../capabilities/screener'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
@@ -113,6 +114,7 @@ export function checkExpect(ctx, e, label) {
     const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
     if (e.drawings.count != null) expect(ds.length, `${label}: drawings on ${sym}`).toBe(e.drawings.count)
     if (e.drawings.has) expect(ds.some(d => Object.entries(e.drawings.has).every(([k, v]) => get(d, k) === v)), `${label}: a drawing ${JSON.stringify(e.drawings.has)} (have ${JSON.stringify(ds.map(d => [d.type, d.points?.[0]?.price, d.color]))})`).toBe(true)
+    if (e.drawings.fibHidden != null) expect(ds.some(d => d.type === 'fib' && resolveLevels(d).some(l => l.level === e.drawings.fibHidden && !l.visible)), `${label}: Fibonacci level ${e.drawings.fibHidden} hidden`).toBe(true)
     if (e.drawings.colour) expect(ds.some(d => hueFamily(d.color) === e.drawings.colour), `${label}: a ${e.drawings.colour} drawing`).toBe(true)
   }
   if (e.chartTabs) {

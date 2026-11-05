@@ -29,6 +29,8 @@
 //   point is checked by validateDrawing, and an anchor outside the history the chart has loaded (or in
 //   the future) is refused — a drawing is never written where the chart could not place it.
 // Drawings are keyed by SYMBOL (every chart on NVDA shares one array) — receipts say so.
+// ⭐ Complete drawing control (2026-11-05): the rest of the family, generic and schema-driven, is capabilities/drawingFamily.js
+// (drawing.add, drawing.setAnchors, drawing.setProps, drawing.setFibLevels, drawing.setAlert).
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { objectTypeName, objectSummary } from '../../components/chart/drawingObjects'
@@ -40,7 +42,9 @@ import { validateDrawing, drawingTimeFor } from '../../components/chart/drawingT
 import { newDrawingProps } from '../../components/chart/drawingSettingsSchema'
 import { PRICE } from '../../components/chart/drawingPanes'
 import { resolveDateWord, isoDayMs, dayWord } from '../dateWords'
-import { loadAlerts } from './alert'
+import { alertLibraryKind, loadAlerts } from './alert'
+import { parseBoundId } from '../../components/chart/drawingAlertAnchors'
+import { registerDrawingFamily, hasLineStyle, paneWhy, pointDay } from './drawingFamily'
 
 const STYLES = Object.keys(LINE_DASH)            // solid, dashed, dotted
 const WIDTHS = [1, 2, 3, 4]
@@ -48,9 +52,6 @@ const TEMP = 'new:'
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const money = (n) => `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 4 })}`
 const fmtMs = (ms) => new Date(ms).toISOString().slice(0, 10)
-// What an update may change on an existing drawing (each key is one the drawing's own controls write):
-// its style, its eye (hidden), its lock, and — for a level — its anchor's price (points).
-const STYLE_KEYS = ['color', 'labelColor', 'lineStyle', 'lineWidth', 'hidden', 'locked', 'points']
 // Tools whose ONE anchor is a price (a horizontal line; a horizontal ray keeps its start time): "move the line to $X"
 const LEVEL_TYPES = new Set(['horizontal', 'hray'])
 // Clearing more than this many drawings at once is refused (clear them on the chart).
@@ -64,6 +65,11 @@ export function _resetDrawingMemory() { lastTouched = null }
 
 /** The drawing as the Agent names it: its id, what it is, where. */
 const nameOf = (d) => `${objectTypeName(d.type)}${objectSummary(d) ? ` ${objectSummary(d)}` : ''}`
+/** A drawing's anchors as the model reads them, first to last: what drawing.setAnchors's `point` counts. A flat line's
+ *  one price is in its name already. */
+const anchorsOf = (d) => ((d.points || []).some(p => p?.time != null)
+  ? d.points.map(p => [pointDay(p), p.price].filter(v => v != null).join(' at '))
+  : null)
 
 export const drawingKind = {
   name: 'drawing',
@@ -73,7 +79,7 @@ export const drawingKind = {
   // host.drawings: one entry per SYMBOL shown on a chart (agent/host.js buildDrawingSource)
   list: (host) => host?.drawings?.list() || [],
   read: (host, ref) => host?.drawings?.read(ref) || null,
-  stateOf: (snap) => ({ drawings: snap.drawings, defaults: snap.defaults, symbol: snap.symbol, tf: snap.tf || 'D', history: snap.history || null, n: 0 }),
+  stateOf: (snap) => ({ drawings: snap.drawings, defaults: snap.defaults, symbol: snap.symbol, tf: snap.tf || 'D', history: snap.history || null, n: 0, alerts: [] }),
   patch(before, after) {
     const b = new Map(before.drawings.map(d => [d.id, d]))
     const a = new Map(after.drawings.map(d => [d.id, d]))
@@ -83,18 +89,28 @@ export const drawingKind = {
     for (const d of after.drawings) {
       const o = b.get(d.id)
       if (!o || same(o, d)) continue
+      // every key that changed: a fixed list would drop a new menu setting while the receipt claimed it
       const set = {}, prev = {}
-      for (const k of STYLE_KEYS) if (!same(o[k], d[k])) { set[k] = d[k]; prev[k] = o[k] }
+      for (const k of new Set([...Object.keys(o), ...Object.keys(d)])) if (!same(o[k], d[k])) { set[k] = d[k]; prev[k] = o[k] }
       if (Object.keys(set).length) update.push({ id: d.id, set, prev })
     }
-    return add.length || remove.length || update.length ? { add, remove, update } : null
+    const alerts = after.alerts || []
+    return add.length || remove.length || update.length || alerts.length ? { add, remove, update, ...(alerts.length ? { alerts } : {}) } : null
   },
   // Removes, then restyles, then adds — each through the store's own writer for this symbol. The
   // store mints the id of an added drawing; it is recorded on the patch (`added`) so the read-back
-  // and the Undo address the REAL drawing.
-  commit(host, ref, patch) {
+  // and the Undo address the REAL drawing. An alert on a drawing goes through the Alerts product's own write
+  // (alertLibraryKind: POST / DELETE, re-read from the server), recorded on the patch the same way.
+  async commit(host, ref, patch) {
     const d = host?.drawings
     if (!d) return false
+    if (patch.deleteAlerts?.length) await alertLibraryKind.commit(host, 'alerts', { deleteCreated: patch.deleteAlerts })
+    if (patch.alerts?.length) {
+      try { patch.alertsCreated = Object.values((await alertLibraryKind.commit(host, 'alerts', { create: patch.alerts })).created) } catch (e) {
+        patch.alertsCreated = Object.values(e?.created || {})
+        throw e
+      }
+    }
     for (const x of patch.remove || []) d.remove(ref, x.id)
     for (const u of patch.update || []) d.update(ref, u.id, u.set)
     patch.added = []
@@ -119,6 +135,9 @@ export const drawingKind = {
       const d = byId.get(x.id)
       if (!d || d.type !== x.body.type || !same(d.points, x.body.points)) return false
     }
+    const book = alertLibraryKind.read(null, 'alerts')
+    if (patch.alerts?.length && !alertLibraryKind.landed(book, { create: patch.alerts })) return false
+    if (patch.deleteAlerts?.length && !alertLibraryKind.landed(book, { deleteCreated: patch.deleteAlerts })) return false
     return true
   },
   // Exactly the inverse, by id: drop what was added, put back what was removed (whole, under its OWN id, so an
@@ -126,10 +145,12 @@ export const drawingKind = {
   undoPatch(item) {
     const p = item.patch
     if (!p || (p.add?.length && !p.added)) return null
+    const alerts = p.alertsCreated || []
     return {
       add: (p.remove || []).map(x => ({ id: `${TEMP}undo:${x.id}`, restore: x })),
       remove: (p.added || []).map(x => ({ id: x.id })),
       update: (p.update || []).map(u => ({ id: u.id, set: u.prev, prev: u.set })),
+      ...(alerts.length ? { deleteAlerts: alerts } : {}),
     }
   },
   fingerprint: (snap) => JSON.stringify([snap.board ?? null, snap.drawings]),
@@ -171,6 +192,7 @@ export function registerDrawingCapabilities() {
         ...(s.history ? { loadedHistory: `${fmtMs(s.history.firstMs)} to ${fmtMs(s.history.lastMs)}` } : {}),
         drawings: s.drawings.slice(-40).map(d => ({
           id: d.id, what: nameOf(d), color: d.color || null, style: d.lineStyle || 'solid', width: d.lineWidth || 1,
+          ...(anchorsOf(d) ? { anchors: anchorsOf(d) } : {}),
           ...(d.locked ? { locked: true } : {}), ...(d.hidden ? { hidden: true } : {}),
           // the drawing UCT Agent last drew or changed — "it" / "that line" in a follow-up
           ...(lastTouched && lastTouched.sym === s.ref && lastTouched.id === d.id ? { recent: true } : {}),
@@ -208,7 +230,7 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.addLevel',
-    summary: 'Draw a HORIZONTAL LINE at a price on a chart\'s symbol — the price axis\'s own "Draw horizontal line at $X". Every chart on that symbol shows it; Undo removes it. Only horizontal levels: trendlines, rectangles, Fibonacci and text are not available.',
+    summary: 'Draw a HORIZONTAL LINE at a price on a chart\'s symbol — the price axis\'s own "Draw horizontal line at $X". Every chart on that symbol shows it; Undo removes it. A level that starts on a date is drawing.addHorizontalRay; every other tool has its own capability or drawing.add.',
     hints: 'target = the drawings entry for the chart\'s symbol; price = the level (a number, as the member said it — never invented); color = a colour name or #hex, null = the member\'s drawing default; style = solid | dashed | dotted, null = solid. One op per level. '
       + 'A level the member describes without a number ("the recent high", "support") has no price — clarify, never guess.',
     args: { type: 'object', properties: {
@@ -253,6 +275,8 @@ export function registerDrawingCapabilities() {
       if (!d) return notFound(drawing)
       if (d.locked) return `That ${objectTypeName(d.type)} is locked — unlock it on the chart first.`
       if (color == null && style == null && width == null) return 'Say what to change: colour, line style or width.'
+      // the drawing's own colour row says whether it has a line (a note has none): a receipt must not claim one
+      if ((style != null || width != null) && !hasLineStyle(d.type)) return `That ${objectTypeName(d.type)} has no line to style — it takes a colour, and drawing.setProps has its text settings.`
       if (color != null && !normalizeColor(color)) return `“${color}” isn't a colour I know — use a name like blue or a #hex.`
       if (style != null && !STYLES.includes(style)) return `Line styles are ${STYLES.join(', ')}.`
       if (width != null && !WIDTHS.includes(width)) return `Line widths are ${WIDTHS.join(', ')}.`
@@ -279,12 +303,13 @@ export function registerDrawingCapabilities() {
     noop: () => 'That drawing already looks like that',
   })
 
-  // Which drawings carry an alert — the server's own list, read fresh for every op that could touch one.
+  // Which drawings carry an alert — the server's own list, read fresh for every op that could touch one. A Fibonacci
+  // level's alert is bound as `<drawing id>#<level>` (boundIdFor), and that IS an alert on the drawing.
   const prepareBound = async () => {
     try {
-      const rows = await loadAlerts({ force: true })
-      return { boundDrawingIds: new Set(rows.filter(r => r.drawingId).map(r => String(r.drawingId))) }
-    } catch { return { boundDrawingIds: null } }
+      const rows = (await loadAlerts({ force: true })).filter(r => r.drawingId)
+      return { boundDrawingIds: new Set(rows.map(r => parseBoundId(r.drawingId).drawingId)), boundAlerts: rows }
+    } catch { return { boundDrawingIds: null, boundAlerts: null } }
   }
 
   registerCapability({
@@ -368,6 +393,7 @@ export function registerDrawingCapabilities() {
       if (!d) return notFound(drawing)
       if (!LEVEL_TYPES.has(d.type)) return `That ${objectTypeName(d.type)} isn't a horizontal level — only horizontal lines and rays can be moved to a price.`
       if (d.locked) return `That ${objectTypeName(d.type)} is locked — unlock it first.`
+      if (paneWhy(d)) return paneWhy(d)      // a pane drawing is placed by paneY: writing `price` would move nothing
       if (!Number.isFinite(price) || price <= 0) return 'Say the new price (a positive number).'
       // the moved line must still be a drawing the overlay can draw (its time anchor, if any, is kept)
       const pts = [{ ...(d.points?.[0] || {}), price }, ...(d.points || []).slice(1)]
@@ -437,6 +463,11 @@ export function registerDrawingCapabilities() {
       return `Removed ${gone} drawing${gone === 1 ? '' : 's'} from ${a.symbol} — on every chart and layout showing ${a.symbol}${kept}`
     },
   })
+
+  registerDrawingFamily(common, {
+    registerCapability, byId, notFound, boundIds, prepareBound, setOn, anchorFor, newDrawing, styleWhy, dupOf, addedBy, at, money, STYLE_ARGS, DATE_HINT,
+    sameBound: (env, id, direction) => (env?.boundAlerts || []).some(a => a.active && a.drawingId === id && a.direction === direction),
+  })
 }
 
 // ── W1-B: TIME-ANCHORED tools — the toolbar's own drawings, placed from dates instead of clicks ─────
@@ -457,10 +488,10 @@ const TOOL_NAME = { trendline: 'trendline', ray: 'ray', hray: 'horizontal ray', 
 const DATE_HINT = 'a date is YYYY-MM-DD or the member\'s words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented'
 
 /** A member's anchor {date, price} → { time, price, day } for this symbol's timeframe, or a refusal sentence. */
-function anchorFor(st, pt, { needsWeekday = false } = {}) {
+function anchorFor(st, pt, { needsWeekday = false, priceOptional = false } = {}) {
   if (!pt || typeof pt !== 'object') return { why: 'Say the date and price for each point.' }
-  const price = Number(pt.price)
-  if (!Number.isFinite(price) || price <= 0) return { why: `“${pt.price}” isn't a price — say a positive number.` }
+  const price = priceOptional && pt.price == null ? null : Number(pt.price)
+  if (price !== null && (!Number.isFinite(price) || price <= 0)) return { why: `“${pt.price}” isn't a price — say a positive number.` }
   const r = resolveDateWord(pt.date)
   if (!r) return { why: `I couldn't read “${pt.date}” as a date — use YYYY-MM-DD or a day like “last Friday”.` }
   if (r.future) return { why: `${dayWord(r.to)} is in the future — a drawing can only be anchored on history the chart has.` }

@@ -9233,152 +9233,6 @@
       ]
     },
     {
-      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
-      "id": "chartSetup.setRange.1y",
-      "capabilities": [
-        "chartSetup.setRange"
-      ],
-      "board": "TIMED",
-      "needs": [],
-      "model": {
-        "ops": [
-          {
-            "action": "chartSetup.setRange",
-            "target": "$charts[0]",
-            "args": {
-              "range": "1Y"
-            }
-          }
-        ]
-      },
-      "expect": {
-        "view": {
-          "activeRange": 12
-        },
-        "unchanged": true,
-        "receipt": true,
-        "refusal": false
-      },
-      "phrasings": [
-        "show one year on this chart",
-        "show me the 1Y range",
-        "set this chart to the 1 year range",
-        "use the 1Y range button"
-      ]
-    },
-    {
-      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
-      "id": "chartSetup.resetView",
-      "capabilities": [
-        "chartSetup.resetView"
-      ],
-      "board": "TIMED",
-      "needs": [],
-      "model": {
-        "ops": [
-          {
-            "action": "chartSetup.resetView",
-            "target": "$charts[0]",
-            "args": {}
-          }
-        ]
-      },
-      "expect": {
-        "view": {
-          "atDefaultView": true,
-          "activeRange": null
-        },
-        "unchanged": true,
-        "receipt": true,
-        "refusal": false
-      },
-      "phrasings": [
-        "reset the chart view",
-        "reset view",
-        "reset the view on this chart",
-        "put this chart back to its default view"
-      ]
-    },
-    {
-      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
-      "id": "chartSetup.hideAllIndicators",
-      "capabilities": [
-        "chartSetup.setIndicatorsHidden"
-      ],
-      "board": "TIMED",
-      "needs": [],
-      "model": {
-        "ops": [
-          {
-            "action": "chartSetup.setIndicatorsHidden",
-            "target": "$charts[0]",
-            "args": {
-              "hidden": true
-            }
-          }
-        ]
-      },
-      "expect": {
-        "view": {
-          "indicatorsHidden": true
-        },
-        "unchanged": true,
-        "receipt": true,
-        "refusal": false
-      },
-      "phrasings": [
-        "hide all indicators for now",
-        "hide every indicator on this chart",
-        "hide all the indicators and volume",
-        "hide everything drawn on this chart for now"
-      ],
-      "undo": {
-        "say": "undo",
-        "expect": {
-          "view": {
-            "indicatorsHidden": false
-          }
-        }
-      }
-    },
-    {
-      "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel Level (a) is not pinned: `needs` is empty because neither router sends this action for all of these phrasings today (legacy router: none of them). It arrives by the need_groups reroute; see the \"Agent integration 1\" PR.",
-      "id": "chartSetup.hideMovingAverages",
-      "capabilities": [
-        "chartSetup.setMovingAverages"
-      ],
-      "board": "ONE_TSLA_DEFAULT",
-      "needs": [],
-      "model": {
-        "ops": [
-          {
-            "action": "chartSetup.setMovingAverages",
-            "target": "$charts[0]",
-            "args": {
-              "visible": false
-            }
-          }
-        ]
-      },
-      "expect": {
-        "averagesHidden": true,
-        "receipt": true,
-        "refusal": false
-      },
-      "undo": {
-        "say": "undo",
-        "expect": {
-          "restored": true
-        }
-      },
-      "phrasings": [
-        "hide my moving averages",
-        "hide all moving averages",
-        "hide every moving average on this chart",
-        "turn off all the moving averages"
-      ]
-    },
-    {
       "source": "Agent integration 1 (11-05): the capabilities #824 and #825 shipped, through the real panel",
       "id": "indicatorAlert.list",
       "capabilities": [
@@ -9894,46 +9748,6 @@
       ]
     },
     {
-      "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget). Level (a) is not pinned: `needs` is empty because the routers do not send this action for these bare phrasings today; it arrives by the need_groups reroute. See the \"Agent integration 1\" PR.",
-      "board": "LISTVIEW",
-      "id": "watchlist.setFlag.bare",
-      "capabilities": [
-        "watchlist.setFlag"
-      ],
-      "needs": [],
-      "model": {
-        "ops": [
-          {
-            "action": "watchlist.setFlag",
-            "target": "$flagged[0]",
-            "args": {
-              "symbols": [
-                "NVDA"
-              ],
-              "flagged": true
-            }
-          }
-        ]
-      },
-      "expect": {
-        "flagged": {
-          "include": [
-            "NVDA"
-          ]
-        },
-        "writes": [
-          "^POST /api/watchlists/flagged/sync .*NVDA"
-        ],
-        "unchanged": true,
-        "receipt": true,
-        "refusal": false
-      },
-      "phrasings": [
-        "flag NVDA",
-        "star NVDA"
-      ]
-    },
-    {
       "source": "Agent integration 1 (11-05): the capabilities #828 shipped, through the real panel, the real host source and a stand-in widget (listControl.outcome.test.jsx has the real widget)",
       "board": "LISTVIEW",
       "id": "watchlist.keepOnly",
@@ -9986,6 +9800,331 @@
         "keep only NVDA on my Momentum watchlist",
         "remove everything from Momentum except NVDA",
         "clear Momentum except for NVDA"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setAnchors"
+      ],
+      "id": "drawing.setAnchors",
+      "capabilities": [
+        "drawing.setAnchors"
+      ],
+      "before": [
+        {
+          "say": "draw an arrow from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.add",
+                "target": "$drawings[0]",
+                "args": {
+                  "tool": "arrow",
+                  "points": [
+                    {
+                      "date": "2026-09-02",
+                      "price": 100
+                    },
+                    {
+                      "date": "2026-10-28",
+                      "price": 180
+                    }
+                  ],
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "arrow"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setAnchors",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "points": [
+                {
+                  "point": 2,
+                  "date": null,
+                  "price": 200
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "points.0.price": 100,
+            "points.1.price": 200
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1,
+            "has": {
+              "points.1.price": 180
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "drag the arrow's end point up to 200",
+        "drag this drawing's end point up to 200",
+        "drag the end point of the drawing to 200"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setProps"
+      ],
+      "id": "drawing.setProps",
+      "capabilities": [
+        "drawing.setProps"
+      ],
+      "before": [
+        {
+          "say": "draw an arrow from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.add",
+                "target": "$drawings[0]",
+                "args": {
+                  "tool": "arrow",
+                  "points": [
+                    {
+                      "date": "2026-09-02",
+                      "price": 100
+                    },
+                    {
+                      "date": "2026-10-28",
+                      "price": 180
+                    }
+                  ],
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "arrow"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setProps",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "set": [
+                {
+                  "prop": "arrowSize",
+                  "value": "large",
+                  "opacity": null
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "arrowSize": 16
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "make that drawing a large arrow",
+        "set the arrow size on that drawing to large",
+        "use a large arrow size on the drawing"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setFibLevels"
+      ],
+      "id": "drawing.setFibLevels",
+      "capabilities": [
+        "drawing.setFibLevels"
+      ],
+      "before": [
+        {
+          "say": "draw a fib from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addFib",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "fib"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setFibLevels",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "levels": [
+                {
+                  "level": 78.6,
+                  "visible": false,
+                  "color": null
+                }
+              ],
+              "bands": [],
+              "reset": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "fibHidden": 0.786
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "hide the 78.6 level on that fib",
+        "remove the 0.786 level from the fib drawing",
+        "turn off the 78.6 fib level"
+      ]
+    },
+    {
+      "source": "Agent integration 1 (11-05): the capabilities #829 shipped, through the real panel and the real drawings store",
+      "board": "TIMED",
+      "needs": [
+        "drawing.setAlert"
+      ],
+      "id": "drawing.setAlert",
+      "capabilities": [
+        "drawing.setAlert"
+      ],
+      "before": [
+        {
+          "say": "draw a trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.setAlert",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "direction": "below",
+              "level": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"direction\":\"below\""
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        "alert me if it breaks below this trendline",
+        "set an alert when price loses that trendline",
+        "alert me when NVDA breaks below that trendline"
       ]
     }
   ],
