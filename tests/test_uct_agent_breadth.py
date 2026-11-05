@@ -283,6 +283,7 @@ def _assert_no_leak(model, cid, client):
             assert not leaked(t), "the stored agent row carries the figure"
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_LEAK_two_turns_success_then_follow_up(client, world, model):
     model.queue = [env("apply", [BREADTH_OP], reply="On it — breadth was about 73.5% Friday."),   # an INVENTED figure too
                    env("answer", reply="Ask me for any date and I'll look it up.")]
@@ -379,6 +380,7 @@ def _tf_args():
     return {k: ("W" if k == "timeframe" else None) for k in cap["args"]["properties"]}
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_MIXED_breadth_plus_news_the_model_asked_research_lookup_runs_news_disclosed_not_searched(monkeypatch):
     plan = {**env("apply", [BREADTH_OP], reply="Looking that up."), "research": {"query": "NVDA news", "recency": "day"}}
     out, m, searched = _run(monkeypatch, [plan], NEWS_MSG)
@@ -404,6 +406,7 @@ def test_MIXED_a_plain_breadth_question_gets_no_false_disclosure(monkeypatch, ms
     assert out["envelope"]["reply"] == "" and "local_notice" not in out["envelope"]
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_MIXED_breadth_plus_a_stock_profile_keeps_both_operations(monkeypatch):
     out, _m, _s = _run(monkeypatch, [env("apply", [BREADTH_OP, PROFILE_OP])], "US breadth on the 50-day and NVDA's profile")
     assert out["envelope"]["ops"] == [BREADTH_OP, PROFILE_OP] and out["envelope"]["reply"] == ""
@@ -480,6 +483,7 @@ def test_MIXED_only_UCTs_exact_flagged_notice_is_replayed_from_a_local_plan():
     "new 52-week highs today, and what does that mean?",
     "what caused the drop in % above the 200-day since September 1?",
 ])
+@pytest.mark.usefixtures("routed_schema")
 def test_EXPLAIN_breadth_plus_an_explanation_runs_the_lookup_and_says_it_was_not_explained(monkeypatch, msg):
     invented = "Breadth fell because the Fed surprised markets and tech sold off."           # a made-up cause
     out, m, searched = _run(monkeypatch, [env("apply", [BREADTH_OP], reply=invented)], msg)
