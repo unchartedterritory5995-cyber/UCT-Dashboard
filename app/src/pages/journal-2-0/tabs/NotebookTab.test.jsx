@@ -10,6 +10,13 @@ vi.mock('swr', async (importOriginal) => {
   return { ...actual, mutate: (...args) => { swrMutateSpy(...args); return actual.mutate(...args) } }
 })
 
+// Audit 2026-11-05, spec S2 (B1): the app focus (charts Group A) a test can set. Null by default,
+// so every other test runs with nothing charted.
+const appFocus = vi.hoisted(() => ({ symbol: null }))
+vi.mock('../../../hooks/useAppFocus', () => ({
+  default: () => ({ symbol: appFocus.symbol, setSymbol: () => {} }),
+}))
+
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
 // list or the editor.
@@ -154,6 +161,11 @@ beforeEach(() => {
     // exercise — never record it as "the" POST under test.
     if (String(url) === '/api/j2/telemetry') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })
+    }
+    // S5 (B3): a template create also records the Get started step (a preference write) --
+    // a side channel too, never "the" POST under test.
+    if (String(url).startsWith('/api/auth/preferences')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, prefs: {} }) })
     }
     if (opts?.method === 'POST') {
       lastPostBody = JSON.parse(opts.body)
@@ -429,6 +441,35 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.tags).toBeUndefined()
   })
 
+  // ⛔ Audit 2026-11-05, spec S2 (B1): a blank note was stamped with the last-charted symbol
+  // (CDNA for the test account), which then autofilled sector, industry and theme and dressed
+  // the note as a thesis. The ticker comes from the door that made the note, never app focus.
+  describe('S2 (B1): no silent ticker stamp', () => {
+    afterEach(() => { appFocus.symbol = null })
+
+    it('a blank note made while CDNA is charted carries no ticker', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=blank')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker ?? null).toBeNull()
+      expect(JSON.stringify(lastPostBody)).not.toContain('CDNA')
+    })
+
+    it('an explicit ticker from the door still seeds, whatever is charted', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=blank&ticker=nvda')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker).toBe('NVDA')
+    })
+
+    it('a template with no ticker while CDNA is charted carries no ticker', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=thesis')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker ?? null).toBeNull()
+    })
+  })
+
   it('Wave B: ?new=blank&ticker=NVDA seeds the ticker on the blank note', async () => {
     renderTab('/journal/notebook?new=blank&ticker=nvda')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
@@ -518,6 +559,32 @@ describe('NotebookTab — import', () => {
     expect(mockRefresh).not.toHaveBeenCalled()
     fireEvent.click(await screen.findByText('fire onImported'))
     expect(mockRefresh).toHaveBeenCalled()
+  })
+
+  // Fix round 1 (review minor 13): the import door reaches the ONE note-views helper -- the folder
+  // counts, folder rows, Recents and the Tasks view are asked again, never only this tab's lists.
+  // Fix round 2 (review minor 13): the create door every New-note path ends in (landCreatedNote)
+  // reaches the helper too -- the list said "3 of 3" beside a sidebar 5 before it did.
+  it('a new note (landCreatedNote) revalidates every note view (the S6 helper)', async () => {
+    renderTab()
+    swrMutateSpy.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    await waitFor(() => {
+      const predicates = swrMutateSpy.mock.calls.map(([k]) => k).filter((k) => typeof k === 'function')
+      expect(predicates.some((p) => p('/api/j2/notes/folder-counts') && p('/api/j2/notes/tasks?status=open')
+        && !p('/api/j2/notes/new1'))).toBe(true)
+    })
+  })
+
+  it('a completed import revalidates every note view (the S6 helper)', async () => {
+    renderTab()
+    fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
+    swrMutateSpy.mockClear()
+    fireEvent.click(await screen.findByText('fire onImported'))
+    const predicates = swrMutateSpy.mock.calls.map(([k]) => k).filter((k) => typeof k === 'function')
+    expect(predicates.some((p) => p('/api/j2/notes/folder-counts') && p('/api/j2/notes/tasks?status=open')
+      && !p('/api/j2/notes/n1'))).toBe(true)
   })
 })
 

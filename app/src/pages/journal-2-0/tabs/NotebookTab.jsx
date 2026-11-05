@@ -24,7 +24,6 @@ import { createNoteViaApi } from '../lib/noteCreation'
 import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
 import { createVoiceNote, voiceNotesEnabled } from '../lib/voiceNote'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../lib/tradeCanvasCreate'
-import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
@@ -42,7 +41,9 @@ import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
 import { stepTrail, stepsBackToList } from '../lib/noteReturnTrail'
-import { DAILY_TEMPLATE_MISSING, DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
+import {
+  DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote, takeQueuedNotebookNotice,
+} from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
@@ -60,7 +61,10 @@ import {
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
-import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
+import useJ2NoteTags from '../hooks/useJ2NoteTags'
+import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
+import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
+import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
@@ -274,6 +278,10 @@ export default function NotebookTab() {
   const location = useLocation()
   const navigationType = useNavigationType()
   const noteId = searchParams.get('note')
+  // Audit 2026-11-05, S5 (B11): the Notebook's home names the tab "Notebook · UCT Intelligence"
+  // (it read "Journal"); an open note's editor names it after the note. Closing the note (a query
+  // change, which the shell's pathname-keyed title never sees) puts the home's title back.
+  useEffect(() => { if (!noteId) document.title = NOTEBOOK_TITLE }, [noteId])
   // Wave 6 (lane E, item 7) — split view: `?side=` is a second note beside the
   // first, desktop only. Each pane is an ordinary editor (lib/splitView.js).
   // ⛔⛔ `sideId` is NEVER the open note: a URL naming one note twice (a pasted
@@ -470,7 +478,6 @@ export default function NotebookTab() {
   const { propertyDefs, error: propertyDefsError, refresh: refreshPropertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
-  const { symbol: focusSymbol } = useAppFocus()
   // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -880,10 +887,9 @@ export default function NotebookTab() {
   // exactly those hooks without disturbing anything else.
   // `tags: false` leaves GET /api/j2/notes/tags out — for a change that cannot
   // move a tag count (review R1-N4: that endpoint costs ~1.4 s at 50k notes).
-  const refreshSidebarCounts = ({ tags = true } = {}) => {
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes')
-      && (tags || !key.startsWith(NOTE_TAGS_KEY)))
-  }
+  // ⛔ Audit 2026-11-05, spec S6: ONE authority over "which keys are the note views" --
+  // lib/offline/invalidateNoteViews.js. This is that helper with the tab's default (tags on).
+  const refreshSidebarCounts = ({ tags = true } = {}) => invalidateNoteViews({ tags, mutate: globalMutate })
 
   // ── Wave 6 (lane E, item 7): split view ─────────────────────────────────────
   // A side note with no main note, or the main note named again, is dropped
@@ -1360,6 +1366,12 @@ export default function NotebookTab() {
   // could not be checked is offered a confirmed way through; `armed` is the
   // confirmation step.
   const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, anyway?, armed? }
+  // Fix round 1 (review finding 7): a sentence another door queued before navigating here (Today,
+  // the Compass recap card, Insights: "Saved in your Daily folder."), said once on arrival.
+  useEffect(() => {
+    const queued = takeQueuedNotebookNotice({ noteId })
+    if (queued) setBulkNotice({ message: queued, tone: 'info' })
+  }, [])
   const anywayRef = useRef(null)
   const anywayConfirmRef = useRef(null)
   // ⛔ THE WAY BACK HAS ITS OWN NOTICE (review S4). With one shared notice, any
@@ -1766,8 +1778,8 @@ export default function NotebookTab() {
     else runBulk(anyway.op, anyway.args || {}, anyway.ctx || {}, anyway.ids, { acceptUnchecked: true, continues: true })
   }
 
-  // Notebook P1: the kind picker for the New-note sheet. createNote seeds the ticker from app focus
-  // (`ticker || focusSymbol`), so a chart block gets the symbol the member was just charting.
+  // Notebook P1: the kind picker for the New-note sheet. createNote seeds a ticker only from a door
+  // that passes one (S2/B1: never from app focus).
   // `stylesOn` is the switch read once above, beside the Styles manager's state.
   // `focus` is asked for only inside the New-note sheet, never on the inline empty-notebook mount.
   const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} /> : null)
@@ -1792,6 +1804,19 @@ export default function NotebookTab() {
   // sheet open over the note with focus trapped in it.
   const landPickedNote = (created, openOptions = {}) => {
     setPickerOpen(false)
+    // ⛔ Audit 2026-11-05, spec S5 (B3): "Start a note from a template" never ticked. Its evidence
+    // was the template's closing walkthrough in the note's `bodyPlain` -- but Research Home's read
+    // cuts every summary at 400 characters (notes._LIST_PLAIN_CHARS) and the walkthrough is the
+    // LAST block of every template, so it was never in view. The door the member used says it: a
+    // note landed from the New note sheet that is not blank came from a template, a style or the
+    // Template library. A step never unticks, so a write already recorded writes nothing.
+    // Best-effort: a preference that cannot be written (not read yet, offline) never stops the note.
+    if (!openOptions.blank) {
+      try {
+        const p = setPrefMerged?.('notebook_getting_started', (current) => withDone(current, ['template']))
+        p?.catch?.(() => {})
+      } catch { /* the step ticks next time; the note still lands */ }
+    }
     landCreatedNote(created, { fresh: true, ...openOptions })
   }
   const landCreatedNote = (created, openOptions) => {
@@ -1799,6 +1824,8 @@ export default function NotebookTab() {
     // Instant: put it in the tree now, then reconcile from the server.
     addNoteToTree(created)
     refreshAll()
+    // S6 (B5): every view, not just the sidebar's page -- the list said "3 of 3" beside a 5.
+    refreshSidebarCounts()
     openNote(created, null, openOptions)
   }
   const createNote = async ({
@@ -1807,10 +1834,14 @@ export default function NotebookTab() {
     setCreating(true)
     setPickerOpen(false)
     try {
-      // App focus (= charts Group A): charting AMD and then starting an entry
-      // should not make you retype AMD. An explicit ticker always wins; focus
-      // only fills the blank.
-      const seededTicker = ticker || focusSymbol || null
+      // ⛔ Audit 2026-11-05, spec S2 (B1): the ticker comes from the DOOR, never app focus.
+      // This was `ticker || focusSymbol`: every blank note inherited the last symbol charted
+      // (charts Group A, a stored preference -- CDNA on the test account), the server then
+      // autofilled sector, industry and theme, and the note grew thesis controls. The doors that
+      // know a symbol pass it explicitly: the `?new=…&ticker=` deep link (Today, the EOD recap,
+      // TradeDrawer), a template's assembled context, the Ticker Research Workspace and the
+      // earnings follow-up (both through createNoteViaApi with their own ticker).
+      const seededTicker = ticker || null
       const created = await createNoteViaApi({
         title, bodyJson, tags, ticker: seededTicker, folderId: newNoteFolderId, properties, styleId, kindId,
       })
@@ -1887,6 +1918,7 @@ export default function NotebookTab() {
     const created = await createVoiceNote({ title, result, folderId: newNoteFolderId })
     addNoteToTree(created)
     refreshAll()
+    refreshSidebarCounts()   // S6
     openNote(created, null, { fresh: true })
     return created
   }
@@ -2005,6 +2037,7 @@ export default function NotebookTab() {
       const created = await createTradeCanvasNote({ folderId: newNoteFolderId })
       addNoteToTree(created)
       refreshAll()
+      refreshSidebarCounts()   // S6 (B5): the canvas door refreshed the sidebar's page only
       openNote(created, null, { fresh: true })
     } catch (e) {
       console.error('[notebook] create trade-plan canvas failed', e)
@@ -2017,7 +2050,7 @@ export default function NotebookTab() {
   // Wave 6 (item 4): Today — open the member's note for today's ET date,
   // making it the first time (the server keeps it to one per day). The daily
   // template is the member's own preference.
-  const { prefs } = usePreferences()
+  const { prefs, setPrefMerged } = usePreferences()
   const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
   const openingTodayRef = useRef(false)
   const openToday = async () => {
@@ -2030,6 +2063,9 @@ export default function NotebookTab() {
         addNoteToTree(note)
         refreshAll()
         refreshSidebarCounts()
+        // Audit 2026-11-05, spec S2 (B12): a new day's note lands in a Daily folder the server makes
+        // on first use. Say where it went (the template sentence below, when there is one, wins).
+        if (!templateMissing) setBulkNotice({ message: DAILY_FOLDER_NOTICE, tone: 'info' })
       }
       if (templateMissing) {
         setActionError(DAILY_TEMPLATE_MISSING)
@@ -2067,6 +2103,7 @@ export default function NotebookTab() {
   const handleImported = () => {
     refresh()
     refreshAll()
+    refreshSidebarCounts()   // S6
     setFolderRefreshKey((k) => k + 1)
   }
 
@@ -2405,6 +2442,7 @@ export default function NotebookTab() {
                 openFocus={openFocus?.id === noteId ? openFocus.to : null}
                 onOpenFocused={() => setOpenFocus(null)}
                 onTitleChange={updateTreeNoteTitle}
+                ownsDocumentTitle
                 // Wave 6 (lane E), I1: the note menu's organisation actions.
                 // The editor (lane D's NoteEditorPage.jsx) renders
                 // `{noteMenu?.(note, { refresh, unlockNote })}` in its header
@@ -2513,6 +2551,8 @@ export default function NotebookTab() {
             // day-note opener -- so the bare-root Research Home reaches Today in one
             // click/tap instead of "All notes" -> "Today" (2).
             onOpenToday={openToday}
+            // S2 (B12): the reviews box's "Saved in your Daily folder." outlives the note opening.
+            onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
             // P0.1: the Home "New note" menu's other doors -- the SAME sheet opener the
             // toolbar's Templates button uses, and the SAME voice starter the sheet's own
             // "Voice note" button calls (null while the voice gate is off, so the menu lists

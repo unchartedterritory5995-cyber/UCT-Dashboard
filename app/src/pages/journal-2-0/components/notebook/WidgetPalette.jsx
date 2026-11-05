@@ -65,6 +65,21 @@ function parseSelection(kind, sym, tfTok, day) {
   return { args, reason: null }
 }
 
+/** After an insert the caret sits just after the new embed(s): select the embed right before it. */
+function selectLastInsertedEmbed(editor) {
+  try {
+    const { state } = editor
+    const caret = state?.selection?.from
+    if (!Number.isFinite(caret)) return
+    let pos = -1
+    state.doc.descendants((n, p) => {
+      if (n.type.name === 'widgetEmbed' && p + n.nodeSize <= caret) pos = p
+      return true
+    })
+    if (pos >= 0) editor.chain().focus().setNodeSelection(pos).run()
+  } catch { /* a stub editor (or one mid-teardown) keeps its caret */ }
+}
+
 export default function WidgetPalette({ editor, onClose }) {
   const [kind, setKind] = useState(null)   // null = the type list
   const [sym, setSym] = useState('')
@@ -148,8 +163,14 @@ export default function WidgetPalette({ editor, onClose }) {
       .insertContent(nodes)
       .caretAfterWidgetEmbed()
       .run()
-    // Stay open, clear the ticker, refocus — "click, click, click" means the
-    // next insert starts immediately.
+    // ⛔ Audit 2026-11-05, spec S3 (detail #36): the picker used to STAY OPEN over the chart it had
+    // just made. It closes, and the last chart inserted takes focus -- selected, so its header and
+    // its type-to-search (a key opens its ticker search, never replaces it) answer at once.
+    if (onClose) {
+      selectLastInsertedEmbed(editor)
+      onClose()
+      return
+    }
     setInserted(`${args.symbol} inserted`)
     setSym('')
     symRef.current?.focus()

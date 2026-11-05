@@ -558,6 +558,67 @@ def _clip(s: Any, n: int = 80) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def _titles_phrase(titles: list[str], shown: int = 3) -> str:
+    head = ", ".join(titles[:shown])
+    rest = len(titles) - shown
+    return f"{head} and {rest} more" if rest > 0 else head
+
+
+def _value_phrase(value: Any) -> str:
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(v) for v in value) or "nothing"
+    if value is None or value == "":
+        return "nothing"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return str(value)
+
+
+def plan_summary(changes: list[dict[str, Any]]) -> str:
+    """Audit 2026-11-05, spec S5 (B15): the sentence a member reads above a plan, written from the
+    VALIDATED changes -- never the model's. The model's summary read "Added #security to (n1 and
+    n2)" before anything was applied: past tense, and the fence's note KEYS. This is future tense
+    and names notes by title: "Will add #security to 2 notes: CRWD plan, CRWD after." One sentence
+    per kind of change (per tag, property or folder), in the order the plan first names it."""
+    groups: dict[tuple, list[str]] = {}
+    for ch in changes or []:
+        op, args = ch.get("op"), ch.get("args") or {}
+        title = ch.get("noteTitle") or "Untitled"
+        if op == ADD_TAG:
+            key = (op, f"Will add #{args.get('tag')} to")
+        elif op == REMOVE_TAG:
+            key = (op, f"Will remove #{args.get('tag')} from")
+        elif op == SET_PROPERTY:
+            # Fix round 1 (review minor 15): say what it will be set TO, one sentence per value.
+            key = (op, f"Will set {args.get('name')} to {_value_phrase(args.get('value'))} on")
+        elif op == MOVE:
+            key = (op, "Will move", args.get("path") or "")
+        elif op == APPEND:
+            key = (op, "Will add to")
+        elif op == CREATE_NOTE:
+            key = (op, "Will create")
+        else:
+            continue
+        groups.setdefault(key, []).append(title)
+    out = []
+    for key, titles in groups.items():
+        n = len(titles)
+        count = f"{n} note{'s' if n != 1 else ''}"
+        if key[0] == MOVE:
+            out.append(f"Will move {count} to {key[2]}: {_titles_phrase(titles)}.")
+        else:
+            out.append(f"{key[1]} {count}: {_titles_phrase(titles)}.")
+    return " ".join(out)
+
+
+def _named_by_title(summary: str, context: dict[str, Any]) -> str:
+    """The model's own sentence with any fence KEY (n1, n2...) replaced by that note's title. Used
+    only when the plan holds no change, where the model's words say what it would not do."""
+    keymap = context.get("keymap") or {}
+    titles = {n.get("id"): n.get("title") or "Untitled" for n in context.get("notes") or []}
+    return re.sub(r"\bn\d+\b", lambda m: titles.get(keymap.get(m.group(0)), m.group(0)), summary or "")
+
+
 def _op_label(op: Any) -> str:
     return _clip(op, 40) if isinstance(op, str) and op.strip() else "an unnamed change"
 
@@ -809,6 +870,9 @@ def validate_plan(user_id: str, raw: str, context: dict[str, Any]) -> dict[str, 
     finally:
         conn.close()
     capped_dropped += max(0, len(items) - MAX_RAW_ITEMS)
+    # S5 (B15): what the member reads is written from the validated changes; the model's sentence
+    # is kept only for a plan with none (it says what was not done), with keys put back as titles.
+    summary = plan_summary(changes) or _named_by_title(summary, context)
     return {"summary": summary, "changes": changes, "skipped": skipped[:MAX_SKIPPED_SHOWN],
             "skippedCount": len(skipped),
             "capped": {"limit": MAX_CHANGES, "dropped": capped_dropped} if capped_dropped else None}
