@@ -258,7 +258,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
     if ((used + n > budget || usedBytes + b > cap) && want.size >= always.length) { if (needed.includes(id)) over.push(id); continue }
     want.add(id); used += n; usedBytes += b
   }
-  const sentWith = sel.undoSignal ? [] : SENT_WITH_GROUP.filter(id => (scoreOf.get(id) || 0) >= k.EVID_FLOOR)
+  const sentWith = sel.undoSignal ? [] : SENT_WITH_GROUP.filter(id => id === 'calendar' || (scoreOf.get(id) || 0) >= k.EVID_FLOOR)
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
   const diag = { version: ROUTING_V2_VERSION, scores: sel.scores, vocabulary: sel.vocabulary, strong: sel.strong, v1: sel.v1, context, matched: sel.matched }
@@ -269,8 +269,9 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
     routing: { version: ROUTING_VERSION, groups: present.map(g => ({ id: g.id, title: g.title })), selected: present.filter(g => want.has(g.id)).map(g => g.id) },
     overBudget: over,
     // re-read live data for what the message is about (tiers 1–3); weak / context / fill act on the context loaded
-    // boardEdit, calendar: a context section sent only with its group (widgetControls, the /charts calendar ref), and only
-    // on the message's own evidence, and not on an undo signal (Undo reads no options; capability text says "Undo" often).
+    // boardEdit, calendar: a context section sent only with its group (widgetControls, the /charts calendar ref), and not on
+    // an undo signal (Undo reads neither; capability text says "Undo" often). The control list also needs the message's own
+    // evidence. The calendar ref does not: it is a few bytes, and with its group already sent no need_groups could bring it.
     refresh: sel.matched ? present.filter(g => want.has(g.id) && (needed.includes(g.id) || sentWith.includes(g.id))).map(g => g.id)
       : [...new Set([...pinned, ...(sel.soft || []), 'charts', ...sentWith])].filter(id => want.has(id)),
     v2: diag,

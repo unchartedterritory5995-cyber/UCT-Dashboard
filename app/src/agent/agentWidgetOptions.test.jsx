@@ -226,3 +226,67 @@ describe('through the REAL panel with routing v2 on: a control request carries i
     expect(firstTurn().context.widgetControls).toBeUndefined()
   }, 40000)
 })
+
+// Real calendar phrasings, routing v2 on, on /charts with no Calendar page (the sealed set has none).
+describe('who reports, through the REAL panel on /charts with routing v2 on', () => {
+  let p
+  const week = (monday) => Object.fromEntries(Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${monday}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + i)
+    return [d.toISOString().slice(0, 10), { bmo: [{ sym: 'AAA' }], amc: [{ sym: 'BBB' }], tbd: [] }]
+  }))
+  const config = async (on) => {
+    const base = globalThis.fetch
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+    globalThis.fetch = async (url, init) => {
+      if (url === '/api/agent/config') return json({ conversations: [], routing_v2: on })
+      const m = /^\/api\/calendar\?week=(\d{4}-\d{2}-\d{2})/.exec(String(url))
+      return m ? json({ days: week(m[1]) }) : base(url, init)
+    }
+    localStorage.setItem('uct.agent.routingV2', on ? '1' : '0')
+    _resetAgentConfig()
+    await loadAgentConfig()
+  }
+  beforeEach(async () => { p = setupPanel(); await config(true) })
+  afterEach(async () => { cleanup(); await config(false); localStorage.clear() })
+  const mount = () => { const [[chart], syms] = ONE('NVDA'); return p.mount([{ ...chart, w: 24 }], syms) }
+  const turnsSent = () => p.st.calls.filter(c => c[1] === '/api/agent/turn').map(c => c[2])
+  const dayOp = (body, date) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops: [{ action: 'calendar.day', target: body.context.calendar[0].ref, args: { date } }] })
+
+  it.each(['who reports today', 'who is reporting tomorrow', 'what reports on friday', 'which stocks report thursday'])('"%s": answered from the calendar, no model call', async (message) => {
+    const { say } = mount()
+    expect(await say(message)).toMatch(/AAA.*BBB/s)
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it.each(['who reports tonight', 'who is reporting after the close', 'any earnings on the calendar tomorrow', 'which names are on the calendar for friday'])('"%s": the model has the read and a ref to aim it at, on the first call', async (message) => {
+    const { say } = mount()
+    p.st.envelopes.push((b) => dayOp(b, 'today'))
+    const out = await say(message)
+    expect(turnsSent().length).toBe(1)
+    expect(turnsSent()[0].capabilities.map(c => c.name)).toContain('calendar.day')
+    expect(out).toMatch(/AAA.*BBB/s)
+  }, 40000)
+  it.each(['how is the market looking', 'anything big after the close', 'what should i watch tomorrow'])('"%s": whenever the read is sent, its ref is sent too, or it could not be used', async (message) => {
+    const { say } = mount()
+    await say(message)
+    const body = turnsSent()[0]
+    if (body.capabilities.some(c => c.name === 'calendar.day')) expect(body.context.calendar?.[0]?.ref).toBeTruthy()
+  }, 40000)
+  it('a reroute to the calendar group brings the ref: not on the first call, on the second, and the read answers', async () => {
+    const { say } = mount()
+    p.st.envelopes.push({ disposition: 'clarify', reply: '', ops: [], unsupported_category: null, question: { text: 'Looking at more of UCT…', choices: [] }, need_groups: ['calendar'] })
+    p.st.envelopes.push((b) => dayOp(b, 'today'))
+    const out = await say('add the 50 day to this chart')
+    const sent = turnsSent()
+    expect(sent.length).toBe(2)
+    expect(sent[0].context.calendar).toBeUndefined()
+    expect(sent[1].reroute).toBe(true)
+    expect(sent[1].context.calendar[0].ref).toBeTruthy()
+    expect(out).toMatch(/AAA.*BBB/s)
+  }, 40000)
+  it('a stock\'s own date stays stock.earnings: calendar.nextReport is not offered here', async () => {
+    const { say } = mount()
+    await say('who reports tonight')
+    expect(turnsSent()[0].capabilities.map(c => c.name)).not.toContain('calendar.nextReport')
+  }, 40000)
+})
+
