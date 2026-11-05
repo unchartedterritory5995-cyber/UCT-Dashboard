@@ -30,6 +30,7 @@ import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } fr
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
 import { boardRefusalIn } from '../pages/charts/boardBound'
+import { chartFaultedSince, onChartFault } from '../pages/charts/chartFaults'
 import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
@@ -241,6 +242,18 @@ export function partLabel(ops, host) {
   }
   return labels.length ? `the change to ${labels.join(' and ')}` : 'the change to your existing widgets'
 }
+// the charts a committed plan aimed at, by the ref a chart is addressed by
+function plannedChartRefs(plan, res) {
+  const refs = new Set()
+  for (const p of plan?.plans || []) {
+    const kind = getTargetKind(p.kind)
+    const ref = p.virtual ? res?.created?.[p.ref] : (p.kind === 'chart' ? p.ref : (kind?.groupOf ? kind.groupOf(p.ref) : null))
+    if (ref) refs.add(String(ref))
+  }
+  return [...refs]
+}
+// How long a receipt answers for its chart: the render that throws waits for the bars of the change.
+const FAULT_WATCH_MS = 8000
 // ⭐ W2 (receipts): every chart a committed plan touched, read AFTER the commit — { label, symbol, tf, isNew } — so the
 // receipt's one-liner names each chart with its symbol and timeframe (receiptView). Display only; never throws.
 function receiptCharts(host, plan, res) {
@@ -799,6 +812,28 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
   }, [setConversationId])
 
+  // ⛔ A RECEIPT DOES NOT OUTLIVE ITS CHART. Everything that confirms a change reads the chart's settings, and those hold it
+  // while the chart itself goes to its error boundary, up to a bar fetch later. So a receipt keeps listening for a short while,
+  // and a chart that faulted takes the success back, in words, with Undo only where the chart is still there to take it.
+  const watchChartFaults = useCallback((refs, { receiptId, startedAt, label, actions }) => {
+    if (!refs.length) return
+    const report = (ref) => {
+      const alive = (() => { try { return !!host?.charts?.read?.(ref) } catch { return false } })()
+      const text = `${label || 'That chart'} hit an error after that change, so it isn't showing it. ${alive ? 'Say “undo” to take the change back.' : 'Remove the chart and add it again.'}`
+      patchItem(receiptId, alive ? { faulted: true } : { faulted: true, undoId: null })
+      push({ role: 'refusal', text })
+      record({ member: null, outcome: text, outcomeData: { kind: 'failed', actions, gates: ['chart-fault'] }, telemetry: { refused: true, actions } })
+    }
+    const now = refs.find(r => chartFaultedSince(r, startedAt))
+    if (now) { setTimeout(() => report(now), 0); return }
+    const off = onChartFault((id) => {
+      if (!refs.includes(id)) return
+      off(); clearTimeout(timer)
+      setTimeout(() => report(id), 50)     // the boundary reports before React has finished taking the chart down: read it after
+    })
+    const timer = setTimeout(off, FAULT_WATCH_MS)
+  }, [host, patchItem, push, record])
+
   // ── execution (shared by the fast path, the model path and approvals) ──
   const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
@@ -1182,6 +1217,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     mark('commit:start')
     let res, saved
+    const commitStartedAt = Date.now()
     try {
       res = await commitPlan(host, plan, { env, ctx: capCtx })
       mark('commit:end')
@@ -1222,7 +1258,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const afterNote = afterCommit ? await afterCommit() : null
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, charts: receiptCharts(host, plan, res), ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      const receiptId = nid()
+      const shown = receiptCharts(host, plan, res)
+      watchChartFaults(plannedChartRefs(plan, res), { receiptId, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
+      if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use

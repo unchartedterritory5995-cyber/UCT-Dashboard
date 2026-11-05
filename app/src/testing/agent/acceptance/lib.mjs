@@ -78,7 +78,8 @@ function pageInit(cfg) {
       return { ...b, o: +(b.o * f).toFixed(2), h: +(b.h * f).toFixed(2), l: +(b.l * f).toFixed(2), c: +(b.c * f).toFixed(2) }
     })
     // intraday bars carry unix seconds, as the real route does: consecutive regular-session bars ending on the fixture's last day
-    const mins = /^\d+$/.test(tf) ? Number(tf) : null
+    // (`dateShaped`: the bad payload behind #842, date strings on an intraday request)
+    const mins = /^\d+$/.test(tf) && !cfg.dateShaped ? Number(tf) : null
     if (mins) {
       const perDay = Math.max(1, Math.floor(390 / mins))
       const last = Date.UTC(2025, 9, 8, 13, 30) / 1000
@@ -210,9 +211,9 @@ const READ = `(() => {
   }
 })()`
 
-export async function open(R, { query = '', prefs = null, fixtures = null, iaCatalog = null, width = 1500, height = 900, ls = null } = {}) {
+export async function open(R, { query = '', prefs = null, fixtures = null, iaCatalog = null, width = 1500, height = 900, ls = null, dateShaped = false } = {}) {
   const b = await launch({ width, height })
-  const cfg = { prefs, fixtures, iaCatalog }
+  const cfg = { prefs, fixtures, iaCatalog, dateShaped }
   const init = `(${pageInit.toString()})(${JSON.stringify(cfg)});` + (ls ? Object.entries(ls).map(([k, v]) => `try{localStorage.setItem(${q(k)},${q(v)})}catch{}`).join(';') : '')
   await b.send('Page.addScriptToEvaluateOnNewDocument', { source: init })
   await b.open(`${BASE}/agent-harness.html?watchlists=1&bars=ramp&theme=dark&live=${R.port}&${query}`)

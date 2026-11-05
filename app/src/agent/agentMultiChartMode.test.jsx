@@ -23,6 +23,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 vi.mock('../pages/charts/WorkspaceContext', () => ({ useWorkspace: () => ({ chartsTheme: null, chartApiById: H.api }) }))
 vi.mock('../components/StockChart', () => ({
   default: (props) => {
+    if (H.crashOn && props.tf === H.crashOn) throw new Error('boom: a chart that cannot draw this')
     H.chartProps[props.chartId] = props
     props.onDateNavApi?.(H.nav)
     return <div data-testid={`canvas-${props.chartId}`}>{props.sym}</div>
@@ -56,6 +57,7 @@ import { cellPatch, cellStored, gridCellKey } from '../pages/charts/grid/gridAge
 import { peekDrawings, removeDrawing } from '../components/chart/drawingsStore'
 import { guideState, endGuide } from './guide/guideStore'
 import { asSubjectWords } from './useAgent'
+import { noteChartFault } from '../pages/charts/chartFaults'
 
 registerBuiltins()
 
@@ -595,6 +597,44 @@ describe('Multi Chart: the Style picker', () => {
     expect(next.chartType).toBe('hollow')
     expect(next.settings).toBe(null)
   })
+})
+
+describe('Multi Chart: a chart that crashes after its change', () => {
+  afterEach(() => { H.crashOn = null })
+  const crash = () => { vi.spyOn(console, 'error').mockImplementation(() => {}); H.crashOn = 'W' }
+  it('the receipt stops claiming success, the panel says what happened, the rest of the grid stays', async () => {
+    crash()
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(transcript()).toMatch(/hit an error after that change/))
+    expect(receipts().at(-1).getAttribute('data-status')).toBe('failed')
+    expect(transcript()).toMatch(/Top-right chart \(AMD\)/)
+    expect(screen.getByTestId('canvas-c0')).toBeTruthy()
+    expect(document.querySelector('[data-grid-cell-id="c1"]').textContent).toMatch(/hit an error/)
+  }, 30000)
+  it('Undo takes it back and the chart returns, because a cell is still there to change', async () => {
+    crash()
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Say “undo”/))
+    await say('undo')
+    await waitFor(() => expect(screen.getByTestId('canvas-c1')).toBeTruthy())
+    expect(tfs()).toBe('DDDD')
+  }, 30000)
+  it('a chart nobody changed crashing says nothing on this receipt', async () => {
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    act(() => { noteChartFault('c2') })
+    expect(receipts()[0].getAttribute('data-status')).toBe(null)
+    expect(transcript()).not.toMatch(/hit an error/)
+  }, 30000)
+  it('a healthy chart: the receipt stands', async () => {
+    const { say } = mount()
+    await say('make the top-right chart weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    expect(receipts()[0].getAttribute('data-status')).toBe(null)
+  }, 30000)
 })
 
 describe('Multi Chart: time-range sync', () => {

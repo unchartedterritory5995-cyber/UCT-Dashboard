@@ -237,6 +237,37 @@ scn('custom timeframe', ['C1-008'], { prefs: TWO() }, async (p, t) => {
   const r = await act(p, t, { say: 'add a 2 hour timeframe', plan: { ops: [{ action: 'chart.addCustomTimeframe', target: CH0, args: { unit: 'hours', count: 2, switch: true } }] }, touch: [A], receipt: /2/ })
   t.ok('the chart is on it', /2H|120/i.test(r.chart(A).tf) || axisHas(r.chart(A), /^SPY, (2H|120)/i), JSON.stringify([r.chart(A).tf, r.chart(A).text[0]]))
 })
+// A chart that goes to its error boundary after a change that landed in its settings. The fixture is the bad payload #842 fixes:
+// once that merges this chart may survive, and the check below then holds the other way (no crash, the receipt stands).
+const crashed = async (p) => p.b.evaluate(`[...document.querySelectorAll('[role="alert"]')].filter(e => /hit an error/.test(e.textContent)).length`)
+const faultCheck = async (p, t) => {
+  await sleep(1500)
+  const down = await crashed(p)
+  const rc = await p.receipt()
+  t.ok(`recorded: ${down} chart(s) at the error boundary`, true)
+  t.ok('the receipt tells the truth about the chart', down ? rc?.status === 'failed' : rc?.status == null, JSON.stringify(rc))
+  if (down) t.ok('the panel says so in words', /hit an error after that change/.test(await p.transcript()), (await p.transcript()).slice(-200))
+}
+scn('chart crash after a change', [], { prefs: TWO(), dateShaped: true, allowErrors: true }, async (p, t) => {
+  await p.select(A)
+  await act(p, t, { say: 'add a 47 minute timeframe', plan: { ops: [{ action: 'chart.addCustomTimeframe', target: CH0, args: { unit: 'minutes', count: 47, switch: true } }] }, busy: false })
+  await faultCheck(p, t)
+  t.ok('the other chart stayed', (await p.read(B))[0].sym === 'AAPL')
+  if (await crashed(p)) {
+    t.ok('no Undo is offered for a chart that is gone', (await p.receipt())?.undoable !== 'true', JSON.stringify(await p.receipt()))
+    t.ok('the words say what will work', /Remove the chart and add it again/.test(await p.transcript()), (await p.transcript()).slice(-200))
+  }
+})
+scn('mc chart crash after a change', [], { query: 'multichart=1', dateShaped: true, allowErrors: true }, async (p, t) => {
+  await p.select('g1')
+  await act(p, t, { say: 'add a 47 minute timeframe', plan: (b) => ({ ops: [{ action: 'chart.addCustomTimeframe', target: refOf(b, 'AMD'), args: { unit: 'minutes', count: 47, switch: true } }] }), busy: false })
+  await faultCheck(p, t)
+  t.ok('the grid and the panel are still up', !!(await p.read('g0'))[0]?.sym && !!(await p.box('[aria-label="Message UCT Agent"]')))
+  if (await crashed(p)) {
+    await act(p, t, { say: 'undo', busy: false, settleMs: 1200 })
+    t.ok('a cell is still there, so Undo brings the chart back', (await crashed(p)) === 0 && (await p.read('g1'))[0].tf === '1D', JSON.stringify((await p.read('g1'))[0].tf))
+  }
+})
 scn('chart type line', ['C1-013'], { prefs: TWO() }, async (p, t) => {
   await p.select(A)
   const snap = await p.read()
@@ -820,7 +851,7 @@ for (const s of S) {
   let p = null
   const t0 = Date.now()
   try {
-    p = await open(R, { query: s.opts.query || '', prefs: s.opts.prefs, fixtures: s.opts.fixtures, iaCatalog: s.opts.iaCatalog, ls: s.opts.ls })
+    p = await open(R, { query: s.opts.query || '', prefs: s.opts.prefs, fixtures: s.opts.fixtures, iaCatalog: s.opts.iaCatalog, ls: s.opts.ls, dateShaped: s.opts.dateShaped })
     await p.settle()
     await p.openPanel()
     // the workspace mounts panels in batches: a board is ready when every chart on it has painted
@@ -830,7 +861,7 @@ for (const s of S) {
     await s.fn(p, t)
     if (SHOTS) await p.shot(`${SHOTS}/${s.id.replace(/\W+/g, '-')}.png`)
     const errs = p.errors()
-    t.ok('no console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
+    if (!s.opts.allowErrors) t.ok('no console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
   } catch (e) {
     t.ok('scenario ran to the end', false, e.stack || e.message)
     try { if (SHOTS && p) await p.shot(`${SHOTS}/${s.id.replace(/\W+/g, '-')}-crash.png`) } catch { /* */ }
