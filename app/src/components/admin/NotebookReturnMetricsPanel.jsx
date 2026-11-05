@@ -37,7 +37,8 @@ function Stat({ n, label, sub }) {
 
 export default function NotebookReturnMetricsPanel() {
   const [days, setDays] = useState(30)
-  const { data, error, mutate } = useSWR(`${RETURN_METRICS_URL}?days=${days}`, fetcher, { refreshInterval: 300000 })
+  // Fix round 1 (review I5): read on open and on Retry only. No polling: the read is the server's, on the prod pod.
+  const { data, error, mutate } = useSWR(`${RETURN_METRICS_URL}?days=${days}`, fetcher, { revalidateOnFocus: false })
   const d = data || null
   const defs = d?.definitions || {}
 

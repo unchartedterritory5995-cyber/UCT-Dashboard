@@ -134,6 +134,10 @@ CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
 -- every row of that action ever written. Idempotent on a database that already has
 -- the table. Railed by tests/test_notebook_slo.py (EXPLAIN QUERY PLAN names it).
 CREATE INDEX IF NOT EXISTS idx_activity_action_created ON activity_log(action, created_at);
+-- Audit 2026-11-05, S20 fix round 1 (review I5): the return metrics ask each ACTIVE member's first visit,
+-- `action = ? AND user_id = ?` then MIN(created_at) -- one index seek each, never a scan of every row of that
+-- action ever written. Additive and idempotent. Railed by tests/test_notebook_return_metrics.py (EXPLAIN QUERY PLAN).
+CREATE INDEX IF NOT EXISTS idx_activity_action_user_created ON activity_log(action, user_id, created_at);
 
 CREATE TABLE IF NOT EXISTS mrr_snapshots (
     id              TEXT PRIMARY KEY,
