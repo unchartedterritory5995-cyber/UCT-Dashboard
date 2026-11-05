@@ -40,7 +40,10 @@ export const SHARE_COPY = Object.freeze({
   lede: "Anyone with the link can read this note. They don't need an account.",
   charts: 'Price charts are not shown on a shared page.',
   expiresIn: 'Expires in',
-  hidePnl: 'Hide my P&L and position size',
+  // Tier 3a fix round 1 (review I2): the switch names exactly what it hides -- P&L widgets (every account figure a
+  // widget carries) and images (a broker screenshot is the obvious leak). Text the member typed is never rewritten.
+  hidePnl: 'Hide P&L widgets and images',
+  typed: 'Text you typed is shared as written.',
   preview: "Preview: see exactly what they'll see →",
   previewHide: 'Hide the preview',
   previewLabel: 'Preview of the shared page',
@@ -48,7 +51,11 @@ export const SHARE_COPY = Object.freeze({
   previewFailed: "Couldn't load the preview. Try again.",
   cancel: 'Cancel',
   create: 'Create link and copy',
-  hidden: 'P&L and position size are hidden on this link.',
+  hidden: 'P&L widgets and images are hidden on this link.',
+  // Review minor 11: a link that shows them says so, plainly.
+  shown: 'P&L widgets you switched to share, and your images, are shown on this link.',
+  // Ruling I1: a request to show over a link that already hides is answered with the link as it is.
+  kept: 'This link already hides P&L. Make a new link to change it.',
 })
 
 /** The expiry choices this sheet offers (M5), in order; the first is the default. The server accepts these and 90. */
@@ -194,10 +201,17 @@ export default function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMe
       })
       setShare(b.share)
       setPreviewOpen(false)
+      // Ruling I1: the sentence states the link's REAL setting, read from the answer -- never the switch's. An existing
+      // link that showed is tightened by the server when Hide was asked; one that hides stays hidden.
       trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'create' })
       focusNextRef.current = 'copyLink'
       const copied = await copyText(sharedNoteUrl(b.share.token))
-      say(copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
+      const hides = b.share.hidePnl === true
+      const head = b.share.reused === true
+        ? (copied ? 'Share link copied.' : 'Copy the address above.')
+        : (copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
+      const kept = hides && !hidePnl ? ` ${SHARE_COPY.kept}` : ''
+      say(`${head} ${hides ? SHARE_COPY.hidden : SHARE_COPY.shown}${kept}`)
     } catch (e) {
       say(memberDetail(e, 'Could not create the link. Try again.'))
     }
@@ -297,10 +311,10 @@ export default function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMe
       {tabs.length > 1 && (
         <div className={styles.tabs} role="tablist" aria-label="How to share">
           <button type="button" role="tab" id={ids.linkTab} ref={tabRefs.link} className={styles.tab}
-            aria-selected={tab === 'link'} aria-controls={ids.linkPanel} tabIndex={tab === 'link' ? 0 : -1}
+            aria-selected={tab === 'link'} aria-controls={tab === 'link' ? ids.linkPanel : undefined} tabIndex={tab === 'link' ? 0 : -1}
             onClick={() => setTab('link')} onKeyDown={onTabKey}>{SHARE_COPY.privateTab}</button>
           <button type="button" role="tab" id={ids.publishTab} ref={tabRefs.publish} className={styles.tab}
-            aria-selected={tab === 'publish'} aria-controls={ids.publishPanel} tabIndex={tab === 'publish' ? 0 : -1}
+            aria-selected={tab === 'publish'} aria-controls={tab === 'publish' ? ids.publishPanel : undefined} tabIndex={tab === 'publish' ? 0 : -1}
             onClick={() => setTab('publish')} onKeyDown={onTabKey}>{SHARE_COPY.publishTab}</button>
         </div>
       )}
@@ -327,7 +341,7 @@ export default function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMe
                   checked={hidePnl} onChange={(e) => setHidePnl(e.target.checked)} disabled={busy} />
                 <span className={styles.switchState} aria-hidden="true">{hidePnl ? 'On' : 'Off'}</span>
               </div>
-              <p className={styles.caption}>{SHARE_COPY.charts}</p>
+              <p className={styles.caption}>{SHARE_COPY.typed} {SHARE_COPY.charts}</p>
               <div className={styles.row}>
                 <button type="button" className={styles.link} aria-expanded={previewOpen} aria-controls={ids.preview}
                   onClick={() => setPreviewOpen((v) => !v)}>
@@ -366,7 +380,7 @@ export default function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMe
                 onFocus={(e) => e.target.select()}
               />
               <p className={styles.caption}>{whenText(share.expiresAt)}</p>
-              {share.hidePnl === true && <p className={styles.caption}>{SHARE_COPY.hidden}</p>}
+              <p className={styles.caption}>{share.hidePnl === true ? SHARE_COPY.hidden : SHARE_COPY.shown}</p>
               <div className={styles.row}>
                 <button type="button" ref={focusRefs.copyLink} className="btn btn-secondary btn-sm" onClick={copyLink} disabled={busy}>Copy link</button>
                 <button
