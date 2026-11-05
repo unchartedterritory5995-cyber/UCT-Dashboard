@@ -39,8 +39,6 @@ def _app(tmp_path, monkeypatch, role: str) -> TestClient:
     monkeypatch.setenv("PUSH_SECRET", "test-push-secret")
     monkeypatch.setenv("EVERNOTE_CLIENT_ID", "evernote-test-client")
     monkeypatch.setenv("NOTE_SYNC_EVERNOTE_ENABLED", "admin")
-    monkeypatch.delenv("DROPBOX_APP_KEY", raising=False)
-    monkeypatch.delenv("DROPBOX_APP_SECRET", raising=False)
     monkeypatch.setattr(ns, "_start_initial_sync", lambda *_a, **_k: None)
 
     user = {"id": "u1", "role": role}
@@ -239,14 +237,9 @@ def test_callback_access_denied_without_plan_description_keeps_the_raw_reason(cl
     assert "reason=access_denied" in loc and "evernote_plan" not in loc
 
 
-def test_callback_never_falls_into_the_dropbox_branch(client_admin, monkeypatch):
-    from api.services.journal_two.note_connectors.providers import dropbox as dbx
-
-    async def boom(*_a, **_k):
-        raise AssertionError("evernote callback reached the Dropbox exchange")
-
-    monkeypatch.setattr(dbx, "_exchange_authorization_code", boom)
-    monkeypatch.setattr(dbx, "authorize_url", lambda *_a, **_k: "https://www.dropbox.com/oauth2/authorize")
+def test_callback_takes_the_evernote_branch_end_to_end(client_admin, monkeypatch):
+    """Written as "never falls into the Dropbox branch"; Dropbox was archived on 2026-11-04, so
+    what is left to pin is that connect and callback both take Evernote's own PKCE path."""
     _fake_exchange(monkeypatch)
     _fake_validate(monkeypatch)
 

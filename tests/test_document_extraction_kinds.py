@@ -2,9 +2,9 @@
 
 What these rails hold, in the order a member would meet it:
 
-  * the GATE. `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` unset (or off) means an
-    image or a docx upload creates NO document row -- exactly today's
-    behaviour. On, the two kinds get rows with their own `source_kind`.
+  * the KINDS. An image or a docx upload gets a document row with its own
+    `source_kind` (always on: `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` was retired
+    2026-11-04).
   * DOCX TEXT is read with the standard library only: paragraphs, runs, tabs
     and line breaks, never tracked-deletion text or field codes; chunked into
     reading pages; refused whole when it is a zip bomb or carries a DOCTYPE.
@@ -33,7 +33,6 @@ from api.services.journal_two import document_ocr as ocr
 from api.services.journal_two import document_search
 from api.services.journal_two import notes as notes_svc
 
-GATE = dx.IMAGE_DOCX_GATE
 PHRASE = "kimberlitegabbro"
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
@@ -102,7 +101,6 @@ def env(tmp_path, monkeypatch):
     auth_db.init_db()
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "j2_attachments")
-    monkeypatch.setenv(GATE, "1")
     queued: list[str] = []
     monkeypatch.setattr(dx, "queue_extraction", lambda doc_id: queued.append(doc_id))
     ocr.set_adapter(None)
@@ -169,22 +167,7 @@ class TestGate:
     IMG = {"url": "/api/j2/notes/attachments/u1/n1/inline/abc.png", "width": 4, "height": 4}
     DOCX = {"url": "/api/j2/notes/attachments/u1/n1/file/def.docx", "name": "memo.docx", "size": 9}
 
-    @pytest.mark.parametrize("value", [None, "", "0", "false", "off", "no", "maybe"])
-    def test_gate_off_image_and_docx_create_nothing(self, monkeypatch, value):
-        """⛔ OFF IS TODAY. Unset, empty, an explicit off word or a typo: no row,
-        no extraction queued -- the member keeps exactly the pre-wave-7 upload."""
-        if value is None:
-            monkeypatch.delenv(GATE, raising=False)
-        else:
-            monkeypatch.setenv(GATE, value)
-        created, queued = self._spy(monkeypatch)
-        assert dx.on_attachment_saved("u1", "n1", dict(self.IMG), "image/png", kind="image") is None
-        assert dx.on_attachment_saved("u1", "n1", dict(self.DOCX), dx.DOCX_MIME, kind="file") is None
-        assert created == [] and queued == []
-
-    @pytest.mark.parametrize("value", ["1", "true", "on", "YES", " 1 "])
-    def test_gate_on_image_and_docx_become_documents_of_their_own_kind(self, monkeypatch, value):
-        monkeypatch.setenv(GATE, value)
+    def test_image_and_docx_become_documents_of_their_own_kind(self, monkeypatch):
         created, queued = self._spy(monkeypatch)
         img = dx.on_attachment_saved("u1", "n1", dict(self.IMG), "image/png", kind="image")
         doc = dx.on_attachment_saved("u1", "n1", dict(self.DOCX), dx.DOCX_MIME, kind="file")
@@ -195,20 +178,7 @@ class TestGate:
         ]
         assert queued == ["doc-1", "doc-2"]
 
-    def test_the_gate_is_read_per_call_not_captured(self, monkeypatch):
-        """A flip needs no restart: the SAME process answers differently the
-        moment the environment does."""
-        created, _ = self._spy(monkeypatch)
-        monkeypatch.delenv(GATE, raising=False)
-        assert dx.on_attachment_saved("u1", "n1", dict(self.IMG), "image/png", kind="image") is None
-        monkeypatch.setenv(GATE, "1")
-        assert dx.on_attachment_saved("u1", "n1", dict(self.IMG), "image/png", kind="image") is not None
-        monkeypatch.setenv(GATE, "0")
-        assert dx.on_attachment_saved("u1", "n1", dict(self.IMG), "image/png", kind="image") is None
-        assert len(created) == 1
-
-    def test_the_pdf_path_is_not_behind_the_gate(self, monkeypatch):
-        monkeypatch.delenv(GATE, raising=False)
+    def test_the_pdf_path_becomes_a_document(self, monkeypatch):
         created, queued = self._spy(monkeypatch)
         pdf = {"url": "/api/j2/notes/attachments/u1/n1/file/r.pdf", "name": "r.pdf", "size": 3}
         assert dx.on_attachment_saved("u1", "n1", pdf, "application/pdf", kind="file") is not None
@@ -217,14 +187,12 @@ class TestGate:
     def test_a_docx_whose_url_does_not_end_in_docx_stays_a_plain_attachment(self, monkeypatch):
         """⛔ The preview picks its viewer from the URL, so a row the URL cannot
         identify is never created (a docx saved under another name is `.bin`)."""
-        monkeypatch.setenv(GATE, "1")
         created, _ = self._spy(monkeypatch)
         odd = {"url": "/api/j2/notes/attachments/u1/n1/file/x.bin", "name": "memo", "size": 9}
         assert dx.on_attachment_saved("u1", "n1", odd, dx.DOCX_MIME, kind="file") is None
         assert created == []
 
     def test_other_files_and_other_image_types_are_still_not_documents(self, monkeypatch):
-        monkeypatch.setenv(GATE, "1")
         created, _ = self._spy(monkeypatch)
         csv = {"url": "/api/j2/notes/attachments/u1/n1/file/a.csv", "name": "a.csv", "size": 5}
         assert dx.on_attachment_saved("u1", "n1", csv, "text/csv", kind="file") is None

@@ -404,13 +404,6 @@ def test_mark_tag_around_paragraphs_in_the_shared_html_walker(tag, mark):
     assert _paragraph_marks(out["doc"]) == [("a", (mark,)), ("b", (mark,))]
 
 
-@pytest.mark.parametrize("tag,mark", _MARK_TAG_CASES)
-def test_mark_tag_around_paragraphs_in_onenote_html(tag, mark):
-    from api.services.journal_two.note_connectors.convert.onenote_html import onenote_html_to_tiptap
-    out = onenote_html_to_tiptap(f"<{tag}><p>a</p><p>b</p></{tag}>")
-    assert _paragraph_marks(out["doc"]) == [("a", (mark,)), ("b", (mark,))]
-
-
 def test_nested_mark_tags_around_blocks_combine_without_doubling():
     from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
     out = html_to_tiptap("<b><i><p>a</p><p><b>b</b></p></i></b>")

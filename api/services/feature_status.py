@@ -80,7 +80,11 @@ def _read_declarations(path: Path) -> Optional[list]:
     if not isinstance(flags, dict):
         return None
     out = []
-    for name, entry in flags.items():
+    # ⭐ `retired` (2026-11-04): a gate retired as ALWAYS ON keeps its member_facing label
+    # there, and its payload key is hard-coded True (auth.NOTEBOOK_ALWAYS_ON_KEYS), so the strip
+    # keeps naming a capability that is still here.
+    retired = doc.get("retired") if isinstance(doc.get("retired"), dict) else {}
+    for name, entry in [*flags.items(), *retired.items()]:
         mf = entry.get("member_facing") if isinstance(entry, dict) else None
         if not isinstance(mf, dict):
             continue

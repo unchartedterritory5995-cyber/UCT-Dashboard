@@ -227,7 +227,6 @@ def test_use_template_copies_a_listed_outline_and_refuses_an_example_and_a_layou
     """P4b final I-M4: the merged `use_template` asks master's FOUR-argument `_can_see(row, viewer, is_admin, conn)`
     (P4b's side dropped `conn`: a TypeError on every use, if taken verbatim) and refuses an example note AND a layout.
     The outline copy is the positive control: without it a TypeError and a refusal would both read as "None"."""
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
     outline = _listed_outline(conn)
     copied = gallery.use_template("member", outline, conn=conn)
     assert copied is not None and copied["template"]["title"] == "Swing plan"
@@ -316,7 +315,7 @@ def test_adopt_layout_route_returns_the_layout_and_spends_the_adopt_day(api, con
 
 
 def test_adopt_layout_route_is_the_one_404_for_everyone_while_sharing_is_off(api, conn, monkeypatch):
-    _set(monkeypatch, {"NOTEBOOK_STYLE_LIBRARY_ENABLED": True, "JOURNAL_PAGE_LAYOUTS_ENABLED": True,
+    _set(monkeypatch, {"JOURNAL_PAGE_LAYOUTS_ENABLED": True,
                        "NOTEBOOK_LAYOUT_SHARING_ENABLED": True})
     gid = _listed_layout(conn)
     monkeypatch.setenv("NOTEBOOK_LAYOUT_SHARING_ENABLED", "0")

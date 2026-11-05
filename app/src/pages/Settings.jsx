@@ -1705,7 +1705,7 @@ const SEARCH_INDEX = [
   { card: 'voiceDocs',      section: 'compass',     title: 'Voice Documents',            keywords: 'upload pdf files knowledge documents' },
   { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
   { card: 'broker',         section: 'connections', title: 'Brokerage Connections',      keywords: 'broker brokerage connect snaptrade robinhood schwab import trades positions sync auto-import' },
-  { card: 'noteConnectors', section: 'connections', title: 'Connected Apps',              keywords: 'notes connectors roam craft notion dropbox sync import notebook connect' },
+  { card: 'noteConnectors', section: 'connections', title: 'Connected Apps',              keywords: 'notes connectors roam craft notion sync import notebook connect' },
   { card: 'privacy',        section: 'legal',       title: 'Data & Privacy',             keywords: 'export download my data json terms privacy policy' },
   { card: 'deviceSync',     section: 'legal',       title: 'What Syncs Across Your Devices', keywords: 'sync devices device browser phone laptop account local storage saved where cross-device this browser only drawings columns layout autosave auto-save prebuilt limit limits maximum max grid comparison templates' },
   { card: 'prefsBackup',    section: 'legal',       title: 'Preferences Backup',        keywords: 'backup restore prefs preferences export import json theme chart tag' },

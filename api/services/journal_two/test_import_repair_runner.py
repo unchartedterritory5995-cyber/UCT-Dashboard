@@ -128,6 +128,18 @@ def test_classify_separates_file_labels_from_provider_ids():
     assert runner.classify(_row("sample"), set()) is None  # C6: the stored-row check, `is_sample`
 
 
+@pytest.mark.parametrize("archived", ["dropbox", "onenote", "onedrive"])
+def test_classify_keeps_an_archived_providers_notes_as_connector_notes(archived):
+    """The 2026-11-04 archive took these out of the registry. Their notes must keep the class they
+    had before (a connector id, never a file importer label), so the guarded repair never treats
+    them as FILE notes and adds the file markers to their bodies."""
+    assert archived not in runner.registry._REGISTRY  # non-vacuity: only the archive clause can match
+    assert runner.classify(_row(archived), set()) == ORPHANED
+    assert runner.classify(_row(archived), {archived}) == LIVE
+    # CONTROL: a lowercase name in neither set is still a file label
+    assert runner.classify(_row("not-a-provider"), set()) == FILE
+
+
 # ── the one guard ─────────────────────────────────────────────────────────────
 
 def test_hands_off_is_the_one_predicate():

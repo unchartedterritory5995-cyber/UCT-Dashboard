@@ -71,8 +71,7 @@ import secret_scrub  # noqa: E402
 
 VIEWPORTS = fw.VIEWPORTS
 # The payload switches (NOTEBOOK_FLAGS gates) and the one server-only switch (template_gallery.LAYOUT_SHARING_FLAG).
-PAYLOAD_FLAGS = ["NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED",
-                 "JOURNAL_PAGE_LAYOUTS_ENABLED"]
+PAYLOAD_FLAGS = ["JOURNAL_PAGE_LAYOUTS_ENABLED"]  # the gallery, library, styles and starter-pack switches were retired as always on (2026-11-04)
 PW = "LocalTest2026!"          # sandbox seed (throwaway data dir only)
 T = 30000
 

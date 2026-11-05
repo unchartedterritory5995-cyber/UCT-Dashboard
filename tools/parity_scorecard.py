@@ -2166,11 +2166,18 @@ def verify_quotes(pages_dir=None):
 
 
 def _flags_of(text):
-    """The flag ledger's `flags` map from its JSON text (None when there is no text)."""
+    """The flag ledger's `flags` map from its JSON text (None when there is no text).
+
+    A gate RETIRED AS ALWAYS ON (the ledger's `retired` section, 2026-11-04) reads as `armed`: the capability is
+    on for every member, so a cell that records it armed still holds. It never overrides a live `flags` row."""
     if not text:
         return None
     d = json.loads(text)
-    return d.get('flags', d)
+    flags = dict(d.get('flags', d))
+    for name, row in (d.get('retired') or {}).items() if isinstance(d, dict) else ():
+        if isinstance(row, dict) and row.get('state') == 'always on' and name not in flags:
+            flags[name] = {**row, 'status': 'armed'}
+    return flags
 
 
 def _flags_now():
@@ -3946,7 +3953,7 @@ def build(pages_dir=None):
       'B07: the Scan control is there at 390 px; the OCR that makes a photo searchable is now armed (W14 walked image '
       'OCR on a sandbox). The scan-to-search chain has never run on a device, so no comparative verdict.',
       'a real-device scan, then search its words (G-164)')
-    R('G-160', ('NV', 'P', 'NV'), [code(f'{JT}/document_extraction.py', 56, 'IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"'),
+    R('G-160', ('NV', 'P', 'NV'), [code(f'{JT}/document_extraction.py', 440, 'Extraction (xlsx, stdlib only) — wave 10, G-160'),
                                   flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk7('W14_image_ocr_document'),
                                   walk10('B3_xlsx_cell_found')],
       {'N': ['N_importdocx'], 'E': ['E_searchimg'], 'O': NFO},

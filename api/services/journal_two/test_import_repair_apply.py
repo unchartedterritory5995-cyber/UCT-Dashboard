@@ -739,7 +739,6 @@ def test_the_repair_creates_document_rows_but_starts_no_extraction(armed, web, m
     (`requeue_stale_pending`) picks the row up. No extraction thread exists after the run."""
     import threading
     from api.services.journal_two import document_extraction
-    monkeypatch.setenv("NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "1")
     submitted = []
     monkeypatch.setattr(document_extraction._EXTRACTION_POOL, "submit", lambda *a: submitted.append(a))
     note = _note("u1", "Notion", "notion:Export/H.md", _doc({"type": "image", "attrs": {"src": HOT}}))

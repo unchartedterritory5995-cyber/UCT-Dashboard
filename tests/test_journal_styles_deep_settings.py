@@ -67,7 +67,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv(js.FLAG, "1")
     from api.routers import notebook_journal_styles as r
     app = FastAPI()
     app.include_router(r.router)

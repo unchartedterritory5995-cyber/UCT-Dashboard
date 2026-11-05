@@ -2,8 +2,8 @@
 (`api/services/journal_two/transcript_capture.py`, `api/routers/notebook_research_capture.py`).
 
 What each section proves:
-  * THE GATE: every transcript route answers the one 404 while
-    `NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED` is off, signed in or not; a paid plan is required.
+  * ACCESS: a paid plan is required (`NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED` was retired as always
+    on, 2026-11-04).
   * HELD ONLY: quarters and turns come from the FMP transcript cache and the stored index; a
     quarter UCT does not hold refuses honestly, and the index file is never created to find out.
   * THE CITATION: the saved excerpt cites its SOURCE (FMP transcript, the symbol and quarter),
@@ -34,7 +34,6 @@ from fastapi.testclient import TestClient
 from api.middleware import auth_middleware as authmw
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAG = "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED"
 A, B = "user-tc-a", "user-tc-b"
 PAID = {"plan": "pro"}
 FREE = {"plan": "free"}
@@ -107,7 +106,7 @@ def index_db(monkeypatch, tmp_path):
 
 @pytest.fixture
 def gate_on(monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 @pytest.fixture
@@ -162,22 +161,14 @@ def _save(client, note_id, *, turn=2, passage="gross margin was 72.4%", quarter=
         "passage": passage, **extra})
 
 
-# ── the gate ────────────────────────────────────────────────────────────────────────────
+# ── access ────────────────────────────────────────────────────────────────────────────
 
 ROUTES = [("get", "/api/j2/research-capture/transcripts/NVDA/quarters"),
           ("get", "/api/j2/research-capture/transcripts/NVDA/2026Q2"),
           ("post", "/api/j2/research-capture/transcripts/save")]
 
 
-@pytest.mark.parametrize("method,path", ROUTES)
-def test_every_route_is_404_while_the_gate_is_off_signed_in_or_not(client, app, monkeypatch, method, path):
-    monkeypatch.delenv(FLAG, raising=False)
-    assert getattr(client, method)(path, **({"json": {}} if method == "post" else {})).status_code == 404
-    as_user(app, A)
-    assert getattr(client, method)(path, **({"json": {}} if method == "post" else {})).status_code == 404
-
-
-def test_CONTROL_the_same_route_answers_once_the_gate_is_on(client, app, gate_on, index_db):
+def test_the_route_answers_a_member(client, app, gate_on, index_db):
     as_user(app, A)
     assert client.get(ROUTES[0][1]).status_code == 200
 

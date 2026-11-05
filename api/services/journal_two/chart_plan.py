@@ -19,8 +19,7 @@ Compass, labels the answer, and never computes shares itself.
 the member's own editor transaction (R-12). `notebook_chart_alerts.py` is the router; arming an
 alert goes through the EXISTING watchlist-alert route function, never a new pipeline.
 
-The gate is `NOTEBOOK_CHART_PLAN_ENABLED` (unset = OFF), read per call through the one Notebook
-flag parse. The `ta` schema attribute itself is NOT gated (it is schema, always present).
+Always on: `NOTEBOOK_CHART_PLAN_ENABLED` was retired 2026-11-04 (it was 1 on web).
 """
 from __future__ import annotations
 
@@ -29,10 +28,7 @@ import logging
 import math
 from typing import Any
 
-from api.services.notebook_flags import flag_on
 from api.services.journal_two import plan_extract
-
-FLAG = "NOTEBOOK_CHART_PLAN_ENABLED"
 
 #: The widget id of a chart embed (`widgets/registry.js` `chart`).
 CHART_WIDGET = "chart"
@@ -44,11 +40,6 @@ SIZED_BY_STARTER = "starter"
 
 COMPASS_PAID_REASON = "Compass sizing needs a paid plan"
 COMPASS_LONG_ONLY_REASON = "Compass sizes longs only"
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL (default OFF)."""
-    return flag_on(FLAG, False)
 
 
 def _finite_positive(v: Any) -> float | None:

@@ -84,12 +84,6 @@ def test_follow_and_the_feed(conn, lib_on):
     assert gallery.feed("m1", conn=conn) == []
 
 
-def test_social_routes_are_404_with_the_library_off(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert gallery.feed("m1", conn=conn) == []
-    assert gallery.author_page("m1", "anything", conn=conn) is None
-
-
 # ── the handle ───────────────────────────────────────────────────────────────────────────
 
 def test_a_new_and_a_resubmitted_item_always_has_a_handle_and_it_never_changes(conn, lib_on):
@@ -172,15 +166,6 @@ def test_helpful_is_refused_for_anything_the_member_cannot_see(conn, lib_on):
     conn.commit()
     assert gallery.set_helpful("m1", item["id"], True, conn=conn) is None
     assert conn.execute("SELECT COUNT(*) FROM j2_gallery_helpful").fetchone()[0] == 0
-
-
-def test_helpful_is_refused_while_the_library_is_off(conn, lib_on, monkeypatch):
-    item = _listed(conn, "a1")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert gallery.set_helpful("m1", item["id"], True, conn=conn) is None
-    assert gallery.set_follow("m1", item["authorHandle"], True, conn=conn) is None
-    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_helpful").fetchone()[0] == 0
-    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_follows").fetchone()[0] == 0
 
 
 def test_these_votes_need_no_use_only_while_wave_11_is_off(conn, lib_on, monkeypatch):
@@ -421,30 +406,6 @@ def test_the_literal_social_paths_are_not_taken_by_the_item_route(api, conn, lib
     feed = api.get(f"{URL}/feed")
     assert feed.status_code == 200 and "templates" in feed.json() and "template" not in feed.json()
     assert api.get(f"{URL}/{item['id']}").json()["template"]["id"] == item["id"]    # non-vacuity
-
-
-def test_every_social_route_is_the_one_404_for_everyone_while_the_library_is_off(api, conn, lib_on, monkeypatch):
-    # R-P3-10: a route dependency, ahead of the plan check and the body -- a paid member, an unpaid member
-    # and a signed-out caller with a malformed body all get the same 404, and nothing is written.
-    from api.middleware import auth_middleware as authmw
-    item = _listed(conn, "a1")
-    h = item["authorHandle"]
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    calls = (("POST", f"{URL}/{item['id']}/helpful"), ("DELETE", f"{URL}/{item['id']}/helpful"),
-             ("GET", f"{URL}/authors/{h}"), ("POST", f"{URL}/authors/{h}/follow"),
-             ("DELETE", f"{URL}/authors/{h}/follow"), ("GET", f"{URL}/feed"))
-    for method, url in calls:
-        _as(api, "m1")
-        paid = api.request(method, url)
-        _as(api, "m1", plan="free")
-        unpaid = api.request(method, url)
-        api.app.dependency_overrides.pop(authmw.get_current_user, None)
-        api.app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
-        signed_out = api.request(method, url, content=b"{bad")
-        assert (paid.status_code, unpaid.status_code, signed_out.status_code) == (404, 404, 404), (method, url)
-        assert paid.json() == unpaid.json() == signed_out.json(), (method, url)
-    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_helpful").fetchone()[0] == 0
-    assert conn.execute("SELECT COUNT(*) FROM j2_gallery_follows").fetchone()[0] == 0
 
 
 def test_the_social_routes_need_a_paid_plan_while_the_library_is_on(api, conn, lib_on):

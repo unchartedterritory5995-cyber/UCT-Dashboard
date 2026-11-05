@@ -2,7 +2,7 @@
 
 Mirrors the SnapTrade wrapper's exception family
 (`api/services/journal_two/broker/snaptrade_client.py`) — a provider (Roam,
-Craft, Notion, Dropbox) raises ONLY these outward, never a raw httpx/SDK
+Craft, Notion, Obsidian, Evernote) raises ONLY these outward, never a raw httpx/SDK
 exception, so the sync engine and router can make one set of decisions
 regardless of which provider is talking:
 
@@ -38,7 +38,7 @@ class NoteConnError(Exception):
 
 class NoteConnNotConfigured(NoteConnError):
     """Provider env credentials are not set (dark provider — e.g.
-    NOTION_CLIENT_ID/SECRET, DROPBOX_APP_KEY/SECRET absent)."""
+    NOTION_CLIENT_ID/SECRET absent), or an unknown/archived provider name."""
 
 
 class NoteConnAuthError(NoteConnError):

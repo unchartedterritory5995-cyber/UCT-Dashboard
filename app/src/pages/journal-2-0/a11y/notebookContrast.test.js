@@ -356,7 +356,7 @@ describe('Evernote offer links, rendered: 4.5:1 with every ancestor opacity appl
     }
     return out
   }
-  const ALL = ['roam', 'craft', 'notion', 'dropbox', 'onenote', 'onedrive', 'obsidian', 'evernote']
+  const ALL = ['roam', 'craft', 'notion', 'obsidian', 'evernote']
   const STATUS = { providers: Object.fromEntries(ALL.map((k) => [k, { configured: true, connected: false, sources: [] }])) }
   afterEach(() => { cleanup(); window.history.replaceState({}, '', '/') })
 

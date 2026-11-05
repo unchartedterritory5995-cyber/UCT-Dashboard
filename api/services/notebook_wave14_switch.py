@@ -21,9 +21,12 @@ from api.services.notebook_flags import flag_on
 #: app/src/pages/journal-2-0/components/notebook/onboarding/gettingStartedPref.js
 #: (onboarding AND getting-started); this is its mirror, and it is never restated by hand:
 #: tests/test_sample_notebook_switch.py reads the flag keys out of that JS function and fails
-#: unless they are exactly these variables' payload keys. Defaults come from the one table,
-#: `auth.NOTEBOOK_FLAGS`, so the server reads the switch exactly as the payload reports it.
-WAVE14_SWITCH = ("NOTEBOOK_ONBOARDING_ENABLED", "NOTEBOOK_GETTING_STARTED_ENABLED")
+#: unless they are exactly these variables' payload keys plus the retired, always-on ones
+#: (`auth.NOTEBOOK_ALWAYS_ON_KEYS`: `notebook_getting_started_enabled` since 2026-11-04, whose
+#: flag was retired as always on, so it adds nothing to the server's answer). Defaults come
+#: from the one table, `auth.NOTEBOOK_FLAGS`, so the server reads the switch exactly as the
+#: payload reports it.
+WAVE14_SWITCH = ("NOTEBOOK_ONBOARDING_ENABLED",)
 
 
 def wave14_switch_on() -> bool:

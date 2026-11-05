@@ -2,8 +2,8 @@
 `api/routers/notebook_earnings_prep.py`).
 
 What each section proves:
-  * THE GATE: both routes answer the one 404 while `NOTEBOOK_EARNINGS_PREP_ENABLED` is off,
-    signed out or not -- the gate runs before the session is read. Paid plan required.
+  * ACCESS: a session and a paid plan are required (`NOTEBOOK_EARNINGS_PREP_ENABLED` was
+    retired as always on, 2026-11-04).
   * REPORTING SOON: the member's OWN sets (positions, watchlists, flagged; never UCT20) crossed
     with the calendar window, sorted, with timing from the calendar's already-built weeks and an
     Open link for a name already prepped.
@@ -38,7 +38,6 @@ from fastapi.testclient import TestClient
 from api.middleware import auth_middleware as authmw
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAG = "NOTEBOOK_EARNINGS_PREP_ENABLED"
 A, B = "user-prep-a", "user-prep-b"
 PAID = {"plan": "pro"}
 FREE = {"plan": "free"}
@@ -169,7 +168,7 @@ def _clean_cache():
 
 @pytest.fixture
 def gate_on(monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 @pytest.fixture
@@ -330,36 +329,17 @@ def _count_notes() -> int:
         conn.close()
 
 
-# ── the gate ────────────────────────────────────────────────────────────────────────────
+# ── access ────────────────────────────────────────────────────────────────────────────
 
 ROUTES = [("get", "/api/j2/earnings-prep/soon"), ("post", "/api/j2/earnings-prep/NVDA/draft")]
 
 
 @pytest.mark.parametrize("method,path", ROUTES)
-def test_gate_off_answers_404_signed_in_or_out(client, app, monkeypatch, method, path):
-    monkeypatch.delenv(FLAG, raising=False)
-    assert getattr(client, method)(path).status_code == 404          # signed out: the gate ran first
-    as_user(app, A)
-    assert getattr(client, method)(path).status_code == 404
-    monkeypatch.setenv(FLAG, "0")
-    assert getattr(client, method)(path).status_code == 404
-
-
-@pytest.mark.parametrize("method,path", ROUTES)
-def test_gate_on_needs_a_session_and_a_paid_plan(client, app, gate_on, method, path):
+def test_the_routes_need_a_session_and_a_paid_plan(client, app, gate_on, method, path):
     assert getattr(client, method)(path).status_code == 401
     as_user(app, A, FREE)
     r = getattr(client, method)(path)
     assert r.status_code == 402 and r.json()["detail"] == "Earnings prep requires a paid plan"
-
-
-def test_the_flag_is_on_the_auth_payload_and_defaults_off(monkeypatch):
-    from api.routers import auth as auth_router
-    assert auth_router.NOTEBOOK_FLAGS["NOTEBOOK_EARNINGS_PREP_ENABLED"] is False
-    monkeypatch.delenv(FLAG, raising=False)
-    assert auth_router._access_payload({"role": "member"}, "pro")["notebook_earnings_prep_enabled"] is False
-    monkeypatch.setenv(FLAG, "1")
-    assert auth_router._access_payload({"role": "member"}, "pro")["notebook_earnings_prep_enabled"] is True
 
 
 # ── reporting soon ──────────────────────────────────────────────────────────────────────
@@ -960,7 +940,7 @@ def test_CONTROL_the_walk_finds_alphavantage_where_it_is_reachable():
 def test_neither_module_imports_a_model_client_directly():
     for mod in ("api.services.journal_two.earnings_prep", "api.routers.notebook_earnings_prep"):
         direct = _imports_of(mod)
-        assert "api.services.notebook_flags" in direct or mod.endswith("notebook_earnings_prep")
+        assert direct, f"non-vacuity: no import of {mod} was read"
         assert not direct & MODEL_MODULES, (mod, direct & MODEL_MODULES)
 
 

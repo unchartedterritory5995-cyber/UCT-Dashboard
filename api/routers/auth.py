@@ -167,119 +167,36 @@ NOTEBOOK_FLAGS = {
     # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
     # variable per request through `flag_on`.
     "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
-    # Wave 11 lane 11B: formula and rollup properties. The route side reads the same
-    # variable through `note_computed.formulas_enabled()` -> `flag_on`, per request.
-    "NOTEBOOK_FORMULAS_ENABLED": False,      # enablement  — unset means OFF (formulas + rollups, lane 11B)
-    # Wave 11 lane 11D: the trade-plan canvas. Client-only (no route of its own:
-    # a canvas is a note, written through the note's own door); the payload key is
-    # `notebook_trade_canvas_enabled` and every create door + the board's editing
-    # controls read it (lib/tradeCanvas.js `tradeCanvasEnabled`).
-    "NOTEBOOK_TRADE_CANVAS_ENABLED": False,  # enablement  — unset means OFF (trade-plan canvas, lane 11D)
-    # Wave 12 lane 12A: the community template gallery. The router's gate
-    # (journal_two/template_gallery.enabled) reads the same variable through
-    # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
-    # Wave 13 lane 13I-1: the technical fingerprint and the chart-block index. The router's
-    # gate (journal_two/tech_fingerprint.enabled) reads the same variable through flag_on,
-    # per request; the payload key is `notebook_ta_fingerprint_enabled`.
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED": False,  # enablement — unset means OFF (fingerprint, lane 13I-1)
-    # Wave 13 lane 13C: earnings prep (Reporting soon + a one-click prep note). The router's
-    # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
-    # request; the payload key is `notebook_earnings_prep_enabled`.
-    "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
-    # Wave 13 lane 13H-1: the chart plan (sizing from drawn levels, alerts at drawn levels). The
-    # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
-    # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
-    "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
-    # Wave 13 lane 13A: plan vs execution grading. The router's gate
-    # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
-    # request; the payload key is `notebook_plan_grading_enabled`.
-    "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
-    # Wave 13 lane 13E-1: the market context frozen at the fill. The router's gate
-    # (journal_two/entry_context.enabled) reads the same variable through flag_on, per
-    # request, and so do the capture hooks; the payload key is `notebook_entry_context_enabled`.
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": False,  # enablement — unset means OFF (entry context, lane 13E-1)
-    # Wave 13 lane 13G-1: research capture. Two gates, one per router in
-    # api/routers/notebook_research_capture.py (journal_two/transcript_capture.enabled and
-    # journal_two/passed_setups.enabled read these through flag_on, per request); the payload keys
-    # are `notebook_transcript_capture_enabled` and `notebook_passed_setups_enabled`.
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": False,  # enablement — unset means OFF (transcript passage -> excerpt, lane 13G-1)
-    "NOTEBOOK_PASSED_SETUPS_ENABLED": False,  # enablement — unset means OFF (passed-setups journal, lane 13G-1)
-    # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (status + distance to
-    # invalidation, from 13D's j2_note_levels projection). The router's gate
-    # (journal_two/thesis_chips.enabled) reads the same variable through flag_on, per request; the
-    # payload key is `notebook_thesis_chips_enabled`.
-    "NOTEBOOK_THESIS_CHIPS_ENABLED": False,  # enablement — unset means OFF (thesis chips, lane 13G-2)
-    # Wave 13 lane 13I-2: the visual playbook grid, the setup-tag suggestion at insert and the
-    # trade page's before/after. The router's gate (journal_two/visual_playbook.enabled) reads
-    # the same variable through flag_on, per request; the payload key is
-    # `notebook_visual_playbook_enabled`. The fingerprint panel rides 13I-1's flag.
-    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (visual playbook, lane 13I-2)
     # Wave 13 lane 13D: resurfacing (Awareness Engine R7-R9 bring a note back in-app when its
     # ticker reaches a level it named, moves 8%+, or reaches its date). The scan's gate
     # (journal_two/note_levels.enabled, read by awareness/engine.py per cycle) reads the same
     # variable through flag_on; the payload key `awareness_note_resurface_enabled` gates the
     # note door's "what you wrote then" sheet. AWARENESS_ENGINE_ENABLED must also be on.
     "AWARENESS_NOTE_RESURFACE_ENABLED": False,  # enablement — unset means OFF (resurfacing, lane 13D)
-    # Wave 13 lane 13J: the active setups board, and find more like this. Each router's gate
-    # (journal_two/setups_board.enabled, journal_two/similar_matches.enabled) reads its variable
-    # through flag_on, per request, and so does the nightly matches job; the payload keys are
-    # `notebook_setups_board_enabled` and `notebook_find_similar_enabled`.
-    "NOTEBOOK_SETUPS_BOARD_ENABLED": False,  # enablement — unset means OFF (setups board, lane 13J)
-    "NOTEBOOK_FIND_SIMILAR_ENABLED": False,  # enablement — unset means OFF (find similar, lane 13J)
-    # Wave 13 lane 13B: My Playbook. The router's gate (routers/notebook_playbook.enabled)
-    # reads the same variable through flag_on, per request; the payload key is
-    # `notebook_playbook_enabled`.
-    "NOTEBOOK_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (My Playbook, lane 13B)
-    # Wave 13 lane 13F: reviews that write themselves, with the leak finder. The service's gate
-    # (journal_two/review_drafts.enabled) reads the same variable through flag_on, per request;
-    # the payload key is `notebook_review_drafts_enabled`.
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": False,  # enablement — unset means OFF (review drafts, lane 13F)
-    # Wave 14 lane W14-D: the "get started" checklist on Research Home. Client-only (no route
-    # of its own: it reads the member's preferences and Research Home's own read); the payload
-    # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
-    # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
-    "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
-    # Wave 14 lane W14-C1: three capabilities whose gate lived ONLY on the server, so their
+    # Wave 14 lane W14-C1: capabilities whose gate lived ONLY on the server, so their
     # walkthroughs (onboarding/tours/b1Core.js) could never open. Each row mirrors the
     # capability's OWN read -- same variable, same polarity -- and `flag_on`'s parse agrees
     # with each own parse on every spelling (tests/test_notebook_flags.py proves it). The
     # payload key only lets the client see the state; the capability's own server read is
     # unchanged and remains the authority over what the capability does.
-    #   image/docx documents: document_extraction.image_docx_documents_enabled (on: 1/true/yes/on)
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": False,  # enablement — unset means OFF (image/docx documents, wave 7 G)
+    #   (image/docx documents was the third; retired as always on 2026-11-04)
     #   task reminders: note_tasks.reminders_enabled, a KILL SWITCH (off: 0/false/no/off); on in prod
     "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
     #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
     "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
-    # TERM-056 (lane N, 2026-10-10): a terminal command pasted into a note becomes a link that
-    # opens the terminal at it. Client-only; payload key `notebook_terminal_links_enabled`.
-    "NOTEBOOK_TERMINAL_LINKS_ENABLED": False,  # enablement — unset means OFF (terminal command links)
     # Task 14b (ruling R16, 2026-10-11): Compass's text-chat tool `search_my_notes` (wave 7 lane H)
     # had a server gate only, so the Notebook could not say it exists. The payload key
     # `compass_notes_tool_enabled` lets the client name it ONLY while it is on. The tool's own gate
     # (coach_chat_tools.notes_tool_enabled) reads through `flag_on` too: one variable, one parse.
     "COMPASS_NOTES_TOOL_ENABLED": False,  # enablement — unset means OFF (Compass reads notes, text chat)
-    # Notebook P1 (journal styles): kinds of note, journal styles, the manager, /style and the
-    # update-layout action. The router's gate (journal_styles.enabled) reads it through flag_on per
-    # request; the payload key is `notebook_journal_styles_enabled`. Gates CREATING, never rendering.
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
-    "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
     # P4a (page layouts): the Customize button on Today and the trade page, and reading a saved
     # layout. The payload key is `journal_page_layouts_enabled`. ⛔ The JOURNAL_ prefix is kept on
     # purpose: no rail requires NOTEBOOK_ (J2_SHARE_LINKS_ENABLED above is prefixless too).
     "JOURNAL_PAGE_LAYOUTS_ENABLED": False,  # enablement — unset means OFF (page layouts, P4a)
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED": False,  # enablement, unset means OFF (P3a: community style library)
     # P2 Tier 3: the mood check-in block, the By check-in view, Checklist from my winners and the
     # Your trading year door. Gates CREATING, never rendering. No NOTEBOOK_ prefix on purpose
     # (J2_SHARE_LINKS_ENABLED above is the precedent); the payload key is `journal_tier3_enabled`.
     "JOURNAL_TIER3_ENABLED": False,  # enablement — unset means OFF (Tier 3: check-in, winners checklist, year)
-    # P5 (starter packs): the How do you trade? offer and the starter-pack install endpoint (both need
-    # NOTEBOOK_JOURNAL_STYLES_ENABLED), and the firm style rows in the gallery, which list only while
-    # NOTEBOOK_STYLE_LIBRARY_ENABLED is on too (P5-AUD-1, template_gallery._hidden_styles). Payload key
-    # `notebook_starter_packs_enabled`.
-    "NOTEBOOK_STARTER_PACKS_ENABLED": False,  # enablement — unset means OFF (starter packs, P5)
     # Notebook widgets (plan docs/superpowers/plans/2026-10-20-notebook-widgets.md): one gate per wave. A flag gates
     # menu entries and server reads only; a stored widget always renders. Payload keys `notebook_widgets_w<n>_enabled`.
     "NOTEBOOK_WIDGETS_W1_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 1)
@@ -293,6 +210,39 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_WIDGETS_W10_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 10)
     "NOTEBOOK_WIDGETS_W11_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 11)
 }
+
+# ⭐ RETIRED 2026-11-04 (notebook simplification). Each of these capabilities had its flag set
+# to 1 on web, so it is now ALWAYS ON: the code no longer reads the variable, and a value left
+# on Railway is inert. The payload key STAYS, hard-coded True, so every client reader keeps its
+# "on" branch with no client change (and old bundles still read True). The ledger records each
+# one under `retired` in docs/feature_flags.json, where its member_facing label still reaches
+# the Support page strip (feature_status reads that section as always on).
+NOTEBOOK_ALWAYS_ON_KEYS: tuple[str, ...] = (
+    "notebook_chart_plan_enabled",
+    "notebook_earnings_followup_enabled",
+    "notebook_earnings_prep_enabled",
+    "notebook_entry_context_enabled",
+    "notebook_find_similar_enabled",
+    "notebook_formulas_enabled",
+    "notebook_getting_started_enabled",
+    "notebook_image_docx_documents_enabled",
+    "notebook_journal_styles_enabled",
+    "notebook_passed_setups_enabled",
+    "notebook_plan_grading_enabled",
+    "notebook_playbook_enabled",
+    "notebook_review_drafts_enabled",
+    "notebook_setups_board_enabled",
+    "notebook_smart_chips_enabled",
+    "notebook_starter_packs_enabled",
+    "notebook_style_library_enabled",
+    "notebook_ta_fingerprint_enabled",
+    "notebook_template_gallery_enabled",
+    "notebook_terminal_links_enabled",
+    "notebook_thesis_chips_enabled",
+    "notebook_trade_canvas_enabled",
+    "notebook_transcript_capture_enabled",
+    "notebook_visual_playbook_enabled",
+)
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
 # a confusing name. Q1 fix 6 makes the append route safe at the WRITER; the door
@@ -621,6 +571,8 @@ def _notebook_flags() -> dict:
         # and the route cannot disagree about one variable
         # (tests/test_notebook_flag_parse.py).
         out[_notebook_flag_key(env_name)] = flag_on(env_name, default_on)
+    # The retired capabilities: always on, no variable read (see NOTEBOOK_ALWAYS_ON_KEYS).
+    out.update(dict.fromkeys(NOTEBOOK_ALWAYS_ON_KEYS, True))
     # ⛔ THE MODE KEYS RIDE THE SAME PAYLOAD AND THE SAME DERIVATION. A second
     # helper for the second name would be the drift `_notebook_flag_key` exists
     # to prevent; only the PARSE differs, because the value is not a boolean.

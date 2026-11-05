@@ -1,7 +1,6 @@
 """Wave 13 lane 13C, phase 1: earnings prep that writes itself (WAVE-13-PLAN.md, A.13C).
 
-Two member-scoped reads, both dark behind `NOTEBOOK_EARNINGS_PREP_ENABLED` (unset = OFF,
-read per call through the one Notebook flag parse):
+Two member-scoped reads, always on (`NOTEBOOK_EARNINGS_PREP_ENABLED` was retired 2026-11-04):
 
 * `reporting_soon(user_id)` lists the member's OWN names that report in the next
   `WINDOW_DAYS` calendar days: watchlists, flagged names and open positions. UCT20 is the
@@ -44,11 +43,8 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
-
-FLAG = "NOTEBOOK_EARNINGS_PREP_ENABLED"
 
 #: The list's window, in calendar days after today (today included).
 WINDOW_DAYS = 7
@@ -107,11 +103,6 @@ _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 class PrepRequestError(ValueError):
     """A request the member can fix (an unusable symbol)."""
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse."""
-    return flag_on(FLAG, False)
 
 
 def daily_cap() -> int:

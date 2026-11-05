@@ -34,9 +34,6 @@ STARTER_JS = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "starterPa
 
 MEMBER = "user-p5-installer"
 OTHER = "user-p5-other"
-LIBRARY = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
-STARTER = "NOTEBOOK_STARTER_PACKS_ENABLED"
-STYLES = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
 URL = "/api/j2/journal-styles/starter-packs"
 
 
@@ -49,12 +46,7 @@ def _sp():
 
 @pytest.fixture
 def conn(monkeypatch):
-    """A throwaway auth.db exactly as a boot leaves it (the fifteen firm styles seeded), both switches
-    the install needs on, and the library switch OFF unless a test turns it on."""
-    for name in (LIBRARY, STARTER, STYLES):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv(STARTER, "1")
-    monkeypatch.setenv(STYLES, "1")
+    """A throwaway auth.db exactly as a boot leaves it (the fifteen firm styles seeded)."""
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
@@ -164,23 +156,6 @@ def test_day_after_swing_installs_days_three_as_well(conn):
     assert len(_styles(conn)) == 6
 
 
-@pytest.mark.parametrize("library", ["0", "1"])
-def test_the_library_switch_has_no_effect_on_install(conn, monkeypatch, library):
-    monkeypatch.setenv(LIBRARY, library)
-    out = _sp().install(conn, MEMBER, "prop")
-    assert [i["title"] for i in out["installed"]] == _seed_titles("prop")
-    assert len(_styles(conn)) == 3
-
-
-def test_install_needs_both_its_switches(conn, monkeypatch):
-    monkeypatch.setenv(STARTER, "0")
-    assert _sp().install(conn, MEMBER, "swing") is None
-    monkeypatch.setenv(STARTER, "1")
-    monkeypatch.setenv(STYLES, "0")
-    assert _sp().install(conn, MEMBER, "swing") is None
-    assert _styles(conn) == []
-
-
 def test_an_unknown_pack_installs_nothing(conn):
     assert _sp().install(conn, MEMBER, "long_term") is None           # a trading style, but not a pack
     assert _sp().install(conn, MEMBER, "nope") is None
@@ -288,23 +263,6 @@ def test_the_route_installs_a_pack(api, conn):
     assert set(body) == {"installed", "alreadyHad", "skipped"}
     assert all(set(i) == {"styleId", "title"} for i in body["installed"])
     assert api.post(f"{URL}/swing").json()["alreadyHad"] == _seed_titles("swing")
-
-
-@pytest.mark.parametrize("off", [STARTER, STYLES])
-def test_while_a_switch_is_off_every_caller_gets_the_identical_404(api, conn, monkeypatch, off):
-    from api.middleware import auth_middleware as authmw
-    monkeypatch.setenv(off, "0")
-    app = api.app
-    paid = api.post(f"{URL}/swing")
-    app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": MEMBER, "role": "member",
-                                                                           "plan": "free"}
-    unpaid = api.post(f"{URL}/swing")
-    app.dependency_overrides.pop(authmw.get_current_user, None)
-    app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
-    signed_out = api.post(f"{URL}/swing", content=b"{bad")
-    assert (paid.status_code, unpaid.status_code, signed_out.status_code) == (404, 404, 404)
-    assert paid.json() == unpaid.json() == signed_out.json() == {"detail": "Not found"}
-    assert _styles(conn) == []
 
 
 def test_with_the_switch_on_an_unpaid_member_gets_402(api, conn):

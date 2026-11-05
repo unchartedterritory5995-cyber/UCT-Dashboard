@@ -89,8 +89,7 @@ def _url(path: str) -> str:
 def app(db, monkeypatch):
     """Both routers with every switch a door here sits behind turned ON, and a paid admin signed in (the admin doors
     read through `admin_body`)."""
-    for flag in (gallery.FLAG, gallery.LIBRARY_FLAG, gallery.PAGE_LAYOUTS_FLAG, gallery.LAYOUT_SHARING_FLAG,
-                 gallery.EXAMPLE_FLAG, starter_packs.FLAG, js.FLAG):
+    for flag in (gallery.PAGE_LAYOUTS_FLAG, gallery.LAYOUT_SHARING_FLAG):
         monkeypatch.setenv(flag, "1")
     fa = FastAPI()
     fa.include_router(tgr.router)

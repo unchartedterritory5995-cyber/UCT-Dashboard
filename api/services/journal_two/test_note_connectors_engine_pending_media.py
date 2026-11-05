@@ -242,58 +242,6 @@ async def test_retry_only_ref_whose_hash_moved_is_skipped_and_named_never_confir
                                         "name": None}]
 
 
-async def test_onenote_old_page_with_pending_image_is_never_rewritten(db, monkeypatch):
-    """C1 through the REAL OneNoteProvider: its `fetch` takes title and folder from `_page_meta`,
-    which `list_changed` fills only for pages at or after the watermark. An old page waiting on an
-    image keeps its title, folder and edit time on a full pass."""
-    import httpx
-
-    from api.services.journal_two.broker.rate_limit import AsyncRateLimiter
-    from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
-
-    page = {"id": "PAGE-1", "title": "Bee", "lastModifiedDateTime": "2026-08-01T00:00:00Z"}
-    html = ('<html><body><p>Chart</p><img src="https://graph.microsoft.com/v1.0/me/onenote/resources/'
-            'RES-1/$value" /></body></html>')
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        path = request.url.path
-        if path == "/v1.0/me/onenote/notebooks":
-            return httpx.Response(200, json={"value": [{"displayName": "Trading", "sectionGroups": [],
-                                                        "sections": [{"id": "SEC-1", "displayName": "Setups"}]}]})
-        if path == "/v1.0/me/onenote/sections/SEC-1/pages":
-            return httpx.Response(200, json={"value": [page]})
-        if path == "/v1.0/me/onenote/pages/PAGE-1/content":
-            return httpx.Response(200, text=html, headers={"content-type": "text/html"})
-        return httpx.Response(404)  # the resource: a retryable fetch failure
-
-    async def no_sleep(_s):
-        return None
-
-    def build(_name, source=None):
-        return OneNoteProvider(client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
-                               sleep_fn=no_sleep, rate_limiter=AsyncRateLimiter(1000.0))
-
-    monkeypatch.setattr(engine, "_provider_factory", build)
-    connections.upsert_connector(USER, "onenote", {"accessToken": "t"}, account_label="OneNote")
-    src = connections.create_source(USER, "onenote", "account", display_name="OneNote")
-    await engine.sync_source(src["id"], full=True, manual=True)
-
-    def row() -> dict:
-        conn = auth_db.get_connection()
-        try:
-            return dict(conn.execute("SELECT title, folder_id, updated_at, import_media_pending FROM j2_notes "
-                                     "WHERE import_key = 'onenote:PAGE-1'").fetchone())
-        finally:
-            conn.close()
-
-    before = row()
-    assert before["title"] == "Bee" and before["folder_id"]
-    assert before["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
-    # the next full pass: the watermark is past PAGE-1, so `list_changed` selects nothing
-    await engine.sync_source(src["id"], full=True, manual=True)
-    assert row() == before
-
-
 # ── C2: a member's removal-check pass never retries ─────────────────────────────────
 
 async def test_removal_check_pass_never_retries(db, monkeypatch):
@@ -365,9 +313,9 @@ def _provider_classes() -> dict[str, type]:
 
 def test_only_evernote_opts_in_to_listing_independent_fetch_and_raster_promotion():
     """C1 and concern 5: both flags are per-provider declarations. Every provider but Evernote
-    keeps the defaults (False), so a widened default would show here before it reached OneNote."""
+    keeps the defaults (False), so a widened default would show here before it reached them."""
     classes = _provider_classes()
-    assert {"EvernoteProvider", "OneNoteProvider", "OneDriveProvider", "DropboxProvider", "NotionProvider"} <= set(classes)
+    assert {"EvernoteProvider", "NotionProvider", "ObsidianProvider", "RoamProvider", "CraftProvider"} <= set(classes)
     declared = {name: (cls.fetch_is_listing_independent, cls.promote_raster_files) for name, cls in classes.items()}
     assert {n for n, flags in declared.items() if any(flags)} == {"EvernoteProvider"}
     assert declared["EvernoteProvider"] == (True, True)

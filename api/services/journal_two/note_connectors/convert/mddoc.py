@@ -331,8 +331,8 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
 # (`extension-image`'s `inline: false`; `attachmentChip.js`'s `group:
 # 'block'`), so neither can legally sit inside a paragraph's own `content`.
 # `attachmentChip` never appears here from the MARKDOWN walker directly (only
-# via the Dropbox connector's post-`md_to_tiptap` promotion pass — see
-# `providers/dropbox.py::_promote_md_attachments`); it's included here purely
+# via a connector's post-`md_to_tiptap` promotion pass — Obsidian's, through
+# `convert/placeholders.py`; Dropbox's, the first, was archived 2026-11-04); it's included here purely
 # so the HTML walker's `_html_inline_walk` (which CAN emit one directly, via
 # `ATTACHMENT_REF_PREFIX`) gets the same correct hoisting for free. Widening
 # this set is a strict no-op for existing markdown-walker output.
@@ -1295,10 +1295,11 @@ def _inline_nodes(
 #     becomes a plain `listItem`) — no connector emits that shape. The ONE
 #     additive exception (task-5 brief, note-connectors) is
 #     `<li data-uct-task="0"|"1">`: a connector-supplied marker (OneNote's
-#     to-do pre-pass, `convert/onenote_html.py`, is the first and so-far-only
-#     producer) meaning "this `<li>` is a checkbox item; `1` = checked". See
-#     `_html_list_or_tasklist` below — INERT for every other caller (Dropbox's
-#     `.html` path and any generic HTML never emit this attribute, so their
+#     to-do pre-pass, `convert/onenote_html.py`, was its only producer; it was
+#     archived 2026-11-04, so today only fixture 07 feeds it) meaning "this
+#     `<li>` is a checkbox item; `1` = checked". See
+#     `_html_list_or_tasklist` below — INERT for every other caller (any
+#     generic HTML never emits this attribute, so its
 #     `_html_convert_list` output is byte-for-byte unchanged).
 
 
@@ -1859,12 +1860,12 @@ def _html_list_or_tasklist(
     node: "_HtmlNode", ctx: _Ctx, *, ordered: bool,
 ) -> list[dict[str, Any]]:
     """`<ul>`/`<ol>` -> one or more sibling list nodes. THE ONE ADDITIVE
-    BRANCH (task-5 brief, note-connectors): inert for ordinary HTML — no
-    caller other than `convert/onenote_html.py`'s to-do pre-pass ever emits
-    `data-uct-task`, so `_html_has_task_marker` is false and this falls
-    straight through to `_html_convert_list`'s original, UNCHANGED single-
-    node behavior (byte-for-byte identical output for Dropbox's `.html` path
-    and any generic HTML import).
+    BRANCH (task-5 brief, note-connectors): inert for ordinary HTML — its
+    only producer, `convert/onenote_html.py`'s to-do pre-pass, was archived
+    2026-11-04 (fixture 07 still feeds it directly), so for every live
+    caller `_html_has_task_marker` is false and this falls straight through
+    to `_html_convert_list`'s original, UNCHANGED single-node behavior
+    (byte-for-byte identical output for any generic HTML import).
 
     Only when at least one direct `<li>` child carries `data-uct-task="0"`/
     `"1"` does this split the list into RUNS of consecutive task/non-task
@@ -2217,8 +2218,9 @@ def txt_to_tiptap(text: str | None) -> dict[str, Any]:
     OneDrive connector needed the IDENTICAL `.txt` conversion and importing
     a sibling provider's private, underscore-prefixed name meant a
     Dropbox-internal refactor could silently break OneDrive with no
-    compiler/lint signal. Both `dropbox.py` and `onedrive.py` now import
-    THIS one function — a Dropbox-only fallback per the ORIGINAL task
+    compiler/lint signal. Both `dropbox.py` and `onedrive.py` imported
+    THIS one function (both archived 2026-11-04; it has no non-test caller
+    today) — a Dropbox-only fallback per the ORIGINAL task
     brief's own wording ("reuse the mddoc helper if one exists, else
     escape+paragraphs") is exactly what this move makes true: `mddoc.py`
     now HAS a ready-made text-literal helper, shared like `md_to_tiptap`/
