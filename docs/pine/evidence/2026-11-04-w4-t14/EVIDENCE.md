@@ -61,3 +61,33 @@ Command `final-tip.sh pine-dsk-w4t14 w4t14-final-r2` (log `runs/w4t14-final-r2/`
   and `src/components/chart/settingsScope.rail.test.js` (`app/src/lab/StudyChart.jsx:32 <StockChart> passes settingsOverride without onSettingsPersist`).
   The second fails alone too, reproducibly. It scans `src/lab/StudyChart.jsx`, which this branch does not touch (`git diff origin/master -- src/lab` empty; last changed by master commit 96582cd549), so it is a master failure outside the lane, not a T14 regression.
 - The first final-tip run (`w4t14-final`, concurrent with measure-pair in the same worktree) was discarded as invalid per coordinator; it showed the same two failures and no zzMP.
+
+# r1 fix round (review W4-T14 NO-GO, finding B1)
+
+Code tip `4106a6b0768cf8524ac026855b8c0c711b5157ab` (this r1 section is a docs-only commit on top). Tested on master `03a42b201a08895d8a84e517a2f9be9b974067de`. Engine bump: YES at merge (unchanged: the shipped lane serves nothing new, but the bool-typing machinery is in); `SCRIPT_ENGINE_VERSION` NOT edited.
+
+## B1 fix
+- `pineRuntimeFrontend.js`: new constant `V6_BOOL_UNMATCHED_CAPTURED = false` (Q-A3 gate). `refuseV6UnmatchedBool` returns true (serve `false`) only if the constant is true (or the TEST-ONLY opt `opts.w4t14ServeUnmatchedFalse === true`, never set by product code). With the gate shut, a typed-bool unmatched block falls through to the existing named refusal `runtime:block-value` ("a v6 bool is never `na`"). Typing machinery (`provablyBoolNode/Toks`, `nameIsBool`, `fnIsBool`, `falseFallback`) kept. Flipping the constant is the whole change once Q-A3 MATCHes.
+- `p3WsaReviewFixes.test.js` restored byte-exact to its pre-T14 version (the 7 refusal rails are back; `git diff 458c914961^ -- <file>` is empty).
+- `w4V6Bool.test.js`: new Q-A3 GATE describe (if and switch typed-bool blocks stay refused by name; machinery-present rail: with the test-only opt the same source is served false), object-door-with-opt stays refused; the served-false rails now run under the opt.
+- `capture-queue-2026-10-31-wsa-for-bound.md` Q-A3 row: records the gate constant and the probe.
+- Targeted: w4V6Bool + p3WsaReviewFixes + p3WsaDarkGate: 3 files, 148 passed.
+
+## Mutations (mutate.py, lane `heavy-mut.lock`; 5 run, 5 killed after adding one rail)
+| mutation | killed by |
+|---|---|
+| gate constant flipped to true (serve false) | the 7 restored refusal rails in p3WsaReviewFixes (M3 bool name, M-1b, L-4, re-review 3 (c) x2, H-2 x2) + the new GATE rails |
+| gate removed entirely (always served) | same |
+| object-door check dropped (opt on) | new rail "objectDoor + the test-only opt: still refused" (first run SURVIVED, rail added, then KILLED; with the gate shut it was otherwise equivalent) |
+| comparison not bool | machinery rail + served-false rails |
+| fallback writes na (`[]`) | machinery rail + served-false rails |
+(r0's other 15 mutations concern the same machinery, unchanged by r1.)
+
+## measure-pair (script `runs/w4t14r1/mp.sh`, lock `heavy-mp3.lock`, base `pine-dsk-mpbase3` switched in-job to `03a42b201a`)
+Logs `runs/w4t14r1/mp-all.log`, `mp0.log`, `mp1.log`. HEAD asserted before/after each lane: tip `4106a6b076`, base `03a42b201a`, unchanged (22:35:01 -> 23:18:11 rt0; 23:18:11 -> 23:58:43 rt1).
+- C18 corpus audit and constructed probes: identical excluding `ms`, both lanes (object door unchanged).
+- Harness: rt0 `MATCH 93 DIVERGE 103 INCONCLUSIVE 140` both sides; rt1 `MATCH 111 DIVERGE 107 INCONCLUSIVE 118` both sides; harness dirs identical.
+- Census 967 rows, fewer movers than r0 (r0: 2 + 3): rt0 2 rows, rt1 1 row, 0 changed `attached`/`clean` at top level; all NOISE (pine:timeout scripts `multi-timeframe-trend-indicator`, `halftrend-longshort-signal-engine-bigbeluga`: nested peel-step detail only). The 3 r0 intended wall moves are gone (the lane no longer serves the case). 0 unintended.
+
+## final-tip (lock `heavy-final3.lock`; `final-tip.sh pine-dsk-w4t14 dsk-w4t14r1-final`; logs `runs/dsk-w4t14r1-final/`, `runs/w4t14r1/final.log`)
+Tip `4106a6b076` (code tree; this commit is docs only). gate pytest `46 passed` rc=0; hygiene clean rc=0; full chart+hooks vitest `Test Files 2 failed | 1333 passed | 27 skipped (1362)`. The 2 failures are the baselines: `src/hooks/pollingSites.rail.test.js` (every master) and `src/components/chart/settingsScope.rail.test.js` (red on master since 96582cd549, StudyChart.jsx, not touched by this lane). 0 zzMP leftovers.
