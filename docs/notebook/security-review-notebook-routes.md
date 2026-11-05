@@ -125,6 +125,7 @@ review's findings; the last column is the anonymous probe's answer.
 | GET | `/api/j2/notes/switcher` | session | no | no | no | member-scoped; another member's id answers 200 with nothing of theirs (probe run3) | n/a (read) | anon 401 |
 | POST | `/api/j2/notes/batch` | session | no | no | no | member-scoped per note; a foreign id reads not_found (probe run3) | <= 500 ids (NOTE_BATCH_MAX) | anon 401 |
 | POST | `/api/j2/notes/daily` | session | no | no | no | member-scoped by the session user id (code read) | JSON body; field caps in the service; no request-size cap before parse (S-2) | anon 401 |
+| GET | `/api/j2/notes/today` | session | no | no | no | member-scoped by the session user id; one member never sees another's sections (tests/test_notebook_today.py) | n/a (read; makes today's daily note through the daily note door on the first open of the ET day) | anon 401 |
 | POST | `/api/j2/notes/batch/export` | session | no | no | in-handler: acquire_export_slot | member-scoped; another member's id answers 200 with nothing of theirs (probe run3) | <= 500 ids (NOTE_BATCH_EXPORT_MAX) | anon 401 |
 | GET | `/api/j2/notes/sector-theme-facets` | session | no | no | no | member-scoped by the session user id (code read) | n/a (read) | anon 401 |
 | POST | `/api/j2/notes/{note_id}/embeds` | session | no | no | no | member-scoped; another member's id is refused 404 (probe run3) | JSON body; field caps in the service; no request-size cap before parse (S-2) | anon 401 |

@@ -27,11 +27,12 @@ describe('the event set', () => {
       'ask_used', 'block_used', 'bulk_used', 'capture_used', 'conflict_forked', 'dictation_used', 'export_used',
       'first_live_widget', 'first_run_completed', 'first_run_skipped',
       'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'recap_written', 'save_failed', 'save_success',
-      'search_used', 'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'trust_incident',
-      'writing_help_used',
+      'search_used', 'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'today_opened',
+      'trust_incident', 'writing_help_used',
     ])
     // Audit 2026-11-05 (S16, S20): + the first run's two, the first live widget, a recap written, a trust incident.
-    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(25)
+    // S15: + the Today home opened.
+    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(26)
     for (const name of Object.values(NOTEBOOK_EVENTS)) expect(EVENT_SCHEMAS[name]).toBeTruthy()
   })
 })

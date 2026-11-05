@@ -248,7 +248,7 @@ function NamesCard({ names, reason, onChanged }) {
   return (
     <Card id="names" title="Your names" testId="today-names"
       aside={empty ? null : (
-        <button type="button" className={styles.ghost} aria-expanded={adding} onClick={() => setAdding((v) => !v)}>
+        <button type="button" className="btn btn-ghost btn-sm" aria-expanded={adding} onClick={() => setAdding((v) => !v)}>
           {adding ? 'Done' : 'Add'}
         </button>
       )}>
@@ -365,7 +365,7 @@ function RecapCard({ note, onOpenNote, onNotice, onWritten }) {
         <>
           <p className={styles.quiet}>Your numbers, discipline and best and worst trade, drafted into today’s note.</p>
           <div className={styles.cardFoot}>
-            <button type="button" className={styles.primary} disabled={busy} aria-busy={busy || undefined} onClick={write}>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined} onClick={write}>
               {busy ? 'Writing…' : RECAP_ACTION}
             </button>
           </div>
@@ -463,8 +463,8 @@ export default function TodayHome({ onOpenNote, onCreateNote, onSelectAllNotes, 
           <p className={styles.sub} data-today-line="">{headerLine(data)}</p>
         </div>
         <div className={styles.headActions}>
-          <button type="button" className={styles.ghost} onClick={() => onSelectAllNotes?.()}>All notes</button>
-          <button type="button" className={styles.primary} onClick={() => onCreateNote?.()}>+ New note</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelectAllNotes?.()}>All notes</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New note</button>
         </div>
       </header>
       <FirstRunInlineSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
