@@ -1617,7 +1617,7 @@ def test_the_AI_DOOR_ITSELF_enforces_the_bound_not_just_the_helper(
         "handler is not charging the caller, so the AI door is unbounded again")
 
 
-# ── 9. ⭐ THE FACTORY-PRODUCED GATE: 12 ROUTES WITH NO GATE NAME AT ALL ───────
+# ── 9. ⭐ THE FACTORY-PRODUCED GATE: 11 ROUTES WITH NO GATE NAME AT ALL ───────
 #
 # 🔴 WHAT WAS TRUE UNTIL THIS SECTION EXISTED — MEASURED, ONE MUTATION AT A
 # TIME, 2026-08-26: `require_plan` is a factory, called once per router at module
@@ -1660,14 +1660,16 @@ def _plan_gated_keys(app) -> list:
 
 #: 🔴 THE FACTORY-GATED SURFACE, PINNED — same ratchet rule as
 #: `PAID_SURFACE_FLOOR`. Measured 2026-08-26: 12 routes, 6 in `broker_sync.py`
-#: and 6 in `note_sync.py`.
+#: and 6 in `note_sync.py`. Now 11 routes, 6 and 5: the paid surface shrank on
+#: purpose when de6629419c (#799) retired
+#: `GET /api/j2/notes/connectors/{provider}/folders`.
 #:
 #: ⭐ THIS NUMBER IS THE WHOLE DIFFERENCE BETWEEN A SWEEP AND A CLEAN BILL OF
 #: HEALTH. A derivation that silently resolved to ZERO routes — a renamed inner
 #: `checker`, a router unmounted, a walk that stopped reaching nested
 #: dependants — drives nothing, asserts nothing, and reports PASSED. Every test
 #: below counts what it actually drove and compares it to this.
-PLAN_GATED_FLOOR = 12
+PLAN_GATED_FLOOR = 11
 
 #: A route on one of the SAME routers that is deliberately NOT plan-gated —
 #: `broker_sync.py`'s own docstring says status is readable by any logged-in user
