@@ -2170,7 +2170,10 @@ export default function NoteEditorPage({
     if (makingThesis) return
     setMakingThesis(true)
     try {
-      await update({ properties: { [NOTE_KIND_PROPERTY]: THESIS_KIND } })
+      // ⛔ Fix round 1 (review finding 1): a METADATA door, so it settles like the folder, ticker,
+      // tag and unlock doors -- or the editor's save baseline stays on the old revision and the
+      // next autosave 409s into the reconcile.
+      await settleMetadataRevision(await update({ properties: { [NOTE_KIND_PROPERTY]: THESIS_KIND } }))
       setChromeMsg('This note is now a thesis. Evidence, the changelog and reviews are under its details.')
     } catch (e) {
       setChromeMsg(e?.message || "Couldn't make this note a thesis. Try again.")
