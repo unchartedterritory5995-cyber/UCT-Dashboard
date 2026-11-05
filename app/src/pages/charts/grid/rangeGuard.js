@@ -45,6 +45,16 @@ export function rangeFitsBars(range, firstTime, lastTime, minShare = 0.5) {
   return held >= 0 && held >= (to - from) * minShare
 }
 
+// Where the bars in a view stop. A visible range runs on past the newest bar into the
+// chart's empty future axis, which ends far from it when the chart's last bar is old.
+// Counted as history, that axis made a view from the default position, whose right edge
+// sits on it, read as a range nobody could hold, so no other chart followed.
+export function rangeBarsEnd(to, lastTime) {
+  const end = rangeTimeSec(to)
+  const last = rangeTimeSec(lastTime)
+  return end != null && last != null && last < end ? lastTime : to
+}
+
 // Is this view mostly bars? A chart's time range is clipped to its bars, so one
 // scrolled off the end of its history reports a few days while drawing a cell of
 // empty space. That is no range to hand to anyone. The ordinary gap to the right of

@@ -310,6 +310,11 @@ def _stamped(row: dict) -> dict:
     """
     row = runtime_definitions.stamp_served(row)
     out = dict(row)
+    # ⭐ W5-T17 — THE SERVER'S OWN ANSWER FOR THE THREE SERVER LANES, runtime rows only: an
+    # `ast` row's lanes are decided per plot at the alert / sweep door and have no row-level
+    # answer to state, so it carries no key rather than a claim it cannot keep.
+    if runtime_definitions.is_runtime(row.get("definition")):
+        out["server_lanes"] = svc.server_lanes_stamp(row)
     # ⭐ GT (RT4 follow-up) — a row saved under an older repaint rule whose
     # stored label is LOOSER than today's measurement carries the notice its
     # owner reads on opening it (`user_definition_relint.member_notice`). The

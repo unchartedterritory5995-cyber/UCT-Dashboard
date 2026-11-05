@@ -747,11 +747,24 @@ export default function HubRoot() {
     return () => el.removeAttribute('data-hub-contrast')
   }, [eligible, highContrast])
 
+  // VIS-4 (audit 2026-11-05, visual issue 9): the hub cursor's outline is painted only while the hub is
+  // ENGAGED -- eligible and on screen. `useHubCursor` marks a row `data-hub-cursor="active"` on every page
+  // whether or not a hub exists to drive it, so on a desktop (no hub) the gold outline sat on a row that was
+  // not open: a second, wrong "selected" state. tokens.css scopes its one cursor rule to this attribute. The
+  // cleanup is load-bearing, the same as data-hub-contrast's: it must not outlive the hub.
+  const visible = resolveVisible(settings.enabled, sessionOverride)
+  useEffect(() => {
+    const el = typeof document !== 'undefined' ? document.documentElement : null
+    if (!el) return undefined
+    if (eligible && visible) el.setAttribute('data-hub-engaged', '')
+    else el.removeAttribute('data-hub-engaged')
+    return () => el.removeAttribute('data-hub-engaged')
+  }, [eligible, visible])
+
   // Not eligible = kill switch off, or a browser/viewport that cannot draw the hub. Nothing
   // renders, not even the restore tab: there would be nothing to restore.
   if (!eligible) return null
 
-  const visible = resolveVisible(settings.enabled, sessionOverride)
   const mirrored = settings.handedness === 'left'
   // `persistent` only changes the toast copy: the tab itself appears for a session hide and a
   // stored hide alike, because a member who cannot find their way back does not care which

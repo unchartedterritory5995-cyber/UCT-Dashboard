@@ -21,6 +21,8 @@
 // read happens INSIDE a function (a test can flip it), the source is a late-bound
 // parameter (so the fail-closed branch is provable), and it is read HERE ONLY.
 
+import { registerLowerTfGate } from './lowerTfServing.js'
+
 /** May a read below the chart's own timeframe be served?
  *
  *  ⛔ ONE READER, ON PURPOSE — `lowerTf.js`, whose `lowerTfRefusal` (the translate
@@ -39,3 +41,8 @@ export function lowerTfServingEnabled(env) {
     return false
   }
 }
+
+// ⭐ W5-T2 — importing the gate is what hands it to the translator (`lowerTfServing.js`):
+// the chart's registry imports this module, the compute closure never does. Bound with
+// no argument, so the read stays late (a test's `vi.stubEnv` is still seen).
+registerLowerTfGate(() => lowerTfServingEnabled())

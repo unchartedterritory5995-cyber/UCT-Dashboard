@@ -2958,6 +2958,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     onClick={() => setFilterOpen(o => !o)}
                     title="Scan criteria"
                     aria-label="Scan criteria"
+                    data-guide="watchlist.scanCriteria"
                   ><UIcon name="sliders" size={14} /></button>
                   {filterOpen && (
                     <div className={styles.criteriaPop} role="dialog" aria-label="Scan criteria">
@@ -2975,6 +2976,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               <button
                 ref={settingsBtnRef}
                 className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
+                data-guide="widget.settings"
                 onClick={() => setSettingsOpen(o => !o)}
                 title="Watchlist settings"
               ><UIcon name="gear" size={14} /></button>
@@ -3333,7 +3335,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       {colMenu && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 2999 }} onClick={() => setColMenu(null)} onContextMenu={e => { e.preventDefault(); setColMenu(null) }} />
-          <div className={styles.colMenu} style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
+          <div className={styles.colMenu} data-guide="watchlist.colMenu" style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
             <div style={{ padding: '4px 10px 6px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>Columns</div>
             {OPTIONAL_COLS.map(c => (
               <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleColHidden(c.key)}>
@@ -3363,7 +3365,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <option value="above">Above</option>
                 <option value="below">Below</option>
               </select>
-              <input aria-label="Alert price"
+              <input aria-label="Alert price" data-guide="watchlist.alertPrice"
                 className={styles.alertInput}
                 type="number"
                 step="0.01"
@@ -3386,7 +3388,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 {getAlertsForSym(alertPopover.sym).map(a => (
                   <div key={a.id} className={styles.alertItem}>
                     <span>{a.direction} ${a.target_price.toFixed(2)}</span>
-                    <button className={styles.alertDeleteBtn} onClick={() => deleteAlert(a.id)}>×</button>
+                    <button className={styles.alertDeleteBtn} data-guide="watchlist.alertDelete" onClick={() => deleteAlert(a.id)}>×</button>
                   </div>
                 ))}
               </div>
@@ -3449,14 +3451,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <>
             <button
               className={styles.ctxItem}
+              data-menu-id="research"
               onClick={() => { navigate(`/research/${ctxMenu.sym}`); setCtxMenu(null) }}
             ><UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research</button>
             <button
               className={styles.ctxItem}
+              data-menu-id="ai"
               onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
             ><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {ctxMenu.sym}</button>
             <button
               className={styles.ctxItem}
+              data-menu-id="compare"
               onClick={() => {
                 setComparePopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
                 setCtxMenu(null)
@@ -3465,11 +3470,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {ctxMenu.id !== 'flagged' && (
               <button
                 className={styles.ctxItem}
+                data-menu-id="notes"
                 onClick={() => { toggleNoteSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
               >Notes</button>
             )}
             <button
               className={styles.ctxItem}
+              data-menu-id="alert"
               onClick={() => {
                 setAlertPopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
                 setAlertPrice('')
@@ -3479,6 +3486,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             >Set price alert</button>
             <button
               className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
+              data-menu-id="remove"
               onClick={() => { handleRemoveSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
             >Remove from watchlist</button>
           </>
@@ -3546,7 +3554,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         }
         return (
           <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
-            <div className={styles.ctxMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
+            <div className={styles.ctxMenu} data-guide="watchlist.rowMenu" style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
               {ctxBody}
             </div>
           </div>

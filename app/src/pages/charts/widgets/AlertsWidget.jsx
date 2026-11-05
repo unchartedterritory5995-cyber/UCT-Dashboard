@@ -166,6 +166,7 @@ export default function AlertsWidget({
     return (
       <div
         key={a.id}
+        data-guide="alerts.row"
         className={`${styles.row}${isTriggered ? ' ' + styles.rowTriggered : ''}`}
         onClick={readOnly ? undefined : () => goToSym(a.sym)}
         title={readOnly ? undefined : `Show ${a.sym} on the linked chart`}
@@ -198,7 +199,7 @@ export default function AlertsWidget({
           </span>
         )}
         {!readOnly && (
-        <button type="button" className={styles.delBtn} onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
+        <button type="button" className={styles.delBtn} data-guide="alerts.delete" onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
           <UIcon name="x" size={13} strokeWidth={2.4} gold={false} />
         </button>
         )}
@@ -290,6 +291,7 @@ export default function AlertsWidget({
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings"
           title="Alerts widget settings"
         ><UIcon name="gear" size={13} /></button>
         )}
@@ -298,7 +300,7 @@ export default function AlertsWidget({
       {/* Quick-add — any ticker, a level, above/below. Hidden in a frozen
           embed: it is a REAL POST. */}
       {!readOnly && (
-      <div className={styles.quickAdd}>
+      <div className={styles.quickAdd} data-guide="alerts.quickAdd">
         <Input aria-label="Ticker"
           className={styles.tickerInput}
           type="text"
@@ -310,7 +312,7 @@ export default function AlertsWidget({
           autoCapitalize="characters"
           maxLength={8}
         />
-        <span className={styles.dirToggle}>
+        <span className={styles.dirToggle} data-guide-dir="">
           <button
             type="button"
             className={`${styles.dirBtn} ${styles.dirBtnAbove}${dir === 'above' ? ' ' + styles.dirBtnOn : ''}`}
@@ -332,7 +334,7 @@ export default function AlertsWidget({
           onChange={e => setPriceStr(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') addAlert() }}
         />
-        <button type="button" className={styles.addBtn} onClick={addAlert} disabled={!canAdd}>
+        <button type="button" className={styles.addBtn} data-guide="alerts.set" onClick={addAlert} disabled={!canAdd}>
           <UIcon name="bell" size={11} gold={false} /> Set
         </button>
       </div>

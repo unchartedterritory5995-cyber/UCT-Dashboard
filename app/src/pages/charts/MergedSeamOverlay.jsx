@@ -105,6 +105,7 @@ export default function MergedSeamOverlay({
       {seams.vertical.map(s => (
         <div
           key={s.key}
+          data-guide="workspace.seam"
           className={styles.seamV}
           style={{
             left: s.c * colWidth - HANDLE_PX / 2,
@@ -121,6 +122,7 @@ export default function MergedSeamOverlay({
       {seams.horizontal.map(s => (
         <div
           key={s.key}
+          data-guide="workspace.seam"
           className={styles.seamH}
           style={{
             top: s.r * rowHeight - HANDLE_PX / 2,

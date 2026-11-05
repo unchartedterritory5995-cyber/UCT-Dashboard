@@ -1,0 +1,7 @@
+[
+ ["control:comment-only", "scripts/build-pine-runtime.mjs", "/** The whole esbuild `define` set:", "/** (control) The whole esbuild `define` set:"],
+ ["secrets:bake-every-vite", "scripts/build-pine-runtime.mjs", "filter((n) => SERVER_BUNDLE_VITE_NAMES.includes(n))", "filter((n) => n.startsWith('VITE_'))"],
+ ["secrets:allowlist-stale-entry", "scripts/build-pine-runtime.mjs", "  'VITE_PINE_RUNTIME_PANE_ENABLED', // engine", "  'VITE_EXTRA_FLAG',\n  'VITE_PINE_RUNTIME_PANE_ENABLED', // engine"],
+ ["secrets:define-extra-key", "scripts/build-pine-runtime.mjs", "JSON.stringify({ ...viteEnvOf(env), MODE:", "JSON.stringify({ ...viteEnvOf(env), WS: env.VITE_WS_HOST, MODE:"],
+ ["entry:no-encoder-export", "src/components/chart/engine/runtime/serverEntry.js", "export { bytesToB64, columnDigest, decodeColumn, encodeColumn } from", "export { columnDigest, decodeColumn } from"]
+]

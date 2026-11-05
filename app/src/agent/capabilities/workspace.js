@@ -35,6 +35,7 @@ import { mark } from '../trace'
 import { afterRender } from '../frames'
 import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
 import { isPronounToken, isReservedWord } from '../nl/tickers'
+import { boardRefusalSentence } from '../../pages/charts/boardBound'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -127,8 +128,7 @@ function chartRoomProblem(st, snap, n) {
   if (!snap) return 'The workspace is not available.'
   const total = st.creates.length + n
   if (snap.count + total > snap.max) {
-    const free = Math.max(0, snap.max - snap.count - st.creates.length)
-    return `That needs ${n} new chart${n === 1 ? '' : 's'}, but the workspace has room for ${free} more widget${free === 1 ? '' : 's'} (it holds ${snap.max}). Close some first, or ask for fewer.`
+    return boardRefusalSentence(snap.count + total)
   }
   if (!snap.fitsSequence([...st.creates.map(c => c.type), ...Array(n).fill('chart')])) {
     const room = snap.capacity('chart', n)
@@ -277,7 +277,7 @@ export function registerWorkspaceCapabilities() {
       if (!snap) return 'The workspace is not available.'
       const n = st.creates.length + 1
       if (snap.count + n > snap.max) {
-        return `That would take the workspace to ${snap.count + n} widgets — it holds ${snap.max}. Close some first.`
+        return boardRefusalSentence(snap.count + n)
       }
       const seq = [...st.creates.map(c => c.type), type]
       if (!snap.fitsSequence(seq)) {

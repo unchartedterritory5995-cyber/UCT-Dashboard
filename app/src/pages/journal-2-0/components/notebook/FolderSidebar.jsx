@@ -19,6 +19,8 @@ import {
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
+import { Link } from 'react-router-dom'
+import { PLAYBOOK_IN_NOTEBOOK_PATH, playbookEnabled } from '../../lib/myPlaybookLink'
 import ConfirmModal from '../ConfirmModal'
 import LoadFailed from '../LoadFailed'
 import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../../lib/focusAfterRemoval'
@@ -1896,6 +1898,15 @@ export default function FolderSidebar({
             { what: 'your tags', error: tagsError, retry: refreshTags },
             ...extraLoadFailures,
           ]} />
+          {/* S13 (audit 2026-11-05, detail #67): My Playbook, from the Notebook's own sidebar. It opens INSIDE the
+              Journal shell (the tabs stay, "Back to Notebook"); its data is the same read. Only while its gate is on. */}
+          {playbookEnabled() && (
+            <div className={styles.section}>
+              <Link to={PLAYBOOK_IN_NOTEBOOK_PATH} className={styles.row} data-sidebar-playbook="">
+                <span><UIcon name="book" size={12} gold={false} /> My Playbook</span>
+              </Link>
+            </div>
+          )}
           <RecencySection
             label="Favorites"
             icon="star-fill"

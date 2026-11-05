@@ -251,6 +251,7 @@ export default function IndicatorChip({
      *  is the half the menu is about. Same shape as `LegendRow`'s, so the two
      *  kinds of row in one legend announce alike. */
     'aria-label': `${chip.label} options`,
+    'data-guide': 'chart.chip',
     onKeyDown: (e) => {
       if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
       e.preventDefault()

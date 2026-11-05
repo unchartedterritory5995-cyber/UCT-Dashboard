@@ -23,6 +23,7 @@ import {
   DEFAULT_EXPORT_FORMAT, EXPORT_FORMATS, notebookExportUrl, saveResponse,
 } from './exportFormats'
 import styles from './ExportDialog.module.css'
+import HelpAnswerLink from '../HelpAnswerLink'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
 
 async function readErrorMessage(res) {
@@ -106,7 +107,9 @@ export default function ExportDialog({ open, onClose }) {
           <>
             <p className={styles.body}>
               Downloads every note in your notebook as one zip archive, organized by your
-              folders, with images and attachments included.
+              folders, with images and attachments included.{' '}
+              {/* S14: this feature's "?" opens its own Quick Answer. */}
+              <HelpAnswerLink faqId="notebook-export-formats" topic="what each export format keeps" />
             </p>
             <fieldset className={styles.formats}>
               <legend className={styles.legend}>Format</legend>

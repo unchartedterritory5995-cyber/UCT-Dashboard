@@ -1,6 +1,6 @@
 // Notebook widgets phase 2, wave 11 (Task 11.17): the adoption sheet's door.
 //
-// `openAdoptSheet({galleryId, kind, editor?, onDone, navigate?}) -> close()` mounts "Make it yours"
+// `openAdoptSheet({galleryId, kind, editor?, onDone, navigate?, name?}) -> close()` mounts the adoption sheet ("Customize")
 // on its OWN root, one at a time (the openSharePreview pattern): a call while one is open returns the open one's close
 // and opens nothing new, so a double press cannot stack two sheets, send two previews or make two notes.
 //   * `galleryId`: the listed item; `kind`: 'template' | 'widget' | 'routine' | 'tracker'.
@@ -23,7 +23,7 @@ import AdoptSheet from './AdoptSheet'
 
 let _open = null
 
-export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate, mode = 'use', copyId = null, landNote = null } = {}) {
+export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigate, mode = 'use', copyId = null, landNote = null, name = '' } = {}) {
   if (_open) return _open.close
   const host = document.createElement('div')
   host.setAttribute('data-adopt-sheet-root', '')
@@ -51,7 +51,7 @@ export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigat
     : null
   _open = { close }
   root.render(createElement(AdoptSheet, {
-    galleryId, kind, editor, mode, copyId,
+    galleryId, kind, editor, mode, copyId, name: typeof name === 'string' ? name : '',
     navigate: typeof navigate === 'function' ? navigate : null,
     landNote: deferredLand,
     onClose: close, onDone: typeof onDone === 'function' ? onDone : undefined,

@@ -249,7 +249,7 @@ export default function FundamentalsWidget({
           {company && <span className={styles.companyName}>{company}</span>}
         </div>
         {!readOnly && (
-        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
+        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view" data-guide="fundamentals.view">
         <button
           type="button"
           role="tab"
@@ -340,7 +340,7 @@ export default function FundamentalsWidget({
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           style={journalDoor && !isPanelView && (hasAnnual || hasQ) ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
-          title="Fundamentals settings"
+          data-guide="widget.settings" title="Fundamentals settings"
           aria-label="Fundamentals settings"
         ><UIcon name="gear" size={13} /></button>
         )}

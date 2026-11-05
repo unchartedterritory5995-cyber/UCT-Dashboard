@@ -335,7 +335,7 @@ describe('the preview sheet', () => {
       expect(JSON.stringify(c.body || {})).not.toMatch(/bodyJson|"type":"doc"/)
     }
     await waitFor(() => expect(onSent).toHaveBeenCalledWith(EXAMPLE_SENT_SENTENCE))
-    expect(EXAMPLE_SENT_SENTENCE).toBe('Sent for review. It will show on your style once approved.')
+    expect(EXAMPLE_SENT_SENTENCE).toBe('Sent for review. It will show on your template once approved.')
   })
 
   it('F-R5: a typed title is previewed once the author pauses, and the SERVER\'s title is shown under the field', async () => {

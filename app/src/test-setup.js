@@ -33,7 +33,11 @@ import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
+// ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
+// registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
+import './components/chart/engine/lowerTfGate.js'
 import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
+import { __setFirstLiveWidgetForTests } from './pages/journal-2-0/lib/notebookTelemetry'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -53,6 +57,11 @@ beforeEach(() => {
 // ⛔ The retry itself is railed with it ON, through a real panel, in
 // `components/research/sections/sectionFetch.warmRetry.test.jsx`.
 beforeEach(() => { __setWarmRetryDelaysForTests([]) })
+
+// ── Audit 2026-11-05 (S20): the once-per-browser "first live widget" beacon. The widget suites written before it
+// pin "renders from params without a fetch"; the beacon is off here by default and railed ON in
+// `pages/journal-2-0/lib/notebookTelemetry.test.js` and `components/notebook/EmptyNamesAsk.test.jsx`.
+beforeEach(() => { __setFirstLiveWidgetForTests(false) })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers

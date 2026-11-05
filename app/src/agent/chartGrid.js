@@ -18,6 +18,7 @@
 
 import { tileWidgets, boardProblems } from '../pages/charts/placement/arrange'
 import { planGroupPlacement, planPlacement } from '../pages/charts/placement/place'
+import { boardRefusalSentence } from '../pages/charts/boardBound'
 
 export const GRID_PATTERNS = ['grid', 'columns', 'rows']
 export const MAX_GRID_CHARTS = 9
@@ -107,8 +108,7 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
   const k = reuseWs.length
   const needed = newCharts ? n : n - k
   if (board.length + needed + (railAdd ? 1 : 0) > maxWidgets) {
-    const free = Math.max(0, maxWidgets - board.length)
-    return { ok: false, reason: `That needs ${needed} more chart${needed === 1 ? '' : 's'}, but the workspace holds ${maxWidgets} widgets and has room for ${free} more. Close a widget you don't need, or ask for fewer charts.` }
+    return { ok: false, reason: boardRefusalSentence(board.length + needed + (railAdd ? 1 : 0)) }
   }
   const pattern = layout || 'grid'
   // ⭐ PHASE 3 acceptance: a rail that narrowed some charts (or a replaced board) re-tiles them, so the grid stays even

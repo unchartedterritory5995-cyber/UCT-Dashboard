@@ -86,7 +86,7 @@ export default function StyleHost({ note, ask, api }) {
     invalidateNoteLinkTarget(applied.id)
     setNotice(plan?.switching
       ? `Switched to ${plan.styleName}.`
-      : `Updated to the latest version of ${plan?.styleName || 'your style'}.`)
+      : `Updated to the latest version of ${plan?.styleName || 'your template'}.`)
     return true
   }
 

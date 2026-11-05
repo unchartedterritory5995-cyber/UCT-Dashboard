@@ -1182,7 +1182,18 @@
       "scope": "device-local",
       "surface": "App",
       "kind": "state",
-      "label": "Day the intro animation last played",
+      "label": "Day the intro animation last played (the old daily key: read once into the weekly key, then removed)",
+      "files": [
+        "app/src/components/intro/introStorage.js"
+      ]
+    },
+    {
+      "key": "uct_intro_last_full_et_day",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "state",
+      "label": "Day the intro animation last played in full (it plays once a week)",
       "files": [
         "app/src/components/intro/introStorage.js"
       ]
@@ -2922,6 +2933,29 @@
       "label": "Terminal layout to return to after opening a shared board",
       "files": [
         "app/src/pages/terminal/TerminalShell.jsx"
+      ]
+    },
+    {
+      "key": "notebook_tips",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "One-time Notebook tips already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx"
+      ]
+    },
+    {
+      "key": "uct.debug.layoutShift",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Debug only: log layout shifts to the console (off unless set by hand)",
+      "files": [
+        "app/src/lib/clsDebug.js"
       ]
     }
   ]

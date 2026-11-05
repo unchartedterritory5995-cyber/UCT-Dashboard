@@ -77,7 +77,7 @@ const titles = (items) => items.map((i) => i.title)
 const group = (items, g) => titles(items.filter((i) => i.group === g))
 const labelsOf = (items) => {
   const { container, unmount } = render(<SlashList items={items} command={() => {}} />)
-  const out = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+  const out = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
   unmount()
   return out
 }
@@ -119,17 +119,20 @@ describe('a bare / (spec 8)', () => {
       'My open positions and risk', 'Weekly scorecard', ALL_WIDGETS,
     ])
     expect(DEFAULTS).toHaveLength(BARE_MAX)
-    expect(labelsOf(items)).toContain('Widgets')
+    // S8: the moment labels gave way to M3's five sections; the group tag is what says the rows are there.
+    expect(labelsOf(items)).toContain('Live data')
+    expect(items.filter((i) => i.group === 'widgets').every((i) => i.section === 'live')).toBe(true)
     // One card per idea: a phase 1 default is listed in Widgets and nowhere else.
     for (const t of ['My setup edge', 'My open positions and risk', 'Risk left today']) {
       expect(titles(items).filter((x) => x === t), t).toHaveLength(1)
     }
     expect(group(items, 'review')).not.toContain('My setup edge')
-    // The group sits after Reviewing and before Mine, once.
+    // The group sits once, inside Live data (S8: it sat after Reviewing and before Mine), and Mine stays last.
     const order = items.map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
     expect(order.filter((g) => g === 'widgets')).toHaveLength(1)
-    expect(order.indexOf('widgets')).toBe(order.indexOf('review') + 1)
-    expect(order.indexOf('tools')).toBe(order.indexOf('widgets') + 1)
+    const sections = items.map((i) => i.section).filter((g, i, a) => g !== a[i - 1])
+    expect(sections.indexOf('live')).toBeLessThan(sections.indexOf('embeds'))
+    expect(items.findLast((i) => i.group === 'tools').section).toBe('embeds')
   })
 
   it('most_used_first_then_the_defaults_eight_at_most', async () => {

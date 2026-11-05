@@ -288,7 +288,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           ref={gearRef}
           type="button"
           className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Volume Surge settings"
           aria-label="Volume Surge settings"
         >

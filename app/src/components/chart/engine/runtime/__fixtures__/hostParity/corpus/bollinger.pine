@@ -1,0 +1,8 @@
+//@version=5
+indicator("hp bollinger", overlay=true)
+[mid, up, lo] = ta.bb(close, 20, 2)
+w = (up - lo) / mid
+plot(mid, "mid")
+plot(up, "up")
+plot(lo, "lo")
+plot(w, "width")

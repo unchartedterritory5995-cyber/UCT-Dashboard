@@ -71,8 +71,9 @@ describe('the B4 track is registered', () => {
     })
   })
 
-  it('R-P5-6: both sit under Writing and capture in the Learn menu', () => {
-    for (const t of TOURS) expect(learnTourGroup(t.id), t.id).toBe('Writing and capture')
+  // S14 (audit 2026-11-05): the Learn menu's five groups; the two template tours still sit together, under Write.
+  it('R-P5-6: both sit together, under Write, in the Learn menu', () => {
+    for (const t of TOURS) expect(learnTourGroup(t.id), t.id).toBe('Write')
   })
 
   it('both are replayable (Help and Learn list them)', () => {
@@ -103,16 +104,22 @@ describe('the steps point where R-P5-7 and the rulings say', () => {
 
   // Plan edge case 6 ("the Journal styles tour started on a phone"), decided by V8: the button is
   // on screen at 390 px, so step 1 anchors on the button itself at every width and the tour has no
-  // phone-only step. What this pins is that the anchor sits ON the Styles button (the element
-  // whose click opens the manager), not on a wrapper or a label a phone hides.
-  it('V8: the styles-button anchor is the Styles button itself, and no step is phone-only', async () => {
+  // phone-only step. What this pins is that the anchor sits ON a button (never a wrapper or a label a
+  // phone hides). S11 (audit 2026-11-05): Manage templates moved into the list toolbar's ⋯ menu, so the
+  // anchor is the ⋯ trigger -- the button whose menu holds it, on screen at every width -- and the step
+  // still waits for the manager, which opens only from that menu.
+  it('V8: the styles-button anchor is the ⋯ menu trigger itself, and no step is phone-only', async () => {
     const HERE = path.dirname(fileURLToPath(import.meta.url))
     const src = fs.readFileSync(path.resolve(HERE, '..', '..', '..', '..', TAB), 'utf8')
     // the opening tag holds `() =>`, so match its LINE rather than a `[^>]*` tag pattern
     const lines = src.split(/\r?\n/).filter((l) => l.includes('data-tour="styles-button"'))
     expect(lines, 'exactly one line carries data-tour="styles-button"').toHaveLength(1)
-    expect(lines[0]).toMatch(/^\s*<button\b/)
-    expect(lines[0]).toContain('onClick={() => setStylesOpen(true)}')
+    expect(lines[0]).toMatch(/^\s*aria-label="More notebook actions"/)
+    // the trigger's opening tag, `<button {...moreMenu.triggerProps} ...`, is the line above
+    const all = src.split(/\r?\n/)
+    expect(all[all.findIndex((l) => l.includes('data-tour="styles-button"')) - 1]).toMatch(/^\s*<button \{\.\.\.moreMenu\.triggerProps\}/)
+    // and that menu holds the door that opens the manager
+    expect(src).toContain("label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true)")
     const { steps } = await TOURS.find((t) => t.id === 'journal-styles').load()
     expect(steps.filter((s) => s.file === TAB).map((s) => s.anchor)).toEqual(['styles-button'])
   })

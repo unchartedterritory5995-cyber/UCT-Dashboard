@@ -477,3 +477,15 @@
     cursor: pointer;
   }
 }
+
+/* ── Tier 2 fix round 1 (review Important 1): the phone Notebook list's first screen ───────────────────────
+   Measured on production (Tier 1b, 390 x 844): the first note sat at y=320 -- the app bar, a "Journal tools" row of
+   its own, the 70 px section strip, then the filter row. While the Notebook LIST is on screen it offers the header's
+   tools through a "Journal tools" row in its own ⋯ menu (lib/journalToolsDoor.js, `data-tools-door`), so the folded
+   header takes NO row; opened from that row, the header is laid out exactly as D2 laid it out, with its toggle to
+   close it. Where no page offers the door (Home, an open note, the research page) the folded toggle stays.
+   ⛔ Nothing here sits over the section strip (a control laid over it hid Insights and Compass: the Tier 2 review).
+   ⛔ Phone only, Notebook routes only. Rail: JournalLayout.compactHeader.test.jsx. */
+@media (max-width: 640px) {
+  .root[data-compact-header][data-tools-door]:not([data-tools-open]) .header { display: none; }
+}

@@ -23,7 +23,7 @@ import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
 import GuideOverlay from './guide/GuideOverlay'
-import { guideState, endGuide } from './guide/guideStore'
+import { onGuideDoIt, guideState, endGuide } from './guide/guideStore'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
@@ -234,7 +234,7 @@ function Item({ it, agent, member, at, cont }) {
         {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card
             still marks itself undoable for tests and the harnesses. */}
         <div className={`${styles.bubble} ${styles.cardBubble}`} data-testid="agent-receipt"
-          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined}>
+          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined} data-status={it.faulted ? 'failed' : undefined}>
           <div className={styles.receiptLines} data-testid="agent-receipt-summary">{view.summary}</div>
           {view.details && (
             <details className={styles.receiptDetails}>
@@ -244,6 +244,7 @@ function Item({ it, agent, member, at, cont }) {
           )}
           {it.notes?.length > 0 && <div className={styles.cardMeta}>{it.notes.join(' · ')}</div>}
           {it.undoId && it.undone && <div className={styles.cardMeta}>Undone</div>}
+          {it.faulted && <div className={styles.cardMeta}>The chart hit an error after this change.</div>}
         </div>
         </AgentSays>
       )
@@ -369,6 +370,9 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     el.classList.remove(styles.flash); void el.offsetWidth; el.classList.add(styles.flash)
   }, [searchOpen, historyOpen, agent.items])
+
+  // the walkthrough card's "Do it for me": the same words, down the same path, as typing them here
+  useEffect(() => onGuideDoIt(() => { if (!agent.busy) agent.send('do it for me') }), [agent])
 
   const submit = () => {
     const t = text.trim()

@@ -422,7 +422,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       )}
 
       {/* Header: ◀ date ▶ + gear */}
-      <div className={styles.bar}>
+      <div className={styles.bar} data-guide="calendar.days">
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, -1))} aria-label="Previous day">‹</button>
         <span className={styles.dateWrap}>
           <span className={styles.dateMain}>{fmtMain(selected)}</span>
@@ -464,7 +464,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="UCT Terminal widget settings"
         ><UIcon name="gear" size={13} /></button>
         <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />
@@ -493,6 +493,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
                   <button
                     key={n}
                     type="button"
+                    data-guide="calendar.stars"
                     className={`${styles.starBtn}${n <= econStars ? ' ' + styles.starOn : ''}`}
                     onClick={() => setEconStars(n)}
                     title={n === 1 ? 'All events' : n === 2 ? 'Medium & high impact' : 'High impact only'}

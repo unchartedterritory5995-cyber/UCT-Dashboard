@@ -21391,5 +21391,4469 @@
   "sym": "ONON",
   "type": "spot",
   "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-08",
+  "bars": {
+   "asof": "2023-12-08",
+   "forward": 20,
+   "sym": "THC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8c09e2fb9762",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 8.6% 14 sessions earlier; the pullback ran 3 sessions and 6.7% deep under the 4-day average of the highs; the trigger day closed up 3.79% at 94% of its range, gapping -0.03%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-12-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "THC"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 96.0,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "day_pct": 3.79,
+    "drive_pct": 35.1,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": {
+     "bars_ago": 14,
+     "day_pct": 9.6,
+     "gap_pct": 8.6
+    },
+    "fwd_10d_pct": 5.9,
+    "fwd_20d_pct": 10.9,
+    "fwd_5d_pct": 5.3,
+    "fwd_max_gain_pct": 12.2,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "gap_pct": -0.03,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 6.7,
+    "pullback_depth_pct": -6.7,
+    "pullback_range_atr": 1.49,
+    "pullback_rvol_max": 0.59,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 72.67,
+     "rally_pct": 35.1
+    },
+    "range_atr": 1.0,
+    "rvol": 0.96,
+    "s50_slope10_pct": 0.1,
+    "setup_score": 22,
+    "strength_day_bars_ago": 14,
+    "strength_day_gain_pct": 9.63,
+    "tight_pullback": false,
+    "trigger_gap_pct": -0.03,
+    "trigger_vs_peak_pct": -1.5,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.09
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#THC#2023-12-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#THC#2023-12-08",
+  "sym": "THC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-06-24",
+  "bars": {
+   "asof": "2025-06-24",
+   "forward": 20,
+   "sym": "ROKU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_02a536a57e77",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 9.3% 5 sessions earlier; the pullback ran 3 sessions and 9.1% deep under the 4-day average of the highs; the trigger day closed up 3.45% at 99% of its range, gapping 0.11%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2025-06-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ROKU"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 302.5,
+    "close_pos": 0.99,
+    "close_pos_pct": 99,
+    "day_pct": 3.45,
+    "drive_pct": 18.6,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": {
+     "bars_ago": 5,
+     "day_pct": 10.4,
+     "gap_pct": 9.3
+    },
+    "fwd_10d_pct": 5.9,
+    "fwd_20d_pct": 7.8,
+    "fwd_5d_pct": 3.0,
+    "fwd_max_gain_pct": 13.7,
+    "fwd_min_low_vs_trigger_low_pct": 2.5,
+    "gap_pct": 0.11,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 9.1,
+    "pullback_depth_pct": -9.1,
+    "pullback_range_atr": 1.46,
+    "pullback_rvol_max": 1.13,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 85.4,
+     "rally_pct": 18.6
+    },
+    "range_atr": 0.91,
+    "rvol": 0.91,
+    "s50_slope10_pct": 4.4,
+    "setup_score": 21,
+    "strength_day_bars_ago": 5,
+    "strength_day_gain_pct": 10.43,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.11,
+    "trigger_vs_peak_pct": -2.0,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -1.58
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#ROKU#2025-06-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#ROKU#2025-06-24",
+  "sym": "ROKU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-01",
+  "bars": {
+   "asof": "2023-12-01",
+   "forward": 20,
+   "sym": "SMG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c79f28292d45",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 10.0% 21 sessions earlier; the pullback ran 10 sessions and 6.9% deep under the 4-day average of the highs; the trigger day closed up 4.47% at 100% of its range, gapping -0.04%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-12-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SMG"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 43.5,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "day_pct": 4.47,
+    "drive_pct": 31.2,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": {
+     "bars_ago": 21,
+     "day_pct": 18.5,
+     "gap_pct": 10.0
+    },
+    "fwd_10d_pct": 4.6,
+    "fwd_20d_pct": 10.7,
+    "fwd_5d_pct": 4.2,
+    "fwd_max_gain_pct": 13.1,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "gap_pct": -0.04,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 6.9,
+    "pullback_depth_pct": -6.9,
+    "pullback_range_atr": 1.88,
+    "pullback_rvol_max": 1.72,
+    "pullback_sessions": 10,
+    "rally": {
+     "bars_ago": 11,
+     "peak_high": 58.29,
+     "rally_pct": 31.2
+    },
+    "range_atr": 1.58,
+    "rvol": 0.95,
+    "s50_slope10_pct": 1.1,
+    "setup_score": 20,
+    "strength_day_bars_ago": 11,
+    "strength_day_gain_pct": 6.09,
+    "tight_pullback": false,
+    "trigger_gap_pct": -0.04,
+    "trigger_vs_peak_pct": -0.2,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.5
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#SMG#2023-12-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#SMG#2023-12-01",
+  "sym": "SMG",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-15",
+  "bars": {
+   "asof": "2026-05-15",
+   "forward": 20,
+   "sym": "SNOW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f490c8bcbc20",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 9.8% 6 sessions earlier; the pullback ran 5 sessions and 8.0% deep under the 4-day average of the highs; the trigger day closed up 4.45% at 78% of its range, gapping -0.52%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2026-05-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SNOW"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 1143.4,
+    "close_pos": 0.78,
+    "close_pos_pct": 78,
+    "day_pct": 4.45,
+    "drive_pct": 15.0,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": {
+     "bars_ago": 6,
+     "day_pct": 10.0,
+     "gap_pct": 9.8
+    },
+    "fwd_10d_pct": 77.9,
+    "fwd_20d_pct": 52.9,
+    "fwd_5d_pct": 9.4,
+    "fwd_max_gain_pct": 81.0,
+    "fwd_min_low_vs_trigger_low_pct": 4.1,
+    "gap_pct": -0.52,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 8.0,
+    "pullback_depth_pct": -8.0,
+    "pullback_range_atr": 1.39,
+    "pullback_rvol_max": 1.1,
+    "pullback_sessions": 5,
+    "rally": {
+     "bars_ago": 6,
+     "peak_high": 157.0,
+     "rally_pct": 15.0
+    },
+    "range_atr": 1.44,
+    "rvol": 1.17,
+    "s50_slope10_pct": -2.6,
+    "setup_score": 19,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.45,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.52,
+    "trigger_vs_peak_pct": 0.3,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -0.67
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#SNOW#2026-05-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#SNOW#2026-05-15",
+  "sym": "SNOW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-28",
+  "bars": {
+   "asof": "2023-11-28",
+   "forward": 20,
+   "sym": "RUN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_34360e878d37",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 9.4% 9 sessions earlier; the pullback ran 7 sessions and 11.4% deep under the 4-day average of the highs; the trigger day closed up 6.91% at 97% of its range, gapping -0.54%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-11-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RUN"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 148.9,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "day_pct": 6.91,
+    "drive_pct": 36.5,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": {
+     "bars_ago": 9,
+     "day_pct": 19.0,
+     "gap_pct": 9.4
+    },
+    "fwd_10d_pct": 4.9,
+    "fwd_20d_pct": 70.5,
+    "fwd_5d_pct": 16.9,
+    "fwd_max_gain_pct": 73.5,
+    "fwd_min_low_vs_trigger_low_pct": 13.1,
+    "gap_pct": -0.54,
+    "known_name": false,
+    "labels": [
+     "v2_run_20in5",
+     "cross_only"
+    ],
+    "ma_order_8_21_50": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 11.4,
+    "pullback_depth_pct": -11.4,
+    "pullback_range_atr": 1.62,
+    "pullback_rvol_max": 0.91,
+    "pullback_sessions": 7,
+    "rally": {
+     "bars_ago": 8,
+     "peak_high": 12.07,
+     "rally_pct": 36.5
+    },
+    "range_atr": 1.4,
+    "rvol": 0.99,
+    "s50_slope10_pct": -6.1,
+    "setup_score": 18,
+    "strength_day_bars_ago": 8,
+    "strength_day_gain_pct": 5.56,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.54,
+    "trigger_vs_peak_pct": -1.2,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -3.22
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#RUN#2023-11-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#RUN#2023-11-28",
+  "sym": "RUN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-24",
+  "bars": {
+   "asof": "2022-02-24",
+   "forward": 20,
+   "sym": "NTR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5327ec10564e",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 14.8% rally that peaked 4 sessions earlier; the pullback ran 3 sessions and 5.1% deep under the 4-day average of the highs; the trigger day closed up 3.16% at 94% of its range, gapping -0.45%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-02-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NTR"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 157.6,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "day_pct": 3.16,
+    "drive_pct": 14.8,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 31.5,
+    "fwd_20d_pct": 37.9,
+    "fwd_5d_pct": 15.7,
+    "fwd_max_gain_pct": 39.8,
+    "fwd_min_low_vs_trigger_low_pct": 3.1,
+    "gap_pct": -0.45,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 5.1,
+    "pullback_depth_pct": -5.1,
+    "pullback_range_atr": 1.26,
+    "pullback_rvol_max": 1.25,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 78.76,
+     "rally_pct": 14.8
+    },
+    "range_atr": 1.32,
+    "rvol": 1.95,
+    "s50_slope10_pct": 1.9,
+    "setup_score": 18,
+    "strength_day_bars_ago": 16,
+    "strength_day_gain_pct": 4.74,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.45,
+    "trigger_vs_peak_pct": -1.6,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.46
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#NTR#2022-02-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#NTR#2022-02-24",
+  "sym": "NTR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-07-02",
+  "bars": {
+   "asof": "2026-07-02",
+   "forward": 20,
+   "sym": "GKOS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_58798d9358ef",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 27.9% rally that peaked 5 sessions earlier; the pullback ran 4 sessions and 6.3% deep under the 4-day average of the highs; the trigger day closed up 7.83% at 98% of its range, gapping 0.0%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2026-07-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "GKOS"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 109.5,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "day_pct": 7.83,
+    "drive_pct": 27.9,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 5.7,
+    "fwd_20d_pct": 12.4,
+    "fwd_5d_pct": 3.0,
+    "fwd_max_gain_pct": 24.0,
+    "fwd_min_low_vs_trigger_low_pct": 5.1,
+    "gap_pct": 0.0,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 6.3,
+    "pullback_depth_pct": -6.3,
+    "pullback_range_atr": 1.68,
+    "pullback_rvol_max": 1.87,
+    "pullback_sessions": 4,
+    "rally": {
+     "bars_ago": 5,
+     "peak_high": 145.39,
+     "rally_pct": 27.9
+    },
+    "range_atr": 2.36,
+    "rvol": 1.17,
+    "s50_slope10_pct": 2.7,
+    "setup_score": 19,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 7.83,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.0,
+    "trigger_vs_peak_pct": 2.0,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -1.18
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#GKOS#2026-07-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#GKOS#2026-07-02",
+  "sym": "GKOS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-12-19",
+  "bars": {
+   "asof": "2025-12-19",
+   "forward": 20,
+   "sym": "RVLV",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_04ad82dcf822",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 38.3% rally that peaked 7 sessions earlier; the pullback ran 6 sessions and 7.4% deep under the 4-day average of the highs; the trigger day closed up 2.15% at 96% of its range, gapping -0.74%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2025-12-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RVLV"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 25.8,
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "day_pct": 2.15,
+    "drive_pct": 38.3,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 8.0,
+    "fwd_20d_pct": 3.6,
+    "fwd_5d_pct": 8.5,
+    "fwd_max_gain_pct": 9.3,
+    "fwd_min_low_vs_trigger_low_pct": 2.0,
+    "gap_pct": -0.74,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 7.4,
+    "pullback_depth_pct": -7.4,
+    "pullback_range_atr": 1.71,
+    "pullback_rvol_max": 1.08,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 29.32,
+     "rally_pct": 38.3
+    },
+    "range_atr": 0.81,
+    "rvol": 1.45,
+    "s50_slope10_pct": 5.5,
+    "setup_score": 19,
+    "strength_day_bars_ago": 8,
+    "strength_day_gain_pct": 8.07,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.74,
+    "trigger_vs_peak_pct": -1.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.93
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#RVLV#2025-12-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#RVLV#2025-12-19",
+  "sym": "RVLV",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-05",
+  "bars": {
+   "asof": "2024-11-05",
+   "forward": 20,
+   "sym": "COF",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8745b0a4eed8",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 7.2% 7 sessions earlier; the pullback ran 6 sessions and 4.7% deep under the 4-day average of the highs; the trigger day closed up 2.96% at 91% of its range, gapping 0.68%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-11-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "COF"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 347.8,
+    "close_pos": 0.91,
+    "close_pos_pct": 91,
+    "day_pct": 2.96,
+    "drive_pct": 12.3,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": {
+     "bars_ago": 7,
+     "day_pct": 5.2,
+     "gap_pct": 7.2
+    },
+    "fwd_10d_pct": 9.0,
+    "fwd_20d_pct": 11.7,
+    "fwd_5d_pct": 12.5,
+    "fwd_max_gain_pct": 19.4,
+    "fwd_min_low_vs_trigger_low_pct": 10.6,
+    "gap_pct": 0.68,
+    "known_name": false,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 4.7,
+    "pullback_depth_pct": -4.7,
+    "pullback_range_atr": 1.78,
+    "pullback_rvol_max": 1.7,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 167.93,
+     "rally_pct": 12.3
+    },
+    "range_atr": 1.03,
+    "rvol": 1.03,
+    "s50_slope10_pct": 3.1,
+    "setup_score": 18,
+    "strength_day_bars_ago": 7,
+    "strength_day_gain_pct": 5.23,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.68,
+    "trigger_vs_peak_pct": -1.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.52
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#COF#2024-11-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#COF#2024-11-05",
+  "sym": "COF",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-11-08",
+  "bars": {
+   "asof": "2024-11-08",
+   "forward": 20,
+   "sym": "GME",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c18d78709d88",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 19.7% rally that peaked 7 sessions earlier; the pullback ran 6 sessions and 10.8% deep under the 4-day average of the highs; the trigger day closed up 6.1% at 76% of its range, gapping -0.04%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-11-08",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "GME"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 656.2,
+    "close_pos": 0.76,
+    "close_pos_pct": 76,
+    "day_pct": 6.1,
+    "drive_pct": 19.7,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 12.1,
+    "fwd_20d_pct": 12.3,
+    "fwd_5d_pct": 6.9,
+    "fwd_max_gain_pct": 29.1,
+    "fwd_min_low_vs_trigger_low_pct": 6.0,
+    "gap_pct": -0.04,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 10.8,
+    "pullback_depth_pct": -10.8,
+    "pullback_range_atr": 1.97,
+    "pullback_rvol_max": 0.72,
+    "pullback_sessions": 6,
+    "rally": {
+     "bars_ago": 7,
+     "peak_high": 24.54,
+     "rally_pct": 19.7
+    },
+    "range_atr": 2.18,
+    "rvol": 1.73,
+    "s50_slope10_pct": 0.6,
+    "setup_score": 17,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.1,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.04,
+    "trigger_vs_peak_pct": 1.4,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.85
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#GME#2024-11-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#GME#2024-11-08",
+  "sym": "GME",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-21",
+  "bars": {
+   "asof": "2026-05-21",
+   "forward": 20,
+   "sym": "HPQ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8913927485f2",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 16.3% rally that peaked 8 sessions earlier; the pullback ran 7 sessions and 10.3% deep under the 4-day average of the highs; the trigger day closed up 3.94% at 90% of its range, gapping -0.19%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2026-05-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HPQ"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 350.9,
+    "close_pos": 0.9,
+    "close_pos_pct": 90,
+    "day_pct": 3.94,
+    "drive_pct": 16.3,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 16.8,
+    "fwd_20d_pct": 7.5,
+    "fwd_5d_pct": 23.5,
+    "fwd_max_gain_pct": 35.4,
+    "fwd_min_low_vs_trigger_low_pct": 8.5,
+    "gap_pct": -0.19,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 10.3,
+    "pullback_depth_pct": -10.3,
+    "pullback_range_atr": 1.61,
+    "pullback_rvol_max": 0.99,
+    "pullback_sessions": 7,
+    "rally": {
+     "bars_ago": 8,
+     "peak_high": 22.78,
+     "rally_pct": 16.3
+    },
+    "range_atr": 1.42,
+    "rvol": 0.94,
+    "s50_slope10_pct": 2.4,
+    "setup_score": 17,
+    "strength_day_bars_ago": 9,
+    "strength_day_gain_pct": 8.05,
+    "tight_pullback": true,
+    "trigger_gap_pct": -0.19,
+    "trigger_vs_peak_pct": -3.9,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -3.22
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#HPQ#2026-05-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#HPQ#2026-05-21",
+  "sym": "HPQ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-10",
+  "bars": {
+   "asof": "2023-11-10",
+   "forward": 20,
+   "sym": "URI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_75780f97c5e5",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 14.6% rally that peaked 5 sessions earlier; the pullback ran 4 sessions and 5.3% deep under the 4-day average of the highs; the trigger day closed up 4.35% at 94% of its range, gapping 1.17%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2023-11-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "URI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 329.0,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "day_pct": 4.35,
+    "drive_pct": 14.6,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 1.7,
+    "fwd_20d_pct": 10.6,
+    "fwd_5d_pct": 5.4,
+    "fwd_max_gain_pct": 10.8,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "gap_pct": 1.17,
+    "known_name": false,
+    "labels": [
+     "cross_only",
+     "stack_kicker"
+    ],
+    "ma_order_8_21_50": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 5.3,
+    "pullback_depth_pct": -5.3,
+    "pullback_range_atr": 1.43,
+    "pullback_rvol_max": 1.03,
+    "pullback_sessions": 4,
+    "rally": {
+     "bars_ago": 5,
+     "peak_high": 457.08,
+     "rally_pct": 14.6
+    },
+    "range_atr": 1.1,
+    "rvol": 1.07,
+    "s50_slope10_pct": -1.3,
+    "setup_score": 17,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.35,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.17,
+    "trigger_vs_peak_pct": -0.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -3.48
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#URI#2023-11-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#URI#2023-11-10",
+  "sym": "URI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-03-13",
+  "bars": {
+   "asof": "2024-03-13",
+   "forward": 20,
+   "sym": "FTI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3165220eece9",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 21.0% rally that peaked 8 sessions earlier; the pullback ran 7 sessions and 7.0% deep under the 4-day average of the highs; the trigger day closed up 4.08% at 100% of its range, gapping 0.85%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2024-03-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FTI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 103.3,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "day_pct": 4.08,
+    "drive_pct": 21.0,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 9.0,
+    "fwd_20d_pct": 13.5,
+    "fwd_5d_pct": 7.1,
+    "fwd_max_gain_pct": 17.3,
+    "fwd_min_low_vs_trigger_low_pct": 4.4,
+    "gap_pct": 0.85,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 7.0,
+    "pullback_depth_pct": -7.0,
+    "pullback_range_atr": 1.63,
+    "pullback_rvol_max": 1.62,
+    "pullback_sessions": 7,
+    "rally": {
+     "bars_ago": 8,
+     "peak_high": 22.97,
+     "rally_pct": 21.0
+    },
+    "range_atr": 1.17,
+    "rvol": 1.48,
+    "s50_slope10_pct": 1.8,
+    "setup_score": 17,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.08,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.85,
+    "trigger_vs_peak_pct": 1.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -4.07
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#FTI#2024-03-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#FTI#2024-03-13",
+  "sym": "FTI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-08-22",
+  "bars": {
+   "asof": "2025-08-22",
+   "forward": 20,
+   "sym": "AFRM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ccfbdaeaba44",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 20.7% rally that peaked 4 sessions earlier; the pullback ran 3 sessions and 11.7% deep under the 4-day average of the highs; the trigger day closed up 6.71% at 85% of its range, gapping -0.27%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2025-08-22",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "AFRM"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 395.3,
+    "close_pos": 0.85,
+    "close_pos_pct": 85,
+    "day_pct": 6.71,
+    "drive_pct": 20.7,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 8.0,
+    "fwd_20d_pct": 13.4,
+    "fwd_5d_pct": 11.3,
+    "fwd_max_gain_pct": 25.8,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "gap_pct": -0.27,
+    "known_name": true,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 11.7,
+    "pullback_depth_pct": -11.7,
+    "pullback_range_atr": 1.56,
+    "pullback_rvol_max": 1.11,
+    "pullback_sessions": 3,
+    "rally": {
+     "bars_ago": 4,
+     "peak_high": 80.16,
+     "rally_pct": 20.7
+    },
+    "range_atr": 1.51,
+    "rvol": 1.56,
+    "s50_slope10_pct": 6.2,
+    "setup_score": 17,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 6.71,
+    "tight_pullback": false,
+    "trigger_gap_pct": -0.27,
+    "trigger_vs_peak_pct": -0.8,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -3.79
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#AFRM#2025-08-22",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#AFRM#2025-08-22",
+  "sym": "AFRM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-06-18",
+  "bars": {
+   "asof": "2026-06-18",
+   "forward": 20,
+   "sym": "OKTA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_09a9e44977ae",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 13.53% 14 sessions earlier. The test day held the gap-up day's low to within 0.5% and closed 10.6% above it, 21.9% above the gap top, so the gap stayed open. It was the first test of the gap, and the day closed at 86% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-06-18",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "OKTA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 320.1,
+    "bars_since_gap": 14,
+    "close_vs_gap_low_pct": 10.6,
+    "close_vs_gap_top_pct": 21.9,
+    "confluence": [],
+    "day_pct": 4.23,
+    "dcr": 0.86,
+    "dcr_pct": 86,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": true,
+    "fwd_10d_pct": 26.1,
+    "fwd_20d_pct": 26.0,
+    "fwd_5d_pct": 5.5,
+    "fwd_max_gain_pct": 33.3,
+    "fwd_min_low_vs_trigger_low_pct": 6.4,
+    "gap_asof": "2026-05-29",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.92,
+    "gap_day_pct": 30.14,
+    "gap_low": 106.5,
+    "gap_pct": 13.53,
+    "gap_rvol": 4.77,
+    "gap_top": 96.64,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 15.5,
+    "pullback_from_high_pct": -24.8,
+    "range_atr": 1.42,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.97,
+    "s50_slope10_pct": 9.5,
+    "setup_score": 22,
+    "test_depth_atr": 4.0,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.5,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#OKTA#2026-06-18",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#OKTA#2026-06-18",
+  "sym": "OKTA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-06-26",
+  "bars": {
+   "asof": "2026-06-26",
+   "forward": 20,
+   "sym": "FIVN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_558d6758d467",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 17.33% 38 sessions earlier. The test day's low stayed 0.7% above the gap-up day's low and closed 8.4% above it, 22.5% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 97% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-06-26",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FIVN"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 55.2,
+    "bars_since_gap": 38,
+    "close_vs_gap_low_pct": 8.4,
+    "close_vs_gap_top_pct": 22.5,
+    "confluence": [
+     "ema9",
+     "sma200"
+    ],
+    "day_pct": 9.28,
+    "dcr": 0.97,
+    "dcr_pct": 97,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 21.1,
+    "fwd_20d_pct": 19.8,
+    "fwd_5d_pct": 13.0,
+    "fwd_max_gain_pct": 24.5,
+    "fwd_min_low_vs_trigger_low_pct": 4.6,
+    "gap_asof": "2026-05-01",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.73,
+    "gap_day_pct": 29.3,
+    "gap_low": 19.66,
+    "gap_pct": 17.33,
+    "gap_rvol": 6.06,
+    "gap_top": 17.41,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 21.1,
+    "pullback_from_high_pct": -26.5,
+    "range_atr": 1.19,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.43,
+    "s50_slope10_pct": 5.4,
+    "setup_score": 21,
+    "test_depth_atr": 5.43,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.7,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#FIVN#2026-06-26",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#FIVN#2026-06-26",
+  "sym": "FIVN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-08-22",
+  "bars": {
+   "asof": "2025-08-22",
+   "forward": 20,
+   "sym": "RGTI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a42dd6b7770a",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 8.49% 27 sessions earlier. The test day held the gap-up day's low to within 0.3% and closed 7.5% above it, 13.8% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 87% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-08-22",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RGTI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 578.9,
+    "bars_since_gap": 27,
+    "close_vs_gap_low_pct": 7.5,
+    "close_vs_gap_top_pct": 13.8,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 3.85,
+    "dcr": 0.87,
+    "dcr_pct": 87,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 2.2,
+    "fwd_20d_pct": 91.4,
+    "fwd_5d_pct": 9.5,
+    "fwd_max_gain_pct": 99.7,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "gap_asof": "2025-07-16",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.91,
+    "gap_day_pct": 30.19,
+    "gap_low": 13.78,
+    "gap_pct": 8.49,
+    "gap_rvol": 3.54,
+    "gap_top": 13.02,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 9.6,
+    "pullback_from_high_pct": -23.9,
+    "range_atr": 0.87,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.71,
+    "s50_slope10_pct": 6.0,
+    "setup_score": 20,
+    "test_depth_atr": 3.28,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.3,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#RGTI#2025-08-22",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#RGTI#2025-08-22",
+  "sym": "RGTI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-01-13",
+  "bars": {
+   "asof": "2025-01-13",
+   "forward": 20,
+   "sym": "TOST",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ae3a7b571932",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 17.51% 42 sessions earlier. The test day held the gap-up day's low to within 0.5% and closed 1.2% above it, 6.4% above the gap top, so the gap stayed open. It was the first test of the gap, and the day closed at 78% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-01-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TOST"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 206.7,
+    "bars_since_gap": 42,
+    "close_vs_gap_low_pct": 1.2,
+    "close_vs_gap_top_pct": 6.4,
+    "confluence": [],
+    "day_pct": -1.65,
+    "dcr": 0.78,
+    "dcr_pct": 78,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": true,
+    "fwd_10d_pct": 13.8,
+    "fwd_20d_pct": 14.2,
+    "fwd_5d_pct": 10.1,
+    "fwd_max_gain_pct": 21.6,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "gap_asof": "2024-11-08",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.75,
+    "gap_day_pct": 14.72,
+    "gap_low": 34.71,
+    "gap_pct": 17.51,
+    "gap_rvol": 5.32,
+    "gap_top": 33.01,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 17.7,
+    "pullback_from_high_pct": -21.7,
+    "range_atr": 0.55,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.64,
+    "s50_slope10_pct": 4.2,
+    "setup_score": 20,
+    "test_depth_atr": 7.29,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.5,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TOST#2025-01-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TOST#2025-01-13",
+  "sym": "TOST",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-07-06",
+  "bars": {
+   "asof": "2023-07-06",
+   "forward": 20,
+   "sym": "BRSL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1a54d7695f31",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 8.81% 18 sessions earlier. The test day held the gap-up day's low to within 0.4% and closed 2.6% above it, 10.9% above the gap top, so the gap stayed open. It was the first test of the gap, and the day closed at 93% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-07-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BRSL"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 36.7,
+    "bars_since_gap": 18,
+    "close_vs_gap_low_pct": 2.6,
+    "close_vs_gap_top_pct": 10.9,
+    "confluence": [],
+    "day_pct": -0.84,
+    "dcr": 0.93,
+    "dcr_pct": 93,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": true,
+    "fwd_10d_pct": 8.2,
+    "fwd_20d_pct": 6.3,
+    "fwd_5d_pct": 5.2,
+    "fwd_max_gain_pct": 11.0,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "gap_asof": "2023-06-08",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.9,
+    "gap_day_pct": 14.25,
+    "gap_low": 29.85,
+    "gap_pct": 8.81,
+    "gap_rvol": 4.24,
+    "gap_top": 27.61,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 2.3,
+    "pullback_from_high_pct": -7.8,
+    "range_atr": 1.37,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.76,
+    "s50_slope10_pct": 2.8,
+    "setup_score": 20,
+    "test_depth_atr": 3.54,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.4,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#BRSL#2023-07-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#BRSL#2023-07-06",
+  "sym": "BRSL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-19",
+  "bars": {
+   "asof": "2026-05-19",
+   "forward": 20,
+   "sym": "TTMI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_beebcb010dc6",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 29.98% 13 sessions earlier. The test day held the gap-up day's low to within 0.0% and closed 8.8% above it, 14.0% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 82% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-05-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TTMI"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 237.3,
+    "bars_since_gap": 13,
+    "close_vs_gap_low_pct": 8.8,
+    "close_vs_gap_top_pct": 14.0,
+    "confluence": [
+     "ema20"
+    ],
+    "day_pct": 1.61,
+    "dcr": 0.82,
+    "dcr_pct": 82,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 17.5,
+    "fwd_20d_pct": 25.6,
+    "fwd_5d_pct": 18.1,
+    "fwd_max_gain_pct": 29.7,
+    "fwd_min_low_vs_trigger_low_pct": 9.4,
+    "gap_asof": "2026-04-30",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.31,
+    "gap_day_pct": 15.07,
+    "gap_low": 148.41,
+    "gap_pct": 29.98,
+    "gap_rvol": 3.1,
+    "gap_top": 141.63,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 13.8,
+    "pullback_from_high_pct": -17.6,
+    "range_atr": 1.19,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.09,
+    "s50_slope10_pct": 10.5,
+    "setup_score": 19,
+    "test_depth_atr": 2.36,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.0,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TTMI#2026-05-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TTMI#2026-05-19",
+  "sym": "TTMI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-31",
+  "bars": {
+   "asof": "2026-03-31",
+   "forward": 20,
+   "sym": "VRT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_cf1c4ea00309",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 16.85% 33 sessions earlier. The test day held the gap-up day's low to within 0.0% and closed 7.5% above it, 21.4% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 98% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2026-03-31",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VRT"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 1553.6,
+    "bars_since_gap": 33,
+    "close_vs_gap_low_pct": 7.5,
+    "close_vs_gap_top_pct": 21.4,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 6.98,
+    "dcr": 0.98,
+    "dcr_pct": 98,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 20.2,
+    "fwd_20d_pct": 22.2,
+    "fwd_5d_pct": 12.2,
+    "fwd_max_gain_pct": 31.8,
+    "fwd_min_low_vs_trigger_low_pct": 6.4,
+    "gap_asof": "2026-02-11",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.92,
+    "gap_day_pct": 24.49,
+    "gap_low": 233.0,
+    "gap_pct": 16.85,
+    "gap_rvol": 3.42,
+    "gap_top": 206.35,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 13.5,
+    "pullback_from_high_pct": -17.4,
+    "range_atr": 1.22,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.79,
+    "s50_slope10_pct": 8.3,
+    "setup_score": 20,
+    "test_depth_atr": 3.32,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 0.0,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#VRT#2026-03-31",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#VRT#2026-03-31",
+  "sym": "VRT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-04-07",
+  "bars": {
+   "asof": "2025-04-07",
+   "forward": 20,
+   "sym": "TTWO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_6cec53f1b3bf",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 8.15% 40 sessions earlier. The test day undercut the gap-up day's low by 3.8% and closed 0.8% above it, 7.0% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 71% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-04-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TTWO"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 316.8,
+    "bars_since_gap": 40,
+    "close_vs_gap_low_pct": 0.8,
+    "close_vs_gap_top_pct": 7.0,
+    "confluence": [],
+    "day_pct": 1.52,
+    "dcr": 0.71,
+    "dcr_pct": 71,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 6.3,
+    "fwd_20d_pct": 17.4,
+    "fwd_5d_pct": 7.8,
+    "fwd_max_gain_pct": 20.5,
+    "fwd_min_low_vs_trigger_low_pct": 2.4,
+    "gap_asof": "2025-02-07",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.76,
+    "gap_day_pct": 14.03,
+    "gap_low": 195.97,
+    "gap_pct": 8.15,
+    "gap_rvol": 4.5,
+    "gap_top": 184.53,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 5.8,
+    "pullback_from_high_pct": -14.7,
+    "range_atr": 1.78,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.88,
+    "s50_slope10_pct": 2.8,
+    "setup_score": 19,
+    "test_depth_atr": 4.6,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -3.8,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#TTWO#2025-04-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#TTWO#2025-04-07",
+  "sym": "TTWO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-29",
+  "bars": {
+   "asof": "2024-01-29",
+   "forward": 20,
+   "sym": "NTRA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f333c4640eb5",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 8.47% 8 sessions earlier. The test day undercut the gap-up day's low by 2.5% and closed 2.8% above it, 5.5% above the gap top, so the gap stayed open. It was the first test of the gap, and the day closed at 98% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-01-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "NTRA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 71.5,
+    "bars_since_gap": 8,
+    "close_vs_gap_low_pct": 2.8,
+    "close_vs_gap_top_pct": 5.5,
+    "confluence": [
+     "ema20"
+    ],
+    "day_pct": 1.48,
+    "dcr": 0.98,
+    "dcr_pct": 98,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": true,
+    "fwd_10d_pct": 6.9,
+    "fwd_20d_pct": 14.7,
+    "fwd_5d_pct": 3.6,
+    "fwd_max_gain_pct": 15.3,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "gap_asof": "2024-01-17",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.73,
+    "gap_day_pct": 7.3,
+    "gap_low": 64.58,
+    "gap_pct": 8.47,
+    "gap_rvol": 2.7,
+    "gap_top": 62.92,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "glow",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 2.1,
+    "pullback_from_high_pct": -8.7,
+    "range_atr": 1.15,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.84,
+    "s50_slope10_pct": 8.1,
+    "setup_score": 19,
+    "test_depth_atr": 1.96,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -2.5,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#NTRA#2024-01-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#NTRA#2024-01-29",
+  "sym": "NTRA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-09-29",
+  "bars": {
+   "asof": "2025-09-29",
+   "forward": 20,
+   "sym": "SHOP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4a0fa751e0b6",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 14.3% 37 sessions earlier. The test day undercut the gap-up day's low by 2.9% and closed 2.7% above it, 17.1% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 93% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2025-09-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SHOP"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 1140.2,
+    "bars_since_gap": 37,
+    "close_vs_gap_low_pct": 2.7,
+    "close_vs_gap_top_pct": 17.1,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 6.24,
+    "dcr": 0.93,
+    "dcr_pct": 93,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 3.1,
+    "fwd_20d_pct": 17.5,
+    "fwd_5d_pct": 10.4,
+    "fwd_max_gain_pct": 18.7,
+    "fwd_min_low_vs_trigger_low_pct": 3.0,
+    "gap_asof": "2025-08-06",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.87,
+    "gap_day_pct": 21.97,
+    "gap_low": 145.11,
+    "gap_pct": 14.3,
+    "gap_rvol": 4.95,
+    "gap_top": 127.23,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 2.7,
+    "pullback_from_high_pct": -11.4,
+    "range_atr": 1.75,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.93,
+    "s50_slope10_pct": 4.8,
+    "setup_score": 19,
+    "test_depth_atr": 3.65,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -2.9,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#SHOP#2025-09-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#SHOP#2025-09-29",
+  "sym": "SHOP",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-24",
+  "bars": {
+   "asof": "2022-02-24",
+   "forward": 20,
+   "sym": "THC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_2a4dd1f00f6d",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 4.4% 10 sessions earlier. The test day undercut the gap-up day's low by 1.2% and closed 5.5% above it, 8.5% above the gap top, so the gap stayed open. It was the first test of the gap, and the day closed at 96% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2022-02-24",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "THC"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 72.7,
+    "bars_since_gap": 10,
+    "close_vs_gap_low_pct": 5.5,
+    "close_vs_gap_top_pct": 8.5,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 2.63,
+    "dcr": 0.96,
+    "dcr_pct": 96,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": true,
+    "fwd_10d_pct": 10.5,
+    "fwd_20d_pct": 9.3,
+    "fwd_5d_pct": 12.3,
+    "fwd_max_gain_pct": 13.2,
+    "fwd_min_low_vs_trigger_low_pct": 7.1,
+    "gap_asof": "2022-02-09",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.88,
+    "gap_day_pct": 11.0,
+    "gap_low": 76.94,
+    "gap_pct": 4.4,
+    "gap_rvol": 2.75,
+    "gap_top": 74.82,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "top",
+     "glow",
+     "gopen",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 7.3,
+    "pullback_from_high_pct": -13.8,
+    "range_atr": 1.19,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.88,
+    "s50_slope10_pct": 2.3,
+    "setup_score": 18,
+    "test_depth_atr": 2.68,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -1.2,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#THC#2022-02-24",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#THC#2022-02-24",
+  "sym": "THC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-25",
+  "bars": {
+   "asof": "2023-08-25",
+   "forward": 20,
+   "sym": "MQ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f1546c6fbe82",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 20.26% 12 sessions earlier. The test day's low stayed 1.7% above the gap-up day's low and closed 5.4% above it, 13.4% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 75% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-08-25",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MQ"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 27.2,
+    "bars_since_gap": 12,
+    "close_vs_gap_low_pct": 5.4,
+    "close_vs_gap_top_pct": 13.4,
+    "confluence": [
+     "ema9",
+     "ema20",
+     "sma200"
+    ],
+    "day_pct": 3.47,
+    "dcr": 0.75,
+    "dcr_pct": 75,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 14.5,
+    "fwd_20d_pct": 4.9,
+    "fwd_5d_pct": 10.4,
+    "fwd_max_gain_pct": 18.7,
+    "fwd_min_low_vs_trigger_low_pct": 3.7,
+    "gap_asof": "2023-08-09",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.19,
+    "gap_day_pct": 11.69,
+    "gap_low": 21.52,
+    "gap_pct": 20.26,
+    "gap_rvol": 4.74,
+    "gap_top": 20.0,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 12.6,
+    "pullback_from_high_pct": -12.3,
+    "range_atr": 0.69,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.47,
+    "s50_slope10_pct": 3.5,
+    "setup_score": 18,
+    "test_depth_atr": 2.02,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 1.7,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#MQ#2023-08-25",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#MQ#2023-08-25",
+  "sym": "MQ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-06-28",
+  "bars": {
+   "asof": "2023-06-28",
+   "forward": 20,
+   "sym": "DVA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c6f58554ac3f",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 8.91% 34 sessions earlier. The test day undercut the gap-up day's low by 1.9% and closed 0.5% above it, 9.0% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 91% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2023-06-28",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DVA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 56.7,
+    "bars_since_gap": 34,
+    "close_vs_gap_low_pct": 0.5,
+    "close_vs_gap_top_pct": 9.0,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 1.78,
+    "dcr": 0.91,
+    "dcr_pct": 91,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 5.8,
+    "fwd_20d_pct": 2.4,
+    "fwd_5d_pct": 4.4,
+    "fwd_max_gain_pct": 9.5,
+    "fwd_min_low_vs_trigger_low_pct": 2.3,
+    "gap_asof": "2023-05-09",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.61,
+    "gap_day_pct": 12.9,
+    "gap_low": 97.16,
+    "gap_pct": 8.91,
+    "gap_rvol": 4.51,
+    "gap_top": 89.55,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 2.3,
+    "pullback_from_high_pct": -7.5,
+    "range_atr": 1.21,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.01,
+    "s50_slope10_pct": 3.2,
+    "setup_score": 18,
+    "test_depth_atr": 3.64,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -1.9,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#DVA#2023-06-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#DVA#2023-06-28",
+  "sym": "DVA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-01",
+  "bars": {
+   "asof": "2024-02-01",
+   "forward": 20,
+   "sym": "JBL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f80aad6b80f7",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 7.91% 32 sessions earlier. The test day held the gap-up day's low to within 0.3% and closed 4.4% above it, 8.4% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 100% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-02-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "JBL"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 232.4,
+    "bars_since_gap": 32,
+    "close_vs_gap_low_pct": 4.4,
+    "close_vs_gap_top_pct": 8.4,
+    "confluence": [
+     "ema9",
+     "ema20",
+     "sma50"
+    ],
+    "day_pct": 4.83,
+    "dcr": 1.0,
+    "dcr_pct": 100,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 7.4,
+    "fwd_20d_pct": 12.1,
+    "fwd_5d_pct": 3.5,
+    "fwd_max_gain_pct": 12.8,
+    "fwd_min_low_vs_trigger_low_pct": 2.2,
+    "gap_asof": "2023-12-14",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.93,
+    "gap_day_pct": 13.12,
+    "gap_low": 125.79,
+    "gap_pct": 7.91,
+    "gap_rvol": 3.55,
+    "gap_top": 121.2,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 1.1,
+    "pullback_from_high_pct": -9.1,
+    "range_atr": 2.08,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.71,
+    "s50_slope10_pct": -0.7,
+    "setup_score": 17,
+    "test_depth_atr": 4.41,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": -0.3,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#JBL#2024-02-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#JBL#2024-02-01",
+  "sym": "JBL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-19",
+  "bars": {
+   "asof": "2024-01-19",
+   "forward": 20,
+   "sym": "MARA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7ad8131bfa02",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 11.9% 31 sessions earlier. The test day's low stayed 3.9% above the gap-up day's low and closed 14.6% above it, 17.7% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 81% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-01-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MARA"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 801.2,
+    "bars_since_gap": 31,
+    "close_vs_gap_low_pct": 14.6,
+    "close_vs_gap_top_pct": 17.7,
+    "confluence": [],
+    "day_pct": 0.37,
+    "dcr": 0.81,
+    "dcr_pct": 81,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 12.8,
+    "fwd_20d_pct": 67.0,
+    "fwd_5d_pct": 10.7,
+    "fwd_max_gain_pct": 88.8,
+    "fwd_min_low_vs_trigger_low_pct": 4.0,
+    "gap_asof": "2023-12-04",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.54,
+    "gap_day_pct": 8.47,
+    "gap_low": 14.07,
+    "gap_pct": 11.9,
+    "gap_rvol": 2.18,
+    "gap_top": 13.7,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen",
+     "mid"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 110.6,
+    "pullback_from_high_pct": -53.3,
+    "range_atr": 0.5,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 1.45,
+    "s50_slope10_pct": 17.8,
+    "setup_score": 17,
+    "test_depth_atr": 4.53,
+    "test_kind": "held",
+    "test_low_vs_gap_low_pct": 3.9,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#MARA#2024-01-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#MARA#2024-01-19",
+  "sym": "MARA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-07-10",
+  "bars": {
+   "asof": "2024-07-10",
+   "forward": 20,
+   "sym": "WHD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ab2a6939aa8d",
+  "lesson_origin": "session",
+  "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the gap was 8.8% 20 sessions earlier. The test day undercut the gap-up day's low by 0.7% and closed 3.0% above it, 10.4% above the gap top, so the gap stayed open. It was not the first test of the gap, and the day closed at 94% of its range.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Gap Support setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_gap_support",
+   "example": {
+    "asof": "2024-07-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "WHD"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 36.9,
+    "bars_since_gap": 20,
+    "close_vs_gap_low_pct": 3.0,
+    "close_vs_gap_top_pct": 10.4,
+    "confluence": [
+     "sma50"
+    ],
+    "day_pct": 2.74,
+    "dcr": 0.94,
+    "dcr_pct": 94,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "first_test": false,
+    "fwd_10d_pct": 9.0,
+    "fwd_20d_pct": 10.7,
+    "fwd_5d_pct": 14.5,
+    "fwd_max_gain_pct": 23.9,
+    "fwd_min_low_vs_trigger_low_pct": 3.1,
+    "gap_asof": "2024-06-10",
+    "gap_day_above_50": true,
+    "gap_day_dcr": 0.51,
+    "gap_day_pct": 12.77,
+    "gap_low": 50.94,
+    "gap_pct": 8.8,
+    "gap_rvol": 7.88,
+    "gap_top": 47.5,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "labels": [
+     "loose_gap_test"
+    ],
+    "levels_touched": [
+     "glow",
+     "gopen"
+    ],
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "not_downtrend": true,
+    "post_gap_run_pct": 4.6,
+    "pullback_from_high_pct": -8.4,
+    "range_atr": 1.35,
+    "reclaim_sessions": 0,
+    "reclaimed_in_forward": true,
+    "rvol": 0.51,
+    "s50_slope10_pct": 0.4,
+    "setup_score": 17,
+    "test_depth_atr": 3.16,
+    "test_kind": "slight_breach",
+    "test_low_vs_gap_low_pct": -0.7,
+    "true_gap": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
+   "setup": "Gap Support",
+   "source": "docs/study/setups/setup_examples.json#Gap Support#WHD#2024-07-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.gap_support",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Gap Support#WHD#2024-07-10",
+  "sym": "WHD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-01-04",
+  "bars": {
+   "asof": "2023-01-04",
+   "forward": 20,
+   "sym": "RH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_886a6844b000",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the stock gapped up 2.91% after a red day and closed up 9.28%, above the prior day's high, at 98% of its range. The setup was already there: the 8, 21 and 50-day averages sat within 0.95% of each other, the prior 20 closes spanned 8.9%, and the kicker closed inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2023-01-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RH"
+   },
+   "facts": {
+    "above_200": false,
+    "avg_dollar_volume_m": 182.7,
+    "base20_range_pct": 8.9,
+    "breakdown_look": true,
+    "breakout20": false,
+    "close_above_prior_high": true,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "day_pct": 9.28,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "ext_vs_sma50_pct": 5.0,
+    "fwd_10d_pct": 5.8,
+    "fwd_20d_pct": 25.4,
+    "fwd_5d_pct": 14.3,
+    "fwd_max_gain_pct": 27.0,
+    "fwd_min_low_vs_trigger_low_pct": 5.6,
+    "gap_pct": 2.91,
+    "green": true,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_pct": 0.95,
+    "prior_body_pct": 7.79,
+    "prior_close_vs_low5_pct": -1.65,
+    "prior_dcr": 0.09,
+    "prior_drop_pct": -5.21,
+    "prior_range_atr": 2.38,
+    "prior_red": true,
+    "range_atr": 1.87,
+    "rvol": 1.51,
+    "setup_score": 8,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#RH#2023-01-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#RH#2023-01-04",
+  "sym": "RH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-08-04",
+  "bars": {
+   "asof": "2025-08-04",
+   "forward": 20,
+   "sym": "ROKU",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5d82d078b541",
+  "lesson_origin": "session",
+  "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the stock gapped up 1.78% after a red day and closed up 7.31%, above the prior day's high, at 88% of its range. The setup was already there: the 8, 21 and 50-day averages sat within 7.49% of each other, the prior 20 closes spanned 17.7%, and the kicker closed inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Kicker Candle setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_kicker",
+   "example": {
+    "asof": "2025-08-04",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ROKU"
+   },
+   "facts": {
+    "above_200": true,
+    "avg_dollar_volume_m": 325.8,
+    "base20_range_pct": 17.7,
+    "breakdown_look": true,
+    "breakout20": false,
+    "close_above_prior_high": true,
+    "close_pos": 0.88,
+    "close_pos_pct": 88,
+    "day_pct": 7.31,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "ext_vs_sma50_pct": 3.2,
+    "fwd_10d_pct": 7.6,
+    "fwd_20d_pct": 11.7,
+    "fwd_5d_pct": -4.5,
+    "fwd_max_gain_pct": 14.2,
+    "fwd_min_low_vs_trigger_low_pct": 0.2,
+    "gap_pct": 1.78,
+    "green": true,
+    "known_name": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_pct": 7.49,
+    "prior_body_pct": 6.55,
+    "prior_close_vs_low5_pct": -9.82,
+    "prior_dcr": 0.15,
+    "prior_drop_pct": -15.06,
+    "prior_range_atr": 1.73,
+    "prior_red": true,
+    "range_atr": 1.48,
+    "rvol": 2.19,
+    "setup_score": 8,
+    "sma50_rising": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
+   "setup": "Kicker Candle",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#ROKU#2025-08-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#ROKU#2025-08-04",
+  "sym": "ROKU",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-01-29",
+  "bars": {
+   "asof": "2024-01-29",
+   "forward": 20,
+   "sym": "MGRC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_6454ff01b351",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 10.74% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2024-01-29",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "MGRC"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 13.0,
+    "base20_range_pct": 9.6,
+    "breakout20": true,
+    "close_pos": 0.93,
+    "close_pos_pct": 93,
+    "day_pct": 10.74,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 2.56,
+    "ever_in_data": true,
+    "fwd_10d_pct": 5.1,
+    "fwd_20d_pct": 0.0,
+    "fwd_5d_pct": 3.0,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 5.7,
+    "fwd_min_close_vs_hvc_pct": 0.0,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 7.83,
+    "hvc": 123.75,
+    "hve_low": 120.5,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 804,
+    "range_atr": 1.76,
+    "run_prior_20d_pct": -6.7,
+    "rvol": 23.6,
+    "setup_score": 9
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#MGRC#2024-01-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#MGRC#2024-01-29",
+  "sym": "MGRC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-08-10",
+  "bars": {
+   "asof": "2026-08-10",
+   "forward": 20,
+   "sym": "VREX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_388949f2c516",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 48.75% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-08-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "VREX"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 6.0,
+    "base20_range_pct": 15.0,
+    "breakout20": true,
+    "close_pos": 0.76,
+    "close_pos_pct": 76,
+    "day_pct": 48.75,
+    "detector_fires": true,
+    "earnings_dates_near": [
+     "2026-08-10"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "edge_ratio": 6.68,
+    "ever_in_data": true,
+    "fwd_10d_pct": 0.3,
+    "fwd_20d_pct": 0.2,
+    "fwd_5d_pct": 0.0,
+    "fwd_closes_above_hvc": 19,
+    "fwd_max_gain_pct": 0.9,
+    "fwd_min_close_vs_hvc_pct": -0.1,
+    "fwd_reclaim_session": 3,
+    "fwd_sessions": 20,
+    "gap_pct": 48.19,
+    "hvc": 18.46,
+    "hve_low": 18.36,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1438,
+    "range_atr": 0.3,
+    "run_prior_20d_pct": 14.9,
+    "rvol": 32.3,
+    "setup_score": 9
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#VREX#2026-08-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#VREX#2026-08-10",
+  "sym": "VREX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-05-05",
+  "bars": {
+   "asof": "2023-05-05",
+   "forward": 20,
+   "sym": "BAK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7b84a2bf5535",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 20.82% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2023-05-05",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BAK"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": false,
+    "avg_dollar_volume_m": 5.6,
+    "base20_range_pct": 14.5,
+    "breakout20": true,
+    "close_pos": 0.35,
+    "close_pos_pct": 35,
+    "day_pct": 20.82,
+    "detector_fires": true,
+    "earnings_dates_near": [
+     "2023-05-07"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "edge_ratio": 7.55,
+    "ever_in_data": true,
+    "fwd_10d_pct": 4.1,
+    "fwd_20d_pct": 6.7,
+    "fwd_5d_pct": 7.6,
+    "fwd_closes_above_hvc": 15,
+    "fwd_max_gain_pct": 23.8,
+    "fwd_min_close_vs_hvc_pct": -3.9,
+    "fwd_reclaim_session": 19,
+    "fwd_sessions": 20,
+    "gap_pct": 1.19,
+    "hvc": 9.17,
+    "hve_low": 7.65,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 622,
+    "range_atr": 13.37,
+    "run_prior_20d_pct": -1.4,
+    "rvol": 16.1,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#BAK#2023-05-05",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#BAK#2023-05-05",
+  "sym": "BAK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-03-02",
+  "bars": {
+   "asof": "2021-03-02",
+   "forward": 20,
+   "sym": "RKT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_aa019337e9c2",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 71.19% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-03-02",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "RKT"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 455.3,
+    "base20_range_pct": 18.1,
+    "breakout20": true,
+    "close_pos": 0.91,
+    "close_pos_pct": 91,
+    "day_pct": 71.19,
+    "detector_fires": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 7.48,
+    "ever_in_data": true,
+    "fwd_10d_pct": -39.9,
+    "fwd_20d_pct": -44.2,
+    "fwd_5d_pct": -38.7,
+    "fwd_closes_above_hvc": 0,
+    "fwd_max_gain_pct": -5.1,
+    "fwd_min_close_vs_hvc_pct": -46.0,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 12.51,
+    "hvc": 41.6,
+    "hve_low": 26.95,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 73,
+    "range_atr": 13.67,
+    "run_prior_20d_pct": 12.8,
+    "rvol": 33.4,
+    "setup_score": 9
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#RKT#2021-03-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#RKT#2021-03-02",
+  "sym": "RKT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-07-19",
+  "bars": {
+   "asof": "2021-07-19",
+   "forward": 20,
+   "sym": "FIVN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0da28be29142",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 5.92% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-07-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FIVN"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 141.5,
+    "base20_range_pct": 9.0,
+    "breakout20": false,
+    "close_pos": 0.77,
+    "close_pos_pct": 77,
+    "day_pct": 5.92,
+    "detector_fires": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 3.55,
+    "ever_in_data": true,
+    "fwd_10d_pct": 7.3,
+    "fwd_20d_pct": -2.4,
+    "fwd_5d_pct": 5.4,
+    "fwd_closes_above_hvc": 19,
+    "fwd_max_gain_pct": 12.5,
+    "fwd_min_close_vs_hvc_pct": -2.4,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 5.92,
+    "hvc": 188.12,
+    "hve_low": 183.16,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 168,
+    "range_atr": 1.22,
+    "run_prior_20d_pct": -3.1,
+    "rvol": 18.6,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#FIVN#2021-07-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#FIVN#2021-07-19",
+  "sym": "FIVN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-05-09",
+  "bars": {
+   "asof": "2025-05-09",
+   "forward": 20,
+   "sym": "TASK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_311502b657e5",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 17.18% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2025-05-09",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TASK"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 5.5,
+    "base20_range_pct": 14.3,
+    "breakout20": true,
+    "close_pos": 0.74,
+    "close_pos_pct": 74,
+    "day_pct": 17.18,
+    "detector_fires": true,
+    "earnings_dates_near": [
+     "2025-05-09"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "edge_ratio": 5.59,
+    "ever_in_data": false,
+    "fwd_10d_pct": -0.6,
+    "fwd_20d_pct": -1.0,
+    "fwd_5d_pct": -1.5,
+    "fwd_closes_above_hvc": 2,
+    "fwd_max_gain_pct": 0.7,
+    "fwd_min_close_vs_hvc_pct": -1.8,
+    "fwd_reclaim_session": 9,
+    "fwd_sessions": 20,
+    "gap_pct": 13.49,
+    "hvc": 16.85,
+    "hve_low": 16.28,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 982,
+    "range_atr": 1.59,
+    "run_prior_20d_pct": 16.6,
+    "rvol": 21.7,
+    "setup_score": 9
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#TASK#2025-05-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#TASK#2025-05-09",
+  "sym": "TASK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-06-07",
+  "bars": {
+   "asof": "2021-06-07",
+   "forward": 20,
+   "sym": "BIIB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_519d312cf13e",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 38.34% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2021-06-07",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "BIIB"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 379.1,
+    "base20_range_pct": 6.8,
+    "breakout20": true,
+    "close_pos": 0.6,
+    "close_pos_pct": 60,
+    "day_pct": 38.34,
+    "detector_fires": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 3.75,
+    "ever_in_data": true,
+    "fwd_10d_pct": -3.8,
+    "fwd_20d_pct": -12.9,
+    "fwd_5d_pct": 2.6,
+    "fwd_closes_above_hvc": 5,
+    "fwd_max_gain_pct": 8.0,
+    "fwd_min_close_vs_hvc_pct": -14.0,
+    "fwd_reclaim_session": 2,
+    "fwd_sessions": 20,
+    "gap_pct": 3.22,
+    "hvc": 395.85,
+    "hve_low": 286.0,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 139,
+    "range_atr": 24.19,
+    "run_prior_20d_pct": 4.4,
+    "rvol": 17.4,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#BIIB#2021-06-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#BIIB#2021-06-07",
+  "sym": "BIIB",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-12",
+  "bars": {
+   "asof": "2026-03-12",
+   "forward": 20,
+   "sym": "HIMX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f6be9b6fb4d6",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 10.71% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-03-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HIMX"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 12.1,
+    "base20_range_pct": 20.4,
+    "breakout20": true,
+    "close_pos": 0.04,
+    "close_pos_pct": 4,
+    "day_pct": 10.71,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 8.37,
+    "ever_in_data": true,
+    "fwd_10d_pct": -17.6,
+    "fwd_20d_pct": -9.1,
+    "fwd_5d_pct": -11.3,
+    "fwd_closes_above_hvc": 0,
+    "fwd_max_gain_pct": 13.7,
+    "fwd_min_close_vs_hvc_pct": -26.2,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 28.63,
+    "hvc": 10.13,
+    "hve_low": 10.05,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1335,
+    "range_atr": 4.63,
+    "run_prior_20d_pct": 10.9,
+    "rvol": 31.2,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#HIMX#2026-03-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#HIMX#2026-03-12",
+  "sym": "HIMX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-05-14",
+  "bars": {
+   "asof": "2025-05-14",
+   "forward": 20,
+   "sym": "SEPN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7b861ca76aa9",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 50.97% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2025-05-14",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SEPN"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 8.0,
+    "base20_range_pct": 23.9,
+    "breakout20": true,
+    "close_pos": 0.58,
+    "close_pos_pct": 58,
+    "day_pct": 50.97,
+    "detector_fires": false,
+    "earnings_dates_near": [
+     "2025-05-15"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "edge_ratio": 4.38,
+    "ever_in_data": true,
+    "fwd_10d_pct": -3.0,
+    "fwd_20d_pct": 2.5,
+    "fwd_5d_pct": -10.8,
+    "fwd_closes_above_hvc": 5,
+    "fwd_max_gain_pct": 8.1,
+    "fwd_min_close_vs_hvc_pct": -10.8,
+    "fwd_reclaim_session": 15,
+    "fwd_sessions": 20,
+    "gap_pct": 60.77,
+    "hvc": 10.16,
+    "hve_low": 8.51,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 136,
+    "range_atr": 5.37,
+    "run_prior_20d_pct": 7.0,
+    "rvol": 128.0,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#SEPN#2025-05-14",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#SEPN#2025-05-14",
+  "sym": "SEPN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-04-01",
+  "bars": {
+   "asof": "2026-04-01",
+   "forward": 20,
+   "sym": "TH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_53e0c1c39f96",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 36.42% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-04-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TH"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": true,
+    "avg_dollar_volume_m": 5.4,
+    "base20_range_pct": 20.2,
+    "breakout20": true,
+    "close_pos": 0.55,
+    "close_pos_pct": 55,
+    "day_pct": 36.42,
+    "detector_fires": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 6.61,
+    "ever_in_data": true,
+    "fwd_10d_pct": 15.9,
+    "fwd_20d_pct": 14.8,
+    "fwd_5d_pct": 17.7,
+    "fwd_closes_above_hvc": 20,
+    "fwd_max_gain_pct": 27.3,
+    "fwd_min_close_vs_hvc_pct": 7.6,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 33.84,
+    "hvc": 12.66,
+    "hve_low": 11.89,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 60,
+    "range_atr": 3.11,
+    "run_prior_20d_pct": 15.3,
+    "rvol": 22.1,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#TH#2026-04-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#TH#2026-04-01",
+  "sym": "TH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-04-10",
+  "bars": {
+   "asof": "2026-04-10",
+   "forward": 20,
+   "sym": "ZNTL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ac79dcc4da52",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 49.55% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2026-04-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ZNTL"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "avg_dollar_volume_m": 5.5,
+    "base20_range_pct": 52.5,
+    "breakout20": true,
+    "close_pos": 0.86,
+    "close_pos_pct": 86,
+    "day_pct": 49.55,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 2.92,
+    "ever_in_data": true,
+    "fwd_10d_pct": -39.8,
+    "fwd_20d_pct": -33.3,
+    "fwd_5d_pct": -29.8,
+    "fwd_closes_above_hvc": 0,
+    "fwd_max_gain_pct": 3.6,
+    "fwd_min_close_vs_hvc_pct": -41.9,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 2.26,
+    "hvc": 6.61,
+    "hve_low": 4.52,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1355,
+    "range_atr": 7.26,
+    "run_prior_20d_pct": 60.7,
+    "rvol": 50.1,
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#ZNTL#2026-04-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#ZNTL#2026-04-10",
+  "sym": "ZNTL",
+  "type": "spot",
+  "version": 1
  }
 ]

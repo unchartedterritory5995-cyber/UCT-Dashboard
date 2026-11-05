@@ -732,6 +732,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   className={styles.chartSettingsBtn}
                   onClick={handleAddTab}
                   title="New chart tab (independent settings, loads as UCT Default)"
+                  data-guide="chart.addTab"
                   aria-label="New chart tab"
                 >
                   <UIcon name="plus" size={15} />
@@ -777,7 +778,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             onClick={closeCtx}
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
-          <div ref={ctxMenuRef} className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
+          <div ref={ctxMenuRef} className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu" data-guide="chart.contextMenu">
             {ctxSub === 'add' ? (
               /* Add-widget picker — same roster the workspace Widgets menu shows.
                  Selecting one drops it onto the canvas as a floating widget. */
@@ -802,7 +803,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
                   <>
-                    <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                    <button type="button" className={styles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                       <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
                       Set alert @ ${ctxMenu.price.toFixed(2)}
                     </button>
@@ -810,13 +811,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   </>
                 )}
                 {/* ── Chart actions ── */}
-                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="journal" onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
-                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournalChoose}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="journal-choose" onClick={handleSendToJournalChoose}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
                 </button>
-                <button type="button" className={styles.chartCtxItem} onClick={() => {
+                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
                   ctxMenu.resetView?.(); closeCtx()
                   // Return focus to the chart so type-to-search works immediately (else
                   // the first keypress hits a global drawing-tool hotkey, not the search).
@@ -830,20 +831,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {ctxLocItem && (
                   <>
                     <div className={styles.menuDivider} />
-                    <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
+                    <button type="button" className={styles.chartCtxItem} data-menu-id={`settings-${ctxLocItem.target}`} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
                       <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
                     </button>
                   </>
                 )}
                 <div className={styles.menuDivider} />
                 {/* ── Chart configuration ── */}
-                <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="settings" onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>
                 <div className={styles.chartCtxSubWrap}>
                   <button
                     type="button"
                     className={`${styles.chartCtxItem} ${tplFlyout ? styles.chartCtxItemOpen : ''}`}
+                    data-menu-id="template"
                     aria-haspopup="true"
                     aria-expanded={tplFlyout}
                     onClick={() => setTplFlyout(v => !v)}
@@ -874,20 +876,20 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     </div>
                   )}
                 </div>
-                <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>
                     <div className={styles.menuDivider} />
-                    <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                    <button type="button" className={styles.chartCtxItem} data-menu-id="clear-draw" onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
                       <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
                     </button>
                   </>
                 )}
                 {ctxMenu.bar && (
-                  <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
+                  <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} data-menu-id="ask-ai" onClick={handleAiSearch}>
                     <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask AI about {sym}
                   </button>
                 )}

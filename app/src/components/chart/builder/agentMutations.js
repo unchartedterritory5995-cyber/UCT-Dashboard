@@ -784,6 +784,9 @@ const APPEARANCE_SPEC = Object.freeze({
   lineStyle: { dflt: DEFAULT_LINE_STYLE_CHOICE, options: LINE_STYLE_CHOICES, valid: (v) => LINE_STYLE_CHOICES.includes(v), coerce: (v) => v },
   overlap: { dflt: false, options: [true, false], valid: (v) => typeof v === 'boolean', coerce: (v) => v },
 })
+// the member's words for a key: a refusal is read by a person, and these keys are the store's
+const APPEARANCE_WORDS = Object.freeze({ lineWidth: 'line width', lineStyle: 'line style', overlap: 'overlap', offset: 'offset' })
+const appearanceWord = (key) => APPEARANCE_WORDS[key] || 'style'
 const nameOfDef = (def) => (def && def.meta && def.meta.name) || (def && def.id) || 'This indicator'
 /** A write that changed nothing but `preset` changed nothing the member can see. */
 const noChange = (view, next) => next === view
@@ -863,9 +866,9 @@ function writeStyle(view, req, inst, def, registry) {
   const pres = isObj(inst.presentation) ? inst.presentation : {}
   if (req.op === 'setAppearance') {
     const declared = (def.meta && Array.isArray(def.meta.appearance) ? def.meta.appearance : []).filter((k) => APPEARANCE_SPEC[k])
-    if (!declared.includes(req.key)) return refuse(REASONS.BAD_INPUT, { key: req.key ?? null, why: `${nameOfDef(def)} has no "${req.key}" control`, options: declared })
+    if (!declared.includes(req.key)) return refuse(REASONS.BAD_INPUT, { key: req.key ?? null, why: `${nameOfDef(def)} has no ${appearanceWord(req.key)} setting`, options: declared.map(appearanceWord) })
     const spec = APPEARANCE_SPEC[req.key]
-    if (!spec.valid(req.value)) return refuse(REASONS.BAD_INPUT, { key: req.key, value: req.value ?? null, why: `"${req.key}" takes one of ${JSON.stringify(spec.options)}`, options: [...spec.options] })
+    if (!spec.valid(req.value)) return refuse(REASONS.BAD_INPUT, { key: req.key, value: req.value ?? null, why: `that isn't a ${appearanceWord(req.key)} it offers`, options: [...spec.options] })
     const value = spec.coerce(req.value)
     const before = pres[req.key] === undefined ? spec.dflt : pres[req.key]
     if (same(before, value)) return refuse(REASONS.NO_CHANGE)
@@ -892,7 +895,7 @@ function writeStyle(view, req, inst, def, registry) {
     const target = typeof req.target === 'string' ? req.target : ''
     if (target.startsWith('input:')) {
       const key = target.slice('input:'.length)
-      if (!offered.some((o) => o.target === target)) return refuse(REASONS.BAD_INPUT, { target, why: `${nameOfDef(def)} has no colour setting "${key}"`, options })
+      if (!offered.some((o) => o.target === target)) return refuse(REASONS.BAD_INPUT, { target, why: `${nameOfDef(def)} has no such colour setting`, options })
       const made = setInputsWith(view, id, { [key]: color }, registry)
       if (!made.ok) return made
       return { ok: true, cs: made.cs, change: { what: 'color', target, before: made.before[key] ?? null, after: made.after[key] } }
