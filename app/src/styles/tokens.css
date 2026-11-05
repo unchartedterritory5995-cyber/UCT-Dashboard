@@ -28,10 +28,12 @@
      the .widget scope re-asserts the dark --ut-gold. */
   --accent: var(--ut-gold);
   --ut-cream: #d4c9a8;
-  /* Default dark = the UCT App-Theme GRAPHITE ramp (owner pick 2026-08-27 — the
+  /* :root palette = the GRAPHITE theme's ramp (owner pick 2026-08-27 — the
      catalog Graphite reads better than the old lifted-graphite default, so the
-     Basics "Graphite" now IS that palette: darker canvas, tighter surface/border
-     ramp). OLED pure-black stays an explicit theme ([data-theme="oled"]). */
+     Basics "Graphite" [data-theme="dark"] IS this palette: darker canvas, tighter
+     surface/border ramp). It is NOT the app default: OLED pure-black
+     ([data-theme="oled"], below) is the default for every member with no saved
+     theme (usePreferences.js DEFAULTS.theme = 'oled', since 6279fec750). */
   --bg: #101012;
   --bg-surface: #17181b;
   --bg-elevated: #1d1f23;
@@ -664,8 +666,13 @@
   --bg-surface: #0a0a0a;
   --bg-elevated: #111111;
   --bg-hover: #1a1a1a;
-  --border: #1e1e1e;
-  --border-accent: #2a2a2a;
+  /* Lifted 2026-11-04 (Notebook visual audit, issue 10): #1e1e1e on #000 measured
+     1.26:1, so fields, cards, menus and tables dissolved on the DEFAULT theme.
+     #2a2a2a / #3a3a3a match Graphite's visible separation. The dark catalog
+     themes ride this block but each sets its own --border/--border-accent inline
+     (appThemes.js darkTheme()), so they are unaffected. */
+  --border: #2a2a2a;
+  --border-accent: #3a3a3a;
 
   /* D-A4 Notebook ink/edge tokens (see the :root block above for the method).
      oled: danger-ink 4.97:1 worst (loss-bg over bg-elevated) · success-ink
@@ -919,6 +926,14 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Form controls inherit the UI font (Notebook visual audit, issue 1: 548 of 770
+   controls fell back to the UA's Arial). Type selectors only (0,0,1), so any
+   component that sets its own family (e.g. a mono input) still wins. Letter-
+   spacing is deliberately NOT inherited here. */
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 body {
