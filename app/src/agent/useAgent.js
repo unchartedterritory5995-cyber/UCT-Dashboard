@@ -188,7 +188,9 @@ const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it =
 const THAT_ONE = /\b(?:that one|that chart)\b/gi
 const NEW_ONE = /\b(?:the|that|this) new (?:one|chart)\b|\bthe (?:one|chart) (?:you )?just (?:added|made|created|opened)\b|\bthe (?:one|chart) (?:you )?(?:added|made|created|opened)\b/gi
 // ⭐ Multi Chart: "the one I just changed" is the member's last change, "the one you just changed" the Agent's, "the one we
-// changed" whichever came last (`changed(who)`). Nothing to point at → the words are left alone, and the chart is asked for.
+// changed" whichever came last (`changed(who)`). Nothing to point at → the words are left alone, and the chart is asked for:
+// `changed` with no `subject`. A clicked chart answers none of this: a click on a cell's own control selects that cell too, so
+// after a member's change the "selected" chart is exactly the wrong guess for "the one you just changed".
 const JUST_CHANGED = /\bthe (?:one|chart) (i|we|you) (?:just |last )?(?:changed|edited|updated|set|switched)\b/i
 const CHANGED_BY = { i: 'member', you: 'agent', we: null }
 const gridChanged = (host) => { const grid = host?.charts?.grid?.(); return grid ? (who) => grid.lastChanged(who) : null }
@@ -202,6 +204,7 @@ export function asSubjectWords(text, created = null, changed = null) {
   const said = changed ? JUST_CHANGED.exec(t) : null
   const cell = said ? changed(CHANGED_BY[said[1].toLowerCase()]) : null
   if (cell) return { text: out.replace(JUST_CHANGED, 'it'), subject: cell, changed: true }
+  if (said) return { text: out, subject: null, changed: true }
   NEW_ONE.lastIndex = 0
   if (NEW_ONE.test(t)) {
     NEW_ONE.lastIndex = 0
@@ -2266,7 +2269,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // request, not an answer to that card — it is read here (the card is set aside, nothing from it applied) instead of
       // going to the model with the card as context. Anything else typed over a card goes on exactly as before.
       const overCard = !followable && !fast && !answering && !memRef && !peekAuthoringIntent() && pendingRef.current?.kind === 'proposal'
-      const compound0 = (followable || overCard) && !fast ? planCompound(text, { host }) : null
+      // (words naming the one just changed are read by the gate below, which knows no clicked chart answers them; a step here would not)
+      const compound0 = (followable || overCard) && !fast && !subj.changed ? planCompound(text, { host }) : null
       const compound = overCard && !(compound0?.steps?.[0]?.kind === 'grid' && isWorkspaceRequest(compound0.steps[0].text)) ? null : compound0
       if (compound?.say) {
         push({ role: 'agent', text: compound.say })
@@ -2651,6 +2655,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const onSubject = (() => {
         try {
           if (host?.charts?.selected?.() && !sw0.changed) return false
+          if (sw0.changed && !sw0.subject) return false
           const sw = sw0
           if (sw.text === text && !/\bit\b/i.test(text)) return false
           const s = sw.subject ? { ref: sw.subject } : memoryRef.current.subject('chart', epochOf(host))
