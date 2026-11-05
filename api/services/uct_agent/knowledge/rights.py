@@ -588,6 +588,12 @@ def reanchor(policy_path: Path, by: str, reason: str) -> dict:
         if not isinstance(pid, str) or not pid:
             raise ValueError("this policy has no rights_policy_id")
         old = read_anchor(pid, key)                          # an edited anchor raises: use `rebuild`, never this
+        if old is None and (recs or rows):
+            # QA #793 round 6: with NO anchor (lost or fresh volume) the files cannot be shown to be current: a clean
+            # rollback to before a revoke would be accepted. Only `rebuild` (which then revokes everything) may proceed.
+            raise ValueError("there is no rights anchor for files that hold clearances or audit records; re-anchoring "
+                             "cannot tell a rollback from the current state. Run `rebuild` (it revokes every row), "
+                             "then re-clear deliberately")
         if old is not None:
             at = old["seq"]
             if at > len(recs) or (at > 0 and recs[at - 1]["sha"] != old["head"]) or (at == 0 and old["head"] != _GENESIS):
@@ -631,10 +637,18 @@ def rebuild(policy_path: Path, by: str, reason: str, now: Optional[float] = None
             prev = rec["sha"]
         pol = json.loads(p.read_text(encoding="utf-8"))
         pid = pol.get("rights_policy_id")
-        if bad_at is None:
-            raise ValueError("the signed log verifies; nothing to rebuild (use reanchor after a crash)")
         if not isinstance(pid, str) or not pid:
             raise ValueError("this policy has no rights_policy_id")
+        if bad_at is None:
+            # a log that VERIFIES is rebuilt only when there is no readable anchor to vouch for it (QA round 6); with an
+            # anchor at this state there is nothing to rebuild (a crash before the anchor write: use reanchor)
+            try:
+                anc0 = read_anchor(pid, key)
+            except ValueError:
+                anc0 = None
+            if anc0 is not None:
+                raise ValueError("the signed log verifies and is anchored; nothing to rebuild (use reanchor after a crash)")
+            bad_at = len(lines)
         active = active_from_log(prefix)
         # QA #793 round 5: an editor can cut the log back to BEFORE a revocation (truncate, delete the revoke line) and
         # then break it. If the verified prefix does not reach the anchored state (the anchored seq with the anchored

@@ -596,3 +596,26 @@ def test_rebuild_keeps_untouched_rows_when_the_prefix_reaches_the_anchor(kn):
                   encoding="utf-8")                                             # a forged line AFTER the anchored state
     rights.rebuild(kn["policy"], by="Owner Name", reason="forged append", now=FIXED + 5)
     assert set(rights.active_from_log(rights.read_audit(ap))) == {1001, 1002}   # only the touched row (1003) revoked
+
+
+# ── QA #793 round 6: no anchor + a clean rollback before a revoke ───────────────────────────────────────────────────
+def test_round6_no_anchor_and_a_clean_rollback_cannot_be_reanchored_only_rebuilt_to_nothing(kn):
+    pol_before, ap, lines_before = _setup_revoked(kn)             # 1001-1003 cleared, then 1002 revoked
+    ap.write_text("\n".join(lines_before) + "\n", encoding="utf-8")  # clean rollback to before the revoke
+    kn["policy"].write_text(pol_before, encoding="utf-8")
+    rights.anchor_path().unlink()                                 # the anchor is gone (lost / fresh volume)
+    assert rights.authorized() == {}
+    with pytest.raises(ValueError, match="no rights anchor"):
+        rights.reanchor(kn["policy"], by="Owner Name", reason="volume restored")
+    assert rights.authorized() == {} and 1002 not in rights.authorized()
+    res = rights.rebuild(kn["policy"], by="Owner Name", reason="anchor lost", now=FIXED + 50)
+    assert res["kept"] == 0 and res["revoked"] == 3
+    assert rights.active_from_log(rights.read_audit(ap)) == {} and rights.authorized() == {}
+    # deliberate re-clearing works afterwards
+    assert rights.apply(_synthetic(1, start=1001), kn["policy"], applied_by="Owner Name", now=FIXED + 60)["replaced"] == 0
+    assert set(rights.authorized()) == {1001}
+
+
+def test_round6_a_fresh_policy_with_nothing_cleared_can_still_be_reanchored(kn):
+    rights.policy_id(kn["policy"], create=True)
+    assert rights.reanchor(kn["policy"], by="Owner Name", reason="fresh")["seq"] == 0
