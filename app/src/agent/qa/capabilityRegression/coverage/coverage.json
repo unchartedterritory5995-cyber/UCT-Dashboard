@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 174,
-  "withProductionKinds": 165,
+  "all": 176,
+  "withProductionKinds": 167,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 174,
-  "withAnyRegressionCase": 122,
+  "capabilities": 176,
+  "withAnyRegressionCase": 124,
   "perProtection": {
    "nl": {
-    "covered": 122,
-    "applicable": 174
+    "covered": 124,
+    "applicable": 176
    },
    "routing": {
-    "covered": 120,
-    "applicable": 174
+    "covered": 121,
+    "applicable": 176
    },
    "args": {
-    "covered": 122,
-    "applicable": 174
+    "covered": 124,
+    "applicable": 176
    },
    "execution": {
-    "covered": 122,
-    "applicable": 174
+    "covered": 124,
+    "applicable": 176
    },
    "receipt": {
     "covered": 96,
-    "applicable": 174
+    "applicable": 176
    },
    "refusal": {
     "covered": 31,
-    "applicable": 174
+    "applicable": 176
    },
    "permission": {
-    "covered": 168,
-    "applicable": 174
+    "covered": 169,
+    "applicable": 176
    },
    "undo": {
     "covered": 56,
@@ -43,15 +43,24 @@
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 174
+    "applicable": 176
    },
    "phrasings": {
     "covered": 120,
-    "applicable": 174
+    "applicable": 176
    }
   }
  },
  "knownGaps": [
+  {
+   "id": "GAP-WIDGET-READ-ROUTE",
+   "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands",
+   "owner": "agent-lead",
+   "mode": "\"how is that one set right now\" → widget.readOptions",
+   "level": "a",
+   "intent": "widget.readOptions",
+   "phrasing": "how is that one set right now"
+  },
   {
    "id": "CG-13",
    "reason": "the charts compare words select 'against'",
@@ -700,7 +709,8 @@
    "undo": "none",
    "query": true,
    "surfaces": [
-    "calendar"
+    "calendar",
+    "charts"
    ],
    "fast": true,
    "protections": {
@@ -8937,6 +8947,50 @@
     "phrasings": []
    }
   },
+  "widget.readOptions": {
+   "domain": "widget",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": false,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 1,
+   "evidence": {
+    "nl": [
+     "widget.readOptions: \"how is that one set right now\""
+    ],
+    "routing": [],
+    "args": [
+     "corpus widget.readOptions"
+    ],
+    "execution": [
+     "widget.readOptions (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "widget.remove": {
    "domain": "widget",
    "group": "workspace",
@@ -9101,6 +9155,52 @@
     "routing": [],
     "args": [],
     "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.sendToJournal": {
+   "domain": "widget",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 1,
+   "evidence": {
+    "nl": [
+     "widget.sendToJournal.no-door: \"keep a copy of that one\""
+    ],
+    "routing": [
+     "widget.sendToJournal.no-door: \"keep a copy of that one\""
+    ],
+    "args": [
+     "corpus widget.sendToJournal.no-door"
+    ],
+    "execution": [
+     "widget.sendToJournal.no-door (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],

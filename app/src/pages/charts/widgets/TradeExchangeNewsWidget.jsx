@@ -32,6 +32,7 @@
  * all widgets"), and chartThemes._WIDGET_THEME_MAP / widgetChrome for the frame. An
  * app-theme switch never recolours a placed widget (the usePlacedTheme rule).
  */
+import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
@@ -417,6 +418,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       ...(open ? g.rest.map((it) => renderRow(it, { related: true })) : []),
     ]
   }
+
+  useWidgetDoor(() => ({ options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }) }))
 
   return (
     <div ref={rootRef} className={`${styles.root} ${settings.density === 'compact' ? styles.compact : styles.comfortable}`} style={rootStyle}>

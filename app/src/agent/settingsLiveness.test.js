@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { getCapability } from './capabilities'
 import { ELIGIBLE_SETTINGS } from '../components/chart/chartSettingsDescriptors'
-import { WIDGET_REGISTRY } from '../widgets/registry'
+import { WIDGET_REGISTRY, widgetControls } from '../widgets/registry'
+import { CATEGORY_FILTERS } from '../pages/charts/widgets/tradeExchangeNewsModel'
 import { widgetOptionFields, widgetUnboundedFields } from './capabilities/board'
 
 registerBuiltins()
@@ -97,14 +98,59 @@ describe('widget.setOption: exactly what the widget reads', () => {
     const read = mounted.flatMap(([t, file]) => { const reads = optsReadsOf(file); return widgetUnboundedFields(t).filter(f => reads.has(f.key)).map(f => name(t, f)) })
     expect(read).toEqual(['volumescan.minRvol', 'volumescan.minMove', 'volumescan.minDollarK'])
   })
-  it('the offered options are exactly the live fields (default-deny)', () => {
-    const hints = getCapability('widget.setOption').hints
+  it('the offered options are exactly the live fields and the `controls` rows (default-deny)', () => {
     for (const [t] of mounted) {
+      const offered = widgetControls(t).map(f => f.key)
       for (const f of WIDGET_REGISTRY[t].paramsSchema || []) {
-        const named = new RegExp(`\\b${t}: [^;]*\\b${f.key} \\(`).test(hints)
-        expect(named, `${t}.${f.key}`).toBe(f.live === true)
+        expect(offered.includes(f.key), `${t}.${f.key}`).toBe(f.live === true || (WIDGET_REGISTRY[t].controls || []).some(c => c.key === f.key))
+      }
+      expect(new Set(offered).size, t).toBe(offered.length)
+    }
+    expect(getCapability('widget.setOption').hints).not.toMatch(/\b(?:fundamentals|optionsflow):/)    // the board entry carries them
+  })
+  it('a `controls` row kept in opts is read back from opts by its mounted widget, at the head of its path', () => {
+    const silent = mounted.flatMap(([t, file]) => {
+      const reads = optsReadsOf(file)
+      return (WIDGET_REGISTRY[t].controls || []).filter(c => !c.door && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
+    })
+    expect(silent).toEqual([])
+  })
+  it('a `controls` row that needs the door has one: the mounted widget publishes its value, its writer and its choices', () => {
+    const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx' }
+    const missing = []
+    for (const [t, file] of mounted) {
+      const rows = (WIDGET_REGISTRY[t].controls || []).filter(c => c.door || c.from === 'door')
+      if (!rows.length) continue
+      const src = code(read(SOURCE[t] || file))
+      const at = src.indexOf('useWidgetDoor(')
+      const door = at < 0 ? '' : src.slice(at, src.indexOf('\n\n', at))
+      for (const c of rows) {
+        const named = new RegExp(`\\b${c.key}\\b`).test(door)
+        if (!named) missing.push(`${t}.${c.key}`)
+        if (c.door && !/\bread:/.test(door)) missing.push(`${t}.${c.key} read`)
+        if (c.door && !/\bwrite:/.test(door)) missing.push(`${t}.${c.key} write`)
+        if (c.from === 'door' && !/\boptions:/.test(door)) missing.push(`${t}.${c.key} options`)
       }
     }
+    expect(missing).toEqual([])
+  })
+  it('every Send to Journal door a widget has is offered through its door too, with the same kind', () => {
+    const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx', watchlist: 'pages/Watchlists.jsx', scanner: 'pages/charts/widgets/ScannerResults.jsx' }
+    const missing = []
+    for (const [t, file] of mounted) {
+      const src = read(SOURCE[t] || file)
+      for (const m of src.matchAll(/sendCaptureToJournal\('(\w+)'/g)) if (!new RegExp(`kind: '${m[1]}'`).test(src)) missing.push(`${t}: ${m[1]}`)
+    }
+    expect(missing).toEqual([])
+  })
+  it('a list the registry copies stays what the widget shows', () => {
+    expect(WIDGET_REGISTRY.tradeExchangeNews.controls.find(c => c.key === 'category').options).toEqual(CATEGORY_FILTERS)
+    expect(WIDGET_REGISTRY.researchLibrary.controls.find(c => c.key === 'category').options).toEqual(CATEGORY_FILTERS)
+    const flow = read('pages/charts/widgets/OptionsFlowWidget.jsx')
+    const prem = WIDGET_REGISTRY.optionsflow.controls.find(c => c.key === 'minPremium').options
+    expect([...flow.matchAll(/\{ v: (\d+), label:/g)].map(m => Number(m[1]))).toEqual(prem)
+    for (const v of ['SWEEP', 'BLOCK', 'BULL', 'BEAR']) expect(flow).toContain(`k: '${v}'`)
+    expect(read('pages/ThemeTrackerPage.jsx')).toContain("'1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd'")
   })
   it('the rail can see what it checks (guards the parse above)', () => {
     expect(readdirSync(join(SRC, 'pages/charts/widgets')).length).toBeGreaterThan(10)

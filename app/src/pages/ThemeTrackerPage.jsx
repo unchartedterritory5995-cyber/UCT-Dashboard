@@ -1,4 +1,5 @@
 // app/src/pages/ThemeTrackerPage.jsx
+import { useWidgetDoor } from './charts/widgetDoors'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
@@ -550,6 +551,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Seeded from + persisted to per-widget opts.
   const [todayBasis, setTodayBasisRaw] = useState(opts?.todayBasis === 'open' ? 'open' : 'close')
   const setTodayBasis = useCallback((b) => { setTodayBasisRaw(b); patchOpts({ todayBasis: b }) }, [patchOpts])
+  // seeded once, so follow a change that arrives through opts (the layout, Undo, the Agent); our own arrives equal
+  const optsBasis = opts?.todayBasis === 'open' ? 'open' : 'close'
+  useEffect(() => { setTodayBasisRaw(optsBasis) }, [optsBasis])
   // 'open' is a Today-only basis (no historical meaning), so it maps in only when Today is active.
   // Defined here (before the set-editor memos that depend on it) to avoid a TDZ reference.
   const activeKey = (activeTab === 'Today' && todayBasis === 'open') ? 'open' : RANK_TO_KEY[activeTab]
@@ -1065,6 +1069,31 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('themes', doorCapture(), { label: themesCaptureLabel }))
   }, [doorCapture, themesCaptureLabel, setJournalMsg])
+
+  // The same tab, sort, accordion and set a person's clicks reach, offered to the Agent (charts/widgetDoors.js). The tab
+  // and the accordion stay this widget's own state, on purpose unpersisted: the tracker still opens on Today every load.
+  useWidgetDoor(() => ({
+    read: () => {
+      const open = sortedThemes.find(t => t.ticker === openTheme)
+      return { period: RANK_TO_KEY[activeTab], sortDir, openTheme: open ? open.ticker : null, themeSet: activeSet?.id ?? null }
+    },
+    options: () => ({
+      openTheme: sortedThemes.map(t => ({ value: t.ticker, label: t.name || t.ticker })),
+      themeSet: themeSetsEnabled ? [{ value: null, label: 'Default' }, ...sets.map(x => ({ value: x.id, label: x.name }))] : [],
+    }),
+    write: (key, v) => {
+      if (key === 'period') {
+        const tab = Object.keys(RANK_TO_KEY).find(k => RANK_TO_KEY[k] === v)
+        if (tab && tab !== activeTab) setTabSort(prev => nextThemeTabSort(prev, tab))
+      } else if (key === 'sortDir') {
+        if (v !== sortDir) setTabSort(flipThemeSort)
+      } else if (key === 'openTheme') {
+        if (v == null) setOpenTheme(null)
+        else if (v !== openTheme) toggleTheme(v)
+      } else if (key === 'themeSet') selectSet(v)
+    },
+    capture: () => (filteredThemes.length > 0 ? { kind: 'themes', capture: doorCapture(), label: themesCaptureLabel } : null),
+  }))
 
   // While searching, open the FIRST matching theme (accordion stays single-open).
   useEffect(() => {

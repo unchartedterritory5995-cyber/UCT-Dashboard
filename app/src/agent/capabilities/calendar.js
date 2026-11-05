@@ -1,6 +1,8 @@
 // ── CALENDAR capabilities (W2-C1): the earnings calendar, read only ───────────────────────────────────
 //
-// Two reads over the Calendar's own routes (api/routers/calendar.py), offered on /calendar:
+// Two reads over the Calendar's own routes (api/routers/calendar.py), offered on /calendar. calendar.day is offered on
+// /charts too (with no page loaded, the same route answers); there a stock's date stays stock.earnings's card, and a whole
+// week stays the earnings-window screen, unless the model picks this read:
 //   calendar.nextReport {symbol}   GET /api/calendar/next-report?sym=  — the next scheduled report date for ONE
 //                                  symbol (the same lookup the page's header search makes on selection)
 //   calendar.day {date}            the reports on one day (or the whole loaded week): read from the week the
@@ -94,7 +96,7 @@ export function registerCalendarCapabilities() {
     key: 'calendar',
     build: (host, refFor) => {
       const s = snap(host)
-      if (!s.page) return undefined
+      if (!s.page) return host?.widgets ? [{ ref: refFor('calendar', REF), label: 'The earnings calendar (the reports on a day; read only)' }] : undefined
       const p = s.page
       const days = Object.entries(p.days || {}).map(([ds, d]) => `${ds}:${(d.bmo?.length || 0) + (d.amc?.length || 0) + (d.tbd?.length || 0)} reports`)
       return [{ ref: refFor('calendar', REF), label: 'The earnings calendar page (next report for a symbol; the reports on a day; read only)', week: p.weekLabel || p.weekStart || null, view: p.view, days }]
@@ -128,14 +130,14 @@ export function registerCalendarCapabilities() {
 
   registerCapability({
     name: 'calendar.day',
-    surfaces: ['calendar'],
+    surfaces: ['calendar', 'charts'],
     target: 'calendar', query: true,
     summary: 'List the earnings reports on ONE day (tickers by session: before the open / after the close), or the whole week when no day is given — from the week the Calendar page has loaded. Use it for "what reports on Thursday?", "who reports today?", "what\'s on this week?".',
     hints: 'target = the ref of the calendar entry; date = YYYY-MM-DD, or null for every day of the week on the page. Tickers only — no estimates.',
     args: { type: 'object', properties: { date: { type: ['string', 'null'] } }, required: ['date'], additionalProperties: false },
     fastWhole: true,
-    fast: ({ lower }) => {
-      if (/^(what('s| is) (on|coming|reporting|due) (this|the) week|what reports (are )?(on )?this week|who (reports|is reporting) this week|what('s| is) on the calendar( this week)?)[?.!]?$/.test(lower)) return { date: null }
+    fast: ({ lower, host }) => {
+      if (host?.calendarPage && /^(what('s| is) (on|coming|reporting|due) (this|the) week|what reports (are )?(on )?this week|who (reports|is reporting) this week|what('s| is) on the calendar( this week)?)[?.!]?$/.test(lower)) return { date: null }
       const m = /^(?:who (?:reports|is reporting)|what reports(?: are)?(?: on)?|what('s| is) (?:on|reporting|due)|which (?:stocks|names|companies) report) (today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|\d{4}-\d{2}-\d{2})[?.!]?$/.exec(lower)
       if (!m) return null
       const d = dayOf(m[2])
