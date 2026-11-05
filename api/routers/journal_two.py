@@ -2054,6 +2054,8 @@ def list_notes_endpoint(
     out = {"notes": rows, "total": total, "limit": limit, "offset": offset}
     if meaning_pending is not None:
         out["meaningPending"] = meaning_pending
+        if note_semantic.pending_count_capped(meaning_pending):
+            out["meaningPendingCapped"] = True   # N4: the panel says "1,000+"
     return out
 
 

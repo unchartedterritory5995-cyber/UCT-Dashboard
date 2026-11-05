@@ -455,6 +455,11 @@ def clear_pending_cache() -> None:
     _pending_cache.clear()
 
 
+def pending_count_capped(n: int | None) -> bool:
+    """True when `n` hit PENDING_COUNT_CAP, so the panel says "1,000+", never an exact 1000 (N4)."""
+    return isinstance(n, int) and n >= PENDING_COUNT_CAP
+
+
 def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
                   provider: EmbeddingProvider | None = None) -> int | None:
     """Audit 2026-11-05, spec S4 (B18): how many of the member's live notes the meaning search
@@ -476,15 +481,25 @@ def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
         ensure_semantic_schema(conn)
         # Bounded: the inner query stops at PENDING_COUNT_CAP rows (the panel needs "some are
         # waiting", not an exact census of a library mid-backfill).
+        # ⛔ Fix round 2 (re-review N4): a per-note EXISTENCE probe on the embeddings' primary key
+        # (user_id, note_id, block_id), so the LIMIT bounds the work itself. The first cut LEFT
+        # JOINed a GROUP BY over every embedding the member has, computed in full before any LIMIT.
+        # A note is waiting when no block carries its current revision marker (`_revision_marker`).
         r = conn.execute(
-            "SELECT COUNT(*) FROM (SELECT 1 FROM j2_notes n LEFT JOIN ("
-            "  SELECT note_id, MAX(updated_at) AS at FROM j2_note_embeddings"
-            "  WHERE user_id = ? GROUP BY note_id) i ON i.note_id = n.id"
+            "SELECT COUNT(*) FROM (SELECT 1 FROM j2_notes n"
             " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
-            " AND (i.at IS NULL OR i.at <> (n.updated_at || '|' || ?)) LIMIT ?)",
-            (user_id, user_id, provider.name, int(PENDING_COUNT_CAP))).fetchone()
+            " AND NOT EXISTS (SELECT 1 FROM j2_note_embeddings e"
+            "   WHERE e.user_id = n.user_id AND e.note_id = n.id"
+            "   AND e.updated_at = (n.updated_at || '|' || ?))"
+            " LIMIT ?)",
+            (user_id, provider.name, int(PENDING_COUNT_CAP))).fetchone()
         n = int(r[0] or 0) if r else 0
-        _pending_cache[user_id] = (_now(), n)
+        # A 0 is never kept (N4): it would hide the line for a minute right after the member wrote
+        # a note -- the very moment B18 is about. Only a non-zero count is rate-limited.
+        if n:
+            _pending_cache[user_id] = (_now(), n)
+        else:
+            _pending_cache.pop(user_id, None)
         if len(_pending_cache) > 5000:            # bounded: drop the oldest half
             for k, _ in sorted(_pending_cache.items(), key=lambda kv: kv[1][0])[:2500]:
                 _pending_cache.pop(k, None)

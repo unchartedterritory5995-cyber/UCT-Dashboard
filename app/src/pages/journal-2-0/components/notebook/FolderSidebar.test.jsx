@@ -331,6 +331,18 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
     expect(screen.getByText('New notes join meaning search within about 15 minutes. 2 are waiting.')).toBeInTheDocument()
   })
 
+  // Fix round 2 (re-review N4): at the server's cap the count is a floor, never an exact number.
+  it('a capped count is said as "1,000+"', () => {
+    useJ2NotesMock.mockImplementation((opts) => (opts?.enabled && 'q' in opts
+      ? { notes: [], meaningPending: 1000, meaningPendingCapped: true, isLoading: false, isValidating: false, error: null }
+      : { notes: [], isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('consolidation pattern')
+    settle()
+    expect(screen.getByText('New notes join meaning search within about 15 minutes. 1,000+ are waiting.')).toBeInTheDocument()
+  })
+
   it('no waiting count, no waiting line', () => {
     useJ2NotesMock.mockImplementation(() => ({ notes: [], meaningPending: 0, isLoading: false, isValidating: false, error: null }))
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}

@@ -590,3 +590,38 @@ def test_pending_count_is_cached_per_member_and_bounded(db_path, on_noop, monkey
     monkeypatch.setattr(ns, "PENDING_COUNT_CAP", 1)
     ns.clear_pending_cache()
     assert ns.pending_count(U) == 1                     # capped
+
+
+def test_N4_a_zero_is_never_cached(db_path, on_noop):
+    """Fix round 2 (re-review N4): a cached 0 hid the waiting line for up to a minute right after the
+    member wrote a note -- exactly the B18 moment. Only a non-zero count is kept."""
+    ns.clear_pending_cache()
+    _note(U, "One", "words one")
+    ns.index_member(U)
+    assert ns.pending_count(U) == 0
+    _note(U, "Two", "words two")                        # just written
+    assert ns.pending_count(U) == 1                     # seen at once, no cached 0 in the way
+
+
+def test_N4_the_cap_is_said_as_a_floor(db_path, on_noop, monkeypatch):
+    """At the cap the panel must not claim an exact number: the router marks it."""
+    monkeypatch.setattr(ns, "PENDING_COUNT_CAP", 2)
+    ns.clear_pending_cache()
+    for i in range(3):
+        _note(U, f"N{i}", "words")
+    assert ns.pending_count(U) == 2
+    assert ns.pending_count_capped(2) is True
+    assert ns.pending_count_capped(1) is False
+    body, _ = _record_handler(monkeypatch, q="consolidation pattern")
+    assert body["meaningPending"] == 2 and body["meaningPendingCapped"] is True
+
+
+def test_N4_the_count_reads_no_grouped_scan_of_every_embedding(db_path, on_noop, monkeypatch):
+    """The LIMIT bounds the work: the read is a per-note existence probe, never a GROUP BY over all
+    of the member's embeddings."""
+    ns.clear_pending_cache()
+    _note(U, "One", "words one")
+    _, log = _record_handler(monkeypatch, q="consolidation pattern")
+    counts = [s for s, _ in log if "COUNT(*) FROM (SELECT 1 FROM j2_notes" in s]
+    assert len(counts) == 1
+    assert "GROUP BY" not in counts[0] and "NOT EXISTS" in counts[0]

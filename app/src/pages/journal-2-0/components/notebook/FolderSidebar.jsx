@@ -112,8 +112,10 @@ export const isMeaningRow = (note) => note?.matchKind === 'meaning'
 
 /** Audit 2026-11-05, spec S4 (B18): said under a search that found nothing by meaning while the
  *  index has not reached some notes yet (the sweep runs every 15 minutes). */
-export function meaningWaitingSentence(n) {
-  return `New notes join meaning search within about 15 minutes. ${n} ${n === 1 ? 'is' : 'are'} waiting.`
+export function meaningWaitingSentence(n, capped = false) {
+  // Fix round 2 (re-review N4): at the server's cap the count is a floor ("1,000+").
+  const said = capped ? `${Number(n).toLocaleString('en-US')}+` : String(n)
+  return `New notes join meaning search within about 15 minutes. ${said} ${n === 1 && !capped ? 'is' : 'are'} waiting.`
 }
 
 export function matchReasonFor(note, query) {
@@ -1108,6 +1110,7 @@ export default function FolderSidebar({
   const {
     notes: serverSearchResults,
     meaningPending,
+    meaningPendingCapped,
     isLoading: searchLoading,
     isValidating: searchValidating,
     error: searchError,
@@ -1725,7 +1728,7 @@ export default function FolderSidebar({
             <div className={styles.searchEmpty}>
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
               {trimmedQuery && meaningPending > 0 && (
-                <p className={styles.searchEmptyHint} data-meaning-waiting>{meaningWaitingSentence(meaningPending)}</p>
+                <p className={styles.searchEmptyHint} data-meaning-waiting>{meaningWaitingSentence(meaningPending, meaningPendingCapped)}</p>
               )}
             </div>
           )}
