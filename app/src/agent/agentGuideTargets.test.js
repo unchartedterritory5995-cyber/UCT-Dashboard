@@ -59,7 +59,8 @@ describe('every walkthrough points at a real control', () => {
         if (typeof t === 'object' && t.widgetType) {
           expect(source).toContain('data-widget-type={w.type}')
           if (t.guide) expect(source, t.guide).toContain(`data-guide="${t.guide}"`)
-          if (t.aria) expect(source, t.aria).toContain(`aria-label="${t.aria}"`)
+          // a column title is named from its label: aria-label={`Sort by ${label}`}
+          if (t.aria) expect(source.includes(`aria-label="${t.aria}"`) || (/^Sort by /.test(t.aria) && source.includes('aria-label={`Sort by ${label}`}')), t.aria).toBe(true)
           continue
         }
         if (typeof t === 'object' && t.inWidget) { expect(source, t.inWidget).toContain(`data-guide="${t.inWidget}"`); continue }

@@ -20468,7 +20468,7 @@ export default function StockChart({
         </div>
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
-        <div ref={rangeBarRef} className={styles.rangeBar} data-guide="chart.range">
+        <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}

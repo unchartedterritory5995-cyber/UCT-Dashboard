@@ -73,7 +73,7 @@ describe('a row walks its own steps', () => {
   it('stepsFor takes the chosen row’s steps, and only those', () => {
     const steps = stepsFor(guideFeature('watchlistAction'), 'how do I sort my watchlist')
     expect(steps.some(s => s.each)).toBe(false)
-    expect(steps[steps.length - 1].target).toEqual({ widgetType: 'watchlist', guide: 'watchlist.head' })
+    expect(steps[steps.length - 1].target).toEqual({ widgetType: 'watchlist', aria: 'Sort by Symbol' })
   })
   it('a chip step names the indicator asked about, and drops the words when none was', () => {
     const named = stepsFor(guideFeature('legendChip'), 'how do I hide the RSI')

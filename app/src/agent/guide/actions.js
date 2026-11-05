@@ -151,14 +151,15 @@ const onRow = (name, say, opts = {}) => [...OPEN_LIST, { target: ROW, name, text
 const rowItem = (id) => ({ within: 'watchlist.rowMenu', attr: 'data-menu-id', value: id })
 const rowMenu = (id, name, say, more = []) => [
   ...OPEN_LIST,
-  { target: { widgetType: WL, guide: 'watchlist.symbol' }, name: 'a ticker in the list', text: 'Right-click this ticker symbol. On a UCT or community list there’s no menu: open one of your own lists.', waitFor: rowItem(id) },
+  { target: ROW, name: 'a ticker in the list', text: 'Right-click the ticker symbol at the left of this row. On a UCT or community list there’s no menu: open one of your own lists.', waitFor: rowItem(id) },
   { target: rowItem(id), name, text: say, endsOnClick: !more.length, ...(more.length ? { waitFor: more[0].target } : {}) },
   ...more,
 ]
-const HEAD = { widgetType: WL, guide: 'watchlist.head' }
+// a row's render is pinned byte for byte (Watchlists.entitykeys.test.jsx), so these are the row's own attributes
+const HEAD = { widgetType: WL, aria: 'Sort by Symbol' }
 export const WATCHLIST_ACTIONS = [
   { id: 'flagged', label: 'Opening the Flagged list', re: /\b(open|see|view|show|find)\b.*\bflagged\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: 'watchlist.pickFlagged', name: 'Flagged', text: 'Click Flagged to open the tickers you’ve flagged.' }] },
-  { id: 'flag', label: 'Flagging a ticker', re: /\b(flag|unflag|star)\b/, steps: [...OPEN_LIST, { target: { widgetType: WL, guide: 'watchlist.flag' }, name: 'the star', text: 'Click a row’s star to add it to Flagged, or take it off. With a row selected, Shift+F does the same.' }] },
+  { id: 'flag', label: 'Flagging a ticker', re: /\b(flag|unflag|star)\b/, steps: [...OPEN_LIST, { target: { widgetType: WL, attr: 'title', value: 'Add to Flagged (Shift+F)' }, name: 'the star', text: 'Click a row’s star to add it to Flagged, or take it off. With a row selected, Shift+F does the same.' }] },
   { id: 'prebuilt', label: 'Opening a prebuilt list', re: /\b(prebuilt|pre-built|community|uct'?s?) (watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: PICKER, name: 'the list picker', text: 'The tabs at the top of the picker hold My Lists, Prebuilt and Community. Open one and click a list.' }] },
   { id: 'remove', label: 'Removing a ticker from a list', re: /\b(remove|delete|take off|take out|get rid of)\b.*\b(tickers?|symbols?|stocks?|names?|from)\b/, steps: rowMenu('remove', 'Remove from watchlist', 'Click Remove from watchlist.') },
   { id: 'note', label: 'A note on a ticker', re: /\bnotes?\b/, steps: rowMenu('notes', 'Notes', 'Click Notes: a note box opens under the ticker, and it saves as you type.') },
@@ -208,7 +209,7 @@ export const WIDGET_ACTIONS = [
   widget('scanPick', 'scanner', 'Picking a preset scan', /\b(pick|choose|open|run|use)\b.*\b(preset |prebuilt )?scans?\b|\bpreset scans?\b/, 'scanner.list', 'the scans', 'Click a scan to run it. Its results open in this widget.', 'This widget has a scan open. ‹ takes you back to the list of scans.'),
   widget('scanRead', 'scanner', 'Reading a scan’s results', /\b(read|see|view)\b.*\bscan\b.*\bresults?\b|\bscan results?\b/, cellOf('scanner'), 'the Scanner widget', 'Pick a scan, and its results list here. Click a ticker to load it on the linked chart.'),
   widget('scanCriteria', 'scanner', 'Reading a scan’s conditions', /\bscan\b.*\b(conditions?|criteria|filters?)\b/, 'watchlist.scanCriteria', 'Scan criteria', 'This button lists what the scan filters on.', 'Pick a scan first: the conditions button shows on its results.'),
-  widget('scanSort', 'scanner', 'Sorting a scan', /\bscans?\b.*\bsort\b|\bsort\b.*\bscans?\b/, 'watchlist.head', 'the column titles', 'Click a column’s title to sort. Right-click one to choose the columns.', 'Pick a scan first: its columns show on its results.'),
+  widget('scanSort', 'scanner', 'Sorting a scan', /\bscans?\b.*\bsort\b|\bsort\b.*\bscans?\b/, { widgetType: 'scanner', aria: 'Sort by Symbol' }, 'the column titles', 'Click a column’s title to sort. Right-click one to choose the columns.', 'Pick a scan first: its columns show on its results.'),
   widget('scanJournal', 'scanner', 'Sending a scan to the Journal', /\bscans?\b.*\bjournal\b|\bjournal\b.*\bscans?\b/, { widgetType: 'scanner', aria: 'Send this scan to Journal' }, 'Send to Journal', 'This sends the scan’s results to your Journal.', 'Pick a scan first: this button shows once it has results.'),
   widget('alertsDelete', 'alerts', 'Deleting an alert', /\b(delete|remove|cancel)\b.*\balerts?\b/, 'alerts.delete', 'the alert’s ×', 'Click this × to delete that alert.', 'You have no alerts to delete yet.'),
   widget('newsFilter', 'news', 'Filtering catalysts', /\bcatalysts?\b|\bnews\b.*\b(up|down) (moves?|days?)\b/, 'news.filters', 'the filters', 'These pills filter the catalysts: all, up or down.'),

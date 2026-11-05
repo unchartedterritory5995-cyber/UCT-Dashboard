@@ -446,7 +446,6 @@ const WatchRow = React.memo(function WatchRow({
       return (
         <button
           key="flag"
-          data-guide="watchlist.flag"
           className={`${styles.flagStar}${flagged ? ' ' + styles.flagStarActive : ''}`}
           onClick={e => { e.stopPropagation(); onToggleFlag(sym) }}
           title={flagged ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
@@ -462,7 +461,7 @@ const WatchRow = React.memo(function WatchRow({
         </span>
       )
       return (
-        <span key="sym" data-guide="watchlist.symbol" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
+        <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
           {entityNote && (
@@ -2399,7 +2398,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     )
   }
   const columnHeader = (
-    <div className={styles.gridHead} data-guide="watchlist.head" onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
+    <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       {orderedKeys.map(renderHeaderCell)}
       {_gridDividers.map(d => (
         <i
