@@ -31,9 +31,10 @@ export function indicatorsOn(cs) {
   try { return instancesOf(cs, nativeRegistry) } catch { return [] }
 }
 
+// A chart under hide-all (Alt+Shift+I) shows none of them, whatever each one's own eye says.
 const snapOf = (host, c) => ({
   ref: refOf(c.ref), chartRef: c.ref, label: c.label, position: c.position || null, symbol: c.symbol,
-  indicators: indicatorsOn(c.cs),
+  indicators: c.view?.indicatorsHidden === true ? indicatorsOn(c.cs).map(i => ({ ...i, hidden: true })) : indicatorsOn(c.cs),
   canCreate: (() => { try { return !!host.charts.canCreateIndicator?.(c.ref) } catch { return false } })(),
 })
 
@@ -131,7 +132,9 @@ export function registerIndicatorCapabilities() {
     summary: 'List the indicators on ONE chart (as its legend names them): built-in or custom, shown or hidden, on the price chart or in its own pane. UCT answers from the chart\'s real state — use this (disposition apply) whenever they ask what indicators are on a chart, whether one is on, or which are hidden, instead of answering yourself.',
     hints: 'target = the indicators entry for the chart the member means (with several charts and no chart named, ask which). filter: hidden | shown | null (all).',
     args: { type: 'object', properties: { filter: { type: ['string', 'null'], enum: ['hidden', 'shown', null] } }, required: ['filter'], additionalProperties: false },
-    fast: ({ core }) => {
+    fast: ({ core, host }) => {
+      // "show all my indicators" over a chart under hide-all asks for them back: the planner's, never a list of what is hidden
+      if (/^show\b/.test(core) && (host?.charts?.list?.() || []).some(c => c.view?.indicatorsHidden === true)) return null
       // "…on my chart" / "…on this" (the clause tail "chart" is already cut); a position
       // ("the right chart") was taken out before this runs and becomes the target hint.
       const t = core.replace(/\s+(?:on|in)\s+(?:the|my|this)(?:\s+chart)?$/, '').replace(/\s+(?:currently|right now)$/, '')

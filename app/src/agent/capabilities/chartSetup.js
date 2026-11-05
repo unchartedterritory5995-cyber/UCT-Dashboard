@@ -28,6 +28,7 @@
 // The one indicator write here is setMovingAverages, which IS the chart's own Ctrl+M write, not a second one.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { liftHideAll, HIDE_ALL_LIFTED } from './chart'
 import { keepIndicatorState } from '../../components/chart/indicatorPreservation'
 import { makeTfCode, isValidTf, tfLabel as tfShort, NATIVE_TFS } from '../../components/chart/timeframes'
 import { chartTemplatesAfterSave, chartTemplatesAfterDelete, CHART_TEMPLATE_NAME_MAX } from '../../components/chart/chartTemplateApply'
@@ -302,7 +303,7 @@ export function registerChartSetupCapabilities() {
     args: { type: 'object', properties: { hidden: { type: 'boolean' } }, required: ['hidden'], additionalProperties: false },
     check: (st) => (st.view ? null : NOT_READY),
     apply: (st, { hidden }) => (!!st.view?.indicatorsHidden === hidden ? st : { ...st, viewDo: { op: 'setIndicatorsHidden', arg: hidden } }),
-    describe: (b, a, { hidden }) => (a.viewDo ? (hidden ? 'Hid every indicator and Volume on this chart for now (a reload brings them back; nothing was removed)' : 'Brought back every indicator and Volume on this chart') : null),
+    describe: (b, a, { hidden }) => (a.viewDo ? (hidden ? 'Hid every indicator and Volume on this chart for now (a reload brings them back; nothing was removed)' : HIDE_ALL_LIFTED) : null),
     noop: (b, a, { hidden } = {}) => (hidden ? 'Indicators are already hidden on this chart' : 'Indicators are already showing on this chart'),
   })
 
@@ -315,9 +316,10 @@ export function registerChartSetupCapabilities() {
     check: (st) => (averageCount(st.cs, nativeRegistry.getDefinition) ? null : 'This chart has no moving averages.'),
     apply(st, { visible }) {
       const next = withAveragesShown(st.cs, visible, nativeRegistry.getDefinition)
-      return sameJson(next.overlays, st.cs?.overlays ?? []) && sameJson(next.indicatorInstances, st.cs?.indicatorInstances ?? []) ? st : { ...st, cs: next }
+      const shown = visible ? liftHideAll(st) : st
+      return sameJson(next.overlays, st.cs?.overlays ?? []) && sameJson(next.indicatorInstances, st.cs?.indicatorInstances ?? []) ? shown : { ...shown, cs: next }
     },
-    describe: (b, a, { visible }) => (sameJson(b.cs, a.cs) ? null : (visible ? 'Showed every moving average on this chart' : 'Hid every moving average on this chart (they are still on it)')),
+    describe: (b, a, { visible }) => (a.viewDo ? HIDE_ALL_LIFTED : sameJson(b.cs, a.cs) ? null : (visible ? 'Showed every moving average on this chart' : 'Hid every moving average on this chart (they are still on it)')),
     noop: (b, a, { visible } = {}) => (visible ? 'Every moving average is already showing' : 'Every moving average is already hidden'),
   })
 

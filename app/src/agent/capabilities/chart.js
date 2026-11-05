@@ -219,6 +219,11 @@ function fastSetting(text) {
   return null
 }
 
+// ⛔ A chart under hide-all (Alt+Shift+I) shows nothing over its candles, whatever each item's own flag says: a request to show
+// one of them has work to do, and the receipt says it brought everything back, because that is what the chart does.
+export const liftHideAll = (st) => (st.view?.indicatorsHidden === true ? { ...st, viewDo: { op: 'setIndicatorsHidden', arg: false } } : st)
+export const HIDE_ALL_LIFTED = 'Brought back every indicator and Volume on this chart'
+
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
 // Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
@@ -701,15 +706,18 @@ const CAPABILITIES = [
     },
     check: (st, { state }) => (['visible', 'hidden', 'removed'].includes(state) ? null : `“${state}” is not a Volume state.`),
     apply(st, { state }) {
-      if (volState(st.cs) === state) return st
+      // hide-all (Alt+Shift+I) covers Volume too, whatever its own flag says, and it covers the whole chart
+      const shown = state === 'visible' ? liftHideAll(st) : st
+      if (volState(st.cs) === state) return shown
       const v = { ...(st.cs.volume || {}) }
       if (state === 'visible') { v.visible = true; v.removed = false }
       else if (state === 'hidden') { v.visible = false; v.removed = false }
       else v.removed = true
-      return { ...st, cs: set(st.cs, { volume: v }) }
+      return { ...shown, cs: set(st.cs, { volume: v }) }
     },
     describe(b, a) {
       const now = volState(a.cs)
+      if (a.viewDo?.op === 'setIndicatorsHidden') return HIDE_ALL_LIFTED
       if (volState(b.cs) === now) return null
       return now === 'visible' ? 'Showed Volume' : now === 'hidden' ? 'Hid Volume' : 'Removed Volume'
     },
