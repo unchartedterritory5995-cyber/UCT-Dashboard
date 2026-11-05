@@ -322,3 +322,38 @@ def test_a_row_built_from_bars_stores_the_primitives(monkeypatch, tmp_path):
     snapshot_db.upsert_rows([dict(row, ticker="X")])
     got = snapshot_db.get_row("X")
     assert got["run_sma50_sma200"] == 1 and got["sma50_rising"] == 1 and got["pct_vs_ema9"] is not None
+
+
+def _slow_skip(series, n, reduce):
+    """NA_SKIP gathered bar by bar, the path the interpreter takes on a series with an `na` in it."""
+    import math
+    from api.services import ast_interpret as A
+    out = [math.nan] * len(series)
+    for i in range(n - 1, len(series)):
+        w = A._window_operands(series, n, i, A.NA_SKIP)
+        if w is not None:
+            out[i] = reduce(*w)
+    return out
+
+
+@pytest.mark.parametrize("seed", range(12))
+@pytest.mark.parametrize("n", [1, 2, 20, 50, 200])
+def test_the_all_finite_window_gives_exactly_the_gathered_bits(seed, n):
+    """float.hex, not approx: a window mean is compared with == by a cross, so a last-bit change would move a signal."""
+    import random
+    from api.services import ast_interpret as A
+    rng = random.Random(seed)
+    c, series = 50.0, []
+    for _ in range(400):
+        c = max(0.01, c * (1 + rng.gauss(0, 0.03)))
+        series.append(round(c, rng.choice((2, 4, 9))))
+    fast = A._rolling(series, n, A._window_mean, A.NA_SKIP)
+    assert [x.hex() for x in fast] == [x.hex() for x in _slow_skip(series, n, A._window_mean)]
+
+
+def test_a_series_with_an_na_still_takes_the_skipping_path():
+    import math
+    from api.services import ast_interpret as A
+    s = [1.0, 2.0, math.nan, 4.0, 5.0]
+    got = A._rolling(s, 2, A._window_mean, A.NA_SKIP)
+    assert got[1] == 1.5 and got[3] == 3.0 and got[4] == 4.5        # the na is skipped, never read as a value

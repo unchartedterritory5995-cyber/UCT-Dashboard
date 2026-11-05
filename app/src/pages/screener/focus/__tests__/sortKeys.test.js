@@ -35,10 +35,9 @@ test('the fixture is the real shape: no column field on any meta entry', () => {
 test('every numeric view column with NO range filter is still sortable (vs 50-day avg can appear)', () => {
   // the view columns meta has no filter for at all, derived from the capture
   const unfiltered = ALL_VIEW_COLUMNS.filter(c => !(c in FILTER_TYPES))
-  // of those, the numeric ones: these are the ones a filter-only rule dropped
-  const NUMERIC_UNFILTERED = ['pct_vs_sma50', 'pct_vs_sma200']
-  expect(unfiltered.filter(c => NUMERIC_UNFILTERED.includes(c)).sort()).toEqual([...NUMERIC_UNFILTERED].sort())
-  for (const c of NUMERIC_UNFILTERED) {
+  // the numeric ones a filter-only rule dropped now have filters of their own, and stay sortable
+  for (const c of ['pct_vs_sma50', 'pct_vs_sma200']) {
+    expect(unfiltered).not.toContain(c)
     expect(sortableColumns({ meta: META, columns: VIEWS.technical, defaultKey: DEFAULT })).toContain(c)
   }
   // Trader archive (team view, 2026-10-16): the three outcome/edge columns carry a heat scale, so
@@ -53,7 +52,7 @@ test('every numeric view column with NO range filter is still sortable (vs 50-da
     expect(sortableColumns({ meta: META, columns: VIEWS.team, defaultKey: DEFAULT })).not.toContain(c)
   }
   // and the rest of the unfiltered view columns are text, never offered
-  const TEXT_UNFILTERED = unfiltered.filter(c => ![...NUMERIC_UNFILTERED, ...ARCHIVE_NUMERIC,
+  const TEXT_UNFILTERED = unfiltered.filter(c => ![...ARCHIVE_NUMERIC,
     ...ARCHIVE_COUNTS_UNOFFERED].includes(c))
   expect(new Set(TEXT_UNFILTERED)).toEqual(new Set(['ticker', 'company', 'base_render', 'base_shape', 'pattern_engine_ids',
     'archive_last_call_date', 'archive_last_setup', 'archive_setup']))
