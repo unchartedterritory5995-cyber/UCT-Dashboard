@@ -106,14 +106,17 @@ describe('rename, select, close: one conversation on one chart', () => {
     await m.say('close tab 1', (c) => [op(c, 'chart.closeTab', { widget: 'tl', tab: '1' })])
     await waitFor(() => expect(labels(m, 'tl')).toEqual(['1D']))
   })
-  it('OPEN DEFECT, pinned: "and a weekly one" right after adding a tab is refused (the message has no word "tab"), truthfully, and nothing changes', async () => {
-    // useAgent.js TAB_ADDS guard (hotfix 2026-11-03): it does not look at the conversation. See the PR's open defects.
+  it('FIXED (#835 continuesTabs): "and a weekly one" right after adding a tab adds the weekly tab on the same chart', async () => {
+    // The defect this pinned (TAB_ADDS ignored the conversation) was fixed by #835: the very next short message
+    // continuing the same tab action on the same widget is allowed. The marker flipped loudly, as designed.
     const m = quad()
     await m.say('add a tab called Swing to the top-left chart', (c) => [ADD(c, 'tl', 'Swing')])
     await waitFor(() => expect(labels(m, 'tl')).toEqual(['1D', 'Swing']))
     const out = await m.say('and a weekly one', (c) => [ADD(c, 'tl', null, 'W')])
-    expect(out).toMatch(/didn.t change anything/)
-    expect(labels(m, 'tl')).toEqual(['1D', 'Swing'])
+    expect(out).not.toMatch(/didn.t change anything/)
+    await waitFor(() => expect(labels(m, 'tl')).toHaveLength(3))
+    expect(labels(m, 'tl').slice(0, 2)).toEqual(['1D', 'Swing'])
+    expect(m.board.state.widgets).toHaveLength(4)
   })
   it('the main tab cannot be closed, and nothing changes', async () => {
     const m = quad()
