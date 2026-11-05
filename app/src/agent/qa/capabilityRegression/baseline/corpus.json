@@ -9231,6 +9231,164 @@
         "just the technology names",
         "keep only tech stocks"
       ]
+    },
+    {
+      "id": "chartSetup.setRange",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.setRange"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.setRange"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setRange",
+            "target": "$charts[0]",
+            "args": {
+              "range": "1Y"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "activeRange": 12
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "activeRange": null
+          }
+        }
+      },
+      "phrasings": [
+        "show one year on this chart",
+        "set the chart range to 1Y",
+        "frame this chart on the last year",
+        "show 1Y on the chart"
+      ]
+    },
+    {
+      "id": "chartSetup.resetView",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.resetView"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.resetView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.resetView",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "atDefaultView": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "reset the view",
+        "reset the chart view",
+        "reset the zoom on this chart",
+        "put this chart back to its default view"
+      ]
+    },
+    {
+      "id": "chartSetup.setIndicatorsHidden",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.setIndicatorsHidden"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.setIndicatorsHidden"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setIndicatorsHidden",
+            "target": "$charts[0]",
+            "args": {
+              "hidden": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "indicatorsHidden": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "indicatorsHidden": false
+          }
+        }
+      },
+      "phrasings": [
+        "hide all indicators on this chart",
+        "hide all my indicators for now",
+        "hide every indicator on the chart",
+        "hide all of the indicators and volume for a second"
+      ]
+    },
+    {
+      "id": "chartSetup.setMovingAverages",
+      "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
+      "capabilities": [
+        "chartSetup.setMovingAverages"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "chartSetup.setMovingAverages"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setMovingAverages",
+            "target": "$charts[0]",
+            "args": {
+              "visible": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "movingAveragesOn": false,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "movingAveragesOn": true
+        }
+      },
+      "phrasings": [
+        "hide all moving averages",
+        "hide every moving average on this chart",
+        "hide all my moving averages",
+        "turn off all the moving averages"
+      ]
     }
   ],
   "refusals": [

@@ -3128,7 +3128,7 @@
    "domain": "widget",
    "target": "board",
    "summary": "Change ONE option of a widget on the board — what its own settings control writes (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar's star filter, Volume Scan logos…). Undo puts the previous value back.",
-   "hints": "target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — fundamentals: view (annual|quarterly|analyst|ownership); news: filter (all|up|down); calendar: econStars (1–3); optionsflow: lead (tape|biggest|sentiment), scope (market|symbol); volumescan: showLogos (on/off). A widget type not listed has no options here.",
+   "hints": "target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — fundamentals: view (annual|quarterly|analyst|ownership); news: filter (all|up|down); calendar: econStars (1–3); optionsflow: lead (tape|biggest|sentiment), scope (market|symbol); periodsort: group (theme|sector|industry); volumescan: showLogos (on/off); tradeExchangeNews: follow (on/off), linked (on/off); researchLibrary: follow (on/off), linked (on/off). A widget type not listed has no options here.",
    "args": {
     "type": "object",
     "properties": {
@@ -5061,7 +5061,7 @@
    "name": "chartSetup.setRange",
    "domain": "chartSetup",
    "target": "chart",
-   "summary": "Show ONE chart over a set date range: the range bar's buttons (3M, 6M, YTD, 1Y, 5Y, Origin; Origin = from the first bar). A view change: every bar stays on the chart, nothing is drawn or removed, and the chart keeps this window on the next ticker until it is panned or reset.",
+   "summary": "Show ONE chart over a set date range: the range bar's buttons (3M, 6M, YTD, 1Y, 5Y, Origin; Origin = from the first bar). A view change: every bar stays on the chart, nothing is drawn or removed, and the chart keeps this window on the next ticker until it is panned or reset. Undo puts the previous view back.",
    "hints": "range = one of 3M, 6M, YTD, 1Y, 5Y, Origin. \"One year\" = 1Y, \"year to date\" = YTD, \"five years\" = 5Y, \"since IPO\" = Origin. Other spans have no button: use chart.goToDate, or say which ranges exist.",
    "args": {
     "type": "object",
@@ -5089,7 +5089,7 @@
    "name": "chartSetup.resetView",
    "domain": "chartSetup",
    "target": "chart",
-   "summary": "Reset ONE chart's view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched.",
+   "summary": "Reset ONE chart's view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched. No Undo.",
    "hints": "target = the chart. For a chart's SETTINGS use chart.resetDefaults.",
    "args": {
     "type": "object",
@@ -5099,7 +5099,7 @@
    },
    "risk": "local",
    "reversible": true,
-   "undo": "exact",
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,

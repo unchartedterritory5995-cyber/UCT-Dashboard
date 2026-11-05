@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 154,
-  "withProductionKinds": 145,
+  "all": 158,
+  "withProductionKinds": 149,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 154,
-  "withAnyRegressionCase": 102,
+  "capabilities": 158,
+  "withAnyRegressionCase": 106,
   "perProtection": {
    "nl": {
-    "covered": 102,
-    "applicable": 154
+    "covered": 106,
+    "applicable": 158
    },
    "routing": {
-    "covered": 101,
-    "applicable": 154
+    "covered": 105,
+    "applicable": 158
    },
    "args": {
-    "covered": 102,
-    "applicable": 154
+    "covered": 106,
+    "applicable": 158
    },
    "execution": {
-    "covered": 102,
-    "applicable": 154
+    "covered": 106,
+    "applicable": 158
    },
    "receipt": {
-    "covered": 78,
-    "applicable": 154
+    "covered": 82,
+    "applicable": 158
    },
    "refusal": {
     "covered": 31,
-    "applicable": 154
+    "applicable": 158
    },
    "permission": {
-    "covered": 148,
-    "applicable": 154
+    "covered": 152,
+    "applicable": 158
    },
    "undo": {
-    "covered": 46,
-    "applicable": 95
+    "covered": 49,
+    "applicable": 98
    },
    "multiStep": {
     "covered": 31,
-    "applicable": 154
+    "applicable": 158
    },
    "phrasings": {
-    "covered": 101,
-    "applicable": 154
+    "covered": 105,
+    "applicable": 158
    }
   }
  },
@@ -2309,6 +2309,60 @@
     "phrasings": []
    }
   },
+  "chartSetup.resetView": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.resetView: \"reset the view\"",
+     "chartSetup.resetView: \"reset the chart view\"",
+     "chartSetup.resetView: \"reset the zoom on this chart\"",
+     "chartSetup.resetView: \"put this chart back to its default view\""
+    ],
+    "routing": [
+     "chartSetup.resetView: \"reset the view\"",
+     "chartSetup.resetView: \"reset the chart view\"",
+     "chartSetup.resetView: \"reset the zoom on this chart\"",
+     "chartSetup.resetView: \"put this chart back to its default view\""
+    ],
+    "args": [
+     "corpus chartSetup.resetView"
+    ],
+    "execution": [
+     "chartSetup.resetView (c)"
+    ],
+    "receipt": [
+     "chartSetup.resetView (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "chartSetup.saveTemplate": {
    "domain": "chartSetup",
    "group": "chartSetup",
@@ -2360,6 +2414,174 @@
     "permission": [],
     "undo": [
      "chartSetup.saveTemplate: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setIndicatorsHidden": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.setIndicatorsHidden: \"hide all indicators on this chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all my indicators for now\"",
+     "chartSetup.setIndicatorsHidden: \"hide every indicator on the chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all of the indicators and volume for a second\""
+    ],
+    "routing": [
+     "chartSetup.setIndicatorsHidden: \"hide all indicators on this chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all my indicators for now\"",
+     "chartSetup.setIndicatorsHidden: \"hide every indicator on the chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all of the indicators and volume for a second\""
+    ],
+    "args": [
+     "corpus chartSetup.setIndicatorsHidden"
+    ],
+    "execution": [
+     "chartSetup.setIndicatorsHidden (c)"
+    ],
+    "receipt": [
+     "chartSetup.setIndicatorsHidden (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setIndicatorsHidden: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setMovingAverages": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.setMovingAverages: \"hide all moving averages\"",
+     "chartSetup.setMovingAverages: \"hide every moving average on this chart\"",
+     "chartSetup.setMovingAverages: \"hide all my moving averages\"",
+     "chartSetup.setMovingAverages: \"turn off all the moving averages\""
+    ],
+    "routing": [
+     "chartSetup.setMovingAverages: \"hide all moving averages\"",
+     "chartSetup.setMovingAverages: \"hide every moving average on this chart\"",
+     "chartSetup.setMovingAverages: \"hide all my moving averages\"",
+     "chartSetup.setMovingAverages: \"turn off all the moving averages\""
+    ],
+    "args": [
+     "corpus chartSetup.setMovingAverages"
+    ],
+    "execution": [
+     "chartSetup.setMovingAverages (c)"
+    ],
+    "receipt": [
+     "chartSetup.setMovingAverages (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setMovingAverages: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setRange": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.setRange: \"show one year on this chart\"",
+     "chartSetup.setRange: \"set the chart range to 1Y\"",
+     "chartSetup.setRange: \"frame this chart on the last year\"",
+     "chartSetup.setRange: \"show 1Y on the chart\""
+    ],
+    "routing": [
+     "chartSetup.setRange: \"show one year on this chart\"",
+     "chartSetup.setRange: \"set the chart range to 1Y\"",
+     "chartSetup.setRange: \"frame this chart on the last year\"",
+     "chartSetup.setRange: \"show 1Y on the chart\""
+    ],
+    "args": [
+     "corpus chartSetup.setRange"
+    ],
+    "execution": [
+     "chartSetup.setRange (c)"
+    ],
+    "receipt": [
+     "chartSetup.setRange (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setRange: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
