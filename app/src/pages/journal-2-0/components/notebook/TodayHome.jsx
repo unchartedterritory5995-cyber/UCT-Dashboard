@@ -502,19 +502,53 @@ export function msUntilET(hh, mm, now = new Date()) {
   return diff * 60_000 - now.getSeconds() * 1000 - now.getMilliseconds() + 1000
 }
 
+/** The ET calendar day of `now`, as YYYY-MM-DD. */
+function etDay(now) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now).map((x) => [x.type, x.value]))
+  return `${p.year}-${p.month}-${p.day}`
+}
+
+/** How old an answer may be before a return to the tab reads again (fix round 2, N4). */
+export const REVISIT_STALE_MS = 90_000
+
 /** M1: Today re-reads when the tab comes back into view, and at the session boundaries that change what it shows --
- *  the recap's start (16:05 ET, the server's own `recapFrom` on a half-day) and ET midnight (a new day's note). */
-function useTodayRefresh(mutate, recapFrom) {
+ *  the recap's start (16:05 ET, the server's own `recapFrom` on a half-day) and ET midnight (a new day's note).
+ *  N4: a return to the tab re-reads only when the answer is REVISIT_STALE_MS old, or the ET day or the session phase
+ *  has changed since it was read -- flicking between the chart and the Notebook costs nothing. */
+function useTodayRefresh(mutate, data) {
+  const readAt = useRef(0)
+  const answer = useRef(null)
   useEffect(() => {
-    const onVis = () => { if (document.visibilityState === 'visible') mutate() }
+    if (!data) return
+    readAt.current = Date.now()
+    answer.current = { day: data.day, phase: data.session?.phase }
+  }, [data])
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'visible' || !answer.current) return
+      const now = new Date(Date.now())
+      const moved = etDay(now) !== answer.current.day || clientSession(now).phase !== answer.current.phase
+      if (moved || Date.now() - readAt.current >= REVISIT_STALE_MS) mutate()
+    }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [mutate])
+  const recapFrom = data?.session?.recapFrom
   useEffect(() => {
     const [h, m] = String(recapFrom || '16:05').split(':').map(Number)
     const timers = [setTimeout(() => mutate(), msUntilET(h, m)), setTimeout(() => mutate(), msUntilET(0, 0))]
     return () => timers.forEach(clearTimeout)
   }, [mutate, recapFrom])
+}
+
+/** The URL Today reads for each decision NotebookTab makes about the first run (I9, fix round 2 R1-B): `make` makes the
+ *  day's note if it is missing; `hold` never does (the first run is due or on screen); `wait` reads nothing yet (it
+ *  cannot be decided), so the skeletons stay up and an established member's one read is never a make=0 first. */
+export function todayKey(todayRead) {
+  if (todayRead === 'wait') return null
+  return todayRead === 'hold' ? `${TODAY_URL}?make=0` : TODAY_URL
 }
 
 /** I7: the inline first-run ask after a Skip sits BELOW the cards, in a slot that holds its height from the first
@@ -531,19 +565,18 @@ function FirstRunSlot({ onOpenNote, onOpenToday }) {
 }
 
 export default function TodayHome({
-  onOpenNote, onCreateNote, onSelectAllNotes, onOpenResearchHome, onNoteMade, onNotice, holdMake = false,
+  onOpenNote, onCreateNote, onSelectAllNotes, onOpenResearchHome, onNoteMade, onNotice, todayRead = 'make',
   dailyTemplateId = '',
 }) {
   const auth = useContext(AuthContext)
-  // I9: while the first run is pending or open the read never MAKES the day's note (`?make=0`); when it closes the
-  // key changes and Today reads again, making the note if Build did not.
-  const key = holdMake ? `${TODAY_URL}?make=0` : TODAY_URL
-  const { data, error, mutate } = useSWR(key, fetchToday,
-    { revalidateOnFocus: false, shouldRetryOnError: false, keepPreviousData: true })
+  // I9 / R1-B: `todayKey` -- null while it cannot be decided (skeletons stay up), make=0 only while the first run is
+  // due or on screen; when it closes the key changes and Today reads again, making the note if Build did not.
+  const { data, error, mutate } = useSWR(todayKey(todayRead), fetchToday,
+    { revalidateOnFocus: false, shouldRetryOnError: false })
   const recapOn = reviewDraftsEnabled()
   const order = data ? cardOrder(data.session, { recapOn }) : SKELETON_ORDER
   const reasons = data?.reasons || {}
-  useTodayRefresh(mutate, data?.session?.recapFrom)
+  useTodayRefresh(mutate, data)
 
   // The day's note was MADE by this read: the tree and the counts are told (S6), once per note.
   const madeRef = useRef(null)

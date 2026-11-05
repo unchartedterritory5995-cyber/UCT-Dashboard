@@ -192,15 +192,28 @@ describe('never empty (M7)', () => {
     expect(JSON.parse(post.body)).toMatchObject({ templateId: 'tpl1', seedToday: true })
   })
 
-  it('I9: with the first run pending Today asks with make=0 and says the plan comes with the setup', async () => {
+  it('I9: with the first run due Today asks with make=0 and says the plan comes with the setup', async () => {
     S.today = payload({ todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } })
-    const { rerender } = renderToday({ holdMake: true })
+    const { rerender } = renderToday({ todayRead: 'hold' })
     await screen.findByText('Today’s plan is written when you set up your Notebook.')
     expect(S.calls.map((c) => c.url)).toContain(`${TODAY_URL}?make=0`)
     expect(S.calls.map((c) => c.url)).not.toContain(TODAY_URL)
     S.today = payload()
-    rerender(<MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} /></MemoryRouter>)
+    rerender(<MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} todayRead="make" /></MemoryRouter>)
     await waitFor(() => expect(S.calls.map((c) => c.url)).toContain(TODAY_URL))
+  })
+
+  it('R1-B: an established member makes exactly ONE request, with make=1 -- waiting first reads nothing', async () => {
+    const { rerender } = renderToday({ todayRead: 'wait' })
+    await new Promise((r) => setTimeout(r, 30))
+    expect(todayReads()).toHaveLength(0)
+    expect(document.querySelectorAll('[data-today-skeleton]').length).toBe(SKELETON_ORDER.length)   // skeletons up
+    rerender(<MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} todayRead="make" /></MemoryRouter>)
+    await screen.findByTestId('today-plan')
+    await new Promise((r) => setTimeout(r, 30))
+    const reads = S.calls.filter((c) => c.url.startsWith(TODAY_URL))
+    expect(reads.map((c) => c.url)).toEqual([TODAY_URL])
+    expect(screen.queryByText('Today’s plan is written when you set up your Notebook.')).toBeNull()
   })
 
   it("a note this read MADE says where it went (Tier 0's notice) and tells the Notebook once", async () => {
@@ -281,13 +294,38 @@ describe('where the Notebook opens', () => {
 })
 
 describe('fix round 1 minors', () => {
-  it('M1: Today reads again when the tab comes back into view', async () => {
-    renderToday()
-    await screen.findByTestId('today-plan')
-    const reads = todayReads().length
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
-    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
-    await waitFor(() => expect(todayReads().length).toBe(reads + 1))
+  // Fix round 2 (N4): a return to the tab re-reads only when the answer is 90 s old, or the ET day or session
+  // phase it was read in has changed -- a member flicking between the chart and the Notebook costs nothing.
+  it('M1 + N4: a return to the tab re-reads only after 90 s (or a new day or phase)', async () => {
+    let now = Date.parse('2026-11-05T13:15:00Z')                 // 08:15 ET, pre-market (the payload's phase)
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      renderToday()
+      await screen.findByTestId('today-plan')
+      const reads = todayReads().length
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+      now += 30_000
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+      await new Promise((r) => setTimeout(r, 30))
+      expect(todayReads().length).toBe(reads)                     // 30 s later, same phase: nothing
+      now += 61_000
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+      await waitFor(() => expect(todayReads().length).toBe(reads + 1))
+    } finally { spy.mockRestore() }
+  })
+
+  it('N4: a new session phase re-reads at once, inside the 90 s', async () => {
+    let now = Date.parse('2026-11-05T14:29:30Z')                 // 09:29:30 ET, pre-market
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      renderToday()
+      await screen.findByTestId('today-plan')
+      const reads = todayReads().length
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+      now += 40_000                                              // 09:30:10 ET: the session opened
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+      await waitFor(() => expect(todayReads().length).toBe(reads + 1))
+    } finally { spy.mockRestore() }
   })
 
   it('M1: the next boundary is counted in ET (16:05 and midnight)', () => {

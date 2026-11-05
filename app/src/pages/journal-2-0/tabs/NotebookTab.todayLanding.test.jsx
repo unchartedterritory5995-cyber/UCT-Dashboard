@@ -30,7 +30,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data
 vi.mock('../components/notebook/TodayHome', () => {
   H.todayChunk.push(Date.now())          // the chunk was asked for
   return { default: (p) => (
-    <div data-testid="today-home" data-hold={p.holdMake ? 'make-0' : 'make'}>
+    <div data-testid="today-home" data-read={p.todayRead}>
       <button type="button" onClick={p.onOpenResearchHome}>Research home →</button>
       <button type="button" onClick={p.onSelectAllNotes}>All notes</button>
     </div>
@@ -127,29 +127,37 @@ describe('the Notebook opens on Today (S15)', () => {
   })
 })
 
-// Fix round 1 (I9): while the first run is due, undecided or on screen, Today never MAKES the day's note.
-describe('the first run holds the day note (I9)', () => {
+// Fix round 1 (I9) + fix round 2 (R1-B): Today's read is `make` (make the day's note if missing), `hold` (make=0: the
+// first run IS due or on screen) or `wait` (no read yet: it cannot be decided). Only a member who can still get the
+// first run ever waits or holds; an established member's one read is `make`, at once.
+describe('the first run and the day note (I9, R1-B)', () => {
   beforeEach(() => { latchNotebookFlags({ notebook_starter_packs_enabled: true }) })
 
-  it('a brand-new member (no notes, first run not yet seen): Today reads with make=0', async () => {
+  it('a brand-new member (no notes, first run not yet seen): hold (make=0)', async () => {
     H.total = 0
     prefs = {}
     at('/journal?view=today')
-    const el = await screen.findByTestId('today-home', {}, T)
-    expect(el.getAttribute('data-hold')).toBe('make-0')
+    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('hold')
   })
 
-  it('the notes count not known yet: still held (a note made then would stop the first run opening)', async () => {
+  it('first run not yet seen and the notes count unknown: wait -- no read at all (never make=0, then make=1)', async () => {
     H.total = undefined
     prefs = {}
     at('/journal?view=today')
-    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-hold')).toBe('make-0')
+    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('wait')
+  })
+
+  it('R1-B: an ESTABLISHED member (first run recorded) reads with make at once, even with the notes count unknown', async () => {
+    H.total = undefined
+    prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
+    at('/journal?view=today')
+    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('make')
   })
 
   it('CONTROL: a member who has seen the first run, with notes, reads with make', async () => {
     H.total = 3
     prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
     at('/journal?view=today')
-    await waitFor(() => expect(screen.getByTestId('today-home').getAttribute('data-hold')).toBe('make'), T)
+    await waitFor(() => expect(screen.getByTestId('today-home').getAttribute('data-read')).toBe('make'), T)
   })
 })

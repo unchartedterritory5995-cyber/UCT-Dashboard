@@ -76,9 +76,9 @@ import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
 import { HOME_VIEW, LANDING_PREF, TODAY_VIEW, resolveLanding, todayLandingOn } from '../lib/todayHome'
-import { firstRunIsDue, useFirstRunShowing } from '../lib/firstRun'
+import { FIRST_RUN_MARKS, firstRunIsDue, useFirstRunShowing } from '../lib/firstRun'
 import { starterPacksEnabled } from '../lib/starterPacksFlag'
-import { TIPS_PREF } from '../lib/notebookTips'
+import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
@@ -902,8 +902,10 @@ export default function NotebookTab() {
   const landing = landingReadFailed ? 'home' : resolveLanding(landingPrefs?.[LANDING_PREF])
   const landingPending = bareNotebook && todayLandingOn() && Boolean(landingPrefsLoading)
   // I1: the Today chunk is asked for in this first render, in parallel with the preferences read above.
+  // N6: never on a folder or ticker address (that is the list, not a home).
   useState(() => {
-    if (todayLandingOn() && !noteId && (!viewParam || viewParam === TODAY_VIEW)) loadTodayHome().catch(() => {})
+    const filtered = ['folder', 'ticker'].some((k) => searchParams.get(k))   // the filters this tab reads from the address
+    if (todayLandingOn() && !noteId && !filtered && (!viewParam || viewParam === TODAY_VIEW)) loadTodayHome().catch(() => {})
     return null
   })
   const isToday = !noteId && !hasActiveFilters && !isTrashView
@@ -913,13 +915,18 @@ export default function NotebookTab() {
   // M4: never Research Home while the landing is still being read (the pane heading said "Research home", then
   // "Today").
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView && !isToday && !landingPending
-  // I9: while the 60-second first run is due (or not yet decidable) or on screen, the Today home must not MAKE the day's
-  // note: Build makes it, with the names the member typed. Undecidable = the preferences or the notes count have not
-  // answered; a note made in that gap would also stop the first run from opening (it opens only with no notes).
+  // I9 + fix round 2 (R1-B): what the Today home reads. `hold` (make=0, never make the day's note) only while the
+  // 60-second first run IS due or on screen -- Build makes the note, with the names the member typed. `wait` (no read
+  // at all; the skeletons stay up) while that cannot be decided yet: the preferences have not answered, or the notes
+  // count has not and the tips do not record the first run. A member whose tips record it can never get it again,
+  // so their read starts at once, as `make` -- one request, never a make=0 read and then a make=1 read.
   const firstRunShowing = useFirstRunShowing()
-  const firstRunPending = starterPacksEnabled() && (Boolean(landingPrefsLoading) || !notesKnown
-    || firstRunIsDue({ enabled: true, prefsReady: !landingReadFailed, tipsRaw: landingPrefs?.[TIPS_PREF], notesKnown, hasAnyNotes }))
-  const todayHoldMake = firstRunPending || firstRunShowing
+  const tipsRaw = landingPrefs?.[TIPS_PREF]
+  const firstRunSeen = seenTips(tipsRaw).has(FIRST_RUN_MARKS.shown)
+  const firstRunOn = starterPacksEnabled()
+  const firstRunUndecided = firstRunOn && (Boolean(landingPrefsLoading) || (!notesKnown && !firstRunSeen))
+  const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !landingReadFailed, tipsRaw, notesKnown, hasAnyNotes })
+  const todayRead = firstRunShowing || firstRunDue ? 'hold' : firstRunUndecided ? 'wait' : 'make'
   // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
   // S15: the Today home and the landing's pending frame have no list toolbar either.
@@ -2750,7 +2757,7 @@ export default function NotebookTab() {
             onSelectAllNotes={selectAllNotes}
             onOpenResearchHome={openResearchHome}
             onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
-            holdMake={todayHoldMake}
+            todayRead={todayRead}
             dailyTemplateId={dailyTemplateId}
             onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
           />

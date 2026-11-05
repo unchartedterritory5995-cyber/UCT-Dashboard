@@ -85,4 +85,3 @@ describe('the Today chunk starts with the preferences read (I1)', () => {
     expect(screen.queryByTestId('today-home')).toBeNull()      // still pending: the chunk came first
   })
 })
-
