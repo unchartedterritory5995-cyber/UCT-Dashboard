@@ -1272,7 +1272,8 @@ export function registerBoardCapabilities() {
     },
     describe(b, a, { widget, tab }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
-      return o && n && !same(o.opts, n.opts) ? `Switched the ${nameOf(o, b.board)} to its “${findTab(n, tab)?.label || tab}” tab` : null
+      if (!o || !n || same(o.opts, n.opts)) return null
+      return `Switched the ${nameOf(o, b.board)} to its “${tabsOf(n)[n.opts?.activeChartTab ?? 0]?.label || tab}” tab`
     },
     noop: () => 'That tab is already showing',
   })

@@ -68,6 +68,15 @@ describe('rename, select, close: one conversation on one chart', () => {
     await waitFor(() => expect(labels(m, 'tl')).toEqual(['1D', 'Swing', 'Position']))
     expect(sanitizeChartTabs(widget(m, 'tl').opts).tabs.find(t => t.name === 'Swing')).toEqual(swing)
   })
+  it('the switch receipt names the tab the widget ended on, not the words of the request', async () => {
+    const m = quad()
+    await m.say('add a tab called Swing to the top-left chart', (c) => [ADD(c, 'tl', 'Swing')])
+    await waitFor(() => expect(labels(m, 'tl')).toEqual(['1D', 'Swing']))
+    await m.say('go back to the main tab', (c) => [op(c, 'chart.selectTab', { widget: 'tl', tab: 'main' })])
+    await waitFor(() => expect(active(m, 'tl')).toBe('1D'))
+    expect(m.lastReceipt().textContent).toMatch(/“1D”/)
+    expect(m.lastReceipt().textContent).not.toMatch(/“main”/)
+  })
   it('the main tab renames (it has its own name), and the receipt is about the tab that changed', async () => {
     const m = quad()
     await m.say('add a tab to the top-left chart', (c) => [ADD(c, 'tl')])
