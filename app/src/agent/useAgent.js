@@ -548,8 +548,12 @@ let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
 const UNDO_MAX = 20
 
-function refusalText(refusals) {
-  const reasons = [...new Set(refusals.map(r => r.reason))]
+// A reason may already be a whole sentence of its own ("I didn't change it: …  Nothing was changed."): it is said once
+const PREFIX_SAID = /^I didn['’]t (?:change|add) (?:it|anything):\s*/
+const SUFFIX_SAID = /\s*Nothing (?:was|has) changed(?: yet)?\.?$/
+const bareReason = (r) => String(r ?? '').replace(PREFIX_SAID, '').replace(SUFFIX_SAID, '')
+export function refusalText(refusals) {
+  const reasons = [...new Set(refusals.map(r => bareReason(r.reason)))]
   return reasons.length === 1
     ? `I didn't change anything: ${reasons[0]}`
     : `I didn't change anything:\n${reasons.map(r => `- ${r}`).join('\n')}`

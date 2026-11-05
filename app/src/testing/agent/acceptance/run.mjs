@@ -170,7 +170,7 @@ scn('task-E rsi with follow-ups', ['C2-004', 'C2-024', 'C2-030', 'C2-032'], { pr
   t.ok('RSI has its own pane', r1.chart(A).panes.length === r1.was(A).panes.length + 1, JSON.stringify(r1.chart(A).panes))
   const r2 = await act(p, t, { say: 'make it orange', plan: (b) => ({ ops: [{ action: 'indicatorStyle.set', target: '$indicatorEdits[0]', args: { instance: rsiId(b), property: 'color', value: '#f97316', output: null } }] }), touch: [A], receipt: /RSI|orange|colou?r/i, undoable: true })
   t.ok('the follow-up found the RSI (the model saw it in memory)', r2.chart(A).panes.length === r1.chart(A).panes.length)
-  await act(p, t, { say: 'make it thicker', plan: (b) => ({ ops: [{ action: 'indicatorStyle.set', target: '$indicatorEdits[0]', args: { instance: rsiId(b), property: 'lineWidth', value: 'thicker', output: null } }] }), touch: [], noReceipt: true, says: /Nothing was changed|didn't change/i, busy: false })
+  await act(p, t, { say: 'make it thicker', plan: (b) => ({ ops: [{ action: 'indicatorStyle.set', target: '$indicatorEdits[0]', args: { instance: rsiId(b), property: 'lineWidth', value: 'thicker', output: null } }] }), touch: [], noReceipt: true, says: /^.*I didn't change anything: Relative Strength Index has no line width setting\.\s*$/s, busy: false })
   const r4 = await act(p, t, { say: 'change the length to 21', plan: (b) => ({ ops: [{ action: 'indicator.update', target: '$indicatorEdits[0]', args: { instance: rsiId(b), inputs: [{ key: 'period', value: 21 }] } }] }), touch: [A], receipt: /21/, undoable: true })
   t.ok('the pane is still there', r4.chart(A).panes.length === r1.chart(A).panes.length)
   await p.shot(`${SHOTS}/task-E.png`)

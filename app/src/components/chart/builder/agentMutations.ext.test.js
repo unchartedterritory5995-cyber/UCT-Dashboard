@@ -96,6 +96,14 @@ describe('the contract is additive', () => {
 })
 
 describe('I-1 setAppearance — the Inspector stroke controls', () => {
+  it('a refusal is in the member\'s words: no store key in `why` or in what is offered', () => {
+    const none = planIndicatorMutation(chart(), { op: 'setAppearance', instanceId: 'inst:rsi:1', key: 'lineWidth', value: 3 }, ctx())
+    expect(none.ok).toBe(false)
+    expect(none.detail.why).toBe('Relative Strength Index has no line width setting')
+    const bad = planIndicatorMutation(chart(), { op: 'setAppearance', instanceId: 'inst:movingAverage:20', key: 'lineWidth', value: 99 }, ctx())
+    expect(bad.detail.why).toBe('that isn\'t a line width it offers')
+    expect(bad.detail.options).toEqual([1, 2, 3, 4])
+  })
   it('equals setInstanceAppearance byte for byte, confirms, pins the post-change fingerprint, and undoes exactly', () => {
     const cs = chart()
     const r = run(cs, { op: 'setAppearance', instanceId: 'inst:movingAverage:20', key: 'lineWidth', value: 3 })
