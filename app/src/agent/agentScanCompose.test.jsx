@@ -483,21 +483,17 @@ describe('⛔ a new screen starts clean; only a follow-up builds on the last one
     ['no stocks under $10', [F('price', 'gte', 10)]],
     ['now only the ones above $20', [F('price', 'gt', 20)]],
     ['semis', [L('sector', 'in', ['energy'])]],
-    ['above $20 and rsi over 50', [F('price', 'gt', 20), F('rsi14', 'gt', 50)]],
+    ['stocks above $20', [F('price', 'gt', 20)]],
     ['of those, only stocks over $20 with rsi above 50', [F('price', 'gt', 20), F('rsi14', 'gt', 50)]],
-  ])('a refinement still builds on the last screen: %s', async (said, filters) => {
+    ['from the results, rsi over 50 and above $20', [F('price', 'gt', 20), F('rsi14', 'gt', 50)]],
+  ])('one condition, or a word pointing back, stays a refinement: %s', async (said, filters) => {
     await turn(said, { mode: 'refine', filters })
     expect(KEYS()).toEqual(expect.arrayContaining(['price']))
     expect(body().filters.length).toBeGreaterThan(filters.length - (filters[0].field === 'price' ? 0 : 1))
   })
-  it.each([
-    ['stocks above $20', [F('price', 'gt', 20)]],
-    ['now find stocks up 20% this month near highs', [F('chg_pct_3m', 'gte', 20), F('rsi14', 'gt', 50)]],
-  ])('partly specified: asked, nothing runs: %s', async (said, filters) => {
-    const n = scans().length
-    const a = await turn(said, { mode: 'refine', filters })
-    expect(a).toMatch(/^Should I narrow your last screen \(.*Semiconductors.*\), or start a new one/)
-    expect(scans()).toHaveLength(n)
+  it('⛔ reference words are the only word class: two conditions with none start clean, whatever the opener', async () => {
+    await turn('only tech above $10', { mode: 'refine', filters: [L('sector', 'in', ['energy']), F('rsi14', 'gt', 10)] })
+    expect(KEYS()).toEqual(['sector', 'rsi14'])
   })
   it('the model writing the last screen’s industry back into a new screen is asked about', async () => {
     const n = scans().length
@@ -535,8 +531,11 @@ describe('⛔ a new screen starts clean; only a follow-up builds on the last one
     await turn('rank them by 3 month change', { mode: 'refine', rank: [{ field: 'chg_pct_3m', weight: 1, lower_better: false }] })
     expect(KEYS()).toContain('industry')
   })
-  it('an order-only follow-up is a refinement whatever it calls them', () => {
+  it('the rule is structure plus reference words', () => {
     expect(followUpShape('highest rsi stocks', 0)).toBe('refine')
+    expect(followUpShape('stocks above $20', 1)).toBe('refine')
+    expect(followUpShape('up 5% with rsi over 50', 2)).toBe('new')
+    expect(followUpShape('those up 5% with rsi over 50', 2)).toBe('refine')
   })
   it('⛔ another turn’s words never decide this one', async () => {
     turnStart('send'); buildContext(null, { surface: 'charts', message: FULL }); turnEnd()

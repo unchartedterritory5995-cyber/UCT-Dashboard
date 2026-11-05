@@ -827,21 +827,13 @@ async function listSavedViaGateway() {
 
 // ⛔ A NEW SCREEN STARTS CLEAN (AUDIT live, 2026-11-05): in an existing chat, "find stocks up 20% this month near 52-week
 // highs" kept the previous screen's industry, while the same words in a new chat did not. `mode` is the model's call, and
-// nothing checked it. The decision is the REQUEST's structure, read here: does it stand alone, or does it lean on the
-// screen before it? It leans when it points back at the results, opens with a change to them, or is a fragment with no
-// stocks of its own ("only tech", "drop under $10", "above $20"). It stands alone when it has its own stocks and at least
-// two conditions. Its own stocks and one condition could be either, so it is asked, never guessed.
-// A turn whose words aren't known here (a panel action, a fast path) keeps the model's mode.
-const POINTS_BACK = /\b(?:those|them|these|they|ones|same|results?|remaining|rest|instead|(?:that|this) (?:list|screen|scan))\b/
-const OPENS_WITH_A_CHANGE = /^(?:(?:now|ok|okay|and|then|also|but|next)[ ,]+)*(?:(?:please|pls)\s+)?(?:only|just|no|not|skip|ignore|drop|remove|exclude|add|keep|narrow|limit|restrict|without|except|sort|rank|order|filter)\b/
-const CONTINUES = /^(?:now|ok|okay|and|then|also|but|next)\b/
-const OWN_STOCKS = /\b(?:stocks?|names|tickers|equities|companies|shares|etfs)\b/
-/** 'refine' | 'new' | 'ask': how `text` stands to the screen before it, with `conditions` conditions of its own. Pure. */
-export function followUpShape(text, conditions) {
-  const t = String(text || '').toLowerCase().trim()
-  if (conditions === 0 || POINTS_BACK.test(t) || OPENS_WITH_A_CHANGE.test(t) || !OWN_STOCKS.test(t)) return 'refine'
-  return conditions >= 2 && !CONTINUES.test(t) ? 'new' : 'ask'
-}
+// nothing checked it. AUDIT's ruling, 2026-11-05: structure first, and a narrow fix. Two or more conditions of its own and
+// no reference to the earlier results is a fully specified screen, so it starts clean. One condition ("only tech", "drop
+// under $10") or a word pointing back stays the model's refinement. A turn whose words aren't known here (a panel action, a
+// fast path) keeps the model's mode. ⛔ Reference words are the ONLY word class here: no list of verbs or openers.
+const POINTS_BACK = /\b(?:those|them|these|they|ones|same|results?|remaining|rest|(?:that|this) (?:list|screen|scan))\b/
+/** 'new' when `text` with `conditions` conditions of its own stands alone, else 'refine'. Pure. */
+export const followUpShape = (text, conditions) => (conditions >= 2 && !POINTS_BACK.test(String(text || '').toLowerCase()) ? 'new' : 'refine')
 /** This turn's own words, or null: never a past turn's, which would decide today's screen from yesterday's request. */
 const saidThisTurn = () => (cache.said && cache.said.turn && cache.said.turn === currentTurnId() ? cache.said.text : null)
 const askWhich = () => `Should I narrow your last screen (${specWords(cache.last.spec)}), or start a new one with only these conditions?`
@@ -898,7 +890,6 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
   const said = saidThisTurn()
   const standing = said && lastIsCurrent()
   const shape = standing && mode === 'refine' ? followUpShape(said, (filters || []).length + (read.tree ? leavesOfArgs({ logic: logicArg }).length : 0) + (rk.rank ? 1 : 0)) : null
-  if (shape === 'ask') return { error: askWhich().replace(/\?$/, ''), ask: askWhich() }
   const fresh = shape === 'new'
   if (fresh) notes.push("That's a new screen, so nothing from your last one carried over")
   // the same mistake the other way round: mode new, with the last screen's list filter written back in
