@@ -428,7 +428,8 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   // one pass: each group's action count (null = ungrouped) — the packing and both sorts read it many times
   const counts = new Map()
-  for (const c of manifest) { const g = groupOfAction(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
+  const groupOf = opts.groupOf || groupOfAction          // (NL-1 only: nl1/selection.js nl1GroupOf)
+  for (const c of manifest) { const g = groupOf(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
   const sizeOf = (id) => counts.get(id) || 0
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
@@ -462,7 +463,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     want.add(id); used += n
   }
   const present = GROUPS.filter(g => counts.has(g.id))
-  const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
+  const routed = manifest.filter(c => want.has(groupOf(c.name)) || groupOf(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
   return {
     manifest: routed,

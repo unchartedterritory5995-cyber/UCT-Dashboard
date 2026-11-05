@@ -95,11 +95,11 @@
   "widget.renameTab": "workspace",
   "widget.closeTab": "workspace",
   "widget.addTab": "workspace",
-  "chart.addTab": "charts",
-  "chart.selectTab": "charts",
-  "chart.closeTab": "charts",
-  "chart.renameTab": "charts",
-  "chart.linkTab": "charts",
+  "chart.addTab": "workspace",
+  "chart.selectTab": "workspace",
+  "chart.closeTab": "workspace",
+  "chart.renameTab": "workspace",
+  "chart.linkTab": "workspace",
   "drawing.addTrendline": "drawingTools",
   "drawing.addRay": "drawingTools",
   "drawing.addRectangle": "drawingTools",
@@ -281,11 +281,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -394,7 +389,7 @@
      "screener",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -430,11 +425,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -553,7 +543,7 @@
      "screener",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -590,11 +580,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -726,7 +711,7 @@
      "alerts",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -763,11 +748,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -794,6 +774,11 @@
     "widget.renameTab",
     "widget.closeTab",
     "widget.addTab",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
     "drawing.list",
     "drawing.addLevel",
     "drawing.style",
@@ -903,7 +888,7 @@
      "screener",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -937,11 +922,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -1056,7 +1036,7 @@
      "data",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {

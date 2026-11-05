@@ -28,6 +28,7 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "guide": "guide",
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
              "indicatorAlert": "indicatorAlerts",
+             "indicatorTemplate": "chartSetup",
              # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
              "coach": "coach", "journal": "coach"}
 #: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
@@ -56,7 +57,7 @@ def test_server_limits_equal_the_shared_contract():
 
 
 def test_every_capability_belongs_to_a_routing_group_and_each_request_fits():
-    assert all(c["name"] in _GROUP_BY_ACTION or c["name"].split(".")[0] in _GROUP_OF for c in CAPS)
+    assert all(c["name"].split(".")[0] in _GROUP_OF for c in CAPS)
     for g, req in _requests():
         assert len(req) <= CONTRACT["catalog"]["maxGroupSize"] + 1, g
         assert len(req) <= turn.MAX_CAPABILITIES, g
