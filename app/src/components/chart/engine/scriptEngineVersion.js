@@ -97,7 +97,8 @@
 /** 13 = W4-T10 (train): state kernels over runtime values (ta.cum, 3-arg pivothigh/low, ta.stoch, ta.vwap(source)) are served */
 /** 14 = W4-T11 (train): runtime text values are served on the runtime lane */
 /** 15 = W4-T12 (train): paint typing: colours proven through blocks, functions and colour arrays; fill() over a ?:-chosen plot id */
-export const SCRIPT_ENGINE_VERSION = 15
+/** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
+export const SCRIPT_ENGINE_VERSION = 16
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
