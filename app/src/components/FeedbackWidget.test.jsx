@@ -91,3 +91,13 @@ describe('Help & Feedback by keyboard (fix round 1)', () => {
     expect(overlays).toEqual([])
   })
 })
+
+// Fix round 2 (re-review N7): choosing Send Feedback unmounted the focused item and dropped focus.
+describe('Send Feedback lands focus in the message (fix round 2)', () => {
+  it('opening the form focuses the Feedback message field', () => {
+    const { trigger } = mount()
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('button', { name: 'Send Feedback' }))
+    expect(document.activeElement).toBe(screen.getByLabelText('Feedback message'))
+  })
+})

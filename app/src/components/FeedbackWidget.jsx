@@ -75,8 +75,13 @@ export default function FeedbackWidget() {
   const triggerRef = useRef(null)
   const panelRef = useRef(null)
   const firstItemRef = useRef(null)
-  // Opening the menu moves focus into it (fix round 1, minor 8).
-  useEffect(() => { if (mode === 'menu') firstItemRef.current?.focus() }, [mode])
+  const messageRef = useRef(null)
+  // Opening the menu moves focus into it (fix round 1, minor 8); choosing Send Feedback unmounts the
+  // pressed item, so focus goes to the message field, never <body> (fix round 2, re-review N7).
+  useEffect(() => {
+    if (mode === 'menu') firstItemRef.current?.focus()
+    if (mode === 'feedback') messageRef.current?.focus()
+  }, [mode])
 
   // ⛔ Audit 2026-11-05, spec S5 (B10): Esc did not close this, and a transparent full-page
   // backdrop (z-index 498) sat over the whole app while it was open -- the member's next click on
@@ -171,7 +176,7 @@ export default function FeedbackWidget() {
                 placeholder="What's on your mind?"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                autoFocus
+                ref={messageRef}
               />
               <div style={S.starsRow}>
                 <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginRight: 3 }}>Rating:</span>
