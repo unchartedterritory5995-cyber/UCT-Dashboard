@@ -316,7 +316,8 @@ describe('⭐ length semantics and resources', () => {
   it('⛔ a length only known while the bar runs refuses, and SAYS length', () => {
     // ⛔ A RING IS SIZED BEFORE BAR 0. A length that only exists once the bar
     // is running cannot size one, so it must refuse rather than pick a width.
-    const src = `${head}var x = 0.0\nx := close\nplot(ta.sma(x, bar_index))\n`
+    // (W4-T8 r1: a v5/v6 series int length is read per bar, so this refusal is pinned in v4, which has no series length)
+    const src = `//@version=4\nstudy("t")\nvar x = 0.0\nx := close\nplot(sma(x, bar_index))\n`
     const r = refusalOf(src)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
     // ⭐ THE GUARD IS SHARED WITH `x[n]` ON PURPOSE (one knob, one meaning) but

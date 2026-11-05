@@ -209,6 +209,15 @@ describe('⭐⭐ what it does NOT serve keeps its refusal by name', () => {
     stops('bar_index > 2 ? 5001 : 2', 'beyond the ring (5000)')
   })
 
+  it('a constant length that is no whole length (2.5, -3) keeps its build refusal in v5 and v6, not a per-bar window', () => {
+    for (const v of [5, 6]) {
+      for (const bad of ['2.5', '-3']) {
+        const b = build(`${X}plot(ta.sma(x, ${bad}))\n`, v)
+        expect(b.ok, `v${v} length ${bad} must not build`).toBe(false)
+      }
+    }
+  })
+
   it('⭐ a declared `max_bars_back` is the ring: a length past it stops the run', () => {
     const src = `//@version=6\nindicator("t", max_bars_back = 10)\n${X}plot(ta.sma(x, bar_index > 20 ? 11 : 3))\n`
     const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })

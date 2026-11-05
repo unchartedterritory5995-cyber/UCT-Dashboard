@@ -6717,6 +6717,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           } catch (err) {
             if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset'
               || typeof err.frameName === 'string' || !seriesLengthFn(node.name)) throw err
+            // a length that FOLDS to a number which is no whole length (2.5, -3) is a mistake, not a per-bar
+            // length: it keeps the build refusal
+            const folded = constValueOf(given[1], scope)
+            if (folded && folded.value !== undefined) throw err
             // the refusal was a probe, not an outcome: take back what `note` counted for it
             if (dynFamilyBefore === undefined) delete diagnostics.families['runtime:history-dynamic-offset']
             else diagnostics.families['runtime:history-dynamic-offset'] = dynFamilyBefore
