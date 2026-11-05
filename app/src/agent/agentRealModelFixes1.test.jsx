@@ -9,6 +9,7 @@ import { buildContext } from './capabilities'
 import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
 import { preflightRefusals } from './nl1/interpreter'
 import { addChartTab } from '../pages/charts/chartTabs'
+import { nearHighFirst, orderWords } from './capabilities/screener'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -349,4 +350,35 @@ describe('defect 5: chart tabs', () => {
     await say('open a new tab at weekly')
     expect(widgetOf(board).opts.chartTabs[0].color).toBe('B')
   }, 40000)
+})
+
+describe('defect 6: a sort on a signed distance', () => {
+  const NEAR = [{ key: 'dist_52w_high_pct', op: 'gte', min: -10 }]
+  it.each([
+    ['dist_52w_high_pct', NEAR, 'asc', 'desc'],
+    ['dist_ath_pct', [{ key: 'dist_ath_pct', op: 'gte', min: -3 }], 'asc', 'desc'],
+    ['dist_52w_high_pct', [{ key: 'dist_52w_high_pct', op: 'between', min: -5, max: 0 }], 'asc', 'desc'],
+  ])('a screen near the high, %s asc, sorts nearest first', (key, filters, dir, want) => {
+    expect(nearHighFirst({ key, dir }, filters).dir).toBe(want)
+  })
+  it.each([
+    ['already nearest first', { key: 'dist_52w_high_pct', dir: 'desc' }, NEAR, 'desc'],
+    ['no filter on that field', { key: 'dist_52w_high_pct', dir: 'asc' }, [{ key: 'sector', op: 'in', value: ['Technology'] }], 'asc'],
+    ['a band away from the high', { key: 'dist_52w_high_pct', dir: 'asc' }, [{ key: 'dist_52w_high_pct', op: 'between', min: -30, max: -10 }], 'asc'],
+    ['a field with no sign', { key: 'chg_pct_1m', dir: 'asc' }, [{ key: 'chg_pct_1m', op: 'gte', min: -10 }], 'asc'],
+    ['near a low, where asc already is nearest', { key: 'dist_52w_low_pct', dir: 'asc' }, [{ key: 'dist_52w_low_pct', op: 'lte', max: 10 }], 'asc'],
+  ])('NEGATIVE: %s stays', (_, sort, filters, want) => {
+    expect(nearHighFirst(sort, filters).dir).toBe(want)
+  })
+  it.each([
+    ['dist_52w_high_pct', 'desc', 'closest to the high first'],
+    ['dist_52w_high_pct', 'asc', 'furthest from the high first'],
+    ['dist_ath_pct', 'desc', 'closest to the high first'],
+    ['dist_52w_low_pct', 'asc', 'closest to the low first'],
+    ['dist_52w_low_pct', 'desc', 'furthest from the low first'],
+    ['chg_pct_1m', 'desc', 'highest first'],
+    ['chg_pct_1m', 'asc', 'lowest first'],
+  ])('%s %s reads "%s"', (key, dir, words) => {
+    expect(orderWords({ key, dir })).toBe(words)
+  })
 })
