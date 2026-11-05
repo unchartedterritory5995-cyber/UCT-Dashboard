@@ -368,6 +368,10 @@ export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
  *  and that difference has to be declared somewhere or the emitter cannot refuse
  *  `plot(color.red)` and `bgcolor(close)` — which are the same mistake pointing
  *  in opposite directions. */
+/** W4-T13 - the four prices of a candle / bar, in the order the front end emits them. The ONE list:
+ *  the member pane reads it to pair the run's outputs with the host's (`pine.js::MULTI_OUTPUT_CALLS`
+ *  emits the same order, held by `w4T13CandleFrontend.test.js`). */
+export const RUNTIME_CANDLE_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
 export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolor']))
 
 /** ⭐ The cross family this lane serves over RUNTIME state, Pine spelling ->
@@ -7910,19 +7914,114 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!PLOT_COLOUR_CALLS.has(callName) || !colourNode) return
     desc.transp = transpOf(callName, args)
     desc.colourOpaque = opaqueColour(colourNode, scope)
+    emitColourField(colourNode, scope, out, desc, 'colour')
+  }
+
+  /** W4-T13 - lower ONE colour expression into a deferred colour output and record it on
+   *  `desc[field]` (`{output}` once the indices are fixed up, or `{refused}`). The ONE place a
+   *  colour becomes an output: a plot's `color =` and a candle's three colours both come here. */
+  const emitColourField = (colourNode, scope, out, desc, field, allowNa = false) => {
+    // A candle's `wickcolor = na` is the idiom for "no wick": a colour that is Pine's `na` on
+    // every bar. It rides as an all-`na` column, which draws nothing, exactly as TradingView
+    // draws nothing for an `na` colour. (A plot's own `color = na` is not widened by this.)
+    if (allowNa && isBuiltinNa(colourNode, scope)) {
+      const stmt = emit(-1, naValue())
+      out.push(stmt)
+      colourEmits.push({ stmt, desc, field })
+      return
+    }
     if (!holdsColour(colourNode, scope)) {
-      desc.colour = { refused: 'its `color =` is not an expression this lane reads as a colour' }
+      desc[field] = { refused: 'its `color =` is not an expression this lane reads as a colour' }
       return
     }
     let stmt
     try {
       stmt = emit(-1, lowerExpr(colourNode, scope))
     } catch (err) {
-      desc.colour = { refused: String((err && err.message) || err).slice(0, 200) }
+      desc[field] = { refused: String((err && err.message) || err).slice(0, 200) }
       return
     }
     out.push(stmt)
-    colourEmits.push({ stmt, desc })
+    colourEmits.push({ stmt, desc, field })
+  }
+
+  // ─── W4-T13 - `plotcandle` / `plotbar` FROM THE RUN ──────────────────────────────────────
+  //
+  // A candle is FOUR columns (open, high, low, close) and up to three colours (body, wick,
+  // border), all computed by the SAME run on the SAME bar. They are emitted as four ordinary
+  // outputs in that order (each tagged with its `role` and the call's `group`) and the colours
+  // as deferred colour outputs on the CLOSE output's descriptor - the shape a plot's `color =`
+  // already has. Nothing here draws: the member pane reads the descriptors
+  // (`memberPaneDefinition.js`) and the renderer reads the four columns (`binder.js`).
+  //
+  // ⛔ OPT-IN, EXACTLY AS A PLOT'S COLOUR IS (`opts.plotColours`): only the runtime pane's two
+  // doors ask. The live OBJECT door never does, so it keeps `runtime:presentation` for both
+  // calls, as it always has. ⛔ EVERY ARGUMENT THIS DOES NOT UNDERSTAND REFUSES THE STATEMENT:
+  // an unknown name is a parameter whose drawing effect nobody has measured.
+  const CANDLE_PARAMS = Object.freeze({
+    plotcandle: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'wickcolor', 'editable',
+      'show_last', 'bordercolor', 'display', 'format', 'precision', 'force_overlay']),
+    plotbar: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'editable',
+      'show_last', 'display', 'format', 'precision', 'force_overlay']),
+  })
+  const CANDLE_ROLES = RUNTIME_CANDLE_ROLES
+  // ⭐ NUMBERED PER CALL KIND: the pane pairs the n-th `plotcandle` with the n-th host `plotcandle`
+  // and the n-th `plotbar` with the n-th `plotbar`, so `group` is that ordinal. (A counter shared by
+  // both calls left a sparse list per kind and crashed the pane on a script that wrote both.)
+  const candleGroups = { plotcandle: 0, plotbar: 0 }
+  const emitCandleCall = (callName, call, scope, out, at) => {
+    const names = CANDLE_PARAMS[callName]
+    const given = new Map()
+    let position = 0
+    for (const a of (call && call.args) || []) {
+      if (a && a.name) {
+        if (!names.includes(a.name)) {
+          note('runtime:presentation')
+          throw new RuntimeRefusal('runtime:presentation', `\`${callName}()\` with \`${a.name} =\``, at)
+        }
+        given.set(a.name, argValue(a))
+      } else {
+        if (position >= names.length) {
+          throw new RuntimeRefusal('runtime:statement', `\`${callName}()\` with too many arguments`, at)
+        }
+        given.set(names[position], argValue(a))
+        position += 1
+      }
+    }
+    const group = candleGroups[callName]
+    candleGroups[callName] += 1
+    const descs = []
+    for (const role of CANDLE_ROLES) {
+      const node = given.get(role)
+      if (!node) throw new RuntimeRefusal('runtime:statement', `\`${callName}()\` with no \`${role}\``, at)
+      if (holdsText(node, scope)) {
+        throw new RuntimeRefusal('runtime:statement',
+          `\`${callName}()\` was handed text - a candle draws numbers`, at)
+      }
+      if (holdsColour(node, scope)) {
+        note('runtime:colour')
+        throw new RuntimeRefusal('runtime:colour', `\`${callName}()\` draws numbers, and a colour is not one`, at)
+      }
+      outputs.push({ call: callName, role, group })
+      descs.push(outputs[outputs.length - 1])
+      out.push(emit(outputs.length - 1, lowerExpr(node, scope)))
+    }
+    const close = descs[3]
+    if (at && Number.isInteger(at.line)) close.line = at.line
+    // What the call says around its numbers, for the pane to read (it decides what it can draw).
+    const displayNode = given.get('display')
+    const overlayNode = given.get('force_overlay')
+    const titleNode = given.get('title')
+    close.candle = {
+      ...(titleNode && titleNode.type === 'string' && titleNode.value ? { title: String(titleNode.value).slice(0, 60) } : {}),
+      ...(displayNode ? { display: displayNode.type === 'name' ? displayNode.name : 'unread' } : {}),
+      ...(overlayNode ? { forceOverlay: literalBool(overlayNode) ?? 'unread' } : {}),
+      ...(given.has('show_last') ? { showLast: true } : {}),
+    }
+    if (!wantColours) return
+    for (const [field, param] of [['colour', 'color'], ['wick', 'wickcolor'], ['border', 'bordercolor']]) {
+      if (given.has(param)) emitColourField(given.get(param), scope, out, close, field, true)
+    }
   }
 
   /** Emit ONE output for an output call, and answer its index.
@@ -10487,6 +10586,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           continue
         }
+        // ⭐ W4-T13 - a candle / bar is the pane's to draw FROM THE RUN (`opts.plotColours`).
+        if ((word === 'plotcandle' || word === 'plotbar') && wantColours && !definedNames.has(word)) {
+          emitCandleCall(word, parseWholeExpression(toks), scope, out, locate(first))
+          continue
+        }
         if (PRESENTATION_CALLS.has(word)) {
           note('runtime:presentation')
           throw new RuntimeRefusal('runtime:presentation', `\`${word}()\``, locate(first))
@@ -11854,7 +11958,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   for (const ce of colourEmits) {
     const of = outputs.indexOf(ce.desc)
     ce.stmt.output = outputs.length
-    ce.desc.colour = { output: outputs.length }
+    ce.desc[ce.field || 'colour'] = { output: outputs.length }
     outputs.push({ call: 'colour', of })
   }
 
