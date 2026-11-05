@@ -342,9 +342,21 @@ describe('the 44px touch floor', () => {
   it('every control in the popover reaches var(--tap-min) on the touch tier (<=1024px)', () => {
     const touch = /@media \(max-width: 1024px\) \{([\s\S]*?)\n\}/.exec(css)
     expect(touch, 'no touch-tier block').not.toBeNull()
-    for (const cls of ['.action', '.select', '.field']) {
+    // VIS-3 (audit 2026-11-05): the actions are buttons.css `.btn`s now, whose own rule gives every button the
+    // floor at <=1024px (styles/buttons.css); the popover's own fields keep theirs here.
+    for (const cls of ['.select', '.field']) {
       expect(touch[1]).toMatch(new RegExp(`\\${cls} \\{ min-height: var\\(--tap-min\\); \\}`))
     }
+    const buttons = readFileSync(join(process.cwd(), 'src/styles/buttons.css'), 'utf8')
+    expect(buttons).toMatch(/@media \(max-width: 1024px\) \{\s*\.btn \{\s*min-height: var\(--tap-min\);/)
+  })
+
+  it('VIS-3: Create link is the one solid primary; Publish is an outline; no bespoke .action class', () => {
+    const jsx = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteShareControls.jsx'), 'utf8')
+    expect(jsx).toMatch(/className="btn btn-primary btn-sm" onClick=\{createLink\}/)
+    expect(jsx).toMatch(/className="btn btn-outline btn-sm" onClick=\{\(\) => askPublish\('note'\)\}/)
+    expect(jsx).not.toMatch(/styles\.action/)
+    expect(css).not.toMatch(/^\.action \{/m)
   })
 })
 

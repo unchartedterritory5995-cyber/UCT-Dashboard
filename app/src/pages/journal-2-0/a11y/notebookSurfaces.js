@@ -346,6 +346,8 @@ export const SURFACES = Object.freeze({
   // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
   // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
+  'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
