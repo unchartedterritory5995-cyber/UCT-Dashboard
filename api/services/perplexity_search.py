@@ -23,6 +23,7 @@ from typing import Any, AsyncIterator
 
 import requests
 
+from api.services import call_deadline
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
@@ -627,6 +628,10 @@ def web_search(
     data = None
     attempts = 0                      # requests actually sent (each may be billed): the Agent ledger needs the count
     for attempt in range(_MAX_RETRIES + 1):
+        if call_deadline.expired():       # the caller's own deadline: no further billed attempt
+            _log_call(cost_surface, model, resolved_mode, ok=False, error="deadline")
+            return {"answer": "", "citations": [], "error": "deadline passed",
+                    "mode": resolved_mode, "model": model}
         attempts += 1
         try:
             r = requests.post(
@@ -636,7 +641,7 @@ def web_search(
                     "Content-Type": "application/json",
                 },
                 json=payload,
-                timeout=timeout,
+                timeout=call_deadline.cap(timeout),
             )
             r.raise_for_status()
             data = r.json()

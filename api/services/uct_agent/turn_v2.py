@@ -25,6 +25,7 @@ import secrets
 import time
 from typing import Any, Callable
 
+from api.services import call_deadline
 from api.services.uct_agent import turn as t1
 
 log = logging.getLogger(__name__)
@@ -715,6 +716,8 @@ def _send_group(state: dict, group: list, on_event, wait_step) -> dict | None:
         state["usage"]["stages"]["steps"].append(t1._ms(t0))
         if res is None:
             step["status"] = "timeout"
+            if call_deadline.expired():                  # the wait ended because the turn did
+                return _final(state, TURN_DEADLINE, "turn_deadline")
             return _final(state, STEP_TIMEOUT, "step_timeout")
         results.append(dict(res))
     if any(r.get("status") == "proposed" for r in results):
@@ -732,6 +735,8 @@ def _send_group(state: dict, group: list, on_event, wait_step) -> dict | None:
         state["awaiting"] = {"tool_use_id": uid, "step": step, "cap": cap,
                              "others": [{"tool_use_id": u, "step": st} for u, c, st in waiting[:-1]]}
         state["expires"] = time.time() + PAUSE_TTL_S
+        # active time so far: the resume's clock starts from it, and time on the card is not counted
+        state["active_s"] = float(state.get("active_s") or 0.0) + time.monotonic() - state["started"]
         _rails(state)["paused"] += 1
         if on_event is not None:
             on_event({"t": "paused", "turnId": state["token"], "id": step["id"]})

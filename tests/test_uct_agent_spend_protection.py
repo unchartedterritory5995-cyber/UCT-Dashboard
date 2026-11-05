@@ -680,7 +680,7 @@ def test_DEADLINE_ends_a_v2_turn_with_its_sentence_and_only_what_it_spent(v2env)
     assert budget.state()["reserved_usd"] == 0
 
 
-def test_DEADLINE_a_resumed_turn_gets_a_new_meter_so_a_card_is_not_counted():
+def test_DEADLINE_each_meter_has_its_own_clock_unless_it_is_given_the_turns():
     a = budget.Meter(user_id="u", request_id=None)
     a.deadline = time.monotonic() - 1
     assert budget.Meter(user_id="u", request_id=None).deadline > time.monotonic()

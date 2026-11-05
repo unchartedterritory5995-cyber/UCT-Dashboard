@@ -270,11 +270,12 @@ class ResumeIn(BaseModel):
 
 
 def _v2_waiter(q: "queue.Queue", uid):
+    from api.services import call_deadline
     from api.services.uct_agent import limits, turn_v2
 
     def wait_step(step_id: str):
         limits.renew(uid)                             # a step may wait longer than the in-flight lease
-        deadline = time.monotonic() + turn_v2.STEP_TIMEOUT_S
+        deadline = time.monotonic() + call_deadline.cap(turn_v2.STEP_TIMEOUT_S)    # and never past the turn's own
         while True:
             left = deadline - time.monotonic()
             if left <= 0:
@@ -361,7 +362,8 @@ def agent_turn_resume(body: ResumeIn, background: BackgroundTasks, user: dict = 
 
     def work() -> None:
         try:
-            events.put(("final", _resume(body, background, user, on_event=lambda e: events.put(("event", e)))))
+            events.put(("final", _resume(body, background, user, on_event=lambda e: events.put(("event", e)),
+                                         on_expired=_ends_stream(events))))
         except HTTPException as e:
             events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
         except Exception:  # noqa: BLE001
@@ -375,6 +377,16 @@ def agent_turn_resume(body: ResumeIn, background: BackgroundTasks, user: dict = 
                              headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"}, background=background)
 
 
+def _ends_stream(events: "queue.Queue"):
+    """A worker stuck past the turn's deadline cannot end its own stream, so the deadline's cleanup does."""
+    from api.services.uct_agent import budget
+
+    def end() -> None:
+        events.put(("error", {"status": 400, "detail": budget.TURN_DEADLINE}))
+        events.put(None)
+    return end
+
+
 def _relay(events: "queue.Queue"):
     yield ": open\n\n"
     while True:
@@ -386,7 +398,7 @@ def _relay(events: "queue.Queue"):
         yield f"data: {json.dumps(ev, separators=(',', ':'))}\n\n"
 
 
-def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -> dict:
+def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event, on_expired=None) -> dict:
     from api.services.uct_agent import budget, limits, turn as agent
     uid = user["id"]
     if not planner_v2():
@@ -400,26 +412,31 @@ def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -
     except limits.Refused as e:
         raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
     token, q = body.turnId, queue.Queue()
+    clock = budget.TurnClock(used_s=p["state"].get("active_s") or 0.0)
+    clock.on_expire(lambda: _v2_unregister(token))
+    if on_expired is not None:
+        clock.on_expire(on_expired)
     with _V2_LOCK:
         _V2_STEPS[token] = (q, str(uid))
-    try:
-        out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=None, heartbeat=lambda: limits.renew(uid),
-                                                turn_request_id=p["state"].get("turn_request_id")),
-                             v2={"wait_step": _v2_waiter(q, uid), "turn_token": token, "resume": p["state"],
-                                 "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
-                                                   "added": body.added}})
-    except budget.BudgetRefused as e:
-        raise HTTPException(status_code=503 if e.reason == "unavailable" else 429, detail=e.sentence)
-    except agent.TurnError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:  # noqa: BLE001
-        kind, said = provider_failure(e)
-        log.exception("[uct-agent] v2 resume failed kind=%s class=%s", kind, type(e).__name__)
-        raise HTTPException(status_code=503, detail=said)
-    finally:
-        _v2_unregister(token)
-        limits.done(slot)
+    with limits.guard(uid, slot, clock):
+        try:
+            out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
+                                 meter=budget.Meter(user_id=uid, request_id=None, heartbeat=lambda: limits.renew(uid), clock=clock,
+                                                    turn_request_id=p["state"].get("turn_request_id")),
+                                 v2={"wait_step": _v2_waiter(q, uid), "turn_token": token, "resume": p["state"],
+                                     "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
+                                                       "added": body.added}})
+        except budget.BudgetRefused as e:
+            raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason == "turn_deadline" else 429),
+                                detail=e.sentence)
+        except agent.TurnError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:  # noqa: BLE001
+            kind, said = provider_failure(e)
+            log.exception("[uct-agent] v2 resume failed kind=%s class=%s", kind, type(e).__name__)
+            raise HTTPException(status_code=503, detail=said)
+        finally:
+            _v2_unregister(token)
     if out.get("paused"):
         return _v2_park(token, uid, p["cid"], out, p["voice"])
     return _v2_finish(uid, p["cid"], out, p["voice"], background)
@@ -441,7 +458,7 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
 
     def work() -> None:
         try:
-            events.put(("final", _turn(body, background, user, on_event=on_event)))
+            events.put(("final", _turn(body, background, user, on_event=on_event, on_expired=_ends_stream(events))))
         except HTTPException as e:
             events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
         except Exception:  # noqa: BLE001 -- the member gets a sentence, never a broken stream
@@ -467,12 +484,12 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
                              background=background)
 
 
-def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
+def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, on_expired=None) -> dict:
     """⭐ PHASE 0B ADMISSION, in order: the member's in-flight slot and the request-rate windows
     (limits.py — a reroute continues its request and takes no new window place), then the existing
     daily count, the opt-in dollar env cap and the population cap, then the member REQUEST that every
     paid call of this turn counts against (budget.py: at most 2 calls, and the $ caps per call)."""
-    from api.services.uct_agent import limits
+    from api.services.uct_agent import budget, limits
     uid = user["id"]
     if body.repair is not None and not body.reroute:
         raise HTTPException(status_code=400, detail="A repair continues a request; it can't start one.")
@@ -481,10 +498,11 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
         slot = limits.admit(uid, new_request=not body.reroute)
     except limits.Refused as e:
         raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
-    try:
-        return _admitted_turn(body, background, user, on_event, headline)
-    finally:
-        limits.done(slot)
+    clock = budget.TurnClock()
+    if on_expired is not None:
+        clock.on_expire(on_expired)
+    with limits.guard(uid, slot, clock):
+        return _admitted_turn(body, background, user, on_event, headline, clock)
 
 
 def _news_turn(body: TurnIn) -> tuple[TurnIn, dict | None]:
@@ -534,7 +552,8 @@ def _news_conversation(uid, body: TurnIn, headline: dict | None) -> tuple[str, l
     return cid, turns, None, False
 
 
-def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, headline: dict | None = None) -> dict:
+def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, headline: dict | None = None,
+                   clock=None) -> dict:
     from api.services import ai_population_cap
     from api.services.uct_agent import budget, limits, news, store, turn as agent
     t0 = time.perf_counter()
@@ -605,6 +624,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
         v2["step_groups"] = body.stepGroups is True
+        clock.on_expire(lambda: _v2_unregister(token))
     # The browser's NL-1 repair (useAgent.js) IGNORES a failed repair and goes on with its first plan: the member never
     # sees that failure, so it is never written to the transcript (the chat on reload and the next turn's history must
     # match what the member saw). Every other failure is shown to the member and stored.
@@ -616,7 +636,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
                              meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id,
-                                                turn_request_id=request_id, heartbeat=lambda: limits.renew(uid)),
+                                                turn_request_id=request_id, heartbeat=lambda: limits.renew(uid), clock=clock),
                              reroute=body.reroute,
                              interpreter=body.interpreter, repair=body.repair, reference=body.reference,
                              headline=headline, answer_only=answer_only, v2=v2)
@@ -672,7 +692,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         background.add_task(_set_title, uid, cid, title)
     elif nameable == NO_TITLE_YET and not env.get("need_groups"):
         # Still unnamed and the turn gave no name: one small naming call after the reply is sent.
-        background.add_task(_name_unnamed, uid, cid, request_id)
+        background.add_task(_name_unnamed, uid, cid, request_id, clock)
     background.add_task(store.record_telemetry, uid, cid, {
         # routing in the existing columns: path model | routed | reroute; disposition need_groups
         "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
@@ -709,7 +729,7 @@ def _set_title(uid: int, cid: str, title: str) -> None:
         log.exception("[uct-agent] could not store the conversation title")
 
 
-def _name_unnamed(uid: int, cid: str, request_id: int | None = None) -> None:
+def _name_unnamed(uid: int, cid: str, request_id: int | None = None, clock=None) -> None:
     """Background: name a chat that is still on its first message. Never over the member's own
     name (the store refuses that) or over a name the Agent gave it meanwhile. The naming call is
     one of its request's calls (budget.py): a request that used both is not named this turn."""
@@ -719,7 +739,7 @@ def _name_unnamed(uid: int, cid: str, request_id: int | None = None) -> None:
             return
         try:
             title = agent.name_conversation(store.get_turns(uid, cid) or [],
-                                            meter=budget.Meter(user_id=uid, request_id=request_id))
+                                            meter=budget.Meter(user_id=uid, request_id=request_id, clock=clock))
         except budget.BudgetRefused as e:
             log.info("[uct-agent] naming skipped reason=%s", e.reason)
             return

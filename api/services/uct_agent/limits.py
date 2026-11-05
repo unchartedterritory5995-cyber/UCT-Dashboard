@@ -16,8 +16,13 @@ Durable and atomic: the events and the in-flight lease live in the Agent store, 
 `BEGIN IMMEDIATE`, so two requests racing for the last slot get exactly one, and a restart does
 not forget the hour. A lease left behind by a crash expires after UCT_AGENT_INFLIGHT_LEASE_S.
 All values are environment-configurable (blank, 0 or garbage = the default, never "unlimited").
-FAILS OPEN on a store error (one log line): the dollar cap (budget.py) fails CLOSED and is the
-guarantee; these limits shape traffic and must not become an outage on a busy disk.
+
+THE GLOBAL IN-FLIGHT LIMIT holds across every process that shares this store: the count and the insert are one
+`BEGIN IMMEDIATE`. It is a real limit, so admission FAILS CLOSED on a store error: admitting without a slot
+would let a busy disk run past it. This costs no availability, because the ledger (budget.py) lives in the same
+store and refuses every paid call when it fails, and deterministic work never comes here.
+
+SQLite's locking needs one local file: it does not hold across instances on separate volumes or a network share.
 """
 from __future__ import annotations
 
@@ -25,8 +30,11 @@ import contextlib
 import logging
 import os
 import secrets
+import threading
 import time
 from typing import Any
+
+from api.services import call_deadline
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +52,12 @@ DEFAULTS = {
 MEMBER_RATE = "You're sending requests faster than UCT Agent can take them. Please wait a moment and try again."
 GLOBAL_RATE = "UCT Agent is very busy right now. Please try again in a moment."
 IN_FLIGHT = "UCT Agent is still working on your last request. Wait for it to finish, then try again."
+UNAVAILABLE = "UCT Agent can't take requests right now. Nothing was sent. Please try again in a moment."
+
+#: How often a running turn renews its lease: well inside UCT_AGENT_INFLIGHT_LEASE_S, whatever the turn is doing.
+RENEW_EVERY_S = 30.0
+#: How long past its deadline a turn gets to end itself, with its own sentence, before the guard cleans up for it.
+EXPIRE_GRACE_S = 5.0
 
 
 def limit(name: str) -> int:
@@ -132,9 +146,9 @@ def admit(user_id: Any, *, new_request: bool, now: float | None = None) -> str |
                 raise
     except Refused:
         raise
-    except Exception:  # noqa: BLE001 -- fail open; the dollar cap is the guarantee
-        log.exception("[uct-agent limits] store unavailable; request admitted without rate limiting")
-        return None
+    except Exception:  # noqa: BLE001 -- fail closed: see the module docstring
+        log.exception("[uct-agent limits] store unavailable; request refused")
+        raise Refused("store_unavailable", UNAVAILABLE, 5)
 
 
 def give_back(user_id: Any, now_at: float | None = None) -> None:
@@ -170,6 +184,31 @@ def renew(user_id: Any, now: float | None = None) -> None:
                       (now + limit("UCT_AGENT_INFLIGHT_LEASE_S"), str(user_id)))
     except Exception:  # noqa: BLE001
         log.exception("[uct-agent limits] could not renew the in-flight lease")
+
+
+@contextlib.contextmanager
+def guard(user_id: Any, token: str | None, clock):
+    """Hold a turn's slot for as long as the turn runs, and no longer. A thread beside the turn renews the lease whatever the turn is doing, so a slow stage cannot lose the slot
+    and let a 21st turn in. Past the deadline plus EXPIRE_GRACE_S it frees the slot and runs the clock's cleanups,
+    even if the turn's own thread is stuck. A crashed process stops renewing, so its lease expires by itself."""
+    stop = threading.Event()
+
+    def watch() -> None:
+        while not stop.wait(max(0.01, min(RENEW_EVERY_S, clock.left() + EXPIRE_GRACE_S))):
+            if clock.left() + EXPIRE_GRACE_S <= 0:
+                log.warning("[uct-agent limits] a turn passed its deadline; cleaning up after it")
+                done(token)
+                clock.expire()
+                return
+            renew(user_id)
+
+    threading.Thread(target=watch, name="uct-agent-guard", daemon=True).start()
+    try:
+        with call_deadline.until(clock.at):
+            yield
+    finally:
+        stop.set()
+        done(token)
 
 
 def _reset_for_test() -> None:

@@ -56,10 +56,13 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 import time
 from datetime import datetime
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
+
+from api.services import call_deadline
 
 log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
@@ -68,9 +71,8 @@ DEFAULT_CAP_USD = 5.0
 DEFAULT_MAX_CALLS = 2
 DEFAULT_TURN_USD = 0.25
 TURN_USD_ENV = "UCT_AGENT_TURN_USD"
-# THE TURN DEADLINE, from the per-call timeouts: planner v2's 6 default rounds at 60 s each, plus one research
-# lookup's 4 attempts at 30 s. It is checked BEFORE each paid call, so nothing already running is cut off and
-# nothing is reserved past it. A turn can overrun it only by the one call that started in time.
+# THE TURN DEADLINE, a maximum safety bound, from the per-call timeouts: planner v2's 6 default rounds at 60 s
+# each, plus one research lookup's 4 attempts at 30 s. TurnClock below says how it is enforced.
 DEFAULT_TURN_DEADLINE_S = 6 * 60.0 + 4 * 30.0
 TURN_DEADLINE_ENV = "UCT_AGENT_TURN_DEADLINE_S"
 #: Cache-write multipliers by TTL: the default (5 minute) cache write bills 1.25x input, a 1-hour write 2x.
@@ -499,6 +501,60 @@ def _is_provider_error_response(e: BaseException) -> bool:
         return False
 
 
+class TurnClock:
+    """The one deadline of a member's turn. `used_s` is the active time a paused turn already spent, so a run of
+    resumes cannot each start a fresh deadline; the time a member spends on an approval card is not active time.
+
+    ENFORCEMENT, cooperative because Python cannot kill a thread: no paid call starts past it, each model and
+    lookup timeout is capped to what is left (call_deadline), a stream stops reading, and a wait on the browser
+    ends. `expire()` is the backstop for a worker that is still blocked: limits.guard calls it, and it runs each
+    cleanup once, so nothing the turn holds outlives the deadline even while that thread is stuck."""
+
+    def __init__(self, used_s: float = 0.0):
+        self.started = time.monotonic()
+        self.used_before_s = max(0.0, float(used_s or 0.0))
+        self.at = self.started + turn_deadline_s() - self.used_before_s
+        self.expired = threading.Event()
+        self._cleanups: list[Callable[[], None]] = []
+        self._lock = threading.Lock()
+
+    def left(self) -> float:
+        return self.at - time.monotonic()
+
+    def used_s(self) -> float:
+        return self.used_before_s + (time.monotonic() - self.started)
+
+    def on_expire(self, fn: Callable[[], None]) -> None:
+        with self._lock:
+            self._cleanups.append(fn)
+
+    def expire(self) -> None:
+        """Run every cleanup, once. One that fails never stops the others."""
+        self.expired.set()
+        with self._lock:
+            cleanups, self._cleanups = self._cleanups, []
+        for fn in cleanups:
+            try:
+                fn()
+            except Exception:  # noqa: BLE001
+                log.exception("[uct-agent budget] a turn deadline cleanup failed")
+
+
+def close_open_reservations(turn_request_id: int | None) -> int:
+    """Close this turn's open reservations AT THEIR WORST CASE. Never released to $0: a call still running may be
+    billed, and $0 would let the daily cap undercount. A late settle then finds nothing open, so it cannot lower it."""
+    if turn_request_id is None:
+        return 0
+    try:
+        with contextlib.closing(_connect()) as c:
+            return c.execute("UPDATE agent_spend SET status='settled', actual_usd=reserved_usd, outcome='deadline',"
+                             " settled_at=? WHERE turn_request_id = ? AND status='reserved'",
+                             (int(time.time()), int(turn_request_id))).rowcount
+    except Exception:  # noqa: BLE001 -- the row stays reserved: it counts at its worst case and the stale sweep closes it
+        log.exception("[uct-agent budget] could not close a turn's open reservations")
+        return 0
+
+
 class Meter:
     """The paid-call gate for one member request: every Messages call and research lookup goes
     through `call` / `research`. `None` user/request (scripts, tests) still meters dollars.
@@ -506,19 +562,27 @@ class Meter:
     in-flight lease (limits.renew)."""
 
     def __init__(self, *, user_id: Any, request_id: int | None, site_reader=None, turn_request_id: int | None = None,
-                 heartbeat: Callable[[], None] | None = None):
+                 heartbeat: Callable[[], None] | None = None, clock: TurnClock | None = None):
         self.user_id = user_id
         self.request_id = request_id
         self.turn_request_id = request_id if request_id is not None else turn_request_id
         self.site_reader = site_reader
         self.heartbeat = heartbeat
         self.spent_usd = 0.0
-        self.deadline = time.monotonic() + turn_deadline_s()
+        self.clock = clock or TurnClock()
+        self.clock.on_expire(lambda: close_open_reservations(self.turn_request_id))
+
+    @property
+    def deadline(self) -> float:
+        return self.clock.at
+
+    @deadline.setter
+    def deadline(self, at: float) -> None:
+        self.clock.at = at
 
     def _check_deadline(self) -> None:
-        """Refused before anything is reserved or sent. A paused v2 turn resumes under a new Meter, so
-        the time a member spends on an approval card is not counted."""
-        if time.monotonic() >= self.deadline:
+        """Refused before anything is reserved or sent."""
+        if self.clock.left() <= 0:
             raise BudgetRefused("turn_deadline", TURN_DEADLINE)
 
     def calls_left(self) -> int:
@@ -554,7 +618,8 @@ class Meter:
         if self.heartbeat is not None:
             self.heartbeat()
         try:
-            resp = fn(**kwargs)
+            with call_deadline.until(self.clock.at):
+                resp = fn(**kwargs)
         except Exception as e:
             partial = getattr(e, "uct_usage", None)
             if isinstance(partial, dict):
@@ -568,6 +633,7 @@ class Meter:
                 release(rid)
             else:
                 self.spent_usd += settle(rid, actual_usd=None, outcome="worst_case")
+            self._check_deadline()               # settled first: the member's sentence, nothing left open
             raise
         if getattr(resp, "usage", None) is None:
             self.spent_usd += settle(rid, actual_usd=None)
@@ -586,9 +652,11 @@ class Meter:
         if self.heartbeat is not None:
             self.heartbeat()
         try:
-            res = fn()
+            with call_deadline.until(self.clock.at):
+                res = fn()
         except Exception:
             self.spent_usd += settle(rid, actual_usd=None, outcome="worst_case")
+            self._check_deadline()
             raise
         if isinstance(res, dict) and res.get("cached"):
             self.spent_usd += settle(rid, actual_usd=0.0, outcome="cached")
@@ -615,7 +683,7 @@ def state(day: str | None = None) -> dict:
             " SUM(status='settled'), SUM(status='reserved'), SUM(status='released'),"
             " COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),"
             " COALESCE(SUM(cache_read_tokens),0), COALESCE(SUM(cache_write_tokens),0),"
-            " SUM(outcome IN ('no_usage','worst_case','partial','research_retried','stale_worst_case'))"
+            " SUM(outcome IN ('no_usage','worst_case','partial','research_retried','stale_worst_case','deadline'))"
             " FROM agent_spend WHERE et_day = ?", (day,)).fetchone()
         by_cat = {row[0]: round(float(row[1] or 0), 6) for row in c.execute(
             "SELECT category, SUM(CASE status WHEN 'reserved' THEN reserved_usd ELSE actual_usd END)"
