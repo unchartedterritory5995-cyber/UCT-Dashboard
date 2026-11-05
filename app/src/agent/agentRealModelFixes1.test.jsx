@@ -393,7 +393,6 @@ describe('review of #866, D1: a show that cannot lift hide-all changes nothing',
     const { say, h, board } = p.mount(...ONE('AAPL'))
     const v = withHideAll(h, { land: false })
     await withRsi(say)
-    p.st.envelopes.push(planIs('indicator.hide', 'ixe:c', { instance: 'rsi' }))
     await say('hide the rsi')
     v.hidden.set('c', true)
     p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
@@ -434,7 +433,6 @@ describe('review of #866, D1: a show that cannot lift hide-all changes nothing',
     const { say, h } = p.mount(...ONE('AAPL'))
     const v = withHideAll(h)
     await withRsi(say)
-    p.st.envelopes.push(planIs('indicator.hide', 'ixe:c', { instance: 'rsi' }))
     await say('hide the rsi')
     await say('hide volume')
     v.hidden.set('c', true)
@@ -443,4 +441,21 @@ describe('review of #866, D1: a show that cannot lift hide-all changes nothing',
     await say('bring that back please')
     expect(v.hidden.get('c')).toBe(true)
   }, 40000)
+})
+
+describe('review of #866, D2: only Multi Chart skips the repair', () => {
+  const stray = { action: 'chart.addTab', target: 'board', args: { widget: 'zz-not-there', timeframe: null, name: null } }
+  it('a board plan the planner refuses on the normal board still goes back to the model once', () => {
+    const { h } = p.mount(...ONE('AAPL'))
+    expect(preflightRefusals(h, [stray])[0]).toMatch(/no widget “zz-not-there”/)
+  })
+  it('a workspace plan too', () => {
+    const { h } = p.mount(...ONE('AAPL'))
+    const symbols = Array.from({ length: 13 }, (_, i) => `T${i}`)
+    expect(preflightRefusals(h, [{ action: 'widget.addCharts', target: 'workspace', args: { symbols, timeframe: null, chart_type: null, exact: null } }]).length).toBe(1)
+  })
+  it('NEGATIVE: on the grid the same plan is refused by name, with no repair', () => {
+    const { h } = p.mount(...ONE('AAPL'))
+    expect(preflightRefusals({ ...h, multiChart: true }, [stray])).toEqual([])
+  })
 })

@@ -170,7 +170,7 @@ export function preflightRefusals(host, ops) {
   try {
     if (!Array.isArray(ops) || !ops.length) return []
     // what Multi Chart refuses is refused by name before anything runs: no second paid call could change that
-    if (screenGridOps(ops, host)?.refuse) return []
+    if (host?.multiChart && screenGridOps(ops, host)?.refuse) return []
     if (ops.some(o => Object.values(o?.args || {}).some(isRef) || getCapability(o?.action)?.creates)) return []
     const kinds = [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
     const plan = planOps(collectTargets(host, kinds), ops)
