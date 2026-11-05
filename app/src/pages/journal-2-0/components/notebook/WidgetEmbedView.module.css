@@ -393,3 +393,42 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 }
 /* The hint's live region at rest: present (so a screen reader hears it when filled), takes no room. */
 .hintIdle { margin: 0; height: 0; overflow: hidden; }
+
+/* S12 remainder (audit M9, point 2): phone chart mode. These classes render only at phone width
+   (WidgetEmbedView reads it), so their floors are declared once, unscoped: every target is 44 px. */
+.phoneTitle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  padding: 0 var(--space-sm);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--text-bright);
+}
+.phoneLive { color: var(--gain); font-weight: 500; }
+/* The whole chart is the door to full screen: a real link over the canvas, under the header (z 5). */
+.phoneOpen {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-sm);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.phoneOpenHint {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: rgba(12, 12, 12, 0.72);
+  color: var(--menu-text);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 12px;
+}
