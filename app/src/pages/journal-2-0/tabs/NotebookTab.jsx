@@ -2802,6 +2802,16 @@ export default function NotebookTab() {
             // for the active library, not a meaningful choice here.
             <span className={styles.trashLabel}>Trash</span>
           ) : (
+            // VIS-6 (live finding, 390 px): the touch tier's `select { font-size: 16px !important }` (tokens.css, it
+            // stops iOS zooming on focus) drew "Updated" far larger than Folders and View beside it. At <=1024 px the
+            // select stays 16 px but is a transparent layer over `.sortFace`, a face drawn with the SAME button classes
+            // as View. The select is still the control (its name, its keyboard, the native picker); the face is
+            // aria-hidden. Above 1024 px the face is not drawn and the select renders as before.
+            <span className={styles.sortWrap} data-sort-wrap="">
+            <span className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.sortFace}`} aria-hidden="true" data-sort-face="">
+              {SORT_OPTIONS.find((o) => o.value === (sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort))?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
+              <UIcon name="chevronDown" {...TOOLBAR_ICON} />
+            </span>
             <select
               className={styles.sortSelect}
               // FX4 (wave 10, coordinator round 2): the Table view's header
@@ -2823,6 +2833,7 @@ export default function NotebookTab() {
                   ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
               {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
             </select>
+            </span>
           )}
           {tickerFilter && (
             <span className={styles.tickerFilterChip}>${tickerFilter}</span>
