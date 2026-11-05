@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { getCapability } from './capabilities'
 import { ELIGIBLE_SETTINGS } from '../components/chart/chartSettingsDescriptors'
-import { WIDGET_REGISTRY, widgetControls } from '../widgets/registry'
+import { WIDGET_REGISTRY } from '../widgets/registry'
+import { ownControls, widgetControls } from '../widgets/widgetControls'
 import { CATEGORY_FILTERS } from '../pages/charts/widgets/tradeExchangeNewsModel'
 import { widgetOptionFields, widgetUnboundedFields } from './capabilities/board'
 
@@ -102,7 +103,7 @@ describe('widget.setOption: exactly what the widget reads', () => {
     for (const [t] of mounted) {
       const offered = widgetControls(t).map(f => f.key)
       for (const f of WIDGET_REGISTRY[t].paramsSchema || []) {
-        expect(offered.includes(f.key), `${t}.${f.key}`).toBe(f.live === true || (WIDGET_REGISTRY[t].controls || []).some(c => c.key === f.key))
+        expect(offered.includes(f.key), `${t}.${f.key}`).toBe(f.live === true || ownControls(t).some(c => c.key === f.key))
       }
       expect(new Set(offered).size, t).toBe(offered.length)
     }
@@ -111,7 +112,7 @@ describe('widget.setOption: exactly what the widget reads', () => {
   it('a `controls` row kept in opts is read back from opts by its mounted widget, at the head of its path', () => {
     const silent = mounted.flatMap(([t, file]) => {
       const reads = optsReadsOf(file)
-      return (WIDGET_REGISTRY[t].controls || []).filter(c => !c.door && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
+      return ownControls(t).filter(c => !c.door && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
     })
     expect(silent).toEqual([])
   })
@@ -119,7 +120,7 @@ describe('widget.setOption: exactly what the widget reads', () => {
     const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx' }
     const missing = []
     for (const [t, file] of mounted) {
-      const rows = (WIDGET_REGISTRY[t].controls || []).filter(c => c.door || c.from === 'door')
+      const rows = ownControls(t).filter(c => c.door || c.from === 'door')
       if (!rows.length) continue
       const src = code(read(SOURCE[t] || file))
       const at = src.indexOf('useWidgetDoor(')
@@ -143,11 +144,23 @@ describe('widget.setOption: exactly what the widget reads', () => {
     }
     expect(missing).toEqual([])
   })
+  it('every row is well formed: a known type, a key once per widget, its choices or where they come from, a number\'s range', () => {
+    const TYPES = ['enum', 'boolean', 'number', 'day', 'set']
+    for (const t of Object.keys(WIDGET_REGISTRY)) {
+      const rows = ownControls(t)
+      expect(new Set(rows.map(c => c.key)).size, t).toBe(rows.length)
+      for (const c of rows) {
+        expect(TYPES, `${t}.${c.key}`).toContain(c.type)
+        if (c.type === 'enum' || c.type === 'set') expect(c.from === 'door' || c.options?.length > 0, `${t}.${c.key}`).toBe(true)
+        if (c.type === 'number') expect(c.min < c.max, `${t}.${c.key}`).toBe(true)
+      }
+    }
+  })
   it('a list the registry copies stays what the widget shows', () => {
-    expect(WIDGET_REGISTRY.tradeExchangeNews.controls.find(c => c.key === 'category').options).toEqual(CATEGORY_FILTERS)
-    expect(WIDGET_REGISTRY.researchLibrary.controls.find(c => c.key === 'category').options).toEqual(CATEGORY_FILTERS)
+    expect(ownControls('tradeExchangeNews').find(c => c.key === 'category').options).toEqual(CATEGORY_FILTERS)
+    expect(ownControls('researchLibrary').find(c => c.key === 'category').options).toEqual(CATEGORY_FILTERS)
     const flow = read('pages/charts/widgets/OptionsFlowWidget.jsx')
-    const prem = WIDGET_REGISTRY.optionsflow.controls.find(c => c.key === 'minPremium').options
+    const prem = ownControls('optionsflow').find(c => c.key === 'minPremium').options
     expect([...flow.matchAll(/\{ v: (\d+), label:/g)].map(m => Number(m[1]))).toEqual(prem)
     for (const v of ['SWEEP', 'BLOCK', 'BULL', 'BEAR']) expect(flow).toContain(`k: '${v}'`)
     expect(read('pages/ThemeTrackerPage.jsx')).toContain("'1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd'")

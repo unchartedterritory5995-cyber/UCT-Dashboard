@@ -63,19 +63,6 @@
 //                    MERGED settings blob (never a null opts.settings that
 //                    would re-resolve from a global pref and repaint a March
 //                    entry when the user re-themes in April).
-// - controls       — what a person can set on the mounted widget that paramsSchema does not offer: the machine-readable
-//                    description widget.setOption validates, writes and reads back (widgetControls below). Metadata only.
-//                    { key, type: 'enum'|'boolean'|'number'|'day'|'set', options|min+max+integer, default, clears,
-//                      path:    where it lives in `opts` ('filters.cp'); default: key
-//                      from:    'door' = its choices are the mounted widget's own right now (pages/charts/widgetDoors.js)
-//                      door:    true = the widget's own writer, not `opts` (its state lives in the widget, or the write
-//                               is more than one key); Undo goes back through that writer
-//                      inverse: true = a set whose stored members are the ones turned OFF (a hidden list)
-//                      inOpts:  true = a door write whose whole result is in `opts`: Undo needs only those opts
-//                      all:     true = an empty set means every member, and a full one is stored empty }
-//                    A `set` takes "+member" / "-member". agent/settingsLiveness.test.js proves a `controls` entry the
-//                    same way as a `live` field: an `opts` control is read back from opts by the mounted widget, a door
-//                    control is read and written by its door.
 // - plainText      — (params) => the search-index line for this embed. Feeds
 //                    BOTH plain-text serializers (client extractPlainText and
 //                    the server's extract_plain_text — the server branch is
@@ -209,7 +196,6 @@ export const PARAM_FIELD_TYPES = Object.freeze([
 ])
 const MENU_FLAGS = Object.freeze(['workspace', 'tab', 'mobile', 'journal'])
 const _isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
-const CONTROL_TYPES = ['enum', 'boolean', 'number', 'day', 'set']
 const _isText = (v) => typeof v === 'string' && v.trim() !== ''
 const _isPositive = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0
 
@@ -265,23 +251,6 @@ export function validatePanelManifest(id, manifest) {
         problems.push(`${at}.live is true or absent, on an enum, boolean or number field`)
       }
     })
-  }
-
-  if (manifest.controls !== undefined && !Array.isArray(manifest.controls)) {
-    problems.push('controls must be an array when present')
-  } else {
-    const seen = new Set()
-    for (const [i, c] of (manifest.controls || []).entries()) {
-      const at = `controls[${i}]`
-      if (!_isPlainObject(c) || !_isText(c.key)) { problems.push(`${at}.key must be a non-empty string`); continue }
-      if (seen.has(c.key)) problems.push(`${at}.key ${JSON.stringify(c.key)} is declared twice`)
-      seen.add(c.key)
-      if (!CONTROL_TYPES.includes(c.type)) problems.push(`${at}.type must be one of ${CONTROL_TYPES.join('|')}`)
-      if ((c.type === 'enum' || c.type === 'set') && c.from !== 'door' && !(Array.isArray(c.options) && c.options.length > 0)) {
-        problems.push(`${at} needs options, or from: 'door'`)
-      }
-      if (c.type === 'number' && !(Number.isFinite(c.min) && Number.isFinite(c.max) && c.min < c.max)) problems.push(`${at} is a number and needs min and max`)
-    }
   }
 
   if (!_isPlainObject(manifest.menus)) {
@@ -455,13 +424,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'period', type: 'enum', options: ['1d', '1w', '1m', '3m', '1y', 'ytd'], default: '1d', door: true },
-      { key: 'sortDir', type: 'enum', options: ['asc', 'desc'], default: 'desc', door: true },
-      { key: 'todayBasis', type: 'enum', options: ['close', 'open'], default: 'close' },
-      { key: 'openTheme', type: 'enum', from: 'door', door: true },
-      { key: 'themeSet', type: 'enum', from: 'door', door: true },
-    ],
     paramsSchema: [
       { key: 'period', type: 'enum', options: ['1d', '1w', '1m', '3m', '1y', 'ytd'], default: '1d' },
       { key: 'sortDir', type: 'enum', options: ['asc', 'desc'], default: 'desc' },
@@ -536,10 +498,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'view', type: 'enum', options: ['heatmap', 'ratio'], default: 'heatmap' },
-      { key: 'reading', type: 'set', from: 'door', path: 'hiddenMetrics', inverse: true },
-    ],
     paramsSchema: [
       { key: 'hiddenMetrics', type: 'json', default: [] },
       { key: 'tileStyle', type: 'enum', options: ['values', 'spark', 'area', 'ghost'], default: 'values' },
@@ -564,7 +522,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [{ key: 'index', type: 'set', from: 'door', path: 'hiddenSymbols', inverse: true }],
     paramsSchema: [
       { key: 'hiddenSymbols', type: 'json', default: [] },
       // The captured READINGS as they stood: {sym, price, chg} per index.
@@ -741,10 +698,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'day', type: 'day', door: true },
-      { key: 'tbdOpen', type: 'boolean', default: false, door: true },
-    ],
     paramsSchema: [
       // The widget renders ONE DAY (the week is only the fetch granularity).
       { key: 'date', type: 'string', required: true },       // 'YYYY-MM-DD'
@@ -778,12 +731,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'wide' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'minPremium', type: 'enum', options: [0, 250000, 500000, 1000000], default: 0, path: 'filters.minPrem' },
-      { key: 'callPut', type: 'enum', options: ['all', 'C', 'P'], default: 'all', path: 'filters.cp' },
-      { key: 'printType', type: 'enum', options: ['all', 'SWEEP', 'BLOCK'], default: 'all', path: 'filters.type' },
-      { key: 'direction', type: 'enum', options: ['all', 'BULL', 'BEAR'], default: 'all', path: 'filters.dir' },
-    ],
     paramsSchema: [
       { key: 'lead', type: 'enum', options: ['tape', 'biggest', 'sentiment'], default: 'tape', live: true },
       { key: 'scope', type: 'enum', options: ['market', 'symbol'], default: 'market', live: true },
@@ -821,10 +768,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'wide' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'universe', type: 'enum', from: 'door', path: 'activeUniverse' },
-      { key: 'universes', type: 'set', from: 'door', door: true, inOpts: true },
-    ],
     paramsSchema: [
       { key: 'minPrice', type: 'number', default: 0 },
       { key: 'minCount', type: 'number', default: 1, min: 1, max: 260, integer: true },  // StockChart buildFutureWhitespace: Math.min(260, Math.max(1, n))
@@ -858,7 +801,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [{ key: 'list', type: 'enum', from: 'door', path: 'volActive' }],
     paramsSchema: [
       { key: 'minRvol', type: 'number', default: 2 },
       { key: 'minMove', type: 'number', default: 0.25 },
@@ -879,15 +821,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'chart', fill: 'wide' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'xKey', type: 'enum', from: 'door', default: 'rvol' },
-      { key: 'yKey', type: 'enum', from: 'door', default: 'chg_today' },
-      { key: 'sizeKey', type: 'enum', from: 'door', default: '' },
-      { key: 'labelMode', type: 'enum', options: ['spotlight', 'all', 'off'], default: 'spotlight' },
-      { key: 'followList', type: 'boolean', default: false },
-      { key: 'universe', type: 'enum', from: 'door', path: 'activeUniverse', clears: ['followList'] },
-      { key: 'universes', type: 'set', from: 'door', door: true, inOpts: true },
-    ],
     paramsSchema: [
       { key: 'source', type: 'string', default: 'index' },   // universe descriptor
       { key: 'value', type: 'string', default: 'sp500' },
@@ -914,10 +847,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'category', type: 'set', options: ['News', 'Macro', 'Options', 'Earnings', 'Price', 'Press Release', 'Filing', 'Other'], path: 'categories', all: true, clears: ['presetId'] },
-      { key: 'watchlist', type: 'enum', from: 'door', path: 'watchlistId' },
-    ],
     paramsSchema: [
       { key: 'settings', type: 'json' },
       { key: 'follow', type: 'boolean', default: true, live: true },
@@ -946,10 +875,6 @@ const PANEL_MANIFESTS = {
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: false, tab: false, mobile: false, journal: false },
     themeFollow: true,
-    controls: [
-      { key: 'category', type: 'set', options: ['News', 'Macro', 'Options', 'Earnings', 'Price', 'Press Release', 'Filing', 'Other'], path: 'categories', all: true, clears: ['presetId'] },
-      { key: 'watchlist', type: 'enum', from: 'door', path: 'watchlistId' },
-    ],
     paramsSchema: [
       { key: 'settings', type: 'json' },
       { key: 'collection', type: 'string' },
@@ -1273,15 +1198,6 @@ export const WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 // These describe the catalogue. Rails about categories, catalog cards and
 // params coverage read THESE, because an unreleased widget is still a widget
 // and a stored embed of one must still render.
-/** Everything a person can set on a mounted widget, in one list: the schema's `live` fields, then its `controls`. A control of
- *  the same key as a schema field replaces it (a Theme Tracker's period is its own state, not the captured param). */
-export function widgetControls(type) {
-  const w = WIDGET_REGISTRY[type]
-  if (!w) return []
-  const own = w.controls || []
-  return [...(w.paramsSchema || []).filter(f => f.live === true && !own.some(c => c.key === f.key)), ...own]
-}
-
 export const WORKSPACE_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.workspace)
 export const TAB_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.tab)
 export const MOBILE_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.mobile)
