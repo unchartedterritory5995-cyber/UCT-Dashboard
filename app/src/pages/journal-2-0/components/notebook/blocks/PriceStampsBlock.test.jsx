@@ -44,7 +44,7 @@ describe('PriceStampsBlock', () => {
   it('the switch off: says what it needs, and the toggle is disabled (S24)', () => {
     STYLES_ON = false
     render(<PriceStampsBlock params={{ on: 'yes' }} setParams={vi.fn()} editable />)
-    expect(screen.getByText('This block needs Journal styles, which is not on for you.')).toBeTruthy()
+    expect(screen.getByText('This block needs Templates, which is not on for you.')).toBeTruthy()   // S7 fix round 1: the switch is named Templates for members
     expect(screen.getByRole('switch', { name: 'Stamp prices as I write' }).disabled).toBe(true)
     expect(screen.queryByText(/Write \$NVDA and press Enter/)).toBeNull()
   })

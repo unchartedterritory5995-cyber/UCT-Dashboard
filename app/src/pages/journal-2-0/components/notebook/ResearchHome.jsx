@@ -28,14 +28,17 @@ import AskPanel from './AskPanel'
 import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/earningsPrepShared'
 import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
+import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
+import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
+import { FirstRunInlineSlot } from './FirstRunGate'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
 import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
-import { SkeletonLine } from '../../../../components/Skeleton'
+import { SkeletonBlock, SkeletonLine, SkeletonPill } from '../../../../components/Skeleton'
 import LoadFailed from '../LoadFailed'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
 import styles from './ResearchHome.module.css'
@@ -117,7 +120,7 @@ function NoteRow({ note, onOpen, reason }) {
 // Notebook UX pass: on Research Home the box sits in a collapsible section whose header already
 // names it, so `titleHidden` keeps its heading for screen readers and the skip link below while
 // it is not drawn a second time.
-export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '', titleHidden = false }) {
+export function ReviewDraftsHomeBox({ onOpenNote, onNotice = null, skipLinkClassName = '', titleHidden = false }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const headingRef = useRef(null)
@@ -136,7 +139,12 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '', titleH
     setError(null)
     try {
       // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
-      const { note } = await fn(await loadReviewDrafts())
+      const { note, created } = await fn(await loadReviewDrafts())
+      // S2 (B12): Today's recap that MADE the day's note says where it went (the server files it in
+      // a root Daily folder, made on first use). A recap added to an existing note says nothing more.
+      if (period === 'daily' && created) onNotice?.(DAILY_FOLDER_NOTICE)
+      // S6 (B5): a drafted review made or changed a note behind every list's back.
+      invalidateNoteViews({ tags: true })
       // Lane KEYS3 (Q18): a drafted review's findings are its collapsed blocks. The note opens
       // with focus on the first of them, not at its top (18 to 24 Tab stops above it).
       onOpenNote(note, null, { to: 'collapsed' })
@@ -216,6 +224,7 @@ export const RECENT_NOTES_SHOWN = 5
 // Notebook reads `#search`, shows the panel and puts the cursor in its box
 // (lib/notebookSearchDoor.js). Nothing here queries notes.
 //
+// ⚰️ The paragraphs below describe P0.13's hand-off, which VIS-4 retired (see inside HomeSearch).
 // P0.13 (search in place): this used to be a BUTTON, so pressing it opened a SECOND search box in
 // the panel while its own stayed on screen. It is now a real search input: the first character a
 // member types is handed to the panel (the door carries it as `state.q`, the panel seeds its box
@@ -229,21 +238,55 @@ export const RECENT_NOTES_SHOWN = 5
 // box is still on screen REPLACES that entry and carries the full text typed so far, so Back never
 // lands on stale `#search` entries and the panel is seeded with all of it. The flag resets whenever
 // the box steps aside or comes back (the component stays mounted while `hidden`).
-export function HomeSearch({ hidden = false }) {
+export function HomeSearch({ hidden = false, onOpenNote }) {
   const navigate = useNavigate()
-  const handedOff = useRef(false)
-  useEffect(() => { handedOff.current = false }, [hidden])
+  const [q, setQ] = useState('')
+  const [debounced, setDebounced] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 200)
+    return () => clearTimeout(t)
+  }, [q])
+  // VIS-4 (audit 2026-11-05, visual issue 12): the query and its results STAY IN THE MAIN COLUMN. ⚰️ The first
+  // keystroke used to hand the text to the folders panel's search (P0.13's door), so the box vanished, the
+  // query reappeared in the 236 px sidebar and "New note" jumped 558 px left. Now the box keeps the text and
+  // lists matching titles under itself (the All notes read, `q`); "Search by meaning" still opens the
+  // Notebook's full search through the same door, carrying the text.
+  const { notes, isLoading } = useJ2Notes({ q: debounced, limit: HOME_SEARCH_SHOWN, enabled: Boolean(debounced) })
   if (hidden) return null
+  const openFullSearch = () => navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`, { state: { q: q.trim() } })
   return (
-    <input type="search" className={styles.searchBox} data-home-search="" aria-label="Search your notes"
-      placeholder="Search your notes" autoComplete="off"
-      onChange={(e) => {
-        if (!e.target.value) return
-        navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`, { state: { q: e.target.value }, replace: handedOff.current })
-        handedOff.current = true
-      }} />
+    <div className={styles.searchWrap} data-home-search-wrap="">
+      <input type="search" className={styles.searchBox} data-home-search="" aria-label="Search your notes"
+        placeholder="Search your notes" autoComplete="off" value={q}
+        aria-controls={debounced ? 'home-search-results' : undefined}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Escape' && q) { e.stopPropagation(); setQ('') } }} />
+      {debounced && (
+        <div id="home-search-results" className={styles.searchResults} role="region" aria-label="Search results">
+          {isLoading && notes.length === 0 ? (
+            <p className={styles.searchEmpty} role="status">Searching…</p>
+          ) : notes.length === 0 ? (
+            <p className={styles.searchEmpty} role="status">No notes match “{debounced}”.</p>
+          ) : (
+            <ul className={styles.searchList}>
+              {notes.map((n) => (
+                <li key={n.id}>
+                  <button type="button" className={styles.searchHit} onClick={() => onOpenNote?.(n)}>
+                    {n.title || 'Untitled'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className={`btn btn-ghost btn-sm ${styles.searchMore}`} onClick={openFullSearch}>
+            <UIcon name="search" size={13} gold={false} /> Search by meaning
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
+const HOME_SEARCH_SHOWN = 8
 
 // ⛔ RECENT NOTES ARE THE HOME READ'S OWN `continueWorking` (the notes the member opened
 // last). A member who has never opened a note (an import, the first visit after a move) has
@@ -336,6 +379,9 @@ export default function ResearchHome({
   // function its All Notes list header's "Today" button already calls (one authority, never
   // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
   onOpenToday = null,
+  // Audit 2026-11-05, spec S2 (B12): where the reviews box says a sentence that must outlive the
+  // navigation it triggers (NotebookTab's notice stack). Optional; absent, nothing is said.
+  onNotice = null,
   // P0.1 (the Home "New note" door): NotebookTab's own New-note sheet opener and its voice-note
   // starter (null while the voice gate is off, so the menu never lists a door that opens
   // nothing). Optional so every existing caller/test keeps working unchanged.
@@ -563,12 +609,21 @@ export default function ResearchHome({
     // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's
     // own section-row layout (title, then a couple of rows) -- same idiom
     // as NoteEditorPage's note-loading skeleton -- instead of bare text.
+    // VIS-5 (audit 2026-11-05): a HOME skeleton -- the header row (search box and New note) and two sections of
+    // rows, the shape Home lands in -- so the page does not grow by a screen when the read arrives (CLS 0.169
+    // desktop / 0.220 phone was measured on Home). It was a title and two text lines.
     return (
-      <div className={styles.loading} role="status" aria-label="Loading…">
-        <SkeletonLine width="40%" height={18} />
-        <div style={{ height: 16 }} />
-        <SkeletonLine width="85%" height={13} />
-        <SkeletonLine width="65%" height={13} />
+      <div className={styles.homeSkeleton} role="status" aria-label="Loading…" data-home-skeleton="">
+        <div className={styles.skeletonHeader}>
+          <SkeletonBlock height={38} />
+          <SkeletonPill width={112} height={38} />
+        </div>
+        {[0, 1].map((section) => (
+          <div key={section} className={styles.skeletonSection}>
+            <SkeletonLine width="28%" height={16} />
+            {[0, 1, 2].map((row) => <SkeletonBlock key={row} height={40} />)}
+          </div>
+        ))}
       </div>
     )
   }
@@ -676,6 +731,8 @@ export default function ResearchHome({
         <div className={welcomeExtras ? styles.welcomeActions : styles.firstRunActions} data-tour="first-run">
           {actions}
         </div>
+        {/* S16 -> S17 (audit 2026-11-05): after a Skip, the first run's two questions, asked here. */}
+        <FirstRunInlineSlot onOpenNote={onOpenNote} />
         {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
         {welcomeExtras && (
           <div className={styles.previewDisclosure}>
@@ -699,6 +756,10 @@ export default function ResearchHome({
     )
   }
 
+  // S16 -> S17 (audit 2026-11-05): after a Skip, the first run's two questions, asked here. The SECOND child of every
+  // Home layout (quiet, failed and full alike), so a home that flips between them never remounts what follows it.
+  const firstRunInline = <FirstRunInlineSlot onOpenNote={onOpenNote} />
+
   const nothingToShow = [
     home.continueWorking, home.favorites, home.activeTheses, home.openPositionResearch, home.needsReview,
   ].every((s) => !s || s.length === 0)
@@ -710,7 +771,7 @@ export default function ResearchHome({
   const homeTop = (
     <div className={styles.homeTop} data-export-exclude>
       <div className={styles.homeHeader}>
-        <HomeSearch hidden={searchActive} />
+        <HomeSearch hidden={searchActive} onOpenNote={onOpenNote} />
         {hasAnyNotes && onOpenNewNoteSheet && (
           <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet} onFromStyle={onFromStyle}
             onVoice={onStartVoiceNote} onToday={onOpenToday} />
@@ -757,7 +818,7 @@ export default function ResearchHome({
   const reviewBox = reviewDraftsEnabled() ? (
     <HomeBox id="nb-home-reviews" title="Reviews that write themselves" meta="Daily, weekly and monthly"
       defaultOpen openSignal={tourSignal}>
-      <ReviewDraftsHomeBox onOpenNote={openNote} skipLinkClassName={skipLinkClassName} titleHidden />
+      <ReviewDraftsHomeBox onOpenNote={openNote} onNotice={onNotice} skipLinkClassName={skipLinkClassName} titleHidden />
     </HomeBox>
   ) : null
   // Wave 13 lane 13Q-3 (click-budget fix, Q5): same "one authority" reasoning as the three
@@ -825,6 +886,7 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
+        {firstRunInline}
         {noticesBox}
         {setupsBox}
         {askSection}
@@ -845,6 +907,7 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
+        {firstRunInline}
         {noticesBox}
         {setupsBox}
         {askSection}
@@ -865,6 +928,7 @@ export default function ResearchHome({
   return (
     <>
     {homeTop}
+    {firstRunInline}
     {noticesBox}
     {setupsBox}
     {askSection}

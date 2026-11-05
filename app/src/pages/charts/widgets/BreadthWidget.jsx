@@ -23,6 +23,7 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
@@ -422,6 +423,19 @@ export default function BreadthWidget({
 
   const drill = useCallback(() => navigate('/breadth'), [navigate])
 
+  // Freeze exactly what the widget shows right now — shared by the one-click default send, the Wave 1 destination-picker
+  // and the Agent, so every path captures the identical payload.
+  const doorCapture = () => {
+    const series = {}
+    for (const k of visibleKeys) series[k] = seriesFor(k)
+    return buildBreadthCapture({ row: currentRow, series, updated },
+      { hiddenMetrics: opts?.hiddenMetrics, settings: bwSettings })
+  }
+  useWidgetDoor(() => ({
+    options: () => ({ reading: ALL_METRICS.map(m => ({ value: m.key, label: m.label || m.key })) }),
+    capture: () => (journalDoor && !readOnly && currentRow ? { kind: 'breadth', capture: doorCapture(), label: 'Breadth' } : null),
+  }))
+
   const lightCanvas = useMemo(() => isLightCanvas(bwSettings), [bwSettings])
   const custom = useMemo(() => customBreadthColors(bwSettings, lightCanvas), [bwSettings, lightCanvas])
   const cellColors = custom ? custom.cellColors : (lightCanvas ? LIGHT_TIER_CELL_COLORS : TIER_CELL_COLORS)
@@ -430,6 +444,8 @@ export default function BreadthWidget({
   // ── View: Heatmap (default) ⇄ Ratio Bars (persist via workspace opts; a local
   // fallback keeps the toggle live in frozen/journal embeds with no onOptsChange) ──
   const [localView, setLocalView] = useState(null)
+  // a change that arrives through opts (the layout, Undo, the Agent) wins over the last click here
+  useEffect(() => { setLocalView(null) }, [opts?.view])
   const view = localView ?? (opts?.view === 'ratio' ? 'ratio' : 'heatmap')
   const setView = useCallback((v) => {
     setLocalView(v)
@@ -489,15 +505,6 @@ export default function BreadthWidget({
             owner decision). A mid-session capture preserves the live intraday row the
             4:15 collector discards. */}
         {journalDoor && !readOnly && currentRow && (() => {
-          // Freeze exactly what the widget shows right now — shared by the
-          // one-click default send AND the Wave 1 destination-picker, so
-          // both paths capture the identical payload.
-          const doorCapture = () => {
-            const series = {}
-            for (const k of visibleKeys) series[k] = seriesFor(k)
-            return buildBreadthCapture({ row: currentRow, series, updated },
-              { hiddenMetrics: opts?.hiddenMetrics, settings: bwSettings })
-          }
           return (
             <>
               <button
@@ -541,7 +548,7 @@ export default function BreadthWidget({
         <button
           ref={settingsBtnRef} type="button"
           className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
         ><UIcon name="gear" size={13} /></button>
         )}
         {addOpen && (

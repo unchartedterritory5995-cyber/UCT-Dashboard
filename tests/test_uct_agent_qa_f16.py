@@ -9,6 +9,8 @@ Screener's own server files untouched; and no UCT weight or formula named in the
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from api.services.uct_agent import turn
@@ -97,53 +99,67 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 
 
 #: The base the "member Screener untouched" rail diffs against, first one that resolves in THIS checkout:
-#: agent-ci fetches `origin/agent/int`; a master checkout has `origin/master`; a local clone may only carry `master`.
-DIFF_BASE_REFS = ("origin/agent/int", "origin/master", "master")
+#: ⛔ THE SCREENER AS LAST REVIEWED (AUDIT ruling, 2026-11-05). The guard used to diff against `agent/int`, a moving ref long
+#: behind master, so any branch that merged master read as an Agent edit. A pin keeps the guard meaningful: the member
+#: Screener's server code must match this commit exactly. Moving it is a review decision, made in the commit that changes
+#: that code on purpose, and that commit's message says why. This pin is #834's last Screener commit, ab52621501, which holds #827's primitives (920fdcc1bb) and #834's token test,
+#: `logic_enabled`, `live_fields` and clock definitions.
+#: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
+#: then report that very change.
+#: move this pin when a reviewed PR intentionally changes api/services/screener
+#: MOVED 2026-11-05 to be5fd05ea2, PR #857 (the Pine landing train): its reviewed W5-T14 (scans) and W5-T15 (backtest)
+#: lanes change backtest.py, scan_evaluator.py, scan_run.py and scan_runtime.py on purpose (reviews W5-T14 ab034f0d28,
+#: W5-T15 8550ef036b, train review 1eb3ba53e5). The pin is the merge commit that brought that reviewed change to master, and it also holds #834's ab52621501.
+SCREENER_PIN = "be5fd05ea27367bd46ee00a0474e5203550b6c63"
+SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
-def _diff_base(refs=DIFF_BASE_REFS, run=None):
-    """The first ref in `refs` that `git rev-parse --verify` accepts, or None when none does (a shallow checkout
-    with no base ref, e.g. the master deploy gate's fetch-depth 2)."""
+def _diff_base(pin=SCREENER_PIN, run=None):
+    """The pin, or None when this checkout does not hold it (the master deploy gate fetches depth 2). `^{commit}` is what
+    checks the object exists: `rev-parse --verify` accepts any 40 hex digits otherwise, and the skip would never happen."""
     import subprocess
     run = run or subprocess.run
-    for ref in refs:
-        r = run(["git", "rev-parse", "--verify", "--quiet", ref], capture_output=True, text=True)
-        if r.returncode == 0:
-            return ref
-    return None
+    r = run(["git", "rev-parse", "--verify", "--quiet", pin + "^{commit}"], capture_output=True, text=True)
+    return pin if r.returncode == 0 else None
 
 
-def test_the_diff_base_is_the_first_ref_the_checkout_resolves(monkeypatch):
-    """Pins the fallback order: agent/int (agent-ci) before master (the gate), before a bare local `master`."""
+def _screener_diff(base, head="HEAD"):
     import subprocess
-    calls = []
+    return subprocess.run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
 
-    def fake(cmd, **kw):
-        calls.append(cmd[-1])
-        return subprocess.CompletedProcess(cmd, 0 if cmd[-1] in present else 128, "", "fatal: bad revision")
 
-    present = {"origin/agent/int", "origin/master", "master"}
-    assert _diff_base(run=fake) == "origin/agent/int" and calls == ["origin/agent/int"]     # stops at the first hit
-    calls.clear(); present = {"origin/master", "master"}
-    assert _diff_base(run=fake) == "origin/master" and calls == ["origin/agent/int", "origin/master"]
-    calls.clear(); present = {"master"}
-    assert _diff_base(run=fake) == "master"
-    calls.clear(); present = set()
-    assert _diff_base(run=fake) is None
-    assert calls == ["origin/agent/int", "origin/master", "master"]              # every ref tried, in this order
+def test_the_diff_base_is_the_pin_when_the_checkout_holds_it():
+    import subprocess
+
+    def fake(code):
+        return lambda cmd, **kw: subprocess.CompletedProcess(cmd, code, "", "")
+    assert _diff_base(run=fake(0)) == SCREENER_PIN
+    assert _diff_base(run=fake(128)) is None
+    assert re.fullmatch(r"[0-9a-f]{40}", SCREENER_PIN), "a full commit id, never a ref that can move"
+
+
+def test_a_pin_this_checkout_does_not_hold_is_not_taken_for_a_commit():
+    assert _diff_base(pin="0" * 40) is None
 
 
 def test_the_member_screeners_own_server_code_is_untouched_by_the_F16_work():
-    import subprocess
     base = _diff_base()
     if base is None:
-        # A shallow checkout with no base ref (the master deploy gate fetches depth 2 and no agent/int) cannot carry
-        # this comparison at all; a skip is the honest reading there. agent-ci fetches the ref and runs it for real.
-        pytest.skip("no base ref in this checkout (none of %s resolves)" % ", ".join(DIFF_BASE_REFS))
-    r = subprocess.run(["git", "diff", "--name-only", f"{base}...HEAD", "--", "api/services/screener",
-                        "api/routers/screener.py", "api/routers/scan_results.py"], capture_output=True, text=True)
+        # A shallow checkout without the pin (the master deploy gate fetches depth 2) cannot carry this comparison at
+        # all; a skip is the honest reading there. agent-ci fetches full history and runs it for real.
+        pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
+    r = _screener_diff(base)
     assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "", r.stdout
+
+
+def test_the_guard_can_say_no():
+    """CONTROL, on real history: the pinned commit changed the Screener, so the same diff across it must name a file."""
+    if _diff_base() is None:
+        pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
+    r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
+    assert r.returncode == 0, r.stderr
+    assert "api/services/screener/scan_evaluator.py" in r.stdout.split()  # the file the pinned commit changed (W5-T14)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

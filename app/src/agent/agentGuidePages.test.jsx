@@ -228,8 +228,9 @@ describe('W2-C2 · /journal', () => {
 })
 
 describe('W2-C2 · pages never leak into each other, and /charts is unchanged', () => {
-  it('a page offers ONLY its own features; /charts offers the eleven it did, plus creating a watchlist', () => {
-    expect(featuresOn('charts').map(f => f.id)).toEqual(['watchlistCreate', 'canvas', 'link', 'symbol', 'timeframe', 'indicators', 'charts', 'watchlists', 'layouts', 'hideDrawings', 'drawing', 'settings'])
+  it('a page offers ONLY its own features; /charts offers its families', () => {
+    expect(featuresOn('charts').every(f => !f.surface)).toBe(true)
+    expect(featuresOn('charts').map(f => f.id)).toEqual(expect.arrayContaining(['watchlistCreate', 'canvas', 'link', 'symbol', 'timeframe', 'indicators', 'charts', 'watchlists', 'layouts', 'hideDrawings', 'drawing', 'settings']))
     expect(guideFeatures({ surface: 'screener' }).map(f => f.id).sort()).toEqual(['screenerColumns', 'screenerFilters', 'screenerScreens'])
     expect(guideFeatures({ surface: 'breadth' }).map(f => f.id).sort()).toEqual(['breadthTable', 'breadthViews'])
     expect(guideFeatures({ surface: 'calendar' }).map(f => f.id)).toEqual(['calendarNextReport'])

@@ -120,7 +120,10 @@ describe('⭐ what this engine can and cannot express, measured on the product p
     // liquidation-levels' ten labels character for character.
     expect(cell('str.format("{0,number,#.##}", close)')).toBe('OK')
     expect(FIX.last_bar.F12_len_str_format).toBe(5)
-    // ⛔ a pattern no capture shows draws nothing rather than a guess
+    // ⛔ W3-S1 r3 — `percent` draws nothing until capture Q-W3-3 matches (master's rail)
     expect(cell('str.format("{0,number,percent}", close)')).not.toBe('OK')
+    // ⛔ a preset no capture settles draws nothing rather than a guess
+    expect(cell('str.format("{0,number,integer}", close)')).not.toBe('OK')
+    expect(cell('str.format("{0,number,currency}", close)')).not.toBe('OK')
   })
 })

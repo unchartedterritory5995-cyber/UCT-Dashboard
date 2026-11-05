@@ -28,7 +28,9 @@ import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
-import { screenGridOps } from './gridMode'
+import { screenGridOps, watchGridSync } from './gridMode'
+import { boardRefusalIn } from '../pages/charts/boardBound'
+import { chartFaultedSince, onChartFault } from '../pages/charts/chartFaults'
 import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps, INTERNAL_ERROR, rethrowUnderTest } from './executor'
 import { notDoneLines } from './notDone'
@@ -188,7 +190,9 @@ const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it =
 const THAT_ONE = /\b(?:that one|that chart)\b/gi
 const NEW_ONE = /\b(?:the|that|this) new (?:one|chart)\b|\bthe (?:one|chart) (?:you )?just (?:added|made|created|opened)\b|\bthe (?:one|chart) (?:you )?(?:added|made|created|opened)\b/gi
 // ⭐ Multi Chart: "the one I just changed" is the member's last change, "the one you just changed" the Agent's, "the one we
-// changed" whichever came last (`changed(who)`). Nothing to point at → the words are left alone, and the chart is asked for.
+// changed" whichever came last (`changed(who)`). Nothing to point at → the words are left alone, and the chart is asked for:
+// `changed` with no `subject`. A clicked chart answers none of this: a click on a cell's own control selects that cell too, so
+// after a member's change the "selected" chart is exactly the wrong guess for "the one you just changed".
 const JUST_CHANGED = /\bthe (?:one|chart) (i|we|you) (?:just |last )?(?:changed|edited|updated|set|switched)\b/i
 const CHANGED_BY = { i: 'member', you: 'agent', we: null }
 const gridChanged = (host) => { const grid = host?.charts?.grid?.(); return grid ? (who) => grid.lastChanged(who) : null }
@@ -202,6 +206,7 @@ export function asSubjectWords(text, created = null, changed = null) {
   const said = changed ? JUST_CHANGED.exec(t) : null
   const cell = said ? changed(CHANGED_BY[said[1].toLowerCase()]) : null
   if (cell) return { text: out.replace(JUST_CHANGED, 'it'), subject: cell, changed: true }
+  if (said) return { text: out, subject: null, changed: true }
   NEW_ONE.lastIndex = 0
   if (NEW_ONE.test(t)) {
     NEW_ONE.lastIndex = 0
@@ -237,6 +242,18 @@ export function partLabel(ops, host) {
   }
   return labels.length ? `the change to ${labels.join(' and ')}` : 'the change to your existing widgets'
 }
+// the charts a committed plan aimed at, by the ref a chart is addressed by
+function plannedChartRefs(plan, res) {
+  const refs = new Set()
+  for (const p of plan?.plans || []) {
+    const kind = getTargetKind(p.kind)
+    const ref = p.virtual ? res?.created?.[p.ref] : (p.kind === 'chart' ? p.ref : (kind?.groupOf ? kind.groupOf(p.ref) : null))
+    if (ref) refs.add(String(ref))
+  }
+  return [...refs]
+}
+// How long a receipt answers for its chart: the render that throws waits for the bars of the change.
+const FAULT_WATCH_MS = 8000
 // ⭐ W2 (receipts): every chart a committed plan touched, read AFTER the commit — { label, symbol, tf, isNew } — so the
 // receipt's one-liner names each chart with its symbol and timeframe (receiptView). Display only; never throws.
 function receiptCharts(host, plan, res) {
@@ -436,6 +453,19 @@ function fanOutOf(ops) {
 // run, what the rest did STAYS (a new list is never deleted because it could not be opened) and
 // the member is told exactly that. Never a way around approval: they are on the same card.
 const isDeferred = (o) => !!getCapability(o?.action)?.deferred
+// ⭐ C2: "add AMD to my Momentum list and save this layout as Swing 2". A save is `exclusive` because it takes the board as it
+// is, has no Undo and is bound to that board on its card, so it can't commit inside another change. As the LAST step of a plan
+// it needs none of that: it is a deferred step, run once the rest has landed, on the board the rest left. A rest that failed or
+// wasn't saved never reaches it. Anywhere but last it would save a board the member asked to change afterwards, so it stays
+// refused, and so does a rest that is itself exclusive (opening a layout) or changes the layouts.
+const SAVES_THE_BOARD = new Set(['layout.saveAs', 'layout.saveCurrent'])
+function saveRunsLast(ops) {
+  if (!Array.isArray(ops) || ops.length < 2 || !SAVES_THE_BOARD.has(ops[ops.length - 1]?.action)) return false
+  return ops.slice(0, -1).every(o => {
+    const c = getCapability(o?.action)
+    return !!c && c.target !== 'layouts' && (!c.exclusive || c.sequential)
+  })
+}
 // ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
 export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
 /** True when a capability's answer carries nothing the member could see (no text, table, view, link or chart). */
@@ -479,8 +509,9 @@ function landDeferred(ops, created, names, approved = false) {
     action: o.action, target: realTarget(o),
     args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
     pendingLists, followNote,
-    // a step that was ON the card the member approved runs as approved (re-validated, never re-asked)
-    ...(approved ? { approvedStep: true } : {}),
+    // a step that was ON the card the member approved runs as approved (re-validated, never re-asked). Not saving over the open
+    // layout: that replaces its saved copy with no Undo, and what was on the card was the board before this request changed it
+    ...(approved && o.action !== 'layout.saveCurrent' ? { approvedStep: true } : {}),
   }))
 }
 
@@ -545,8 +576,12 @@ let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
 const UNDO_MAX = 20
 
-function refusalText(refusals) {
-  const reasons = [...new Set(refusals.map(r => r.reason))]
+// A reason may already be a whole sentence of its own ("I didn't change it: …  Nothing was changed."): it is said once
+const PREFIX_SAID = /^I didn['’]t (?:change|add) (?:it|anything):\s*/
+const SUFFIX_SAID = /\s*Nothing (?:was|has) changed(?: yet)?\.?$/
+const bareReason = (r) => String(r ?? '').replace(PREFIX_SAID, '').replace(SUFFIX_SAID, '')
+export function refusalText(refusals) {
+  const reasons = [...new Set(refusals.map(r => bareReason(r.reason)))]
   return reasons.length === 1
     ? `I didn't change anything: ${reasons[0]}`
     : `I didn't change anything:\n${reasons.map(r => `- ${r}`).join('\n')}`
@@ -777,13 +812,39 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
   }, [setConversationId])
 
+  // ⛔ A RECEIPT DOES NOT OUTLIVE ITS CHART. Everything that confirms a change reads the chart's settings, and those hold it
+  // while the chart itself goes to its error boundary, up to a bar fetch later. So a receipt keeps listening for a short while,
+  // and a chart that faulted takes the success back, in words, with Undo only where the chart is still there to take it.
+  const watchChartFaults = useCallback((refs, { receiptId, undoId, startedAt, label, actions }) => {
+    if (!refs.length) return
+    const report = (ref) => {
+      const alive = (() => { try { return !!host?.charts?.read?.(ref) } catch { return false } })()
+      const text = `${label || 'That chart'} hit an error after that change, so it isn't showing it. ${alive ? 'Say “undo” to take the change back.' : 'Remove the chart and add it again.'}`
+      patchItem(receiptId, alive ? { faulted: true } : { faulted: true, undoId: null })
+      // a chart that is gone can't be changed back: the words, the card and "undo" all say the same
+      if (!alive && undoId) undoRef.current = undoRef.current.filter(e => e.id !== undoId)
+      push({ role: 'refusal', text })
+      record({ member: null, outcome: text, outcomeData: { kind: 'failed', actions, gates: ['chart-fault'] }, telemetry: { refused: true, actions } })
+    }
+    const now = refs.find(r => chartFaultedSince(r, startedAt))
+    if (now) { setTimeout(() => report(now), 0); return }
+    const off = onChartFault((id) => {
+      if (!refs.includes(id)) return
+      off(); clearTimeout(timer)
+      setTimeout(() => report(id), 50)     // the boundary reports before React has finished taking the chart down: read it after
+    })
+    const timer = setTimeout(off, FAULT_WATCH_MS)
+  }, [host, patchItem, push, record])
+
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
     const leadLines = lead && !lead.used ? lead.lines : []
     const refusalPush = (text) => {
+      const full = boardRefusalIn(text)
+      if (full) { try { host?.widgets?.raiseBound?.(full) } catch { /* the words below still say it */ } }
       const before = leadLines.length ? `${leadLines.join(' ')} ` : ''
       if (lead) lead.used = true
       push({ role: 'refusal', text: `${before}${note ? `${text} ${note}` : text}` })
@@ -794,6 +855,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       deferred = opsIn.filter(isDeferred)
       allOps = opsIn.filter(o => !isDeferred(o))
       opsIn = allOps
+    }
+    if (saveRunsLast(allOps)) {
+      deferred = [...deferred, allOps[allOps.length - 1]]
+      allOps = allOps.slice(0, -1); opsIn = allOps
     }
     // SEQUENTIAL capabilities (indicator edits: exclusive — never mixed in a plan): in a request that
     // asks for more, each runs as its OWN step after the rest (own receipt + Undo), in request order.
@@ -827,7 +892,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
       mixedDeferred = creates.size > 0 && deferred.some(d => !creates.has(String(d.target)))
       for (const d of deferred) {
-        const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+        const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+        const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+        const dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
         else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
         else { okd.push(d); deferredLines.push(...dp.lines) }
@@ -1152,6 +1219,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     mark('commit:start')
     let res, saved
+    const commitStartedAt = Date.now()
     try {
       res = await commitPlan(host, plan, { env, ctx: capCtx })
       mark('commit:end')
@@ -1188,9 +1256,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // OWNER 2026-10-12: a Save followed by ONE chart add says both in ONE message — this receipt is
       // HELD and becomes the add's lead (said first in its message; said on its own if the add never runs)
       const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
+      // what moved past the chart it names is read back, never promised up front (gridMode.watchGridSync)
+      const afterNote = afterCommit ? await afterCommit() : null
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, charts: receiptCharts(host, plan, res), ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      const receiptId = nid()
+      const shown = receiptCharts(host, plan, res)
+      watchChartFaults(plannedChartRefs(plan, res), { receiptId, undoId: res.undo?.id || null, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
+      if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
@@ -1305,7 +1378,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const idsBefore = undoRef.current.map(e => e.id)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset, afterCommit: gridMode ? watchGridSync(opsIn, host) : null })
     } finally { traceEnd('done') }
     // ⭐ MISSION 3: an add + change-existing request, run as its parts in the member's order — each part the SAME
     // executeInner (planning, protection, policy, board check, commit, persistence, receipt and its own Undo entry). A part
@@ -2266,7 +2339,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // request, not an answer to that card — it is read here (the card is set aside, nothing from it applied) instead of
       // going to the model with the card as context. Anything else typed over a card goes on exactly as before.
       const overCard = !followable && !fast && !answering && !memRef && !peekAuthoringIntent() && pendingRef.current?.kind === 'proposal'
-      const compound0 = (followable || overCard) && !fast ? planCompound(text, { host }) : null
+      // (words naming the one just changed are read by the gate below, which knows no clicked chart answers them; a step here would not)
+      const compound0 = (followable || overCard) && !fast && !subj.changed ? planCompound(text, { host }) : null
       const compound = overCard && !(compound0?.steps?.[0]?.kind === 'grid' && isWorkspaceRequest(compound0.steps[0].text)) ? null : compound0
       if (compound?.say) {
         push({ role: 'agent', text: compound.say })
@@ -2651,6 +2725,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const onSubject = (() => {
         try {
           if (host?.charts?.selected?.() && !sw0.changed) return false
+          if (sw0.changed && !sw0.subject) return false
           const sw = sw0
           if (sw.text === text && !/\bit\b/i.test(text)) return false
           const s = sw.subject ? { ref: sw.subject } : memoryRef.current.subject('chart', epochOf(host))

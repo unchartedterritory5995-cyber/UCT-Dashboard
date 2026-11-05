@@ -74,3 +74,18 @@ export function focusFirstRunHeadingIfLost() {
   heading.focus()
   return document.activeElement === heading
 }
+
+/** VIS-5 (audit 2026-11-05, issue 25): a tour's Escape left focus on <body> ("Tour: focus lost") when what
+ *  opened it was gone (a Learn menu row, an auto start). After a tour closes with focus nowhere, it goes to
+ *  the first-run heading on Home, else to the page's own heading (`data-focus-fallback`, the Notebook's pane
+ *  heading), else to <main>. Never steals focus a member has put somewhere. Returns whether it moved. */
+export function focusPageIfLost() {
+  if (typeof document === 'undefined') return false
+  if (focusFirstRunHeadingIfLost()) return true
+  const active = document.activeElement
+  if (active && active !== document.body) return false
+  const target = document.querySelector('[data-focus-fallback]') || document.querySelector('main[tabindex="-1"]')
+  if (!target) return false
+  target.focus()
+  return document.activeElement === target
+}

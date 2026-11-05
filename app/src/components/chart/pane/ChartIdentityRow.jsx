@@ -98,7 +98,7 @@ export default function ChartIdentityRow({
           (0px) line plus a row gap, which the hub's fixed identity-row height had to hide. */}
       {hasRight && <div className={styles.headerTopRight}>
         {session?.mode === 'dwm' && (
-          <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
+          <div className={styles.sessionToggle} role="group" aria-label="Chart session view" data-guide="chart.session">
             <button
               type="button"
               className={`${styles.sessionBtn} ${session.view === 'regular' ? styles.sessionBtnActive : ''}`}
@@ -115,7 +115,7 @@ export default function ChartIdentityRow({
           </div>
         )}
         {session?.mode === 'intraday' && (
-          <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours">
+          <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours" data-guide="chart.session">
             <button
               type="button"
               className={`${styles.sessionBtn} ${!session.extHoursOn ? styles.sessionBtnActive : ''}`}

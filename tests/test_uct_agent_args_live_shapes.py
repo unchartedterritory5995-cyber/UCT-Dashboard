@@ -175,7 +175,8 @@ def test_chart_replay_invalid_shapes_still_refuse(args_json):
 
 # ── (c) screener.run — "sort them by 3 month performance" (a refinement that only re-orders) ─────────────────────
 
-WANT_SORT = {"filters": [], "sort_field": "chg_pct_3m", "sort_dir": "desc", "mode": "refine", "show": None, "as": None, "within": None}
+WANT_SORT = {"filters": [], "sort_field": "chg_pct_3m", "sort_dir": "desc", "mode": "refine", "show": None, "as": None, "within": None,
+             "logic": None, "rank": None}
 
 SORT_OK = [
     '{"filters":[],"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine","show":null,"as":null,"within":null}',
@@ -296,7 +297,7 @@ def test_the_strict_embedded_path_normalizes_too_and_never_raises():
     ]}
     out = turn.normalize_embedded_ops(env, caps)
     assert out["ops"][0]["args"] == {"date": None}
-    assert out["ops"][1]["args"] == WANT_SORT
+    assert {**out["ops"][1]["args"], "logic": None, "rank": None} == WANT_SORT     # the strict grammar always fills these two
     assert out["ops"][2] == env["ops"][2] and out["ops"][3] == env["ops"][3]
 
 

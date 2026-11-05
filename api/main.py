@@ -4226,6 +4226,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).exception(
             "[startup] could not schedule the internal-link projection backfill")
 
+    # Audit 2026-11-05 S20, Tier 3a re-review R4: the Notebook return metrics' first-visit index, built HERE -- after
+    # `_init_auth_db()` has committed, on its own daemon thread and connection, retried on failure -- never inside the
+    # auth schema script, where a lock on a big CREATE INDEX would skip every later migration. Until it exists the
+    # admin read answers "warming" and reads nothing.
+    try:
+        from api.services.journal_two.notebook_return_metrics import start_activity_index_build
+        start_activity_index_build()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the return-metrics index build")
+
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
     # `if not ingest_enabled(): return` guard and only when this process holds

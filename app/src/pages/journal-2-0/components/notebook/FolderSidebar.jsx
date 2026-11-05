@@ -19,6 +19,8 @@ import {
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
+import { Link } from 'react-router-dom'
+import { PLAYBOOK_IN_NOTEBOOK_PATH, playbookEnabled } from '../../lib/myPlaybookLink'
 import ConfirmModal from '../ConfirmModal'
 import LoadFailed from '../LoadFailed'
 import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../../lib/focusAfterRemoval'
@@ -109,6 +111,14 @@ export function renderSnippetMarks(snippet) {
 // no word of the query, so it says why it is there -- never a bare title that reads as a match.
 export const RELATED_BY_MEANING = 'Related by meaning'
 export const isMeaningRow = (note) => note?.matchKind === 'meaning'
+
+/** Audit 2026-11-05, spec S4 (B18): said under a search that found nothing by meaning while the
+ *  index has not reached some notes yet (the sweep runs every 15 minutes). */
+export function meaningWaitingSentence(n, capped = false) {
+  // Fix round 2 (re-review N4): at the server's cap the count is a floor ("1,000+").
+  const said = capped ? `${Number(n).toLocaleString('en-US')}+` : String(n)
+  return `New notes join meaning search within about 15 minutes. ${said} ${n === 1 && !capped ? 'is' : 'are'} waiting.`
+}
 
 export function matchReasonFor(note, query) {
   if (isMeaningRow(note)) return RELATED_BY_MEANING
@@ -1101,6 +1111,8 @@ export default function FolderSidebar({
   const searchEnabled = mode === 'search' && Boolean(debouncedQuery || hasActiveFilters)
   const {
     notes: serverSearchResults,
+    meaningPending,
+    meaningPendingCapped,
     isLoading: searchLoading,
     isValidating: searchValidating,
     error: searchError,
@@ -1717,6 +1729,9 @@ export default function FolderSidebar({
           ) : (
             <div className={styles.searchEmpty}>
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+              {trimmedQuery && meaningPending > 0 && (
+                <p className={styles.searchEmptyHint} data-meaning-waiting>{meaningWaitingSentence(meaningPending, meaningPendingCapped)}</p>
+              )}
             </div>
           )}
 
@@ -1883,6 +1898,15 @@ export default function FolderSidebar({
             { what: 'your tags', error: tagsError, retry: refreshTags },
             ...extraLoadFailures,
           ]} />
+          {/* S13 (audit 2026-11-05, detail #67): My Playbook, from the Notebook's own sidebar. It opens INSIDE the
+              Journal shell (the tabs stay, "Back to Notebook"); its data is the same read. Only while its gate is on. */}
+          {playbookEnabled() && (
+            <div className={styles.section}>
+              <Link to={PLAYBOOK_IN_NOTEBOOK_PATH} className={styles.row} data-sidebar-playbook="">
+                <span><UIcon name="book" size={12} gold={false} /> My Playbook</span>
+              </Link>
+            </div>
+          )}
           <RecencySection
             label="Favorites"
             icon="star-fill"

@@ -24,11 +24,11 @@ describe('Save this note\'s setup as a style: loaded on demand', () => {
         <NoteMenuActions note={{ id: 'n1', title: 'T' }} onBeforeTemplate={async () => true} />
       </SWRConfig>,
     )
-    const btn = screen.getByRole('button', { name: "Save this note's setup as a style" })
+    const btn = screen.getByRole('button', { name: "Save as template with blocks" })
     await vi.dynamicImportSettled()
     expect(loaded.surfaces).toBe(0)
     fireEvent.click(btn)
-    expect(await screen.findByRole('textbox', { name: 'Style name' }, { timeout: 10000 })).toBeTruthy()
+    expect(await screen.findByRole('textbox', { name: 'Template name' }, { timeout: 10000 })).toBeTruthy()
     expect(loaded.surfaces).toBe(1)
   })
 })

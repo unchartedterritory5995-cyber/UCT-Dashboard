@@ -1,0 +1,4 @@
+python tools/runtime_pane_smoke.py --self-check
+self-check: OK
+exit 0
+(run on the merged tree, 2026-11-02; pure helpers, no network, no browser)

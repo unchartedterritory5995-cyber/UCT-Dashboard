@@ -31,6 +31,7 @@ import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
+import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
@@ -968,9 +969,59 @@ const RUNTIME_UNDRAWN_KINDS = Object.freeze({
   hline: 'a horizontal line',
   bgcolor: 'a background colour',
   barcolor: 'a bar colour',
-  plotcandle: 'candles',
-  plotbar: 'bars',
 })
+
+/** W4-T13 - the calls a runtime document draws as a candle / bar FROM THE RUN. Each is four host
+ *  outputs (open, high, low, close - `pine.js::MULTI_OUTPUT_CALLS`) and four run outputs of the
+ *  same call, in that order, so the n-th candle of a kind on one lane is the n-th on the other. */
+const RUNTIME_CANDLE_STYLE = Object.freeze({ plotcandle: OHLC_DEF_STYLES[0], plotbar: OHLC_DEF_STYLES[1] })
+
+/** ⭐⭐ W4-T13 - WHAT A RUNTIME CANDLE / BAR NEEDS TO BE DRAWN, or why it is withheld by name.
+ *
+ *  Drawn from the run's own columns: the four prices and the colours the call wrote. Withheld,
+ *  each with its reason, rather than drawn in a stand-in:
+ *  - below Pine v5 (no capture of v4's `transp` default for a candle);
+ *  - `show_last` (a window of bars the renderer is not told), `force_overlay = true` over a
+ *    script that is not an overlay (it asks for the price pane; this document is a pane), a
+ *    `display` other than `display.all` / `display.pane`;
+ *  - a colour the call did not write (`color`, and for a candle `wickcolor` and `bordercolor`):
+ *    what TradingView draws then is NOT CAPTURED (docs/pine/capture-queue-2026-11-04-w4-t13.md,
+ *    W4-P1), so it is not guessed; a colour this lane could not compute.
+ *  A `display.none` candle draws nothing on TradingView either and is skipped by the caller.
+ *
+ *  @param {string} kind  'plotcandle' | 'plotbar'
+ *  @param {number|null} version
+ *  @param {object} ro  the run's descriptor of the candle's CLOSE output
+ *  @param {boolean} overlay  the script is an `overlay = true` one
+ *  @returns {{ok: true, colours: object} | {ok: false, why: string}} */
+function runtimeCandlePresentation(kind, version, ro, overlay) {
+  const why = (w) => ({ ok: false, why: w })
+  if (!(Number.isInteger(version) && version >= 5)) {
+    return why(`the colour rules of a v${version ?? '1'} candle have no capture here`)
+  }
+  const c = (ro && ro.candle) || {}
+  if (c.showLast === true) return why('its `show_last` limits the candle to the last bars, which this pane does not apply')
+  if (c.display !== undefined && c.display !== 'display.all' && c.display !== 'display.pane') {
+    return why(`its \`display = ${c.display}\` is not a place this pane reads`)
+  }
+  if (c.forceOverlay === 'unread') return why('its `force_overlay` is not a literal `true` or `false`')
+  if (c.forceOverlay === true && !overlay) {
+    return why('it asks for the price chart (`force_overlay = true`) from a script that is not an overlay')
+  }
+  const fields = kind === 'plotcandle'
+    ? [['body', 'colour', 'color'], ['wick', 'wick', 'wickcolor'], ['border', 'border', 'bordercolor']]
+    : [['body', 'colour', 'color']]
+  const colours = {}
+  for (const [part, field, param] of fields) {
+    const f = ro && ro[field]
+    if (!f) return why(`it does not write \`${param} =\`, and TradingView's default for it is not captured`)
+    if (!Number.isInteger(f.output)) {
+      return why(`this lane could not compute its \`${param} =\` (${f.refused || 'unreadable'})`)
+    }
+    colours[part] = f.output
+  }
+  return { ok: true, colours }
+}
 
 /* ⚰️ RT2 — `RUNTIME_REPAINT_RISK` (a regex over the raw source, comments
  * included) stood here and DECLINED every script that mentioned `request.`,
@@ -1354,6 +1405,33 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + `(${n} against ${m}), so which column is which cannot be known`)
     }
   }
+  // ⭐ W4-T13 - THE CANDLES AND BARS, paired the same way: the n-th `plotcandle` of the host's
+  // outputs is the n-th the run emitted (four outputs each, `role` in source order). A count that
+  // disagrees is the same `runtime:output-map` decline as any other kind's.
+  const hostCandles = new Map()
+  ;(t.outputs || []).forEach((o, index) => {
+    if (!o || !Object.hasOwn(RUNTIME_CANDLE_STYLE, o.kind)) return
+    if (!hostCandles.has(o.kind)) hostCandles.set(o.kind, [])
+    hostCandles.get(o.kind).push({ o, index })
+  })
+  const runCandles = new Map()
+  probe.outputs.forEach((ro, k) => {
+    if (!ro || !Object.hasOwn(RUNTIME_CANDLE_STYLE, ro.call)) return
+    if (!runCandles.has(ro.call)) runCandles.set(ro.call, [])
+    const list = runCandles.get(ro.call)
+    if (!list[ro.group]) list[ro.group] = { byRole: {}, ro: null }
+    // keyed by the role the run NAMES (the pane keeps no second list of them)
+    list[ro.group].byRole[ro.role] = k
+    if (ro.role === 'close') list[ro.group].ro = ro
+  })
+  for (const kind of Object.keys(RUNTIME_CANDLE_STYLE)) {
+    const n = (hostCandles.get(kind) || []).length
+    const m = (runCandles.get(kind) || []).filter(Boolean).length
+    if (n !== m * 4) {
+      return decline('runtime:output-map', `the two lanes disagree on how many \`${kind}\` calls the script has `
+        + `(${n / 4} against ${m}), so which column is which cannot be known`)
+    }
+  }
   const seen = new Map()
   const carried = []
   const withheld = []
@@ -1377,6 +1455,48 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     for (const k of shift.keys) shiftPinned.add(k)
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
+  // ⭐ W4-T13 - each candle / bar is ONE row on the document (its close column), with the other
+  // three prices and the colours riding as hidden columns of the same run. Merged into the plot
+  // rows by source line, so the legend and the paint order read as the script does.
+  const candleEntries = []
+  for (const kind of Object.keys(RUNTIME_CANDLE_STYLE)) {
+    const hosts = hostCandles.get(kind) || []
+    const runs = runCandles.get(kind) || []
+    runs.forEach((run, ord) => {
+      const group = hosts.slice(ord * 4, ord * 4 + 4)
+      // A candle its author hid (`display = display.none`) draws nothing on TradingView either.
+      // ⛔ ONLY THE AUTHOR'S HIDING: the host also hides a candle whose four columns are the bare
+      // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
+      // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
+      if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
+        || (run.ro.candle && run.ro.candle.display === 'display.none')) return
+      const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
+      const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
+      if (!pres.ok) { withheld.push({ label, why: pres.why }); return }
+      candleEntries.push({
+        candle: kind,
+        label,
+        line: Number.isInteger(run.ro.line) ? run.ro.line : Infinity,
+        index: group[3].index,
+        out: run.byRole.close,
+        parts: { open: run.byRole.open, high: run.byRole.high, low: run.byRole.low },
+        colours: pres.colours,
+      })
+    })
+  }
+  if (candleEntries.length) {
+    candleEntries.sort((a, b) => a.line - b.line)
+    const merged = []
+    let ci = 0
+    for (const entry of carried) {
+      const at = Number.isInteger(entry.o && entry.o.line) ? entry.o.line : -Infinity
+      while (ci < candleEntries.length && candleEntries[ci].line < at) merged.push(candleEntries[ci++])
+      merged.push(entry)
+    }
+    while (ci < candleEntries.length) merged.push(candleEntries[ci++])
+    carried.length = 0
+    carried.push(...merged)
+  }
   // ⭐ WS-E — the "draws nothing" decline moved BELOW the paints: a script whose
   // only output is a `barcolor` / `bgcolor` the run computes is a document too.
   const outputs = {}
@@ -1387,15 +1507,19 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // `colourKeyOf` is shared by the plot rows and the paints below.
   const colourRows = []
   const colourKeyByOutput = new Map()
-  const colourKeyOf = (outputIndex) => {
-    if (colourKeyByOutput.has(outputIndex)) return colourKeyByOutput.get(outputIndex)
+  // W4-T13 - a candle's price columns are minted by the same function but are NOT colour outputs
+  // (`colourInputsTheRunReads` is told which outputs are colours), so they keep a map of their own.
+  const ohlcKeyByOutput = new Map()
+  const colourKeyOf = (outputIndex, tag = 'colourFor') => {
+    const keyed = tag === 'ohlcFor' ? ohlcKeyByOutput : colourKeyByOutput
+    if (keyed.has(outputIndex)) return keyed.get(outputIndex)
     // ⭐ F1 — a document with NO drawn row keeps `value` for the RT5 anchor row
     // (below), so its colour columns start one slot later. Reached once F1 carried a
     // paint's `offset`: wyckoff's only output is an offset `barcolor`, and its colour
     // column took `value` beside the anchor — a duplicate key the install door refuses.
     const key = keyAt(Math.max(drawnRows.length, 1) + colourRows.length)
     outputs[key] = outputIndex
-    colourKeyByOutput.set(outputIndex, key)
+    keyed.set(outputIndex, key)
     colourRows.push({
       key,
       label: '',
@@ -1406,14 +1530,39 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       style: 'line',
       // ⛔ HIDDEN: a colour column draws nothing itself; the row that names it does.
       hidden: true,
-      colourFor: outputIndex,
+      // `colourFor` (a colour column) or `ohlcFor` (a candle's price column): which output it holds.
+      [tag]: outputIndex,
     })
     return key
   }
   const packedOf = new Map()
-  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace }, i) => {
+  const candleOf = new Map()
+  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours }, i) => {
     const key = keyAt(i)
     outputs[key] = out
+    if (candle) {
+      // ⭐ W4-T13 - the row IS the close column; `ohlc` names the other three, `ohlcColors` the
+      // colour columns (`defSchema.validateOhlc`, drawn by `binder.js`).
+      candleOf.set(key, {
+        ohlc: {
+          open: colourKeyOf(parts.open, 'ohlcFor'),
+          high: colourKeyOf(parts.high, 'ohlcFor'),
+          low: colourKeyOf(parts.low, 'ohlcFor'),
+        },
+        ohlcColors: Object.fromEntries(Object.entries(colours).map(([part, outIdx]) => [part, colourKeyOf(outIdx)])),
+      })
+      return {
+        key,
+        label,
+        source: '0',
+        ast: { type: 'num', value: 0 },
+        mode: repaint.mode,
+        readback: '',
+        style: RUNTIME_CANDLE_STYLE[candle],
+        hidden: false,
+        output: index,
+      }
+    }
     if (Number.isInteger(colourOutput)) packedOf.set(key, { colorMode: `column:${colourKeyOf(colourOutput)}`, colorPacked: p.colorPacked })
     return {
       key,
@@ -1584,6 +1733,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // (`colorMode` + `colorPacked`), set on the built plot because `buildDefinition`
   // projects only the host lane's three colour forms.
   definition.plots = definition.plots.map((pl) => (pl && packedOf.has(pl.key) ? { ...pl, ...packedOf.get(pl.key) } : pl))
+  // ⭐ W4-T13 - a candle row names its price and colour columns, set on the built plot for the
+  // same reason (`buildDefinition` projects only the fields the host lane's rows carry).
+  definition.plots = definition.plots.map((pl) => (pl && candleOf.has(pl.key) ? { ...pl, ...candleOf.get(pl.key) } : pl))
   // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
   // when there are any, so every other runtime document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints

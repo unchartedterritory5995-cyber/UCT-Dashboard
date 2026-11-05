@@ -208,3 +208,38 @@ export function toDiagnostics(doc, refusal) {
   if (guard) out.source = guard
   return [out]
 }
+
+/** Lint severities the editor status panel's line marks render as
+ *  (`builder/editorStatus.js::lineMarks`). The refusal above stays `error`. */
+const MARK_SEVERITY = Object.freeze({ withheld: 'warning', 'may-withhold': 'info', note: 'info' })
+
+/**
+ * ⭐ The Pine editor status panel's per-line marks → whole-line lint diagnostics.
+ *
+ * ⛔ THE SAME STALE-TEXT CONTRACT AS `toDiagnostics`: marks apply ONLY while
+ * `lineMarks.source` is the buffer they were computed on. A stale mark is no mark.
+ * ⛔ A line outside the buffer is dropped, never clamped (a clamped mark lands on
+ * the wrong line).
+ *
+ * @param {import('@codemirror/state').Text} doc
+ * @param {{source: string, marks: Array<{line, severity, message, guards}>}|null} lineMarks
+ * @returns {import('@codemirror/lint').Diagnostic[]}
+ */
+export function lineMarksToDiagnostics(doc, lineMarks) {
+  if (!doc || !lineMarks || !Array.isArray(lineMarks.marks)) return []
+  if (lineMarks.source !== doc.toString()) return []
+  const out = []
+  for (const m of lineMarks.marks) {
+    if (!m || !Number.isInteger(m.line) || m.line < 1 || m.line > doc.lines) continue
+    const l = doc.line(m.line)
+    const d = {
+      from: l.from,
+      to: l.to > l.from ? l.to : l.from,
+      severity: MARK_SEVERITY[m.severity] || 'info',
+      message: typeof m.message === 'string' ? m.message : '',
+    }
+    if (Array.isArray(m.guards) && m.guards.length) d.source = m.guards.join(', ')
+    out.push(d)
+  }
+  return out
+}

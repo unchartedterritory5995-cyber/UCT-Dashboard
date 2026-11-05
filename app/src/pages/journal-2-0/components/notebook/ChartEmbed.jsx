@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'r
 import ChartPane from '../../../../components/chart/pane/ChartPane'
 import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 import { etDayOf } from '../../lib/calendar'
+import { colorPlanAnnotations } from '../../lib/planColors'
 
 // A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
 // speaks. ⛔ Never toISOString(): UTC flips to the next calendar day at
@@ -63,7 +64,10 @@ function ChartEmbed({
   }), [])
   const anchorDay = tsToAnchorDay(params.to)
   const live = attrs?.mode === 'live'
-  const annotations = Array.isArray(attrs?.annotations) ? attrs.annotations : []
+  // VIS-5 (issue 20): a line with a plan role is drawn in its role's colour (entry gold, stop --loss, target
+  // --gain), the same language as the board and the plan panel; it was always the drawing's own gold.
+  const rawAnnotations = attrs?.annotations
+  const annotations = useMemo(() => colorPlanAnnotations(Array.isArray(rawAnnotations) ? rawAnnotations : []), [rawAnnotations])
   // Stable per-embed id so an embed ignores its own broadcasts (the
   // ChartWidget idiom — the bus is deliberately NOT React state).
   const embedIdRef = useRef(null)

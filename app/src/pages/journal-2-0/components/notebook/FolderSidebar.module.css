@@ -13,6 +13,8 @@
    narrow widths, and portaled so it lands as an early Tab stop rather than after the sidebar
    content it exists to bypass. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;
@@ -316,6 +318,10 @@
   color: var(--text-muted);
   padding: 12px 6px;
   line-height: 1.5;
+}
+/* Audit 2026-11-05, spec S4 (B18): the meaning index's "{n} are waiting" line under an empty search. */
+.searchEmptyHint {
+  margin: 6px 0 0;
 }
 .row {
   display: flex;

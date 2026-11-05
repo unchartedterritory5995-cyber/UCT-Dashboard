@@ -17,7 +17,7 @@
  * the / menu's moment labels, and every one is the item SlashMenu.snapshotWidgetItems builds -- the
  * palette clicks the same command, and a symbol kind asks for a ticker and runs the same grammar.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { JOURNAL_MENU_TYPES, widgetMeta, isReconstructable } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes, etTodayIso,
@@ -65,7 +65,22 @@ function parseSelection(kind, sym, tfTok, day) {
   return { args, reason: null }
 }
 
-export default function WidgetPalette({ editor, onClose }) {
+/** After an insert the caret sits just after the new embed(s): select the embed right before it. */
+function selectLastInsertedEmbed(editor) {
+  try {
+    const { state } = editor
+    const caret = state?.selection?.from
+    if (!Number.isFinite(caret)) return
+    let pos = -1
+    state.doc.descendants((n, p) => {
+      if (n.type.name === 'widgetEmbed' && p + n.nodeSize <= caret) pos = p
+      return true
+    })
+    if (pos >= 0) editor.chain().focus().setNodeSelection(pos).run()
+  } catch { /* a stub editor (or one mid-teardown) keeps its caret */ }
+}
+
+export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
   const [kind, setKind] = useState(null)   // null = the type list
   const [sym, setSym] = useState('')
   const [tfTok, setTfTok] = useState('D')
@@ -102,9 +117,34 @@ export default function WidgetPalette({ editor, onClose }) {
   // mount-site comment in NoteEditorPage.jsx -- so Sheet's centered-modal/
   // bottom-sheet treatment would fight that design, not fix this bug).
   // Competitive audit finding UX #13, 2026-09-22.
+  // VIS-5 (audit 2026-11-05, issue 25): Escape and ✕ hand focus BACK to what opened the panel (the toolbar's
+  // Insert button). It used to drop to <body>, the top of the page, so a keyboard member lost their place.
+  // Read once, at the first render -- before the effect above moves focus into the panel. A chart that was
+  // just inserted keeps its own focus (S3): only a close without an insert returns to the opener.
+  // Fix round 1 (review Minor 13): a NAMED opener (`returnFocusTo`, the toolbar's Insert button) wins -- that button
+  // keeps the editor's selection on a press, so it never held focus itself; else whatever held focus at the first render.
+  const openerRef = useRef(typeof document !== 'undefined' ? document.activeElement : null)
+  const dismiss = () => {
+    const opener = returnFocusTo?.current || openerRef.current
+    onClose?.()
+    if (opener && opener !== document.body && opener.isConnected) opener.focus?.()
+  }
+  const dismissRef = useRef(dismiss)
+  dismissRef.current = dismiss
+
+  // Insert panel (VIS-4, issue 22): its bottom sat past the screen. It hangs from the sticky chrome, so its
+  // top is measured once open and the panel may grow only to 16 px above the viewport's bottom
+  // (`--palette-top` feeds the stylesheet's `max-height: calc(100vh - top - 16px)`).
+  useLayoutEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const top = Math.max(0, Math.round(el.getBoundingClientRect().top))
+    el.style.setProperty('--palette-top', `${top}px`)
+  }, [])
+
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return }
+      if (e.key === 'Escape') { e.stopPropagation(); dismissRef.current(); return }
       if (e.key !== 'Tab') return
       const nodes = panelRef.current?.querySelectorAll(
         'button:not([disabled]), input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])')
@@ -148,8 +188,14 @@ export default function WidgetPalette({ editor, onClose }) {
       .insertContent(nodes)
       .caretAfterWidgetEmbed()
       .run()
-    // Stay open, clear the ticker, refocus — "click, click, click" means the
-    // next insert starts immediately.
+    // ⛔ Audit 2026-11-05, spec S3 (detail #36): the picker used to STAY OPEN over the chart it had
+    // just made. It closes, and the last chart inserted takes focus -- selected, so its header and
+    // its type-to-search (a key opens its ticker search, never replaces it) answer at once.
+    if (onClose) {
+      selectLastInsertedEmbed(editor)
+      onClose()
+      return
+    }
     setInserted(`${args.symbol} inserted`)
     setSym('')
     symRef.current?.focus()
@@ -166,7 +212,7 @@ export default function WidgetPalette({ editor, onClose }) {
           <span className={styles.headTitle}>Insert widget</span>
         )}
         {onClose && (
-          <button type="button" className={styles.headBtn} onClick={onClose} aria-label="Close insert panel">✕</button>
+          <button type="button" className={styles.headBtn} onClick={dismiss} aria-label="Close insert panel">✕</button>
         )}
       </div>
 

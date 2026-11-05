@@ -225,6 +225,10 @@ _J2_TELEMETRY_EVENTS = {
     # P5 (starter packs, Task 6) - a note made from a style or a style applied to one, a style created, and a
     # trader block inserted. Closed enums only: never a style id, a name, a note or a block's params.
     "style_applied", "style_created", "block_used",
+    # Audit 2026-11-05, S16 + S20 (return metrics): the first run's Build and Skip, the first widget that showed
+    # the member's own tickers, a recap written, and a trust incident. Counts, enums and bools only. Read back by
+    # GET /api/admin/notebook-return-metrics (journal_two/notebook_return_metrics.py).
+    "first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -349,6 +353,27 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
         "kind": ("chart", "preEntryChecklist", "priceStamps", "positionSizing", "myRules", "prepWire",
                  "prepEarnings", "prepMovers", "prepLevels", "tradeReview", "moodCheckIn", "marketcontext",
                  "reminder"),
+    },
+    # S16 / S20 (audit 2026-11-05). `names` is a COUNT of tickers, never the tickers.
+    "first_run_completed": {
+        "names": "num",
+        "pack": ("swing", "day", "prop", "options", "earnings", "none"),
+        "plan": "bool",
+        "ms": "num",
+    },
+    "first_run_skipped": {
+        "step": "num",
+    },
+    "first_live_widget": {
+        "source": ("watchlist", "reporting", "first_run"),
+        "names": "num",
+    },
+    "recap_written": {
+        "created": "bool",
+    },
+    "trust_incident": {
+        "kind": ("publish_undone", "widget_restored"),
+        "ms": "num",
     },
 }
 
@@ -2028,14 +2053,28 @@ def list_notes_endpoint(
     # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
     # Model Book call this same endpoint and would otherwise receive rows that
     # match no word typed, with nothing to say why (and spend an embed each).
+    meaning_pending = None
     if meaning:
         from api.services.journal_two import note_semantic
+        only_query = not (folder_id or tag or ticker or embed_symbol or embed_widget
+                          or deleted or date_from or date_to or symbol_in is not None
+                          or savedViewId or property_filter)
         rows = note_semantic.append_meaning_hits(
             user["id"], q, rows, total=total, offset=offset, limit=limit,
-            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
-                            or deleted or date_from or date_to or symbol_in is not None
-                            or savedViewId or property_filter),
+            only_query=only_query,
         )
+        # Audit 2026-11-05, spec S4 (B18): a search that found nothing by meaning says how many of
+        # the member's notes the index has not reached yet (the sweep runs every 15 minutes).
+        # ⛔ Fix round 1 (review finding 5): WHATEVER THE QUERY'S SHAPE -- the count does not depend
+        # on it, and the B18 report was a two-word query ("consolidation pattern"), which
+        # `query_shape` classes LEXICAL. Armed, unfiltered, first page, a real query only; dark
+        # issues no SQL here. The count is cached per member (note_semantic.pending_count).
+        if (only_query and (q or "").strip() and note_semantic.semantic_enabled()
+                and not offset and not any(r.get("matchKind") == "meaning" for r in rows)):
+            try:
+                meaning_pending = note_semantic.pending_count(user["id"])
+            except Exception:  # noqa: BLE001 -- a status line never fails the search
+                meaning_pending = None
     # Wave 11 (lane 11B): each live row of THIS page carries its formula/rollup values
     # (`computed`), so every view can show them. A member with no computed property
     # leaves the payload untouched.
@@ -2051,7 +2090,12 @@ def list_notes_endpoint(
         if vals:
             for r in rows:
                 r["computed"] = vals.get(r["id"], {})
-    return {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    out = {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    if meaning_pending is not None:
+        out["meaningPending"] = meaning_pending
+        if note_semantic.pending_count_capped(meaning_pending):
+            out["meaningPendingCapped"] = True   # N4: the panel says "1,000+"
+    return out
 
 
 @router.get("/notes/backlinks")

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { prefersReducedMotion, hasSeenIntroToday, markIntroSeenToday } from './introStorage'
+import { prefersReducedMotion, fullIntroDue, markFullIntroPlayed } from './introStorage'
+import { isCompactHeaderRoute } from '../../pages/journal-2-0/lib/compactHeaderRoute'
 import useFocusTrap from '../mobile/useFocusTrap'
 import compassMark from './assets/compass-mark.png'
 import parchmentMark from './assets/parchment-mark.png'
@@ -8,6 +9,8 @@ import styles from './IntroAnimation.module.css'
 
 const TOTAL_RUNTIME_MS = 9300
 const REDUCED_MOTION_RUNTIME_MS = 1600
+// S12 (audit 2026-11-05, M9): every load that is not the weekly film gets a 0.6 s fade.
+export const QUICK_FADE_MS = 600
 
 export default function IntroAnimation() {
   const { user, loading } = useAuth()
@@ -26,25 +29,28 @@ export default function IntroAnimation() {
     setPhase('done')
   }, [])
 
-  // Plays once per day per browser (Eastern Time date, owner decision 2026-10-08):
-  // the first page load of the day shows the cinematic; every later load that day,
-  // in any tab, skips straight to the app. Internal route changes don't remount
-  // App, so it never replays during in-app navigation. Reduced motion keeps its
-  // own short version on the same daily gate.
+  // S12 (audit 2026-11-05, M9): the film plays in full ONCE A WEEK PER DEVICE (Eastern Time days, introStorage.js);
+  // every other load OF THE NOTEBOOK gets a 0.6 s fade that never blocks a press. ⚰️ It was once per day (owner decision
+  // 2026-10-08). Internal route changes don't remount App, so neither replays during in-app navigation. Reduced
+  // motion keeps its own short still version on the weekly gate, and skips the fade (a fade is motion).
   useEffect(() => {
     if (phase !== 'idle') return
     if (loading) return
-    if (hasSeenIntroToday()) {
-      setPhase('done')
+    if (!fullIntroDue()) {
+      // Fix round 1 (review Minor 12): the 0.6 s fade is the phone Notebook mockup's (M9), so it plays on a load of the
+      // Notebook only; any other page between two films opens straight to the app, as it did. Read from the address
+      // the page LOADED at -- the intro never replays on in-app navigation.
+      const onNotebook = typeof window !== 'undefined' && isCompactHeaderRoute(window.location.pathname)
+      setPhase(reducedMotion || !onNotebook ? 'done' : 'fading')
       return
     }
-    markIntroSeenToday()
+    markFullIntroPlayed()
     setPhase('playing')
-  }, [phase, loading])
+  }, [phase, loading, reducedMotion])
 
   useEffect(() => {
-    if (phase !== 'playing') return
-    const runtime = reducedMotion ? REDUCED_MOTION_RUNTIME_MS : TOTAL_RUNTIME_MS
+    if (phase !== 'playing' && phase !== 'fading') return
+    const runtime = phase === 'fading' ? QUICK_FADE_MS : reducedMotion ? REDUCED_MOTION_RUNTIME_MS : TOTAL_RUNTIME_MS
     timerRef.current = setTimeout(finish, runtime)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -98,6 +104,17 @@ export default function IntroAnimation() {
   // reduced-motion branch has none, so the trap's own "nothing focusable —
   // keep focus on the container" path applies there instead.
   useFocusTrap(phase === 'playing', stageRef)
+
+  if (phase === 'fading') {
+    // Decoration only: hidden from assistive tech, and never in the way of a press (pointer-events: none).
+    return (
+      <div className={`${styles.overlay} ${styles.quickFade}`} aria-hidden="true" data-intro-fade="">
+        <div className={styles.brandStack}>
+          <img className={styles.compassMark} src={compassMark} alt="" />
+        </div>
+      </div>
+    )
+  }
 
   if (phase !== 'playing') return null
 

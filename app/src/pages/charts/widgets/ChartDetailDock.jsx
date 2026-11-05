@@ -171,6 +171,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
                   <button
                     key={t.key}
                     type="button"
+                    data-guide="chart.dockTab"
                     className={`${styles.rdTab}${tab === t.key ? ' ' + styles.rdTabOn : ''}`}
                     onClick={() => setTab(t.key)}
                   >{t.label}</button>
@@ -187,6 +188,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
               </button>
               <button
                 type="button"
+                data-guide="chart.dockCollapse"
                 className={styles.rdCollapse}
                 onClick={() => setCompanyOpen(false)}
                 title="Collapse company info"
@@ -233,6 +235,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
               title={tooNarrow ? 'Widen this chart to show company info' : 'Show company info'}
               aria-label={tooNarrow ? 'Company info needs a wider chart' : 'Show company info'}
               data-testid="company-rail"
+              data-guide="chart.dockRail"
             >
               <UIcon name="columns" size={13} gold={false} />
             </button>

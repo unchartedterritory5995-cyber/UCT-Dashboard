@@ -65,6 +65,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({
 }))
 
 import NotebookTab from './NotebookTab'
+import { offersSaveView, viewOption } from './__tests__/toolbarDoors'
 
 const NOTES = [
   { id: 'n1', title: 'First note', updatedAt: '2026-09-18T00:00:00Z' },
@@ -90,13 +91,13 @@ function renderTab(entry = '/journal?view=all') {
   )
 }
 
-const calBtn = () => screen.getByRole('button', { name: /calendar view/i })
+const calBtn = () => viewOption('Calendar')
 
 describe('NotebookTab — calendar view wiring', () => {
   it('offers a calendar view among the five', () => {
     renderTab()
-    for (const name of [/list view/i, /table view/i, /board view/i, /calendar view/i, /graph view/i]) {
-      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    for (const name of ['List', 'Table', 'Board', 'Calendar', 'Graph']) {
+      expect(viewOption(name)).toBeInTheDocument()
     }
   })
 
@@ -146,7 +147,7 @@ describe('NotebookTab — calendar view wiring', () => {
     renderTab()
     fireEvent.click(calBtn())
     await screen.findByTestId('note-calendar')
-    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
+    expect(offersSaveView()).toBe(true)
 
     // ⛔ A calendar without its date property is not the view the member saved
     // -- on restore the default-picker would choose again.

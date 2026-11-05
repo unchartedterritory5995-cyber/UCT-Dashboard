@@ -8,6 +8,7 @@
   GET  /api/admin/notebook-slo       — admin: the Notebook SLOs now + recent rows
   POST /api/admin/notebook-slo/run   — admin: force one SLO check (wave 10, 10D)
   POST /api/admin/notebook-slo/digest — admin: force the non-paging digest
+  GET  /api/admin/notebook-return-metrics — admin: the S20 return metrics (audit 2026-11-05)
 
 The store, the scrub and the rate limit are `api/services/client_errors.py`;
 this file is the HTTP shape — and the first two steps of the door's order of
@@ -140,3 +141,19 @@ def admin_notebook_slo_digest(_admin: dict = Depends(require_admin)) -> dict[str
     """Force the daily, non-paging digest row."""
     from api.services.journal_two import notebook_slo
     return notebook_slo.run_digest()
+
+
+# ── Audit 2026-11-05, S20: the Notebook's return metrics ────────────────────────
+# Day-1 and Day-7 return, the first "aha", the morning open rate, the recap rate and trust incidents, read from
+# the telemetry rows the Notebook already writes (api/services/journal_two/notebook_return_metrics.py). Admin only,
+# a handful of indexed, capped selects; nothing is written.
+
+@router.get("/api/admin/notebook-return-metrics")
+def admin_notebook_return_metrics(
+    days: int = Query(default=30),
+    _admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    from api.services.journal_two import notebook_return_metrics
+    if days not in notebook_return_metrics.WINDOWS:
+        raise HTTPException(status_code=400, detail="days must be 7, 30 or 90")
+    return notebook_return_metrics.compute_cached(days)

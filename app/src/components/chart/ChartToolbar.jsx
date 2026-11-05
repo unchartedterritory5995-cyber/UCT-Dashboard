@@ -1601,6 +1601,7 @@ function ChartToolbar({
             className={`${styles.btn} ${activeTool === t.id ? styles.active : ''} ${(!toolFilter && hiddenTools.includes(t.id)) ? styles.toolHidden : ''}`}
             onClick={() => selectTool(t.id)}
             data-guide={`chart.tool.${t.id}`}
+            data-guide-on={activeTool === t.id ? 'true' : undefined}
             title={t.label}
             aria-label={t.label}
           >
@@ -1619,6 +1620,7 @@ function ChartToolbar({
             className={`${styles.btn} ${favMenuOpen ? styles.active : ''}`}
             onClick={openFavMenu}
             title="Customize drawing tools — show/hide & favorite"
+            data-guide="chart.customizeTools"
             aria-label="Customize drawing tools"
           >
             {ICONS.favorites}
@@ -1776,6 +1778,7 @@ function ChartToolbar({
             className={styles.btn}
             onClick={onScreenshot}
             aria-label="Share chart"
+            data-guide="chart.share"
             title="Share chart — copy image, download PNG, or copy link"
           >
             {ICONS.share}
@@ -1838,6 +1841,7 @@ function ChartToolbar({
             className={`${styles.btn} ${alertPopoverOpen ? styles.active : ''}`}
             onClick={() => { setAlertInitial(null); setAlertPopoverOpen(o => !o) }}
             title={currentSym ? 'Indicator alerts' : 'Select a symbol to set alerts'}
+            data-guide="chart.alerts"
             aria-label="Indicator alerts"
             disabled={!currentSym}
           >
@@ -2153,6 +2157,7 @@ function ChartToolbar({
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
             aria-label="Undo"
+            data-guide="chart.drawUndo"
           >
             {ICONS.undo}
           </button>

@@ -159,6 +159,11 @@
   .gridSession { display: none; }
 }
 
+.cellError {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 .cellChart {
   flex: 1;
   min-height: 0;

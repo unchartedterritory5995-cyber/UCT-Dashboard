@@ -1,0 +1,15 @@
+//@version=5
+indicator("hp crosses", overlay=false)
+f = ta.sma(close, 9)
+s = ta.sma(close, 21)
+up = ta.crossover(f, s)
+dn = ta.crossunder(f, s)
+var int state = 0
+if up
+    state := 1
+if dn
+    state := -1
+plot(up ? 1 : 0, "up")
+plot(dn ? 1 : 0, "dn")
+plot(state, "state")
+plot(ta.barssince(up), "since")

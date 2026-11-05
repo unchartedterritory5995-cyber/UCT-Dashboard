@@ -80,6 +80,7 @@ vi.mock('../lib/offline/notebookDb', async (importOriginal) => ({
 import NotebookTab from './NotebookTab'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
+import { viewOption } from './__tests__/toolbarDoors'
 
 function ok(body) {
   return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) })
@@ -103,7 +104,8 @@ afterEach(() => {
 })
 
 const renderTab = () => render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
-const opener = () => screen.getByRole('button', { name: 'Save view' })
+// S11: Save view lives inside the View menu.
+const opener = () => viewOption('List') && screen.getByRole('menuitem', { name: 'Save view' })
 
 describe('NotebookTab: the Save view prompt loads on its first open (Task 7.6)', () => {
   it('saved_view_editor_module_not_loaded_on_mount', async () => {

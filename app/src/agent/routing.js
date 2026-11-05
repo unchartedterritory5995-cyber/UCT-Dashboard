@@ -86,9 +86,9 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal', domains: ['board'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
-    actions: ['widget.setOption'],
+    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
@@ -484,6 +484,6 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     // fill the budget so the model can act without a reroute, from the context already loaded (every op
     // is re-validated against live state before it runs). Recognised → every selected group, as before.
     refresh: matched ? present.filter(g => want.has(g.id)).map(g => g.id)
-      : [...new Set([...pinned, ...(soft || []), 'charts'])].filter(id => want.has(id)),
+      : [...new Set([...pinned, ...(soft || []), 'charts', 'boardEdit', 'calendar'])].filter(id => want.has(id)),   // these two: a section sent only with its group (widgetControls, the /charts calendar ref)
   }
 }

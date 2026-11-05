@@ -257,3 +257,33 @@ describe('My Playbook (wave 13, lane 13B)', () => {
     expect(calls.filter((u) => u.startsWith('/api/j2/my-playbook'))).toEqual([])
   })
 })
+
+// S13 (audit 2026-11-05, detail #67): inside the Journal shell (the Notebook sidebar's door) the page goes back to the
+// Notebook; from Insights' own route it still goes back to Insights.
+describe('My Playbook: the way back (S13)', () => {
+  beforeEach(() => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_playbook_enabled: true })
+    global.fetch = vi.fn(() => json(PAYLOAD))
+  })
+  afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })
+
+  it('at /journal/notebook/playbook: "Back to Notebook" to the Notebook', async () => {
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <MemoryRouter initialEntries={['/journal/notebook/playbook']}>
+          <Routes><Route path="/journal/notebook/playbook" element={<MyPlaybook />} /></Routes>
+        </MemoryRouter>
+      </SWRConfig>,
+    )
+    expect(screen.getByRole('link', { name: 'Back to Notebook' })).toHaveAttribute('href', '/journal/notebook')
+    expect(screen.queryByRole('link', { name: 'Back to Insights' })).toBeNull()
+    await settle()
+  })
+
+  it('CONTROL: at its own route it is still "Back to Insights"', async () => {
+    renderPage()
+    expect(screen.getByRole('link', { name: 'Back to Insights' })).toHaveAttribute('href', '/journal/insights')
+    await settle()
+  })
+})

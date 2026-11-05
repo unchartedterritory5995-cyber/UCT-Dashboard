@@ -123,10 +123,15 @@ def fact_line(setup: str, ex: dict) -> str:
                  else f"a {r['rally_pct']}% rally that peaked {r['bars_ago']} sessions earlier" if r else "the drive before it")
         if f.get("pullback_sessions") is not None and f.get("close_pos_pct") is not None:
             # pass 2 (owner review 2026-10-25): the pullback and the trigger day, measured
+            # the trigger day's gap: `trigger_gap_pct` where the curation stored it, else the finder's own
+            # `gap_pct` (the same measurement, pct(open, prior close) on the trigger bar); no number, no clause
+            tg = f.get("trigger_gap_pct", f.get("gap_pct"))
+            gap_clause = f", gapping {tg}%." if tg is not None else "."
             return (f"Here the drive was {drive}; the pullback ran {f.get('pullback_sessions')} sessions and "
                     f"{f.get('pullback_depth_abs_pct')}% deep under the 4-day average of the highs; the trigger day closed up "
-                    f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range, gapping {f.get('trigger_gap_pct')}%.")
-        return f"Here the drive was {drive}; the trigger day gapped only {f.get('trigger_gap_pct')}%."
+                    f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range" + gap_clause)
+        tg = f.get("trigger_gap_pct", f.get("gap_pct"))
+        return f"Here the drive was {drive}" + (f"; the trigger day gapped only {tg}%." if tg is not None else ".")
     if setup == "Gap Support":
         # The geometry against the GAP-UP DAY'S LOW (owner rulings 2026-10-26/27),
         # measured by scripts/study/fill_setup_facts.py from the chart's own bars.

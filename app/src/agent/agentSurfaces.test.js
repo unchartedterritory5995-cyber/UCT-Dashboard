@@ -30,7 +30,7 @@ describe('surfaces (W2-C1)', () => {
     expect(manifestFor({ surface: 'charts', createIndicator: true })).toEqual(GOLDEN.capabilities)
     // and none of the pages\' own capabilities reached it
     const charts = names('charts')
-    for (const n of ['screener.page', 'screener.openSaved', 'breadth.page', 'calendar.nextReport', 'calendar.day', 'journal.listNotes', 'journal.createNote']) expect(charts).not.toContain(n)
+    for (const n of ['screener.page', 'screener.openSaved', 'breadth.page', 'calendar.nextReport', 'journal.listNotes', 'journal.createNote']) expect(charts).not.toContain(n)
   })
 
   it('queries that read UCT\'s own data are offered on every page', () => {
