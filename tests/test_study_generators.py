@@ -571,3 +571,13 @@ def test_setup_fact_lines_leave_a_clause_out_rather_than_print_none():
         assert word not in gse.fact_line("Gap Support", {"facts": dict(full, reclaim_sessions=None)})
     held = dict(full, test_low_vs_gap_low_pct=-0.2, close_vs_gap_low_pct=3.7, close_vs_gap_top_pct=4.4)
     assert "held the gap-up day's low to within 0.2% and closed 3.7% above it" in gse.fact_line("Gap Support", {"facts": held})
+    # the Slingshot trigger gap: the finder stores it as gap_pct (the curation of pass 2 copied it to
+    # trigger_gap_pct); the line reads either, and leaves the clause out when there is neither
+    sling = {"earnings_like_gap": {"gap_pct": 8.6, "bars_ago": 14}, "pullback_sessions": 3, "pullback_depth_abs_pct": 6.7,
+             "day_pct": 3.79, "close_pos_pct": 94, "gap_pct": -0.03}
+    line = gse.fact_line("Slingshot", {"facts": sling})
+    assert line.endswith("closed up 3.79% at 94% of its range, gapping -0.03%.") and "None" not in line
+    assert gse.fact_line("Slingshot", {"facts": dict(sling, trigger_gap_pct=0.4)}).endswith("gapping 0.4%.")
+    no_gap = {k: v for k, v in sling.items() if k != "gap_pct"}
+    assert gse.fact_line("Slingshot", {"facts": no_gap}).endswith("closed up 3.79% at 94% of its range.")
+    assert gse.fact_line("Slingshot", {"facts": {"rally": {"rally_pct": 30.7, "bars_ago": 9}}}) == "Here the drive was a 30.7% rally that peaked 9 sessions earlier."
