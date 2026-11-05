@@ -74,8 +74,8 @@
  [
   "step6:drop-own-rail",
   ".github/workflows/master-deploy-gate.yml",
-  "codec.py tests/test_pine_runtime_deploy_gate.py",
-  "codec.py"
+  "composition.py tests/test_pine_runtime_deploy_gate.py",
+  "composition.py"
  ],
  [
   "step7:renamed",
@@ -92,8 +92,8 @@
  [
   "node:setup-pin-22",
   ".github/workflows/master-deploy-gate.yml",
-  "          node-version: '20'",
-  "          node-version: '22'"
+  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: npm\n          cache-dependency-path: app/package-lock.json\n\n      - name: Install the app's dependencies (for the Pine runtime bundle)",
+  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n          cache: npm\n          cache-dependency-path: app/package-lock.json\n\n      - name: Install the app's dependencies (for the Pine runtime bundle)"
  ],
  [
   "node:compare-dropped",
@@ -110,14 +110,50 @@
  [
   "node:step-before-install",
   ".github/workflows/master-deploy-gate.yml",
-  "      - name: Install the app's dependencies (for the UCT Agent browser tests)",
-  "      - name: Pine runtime - this runner's Node is the image's Node\n        run: true\n      - name: Install the app's dependencies (for the UCT Agent browser tests)"
+  "      - name: Install the app's dependencies (for the Pine runtime bundle)",
+  "      - name: Pine runtime - this runner's Node is the image's Node\n        run: true\n      - name: Install the app's dependencies (for the Pine runtime bundle)"
  ],
  [
   "node:second-setup-node",
   ".github/workflows/master-deploy-gate.yml",
-  "      - name: Explain a failure\n",
-  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '18'\n\n      - name: Explain a failure\n"
+  "      - name: Pine runtime - the image agrees with Dockerfile.web\n",
+  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '18'\n\n      - name: Pine runtime - the image agrees with Dockerfile.web\n"
+ ],
+ [
+  "job:conditional",
+  ".github/workflows/master-deploy-gate.yml",
+  "    name: Pine runtime service rails (section 8)\n",
+  "    name: Pine runtime service rails (section 8)\n    if: always()\n"
+ ],
+ [
+  "job:not-in-verdict-needs",
+  ".github/workflows/master-deploy-gate.yml",
+  "needs: [gate, agent-browser, agent-browser-union, pine-runtime]",
+  "needs: [gate, agent-browser, agent-browser-union]"
+ ],
+ [
+  "verdict:result-not-tested",
+  ".github/workflows/master-deploy-gate.yml",
+  " && [ \"${{ needs.pine-runtime.result }}\" = success ]; then",
+  "; then"
+ ],
+ [
+  "step6:drop-composition",
+  ".github/workflows/master-deploy-gate.yml",
+  " tests/test_pine_runtime_composition.py",
+  ""
+ ],
+ [
+  "deps:not-production-set",
+  ".github/workflows/master-deploy-gate.yml",
+  "-m pip install --quiet -r requirements.txt\n          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx",
+  "-m pip install --quiet pytest httpx"
+ ],
+ [
+  "other-job-node-pin-moved",
+  ".github/workflows/master-deploy-gate.yml",
+  "    needs: agent-browser\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'",
+  "    needs: agent-browser\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'"
  ],
  [
   "order:step7-before-step6",

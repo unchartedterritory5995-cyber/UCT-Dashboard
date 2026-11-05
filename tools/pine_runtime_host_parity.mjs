@@ -383,9 +383,10 @@ export function ulpStats(a, b) {
   return { rows, total, maxUlp: maxUlp < 0n ? 'inf/nan' : Number(maxUlp) }
 }
 
-/** Split diffs into gated RED, REPORTED (a listed case whose ONLY difference is the digest) and
+/** `describe(name, reason)` (optional) words the REPORTED line (HP-1 has no columns to measure).
+ *  Split diffs into gated RED, REPORTED (a listed case whose ONLY difference is the digest) and
  *  INCONCLUSIVE. -> { red, reported: [{case, text}], inconclusive } */
-export function classifyDiffs(diffs, ra, rb, reportOnly = new Map()) {
+export function classifyDiffs(diffs, ra, rb, reportOnly = new Map(), describe = null) {
   const inc = new Set(Object.entries({ ...ra, ...rb }).filter(([, r]) => r.status === 'inconclusive').map(([n]) => n))
   const byCase = new Map()
   for (const d of diffs) byCase.set(d.case, [...(byCase.get(d.case) || []), d])
@@ -393,6 +394,7 @@ export function classifyDiffs(diffs, ra, rb, reportOnly = new Map()) {
   for (const [name, ds] of byCase) {
     if (inc.has(name)) { inconclusive.push(...ds); continue }
     if (reportOnly.has(name) && ds.every((d) => d.field === 'digest')) {
+      if (describe) { reported.push({ case: name, text: describe(name, reportOnly.get(name)) }); continue }
       const st = ulpStats(ra[name], rb[name])
       const where = st ? `${st.rows}/${st.total} values differ, max ${st.maxUlp} ulp` : 'ulp not measurable (a side carries no columns)'
       reported.push({ case: name, text: `REPORTED ${name}: digest differs; ${where}; ${reportOnly.get(name)}` })
@@ -448,19 +450,11 @@ export function checkAgainst(expected, got, corpus) {
   // is the digest, ONLY when the V8 moved. On the recording V8 they are gated like every other case.
   const v8Was = expected.recordedOn && expected.recordedOn.v8, v8Now = got.recordedOn && got.recordedOn.v8
   const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)
-  const reportedLines = []
-  if (v8Moved) {
-    const ro = reportOnlyOf(corpus)
-    const byCase = new Map()
-    for (const d of diffs) byCase.set(d.case, [...(byCase.get(d.case) || []), d])
-    const keep = []
-    for (const [name, ds] of byCase) {
-      if (ro.has(name) && ds.every((d) => d.field === 'digest')) {
-        reportedLines.push(`REPORTED ${name}: digest differs from the one recorded on V8 ${v8Was}; this run is V8 ${v8Now}; ${ro.get(name)}`)
-      } else keep.push(...ds)
-    }
-    diffs = keep
-  }
+  // ONE rule: classifyDiffs (HP-3 uses the same function); the list is empty unless the V8 moved.
+  const cls = classifyDiffs(diffs, expected.cases, got.records, v8Moved ? reportOnlyOf(corpus) : new Map(),
+    (name, reason) => `REPORTED ${name}: digest differs from the one recorded on V8 ${v8Was}; this run is V8 ${v8Now}; ${reason}`)
+  const reportedLines = cls.reported.map((r) => r.text)
+  diffs = [...cls.red, ...cls.inconclusive]
   if (diffs.length) {
     code = 1
     const bumped = !sameIdentity(expected.identity, got.identity)

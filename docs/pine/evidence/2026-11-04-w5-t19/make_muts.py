@@ -24,15 +24,22 @@ m("step5:dir-not-glob", W, "node --test services/pine_runtime/test/*.test.mjs", 
 m("step3:swallowed", W, "tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider\n", "tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider || true\n")
 m("step3:wrong-python", W, "run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_engine_identity.py", "run: python -m pytest tests/test_pine_runtime_engine_identity.py")
 m("step6:drop-codec-file", W, " tests/test_pine_runtime_codec.py", "")
-m("step6:drop-own-rail", W, "codec.py tests/test_pine_runtime_deploy_gate.py", "codec.py")
+m("step6:drop-own-rail", W, "composition.py tests/test_pine_runtime_deploy_gate.py", "composition.py")
 m("step7:renamed", W, "- name: Pine runtime - the image agrees with Dockerfile.web", "- name: Pine runtime - image")
 m("step7:drop-dockerfile-test", W, "tests/test_pine_runtime_dockerfile.py -q", "tests/test_pine_runtime_client.py -q")
-m("node:setup-pin-22", W, "          node-version: '20'", "          node-version: '22'")
+SN = "      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: npm\n          cache-dependency-path: app/package-lock.json\n\n      - name: Install the app's dependencies (for the Pine runtime bundle)"
+m("node:setup-pin-22", W, SN, SN.replace("'20'", "'22'"))
 m("node:compare-dropped", W, "test -n \"$want\" && test \"$want\" = \"$have\"", "test -n \"$want\"")
 m("node:reads-wrong-file", W, "services/pine_runtime/Dockerfile | head -n 1", "Dockerfile.web | head -n 1")
-m("node:step-before-install", W, "      - name: Install the app's dependencies (for the UCT Agent browser tests)",
-  "      - name: Pine runtime - this runner's Node is the image's Node\n        run: true\n      - name: Install the app's dependencies (for the UCT Agent browser tests)")
-m("node:second-setup-node", W, "      - name: Explain a failure\n", "      - uses: actions/setup-node@v4\n        with:\n          node-version: '18'\n\n      - name: Explain a failure\n")
+m("node:step-before-install", W, "      - name: Install the app's dependencies (for the Pine runtime bundle)",
+  "      - name: Pine runtime - this runner's Node is the image's Node\n        run: true\n      - name: Install the app's dependencies (for the Pine runtime bundle)")
+m("node:second-setup-node", W, "      - name: Pine runtime - the image agrees with Dockerfile.web\n", "      - uses: actions/setup-node@v4\n        with:\n          node-version: '18'\n\n      - name: Pine runtime - the image agrees with Dockerfile.web\n")
+m("job:conditional", W, "    name: Pine runtime service rails (section 8)\n", "    name: Pine runtime service rails (section 8)\n    if: always()\n")
+m("job:not-in-verdict-needs", W, "needs: [gate, agent-browser, agent-browser-union, pine-runtime]", "needs: [gate, agent-browser, agent-browser-union]")
+m("verdict:result-not-tested", W, " && [ \"${{ needs.pine-runtime.result }}\" = success ]; then", "; then")
+m("step6:drop-composition", W, " tests/test_pine_runtime_composition.py", "")
+m("deps:not-production-set", W, "-m pip install --quiet -r requirements.txt\n          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx", "-m pip install --quiet pytest httpx")
+m("other-job-node-pin-moved", W, "    needs: agent-browser\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'", "    needs: agent-browser\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'")
 m("order:step7-before-step6", W, "      - name: Pine runtime - client, codec and composition rails",
   "      - name: Pine runtime - the image agrees with Dockerfile.web\n        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q\n      - name: Pine runtime - client, codec and composition rails")
 m("step4:dropped", W, "        run: node tools/pine_runtime_closure.mjs --check\n", "        run: node --version\n")
