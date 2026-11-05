@@ -1,10 +1,16 @@
 """The pine-runtime image must agree with web's, copy every module, and carry the L4 flags.
 
 W5-T10, docs/pine/SERVER-RUNTIME-DESIGN.md section 3.1 and L4. ONE AUTHORITY, READ NOT RETYPED:
-the Node pin and the VITE_* ARG/ENV set are parsed out of Dockerfile.web and compared with
-services/pine_runtime/Dockerfile; the module list comes from the directory, so a new
-services/pine_runtime/*.mjs (T9's canary.mjs) is caught the day it lands without anyone
-editing this file.
+the Node pin is parsed out of Dockerfile.web and compared with services/pine_runtime/Dockerfile;
+the module list comes from the directory, so a new services/pine_runtime/*.mjs is caught the day
+it lands without anyone editing this file.
+
+W5-INT: (1) the image's VITE_* build args are EXACTLY the bundle's allowlist
+(app/scripts/build-pine-runtime.mjs SERVER_BUNDLE_VITE_NAMES, read through node), never web's
+whole list with its secrets; server.mjs ENV_ALLOWLIST admits the same names. (2) Files copied from
+the context that are not service modules must be on the NAMED allowlist below (the canary's
+inputs), and the image's file set is STAGED and imported far enough to load the canary under
+Node 20's module rules.
 
 Mutation proof: docs/pine/evidence/2026-11-04-w5-t10/EVIDENCE.md.
 """
@@ -13,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -76,6 +83,40 @@ def _env_pairs(body: list[str]) -> dict[str, str]:
     return out
 
 
+def _file_url(path: str) -> str:
+    return "file:///" + path.replace("\\", "/").lstrip("/")
+
+
+def _node_json(module: str, expr: str):
+    """Evaluate `expr` (a JS expression over `m`, the imported module) through node; JSON back."""
+    out = subprocess.run(["node", "-e", "import(process.argv[1]).then(m=>console.log(JSON.stringify(%s)))" % expr,
+                          _file_url(os.path.join(REPO, module))],
+                         capture_output=True, text=True, timeout=60, cwd=os.path.join(REPO, "app"))
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+def _bundle_vite_names() -> set[str]:
+    names = set(_node_json("app/scripts/build-pine-runtime.mjs", "m.SERVER_BUNDLE_VITE_NAMES"))
+    assert names, "the build script's VITE allowlist read came back empty"
+    return names
+
+
+# W5-INT: the ONLY files copied from the context that are not services/pine_runtime/*.mjs, each
+# with its exact image path: the parity canary's inputs (canary.mjs, W5-T9). A new entry is a
+# reviewed edit of this map, never a wildcard.
+IMAGE_EXTRA_COPIES = {
+    "tools/pine_runtime_host_parity.mjs": "/app/tools/pine_runtime_host_parity.mjs",
+    "app/package.json": "/app/app/package.json",
+    "app/src/components/chart/engine/runtime/columnDigest.js":
+        "/app/app/src/components/chart/engine/runtime/columnDigest.js",
+    "app/src/components/chart/engine/runtime/__fixtures__/hostParity":
+        "/app/app/src/components/chart/engine/runtime/__fixtures__/hostParity",
+}
+
+SECRET_SHAPED = re.compile(r"TOKEN|KEY|SECRET|PASSWORD|PRIVATE")
+
+
 def _mjs_on_disk() -> list[str]:
     return sorted(f for f in os.listdir(SVC) if f.endswith(".mjs") and os.path.isfile(os.path.join(SVC, f)))
 
@@ -93,7 +134,7 @@ def _copies(body: list[str]) -> list[tuple[str, str, str | None]]:
 
 def test_the_parsers_see_both_dockerfiles():
     assert len(_args(_stage(WEB, "frontend"))) >= 5
-    assert len(_args(_stage(IMG, "frontend"))) >= 5
+    assert len(_args(_stage(IMG, "frontend"))) >= 1
     assert len(_mjs_on_disk()) >= 6, "the directory scan found too few services/pine_runtime/*.mjs"
     assert "server.mjs" in _mjs_on_disk()
 
@@ -107,20 +148,35 @@ def test_node_pin_equals_dockerfile_web():
     assert re.match(r"FROM node:\d+\.\d+\.\d+-", img), "the Node pin must be an exact version"
 
 
-def test_vite_arg_set_equals_dockerfile_web():
-    assert _args(_stage(IMG, "frontend")) == _args(_stage(WEB, "frontend"))
+def test_vite_arg_set_is_the_bundles_allowlist_and_each_is_webs_own_name():
+    """W5-INT: the image declares the bundle's VITE_* names and nothing else (no web secret)."""
+    img = _args(_stage(IMG, "frontend"))
+    assert img == _bundle_vite_names()
+    assert img <= _args(_stage(WEB, "frontend")), "a build arg web does not declare means nothing on web"
+    assert img <= vite_flag_index.names_read(REPO), "an allowlisted name the frontend never reads"
 
 
-def test_vite_env_block_equals_dockerfile_web():
-    web = _env_pairs(_stage(WEB, "frontend"))
+def test_vite_env_block_mirrors_exactly_those_args():
     img = _env_pairs(_stage(IMG, "frontend"))
-    assert web and web == img
+    assert set(img) == _args(_stage(IMG, "frontend"))
     assert all(v == "$" + k for k, v in img.items()), "each ENV must mirror its own ARG"
 
 
-def test_every_vite_flag_the_frontend_reads_is_declared():
-    missing = sorted(vite_flag_index.names_read(REPO) - _args(_stage(IMG, "frontend")))
-    assert not missing, "bundle would bake these VITE_* as undefined: %s" % ", ".join(missing)
+def test_no_secret_build_arg_or_env_reaches_the_bundle_stage():
+    body = _stage(IMG, "frontend")
+    names = set(_env_pairs(body)) | {m.group(1) for ln in body if (m := re.match(r"ARG\s+(\S+)", ln))}
+    assert names, "the parser read no name"
+    assert not [n for n in names if SECRET_SHAPED.search(n)], "a secret-shaped build arg: %s" % sorted(names)
+    for web_secret in ("VITE_CHART_RENDER_TOKEN", "VITE_CHART_RENDER_TOKEN_PREVIOUS", "VITE_PICOVOICE_ACCESS_KEY"):
+        assert web_secret in _args(_stage(WEB, "frontend")), "control: web still declares %s" % web_secret
+        assert web_secret not in names
+
+
+def test_env_allowlist_admits_exactly_the_bundles_build_args():
+    """On Railway a service variable is a build arg AND a runtime variable: the boot must admit the
+    bundle's flags (and no other VITE_*), or mirroring web's flag would refuse the boot."""
+    allowed = set(_node_json("services/pine_runtime/server.mjs", "m.ENV_ALLOWLIST"))
+    assert {n for n in allowed if n.startswith("VITE_")} == _bundle_vite_names()
 
 
 def test_the_build_runs_the_same_frontend_build_then_the_bundle():
@@ -139,12 +195,66 @@ def test_every_service_module_is_copied_individually():
     for f in _mjs_on_disk():
         src = "services/pine_runtime/%s" % f
         assert src in copied, "%s is not copied: an unlisted module is an ImportError at boot" % src
+    extra = {}
     for src, dst, frm in _copies(run):
         if frm is None:
+            if src in IMAGE_EXTRA_COPIES:
+                assert dst == IMAGE_EXTRA_COPIES[src], "%s goes to %s, not %s" % (src, dst, IMAGE_EXTRA_COPIES[src])
+                assert os.path.exists(os.path.join(REPO, src)), "%s does not exist" % src
+                extra[src] = dst
+                continue
             assert src.startswith("services/pine_runtime/") and src.endswith(".mjs"), \
-                "only individually listed service modules may be copied from the context: %r" % src
+                "only service modules and the named IMAGE_EXTRA_COPIES may be copied from the context: %r" % src
             assert os.path.isfile(os.path.join(REPO, src)), "%s does not exist" % src
             assert dst == "/app/" + src
+    assert extra == IMAGE_EXTRA_COPIES, "a named canary input is not copied: %s" % sorted(set(IMAGE_EXTRA_COPIES) - set(extra))
+
+
+def _stage_image(root: str, skip: tuple = ()) -> None:
+    """Lay the runtime stage's context COPYs out under `root` as the image would (minus the bundle)."""
+    for src, dst, frm in _copies(_stage(IMG, "runtime")):
+        if frm is not None or src in skip:
+            continue
+        target = os.path.join(root, dst.lstrip("/"))
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        if os.path.isdir(os.path.join(REPO, src)):
+            shutil.copytree(os.path.join(REPO, src), target)
+        else:
+            shutil.copyfile(os.path.join(REPO, src), target)
+
+
+_CANARY_PROBE = ("import(process.argv[1]).then(async (s) => { const c = await import(process.argv[2]); "
+                 "const i = c.loadCanaryInputs(); console.log(JSON.stringify({ cases: i.cases.length, "
+                 "allow: s.ENV_ALLOWLIST.length })) })")
+
+
+def _boot_staged(root: str):
+    # Node 20.18 (the image) has no module-type detection: --no-experimental-detect-module makes a
+    # newer local Node read a .js with no "type": "module" package.json as CommonJS, as the image would.
+    return subprocess.run(["node", "--no-experimental-detect-module", "-e", _CANARY_PROBE,
+                           _file_url(os.path.join(root, "app", "services", "pine_runtime", "server.mjs")),
+                           _file_url(os.path.join(root, "app", "services", "pine_runtime", "canary.mjs"))],
+                          capture_output=True, text=True, timeout=120, cwd=root)
+
+
+def test_the_image_file_set_loads_the_server_and_the_canary_inputs(tmp_path):
+    """W5-INT: what the runtime stage copies is enough for server.mjs to import and for the canary to
+    load its 10 cases and committed digests (else the boot is REFUSED, in a restart loop)."""
+    _stage_image(str(tmp_path))
+    r = _boot_staged(str(tmp_path))
+    assert r.returncode == 0, r.stderr[-3000:]
+    got = json.loads(r.stdout.strip().splitlines()[-1])
+    assert got["cases"] == 10 and got["allow"] > 10
+
+
+def test_the_staged_boot_can_fail_without_a_named_input(tmp_path):
+    """Control: drop one named input and the staged boot fails, so the test above can go red."""
+    for missing in ("app/package.json", "app/src/components/chart/engine/runtime/__fixtures__/hostParity",
+                    "tools/pine_runtime_host_parity.mjs", "app/src/components/chart/engine/runtime/columnDigest.js"):
+        root = tmp_path / missing.replace("/", "_")
+        root.mkdir()
+        _stage_image(str(root), skip=(missing,))
+        assert _boot_staged(str(root)).returncode != 0, "the staged boot passed without %s" % missing
 
 
 def test_the_bundle_and_node_are_copied_from_the_build_stage_to_where_server_looks():
@@ -200,7 +310,9 @@ def test_railway_json_points_at_the_image_and_watches_the_closure():
     for p in ("services/pine_runtime/**", "app/src/components/chart/engine/**", "app/src/lib/marketClock/**",
               "app/src/components/chart/indicators.js",
               "app/src/components/chart/builder/authoring/crossContext.json",
-              "app/package*.json", "app/vite.config.js"):
+              "app/package*.json", "app/vite.config.js",
+              # W5-INT: the canary's tool is in the image; a change to it must rebuild the service
+              "tools/pine_runtime_host_parity.mjs"):
         assert p in watch, "watch pattern %s (design section 3.1) is missing" % p
     assert cfg["deploy"]["healthcheckPath"] == "/health"
     assert cfg["deploy"]["restartPolicyType"] == "ALWAYS"

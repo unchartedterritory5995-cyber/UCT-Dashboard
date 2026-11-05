@@ -6,6 +6,11 @@
 //   - `jsep` and every JSON import are inlined (esbuild does this, as vite does for the browser);
 //   - `import.meta.env` is baked ONCE, at build time, from the process's VITE_* variables, the
 //     same ARG/ENV values the client build sees: one value, never a second authority at run time;
+//     W5-INT: ONLY the names on SERVER_BUNDLE_VITE_NAMES (the non-secret build constants the
+//     closure reads). `define` inlines the WHOLE object at every `import.meta.env` read, so baking
+//     every VITE_* would put web's VITE_CHART_RENDER_TOKEN / VITE_PICOVOICE_ACCESS_KEY values into
+//     pine-runtime.mjs. A rail (serverBundle.rail.test.js) builds with such values set and greps
+//     the bundle: any VITE_ name off this list, or any secret value, is red;
 //   - a manifest (pine-runtime.manifest.json) records bytes, sha256, module count and the baked
 //     VITE_* names, which the host-parity digest's "bundle sha256" reads.
 //
@@ -23,11 +28,26 @@ const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const ENTRY = resolve(APP_DIR, 'src', 'components', 'chart', 'engine', 'runtime', 'serverEntry.js')
 export const DEFAULT_OUTFILE = resolve(APP_DIR, 'dist-server', 'pine-runtime.mjs')
 
-/** The VITE_* variables baked into `import.meta.env` (sorted, so the bundle is deterministic). */
+/** W5-INT: the ONLY VITE_* names the server bundle may bake. Each is a non-secret build constant (a
+ *  '1'/unset feature flag) that the bundle's closure READS (the rail holds this list equal to the
+ *  VITE_ names in the built bundle, so it can neither miss a read nor carry a stale name). A secret
+ *  (a token, a key) never goes here: the service needs none. Dockerfile ARGs and server.mjs
+ *  ENV_ALLOWLIST name exactly these (tests/test_pine_runtime_dockerfile.py). */
+export const SERVER_BUNDLE_VITE_NAMES = Object.freeze([
+  'VITE_PINE_LOWER_TF_ENABLED', // engine/lowerTfGate.js: lower-timeframe serving (default off)
+  'VITE_PINE_RUNTIME_PANE_ENABLED', // engine/runtimePaneGate.js: the runtime pane build flag (default off)
+])
+
+/** The VITE_* variables baked into `import.meta.env`: the allowlisted ones that are set, sorted. */
 export function viteEnvOf(env = process.env) {
   const out = {}
-  for (const k of Object.keys(env).filter((n) => n.startsWith('VITE_')).sort()) out[k] = String(env[k])
+  for (const k of Object.keys(env).filter((n) => SERVER_BUNDLE_VITE_NAMES.includes(n)).sort()) out[k] = String(env[k])
   return out
+}
+
+/** The whole esbuild `define` set: nothing but the allowlisted VITE_* and vite's four mode constants. */
+export function defineOf(env = process.env) {
+  return { 'import.meta.env': JSON.stringify({ ...viteEnvOf(env), MODE: 'production', DEV: false, PROD: true, SSR: true }) }
 }
 
 /**
@@ -38,6 +58,7 @@ export function viteEnvOf(env = process.env) {
 export async function buildPineRuntime({ outfile = DEFAULT_OUTFILE, logLevel = 'warning', env = process.env } = {}) {
   mkdirSync(dirname(outfile), { recursive: true })
   const viteEnv = viteEnvOf(env)
+  const define = defineOf(env)
   const result = await esbuild.build({
     entryPoints: [ENTRY],
     outfile,
@@ -50,7 +71,7 @@ export async function buildPineRuntime({ outfile = DEFAULT_OUTFILE, logLevel = '
     metafile: true,
     logLevel,
     // vite's own shape for the flags the closure reads (`import.meta.env.VITE_X === '1'`).
-    define: { 'import.meta.env': JSON.stringify({ ...viteEnv, MODE: 'production', DEV: false, PROD: true, SSR: true }) },
+    define,
   })
   const bytes = readFileSync(outfile)
   const manifest = {

@@ -67,6 +67,10 @@ test('L3: inside a job, every removed global and process door is absent, at bund
     for (const k of REMOVED_GLOBALS) assert.equal(v(k), 1, `${k} is reachable`)
     for (const k of ['require', 'module', 'importScripts']) assert.equal(v(k), 1, `${k} is reachable`)
     for (const k of REMOVED_PROCESS) assert.equal(v(`proc:${k}`), 1, `process.${k} is reachable`)
+    // W5-INT: named on its own, so dropping it from REMOVED_PROCESS cannot also drop it from the loop
+    // above. Present on this host (Node >= 20.16) and absent inside the job.
+    assert.equal(typeof process.getBuiltinModule, 'function', 'the host has the door this rail closes')
+    assert.equal(v('proc:getBuiltinModule'), 1, 'process.getBuiltinModule (a sync node: module loader) is reachable')
     assert.equal(v('frozen'), 1, 'globalThis is frozen')
     assert.equal(v('env'), 0, 'the worker env is empty')
   } finally {

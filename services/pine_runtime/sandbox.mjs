@@ -23,7 +23,7 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isMainThread, parentPort, workerData, Worker } from 'node:worker_threads'
-import { runJob } from './job.mjs'
+import { budgetOf, runJob } from './job.mjs'
 
 export const SANDBOX_URL = new URL(import.meta.url)
 export const ROLE_JOB = 'pine-runtime-job'
@@ -36,8 +36,10 @@ export const REMOVED_GLOBALS = Object.freeze([
   'SubtleCrypto', 'BroadcastChannel', 'MessageChannel', 'MessagePort',
   'setTimeout', 'setInterval', 'setImmediate', 'clearTimeout', 'clearInterval', 'clearImmediate', 'queueMicrotask',
 ])
-/** `process` methods that reach native code or other processes. */
-export const REMOVED_PROCESS = Object.freeze(['binding', '_linkedBinding', 'dlopen', 'kill', '_kill'])
+/** `process` methods that reach native code, other processes or a module loader. W5-INT:
+ *  `getBuiltinModule` (Node >= 20.16, so on the 20.18 pin) is a SYNCHRONOUS loader of any node:
+ *  built-in (node:net, node:fs, ...) for code that holds `process`: the door L3 closes. */
+export const REMOVED_PROCESS = Object.freeze(['binding', '_linkedBinding', 'dlopen', 'kill', '_kill', 'getBuiltinModule'])
 
 /** L3 preamble. Returns what it removed, for the boot record. */
 export function applyPreamble(g = globalThis) {
@@ -134,9 +136,10 @@ async function jobWorker({ bundle }) {
   let rt
   try {
     rt = await import(bundle)
-    for (const k of ['computeRuntimeColumns', 'resetRuntimeSessions', 'resetRuntimeLedgers', 'runtimeWarmupOf']) {
+    for (const k of ['computeRuntimeColumns', 'resetRuntimeSessions', 'resetRuntimeLedgers', 'runtimeWarmupOf', 'encodeColumn', 'bytesToB64']) {
       if (typeof rt[k] !== 'function') throw new Error(`the bundle exports no ${k}`)
     }
+    budgetOf(rt) // W5-INT: no explicit wall budget, no worker (job.mjs header, "time budget")
   } catch (e) {
     parentPort.postMessage({ type: 'boot-error', message: String((e && e.message) || e).slice(0, 400) })
     return

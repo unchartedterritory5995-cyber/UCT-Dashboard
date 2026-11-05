@@ -3,7 +3,7 @@
 // pool is 1-3 workers and is closed by its test.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { BUSY_GUARD, BusyError, OOM_GUARD, POOL_DEFAULTS, PRIORITY, WORKER_FAILED_GUARD, createPool } from '../pool.mjs'
@@ -190,6 +190,53 @@ test('boot: a bundle that cannot serve refuses the pool, and leaves no worker ru
     assert.equal(pool.ready(), true)
     await pool.close()
   } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+// ─── W5-INT ──────────────────────────────────────────────────────────────────────
+
+test('boot: a bundle with no explicit wall budget refuses the pool (a wall-clock stop could be named runtime:limit)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pine-rt-int-budget-'))
+  try {
+    const nobudget = join(dir, 'nobudget.mjs')
+    writeFileSync(nobudget, readFileSync(FAKE_BUNDLE, 'utf8').replace('export const RUNTIME_PANE_TIME_BUDGET_MS = 1000', 'export const RUNTIME_PANE_TIME_BUDGET_MS = null'))
+    assert.ok(readFileSync(nobudget, 'utf8').includes('RUNTIME_PANE_TIME_BUDGET_MS = null'), 'fixture edit applied')
+    await assert.rejects(createPool({ bundle: nobudget, workers: 1 }), /RUNTIME_PANE_TIME_BUDGET_MS/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+/** Wait until `cond()` holds, at most `ms`; returns whether it did (never loops forever). */
+async function until(cond, ms = 10_000) {
+  const end = Date.now() + ms
+  while (Date.now() < end) { if (cond()) return true; await delay(20) }
+  return cond()
+}
+
+test('respawn: a replacement that fails to boot makes the pool NOT ready, is retried with backoff, and recovers', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pine-rt-int-respawn-'))
+  const bundle = join(dir, 'fake.mjs')
+  copyFileSync(FAKE_BUNDLE, bundle)
+  const good = readFileSync(bundle)
+  // two workers: the one that stays healthy must not mask the failing replacement
+  const pool = await createPool({ bundle, workers: 2, recycleJobs: 1, respawnBaseMs: 40, respawnMaxMs: 200 })
+  try {
+    assert.equal(pool.ready(), true)
+    writeFileSync(bundle, "export const RUNTIME_TIME_BUDGET_GUARD = 'runtime:time-budget'\n") // the next worker cannot load it
+    assert.equal((await runOne(pool, {})).status, 'ok', 'the loaded worker still serves')
+    // that job retired the worker (recycleJobs 1); its replacement fails to boot
+    assert.ok(await until(() => pool.stats().bootFailures >= 1), 'the replacement boot failure is counted')
+    assert.equal(pool.stats().live, 1, 'the other worker is still live')
+    assert.equal(pool.ready(), false, 'a pool with a failing replacement is not ready (/ready 503), even with a live worker')
+    assert.ok(await until(() => pool.stats().bootFailures >= 3), 'it is retried, more than once')
+    assert.equal(pool.ready(), false)
+    writeFileSync(bundle, good)
+    assert.ok(await until(() => pool.ready()), 'a later retry boots and the pool is ready again')
+    assert.equal((await runOne(pool, {})).status, 'ok')
+  } finally {
+    await pool.close()
     rmSync(dir, { recursive: true, force: true })
   }
 })

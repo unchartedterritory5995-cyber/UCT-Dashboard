@@ -39,9 +39,13 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import date, datetime, timedelta
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 import pytest
+
+from api.services.indicator_compute import bar_open_instant
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SERVER_MJS = os.path.join(REPO, "services", "pine_runtime", "server.mjs")
@@ -129,9 +133,38 @@ def _loopback(url, body, headers, timeout):
         conn.close()
 
 
+def _session_days(n, start=date(2020, 1, 2)):
+    """`n` consecutive weekdays from `start` (a plain calendar: the fixture needs no holiday list)."""
+    out, d = [], start
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(d)
+        d += timedelta(days=1)
+    return out
+
+
 def _bars():
-    return [{"t": 1_600_000_000_000 + i * 86_400_000, "o": 100 + math.sin(i / 7), "h": 101 + math.sin(i / 7),
+    """W5-INT: daily bars stamped by THE ONE RULE (W5-T7b EVIDENCE, "Daily bar time"): `t` is the UNIX
+    SECONDS of the 09:30 America/New_York open of the session date, from the Python authority
+    `indicator_compute.bar_open_instant` (the twin of indicators.js::barOpenInstant). The fixture used
+    to send milliseconds, the very spelling that rule says is read as far-future seconds."""
+    times = [bar_open_instant(d.isoformat(), "D") for d in _session_days(N)]
+    return [{"t": times[i], "o": 100 + math.sin(i / 7), "h": 101 + math.sin(i / 7),
              "l": 99 + math.sin(i / 7), "c": 100.5 + math.sin(i / 5), "v": 1000 + i} for i in range(N)]
+
+
+def test_the_fixture_bars_follow_the_one_daily_time_rule():
+    """Every bar time is seconds (not ms) at 09:30 New York on its own date, DST included."""
+    ny = ZoneInfo("America/New_York")
+    bars = _bars()
+    assert len(bars) == N
+    for b, d in zip(bars, _session_days(N)):
+        assert isinstance(b["t"], float) and b["t"] == int(b["t"])
+        wall = datetime.fromtimestamp(b["t"], tz=ny)
+        assert (wall.date(), wall.hour, wall.minute) == (d, 9, 30), (b["t"], wall)
+        assert 631_152_000 <= b["t"] < 4_102_444_800, "seconds, never milliseconds"
+    # both offsets are exercised (EST and EDT), so a fixed-offset shortcut would be caught
+    assert {datetime.fromtimestamp(b["t"], tz=ny).utcoffset().total_seconds() for b in bars} == {-5 * 3600, -4 * 3600}
 
 
 def _doc(history):

@@ -21,6 +21,17 @@
 //                    `undefined` and every NaN are written as 0x7FF8000000000000; -0 stays -0.
 //                    A column of any other length, or a value that is not a number / null /
 //                    undefined, withholds the WHOLE job (`runtime:server-integrity`): never partial.
+//                    W5-INT: the bytes are the T3 codec's (`rt.encodeColumn` + `rt.bytesToB64`,
+//                    the bundle's own runtime/columnDigest.js); this file holds no second encoder.
+//   time budget      W5-INT: EXPLICIT. Every run gets `budgetMs` = the bundle's
+//                    RUNTIME_PANE_TIME_BUDGET_MS (1,000 ms), which must be a positive finite number
+//                    or the worker refuses to boot (`budgetOf`, sandbox.mjs; a module namespace
+//                    cannot change after its import, so one check at boot covers every run). With
+//                    a budget, the run names EVERY
+//                    wall-clock stop `runtime:time-budget` (runtimeColumns.js), which the result
+//                    cache never stores (cache.mjs `cacheable`). Without one, the VM's WALL_TIME stop
+//                    would surface as `runtime:limit`, read as deterministic and CACHED: that is the
+//                    hole this check closes.
 //   run-wide stop    status `withheld`, no `columns`, refusals `[{key: '*', guard, sentence, bar}]`.
 //                    guard = the run's own `err.guard`; the script's `runtime.error` is guard
 //                    `runtime.error`; an unnamed throw is the bundle's `RUNTIME_FAILED_GUARD`.
@@ -56,6 +67,17 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   defMeta: 'doc.meta',
 })
 
+/** The bundle's per-run wall budget, or a throw: a run with no budget could have a wall-clock stop
+ *  named `runtime:limit` (deterministic, cacheable). sandbox.mjs calls this ONCE at worker boot
+ *  (the one guard); runJob passes the same export, which the HP-7 rail reads by name. */
+export function budgetOf(rt) {
+  const ms = rt.RUNTIME_PANE_TIME_BUDGET_MS
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) {
+    throw new Error('the bundle exports no positive finite RUNTIME_PANE_TIME_BUDGET_MS, so a wall-clock stop could not be told from a limit')
+  }
+  return ms
+}
+
 /** The `(def, rows, ctx)` of one wire job, built as `runtimeAsync.js::messageOf` builds them. */
 export function runArgs(doc, job) {
   const def = { id: doc.id, compute: doc.compute, meta: doc.meta }
@@ -71,24 +93,13 @@ export function runArgs(doc, job) {
   return { def, rows, ctx }
 }
 
-const NAN_HI = 0x7ff80000
-
-/** Canonical base64 of one column, or null when it is not exactly `n` plain numbers / na. */
-export function encodeColumn(col, n) {
-  if (!col || typeof col.length !== 'number' || col.length !== n) return null
-  const b = Buffer.alloc(n * 8)
-  for (let i = 0; i < n; i += 1) {
-    const x = col[i]
-    if (x === null || x === undefined || (typeof x === 'number' && Number.isNaN(x))) {
-      b.writeUInt32LE(0, i * 8)
-      b.writeUInt32LE(NAN_HI, i * 8 + 4)
-    } else if (typeof x === 'number') {
-      b.writeDoubleLE(x, i * 8)
-    } else {
-      return null
-    }
-  }
-  return b.toString('base64')
+/** Canonical base64 of one column by the bundle's T3 codec, or null when it is not exactly `n`
+ *  plain numbers / na (T3 refuses the element or the container; a wrong length is refused here). */
+export function encodeColumn(rt, col, n) {
+  let bytes
+  try { bytes = rt.encodeColumn(col) } catch { return null }
+  if (bytes.length !== n * 8) return null
+  return rt.bytesToB64(bytes)
 }
 
 const runWide = (job, guard, sentence, bar = null) => ({
@@ -117,7 +128,7 @@ export function encodeResult(rt, job, cols) {
       refusals.push({ key, guard: OUTPUT_ABSENT_GUARD, sentence: `this run produced no output \`${key}\`.`, bar: null })
       continue
     }
-    const b64 = encodeColumn(cols[key], job.bars.n)
+    const b64 = encodeColumn(rt, cols[key], job.bars.n)
     if (b64 === null) {
       return runWide(job.job, INTEGRITY_GUARD, `output \`${key}\` is not ${job.bars.n} numbers long, so no output of this job has a value.`)
     }

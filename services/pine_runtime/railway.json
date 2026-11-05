@@ -11,7 +11,8 @@
       "app/src/components/chart/builder/authoring/crossContext.json",
       "app/package*.json",
       "app/vite.config.js",
-      "app/scripts/build-pine-runtime.mjs"
+      "app/scripts/build-pine-runtime.mjs",
+      "tools/pine_runtime_host_parity.mjs"
     ]
   },
   "deploy": {

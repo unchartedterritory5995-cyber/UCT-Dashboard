@@ -14,7 +14,7 @@ const NAMES = ['fetch', 'Request', 'Response', 'Headers', 'FormData', 'WebSocket
   'CloseEvent', 'MessageEvent', 'WebAssembly', 'navigator', 'Navigator', 'crypto', 'Crypto', 'CryptoKey',
   'SubtleCrypto', 'BroadcastChannel', 'MessageChannel', 'MessagePort', 'setTimeout', 'setInterval', 'setImmediate',
   'clearTimeout', 'clearInterval', 'clearImmediate', 'queueMicrotask', 'require', ['mod', 'ule'].join(''), 'importScripts']
-const PROC_NAMES = ['binding', '_linkedBinding', 'dlopen', 'kill', '_kill']
+const PROC_NAMES = ['binding', '_linkedBinding', 'dlopen', 'kill', '_kill', 'getBuiltinModule']
 const proc = () => globalThis['process']
 const reach = () => {
   const out = {}
@@ -34,6 +34,22 @@ export function runtimeWarmupOf(cols) {
   const w = cols && typeof cols === 'object' ? cols[RUNTIME_WARMUP_KEY] : null
   return w && typeof w === 'object' ? w : null
 }
+
+// W5-INT: the job adapter writes column bytes with the bundle's T3 encoder. A STAND-IN of that
+// encoder's contract (Array / Float64Array of numbers or na, canonical NaN, -0 kept); the real one is
+// the bundle's runtime/columnDigest.js, which job.test.mjs runs against.
+export function encodeColumn(col) {
+  if (!Array.isArray(col) && !(col instanceof Float64Array)) throw new Error('not a column')
+  const f = new Float64Array(col.length)
+  const out = new Uint8Array(f.buffer)
+  for (let i = 0; i < col.length; i += 1) {
+    const x = col[i]
+    if (x !== null && x !== undefined && typeof x !== 'number') throw new Error('not a number')
+    if (x === null || x === undefined || x !== x) { out[i * 8 + 6] = 0xf8; out[i * 8 + 7] = 0x7f } else f[i] = x
+  }
+  return out
+}
+export function bytesToB64(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s) }
 
 const fill = (n, x) => Array.from({ length: n }, () => x)
 const cold = (cols) => Object.defineProperty(cols, RUNTIME_INCREMENTAL_KEY, { enumerable: false, value: { resumedFrom: null } })
