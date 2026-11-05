@@ -56,6 +56,7 @@ export const FIRST_RUN_PACKS = Object.freeze([
 const packLabel = (key) => FIRST_RUN_PACKS.find((p) => p.key === key)?.label || key
 
 export const MAX_NAMES = 3
+const NOOP = () => {}
 /** Each step-2 row starts this long after the one before; with a 300 ms fade, four rows land in 1.2 s (<= 1.5 s). */
 export const ROW_STAGGER_MS = 300
 
@@ -165,7 +166,7 @@ function NamesField({ names, setNames, disabled }) {
  * The first run's body: step 1 (the two questions), Build, step 2 (the build list). `variant` is 'sheet' (inside the
  * first-run Sheet) or 'inline' (Home's ask after a Skip). `mark(id)` records a FIRST_RUN_MARKS id on the account.
  */
-export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNote, startedAt }) {
+export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNote, startedAt, onBusyChange }) {
   const uid = useId()
   const { mutate } = useSWRConfig()
   const { prefs, setPrefMerged } = usePreferences()
@@ -176,6 +177,10 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
   const [result, setResult] = useState(null)
   const [undone, setUndone] = useState(false)
   const [status, setStatus] = useState('')
+  const [undoing, setUndoing] = useState(false)
+  const undoPressed = useRef(false)
+  // Review minor 7: while Build runs, the sheet's Escape and ✕ wait for it (FirstRunSheet reads this).
+  useEffect(() => { onBusyChange?.(busy) }, [busy, onBusyChange])
   const pressed = useRef(false)
   const t0 = useRef(startedAt ?? Date.now())
 
@@ -230,6 +235,9 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
   }
 
   const undoPack = async () => {
+    if (undoPressed.current) return                 // review minor 8: a double press removes once
+    undoPressed.current = true
+    setUndoing(true)
     const ids = (result?.pack?.installed || []).map((i) => i?.styleId).filter(Boolean)
     try {
       for (const id of ids) {
@@ -241,7 +249,10 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
       setUndone(true)
       setStatus('Templates removed. They are in Recently deleted if you want them back.')
     } catch {
+      undoPressed.current = false                    // a failed undo can be pressed again
       setStatus("Couldn't remove the templates. Try again from Manage templates.")
+    } finally {
+      setUndoing(false)
     }
   }
 
@@ -249,7 +260,7 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
     // Done closes the first run on the Today home when the Notebook has one (S15), else on today's plan; "Open it"
     // opens today's plan; a link that goes elsewhere only closes it.
     const planNote = result.plan?.ok ? result.plan.note : null
-    return <BuildList result={result} undone={undone} status={status} onUndo={undoPack} names={names}
+    return <BuildList result={result} undone={undone} undoing={undoing} status={status} onUndo={undoPack} names={names}
       onDone={() => onDone?.(planNote, 'done')} onOpen={() => onDone?.(planNote, 'open')}
       onLeave={() => onDone?.(null, 'leave')} canOpen={Boolean(onOpenNote)} />
   }
@@ -280,7 +291,7 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
           </p>
         )}
       </fieldset>
-      <div className={styles.question}>
+      <div className={styles.question} role="group" aria-labelledby={`${uid}-names`}>
         <p className={styles.legend} id={`${uid}-names`}>{FIRST_RUN_COPY.names}</p>
         <NamesField names={names} setNames={setNames} disabled={busy} />
       </div>
@@ -305,8 +316,8 @@ function closeOnto({ note, how, onOpenNote, onOpenToday }) {
 }
 
 /** Step 2: M2's build list, one row at a time (<= 1.5 s), then Done. */
-function BuildList({ result, undone, status, onUndo, onDone, onOpen, onLeave, canOpen, names }) {
-  const doneRef = useRef(null)
+function BuildList({ result, undone, undoing, status, onUndo, onDone, onOpen, onLeave, canOpen, names }) {
+  const headRef = useRef(null)
   const rows = []
   const n = result.names
   if (n?.ok) {
@@ -336,13 +347,14 @@ function BuildList({ result, undone, status, onUndo, onDone, onOpen, onLeave, ca
     const t = setTimeout(() => setShown((s) => s + 1), ROW_STAGGER_MS)
     return () => clearTimeout(t)
   }, [shown, rows.length])
-  // Focus moves to Done once the list has landed (the Build button that held it has gone).
-  useEffect(() => { if (shown >= rows.length) doneRef.current?.focus() }, [shown, rows.length])
+  // Review minor 12: focus goes to the step's heading as soon as step 2 opens (the Build button that held it has gone),
+  // and the rows are read as they land (the list is a polite live region). Focus is never moved again after that.
+  useEffect(() => { headRef.current?.focus() }, [])
 
   return (
     <div className={styles.flow} data-first-run-step="2">
-      <p className={styles.meta}><span>{FIRST_RUN_COPY.step2}</span></p>
-      <ul className={styles.built} aria-label="What was built">
+      <h3 className={styles.meta} ref={headRef} tabIndex={-1}>{FIRST_RUN_COPY.step2}</h3>
+      <ul className={styles.built} aria-label="What was built" aria-live="polite">
         {rows.slice(0, shown).map((r, i) => {
           const row = typeof r === 'string' ? { text: r } : r
           return (
@@ -356,7 +368,7 @@ function BuildList({ result, undone, status, onUndo, onDone, onOpen, onLeave, ca
                   {' ('}
                   <Link className={styles.textBtn} to="/journal/notebook?styles=1" onClick={() => onLeave?.()}>preview</Link>
                   {' · '}
-                  <button type="button" className={styles.textBtn} onClick={onUndo}>undo</button>
+                  <button type="button" className={styles.textBtn} onClick={onUndo} disabled={undoing}>undo</button>
                   {')'}
                 </span>
               )}
@@ -371,7 +383,7 @@ function BuildList({ result, undone, status, onUndo, onDone, onOpen, onLeave, ca
         })}
       </ul>
       <div className={styles.actions}>
-        <button type="button" ref={doneRef} className="btn btn-primary btn-sm" onClick={onDone}>{FIRST_RUN_COPY.done}</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onDone}>{FIRST_RUN_COPY.done}</button>
       </div>
       <p className={styles.status} role="status" aria-live="polite">{status}</p>
     </div>
@@ -390,14 +402,17 @@ export default function FirstRunSheet({ open = true, onClose, onOpenNote, onOpen
     onClose?.()
   }
   const [built, setBuilt] = useState(false)
+  const [building, setBuilding] = useState(false)
   const markWrap = useCallback((id) => {
     if (id === FIRST_RUN_MARKS.built) setBuilt(true)
     mark?.(id)
   }, [mark])
   return (
-    <Sheet open={open} onClose={built ? onClose : closeAsSkip} title={FIRST_RUN_COPY.title} ariaLabel={FIRST_RUN_COPY.title} maxWidth={520}>
+    // Review minor 7: Escape or ✕ while Build runs does nothing (the build finishes and step 2 shows what was made);
+    // never a Skip recorded over a build.
+    <Sheet open={open} onClose={building ? NOOP : built ? onClose : closeAsSkip} title={FIRST_RUN_COPY.title} ariaLabel={FIRST_RUN_COPY.title} maxWidth={520}>
       {open && (
-        <FirstRunFlow variant="sheet" mark={markWrap} startedAt={startedAt.current} onOpenNote={onOpenNote}
+        <FirstRunFlow variant="sheet" mark={markWrap} startedAt={startedAt.current} onOpenNote={onOpenNote} onBusyChange={setBuilding}
           onSkip={onClose} onDone={(note, how) => { onClose?.(); closeOnto({ note, how, onOpenNote, onOpenToday }) }} />
       )}
     </Sheet>

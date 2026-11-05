@@ -155,6 +155,10 @@ function SharingList({ shareOn, publishOn }) {
                 <span className={styles.meta}>
                   {`Share link · created ${day(s.createdAt)} · ${s.expiresAt ? `expires ${day(s.expiresAt)}` : 'never expires'} · ${STATE_TEXT[s.state] || s.state}`}
                 </span>
+                {/* Tier 3a fix round 1 (review minor 11): which live links show account figures, at a glance. */}
+                <span className={styles.meta} data-share-pnl={s.hidePnl === true ? 'hidden' : 'shown'}>
+                  {s.hidePnl === true ? 'P&L widgets and images hidden' : 'P&L widgets and images shown'}
+                </span>
               </div>
               <div className={styles.actions}>
                 <button type="button" className={styles.action} disabled={busy} onClick={() => revokeShare(s)}

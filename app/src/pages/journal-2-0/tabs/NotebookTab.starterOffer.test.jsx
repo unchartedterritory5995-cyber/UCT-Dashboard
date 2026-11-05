@@ -20,6 +20,9 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div da
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
+// S16 (audit 2026-11-05): the 60-second first run has its own rails (components/notebook/FirstRunSheet.test.jsx). Here
+// the gate is left out so these walks read the offer machinery itself, for a member who has not seen the first run.
+vi.mock('../components/notebook/FirstRunGate', () => ({ default: () => null, FirstRunInlineSlot: () => null }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
@@ -34,7 +37,9 @@ beforeAll(async () => { await import('../components/notebook/styles/StyleSurface
 const T = { timeout: 20000 }
 vi.setConfig({ testTimeout: 40000 })   // role queries over the whole Notebook are slow in jsdom; a wait, not a budget
 
+const T3A = { prefs: {} }
 beforeEach(() => {
+  T3A.prefs = {}
   vi.clearAllMocks()
   setCurrentAccountId('acct-A')
   Element.prototype.scrollIntoView = vi.fn()
@@ -45,9 +50,7 @@ beforeEach(() => {
     if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
     if (u === '/api/j2/note-templates') return ok({ templates: [] })
     if (u.includes('mapping-offer')) return ok({ offer: null })
-    // S16 (audit 2026-11-05): the 60-second first run has been seen, so these walks read the offer itself (the first
-    // run's own one-ask rule is railed in components/notebook/FirstRunSheet.test.jsx).
-    if (u === '/api/auth/preferences') return ok({ notebook_tips: JSON.stringify({ v: 1, seen: ['first_run'] }) })
+    if (u === '/api/auth/preferences') return ok(T3A.prefs)
     return ok({})                                                   // anything else: nothing answered yet
   })
   latchNotebookFlags({ notebook_journal_styles_enabled: true, notebook_starter_packs_enabled: true })
@@ -55,6 +58,17 @@ beforeEach(() => {
 afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 const offers = () => screen.queryAllByRole('region', { name: OFFER_TITLE })
+
+describe('Tier 3a fix round 1 (review I3): after the first run, it is the ONE place that asks', () => {
+  it('a member who has SEEN the first run (skipped it) gets no "How do you trade?" card by itself on the empty notebook', async () => {
+    T3A.prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run', 'first-run-skipped'] }) }
+    render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>)
+    await screen.findByText('Your notebook is empty.', {}, T)
+    await settle()
+    await settle()
+    expect(offers()).toHaveLength(0)
+  })
+})
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 100)) })
 
 describe('the empty notebook shows ONE How do you trade? (P5-T10-R2)', () => {

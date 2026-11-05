@@ -18,7 +18,10 @@ import { chartPlanEnabled } from './widgetEmbedCore'
 import { setupsBoardEnabled } from './setupsBoardLink'
 
 export const TIPS_PREF = 'notebook_tips'
-export const TIP_IDS = Object.freeze({ ticker: 'ticker', chart: 'chart' })
+// Audit 2026-11-05 S16/S20 (Tier 3a fix round 1): the 60-second first run's marks and the once-per-ACCOUNT "first live
+// widget" mark ride the same preference, so the server's schema (auth.py NOTEBOOK_TIP_IDS) knows them too. Hyphenated:
+// the server rail reads these ids as [a-z0-9-]+.
+export const TIP_IDS = Object.freeze({ ticker: 'ticker', chart: 'chart', firstRun: 'first-run', firstRunSkipped: 'first-run-skipped', firstRunBuilt: 'first-run-built', firstRunInline: 'first-run-inline', firstLiveWidget: 'first-live-widget' })
 
 /** The words, verbatim from the audit's spec (S13). `touch`: the member has no hover (a phone or tablet). */
 export const TIP_COPY = Object.freeze({
@@ -84,23 +87,20 @@ export function insertedChart(tr) {
   return false
 }
 
-/** S20 trust incidents: the transaction is an UNDO (prosemirror-history's meta, `{redo: false}`) that put a widget
- *  back -- so a widget the member deleted was restored by undo. A redo, a paste or an insert is not one. */
+const countWidgets = (doc) => {
+  let n = 0
+  doc?.descendants?.((node) => { if (node.type?.name === 'widgetEmbed') n += 1 })
+  return n
+}
+
+/** S20 trust incidents (Tier 3a fix round 1, review I4): the transaction is an UNDO (prosemirror-history's meta,
+ *  `{redo: false}`) after which the note holds MORE widgets than before it -- so a widget the member deleted was
+ *  brought back. An undo of a widget's settings change, of a move, or of an insert keeps or lowers the count, and a
+ *  redo is never one. */
 export function restoredWidgetByUndo(tr) {
   const meta = tr?.getMeta?.('history$')
-  if (!meta || meta.redo !== false) return false
-  for (const step of tr?.steps || []) {
-    const content = step?.slice?.content
-    if (!content || !content.size) continue
-    let found = false
-    content.descendants((node) => {
-      if (found) return false
-      if (node.type?.name === 'widgetEmbed') found = true
-      return !found
-    })
-    if (found) return true
-  }
-  return false
+  if (!meta || meta.redo !== false || !tr.docChanged) return false
+  return countWidgets(tr.doc) > countWidgets(tr.before)
 }
 
 /** Which tip (if any) this editor update earns: the chart tip on a chart insert, the ticker tip on a written ticker. */

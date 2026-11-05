@@ -181,3 +181,171 @@ def test_the_column_is_added_to_an_older_table_and_old_rows_read_as_not_hidden(d
     cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_shares)").fetchall()}
     assert {"expires_at", "hide_pnl"} <= cols
     conn.close()
+
+
+# ── Fix round 1 ─────────────────────────────────────────────────────────────────────────────
+
+def test_I1_asking_to_hide_over_an_existing_SHOWN_link_tightens_it_and_keeps_its_url(client):
+    nid = _note()
+    as_member(client, A)
+    old = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7}).json()["share"]
+    assert old["hidePnl"] is False                                   # non-vacuity: a link that shows P&L
+    again = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7, "hidePnl": True}).json()["share"]
+    assert again["token"] == old["token"] and again["hidePnl"] is True and again["reused"] is True
+    signed_out(client)
+    page = client.get(f"/api/j2/shared/{old['token']}").json()["note"]
+    assert "4321" not in _text(page) and "250000" not in _text(page)
+
+
+def test_I1_asking_to_show_over_a_HIDDEN_link_returns_it_hidden_and_says_so_in_the_answer(client):
+    nid = _note()
+    as_member(client, A)
+    old = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7, "hidePnl": True}).json()["share"]
+    again = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7, "hidePnl": False}).json()["share"]
+    assert again["token"] == old["token"] and again["hidePnl"] is True and again["reused"] is True
+    signed_out(client)
+    assert "4321" not in _text(client.get(f"/api/j2/shared/{old['token']}").json()["note"])
+
+
+def test_I2_text_the_member_typed_is_shared_as_written_even_when_hidden(client):
+    """The documented pass-through: the reducer never rewrites the member's words (a figure in a paragraph or a
+    table cell travels). The sheet says so ("Text you typed is shared as written.")."""
+    from api.services.journal_two import notes
+    nid = _note()
+    notes.update_note(A, nid, {"bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Closed NVDA +$4,200 on 500 shares."}]},
+        {"type": "table", "content": [{"type": "tableRow", "content": [
+            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "P&L $9,876"}]}]}]}]},
+    ]}})
+    as_member(client, A)
+    tok = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": True}).json()["share"]["token"]
+    signed_out(client)
+    text = _text(client.get(f"/api/j2/shared/{tok}").json()["note"])
+    assert "Closed NVDA +$4,200 on 500 shares." in text and "P&L $9,876" in text
+
+
+def test_I2_the_members_own_stated_fact_is_the_account_line_when_hidden_and_shown_otherwise():
+    from api.services.journal_two import public_note_payload as public
+    body = {"type": "doc", "content": [{"type": "financialFact", "attrs": {"factId": "f1"}}]}
+    facts = {"f1": {"source": "user", "fact_type": "custom", "value_text": "my size: 500 sh", "rights_class": "ok"}}
+    kw = dict(mode="share", owner_id=A, note_id="n1", attachment_base="/api/j2/shared/t/att/", facts=facts)
+    assert "my size: 500 sh" in json.dumps(public.reduce(body, **kw))                       # CONTROL: shown
+    hidden = json.dumps(public.reduce(body, hide_account=True, **kw))
+    assert "my size: 500 sh" not in hidden and public.ACCOUNT_NEUTRAL_LINE in hidden
+
+
+@pytest.fixture
+def att_root(tmp_path, monkeypatch):
+    from api.services.journal_two import notes as notes_svc
+    r = tmp_path / "att"
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", r)
+    monkeypatch.setattr(notes_svc, "_read_candidates", lambda rel: [r / rel])
+    monkeypatch.setattr(notes_svc, "_read_candidates_with_roots", lambda rel: [(r, r / rel)])
+    return r
+
+
+def _note_with_image(att_root):
+    from api.services.journal_two import notes
+    nid = _note()
+    d = att_root / A / "notes" / nid / "inline"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "pnl.png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
+    src = f"/api/j2/notes/attachments/{A}/{nid}/inline/pnl.png"
+    notes.update_note(A, nid, {"bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "My week."}]},
+        {"type": "image", "attrs": {"src": src}},
+        {"type": "imageFigure", "content": [{"type": "image", "attrs": {"src": src}},
+                                            {"type": "imageCaption", "content": [{"type": "text", "text": "broker P&L"}]}]},
+    ]}})
+    return nid
+
+
+def test_I2_a_hidden_link_drops_every_image_behind_one_line_and_its_image_route_serves_nothing(client, att_root):
+    from api.services.journal_two.public_note_payload import IMAGE_HIDDEN_LINE
+    nid = _note_with_image(att_root)
+    as_member(client, A)
+    tok = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": True}).json()["share"]["token"]
+    preview = client.get(f"/api/j2/notes/{nid}/share/preview?hidePnl=true").json()["note"]
+    signed_out(client)
+    page = client.get(f"/api/j2/shared/{tok}").json()["note"]
+    text = _text(page)
+    assert "pnl.png" not in text and "broker P&L" not in text and IMAGE_HIDDEN_LINE in text
+    assert text.count(IMAGE_HIDDEN_LINE) == 1                         # adjacent lines collapse into one
+    assert page["heroImageUrl"] is None
+    assert client.get(f"/api/j2/shared/{tok}/att/inline/pnl.png").status_code == 404
+    assert preview == page                                            # the preview IS the stranger's read
+
+
+def test_I2_CONTROL_a_link_that_shows_serves_the_image(client, att_root):
+    nid = _note_with_image(att_root)
+    as_member(client, A)
+    tok = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": False}).json()["share"]["token"]
+    signed_out(client)
+    assert "pnl.png" in _text(client.get(f"/api/j2/shared/{tok}").json()["note"])
+    assert client.get(f"/api/j2/shared/{tok}/att/inline/pnl.png").status_code == 200
+
+
+def test_minor11_settings_lists_each_links_real_setting(client):
+    from api.services.journal_two import note_shares
+    a, b = _note(), _note()
+    as_member(client, A)
+    client.post(f"/api/j2/notes/{a}/share", json={"hidePnl": True})
+    client.post(f"/api/j2/notes/{b}/share", json={})
+    got = {s["noteId"]: s["hidePnl"] for s in note_shares.list_shares(A)}
+    assert got == {a: True, b: False}
+
+
+# ── Fix round 2 ─────────────────────────────────────────────────────────────────────────────
+
+def test_R1_tightening_a_link_404s_its_images_at_once_never_from_the_cached_set(client, att_root):
+    from api.services.journal_two import public_note_payload as public
+    public._REF_SETS.clear()
+    nid = _note_with_image(att_root)
+    as_member(client, A)
+    tok = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": False}).json()["share"]["token"]
+    signed_out(client)
+    assert client.get(f"/api/j2/shared/{tok}/att/inline/pnl.png").status_code == 200   # primes the 60 s set
+    as_member(client, A)
+    tight = client.post(f"/api/j2/notes/{nid}/share", json={"hidePnl": True}).json()["share"]
+    assert tight["token"] == tok and tight["hidePnl"] is True
+    signed_out(client)
+    assert client.get(f"/api/j2/shared/{tok}/att/inline/pnl.png").status_code == 404   # at once, not in 60 s
+
+
+def test_R2_a_link_revoked_between_the_read_and_the_tighten_is_never_answered_as_live(db_path, monkeypatch):
+    from api.services.journal_two import note_shares
+    nid = _note()
+    old = note_shares.create_share(A, nid, hide_pnl=False)
+    stale = dict(old)                                      # what the mint read, before a revoke landed
+    note_shares.revoke_share(A, nid)
+    real = note_shares.get_share
+    calls = {"n": 0}
+
+    def racing(user_id, note_id, conn=None):
+        calls["n"] += 1
+        return stale if calls["n"] == 1 else real(user_id, note_id, conn=conn)
+    monkeypatch.setattr(note_shares, "get_share", racing)
+    got = note_shares.create_share(A, nid, hide_pnl=True)
+    assert got["token"] != old["token"]                    # a new, live link -- never the dead URL "copied"
+    assert got["hidePnl"] is True
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    row = conn.execute("SELECT hide_pnl, revoked_at FROM j2_note_shares WHERE token = ?", (old["token"],)).fetchone()
+    conn.close()
+    assert row["revoked_at"] is not None and row["hide_pnl"] == 0   # the dead row was not touched
+
+
+def test_R3_a_hidden_link_carries_no_link_card_picture_and_no_widget_fallback_image():
+    from api.services.journal_two import public_note_payload as public
+    own = f"/api/j2/notes/attachments/{A}/n1/inline/shot.png"
+    body = {"type": "doc", "content": [
+        {"type": "linkPreview", "attrs": {"url": "https://example.com/a", "title": "A page", "image": own}},
+        {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "fundamentals", "mode": "snapshot",
+                                          "params": {"symbol": "NVDA"}, "fallback": {"url": own, "w": 10, "h": 10}}},
+    ]}
+    kw = dict(mode="share", owner_id=A, note_id="n1", attachment_base="/api/j2/shared/t/att/")
+    shown = json.dumps(public.reduce(body, **kw))
+    assert "/api/j2/shared/t/att/inline/shot.png" in shown                 # CONTROL: both travel on a showing link
+    hidden = json.dumps(public.reduce(body, hide_account=True, **kw))
+    assert "att/" not in hidden and "shot.png" not in hidden
+    assert public.referenced_images(public.reduce(body, hide_account=True, **kw), "/api/j2/shared/t/att/") == frozenset()

@@ -225,6 +225,11 @@ NEUTRAL_LINE = "A market-data item is not shown on public pages."
 #: SAME line collapse to one; a market line beside an account line stays two.
 ACCOUNT_NEUTRAL_LINE = "A private account item is not shown on public pages."
 
+#: Audit 2026-11-05, S19 fix round 1 (I2): what an IMAGE becomes on a share link minted with "Hide P&L widgets and
+#: images". A broker screenshot is the obvious leak, and a reducer cannot read a picture, so every image (and the
+#: hero) goes, behind this one line. Text the member typed is NOT touched: it is shared as written.
+IMAGE_HIDDEN_LINE = "An image is not shown on this link."
+
 #: What a noteLink becomes (ruling D-B7): no id and no title leaves.
 LINKED_NOTE_TEXT = "linked note"
 
@@ -1409,9 +1414,11 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         if _internal_href(attrs.get("url")) or (ctx.strict and _in_app_shape(attrs.get("url"))):
             ctx.note("dropped", attrs.get("url"))
             return None
-        if ctx.strict and attrs.get("image") is not None:
+        if (ctx.strict or ctx.hide_account) and attrs.get("image") is not None:
             ctx.note("dropped", attrs.get("image"))
-            return {**node, "attrs": {**attrs, "image": None}}     # gallery: no image of any kind
+            # gallery: no image of any kind; a hidden share link (Tier 3a fix round 2, R3): "…and images" means every
+            # image, a link card's picture included (it can point at the member's own upload)
+            return {**node, "attrs": {**attrs, "image": None}}
         if attrs.get("image") is not None and _public_image_src(attrs.get("image"), ctx.attachment_base) is None:
             node = {**node, "attrs": {**attrs, "image": None}}
         return node
@@ -1446,7 +1453,7 @@ def _placed_line_of(node: Any) -> str | None:
 def _neutral_line_of(node: Any) -> str | None:
     """Which neutral line this node is (market or account), or None when it is neither."""
     if isinstance(node, dict) and node.get("type") == "paragraph":
-        for line in (NEUTRAL_LINE, ACCOUNT_NEUTRAL_LINE):
+        for line in (NEUTRAL_LINE, ACCOUNT_NEUTRAL_LINE, IMAGE_HIDDEN_LINE):
             if node.get("content") == [{"type": "text", "text": line}]:
                 return line
     return None
@@ -1586,6 +1593,8 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
             # it can hold their real note titles, folder and account names and their own controls, so it never
             # travels (and `referenced_images` then refuses to serve it).
             kept.pop("fallback", None)
+        if ctx.hide_account:
+            kept.pop("fallback", None)               # R3: a hidden link carries no widget's archived picture either
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
@@ -1602,6 +1611,9 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
             return [_neutral()]
         if market_data_verdict("financialFact", str(fact.get("source") or "")) != SHOWN:
             return [_neutral()]
+        if ctx.hide_account and str(fact.get("source") or "") == "user":
+            # S19 I2: the member's own stated figure ("my size: 500 sh") is an account item on a hidden link.
+            return [_neutral(ACCOUNT_NEUTRAL_LINE)]
         para = _fact_paragraph(fact)
         return [para] if para else []
     # documentExcerpt (and any future market-data row with no public rendition)
@@ -1759,6 +1771,8 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         return [{"type": "askCitation", "attrs": {"n": attrs.get("n")}}]
     if action == "ask" and not (node.get("attrs") or {}).get("action"):
         return []                                    # an Ask answer: publish never carries it
+    if ctx.hide_account and t in ("image", "imageFigure"):
+        return [_neutral(IMAGE_HIDDEN_LINE)]      # S19 I2: no image travels on a hidden link (a figure goes whole)
     if action == "image":
         src = (node.get("attrs") or {}).get("src")
         if _public_image_src(src, ctx.attachment_base) is None:
@@ -1903,8 +1917,9 @@ def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: s
         "bodyJson": reduce(note.get("bodyJson") or {}, mode=mode, owner_id=owner_id,
                            note_id=note_id, attachment_base=attachment_base, facts=facts,
                            note_links=note_links, hide_account=hide_account),
-        "heroImageUrl": public_hero(note.get("heroImageUrl"), owner_id=owner_id,
-                                    note_id=note_id, attachment_base=attachment_base),
+        # S19 I2: a hidden link carries no hero image either (it is an image like any other).
+        "heroImageUrl": None if hide_account else public_hero(note.get("heroImageUrl"), owner_id=owner_id,
+                                                              note_id=note_id, attachment_base=attachment_base),
         "updatedAt": note.get("updatedAt"),
     }
 

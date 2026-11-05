@@ -48,6 +48,14 @@ def test_accepts_the_shapes_the_client_writes(value):
     auth_router._validate_preference("notebook_tips", value)
 
 
+def test_accepts_the_first_run_and_first_live_widget_marks():
+    """Tier 3a fix round 1: the first run's marks and the per-account first-live-widget mark ride this key, so the
+    schema must accept every one (a refused write would leave the first run re-opening on every visit)."""
+    every = ["ticker", "chart", "first-run", "first-run-skipped", "first-run-built", "first-run-inline", "first-live-widget"]
+    auth_router._validate_preference("notebook_tips", json.dumps({"v": 1, "seen": every}))
+    assert len(json.dumps({"v": 1, "seen": every}).encode()) <= 512
+
+
 @pytest.mark.parametrize("value", [
     "", "x", "[]", "null", '{"v": 1}', '{"seen": []}', '{"v": 2, "seen": []}', '{"v": true, "seen": []}',
     '{"v": 1, "seen": ["nope"]}', '{"v": 1, "seen": ["ticker", "ticker"]}', '{"v": 1, "seen": "ticker"}',

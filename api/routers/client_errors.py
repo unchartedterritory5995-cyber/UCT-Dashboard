@@ -156,4 +156,4 @@ def admin_notebook_return_metrics(
     from api.services.journal_two import notebook_return_metrics
     if days not in notebook_return_metrics.WINDOWS:
         raise HTTPException(status_code=400, detail="days must be 7, 30 or 90")
-    return notebook_return_metrics.compute(days)
+    return notebook_return_metrics.compute_cached(days)

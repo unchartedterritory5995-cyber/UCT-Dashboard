@@ -188,8 +188,9 @@ def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = N
                  expires_in_days: int | None = None, hide_pnl: bool = False) -> dict | None:
     """Mint (or return the existing active) share token. None = not the
     caller's note, or one in Trash or archived (M-3). An existing active
-    link keeps its own expiry and its own `hide_pnl`: to change either,
-    revoke and create again (the old URL must die, not quietly live longer).
+    link keeps its own expiry, and its URL. Fix round 1 (I1): a request to HIDE over an existing link that shows
+    TIGHTENS it to hidden (always safe, same URL); a request to show over a hidden link returns it as it is (hidden),
+    and the caller says so from the returned `hidePnl`. To loosen, revoke and create again.
 
     `hide_pnl` (audit 2026-11-05, S19, "Hide my P&L and position size"): the public read then shows every
     account figure (P&L, open positions and their size: the member-opt-in kinds) as the private line, even one
@@ -203,7 +204,17 @@ def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = N
             return None
         existing = get_share(user_id, note_id, conn=conn)
         if existing:
-            return existing
+            if hide_pnl is True and existing.get("hidePnl") is not True:
+                # Fix round 2 (R2): tighten only a link that is STILL live (a revoke or an expiry may have landed since
+                # the read), and answer from a fresh read -- the database's truth, never the patched copy.
+                conn.execute(
+                    f"UPDATE j2_note_shares SET hide_pnl = 1 WHERE token = ? AND user_id = ? AND {_active_sql()}",
+                    (existing["token"], user_id, _now_iso()))
+                conn.commit()
+                existing = get_share(user_id, note_id, conn=conn)
+            if existing:
+                return {**existing, "reused": True}
+            # The link died in between: a new one is made below, so the member is never handed a dead URL.
         token = secrets.token_urlsafe(TOKEN_BYTES)
         now = _now()
         expires = _iso(now + timedelta(days=days)) if days else None
@@ -314,7 +325,10 @@ def _note_revision(conn: sqlite3.Connection, owner_id: str, note_id: str) -> Any
 def share_image_references(conn: sqlite3.Connection, token: str, row: sqlite3.Row) -> frozenset[str]:
     """Ruling R59: the images THIS share's reduced page references right now, cached per (token, note,
     revision) for `public.REFERENCE_SET_TTL_S`."""
-    key = ("share", token, row["note_id"], _note_revision(conn, row["user_id"], row["note_id"]))
+    # Tier 3a fix round 2 (R1): the link's own `hide_pnl` is part of the key. Tightening a link changes what its page
+    # references without touching the note's revision, so a set cached while it showed must never answer after.
+    key = ("share", token, row["note_id"], _note_revision(conn, row["user_id"], row["note_id"]),
+           bool(row["hide_pnl"]))
 
     def compute() -> frozenset[str]:
         payload = _share_payload(conn, token, row)
@@ -361,7 +375,7 @@ def list_shares(user_id: str, conn: sqlite3.Connection | None = None) -> list[di
     try:
         ensure_share_schema(conn)
         rows = conn.execute(
-            "SELECT s.token, s.note_id, s.created_at, s.expires_at,"
+            "SELECT s.token, s.note_id, s.created_at, s.expires_at, s.hide_pnl,"
             " n.id AS nid, n.title, n.deleted_at, n.archived_at"
             " FROM j2_note_shares s"
             " LEFT JOIN j2_notes n ON n.id = s.note_id AND n.user_id = s.user_id"
@@ -389,5 +403,7 @@ def list_shares(user_id: str, conn: sqlite3.Connection | None = None) -> list[di
             "kind": "share", "token": r["token"], "noteId": r["note_id"],
             "title": r["title"] or "Untitled", "createdAt": r["created_at"],
             "expiresAt": r["expires_at"], "state": state,
+            # Fix round 1 (minor 11): Settings shows which live links hide P&L widgets and images.
+            "hidePnl": bool(r["hide_pnl"]),
         })
     return out

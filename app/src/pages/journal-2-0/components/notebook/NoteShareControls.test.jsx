@@ -41,6 +41,10 @@ beforeEach(() => {
       if (method === 'GET') return json(200, { share: S.share })
       if (method === 'POST') {
         if (S.shareStatus !== 200) return json(S.shareStatus, { detail: 'Share links require a paid plan' })
+        if (S.share) {                                   // the server's I1 rule: an existing link is returned, tightened
+          S.share = { ...S.share, hidePnl: S.share.hidePnl === true || body?.hidePnl === true, reused: true }
+          return json(200, { share: S.share })
+        }
         S.share = { token: 'tokABC', createdAt: '2026-09-25T00:00:00Z',
           expiresAt: body?.expiresInDays ? '2026-10-25T12:00:00Z' : null, hidePnl: body?.hidePnl === true }
         return json(200, { share: S.share })
@@ -130,7 +134,7 @@ describe('share links', () => {
     const group = within(dialog).getByRole('group', { name: 'Expires in' })
     expect(within(group).getAllByRole('radio').map((r) => r.closest('label').textContent)).toEqual(['7 days', '30 days', 'Never'])
     expect(within(group).getByRole('radio', { name: '7 days' })).toBeChecked()
-    expect(within(dialog).getByRole('switch', { name: 'Hide my P&L and position size' })).toBeChecked()
+    expect(within(dialog).getByRole('switch', { name: 'Hide P&L widgets and images' })).toBeChecked()
     // No "Show live charts": the server cannot honour it (charts are the neutral line), so it is never offered.
     expect(within(dialog).queryByText(/live charts/i)).toBeNull()
     expect(within(dialog).getByRole('button', { name: "Preview: see exactly what they'll see →" })).toBeInTheDocument()
@@ -152,13 +156,54 @@ describe('share links', () => {
     expect(within(dialog).getByRole('button', { name: 'Publish this note' })).toBeInTheDocument()
   })
 
+  it('I2: the private tab says typed text is shared as written', async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    expect(dialog).toHaveTextContent('Text you typed is shared as written.')
+  })
+
+  it('I1: with Hide OFF, the success line says the link SHOWS P&L widgets and images', async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Hide P&L widgets and images' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
+    await within(dialog).findByText('Share link created and copied. P&L widgets you switched to share, and your images, are shown on this link.')
+    expect(S.calls.find((c) => c.method === 'POST').body).toEqual({ expiresInDays: 7, hidePnl: false })
+  })
+
+  it('I1: an existing link that already hides is returned as it is, and the sheet says so (never "shown")', async () => {
+    mount({ j2_share_links_enabled: true })
+    S.share = null
+    const dialog = await openDoor()
+    S.share = { token: 'tokOLD', createdAt: '2026-09-01T00:00:00Z', expiresAt: null, hidePnl: true }  // another tab made it
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Hide P&L widgets and images' }))      // asks to SHOW
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
+    await within(dialog).findByText('Share link copied. P&L widgets and images are hidden on this link. This link already hides P&L. Make a new link to change it.')
+    expect(within(dialog).getByLabelText('Share link address')).toHaveValue(sharedNoteUrl('tokOLD'))
+  })
+
+  it('I1: an existing link that SHOWS, asked to hide, comes back hidden (the server tightened it) and is said so', async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    S.share = { token: 'tokOLD', createdAt: '2026-09-01T00:00:00Z', expiresAt: null, hidePnl: false }
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
+    await within(dialog).findByText('Share link copied. P&L widgets and images are hidden on this link.')
+  })
+
+  it('minor 11: an existing link that shows P&L says so plainly', async () => {
+    S.share = { token: 'tokOLD', createdAt: '2026-09-01T00:00:00Z', expiresAt: null, hidePnl: false }
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    expect(dialog).toHaveTextContent('P&L widgets you switched to share, and your images, are shown on this link.')
+  })
+
   it("S19: the preview is the server's read for exactly this switch, and follows it", async () => {
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
     fireEvent.click(within(dialog).getByRole('button', { name: "Preview: see exactly what they'll see →" }))
     await waitFor(() => expect(S.calls.some((c) => c.url === `/api/j2/notes/${NOTE}/share/preview?hidePnl=true`)).toBe(true))
     expect(within(dialog).getByRole('region', { name: 'Preview of the shared page' })).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByRole('switch', { name: 'Hide my P&L and position size' }))
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Hide P&L widgets and images' }))
     await waitFor(() => expect(S.calls.some((c) => c.url === `/api/j2/notes/${NOTE}/share/preview?hidePnl=false`)).toBe(true))
     expect(S.calls.filter((c) => c.method !== 'GET')).toEqual([])            // a preview writes nothing
   })
@@ -176,11 +221,11 @@ describe('share links', () => {
     const dialog = await openDoor()
     fireEvent.click(within(dialog).getByRole('radio', { name: '30 days' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
-    await within(dialog).findByText('Share link created and copied.')
+    await within(dialog).findByText('Share link created and copied. P&L widgets and images are hidden on this link.')
     expect(S.calls.find((c) => c.method === 'POST').body).toEqual({ expiresInDays: 30, hidePnl: true })
-    expect(dialog).toHaveTextContent('P&L and position size are hidden on this link.')
+    expect(within(dialog).getByText('P&L widgets and images are hidden on this link.', { selector: 'p:not([role])' })).toBeInTheDocument()
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(sharedNoteUrl('tokABC'))
-    expect(onMessage).toHaveBeenCalledWith('Share link created and copied.')
+    expect(onMessage).toHaveBeenCalledWith('Share link created and copied. P&L widgets and images are hidden on this link.')
     expect(within(dialog).getByLabelText('Share link address')).toHaveValue(sharedNoteUrl('tokABC'))
     expect(dialog).toHaveTextContent('It stops working on Oct 25, 2026.')
     const revoke = within(dialog).getByRole('button', { name: 'Revoke link' })
@@ -307,7 +352,7 @@ describe('focus follows the swap (M-1)', () => {
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
     press(dialog, 'Create link and copy')
-    await within(dialog).findByText('Share link created and copied.')
+    await within(dialog).findByText('Share link created and copied. P&L widgets and images are hidden on this link.')
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy link' })))
     press(dialog, 'Revoke link')
     await within(dialog).findByText('Link revoked. It no longer works.')
@@ -359,7 +404,7 @@ describe('ids are per instance (M-3)', () => {
     S.share = null
     const dialog = await openDoor()
     // labelled and described through the generated ids
-    expect(within(dialog).getByLabelText('Hide my P&L and position size').getAttribute('role')).toBe('switch')
+    expect(within(dialog).getByLabelText('Hide P&L widgets and images').getAttribute('role')).toBe('switch')
     expect(within(dialog).getByRole('tabpanel', { name: 'Private link' })).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Publish to the web' }))
     expect(within(dialog).getByRole('tabpanel', { name: 'Publish to the web' })).toBeInTheDocument()
@@ -414,7 +459,7 @@ describe('share_used and publish_used — the editor door counts actions, and no
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
-    await within(dialog).findByText('Share link created and copied.')
+    await within(dialog).findByText('Share link created and copied. P&L widgets and images are hidden on this link.')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Copy link' }))
     await within(dialog).findByText('Share link copied.')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke link' }))

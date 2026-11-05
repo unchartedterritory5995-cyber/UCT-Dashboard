@@ -3339,7 +3339,9 @@ def _validate_starter_pack(raw) -> None:
 # S13 + Tier 2 fix round 1: the one-time Notebook tips' seen state. Exactly {"v": 1, "seen": [ids]}, every id one of
 # the tips the client knows (`TIP_IDS` in app/src/pages/journal-2-0/lib/notebookTips.js; railed against it by
 # tests/test_notebook_tips_pref.py), no repeats, at most 512 bytes. Anything else is the one 400.
-NOTEBOOK_TIP_IDS = ("ticker", "chart")
+NOTEBOOK_TIP_IDS = ("ticker", "chart",
+                    # Tier 3a (S16, S20): the first run's marks and the once-per-account first-live-widget mark.
+                    "first-run", "first-run-skipped", "first-run-built", "first-run-inline", "first-live-widget")
 _NOTEBOOK_TIPS_MAX_BYTES = 512
 _NOTEBOOK_TIPS_REFUSAL = "That tip could not be saved. Try again."
 

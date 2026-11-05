@@ -4,7 +4,7 @@ import useMobileSWR from '../../../../hooks/useMobileSWR'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import EmptyNamesAsk from './EmptyNamesAsk'
-import { markFirstLiveWidget } from '../../lib/notebookTelemetry'
+import { useFirstLiveWidget } from '../../lib/firstLiveWidget'
 import {
   SOON_URL, earningsPrepEnabled, fetchReportingSoon, createEarningsPrepNote, fmtShortDay,
   sourceLabel, timingLabel,
@@ -88,7 +88,7 @@ export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS })
 
   // S20 "First aha": the first time this box lists the member's own names reporting (once per browser).
   const reportingCount = Array.isArray(data?.items) ? data.items.length : 0
-  useEffect(() => { if (reportingCount > 0) markFirstLiveWidget('reporting', reportingCount) }, [reportingCount])
+  useFirstLiveWidget('reporting', reportingCount)
 
   if (!enabled) return null
 

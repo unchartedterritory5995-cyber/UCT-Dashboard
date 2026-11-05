@@ -22,9 +22,18 @@ Definitions that are choices, stated once (the admin panel shows the same words)
   * The member-day denominator (morning, recap) is days the member opened the Notebook at all, so the two rates
     say "on the days they used it", not "of all days".
 
-⛔ BOUNDED. Every query reads `activity_log` by `action` (indexed, `idx_activity_action_created`) and is capped
-at `MAX_ROWS` rows; a capped read says so (`capped: true`) instead of quietly undercounting. The whole read is a
-handful of indexed selects and an in-process fold, on the request thread of an ADMIN only.
+⛔ BOUNDED BY THE WINDOW (fix round 1, review I5). Nothing reads the whole history:
+  * every row read is inside the window (at most 90 days, plus one day before it), by `action` over the
+    `(action, created_at)` index, and capped at `MAX_ROWS`; a capped read says so (`capped: true`);
+  * a member's FIRST visit (and first "aha") is asked only for the members active in the window, one index SEEK
+    each on `(action, user_id, created_at)` (`idx_activity_action_user_created`) -- never a `GROUP BY user_id` over
+    every row ever written;
+  * ⛔ that index is built AFTER BOOT, on its own daemon thread and connection (`start_activity_index_build`, started
+    from api/main.py), never inside auth_db's boot script, where a lock on a big build would skip every later
+    migration (Tier 3a re-review R4). UNTIL IT EXISTS the read answers "warming" (`WARMING_SENTENCE`) and reads no
+    activity rows at all: without it the planner walks each action's whole history per member;
+  * one answer per window is kept for `CACHE_S` in this process, so a reload of the Admin page reads nothing.
+It runs on the request thread of an ADMIN only, on open and on Retry (the panel does not poll).
 
 ⛔ NEVER CONTENT. Only `user_id`, `created_at` and, for trust incidents, the `kind` enum are read.
 """
@@ -104,16 +113,96 @@ def _rows(conn, action: str, since: str | None, cols: str = "user_id, created_at
     return list(rows[:MAX_ROWS]), len(rows) > MAX_ROWS
 
 
-def _first_by_user(conn, action: str) -> dict[str, datetime]:
-    """Each member's FIRST row of `action`, ever. One grouped, indexed read."""
+def _first_for(conn, action: str, users: Iterable[str]) -> dict[str, datetime]:
+    """Each named member's FIRST row of `action`, ever: one MIN per member, an index seek on
+    `(action, user_id, created_at)`. Only the members asked about are read (the window's active members)."""
     out: dict[str, datetime] = {}
-    for r in conn.execute(
-            "SELECT user_id, MIN(created_at) AS first FROM activity_log WHERE action = ? GROUP BY user_id",
-            (action,)).fetchall():
-        dt = _parse(r["first"])
+    for user in users:
+        row = conn.execute(
+            "SELECT MIN(created_at) AS first FROM activity_log WHERE action = ? AND user_id = ?",
+            (action, user)).fetchone()
+        dt = _parse(row["first"]) if row else None
         if dt is not None:
-            out[r["user_id"]] = dt
+            out[user] = dt
     return out
+
+
+#: One answer per window, per process, this long (an admin reloading the page reads nothing new).
+CACHE_S = 600
+_CACHE: dict[int, tuple[float, dict[str, Any]]] = {}
+
+
+def compute_cached(days: int = 30, *, clock=None) -> dict[str, Any]:
+    """`compute(days)`, held CACHE_S per window in this process (the admin route calls this)."""
+    import time
+    t = (clock or time.monotonic)()
+    hit = _CACHE.get(days)
+    if hit is not None and t - hit[0] < CACHE_S:
+        return hit[1]
+    out = compute(days)
+    if not out.get("warming"):                    # a warming answer is never held: the next open may be ready
+        _CACHE[days] = (t, out)
+    return out
+
+
+# ── The index the first-visit seeks need, built after boot (re-review R4) ──────────────────────────────────────
+ACTIVITY_INDEX = "idx_activity_action_user_created"
+ACTIVITY_INDEX_SQL = (f"CREATE INDEX IF NOT EXISTS {ACTIVITY_INDEX}"
+                      " ON activity_log(action, user_id, created_at)")
+WARMING_SENTENCE = "Metrics are warming up; try again in a few minutes."
+#: The build's own lock wait. Long on purpose: it runs on its own thread, never on a request or the boot path.
+BUILD_BUSY_MS = 60_000
+BUILD_ATTEMPTS = 6
+BUILD_RETRY_S = 600
+
+
+def index_ready(conn) -> bool:
+    """Whether the first-visit index exists (sqlite_master; reads no activity rows)."""
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?",
+                        (ACTIVITY_INDEX,)).fetchone() is not None
+
+
+def build_activity_index(*, connect=None) -> bool:
+    """Build the index on its OWN connection. True when it exists afterwards; any failure is logged and False --
+    never raised, and it can never touch another migration."""
+    import logging
+    conn = None
+    try:
+        conn = (connect or auth_db.get_connection)()
+        conn.execute(f"PRAGMA busy_timeout = {BUILD_BUSY_MS}")
+        conn.execute(ACTIVITY_INDEX_SQL)
+        conn.commit()
+        return index_ready(conn)
+    except Exception:  # noqa: BLE001 -- a one-shot that retries; the metrics say "warming" meanwhile
+        logging.getLogger(__name__).exception("[return-metrics] index build failed; it retries later")
+        return False
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def run_activity_index_build(*, attempts: int = BUILD_ATTEMPTS, wait_s: float = BUILD_RETRY_S,
+                             sleep=None, connect=None) -> bool:
+    """Try the build up to `attempts` times, `wait_s` apart. The body of the boot thread (and of its rails)."""
+    import time
+    nap = sleep or time.sleep
+    for i in range(attempts):
+        if build_activity_index(connect=connect):
+            return True
+        if i + 1 < attempts:
+            nap(wait_s)
+    return False
+
+
+def start_activity_index_build():
+    """api/main.py calls this after the auth schema has committed: one daemon thread, its own connection."""
+    import threading
+    t = threading.Thread(target=run_activity_index_build, name="return-metrics-index", daemon=True)
+    t.start()
+    return t
 
 
 def _rate(num: int, den: int) -> float | None:
@@ -140,11 +229,16 @@ def compute(days: int = 30, *, now: datetime | None = None, conn=None) -> dict[s
     conn = conn or auth_db.get_connection()
     capped = False
     try:
-        first_visit = _first_by_user(conn, VISIT)
-        first_aha = _first_by_user(conn, AHA)
-        # Every visit by a member whose first visit is in the window, so their first 7 trading days are whole.
-        cohort = {u: t for u, t in first_visit.items() if t >= start}
+        if not index_ready(conn):
+            # R4: never a full-history walk. Nothing is read from activity_log until the index exists.
+            return {"days": days, "asOf": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "warming": True,
+                    "message": WARMING_SENTENCE, "definitions": DEFINITIONS}
         visits, c1 = _rows(conn, VISIT, (start - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"))
+        # A member new in the window has a visit in the window, so only those are asked for their first visit.
+        in_window = sorted({r["user_id"] for r in visits if (_parse(r["created_at"]) or start) >= start})
+        first_visit = _first_for(conn, VISIT, in_window)
+        cohort = {u: t for u, t in first_visit.items() if t >= start}
+        first_aha = _first_for(conn, AHA, sorted(cohort))
         recaps, c2 = _rows(conn, RECAP, since)
         trust, c3 = _rows(conn, TRUST, since, "user_id, created_at, details")
         built, c4 = _rows(conn, FIRST_RUN, since)
@@ -170,7 +264,7 @@ def compute(days: int = 30, *, now: datetime | None = None, conn=None) -> dict[s
     d7_den = d7_num = 0
     for user, first in cohort.items():
         d0 = _et(first).date()
-        if d0 < today_et:
+        if d0 + timedelta(days=1) < today_et:          # the next ET day is OVER (review minor 10)
             d1_den += 1
             if (d0 + timedelta(days=1)) in visit_days.get(user, ()):
                 d1_num += 1

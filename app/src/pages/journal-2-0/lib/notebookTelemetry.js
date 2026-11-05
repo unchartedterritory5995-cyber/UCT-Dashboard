@@ -281,32 +281,14 @@ export function trackNotebookEvent(event, props, { fetchImpl } = {}) {
   return clean
 }
 
-// The suites written before S20 pin "this widget renders without a fetch"; the beacon is off there by default
-// (src/test-setup.js), and on in the rails that measure it. Always on in the app.
+// The suites written before S20 pin "this widget renders without a fetch"; the "first live widget" mark is off there
+// by default (src/test-setup.js), and on in the rails that measure it. Always on in the app. The mark itself is
+// per ACCOUNT (lib/firstLiveWidget.js, Tier 3a fix round 1, review minor 9).
 let firstLiveOn = true
 /** Tests only. */
 export function __setFirstLiveWidgetForTests(on) { firstLiveOn = on !== false }
-
-/** Where the once-per-browser `first_live_widget` mark lives. */
-export const FIRST_LIVE_WIDGET_KEY = 'uct.nb.firstLiveWidget'
-
-/**
- * S20 "First aha": the first time a widget shows the member's OWN tickers, sent ONCE per browser (the admin read
- * keeps each member's first, so a second browser costs one extra row and never moves the number). Best-effort: a
- * blocked store sends nothing rather than sending on every render.
- * @returns the props sent, or null
- */
-export function markFirstLiveWidget(source, names, { fetchImpl, storage } = {}) {
-  if (!firstLiveOn || !(Number(names) > 0)) return null
-  let store = storage
-  try { store = store || globalThis.localStorage } catch { return null }
-  if (!store) return null
-  try {
-    if (store.getItem(FIRST_LIVE_WIDGET_KEY)) return null
-    store.setItem(FIRST_LIVE_WIDGET_KEY, String(Date.now()))
-  } catch { return null }
-  return trackNotebookEvent(NOTEBOOK_EVENTS.FIRST_LIVE_WIDGET, { source, names }, { fetchImpl })
-}
+/** Whether the first-live-widget mark may run (always, outside the older suites). */
+export function firstLiveWidgetOn() { return firstLiveOn }
 
 /**
  * `note_open_ms` helper: start when the member asks for a note, stop when its
