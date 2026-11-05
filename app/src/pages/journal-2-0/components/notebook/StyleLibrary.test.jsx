@@ -44,7 +44,13 @@ const PREVIEW = contract('template-gallery.styles.preview')
 const AUTHOR_PAGE = contractBody('template-gallery.authors.page')
 const FEED = contractBody('template-gallery.feed').templates
 const ADOPTED = contractBody('template-gallery.adopt')
-const answer = (name) => { const c = contract(name); return { ok: c._contract.status < 400, status: c._contract.status, json: async () => c.body } }
+const answer = (name) => { const c = typeof name === 'string' ? contract(name) : name; return { ok: c._contract.status < 400, status: c._contract.status, json: async () => c.body } }
+// A 409 adopt refusal. Its recorded fixture (the journal styles switch off) was retired with that switch
+// (2026-11-04); the client's handling of a 409 and its fixed sentence is what these tests hold.
+const ADOPT_REFUSED = {
+  _contract: { status: 409 },
+  body: { detail: "Journal styles are not on for you yet, so a style can't be adopted." },
+}
 const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body })
 /** The paragraph text the server composed, read from the fixture (never typed here). */
 const composedText = (doc) => (doc?.content || []).filter((n) => n.type === 'paragraph' || n.type === 'heading')
@@ -142,7 +148,6 @@ describe('the recorded library holds what these rails read (non-vacuity)', () =>
     expect(Object.keys(STYLE_ITEM.payload).sort()).toEqual(['blocks', 'kindId', 'outlineBodyJson', 'properties'])
     expect(composedText(PREVIEW.body.bodyJson)).toBeTruthy()
     expect(ADOPTED.credit).toMatch(/^Based on /)
-    expect(contract('template-gallery.adopt.styles-off')._contract.status).toBe(409)
     expect(FEED.map((t) => t.id)).toContain(STYLE.id)
     expect(contractBody('template-gallery.feed.empty').templates).toEqual([])
     expect(AUTHOR_PAGE.author.handle).toBe(STYLE.authorHandle)
@@ -266,11 +271,11 @@ describe('adopt', () => {
 
   it('a 409 refusal shows the server’s fixed sentence, and nothing says "Added"', async () => {
     flags()
-    server.adoptAnswer = 'template-gallery.adopt.styles-off'
+    server.adoptAnswer = ADOPT_REFUSED
     const user = await openStyles()
     await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
     await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))
-    const sentence = contractBody('template-gallery.adopt.styles-off').detail
+    const sentence = ADOPT_REFUSED.body.detail
     expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
     expect(screen.queryByText(/Added "/)).not.toBeInTheDocument()
   })
@@ -365,7 +370,7 @@ describe('telemetry: style_adopted', () => {
 
   it('sends nothing when the server refused the adopt', async () => {
     flags()
-    server.adoptAnswer = 'template-gallery.adopt.styles-off'
+    server.adoptAnswer = ADOPT_REFUSED
     const user = await openStyles()
     await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
     await user.click(within(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).getByRole('button', { name: 'Adopt' }))

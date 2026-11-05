@@ -143,8 +143,10 @@ describe('each gap is named', () => {
     expect(screen.getByText('The morning wire has not published yet today.')).toBeTruthy()
   })
 
-  it('key levels with the setups board off says what it needs', () => {
-    render(<PrepLevelsBlock params={{ snapshot: contractBody('trader-blocks.prep.levels.off') }} setParams={vi.fn()} editable />)
+  it('key levels frozen while the setups board was off still says what it needed', () => {
+    // A snapshot stored in a note before the board's switch was retired as always on (2026-11-04).
+    const snapshot = { capturedAt: '2026-10-05T14:30:00Z', detail: null, missing: null, needs: 'the active setups board', part: 'levels' }
+    render(<PrepLevelsBlock params={{ snapshot }} setParams={vi.fn()} editable />)
     expect(screen.getByText('This block needs the active setups board, which is not on for you.')).toBeTruthy()
   })
 })

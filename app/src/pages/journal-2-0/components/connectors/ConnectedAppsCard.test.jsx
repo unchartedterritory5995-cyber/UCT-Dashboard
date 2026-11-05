@@ -34,7 +34,6 @@ const STATUS_MIXED = {
     },
     craft: { configured: true, connected: false, sources: [] },
     notion: { configured: false, connected: false, sources: [] },
-    dropbox: { configured: false, connected: false, sources: [] },
   },
 }
 
@@ -43,7 +42,6 @@ const EMPTY_STATUS = {
     roam: { configured: true, connected: false, sources: [] },
     craft: { configured: true, connected: false, sources: [] },
     notion: { configured: false, connected: false, sources: [] },
-    dropbox: { configured: false, connected: false, sources: [] },
   },
 }
 
@@ -124,9 +122,12 @@ describe('ConnectedAppsCard — provider matrix', () => {
     const craftTile = screen.getByTestId('connector-tile-craft')
     expect(craftTile).toHaveTextContent('Connect')
 
-    // notion + dropbox: not configured -> Coming soon
+    // notion: not configured -> Coming soon
     expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
+    // Dropbox, OneNote and OneDrive were archived on 2026-11-04: no tile at all
+    for (const gone of ['dropbox', 'onenote', 'onedrive']) {
+      expect(screen.queryByTestId(`connector-tile-${gone}`)).toBeNull()
+    }
   })
 
   it('renders the conflict count on a source with conflicts', async () => {
@@ -359,7 +360,7 @@ describe('ConnectedAppsCard — token modal (craft)', () => {
   })
 })
 
-describe('ConnectedAppsCard — OAuth (notion/dropbox) consent gate', () => {
+describe('ConnectedAppsCard — OAuth (notion) consent gate', () => {
   afterEach(() => {
     window.history.replaceState({}, '', '/settings')
     vi.restoreAllMocks()
@@ -370,7 +371,6 @@ describe('ConnectedAppsCard — OAuth (notion/dropbox) consent gate', () => {
       roam: { configured: false, connected: false, sources: [] },
       craft: { configured: false, connected: false, sources: [] },
       notion: { configured: true, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
     },
   }
 
@@ -456,357 +456,14 @@ describe('ConnectedAppsCard — OAuth return self-heal', () => {
   })
 
   it('names any other reason the provider gave', async () => {
-    await failedReturn('connector=dropbox&connected=0&reason=access_denied')
-    expect(await screen.findByText("Couldn't connect Dropbox: access_denied")).toBeTruthy()
+    await failedReturn('connector=craft&connected=0&reason=access_denied')
+    expect(await screen.findByText("Couldn't connect Craft: access_denied")).toBeTruthy()
     expect(window.location.search).toBe('?section=connections')
   })
 
   it('says to try again when there is no reason', async () => {
     await failedReturn('connector=notion&connected=0')
     expect(await screen.findByText("Couldn't connect Notion. Try again.")).toBeTruthy()
-  })
-})
-
-describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected state (Task 12b)', () => {
-  afterEach(() => {
-    window.history.replaceState({}, '', '/settings')
-    vi.restoreAllMocks()
-  })
-
-  const DROPBOX_SOURCELESS_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: true, connected: true, sources: [] },
-    },
-  }
-
-  it('a connected-but-sourceless Dropbox tile shows a "Choose folder" CTA, not the healthy Connected badge', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: DROPBOX_SOURCELESS_STATUS }]])
-    render(<ConnectedAppsCard />)
-
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    expect(within(tile).getByRole('button', { name: /choose folder/i })).toBeInTheDocument()
-    // The healthy "Connected · N source(s)" pill must NOT render for this state.
-    expect(within(tile).queryByText(/Connected · \d+ source/)).not.toBeInTheDocument()
-  })
-
-  it('clicking "Choose folder" opens the picker, which lists folders from the mocked GET', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: DROPBOX_SOURCELESS_STATUS }],
-      ['/dropbox/folders', { body: { folders: [{ path_lower: '/team notes', name: 'Team Notes' }] } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-
-    expect(await screen.findByText('Team Notes')).toBeInTheDocument()
-    const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/dropbox/folders'))
-    expect(call).toBeTruthy()
-  })
-
-  it('picking a folder POSTs {remoteId, displayName} to /dropbox/sources and refreshes status', async () => {
-    let sourcesCreated = false
-    mockFetch([
-      ['/api/j2/notes/connectors/status', {
-        body: () => (sourcesCreated
-          ? {
-              providers: {
-                ...DROPBOX_SOURCELESS_STATUS.providers,
-                dropbox: {
-                  configured: true, connected: true,
-                  sources: [{ id: 'dbx-1', provider: 'dropbox', displayName: 'Team Notes', remoteId: '/team notes', syncEnabled: true, counts: {} }],
-                },
-              },
-            }
-          : DROPBOX_SOURCELESS_STATUS),
-      }],
-      ['/dropbox/folders', { body: { folders: [{ path_lower: '/team notes', name: 'Team Notes' }] } }],
-      ['/dropbox/sources', {
-        body: () => {
-          sourcesCreated = true
-          return { source: { id: 'dbx-1' } }
-        },
-      }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /sync this folder/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST')
-      expect(call).toBeTruthy()
-    })
-    // Fix-round: the POST body is asserted HERE, outside any mock callback —
-    // a thrown assertion inside `resp.body()` is silently SWALLOWED by
-    // `addSource`'s `r.json().catch(() => ({}))`, which is exactly how an
-    // empty-remoteId regression could have gone undetected behind a green
-    // test (the bug class this fix-round exists to close).
-    const postCall = global.fetch.mock.calls.find(
-      (c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST'
-    )
-    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: '/team notes', displayName: 'Team Notes' })
-    // Status re-fetched after the pick -> the tile flips to the healthy Connected state.
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-  })
-
-  it('a folder-list failure (e.g. broken connector) renders inline with a retry, mirroring the existing error idiom', async () => {
-    let attempt = 0
-    // A bespoke fetch mock (not the `mockFetch` helper) — this test needs the
-    // FIRST /dropbox/folders call to answer with a real non-ok Response (409,
-    // matching the router's "Reconnect Dropbox" contract) and the SECOND to
-    // succeed, which the helper's single-route-per-URL table can't express.
-    global.fetch = vi.fn(async (url) => {
-      if (String(url).includes('/api/j2/notes/connectors/status')) {
-        return { ok: true, status: 200, json: async () => DROPBOX_SOURCELESS_STATUS }
-      }
-      if (String(url).includes('/dropbox/folders')) {
-        attempt += 1
-        if (attempt === 1) {
-          return { ok: false, status: 409, json: async () => ({ detail: 'Reconnect Dropbox — stored credentials are unreadable.' }) }
-        }
-        return { ok: true, status: 200, json: async () => ({ folders: [{ path_lower: '/team notes', name: 'Team Notes' }] }) }
-      }
-      return { ok: true, status: 200, json: async () => ({}) }
-    })
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-
-    expect(await screen.findByText(/reconnect dropbox/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
-    expect(await screen.findByText('Team Notes')).toBeInTheDocument()
-  })
-
-  it('OAuth return for dropbox auto-opens the folder picker when it lands connected-but-sourceless', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=dropbox&connected=1')
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: DROPBOX_SOURCELESS_STATUS }],
-      ['/dropbox/folders', { body: { folders: [] } }],
-    ])
-    render(<ConnectedAppsCard />)
-
-    // The picker opens WITHOUT any click — the self-heal drove it.
-    expect(await screen.findByText('Choose a Dropbox folder')).toBeInTheDocument()
-  })
-
-  it('OAuth return for notion (which always gets a source atomically) does NOT open the Dropbox picker', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=notion&connected=1')
-    mockFetch([[
-      '/api/j2/notes/connectors/status',
-      { body: { providers: { notion: { configured: true, connected: true, sources: [{ id: 's1', provider: 'notion', displayName: 'Work', syncEnabled: true, counts: {} }] } } } },
-    ]])
-    render(<ConnectedAppsCard />)
-
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-    expect(screen.queryByText('Choose a Dropbox folder')).not.toBeInTheDocument()
-  })
-})
-
-describe('ConnectedAppsCard — OneNote/OneDrive tiles (Task 7, msgraph wave)', () => {
-  afterEach(() => {
-    window.history.replaceState({}, '', '/settings')
-    vi.restoreAllMocks()
-  })
-
-  const MSGRAPH_UNCONFIGURED_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: { configured: false, connected: false, sources: [] },
-      onedrive: { configured: false, connected: false, sources: [] },
-    },
-  }
-
-  it('renders "Coming soon" for both onenote and onedrive when the server reports them unconfigured', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: MSGRAPH_UNCONFIGURED_STATUS }]])
-    render(<ConnectedAppsCard />)
-    expect(await screen.findByTestId('connector-tile-onenote')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-onedrive')).toHaveTextContent('Coming soon')
-    // Existing wave-1 tiles stay unregressed alongside the two new ones.
-    expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
-  })
-
-  const MSGRAPH_CONFIGURED_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: { configured: true, connected: false, sources: [] },
-      onedrive: { configured: true, connected: false, sources: [] },
-    },
-  }
-
-  it('"Connect" on a configured onenote tile POSTs {consent:true} once consent is checked, starting the OAuth redirect', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: MSGRAPH_CONFIGURED_STATUS }],
-      ['/api/j2/notes/connectors/onenote/connect', { body: { redirectUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1' } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onenote')
-    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
-    fireEvent.click(await screen.findByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onenote/connect'))
-      expect(call).toBeTruthy()
-      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
-    })
-  })
-
-  it('"Connect" on a configured onedrive tile POSTs {consent:true} once consent is checked, starting the OAuth redirect', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: MSGRAPH_CONFIGURED_STATUS }],
-      ['/api/j2/notes/connectors/onedrive/connect', { body: { redirectUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1' } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
-    fireEvent.click(await screen.findByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/connect'))
-      expect(call).toBeTruthy()
-      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
-    })
-  })
-
-  // ── The two wiring subtleties this task exists to get right ──────────────
-
-  const ONENOTE_CONNECTED_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: {
-        configured: true, connected: true,
-        sources: [{
-          id: 'onenote-1', provider: 'onenote', displayName: 'OneNote — Patrick', remoteId: 'me',
-          syncEnabled: true, status: 'active', lastSyncAt: null, counts: {},
-        }],
-      },
-      onedrive: { configured: false, connected: false, sources: [] },
-    },
-  }
-
-  const ONEDRIVE_SOURCELESS_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: { configured: false, connected: false, sources: [] },
-      onedrive: { configured: true, connected: true, sources: [] },
-    },
-  }
-
-  it('a connected onenote tile renders a normal whole-account SourceRow, never the "Choose folder" CTA', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: ONENOTE_CONNECTED_STATUS }]])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onenote')
-    expect(within(tile).getByText('OneNote — Patrick')).toBeInTheDocument()
-    expect(within(tile).getByText(/Connected · 1 source/)).toBeInTheDocument()
-    expect(within(tile).queryByRole('button', { name: /choose folder/i })).not.toBeInTheDocument()
-  })
-
-  it('a connected-but-sourceless onedrive tile shows the "Choose folder" CTA (the folder-picker gate widened to onedrive)', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }]])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    expect(within(tile).getByRole('button', { name: /choose folder/i })).toBeInTheDocument()
-    expect(within(tile).queryByText(/Connected · \d+ source/)).not.toBeInTheDocument()
-  })
-
-  it('clicking "Choose folder" on onedrive opens the picker against /onedrive/folders, not /dropbox/folders', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }],
-      ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-
-    expect(await screen.findByText('Choose a OneDrive folder')).toBeInTheDocument()
-    expect(await screen.findByText('Work Notes')).toBeInTheDocument()
-    const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/folders'))
-    expect(call).toBeTruthy()
-    expect(global.fetch.mock.calls.some((c) => String(c[0]).includes('/dropbox/folders'))).toBe(false)
-  })
-
-  it('picking an onedrive folder POSTs {remoteId, displayName} to /onedrive/sources, not /dropbox/sources', async () => {
-    let sourcesCreated = false
-    mockFetch([
-      ['/api/j2/notes/connectors/status', {
-        body: () => (sourcesCreated
-          ? {
-              providers: {
-                ...ONEDRIVE_SOURCELESS_STATUS.providers,
-                onedrive: {
-                  configured: true, connected: true,
-                  sources: [{ id: 'od-1', provider: 'onedrive', displayName: 'Work Notes', remoteId: 'item-1', syncEnabled: true, counts: {} }],
-                },
-              },
-            }
-          : ONEDRIVE_SOURCELESS_STATUS),
-      }],
-      ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
-      ['/onedrive/sources', {
-        body: () => {
-          sourcesCreated = true
-          return { source: { id: 'od-1' } }
-        },
-      }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /sync this folder/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST')
-      expect(call).toBeTruthy()
-    })
-    // Fix-round CRITICAL: asserted OUTSIDE the fetch mock's json() callback
-    // (see the matching dropbox test's comment above) — this is the exact
-    // assertion that would have caught the bug (remoteId reaching the
-    // backend as '' for every OneDrive folder) had it been written this way
-    // the first time.
-    const postCall = global.fetch.mock.calls.find(
-      (c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST'
-    )
-    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: 'item-1', displayName: 'Work Notes' })
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-  })
-
-  it('OAuth return for onedrive auto-opens the folder picker when it lands connected-but-sourceless', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=onedrive&connected=1')
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }],
-      ['/onedrive/folders', { body: { folders: [] } }],
-    ])
-    render(<ConnectedAppsCard />)
-
-    // The picker opens WITHOUT any click — the self-heal drove it, and it's
-    // scoped to onedrive (not the Dropbox picker's default provider).
-    expect(await screen.findByText('Choose a OneDrive folder')).toBeInTheDocument()
-  })
-
-  it('OAuth return for onenote (whole-account, always gets its one source atomically) does NOT open any folder picker', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=onenote&connected=1')
-    mockFetch([['/api/j2/notes/connectors/status', { body: ONENOTE_CONNECTED_STATUS }]])
-    render(<ConnectedAppsCard />)
-
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-    expect(screen.queryByText(/Choose a .+ folder/)).not.toBeInTheDocument()
   })
 })
 
@@ -868,8 +525,8 @@ describe('ConnectedAppsCard — normalization contract (fix-round 1, finding #2)
         ],
       },
       craft: { is_configured: false, connected: false, sources: [] },
-      // notion/dropbox intentionally OMITTED — normalizeStatus must still
-      // produce a "not configured" tile for both rather than crashing.
+      // notion intentionally OMITTED — normalizeStatus must still
+      // produce a "not configured" tile for it rather than crashing.
     },
   }
 
@@ -885,9 +542,8 @@ describe('ConnectedAppsCard — normalization contract (fix-round 1, finding #2)
     expect(screen.getByText('Conflicts')).toBeInTheDocument()
     // craft: is_configured:false -> Coming soon
     expect(screen.getByTestId('connector-tile-craft')).toHaveTextContent('Coming soon')
-    // notion/dropbox missing from the raw payload entirely -> still render as not-configured
+    // notion missing from the raw payload entirely -> still renders as not-configured
     expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
   })
 })
 
@@ -902,7 +558,6 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
       roam: { configured: false, connected: false, sources: [] },
       craft: { configured: false, connected: false, sources: [] },
       notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
       obsidian: { configured: true, connected: false, connectKind: 'device', sources: [] },
     },
   }
@@ -1024,7 +679,6 @@ describe('ConnectedAppsCard — reconnecting a broken source (member-reachabilit
       },
       craft: { configured: true, connected: false, sources: [] },
       notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
     },
   }
 
@@ -1088,7 +742,7 @@ describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
     vi.restoreAllMocks()
   })
 
-  const ALL = ['roam', 'craft', 'notion', 'dropbox', 'onenote', 'onedrive', 'obsidian', 'evernote']
+  const ALL = ['roam', 'craft', 'notion', 'obsidian', 'evernote']
   const statusWith = (evernote, others = { configured: true, connected: false, sources: [] }) => ({
     providers: Object.fromEntries(ALL.map((k) => [k, k === 'evernote' ? evernote : others])),
   })

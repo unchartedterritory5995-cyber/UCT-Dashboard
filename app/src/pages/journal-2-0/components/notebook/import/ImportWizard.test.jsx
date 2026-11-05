@@ -370,13 +370,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       if (String(url).includes('/api/j2/notes/connectors/status')) {
         return new Response(JSON.stringify({ providers }))
       }
-      // MUST come before the '/connect' check below — '/api/j2/notes/
-      // connectors/dropbox/folders' contains the substring '/connect' as a
-      // prefix of '/connectors', so a naive ordering would misroute the
-      // Dropbox folder-picker GET into the OAuth-connect branch.
-      if (String(url).includes('/dropbox/folders')) {
-        return new Response(JSON.stringify({ folders: [] }))
-      }
       if (String(url).includes('/connect')) {
         return new Response(JSON.stringify({ redirectUrl: 'https://api.notion.com/v1/oauth/authorize?x=1' }))
       }
@@ -390,7 +383,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: true, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -405,7 +397,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: false, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -421,7 +412,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: true, connected: true, sources: [{ id: 's1', provider: 'roam', displayName: 'My Graph', syncEnabled: true, counts: {} }] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -434,7 +424,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: false, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: true, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -454,27 +443,28 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
     })
   })
 
-  // Task 12b: the OAuth return always redirects to /settings (the router
-  // hardcodes it), so this surface never auto-opens the picker — but a user
-  // can still arrive here later with Dropbox connected-but-sourceless
-  // (connected via Settings, closed the picker without picking, then opened
-  // the wizard). The tile must read that state honestly rather than showing
-  // a misleadingly-healthy "Dropbox connected" pill with a dead Sync.
-  it('a connected-but-sourceless Dropbox tile reads "Choose a folder", not "Dropbox connected" — and opens the same picker', async () => {
+  // Dropbox, OneNote and OneDrive were archived on 2026-11-04 with their folder picker. Even a
+  // status payload that still names them (a stale server, or a stored row) renders no tile, no
+  // "Choose a folder" state and no picker, and nothing asks for a folder list.
+  it('an archived provider (dropbox/onenote/onedrive) renders no tile and no folder picker, even when the payload names it connected', async () => {
     mockConnectorsFetch({
-      roam: { configured: false, sources: [] },
+      roam: { configured: true, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
       dropbox: { configured: true, connected: true, sources: [] },
+      onenote: { configured: true, connected: true, sources: [] },
+      onedrive: { configured: true, connected: true, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
-    const tile = await screen.findByTestId('connect-tile-dropbox')
-    expect(tile).toHaveTextContent(/choose a folder/i)
-    expect(tile).not.toHaveTextContent('Dropbox connected')
-
-    fireEvent.click(tile)
-    expect(await screen.findByText('Choose a Dropbox folder')).toBeInTheDocument()
+    // non-vacuity: the strip did render, from the same payload
+    expect(await screen.findByTestId('connect-tile-roam')).toBeInTheDocument()
+    for (const gone of ['dropbox', 'onenote', 'onedrive']) {
+      expect(screen.queryByTestId(`connect-tile-${gone}`)).not.toBeInTheDocument()
+    }
+    expect(screen.queryByText(/choose a (dropbox|onedrive) folder/i)).not.toBeInTheDocument()
+    // (the wizard's own '/note-folders' read is not a connector folder list)
+    expect(vi.mocked(fetch).mock.calls.some((c) => /\/connectors\/[^/]+\/folders/.test(String(c[0])))).toBe(false)
   })
 })
 

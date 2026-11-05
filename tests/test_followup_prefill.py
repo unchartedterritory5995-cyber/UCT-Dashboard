@@ -84,7 +84,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _on(monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED", "1")
     monkeypatch.setattr(fp, "_today_et", lambda: TODAY)
     monkeypatch.setattr(earnings_intel, "get_earnings",
                         lambda sym: (_ for _ in ()).throw(AssertionError("the create built earnings")))
@@ -318,13 +317,10 @@ def test_refusals(member, payload, sentence):
         journal_styles.create_styled_note(UID, {**payload, "earningsFollowup": {"reportDate": report}}, member.conn)
 
 
-def test_switch_off_refuses_and_both_prefills_at_once_refuse(member, monkeypatch):
+def test_both_prefills_at_once_refuse(member, monkeypatch):
     with pytest.raises(journal_styles.StyleValidationError, match="Choose one"):
         journal_styles.create_styled_note(UID, {"kindId": "trade_plan", "ticker": "ORCL", "planPrefill": True,
                                                 "earningsFollowup": {"reportDate": REPORT}}, member.conn)
-    monkeypatch.delenv("NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED")
-    with pytest.raises(journal_styles.StyleValidationError, match=re.escape(fp.OFF_SENTENCE)):
-        _followup(member)
 
 
 def test_without_the_payload_flag_the_style_is_only_the_outline(member):

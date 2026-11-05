@@ -38,8 +38,18 @@ function serverNotebookFlags(src) {
   return out
 }
 
+/** The payload keys of `NOTEBOOK_ALWAYS_ON_KEYS` in auth.py: capabilities whose flag was retired as ALWAYS ON
+ *  (2026-11-04). The payload carries each as `true`; the client's fallback (used only before the payload
+ *  arrives) was left exactly as it was, so a retired key may keep its old `false` fallback. */
+function serverAlwaysOn(src) {
+  const m = src.match(/^NOTEBOOK_ALWAYS_ON_KEYS[^=]*=\s*\(([\s\S]*?)^\)/m)
+  if (!m) throw new Error('NOTEBOOK_ALWAYS_ON_KEYS = ( ... ) not found in auth.py')
+  return new Set([...m[1].matchAll(/^\s*"([a-z0-9_]+)"\s*,/gm)].map((r) => r[1]))
+}
+
 const AUTH_PY = fs.readFileSync(path.join(repoRoot(), 'api', 'routers', 'auth.py'), 'utf8')
 const SERVER = serverNotebookFlags(AUTH_PY)
+const ALWAYS_ON = serverAlwaysOn(AUTH_PY)
 
 describe('the client flag fallbacks agree with the server defaults (M-3)', () => {
   it('NON-VACUITY — the parse read the real table, both polarities, and the writing-help row', () => {
@@ -76,6 +86,11 @@ describe('the client flag fallbacks agree with the server defaults (M-3)', () =>
     const clientBooleans = Object.entries(FLAG_FALLBACKS)
       .filter(([, v]) => typeof v === 'boolean' || v === null)
       .map(([k]) => k)
-    expect(clientBooleans.filter((k) => !(k in SERVER))).toEqual([])
+    expect(clientBooleans.filter((k) => !(k in SERVER) && !ALWAYS_ON.has(k))).toEqual([])
+  })
+
+  it('a retired (always on) key is never a table row as well, and the parse found some', () => {
+    expect(ALWAYS_ON.size).toBeGreaterThan(0)
+    expect([...ALWAYS_ON].filter((k) => k in SERVER)).toEqual([])
   })
 })

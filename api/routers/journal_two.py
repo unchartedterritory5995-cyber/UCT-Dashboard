@@ -678,8 +678,7 @@ def create_position(
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     # Wave 13 lane 13E-1: freeze the market context at the fill. Reads only the position just
-    # returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is off, and never raises -- the
-    # add has already succeeded and nothing here can change it.
+    # returned and never raises -- the add has already succeeded and nothing here can change it.
     # ⛔ QUEUED, NEVER A STARLETTE BACKGROUND TASK (fin-security I-1): a sync background task
     # runs on the same thread pool every sync route uses, and this capture can wait on a
     # vendor. `schedule_position_capture` does no I/O here; the capture runs on its own two
@@ -2023,23 +2022,21 @@ def list_notes_endpoint(
                             or deleted or date_from or date_to or symbol_in is not None
                             or savedViewId or property_filter),
         )
-    # Wave 11 (lane 11B), DARK behind NOTEBOOK_FORMULAS_ENABLED: each live row of
-    # THIS page carries its formula/rollup values (`computed`), so every view can
-    # show them. Off -- or a member with no computed property -- the payload is
-    # untouched and no extra SQL runs beyond one flag read.
+    # Wave 11 (lane 11B): each live row of THIS page carries its formula/rollup values
+    # (`computed`), so every view can show them. A member with no computed property
+    # leaves the payload untouched.
     if not deleted and rows:
         from api.services.journal_two import note_computed
-        if note_computed.formulas_enabled():
-            conn = notes_service.get_connection()
-            try:
-                vals = note_computed.values_for_notes(
-                    conn, user["id"], [r["id"] for r in rows],
-                    {r["id"]: r.get("propertiesJson") or {} for r in rows})
-            finally:
-                conn.close()
-            if vals:
-                for r in rows:
-                    r["computed"] = vals.get(r["id"], {})
+        conn = notes_service.get_connection()
+        try:
+            vals = note_computed.values_for_notes(
+                conn, user["id"], [r["id"] for r in rows],
+                {r["id"]: r.get("propertiesJson") or {} for r in rows})
+        finally:
+            conn.close()
+        if vals:
+            for r in rows:
+                r["computed"] = vals.get(r["id"], {})
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
@@ -3796,13 +3793,12 @@ async def ask_current_note_stream(
 
 
 def _styled_create_allowed(user: dict) -> None:
-    """Journal styles (P1): the ONLY place POST /notes reads the switch or the plan, and only when a
-    styleId/kindId is sent -- every other create is exactly what it was (spec P1.7c). Both checks are
-    the journal-styles router's OWN (`_require_enabled`, then `require_paid`), called here so the
-    switch, the plan predicate and the 402 sentence have one authority. The gate answers first."""
+    """Journal styles (P1): the ONLY place POST /notes reads the plan, and only when a styleId/kindId
+    is sent -- every other create is exactly what it was (spec P1.7c). The check is the journal-styles
+    router's OWN `require_paid`, called here so the plan predicate and the 402 sentence have one
+    authority. (The styles switch it used to read first was retired as always on, 2026-11-04.)"""
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_journal_styles as styles_router
-    styles_router._require_enabled()
     planned = user if "plan" in user else {**user, "plan": authmw.get_user_plan(user["id"])}
     styles_router.require_paid(planned)
 

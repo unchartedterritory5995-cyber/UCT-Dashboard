@@ -46,7 +46,6 @@ def db(monkeypatch, tmp_path):
     path = str(tmp_path / "i3.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
     monkeypatch.setenv("NOTEBOOK_ONBOARDING_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
     auth_db.init_db()
     c = auth_db.get_connection()
     try:

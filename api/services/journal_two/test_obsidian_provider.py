@@ -1308,52 +1308,6 @@ async def test_fetch_media_serves_staged_blob_and_transient_when_missing(env):
         await provider.fetch_media({}, "attachments/chart.png")
 
 
-def test_dropbox_attachment_promotion_unchanged():
-    """The Dropbox tree walk moved into `convert/placeholders.py::map_image_nodes`. Its output
-    must be byte-identical to the walk it replaced (copied here verbatim as the reference)
-    over the inputs the Dropbox md-attachment tests use: a relative file link, a relative
-    image, a nested list, a table cell and an external image."""
-    from api.services.journal_two.note_connectors.convert import REF_PREFIX
-    from api.services.journal_two.note_connectors.providers import dropbox as dbx
-
-    def reference(converted):
-        marker = f"{REF_PREFIX}{dbx._MD_ATTACH_SCHEME}"
-
-        def walk(node):
-            if not isinstance(node, dict):
-                return node
-            if node.get("type") == "image":
-                src = (node.get("attrs") or {}).get("src", "")
-                if src.startswith(marker):
-                    ref = src[len(REF_PREFIX):]
-                    return {"type": "attachmentChip",
-                            "attrs": {"href": src, "name": dbx._basename_of_ref(ref)}}
-                return node
-            if isinstance(node.get("content"), list):
-                new_node = dict(node)
-                new_node["content"] = [walk(c) for c in node["content"]]
-                return new_node
-            return node
-
-        doc = walk(converted["doc"])
-        media = [{**m, "kind": "file"} if m.get("ref", "").startswith(dbx._MD_ATTACH_SCHEME) else m
-                 for m in converted["media"]]
-        return {"doc": doc, "media": media, "links": converted["links"]}
-
-    inputs = [
-        "See ![q3 report](<dbx-md-attach:/notes/q3%20report.pdf>) for detail.\n",
-        "![chart](<dbx-md-media:/notes/chart.png>)\n\n![](https://example.com/x.png)\n",
-        "- item\n  - ![f](<dbx-md-attach:/notes/a.zip>)\n",
-        "| a | b |\n|---|---|\n| ![f](<dbx-md-attach:/x.pdf>) | y |\n",
-        "plain text only\n",
-    ]
-    provider = dbx.DropboxProvider.__new__(dbx.DropboxProvider)
-    for text in inputs:
-        converted = md_to_tiptap(text, unsafe_image_notice=True)
-        assert json.dumps(provider._promote_md_attachments(converted), sort_keys=False) == \
-            json.dumps(reference(converted), sort_keys=False), text
-
-
 _STAGED_SHA = "e" * 64
 _MISSING_SHA = "f" * 64
 

@@ -68,35 +68,20 @@ ADMIN = "contract-admin"
 PAID = {"plan": "pro"}
 FREE = {"plan": "free"}
 
+#: The gates the world arms. The wave 13 lanes' gates (chart plan, earnings prep, entry context, the fingerprint,
+#: plan grading, My Playbook, research capture, review drafts, the setups board, find similar, thesis chips and the
+#: visual playbook) were retired as ALWAYS ON (2026-11-04), so they are no longer here: there is nothing to arm.
 FLAGS = (
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_EARNINGS_PREP_ENABLED",
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED", "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED",
-    "NOTEBOOK_PLAYBOOK_ENABLED", "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED",
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_FIND_SIMILAR_ENABLED",
-    "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
     # The onboarding router (the sample notebook's add / status / remove, and the tour rows).
     # Here since fin-data2 round 2: lane FE2 words the removal's kept-folder sentence.
     "NOTEBOOK_ONBOARDING_ENABLED",
-    # Notebook P1: journal styles and kinds of note (api/routers/notebook_journal_styles.py).
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    # Notebook P2 Tier 2 part A: the alert chip, the screenshot chip and their ticker route.
-    "NOTEBOOK_SMART_CHIPS_ENABLED",
-    # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # (journal styles, the smart chips, the earnings follow-up, the gallery, the style library, example notes and
+    # starter packs were retired as ALWAYS ON, 2026-11-04)
     # Journal P4a: page layouts (Customize on Today and the trade page, reading a saved layout).
     "JOURNAL_PAGE_LAYOUTS_ENABLED",
-    # Notebook P3a: the community style library (share, adopt, helpful, follow, feed).
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
-
-
     # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
     "JOURNAL_TIER3_ENABLED",
-    # Notebook P3b: example notes on a shared style (server-only; needs the library switch too).
-    "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
-    # Notebook P5: starter packs (the How do you trade? offer, the install endpoint, and, with the library
-    # switch above, the firm style rows in the gallery lists: P5-AUD-1).
-    "NOTEBOOK_STARTER_PACKS_ENABLED",
-    # Notebook P4b: sharing a page layout through the library (server-only; needs the library and page layouts too).
+    # Notebook P4b: sharing a page layout through the library (server-only; needs page layouts too).
     "NOTEBOOK_LAYOUT_SHARING_ENABLED",
 )
 
@@ -978,10 +963,6 @@ def visual_playbook(w: World) -> None:
              expect=200, note="One setup, RS rank 90 and up: the slice and what the filter left out.")
     w.record("visual-playbook.cards.range-only", "GET", f"{base}/cards?range=rs_rank:90:", case="success",
              expect=200, note="A range alone: charts with no value for it are left out, and counted.")
-    w.p.setenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", "0")
-    w.record("visual-playbook.cards.regime-unavailable", "GET", f"{base}/cards", case="success", expect=200,
-             note="With the entry-context switch off there is no frozen regime to filter by.")
-    w.p.setenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", "1")
     w.record("visual-playbook.cards.bad-range", "GET", f"{base}/cards?range=bogus:1:", case="error", expect=422)
     w.record("visual-playbook.cards.bad-outcome", "GET", f"{base}/cards?outcome=maybe", case="error", expect=422)
     w.record("visual-playbook.before-after", "GET", f"{base}/trades/vp-win/before-after", case="success", expect=200)
@@ -1597,12 +1578,6 @@ def _style_library(w: World) -> None:
              note="The library's Preview: the listed payload composed with the viewer's own data.")
     w.record("template-gallery.feed.empty", "GET", f"{base}/feed", case="empty", expect=200,
              note="The viewer follows nobody now (they unfollowed above).")
-    w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    try:
-        w.record("template-gallery.adopt.styles-off", "POST", f"{base}/{sid}/adopt", case="error", expect=409,
-                 json_body={"notify": False}, note="The member's Journal styles switch is off: nothing is adopted.")
-    finally:
-        w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     # P3a Task 10 fix round 1 (P3a-T10-R3): an adopted copy of another author's listing is refused before any
     # write. Recorded LAST, so no fixture above moves.
     w.record("template-gallery.styles.publish.adopted", "POST", f"{base}/styles", case="error", expect=400,
@@ -1778,6 +1753,33 @@ def route_table(app: Any) -> list[tuple[str, str]]:
     return sorted(out)
 
 
+#: The names of the routers' FLAG-gate dependencies (each answers the one 404 while its switch is off), named
+#: rather than matched by prefix: `_require_admin`, `_require_paid` and the like answer 401/402/403 and are not
+#: flag gates. A new flag gate must be added here, or its routes read as ungated in the flags-off sweep (which then
+#: fails on the 404 it did not expect, naming the route).
+FLAG_GATE_DEPENDENCIES = frozenset({"_require_enabled", "_require_w11", "_require_layout_sharing", "_require_tier3"})
+
+
+def gated_routes(app: Any) -> set[tuple[str, str]]:
+    """`(METHOD, path)` for every route behind a flag gate: a dependency named in `FLAG_GATE_DEPENDENCIES`.
+    DERIVED from the routers, like `route_table`."""
+    out = set()
+    for r in app.routes:
+        dependant = getattr(r, "dependant", None)
+        if dependant is None or not getattr(r, "path", "").startswith("/api/"):
+            continue
+        stack, names = list(dependant.dependencies), set()
+        while stack:
+            d = stack.pop()
+            names.add(getattr(d.call, "__name__", ""))
+            stack.extend(d.dependencies)
+        if names & FLAG_GATE_DEPENDENCIES:
+            for m in r.methods or ():
+                if m not in ("HEAD", "OPTIONS"):
+                    out.add((m, r.path))
+    return out
+
+
 def _concrete(path: str) -> str:
     return re.sub(r"\{[^}]+\}", "x", path)
 
@@ -1815,9 +1817,8 @@ def sample_notebook(w: World) -> None:
     words: which folders went, which stayed because a member's note is in one, and why."""
     from api.services.journal_two import notes as notes_service
     base = "/api/j2/onboarding"
-    # The capability examples (and their folder) exist only while wave 14 is armed. Set for this
-    # surface only, and put back, so no other surface's answer depends on it.
-    w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
+    # The capability examples (and their folder) exist only while wave 14 is armed: onboarding is in
+    # FLAGS, and the checklist's own switch was retired as always on (2026-11-04).
     try:
         clean = w.member("sample")
         w.as_user(clean)
@@ -1856,7 +1857,6 @@ def sample_notebook(w: World) -> None:
         w.as_user(clean, FREE)
         w.record("sample-notebook.add.free-plan", "POST", f"{base}/sample-notebook", case="error", expect=402)
     finally:
-        w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", None)
         w.as_user(MEMBER)
 
 
@@ -2117,13 +2117,17 @@ def trader_rules(w: World) -> None:
 @builder
 def sweeps(w: World) -> None:
     """Two answers every route gives, in one file each: signed out with the flags on (401), and
-    signed out with every flag off (the one 404, BEFORE the session is read)."""
-    def sweep(expect: int) -> dict[str, Any]:
+    signed out with every flag off (the one 404, BEFORE the session is read, for a route behind a flag gate;
+    a route whose flag was retired as always on has no gate, so it answers the session's 401 there too)."""
+    gated = gated_routes(w.app)
+
+    def sweep(expect: int | None) -> dict[str, Any]:
         rows: dict[str, Any] = {}
         for method, path in route_table(w.app):
             res = w.client.request(method, _concrete(path), **({} if method in ("GET", "DELETE") else {"json": {}}))
-            if res.status_code != expect:
-                raise AssertionError(f"sweep: {method} {path} answered {res.status_code}, wanted {expect}: "
+            want = expect if expect is not None else (404 if (method, path) in gated else 401)
+            if res.status_code != want:
+                raise AssertionError(f"sweep: {method} {path} answered {res.status_code}, wanted {want}: "
                                      f"{res.text[:200]}")
             rows[f"{method} {path}"] = {"status": res.status_code, "body": res.json()}
         return rows
@@ -2138,8 +2142,9 @@ def sweeps(w: World) -> None:
         w.p.setenv(flag, "0")
     w.out["sweep.flags-off"] = {
         "_contract": {"endpoint": "every route", "case": "error", "status": 404, "path": "",
-                      "note": "Every flag off, no session: the gate answers before the session is read."},
-        "body": sweep(404)}
+                      "note": "Every flag off, no session: the gate answers before the session is read (404); a "
+                              "route with no flag gate answers the session's 401."},
+        "body": sweep(None)}
     for flag in FLAGS:
         w.p.setenv(flag, "1")
     w.p.setenv(W11_FLAG, None)                    # back to the world's wave 11: dark
@@ -2186,10 +2191,6 @@ def trader_prep_review(w: World) -> None:
     for part in ("wire", "earnings", "movers", "levels"):
         w.record(f"trader-blocks.prep.{part}", "GET", f"{prep}/{part}", case="empty", expect=200,
                  note="Nothing held yet: the part names its gap (`missing`) and says it (`detail`).")
-    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "0")
-    w.record("trader-blocks.prep.levels.off", "GET", f"{prep}/levels", case="success", expect=200,
-             note="The setups board is off: the part says what it needs.")
-    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "1")
     w.record("trader-blocks.prep.unknown", "GET", f"{prep}/nope", case="error", expect=404)
     # Held sources: the wire's narrative, the regime and exposure; three of the member's names report
     # today; four names, three with a cached price (one with no provable change) and one with none.
@@ -2240,10 +2241,6 @@ def trader_prep_review(w: World) -> None:
              note="The trade, its tags, the rules ticked before entry (Log Trade's pos: record), the plan grade.")
     w.record("trader-blocks.review.by-ref", "GET", f"{review}/ext:FP-REVIEW-2", case="success", expect=200,
              note="A broker trade by its stable ref, which survives the resync that reissues its row id.")
-    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "0")
-    w.record("trader-blocks.review.no-grading", "GET", f"{review}/review-1", case="success", expect=200,
-             note="Plan grading is off: the grade says what it needs.")
-    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
     w.record("trader-blocks.review.not-found", "GET", f"{review}/review-other", case="error", expect=404,
              note="Another member's trade: the same 404 as one that does not exist.")
     w.as_user(MEMBER)

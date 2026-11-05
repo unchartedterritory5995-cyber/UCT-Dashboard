@@ -7,9 +7,8 @@
  * guessing further — the real endpoints/shapes:
  *
  *   GET    /api/j2/notes/connectors/status                — {enabled, providers: {name: {configured, connectKind, connected, status, accountLabel, sources[]}}}
- *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/dropbox) -> {redirectUrl}
+ *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/evernote) -> {redirectUrl}
  *   GET    /api/j2/notes/connectors/{provider}/callback    — OAuth return (backend-owned; the browser never calls this directly)
- *   GET    /api/j2/notes/connectors/{provider}/folders?path= — folder picker for the two folder-scoped providers (dropbox, onedrive); {folders: [...]} where each entry is Dropbox's {path_lower, name} OR OneDrive's {id, name} (raw, provider-shaped — normalizeFolders below is what makes the two agree); 404 for any other provider
  *   POST   /api/j2/notes/connectors/{provider}/sources     — {remoteId, displayName?, destFolderId?} -> {source}; 409 if not connected yet
  *   POST   /api/j2/notes/connectors/sources/{id}/sync      — manual sync, background=1 supported
  *   PUT    /api/j2/notes/connectors/sources/{id}           — sync_enabled / dest folder
@@ -19,22 +18,18 @@
  * #2). `normalizeStatus(raw)` is the single translation layer between
  * whatever `GET /status` returns and the stable shape every consumer
  * component reads: `providers[key] = { configured, connected, connectKind,
- * accountLabel, status, sources: [...] }` — always present for all six
- * registered providers (roam, craft, notion, dropbox, onenote, onedrive;
- * see `registry.py::_REGISTRY`).
+ * accountLabel, status, sources: [...] }` — always present for every
+ * provider in `NOTE_CONNECTOR_PROVIDERS` below (mirrors
+ * `registry.py::_REGISTRY`; Dropbox, OneNote and OneDrive were archived on
+ * 2026-11-04).
  *
  * ⚠️ **`connected` is CONNECTOR-level, read directly off the router — it is
  * NOT `sources.length > 0`** (Task 12b correction; the router literally
  * computes `"connected": connector is not None`, independent of source
- * count). This is load-bearing: Dropbox's OAuth callback deliberately creates
- * the connector WITHOUT a source (`remote_id = None` — "Dropbox needs a
- * FOLDER before a source can exist"), so `connected:true, sources:[]` is a
- * real, intended state — the "choose a folder" state the UI must surface. A
- * re-derivation from `sources.length` (Task 12's original guess, before the
- * router existed to read) makes that state UNREACHABLE. Roam/Craft/Notion
- * create connector+source atomically, so for them `connected` and
- * `sources.length>0` happen to coincide — that coincidence is exactly what
- * hid the bug until Dropbox's router landed.
+ * count). A connector with no source was a real state for the folder-picker
+ * providers (Dropbox, OneDrive; archived 2026-11-04), so
+ * `connected:true, sources:[]` stays representable here rather than being
+ * re-derived away.
  */
 import { useCallback } from 'react'
 import useSWR from 'swr'
@@ -55,9 +50,6 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'roam', label: 'Roam Research', tokenKind: 'token' },
   { key: 'craft', label: 'Craft', tokenKind: 'token' },
   { key: 'notion', label: 'Notion', tokenKind: 'oauth' },
-  { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
-  { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
-  { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
   // `authoritativeListing`: the provider's listing is its own complete walk, so a note missing
   // from it was REMOVED there (the backend's `NoteProvider.enumeration_is_authoritative`; pinned
   // against it by api/services/journal_two/test_note_connectors_authoritative_parity.py). The
@@ -79,16 +71,6 @@ export const MEMBER_GATED_PROVIDERS = new Set(['evernote'])
 export function isProviderShown(key, info) {
   return !MEMBER_GATED_PROVIDERS.has(key) || !!(info && (info.configured || info.connected))
 }
-
-// Providers whose sync unit is a PICKED FOLDER, not a whole account —
-// mirrors the backend's `_FOLDER_PICKER_PROVIDERS` frozenset
-// (`api/routers/note_sync.py`) exactly. A provider in this set can land
-// `connected: true, sources: []` (needs a folder before it's usable) and
-// gets the "Choose folder" CTA + `DropboxFolderPicker`. OneNote is
-// deliberately NOT in this set — it's whole-account (Notion's shape, one
-// implicit source auto-created on connect), so a sourceless-connected
-// OneNote tile means something actually failed, never "needs a folder."
-export const FOLDER_PICKER_PROVIDERS = new Set(['dropbox', 'onedrive'])
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -220,8 +202,8 @@ function normalizeProvider(raw) {
     configured: !!pick(raw, 'configured', 'is_configured', false),
     // Read directly off the connector-existence flag the router computes —
     // NEVER re-derived from sources.length (see the module docstring; this
-    // is the Task 12b correction that makes the Dropbox sourceless-connected
-    // state representable at all).
+    // is the Task 12b correction that keeps a sourceless-connected state
+    // representable at all).
     connected: !!pick(raw, 'connected', 'connected', false),
     connectKind: pick(raw, 'connectKind', 'connect_kind', null),
     accountLabel: pick(raw, 'accountLabel', 'account_label', null),
@@ -263,67 +245,6 @@ export function normalizeStatus(raw) {
   const obsidianAttachments = pick(raw, 'obsidianAttachments', 'obsidian_attachments', false) === true
   return { providers, enabled, obsidianAttachments }
 }
-
-// ── Folder picker (Task 12b, widened to OneDrive in Task 7) ──────────────
-//
-// Fix-round CRITICAL: `GET /{provider}/folders` is NOT one shape across the
-// two folder-scoped providers — Dropbox's `list_folders` returns
-// `{path_lower, name}`, OneDrive's returns `{id, name}` (Graph addresses
-// everything by opaque item id, never a path). The OLD `normalizeFolder`
-// only ever read `pathLower`/`path_lower`, so every OneDrive folder
-// normalized to `pathLower: ''` — every row collapsed to the SAME (empty)
-// key, drilling into any of them re-listed the root forever, and picking one
-// POSTed `remoteId: ''` to `POST /{provider}/sources`, which the backend
-// rejects with a 400 ("remoteId is required"). The OneDrive folder picker
-// could not create a source at all.
-//
-// The provider-neutral contract every consumer reads instead:
-// `{name, remoteId, drillPath}` — `remoteId` is what `POST
-// /{provider}/sources` creates a source with; `drillPath` is what `GET
-// /{provider}/folders?path=` expects when drilling INTO this folder.
-// Dropbox: both = `path_lower`. OneDrive: both = the drive-item id. (The two
-// happen to always be equal per provider today — kept as two named fields,
-// not one, so a future provider whose "id to create a source with" and "id
-// to drill with" genuinely differ doesn't need this contract reshaped again.)
-
-function normalizeFolder(raw) {
-  if (!raw) return null
-  // Dropbox carries `path_lower`; OneDrive carries `id` and has no
-  // `path_lower` field at all — `pick()`'s own fallback would silently
-  // resolve to `''` for OneDrive if only the first pair were checked, which
-  // is the exact bug this fixes, so `id` is a SEPARATE, explicit fallback
-  // rather than a fourth alias on the same `pick()` call.
-  const pathLower = pick(raw, 'pathLower', 'path_lower', null)
-  const value = pathLower != null ? pathLower : pick(raw, 'id', 'id', '')
-  return {
-    name: raw.name || '',
-    remoteId: value,
-    drillPath: value,
-  }
-}
-
-/** Translate `GET /{provider}/folders` -> `{folders}` into a stable
- * `{name, remoteId, drillPath}` list — see the provider-neutral contract
- * note above `normalizeFolder`. */
-export function normalizeFolders(raw) {
-  const list = (raw && raw.folders) || []
-  return list.map(normalizeFolder).filter(Boolean)
-}
-
-// Per-provider sentinel for "sync the whole account" (the folder-picker's
-// root-level pick, not a drilled-into subfolder). Dropbox's OWN API treats
-// `""` and `"/"` as equivalent references to the account root
-// (`_dropbox_api_path` on the backend normalizes both), and `"/"` — unlike
-// `""` — survives every truthiness check both here and in
-// `DropboxProvider._resolve_folder_path`, so it is safe to use end-to-end
-// with ZERO backend changes. OneDrive has NO entry here (fix-round decision,
-// documented on `DropboxFolderPicker.jsx`'s root-pick button): OneDrive's
-// whole-drive delta is Graph's `/me/drive/root/delta` endpoint, a DIFFERENT
-// shape than the folder-scoped `/me/drive/items/{id}/delta` this provider
-// implements today — wiring that safely is real provider work, out of scope
-// for this fix, so the UI requires drilling to a real folder for OneDrive
-// instead of accepting an unverified sentinel.
-export const FOLDER_PICKER_ROOT_REMOTE_ID = { dropbox: '/' }
 
 // Evernote rate-limit fix round 1 (I3): while any source is syncing or still importing, the
 // page re-reads /status every 10 s, so a background Sync now and the follow-up passes show their
@@ -376,7 +297,7 @@ export default function useNoteConnectors() {
     [mutate]
   )
 
-  // OAuth providers (notion/dropbox): POST {consent:true} -> {redirectUrl},
+  // OAuth providers (notion/evernote): POST {consent:true} -> {redirectUrl},
   // hand off. `consent: true` is unconditional here BY DESIGN — every caller
   // (ConnectedAppsCard, ConnectTilesCompact) only reaches this function from
   // inside ConnectConsentPanel's onConfirm, which is disabled until the
@@ -475,39 +396,6 @@ export default function useNoteConnectors() {
     [mutate]
   )
 
-  // GET /{provider}/folders?path= — scoped to FOLDER_PICKER_PROVIDERS (the
-  // router 404s any other provider); `path` omitted/'' lists the account
-  // root. Returns the normalized `{name, remoteId, drillPath}[]` list, never
-  // raw provider-shaped keys.
-  const listFolders = useCallback(async (provider, path = '') => {
-    const qs = path ? `?path=${encodeURIComponent(path)}` : ''
-    const r = await fetch(`/api/j2/notes/connectors/${provider}/folders${qs}`, {
-      credentials: 'include',
-    })
-    if (!r.ok) throw await readError(r, 'Could not load folders.')
-    const body = await r.json().catch(() => ({}))
-    return normalizeFolders(body)
-  }, [])
-
-  // POST /{provider}/sources — creates an additional/first source under an
-  // already-connected provider (409 if the connector doesn't exist yet).
-  // Used by DropboxFolderPicker to turn a picked folder into a real source.
-  const addSource = useCallback(
-    async (provider, payload) => {
-      const r = await fetch(`/api/j2/notes/connectors/${provider}/sources`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {}),
-      })
-      if (!r.ok) throw await readError(r, 'Could not connect that folder.')
-      const body = await r.json().catch(() => ({}))
-      await mutate()
-      return body
-    },
-    [mutate]
-  )
-
   // useCallback so identity is stable across renders — ConnectedAppsCard's
   // OAuth-return self-heal effect depends on [refresh]; without this it was
   // a fresh function every render, re-running the effect every render and
@@ -529,7 +417,5 @@ export default function useNoteConnectors() {
     getSourceLog,
     updateSource,
     disconnect,
-    listFolders,
-    addSource,
   }
 }

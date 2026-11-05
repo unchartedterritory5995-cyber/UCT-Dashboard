@@ -8,8 +8,6 @@
 The service is `api/services/journal_two/visual_playbook.py`; it reads 13I-1's chart-block
 index, 13A's frozen plan links and the per-setup stats authority, and re-derives none of them.
 
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_VISUAL_PLAYBOOK_ENABLED` off answers the one
-    404 for every route before the session, the plan or a parameter is read.
   * PAID on the grid: its cards carry the fingerprint (the Screener's columns and the pattern
     engine's confirmed verdicts, both paid surfaces), the same reason 13I-1's routes are paid.
     Before/after shows the member's own trade and plan only, so it needs a session, not a plan.
@@ -35,16 +33,9 @@ log = logging.getLogger(__name__)
 UNREADABLE_SENTENCE = "Your playbook could not be read just now. Try again in a minute."
 
 
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies."""
-    if not vp.enabled():
-        raise public.not_found()
-
-
 router = APIRouter(
     prefix="/api/j2/notebook-visual-playbook",
     tags=["journal-2-0", "notebook-visual-playbook"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

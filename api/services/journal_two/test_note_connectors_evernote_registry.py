@@ -143,8 +143,8 @@ async def test_resolve_credentials_routes_evernote_through_its_refresh_hook(monk
     assert calls == [("u1", {})]  # a plain refresh-if-needed: not forced, no client
 
 
-@pytest.mark.parametrize("provider,path", [("notion", "oauth"), ("dropbox", "token")])
-async def test_resolve_credentials_unchanged_for_notion_and_dropbox(monkeypatch, provider, path):
+@pytest.mark.parametrize("provider,path", [("notion", "oauth"), ("roam", "token")])
+async def test_resolve_credentials_unchanged_for_notion_and_roam(monkeypatch, provider, path):
     seen = []
 
     async def oauth_refresh(user_id, name, **kw):

@@ -132,7 +132,6 @@ def test_the_cli_starts_no_extraction_threads(cli, capsys, monkeypatch):
     monkeypatch.setattr(hotlink_fetch, "default_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(
         lambda request: httpx.Response(200, content=PNG, headers={"content-type": "image/png"}))))
     monkeypatch.setenv(runner.FLAG, "1")
-    monkeypatch.setenv("NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "1")
     submitted = []
     monkeypatch.setattr(document_extraction._EXTRACTION_POOL, "submit", lambda *a: submitted.append(a))
     note = _note("u1", "Notion", "notion:Export/H.md", _doc({"type": "image", "attrs": {"src": HOT}}))

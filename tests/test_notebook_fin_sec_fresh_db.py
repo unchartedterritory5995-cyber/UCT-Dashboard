@@ -20,8 +20,6 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
-FLAG = "NOTEBOOK_THESIS_CHIPS_ENABLED"
-
 
 @pytest.fixture
 def fresh_db(monkeypatch):
@@ -30,7 +28,6 @@ def fresh_db(monkeypatch):
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
     for name in ("AWARENESS_NOTE_RESURFACE_ENABLED", "AWARENESS_ENGINE_ENABLED"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv(FLAG, "1")
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()

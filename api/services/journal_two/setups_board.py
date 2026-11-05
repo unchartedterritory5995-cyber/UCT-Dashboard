@@ -51,14 +51,10 @@ import sqlite3
 from datetime import date, datetime
 from typing import Any, Callable, Iterable
 
-from api.services.journal_two import chart_blocks, chart_plan, plan_extract, sample_marker
+from api.services.journal_two import chart_blocks, plan_extract, sample_marker
 from api.services.journal_two.timeutil import ET, compute_trading_day_et
-from api.services.notebook_flags import flag_on
 
 log = logging.getLogger(__name__)
-
-#: The enablement gate (unset = OFF; WAVE-13-PLAN section 3.6).
-FLAG = "NOTEBOOK_SETUPS_BOARD_ENABLED"
 
 #: Notes read per board request, newest edit first. A member with more chart notes than this
 #: sees the most recently worked ones; the response says it was capped.
@@ -77,22 +73,10 @@ STATES = ("waiting", "watching", "triggered", "invalidated", "no_price")
 _BUCKET = {"waiting": 0, "watching": 0, "triggered": 0, "invalidated": 1, "no_price": 2}
 
 
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(FLAG, False)
-
-
 def plan_drawing() -> dict[str, Any]:
-    """Whether a member can draw a NEW plan on a chart right now (fin walk P7).
-
-    A card comes from an entry line drawn in the chart plan panel, which has its own switch.
-    The board still shows cards that already exist while that switch is off, but its empty
-    state tells the member to draw one. This says whether they can, read from the chart plan's
-    own gate and never restated here."""
-    if chart_plan.enabled():
-        return {"available": True, "reason": None, "sentence": None}
-    return {"available": False, "reason": "chart_plan_off",
-            "sentence": "Drawing a plan on a chart is switched off, so no new setup can be added here yet."}
+    """Whether a member can draw a NEW plan on a chart right now (fin walk P7). Always yes since
+    the chart plan's switch was retired as always on (2026-11-04); the shape is kept for the client."""
+    return {"available": True, "reason": None, "sentence": None}
 
 
 # ── the pure maths ──────────────────────────────────────────────────────────────────────────

@@ -309,8 +309,9 @@ def test_the_gated_rows_are_found():
 
 @pytest.mark.parametrize("row", GATED_ROWS, ids=lambda r: f"{r[0]} {r[1]}")
 def test_the_gate_column_is_the_dependency_tree(row):
-    """The row's gate is a direct dependency of the route with nothing ahead of it but its router's own gate, so it
-    is resolved before the plan check and before a byte of the body (11.11 m-3)."""
+    """The row's gate is a direct dependency of the route with nothing ahead of it (the gallery router's own gate,
+    which used to sit ahead of it, was retired as always on, 2026-11-04), so it is resolved before the plan check and
+    before a byte of the body (11.11 m-3)."""
     method, path = row
     route = _served_route(method, path)
     module = _router_module_for(path)
@@ -318,7 +319,7 @@ def test_the_gate_column_is_the_dependency_tree(row):
     direct = [d.call for d in route.dependant.dependencies]
     assert gate in direct, f"{method} {path} does not carry {gate.__name__}"
     ahead = direct[:direct.index(gate)]
-    assert ahead == [module._require_enabled], f"{method} {path}: {gate.__name__} is not resolved first: {direct}"
+    assert ahead == [], f"{method} {path}: {gate.__name__} is not resolved first: {direct}"
 
 
 def test_the_wave11_bucket_is_the_routers_preview_scope():
@@ -427,9 +428,7 @@ def att_root(tmp_path, monkeypatch):
 def app(db_path, monkeypatch):
     from api.routers import notebook_publish, notebook_shares, notebook_template_gallery
     from api.services.journal_two import template_gallery as gallery
-    # The gallery router's own gate and the style library stay ON: the wave 11 row's gate is G_W11 alone.
-    monkeypatch.setenv(gallery.FLAG, "1")
-    monkeypatch.setenv(gallery.LIBRARY_FLAG, "1")
+    # The wave 11 row's gate is G_W11 alone (the gallery's own and the style library's were retired as always on).
     fa = FastAPI()
     fa.include_router(notebook_shares.router)
     fa.include_router(notebook_publish.router)

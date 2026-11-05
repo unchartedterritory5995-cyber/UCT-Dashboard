@@ -10,7 +10,7 @@ usable right now" — consumed by:
   - `api/routers/note_sync.py` — `GET /status`'s configured/connected
     matrix, and the connect/OAuth-start endpoints (decide whether a
     provider needs a pasted token, `connect_kind == "token"` — Roam/Craft —
-    an OAuth redirect, `connect_kind == "oauth"` — Notion/Dropbox — or a
+    an OAuth redirect, `connect_kind == "oauth"` — Notion/Evernote — or a
     connect code minted here and redeemed by a separately-installed local
     plugin, `connect_kind == "device"` — Obsidian; see `ProviderEntry
     .connect_kind`'s own comment below for why this is a THIRD value, not a
@@ -78,7 +78,7 @@ class ProviderEntry:
 def _always_configured() -> bool:
     # Roam/Craft are LIVE providers (spec §7) — the user pastes a token
     # directly, there is no server-side app registration/env gate. Always
-    # "available to try connecting," unlike Notion/Dropbox's OAuth apps.
+    # "available to try connecting," unlike Notion's OAuth app.
     return True
 
 
@@ -102,61 +102,10 @@ def _build_notion(source: dict[str, Any] | None) -> Any:
     return NotionProvider()
 
 
-def _dropbox_configured() -> bool:
-    from .providers.dropbox import configured as dbx_configured
-    return dbx_configured()
-
-
-def _build_dropbox(source: dict[str, Any] | None) -> Any:
-    from .providers.dropbox import DropboxProvider
-    # Task 11 MUST-RESOLVE #3: Dropbox's synced folder is SOURCE-level (one
-    # OAuth connector can back multiple folders — `j2_note_connectors` is
-    # PK'd (user_id, provider), `j2_note_sources` is not), stored on
-    # `remote_id` per spec §5's column comment ("... / folder id"). This is
-    # the one call site that threads it — every other provider ignores
-    # `source` entirely.
-    folder_path = (source or {}).get("remoteId")
-    return DropboxProvider(folder_path=folder_path)
-
-
-def _onenote_configured() -> bool:
-    from . import oauth
-    return oauth.configured("onenote")
-
-
-def _build_onenote(source: dict[str, Any] | None) -> Any:
-    from .providers.onenote import OneNoteProvider
-    # Whole-account provider (Notion's shape) -- `source` is ignored, same
-    # as `_build_notion` above: there is exactly one OneNote source per
-    # account ("page ids are globally unique within the account ... there
-    # is exactly one OneNote source per account", providers/onenote.py's
-    # own `import_key` docstring), so there is nothing source-level to
-    # thread through here (unlike Dropbox/OneDrive's per-source
-    # `folder_path`).
-    return OneNoteProvider()
-
-
-def _onedrive_configured() -> bool:
-    from . import oauth
-    return oauth.configured("onedrive")
-
-
-def _build_onedrive(source: dict[str, Any] | None) -> Any:
-    from .providers.onedrive import OneDriveProvider
-    # Same one-connector-backs-multiple-folder-sources shape as Dropbox
-    # above (Task 3 of the msgraph wave, MUST-RESOLVE #3's identical
-    # pattern) — `source["remoteId"]` threads through as `folder_path=`.
-    # Despite the kwarg name (chosen for constructor-shape parity with
-    # `DropboxProvider`), `OneDriveProvider` treats it as a Graph
-    # drive-item folder id, never a path — see that module's own docstring.
-    folder_path = (source or {}).get("remoteId")
-    return OneDriveProvider(folder_path=folder_path)
-
-
 def _obsidian_configured() -> bool:
     """Obsidian's per-provider gate (Global Constraint, plan §"Everything
     stays behind `NOTE_SYNC_ENABLED` plus a per-provider gate, like every
-    other connector"). Unlike Notion/Dropbox/msgraph, there is no
+    other connector"). Unlike Notion/Evernote, there is no
     third-party app registration to check env vars for — Obsidian talks to
     no external API at all (push transport, spec §7.2). The two real
     prerequisites:
@@ -177,7 +126,7 @@ def _obsidian_configured() -> bool:
          button for a door a member may not yet be able to walk through
          from inside Obsidian itself.
       2. `crypto_box.NoteBox.is_configured()` — a genuine capability check,
-         the same shape `_notion_configured`/`_dropbox_configured` use for
+         the same shape `_notion_configured` uses for
          their own OAuth env vars: without `NOTE_ENCRYPTION_KEY`,
          `obsidian_link.redeem_connect_code` cannot encrypt a device token
          at all (it calls `crypto_box.NoteBox.encrypt` directly), so
@@ -195,8 +144,8 @@ def _obsidian_configured() -> bool:
 def _build_obsidian(source: dict[str, Any] | None) -> Any:
     """Threads BOTH `source["userId"]` and `source["remoteId"]` through to
     the provider's constructor kwargs (`user_id=`/`vault_id=`) — every other
-    provider here threads at most `source["remoteId"]` (Dropbox/OneDrive's
-    folder path), because every other provider resolves its own tenant
+    provider here threads at most `source["userId"]` (Evernote) or nothing,
+    because every other provider resolves its own tenant
     scope from the DECRYPTED CREDENTIALS the engine hands it. Obsidian has
     no credentials to resolve a user from at all (push transport, nothing to
     decrypt) — `providers/obsidian.py`'s own docstring is explicit that
@@ -283,13 +232,19 @@ _REGISTRY: dict[str, ProviderEntry] = {
     "roam": ProviderEntry("roam", "Roam Research", "token", _always_configured, _build_roam),
     "craft": ProviderEntry("craft", "Craft", "token", _always_configured, _build_craft),
     "notion": ProviderEntry("notion", "Notion", "oauth", _notion_configured, _build_notion),
-    "dropbox": ProviderEntry("dropbox", "Dropbox", "oauth", _dropbox_configured, _build_dropbox),
-    "onenote": ProviderEntry("onenote", "OneNote", "oauth", _onenote_configured, _build_onenote),
-    "onedrive": ProviderEntry("onedrive", "OneDrive", "oauth", _onedrive_configured, _build_onedrive),
     "obsidian": ProviderEntry("obsidian", "Obsidian", "device", _obsidian_configured, _build_obsidian),
     "evernote": ProviderEntry("evernote", "Evernote", "oauth", _evernote_configured, _build_evernote,
                               refresh=_evernote_refresh, provider_class=_evernote_class),
 }
+
+
+#: Providers ARCHIVED on 2026-11-04 (Dropbox, OneNote, OneDrive): never configured in production,
+#: so no member could connect one, and their code was removed (restore: revert the archive commit).
+#: NOT in `_REGISTRY`, so no door builds, connects or syncs them. A stored `j2_note_connectors` /
+#: `j2_note_sources` row naming one is never deleted: `/status` leaves it out, the sync loops skip
+#: it with a log line (`engine._skip_archived_provider`), and the import repair keeps classing its notes as connector notes
+#: (`import_repair.runner.classify`), exactly as it did while the provider had no active source.
+ARCHIVED_PROVIDERS: frozenset[str] = frozenset({"dropbox", "onenote", "onedrive"})
 
 
 def names() -> list[str]:

@@ -477,6 +477,13 @@ def test_get_item_with_wave_11_off_is_byte_identical_to_before_task_11_8(db, mon
                                        default=str)
                 for gid in (g_p3a, g_shared, g_tool) for who in (MEMBER, "admin")}
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    # The pre-11.8 module still reads the switches retired as always on (2026-11-04): give it production's values,
+    # and the starter-packs reader it calls (gone from the live module), so both answer the same world.
+    for name in ("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED", "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
+                 "NOTEBOOK_STARTER_PACKS_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED"):
+        monkeypatch.setenv(name, "1")
+    from api.services.journal_two import starter_packs
+    monkeypatch.setattr(starter_packs, "enabled", lambda: True, raising=False)
     live_off, old_off = reads(gallery), reads(old)
 
     # W11-R76 (review I-3, live on master) is the ONE deliberate change to the wave-off answer: a card line that is
@@ -1485,7 +1492,6 @@ def gallery_client(db, monkeypatch):
     from api.limiter import limiter
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_template_gallery
-    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
     limiter.reset()
     fa = FastAPI()
     fa.include_router(notebook_template_gallery.router)

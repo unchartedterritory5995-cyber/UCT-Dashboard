@@ -9,10 +9,9 @@ PRECONDITIONS (the run refuses or records NOT RUN without each; it never assumes
     shared root before boot, at +15 s, at +120 s and at shutdown; that verdict is the run's first line and is
     kept as integrity.md beside walk.json;
   * `app/dist` rebuilt from that tip (`cd app && npm run build`) -- the sandbox serves the built bundle;
-  * the switches the walk needs, ON in the sandbox env (P5_FLAGS below: journal styles, the template gallery,
-    the style library, the starter packs, and the Learn menu's onboarding switch), on top of the flags the
-    ledger records as armed on web (notebook_fin_walk.flag_sets()["c1"]). With the starter switch at 0 the
-    firm style rows are hidden everywhere (P5-AUD-1), so the library tour's Adopt step needs it on too.
+  * the switches the walk needs, ON in the sandbox env (P5_FLAGS below: the Learn menu's onboarding switch;
+    journal styles, the template gallery, the style library and the starter packs were retired as always on,
+    2026-11-04), on top of the flags the ledger records as armed on web (notebook_fin_walk.flag_sets()["c1"]).
     Each name is checked against the ledger's gate list first; an unknown name refuses the run;
   * ONE fresh paid member per viewport (signed up through the app, comped and email-verified by the admin
     through the app's own admin routes; /api/auth/me must say paid-equivalent), so each viewport meets the
@@ -82,8 +81,7 @@ import mobile_audit as ma  # noqa: E402  -- _dismiss_intro
 import secret_scrub  # noqa: E402  -- scrub() before anything reaches disk
 
 VIEWPORTS = fw.VIEWPORTS
-P5_FLAGS = ["NOTEBOOK_JOURNAL_STYLES_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED",
-            "NOTEBOOK_STARTER_PACKS_ENABLED", "NOTEBOOK_ONBOARDING_ENABLED"]
+P5_FLAGS = ["NOTEBOOK_ONBOARDING_ENABLED"]  # the gallery, library, styles and starter-pack switches were retired as always on (2026-11-04)
 PW = "LocalTest2026!"   # sandbox seed (throwaway data dir only; the walk tools' shared sandbox password)
 T = 30000
 PACK = "swing"
