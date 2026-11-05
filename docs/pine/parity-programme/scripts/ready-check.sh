@@ -20,7 +20,9 @@ U=$(git status --porcelain | grep -v -F '.uct-session-owner'); [ -z "$U" ] || fa
 TIP=$(awk '{print $2}' "$O/TIP"); git cat-file -e "$TIP^{commit}" 2>/dev/null || fail "TIP $TIP unknown commit"
 [ "$(head -1 "$O/FINAL_DONE" | awk '{print $2}')" = "$TIP" ] || fail "FINAL_DONE sha differs from TIP"
 fd() { grep -m1 -o -E "(^|[ ])$1=[^ ]*" "$O/FINAL_DONE" | head -1 | sed -E "s/^ ?$1=//"; }
-BASELINE_FAIL_RE='^(pollingSites\.rail|settingsScope\.rail)\.test\.jsx?$'
+# enumerationSites + vendorHarness: red on master 646dca8cbf too (new master harness.jsx; Node 20 V8 1e-4 tolerance),
+# verified by the landing train 2026-11-05 (runs/train). Remove them when master is green again.
+BASELINE_FAIL_RE='^(pollingSites\.rail|settingsScope\.rail|enumerationSites|vendorHarness)\.test\.jsx?$'
 SCOPE=$(fd scope); [ "$SCOPE" = full ] || fail "final-tip scope is '${SCOPE:-unknown}', only a FULL run counts (shards allowed)"
 [ "$(fd integrity)" = ok ] || fail "final-tip integrity=$(fd integrity) (HEAD or tree moved during the run, or old-format FINAL_DONE)"
 [ "$(fd totals)" = ok ] || fail "totals=$(fd totals): a vitest run/shard reported no totals"
