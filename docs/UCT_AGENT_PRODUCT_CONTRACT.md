@@ -10,6 +10,39 @@ UCT Agent is, in priority order:
 
 A change that conflicts with this contract is a defect or needs an owner decision. A behaviour counts as delivered only when it has been verified in the environment the owner uses, not when a PR merges or tests pass.
 
+## Roadmap sequence
+
+The owner has set this order. It takes precedence over any other prioritization.
+
+| Phase | Goal | Agent location |
+|---|---|---|
+| 1. Charts mastery | The Agent can do every meaningful action a human can do in the Charts workspace | Charts |
+| 2. UCT information access | The Agent knows everything UCT Intelligence knows that it is authorized to use: Morning Wire, UCT Terminal, Breadth, market data, news, financials, calendars, historical information and other existing resources, through canonical data services | Charts |
+| 3. Other workspaces | The mature Agent operates other UCT workspaces and sections | Rest of the website |
+
+No worker is assigned to a later phase's main work until the earlier phase is substantially complete. Already working research capabilities are preserved during Phase 1, and improvements keep shipping throughout.
+
+### Phase exit criteria
+
+A phase is substantially complete when all of its criteria pass with evidence.
+
+**Phase 1**
+- A code-derived inventory of Charts human actions exists, and every row has a status.
+- Every P0 action, and at least 90% of P1 actions, is proven by an outcome test that checks resulting state, not by a registry entry. Exclusions are listed with a reason.
+- C1, C2, C3 and C4 pass on production, verified by the owner or by a live admin test.
+- A multistep regression set of real Charts workflows passes with no wrong-target action and no false receipt.
+- Simple local commands have a measured median against the speed targets, and any miss is explained.
+- Each Charts area has a working interactive tutorial or a recorded reason for none.
+
+**Phase 2**
+- Each authorized UCT information source is either reachable from the Charts Agent through a canonical service or listed with the licensing or data reason it is not.
+- C5, C6, C7, C8 and C9 pass on production with grounded answers.
+- Research leaves the workspace unchanged, and no restricted content reaches the model.
+
+**Phase 3**
+- Each in-scope workspace has at least one useful end-to-end action and a tutorial. Navigating to a page does not count as coverage.
+- C10 passes on each one.
+
 ## 1. Global rules
 
 These apply to every scenario in section 3.
@@ -126,7 +159,7 @@ Each scenario gives one owner-usable prompt. **Pass** lists what must be observe
 - **Pass:** delivers a useful default brief. The user can customize it conversationally. Appropriate account-level preferences are retained for future briefs.
 - **Fail:** customization that disappears next time; preferences stored beyond what is appropriate.
 
-### C10. Website-wide control
+### C10. Website-wide control (Phase 3)
 
 > Any action a person can take on a UCT page, requested from that page.
 
