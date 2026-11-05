@@ -17,7 +17,7 @@ export function rowOf(req, evidence, result, { mode, known }) {
   const modelCalls = turns.reduce((n, t) => n + (t.modelCalls || 0), 0) + (evidence.undo?.turn?.modelCalls || 0)
   const failed = result.checks.filter(c => c.pass === false)
   const row = { id: req.id, set: req.set, family: req.family, kind: req.kind, board: req.board, inventory: req.inventory, pass: result.pass, graded: result.graded, na: result.na, modelCalls, usd: evidence.usd ?? null, ms: turns.reduce((n, t) => n + (t.ms || 0), 0), path: modelCalls ? 'model' : 'local' }
-  if (result.pass) return row
+  if (result.pass || result.pass === null) return row
   const c = classify(req, evidence, result, { known, mode })
   return { ...row, layer: c.layer, why: c.why, firstCheck: failed[0]?.name, failed: failed.map(x => ({ name: x.name, detail: x.detail, tag: x.tag })), expectedActions: (req.turns || []).flatMap(t => (t.plan?.ops || []).map(o => o.action)), say: req.turns.map(t => t.say) }
 }

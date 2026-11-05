@@ -102,6 +102,12 @@ async function walkGuide(p, spec) {
     }
     await sleep(350)
   }
+  // a partial oracle stops part way: leave by the card's own Exit, as a person would
+  if (spec.partial) {
+    const x = await b.evaluate(`(() => { const e = document.querySelector('[aria-label="Exit the guide"]'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+    if (x) await b.click(x.x, x.y)
+    await sleep(500)
+  }
   // the last click ends it; a card still up offers Done
   if (await b.evaluate(`!!document.querySelector('[data-testid="guide-card"]')`)) await p.button('Done', '[data-testid="guide-card"]')
   await sleep(500)
@@ -113,6 +119,7 @@ async function walkGuide(p, spec) {
 export async function runRequest(ctx, req) {
   const { R, shotPath } = ctx
   const B = BOARDS[req.board].browser
+  if (req.simOnly) return { evidence: { turns: [] }, result: { pass: null, graded: 0, na: 0, checks: [] } }
   const ev = { turns: [], undo: null, guide: null, errors: [], before: null, after: null }
   let p = null
   try {

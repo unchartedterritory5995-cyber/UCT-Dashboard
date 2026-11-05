@@ -84,8 +84,8 @@ for (const req of list) {
   if (ctx.R.turnUsd) evidence.usd = Number(ctx.R.turnUsd(from).toFixed(6))
   const row = rowOf(req, evidence, result, { mode: MODE, known })
   rows.push(row)
-  say(MODE, `${row.pass ? 'PASS' : 'FAIL'} ${req.id} ${row.path}${heldout || row.pass ? '' : ` [${row.layer}] ${row.firstCheck}: ${String(row.failed?.[0]?.detail || '').slice(0, 160)}`}`)
-  if (!row.pass) writeFailure(dir, req, evidence, row, MODE)
+  say(MODE, `${row.pass ? 'PASS' : row.pass === null ? 'NOT-RUN' : 'FAIL'} ${req.id} ${row.path}${heldout || row.pass !== false ? '' : ` [${row.layer}] ${row.firstCheck}: ${String(row.failed?.[0]?.detail || '').slice(0, 160)}`}`)
+  if (row.pass === false) writeFailure(dir, req, evidence, row, MODE)
   finish(dir, MODE, rows, { partial: true, set: A.set, hash: setHash(pub) })
   if (ctx.R.stopped) { say(MODE, `STOPPED: ${ctx.R.stopped}`); break }
 }

@@ -56,9 +56,9 @@ async function snapshot(m, boardName) {
   const lists = board.state.server?.lists || []
   return {
     charts, widgets: board.state.widgets.map(w => ({ id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h })), chartCount: board.state.widgets.filter(w => w.type === 'chart').length, types: board.state.widgets.map(w => w.type),
-    wl: Object.fromEntries(lists.map(l => [l.name, (l.items || l.symbols || []).map(i => i.sym || i)])), drawings, drawingCount: Object.values(drawings).reduce((n, d) => n + d.length, 0), alerts: Array.isArray(alerts) ? alerts : [], ialerts: ia.alerts || [],
+    wl: Object.fromEntries(lists.map(l => [l.name, (l.items || l.symbols || []).map(i => i.sym || i)])), wlNotes: Object.fromEntries(lists.map(l => [l.name, Object.fromEntries((l.items || []).filter(i => i.notes).map(i => [i.sym, i.notes]))])), drawings, drawingCount: Object.values(drawings).reduce((n, d) => n + d.length, 0), alerts: Array.isArray(alerts) ? alerts : [], ialerts: ia.alerts || [],
     layouts: [], written: {},
-    unreadable: ['panePx', 'axis', 'session', 'faces', 'wlNotes', 'w', 'layoutWrites', 'written'],
+    unreadable: ['panePx', 'axis', 'session', 'faces', 'w', 'layoutWrites', 'written'],
   }
 }
 

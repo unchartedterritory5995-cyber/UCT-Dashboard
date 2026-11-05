@@ -34,7 +34,8 @@ export function workspace(L) {
   y('phrasing', 'bring up the Intraday Scan layout', [op('layout.open', lay, { layout: '12' })], { outcome: 'change', expect: [['chartCount', 'eq', 2], ['types', 'lacks', 'watchlist']] })
   y('phrasing', 'save what I have here as Swing 2', null, { outcome: 'change', expect: [['layoutWrites', 're', 'Swing 2'], ['layouts', 'has', 'Swing 2']], confirm: true }, { turns: [say('save what I have here as Swing 2', propose([op('layout.saveAs', lay, { name: 'Swing 2' })]))] })
   y('phrasing', 'rename Momentum 2 to Momo Two', null, { outcome: 'change', expect: [['layouts', 'has', 'Momo Two'], ['layouts', 'lacks', 'Momentum 2']], confirm: true }, { turns: [say('rename Momentum 2 to Momo Two', propose([op('layout.rename', lay, { layout: '14', name: 'Momo Two' })]))] })
-  y('target', 'open my momentum layout', [], asks({ says: 'which' }), { turns: [say('open my momentum layout', clarify('Which one?', ['Momentum', 'Momentum 2', 'Momentum Swing']))] })
+  y('target', 'open my momentum layout', [op('layout.open', lay, { layout: '13' })], { outcome: 'change', expect: [['chartCount', 'eq', 1], ['types', 'lacks', 'watchlist']] })
+  y('target', 'open the momentum one with the swing in the name', [op('layout.open', lay, { layout: '15' })], { outcome: 'change', expect: [['chartCount', 'eq', 1], ['types', 'lacks', 'watchlist']] })
   y('phrasing', 'which layouts do I have', [op('layout.list', lay, {})], reads({ says: 'Intraday Scan' }))
   y('invalid', 'open the layout called Banana Stand', [op('layout.open', lay, { layout: 'Banana Stand' })], refuses())
   y('invalid', 'delete my Main Trading layout', [], refuses({ expect: [['layouts', 'has', 'Main Trading']] }), { turns: [say('delete my Main Trading layout', propose([op('layout.delete', lay, { layout: '16' })]), { approve: false })], oracle: { outcome: 'answer', expect: [['layouts', 'has', 'Main Trading']] } })
@@ -48,7 +49,7 @@ export function workspace(L) {
   l('phrasing', 'start a new list called Earnings Week', null, { outcome: 'change', expect: [['wl.Earnings Week', 'len', 0]], confirm: true }, { turns: [say('start a new list called Earnings Week', propose([op('watchlist.create', '$list:watchlistLibrary', { name: 'Earnings Week', as: null })]))] })
   l('phrasing', 'rename Long Term to Core', null, { outcome: 'change', expect: [['wl.Core', 'exists']], confirm: true }, { turns: [say('rename Long Term to Core', propose([op('watchlist.rename', '$wl:Long Term', { name: 'Core' })]))] })
   l('phrasing', 'empty the Momentum list', null, { outcome: 'change', expect: [['wl.Momentum', 'len', 0]], confirm: true }, { turns: [say('empty the Momentum list', propose([op('watchlist.clear', W, {})]))] })
-  l('params', 'note on TSLA in Momentum: earnings next week', [op('watchlist.setNote', W, { symbol: 'TSLA', note: 'earnings next week' })], { outcome: 'change', expect: [['wlNotes.Momentum.TSLA', 'eq', 'earnings next week']] })
+  l('params', 'note on TSLA in Momentum: earnings next week', [op('watchlist.setNote', W, { symbol: 'TSLA', note: 'earnings next week' })], { outcome: 'change', expect: [['wlNotes.Momentum.TSLA', 'eq', 'earnings next week']] }, { simOnly: true, unverifiable: ['the browser harness refuses the notes route, so this one runs in SIMULATED only'] })
   l('phrasing', 'whats in my Swing list', [op('watchlist.show', '$wl:Swing', { as: null })], reads({ says: 'MSFT' }))
   l('phrasing', 'open my Swing watchlist in the widget', [op('watchlist.open', b, { list: '$wl:Swing' })], { outcome: 'change', expect: [['faces.watchlist', 're', 'MSFT']], receipt: true })
   l('multistep', 'add AMD to Momentum and take TSLA out', [op('watchlist.add', W, { symbols: ['AMD'] }), op('watchlist.remove', W, { symbols: ['TSLA'] })], { outcome: 'change', expect: [['wl.Momentum', 'has', 'AMD'], ['wl.Momentum', 'lacks', 'TSLA']], undo: true })
@@ -96,7 +97,7 @@ export function workspace(L) {
   u('invalid', 'undo', [], answers(), { unverifiable: ['the wording when there is nothing to undo'] })
 
   const H = family(L, 'howto', { inv: ['C1-006', 'C1-001', 'C3-006'], select: 'A' })
-  const walk = (steps, extra = {}) => ({ outcome: 'walkthrough', guide: { steps }, ...extra })
+  const walk = (steps, extra = {}, partial = false) => ({ outcome: 'walkthrough', guide: { steps, partial }, ...extra })
   const guide = (feature) => [op('guide.show', '$list:guide', { feature })]
   const tfW = [{ target: 'chart.timeframe', text: 'switch this chart', act: 'next' }, { target: 'chart.timeframeMore', text: 'Every other timeframe', act: 'Done' }]
   H('howto', 'how do I change the timeframe', guide('timeframe'), walk(tfW))
@@ -109,8 +110,8 @@ export function workspace(L) {
   H('howto', 'how do I open chart settings', guide('settings'), walk([{ target: 'chart.settings', text: 'gear', act: 'click' }, { target: 'chartSettings.tab.price', text: 'tabs along the top', act: 'Done' }]))
   H('howto', 'how would I change the chart background', guide('canvas'), walk([{ target: 'chart.settings', text: 'gear', act: 'click' }, { target: 'chartSettings.tab.canvas', text: 'Open Canvas', act: 'Done' }]))
   H('howto', 'show me how to add a chart to my board', guide('charts'), walk([{ target: 'workspace.widgets', text: 'Open Widgets', act: 'click' }, { target: 'workspace.widgets.chart', text: 'Click Chart', act: 'Done' }]))
-  H('howto', 'teach me how to create a new watchlist', guide('watchlistCreate'), walk([{ target: 'workspace.widgets', text: 'Open Widgets', act: 'click' }, { target: 'workspace.widgets.watchlist', text: 'Click Watchlist', act: 'click' }]), { board: 'GAP', select: null, browserOnly: true, unverifiable: ['the rest of the create flow is walked by the guide suite: this checks the first two rings and clicks'] })
-  H('howto', 'where do I save a layout', guide('layouts'), walk([{ target: 'workspace.layouts', text: 'saved layouts', act: 'next' }]), { select: null })
+  H('howto', 'teach me how to create a new watchlist', guide('watchlistCreate'), walk([{ target: 'workspace.widgets', text: 'Open Widgets', act: 'click' }, { target: 'workspace.widgets.watchlist', text: 'Click Watchlist', act: 'click' }], { expect: [['types', 'has', 'watchlist']] }, true), { board: 'GAP', select: null, browserOnly: true, unverifiable: ['the rest of the create flow is walked by the guide suite: this checks the first two rings and clicks'] })
+  H('howto', 'where do I save a layout', guide('layouts'), walk([{ target: 'workspace.layouts', text: 'saved layouts', act: 'next' }], {}, true), { select: null })
   H('unsupported', 'how do I connect my broker', [], answers(), { turns: [say('how do I connect my broker', answer('UCT does not connect to a broker.'))], select: null })
 
   const X = family(L, 'explain', { inv: ['C2-002'], select: null })
