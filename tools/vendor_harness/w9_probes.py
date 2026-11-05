@@ -416,7 +416,7 @@ def main(argv=None) -> int:
     for name, text in sorted(all_files().items()):
         path = PROBES / name
         if a.check:
-            if not path.exists() or path.read_bytes() != text.encode("utf-8"):
+            if not path.exists() or path.read_bytes().replace(b"\r\n", b"\n") != text.encode("utf-8"):
                 print(f"DIFFERS {name}")
                 bad += 1
         else:

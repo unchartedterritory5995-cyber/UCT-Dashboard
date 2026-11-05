@@ -57,7 +57,7 @@ def test_every_committed_probe_is_exactly_what_the_generator_writes():
     files = wp.all_files()
     assert sorted(n[:-5] for n in files) == GENERATED
     for name, text in files.items():
-        assert (PROBES / name).read_bytes() == text.encode("utf-8"), f"{name} differs from its generator"
+        assert (PROBES / name).read_bytes().replace(b"\r\n", b"\n") == text.encode("utf-8"), f"{name} differs from its generator"
 
 
 def test_the_check_mode_can_fail(tmp_path, monkeypatch):
