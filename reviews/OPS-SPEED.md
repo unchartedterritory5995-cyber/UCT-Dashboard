@@ -1,3 +1,55 @@
+VERDICT: GO-WITH-NOTES @9822dfb19053
+
+# r2 delta re-review: 9af15dce85a0 -> 9822dfb19053 (commit 9822dfb190). Read-only static review, nothing executed.
+- B8 FIXED. final-tip.sh errs_of sums every '^ *Errors +N' line from the stripped js.log, which in shard mode is the concatenation of all shards. It writes errors=N and shard_errors to FINAL_DONE.
+  ready-check.sh fails when errors!=0, and also when the key is missing (old-format FINAL_DONE).
+  The fd parser cannot pick up 'shard_errors=' as 'errors=', because the key must sit at line start or after a space.
+- No other changes since r1. B1-B7 stay fixed, and notes N1-N8 still apply (non-blocking).
+- Adoption condition, unchanged from r1: the first real measure-pair run with MP_CACHE on must show BASE CACHE FILLED, then HIT, with byte-identical base outputs. Until that run exists, cache-HIT evidence is not accepted, and MP_CACHE=0 is always acceptable.
+- Merge order: tooling and docs only, independent of the parity lanes, no engine bump.
+
+---
+# r1 review (kept for history; its verdict is superseded)
+
+# r1 delta re-review: 36bc5aacc388 -> 9af15dce85a0 (commits 3e6d7a44cb, 9af15dce85)
+Read-only static review of `git diff 36bc5aacc388 9af15dce85a0`. Nothing was executed and the builder's self-tests were not re-run.
+
+## r0 blockers: status
+- B1 FIXED. measure-pair.sh MP_ENV_RE (AUDIT_C18_|VENDOR_|VITE_|PINE_|... plus MP_CACHE_EXTRA_ENV): if any of these vars is set, even to an empty value, there is no key, so nothing is used or filled. This fails closed: a broad list only costs speed.
+- B2 FIXED. cache_key refuses on any untracked file (only .uct-session-owner is allowed) and on any ignored file under corpus/, tests/fixtures/ or app/src (`git ls-files -o -i`).
+- B3 FIXED. The key now includes app/node_modules/.package-lock.json, node_modules/vitest/package.json, app/package-lock.json and app/.env*. A missing file means no key.
+- B4 FIXED. side_clean removes the base outputs before the side runs. cache_fill needs exactly the expected number of step rc lines (3, +1 census, +6 rev), all rc=0. MANIFEST is a sha256 list. Restore runs `sha256sum -c` plus a file-count check, so a mismatch is a miss.
+- B5 MOSTLY FIXED. FINAL_DONE now carries scope, every rc, shard_rcs, totals, jsfail and integrity. ready-check FAILs on scope!=full, integrity!=ok, totals!=ok, gate/hyg!=0, py not in {NA,0}, js!=0 with no named file, or a named failing file outside BASELINE_FAIL_RE. An old-format FINAL_DONE fails. See B8 for the remaining gap.
+- B6 FIXED. has_totals is checked per shard. A missing summary sets totals=missing, prints "AGG INCOMPLETE" and exits 6. JS_RC is the highest shard rc.
+- B7 FIXED. Any untracked file refuses with exit 5. At the end, HEAD and the tree are checked again; a change sets integrity!=ok and exits 6.
+- ram_gate: three unreadable readings in a row mean return 1. Fixed.
+
+## BLOCKING (new, small)
+B8 (MED) ready-check.sh js-failure policy (fd js / jsfail block) together with final-tip.sh JSFAIL (the `^ *FAIL +` parse).
+  An error is masked when vitest reports an UNHANDLED error (summary line `Errors  N error(s)`, rc=1) that produces no `FAIL <file>` line, and in the same run a baseline file (pollingSites.rail / settingsScope.rail) fails.
+  In that case jsfail lists only baseline files, and ready-check prints READY-CHECK PASS while the lane's own error is hidden. OPS-SPEED's own self-test shows a baseline pair failing on older trees, so the coincidence is realistic.
+  Without a baseline failure the gap is closed: js!=0 with jsfail=none fails.
+  Fix: final-tip sums `^ *Errors +([0-9]+)` from the stripped logs into `errors=N` in FINAL_DONE. ready-check FAILs when errors is non-zero or the key is missing. That is a few lines and needs no full run.
+
+## Notes (non-blocking)
+- N6 MP_SOURCE_ONLY: if this var leaks into the environment of a real run, the script exits 0 without measuring. It also prints no MEASURE_DONE, so evidence that requires MEASURE_DONE is still safe. Consider also refusing when $# > 0.
+- N7 The baseline allowlist is a whole-file match. Any new failure inside pollingSites.rail or settingsScope.rail is also excused. Acceptable while these files are the known-red pair, but the list should shrink as soon as they are fixed. This is one authority, in ready-check.sh only.
+- N8 Stale outputs on the tip side: side_clean runs only for the base side. The tip side is never cached, so this is the same as before r1, but stale tip files could still survive a crashed step. Running side_clean for both sides costs nothing.
+- N1-N5 from r0 still apply (docs/ includes the measuring scripts; hl's RAM behaviour change; lane_env does not resolve paths; retire-worktree deletes the owner marker; final-tip exits 0 on test failures by design).
+
+## Is the missing end-to-end measure-pair run blocking for adoption?
+No, for correctness. Every r1 change on the measure-pair cache path fails closed:
+- a regex or count mismatch means no fill;
+- a manifest or count mismatch means a miss;
+- an env var or untracked file means no key.
+None of them can serve a wrong base. What has not been proved is that a valid entry actually FILLS and HITS under the new gating; the r0 self-test proved that on the old code. Condition for adoption: the first real use, with MP_CACHE on, on pine-dsk-mpbase2 or a lane base, must show `BASE CACHE FILLED` and then `BASE CACHE HIT`. Its out-base.json, probe-base.json and harness-base must be byte-identical (sha256) to the fresh run's. Until that run exists, evidence quoting a cache HIT is not accepted. MP_CACHE=0 is always acceptable.
+
+Merge order: unchanged. Tooling and docs only; independent of the parity lanes; no engine bump. Re-review after the B8 fix can be a delta of ready-check.sh and final-tip.sh only.
+
+VERDICT: NO-GO @9af15dce85a0 (single small blocker B8; everything else GO)
+
+---
+# r0 review (kept for history)
 VERDICT: NO-GO @36bc5aacc388
 
 Lane: OPS-SPEED tooling, origin/ops/pine-tooling-speed 36bc5aacc388d351e0346a1342bd16e1d82fbd36
