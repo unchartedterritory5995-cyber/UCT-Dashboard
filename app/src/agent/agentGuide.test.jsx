@@ -334,7 +334,8 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    expect(card().getAttribute('aria-modal')).toBe('false')
+    // never a dialog: utils/modalOpen.js would read it as a modal and the chart would ignore the keys the card names
+    expect(card().getAttribute('role')).toBe('region')
     expect(card().hasAttribute('data-escape-layer')).toBe(true)
     expect(document.activeElement && card().contains(document.activeElement)).toBe(false)     // focus stays where it was
   }, 30000)
