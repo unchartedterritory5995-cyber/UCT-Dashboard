@@ -3,7 +3,27 @@
 Written 2026-11-05 by a W9 design author (desktop), docs only. No vitest, census, harness or rig
 was run for this document.
 
-**Revision r2 (2026-11-05)** answers the delta review NO-GO at `a967e01a14`
+**Revision r3 (2026-11-05)** answers the review NO-GO at `77859d00b4` on one blocker, under the
+coordinator's ruling:
+- **B1, the trade floor applies to TradingView's count only.** The floor is applied to the
+  reference (TradingView's captured closed-trade count) and decided from the capture before our
+  output is looked at. Our broker's count never selects a symbol and never makes a script
+  ungradable.
+  - TradingView at or above the floor, with any difference from us: **DIVERGE**.
+  - TradingView at or above the floor, equal: **MATCH**.
+  - TradingView below the floor: **UNGRADABLE on that symbol**. The script moves to the SPY
+    time-range probe, or is listed by name.
+  - New rail: a 6-ours-against-2-theirs case grades DIVERGE (T2, 5.2 E).
+- **Notes:**
+  - (a) The lock rail fails only when the ledger changes without a bump. Non-pin bumps pass.
+    Both cases are in the rail spec (rule 7).
+  - (b) `snapshot_builder.DEEP_BARS` is folded into `bars_window.HISTORY_WINDOW_BARS` (3.4).
+  - (c) W5-T11, W5-T14 and W5-T15 are **not** on the train yet. W5-T15 lands through the train
+    (`integ/pine-train-2026-11-05`), and T14a builds from the train tip (T14a, section 6).
+  - The review's N4: SPY variants use a warm-up of 5x the longest lookback, and any that do not
+    converge are named UNGRADABLE.
+
+**Revision r2 (2026-11-05)** answered the delta review NO-GO at `a967e01a14`
 (`_resume-2026-11-01/dsk/reviews/W9-DESIGN.md`), under the coordinator's rulings:
 - **B1, identity.** No pin field goes into the engine identity. **Each pin-ledger landing takes
   a `SCRIPT_ENGINE_VERSION` bump, in merge order.** `SCRIPT_ENGINE_VERSION` stays the one
@@ -16,8 +36,8 @@ was run for this document.
   - New prerequisite task T14a.
   - Rails: E-3 unchanged, plus a one-authority rail.
   - See 3.4.
-- **B3, no vacuous MATCH.** A script with fewer than **5 closed trades** on either side, or one
-  that is refused, is **UNGRADABLE**, never MATCH. Grading is re-planned on the true RDDT count
+- **B3, no vacuous MATCH.** A script that is refused, or whose TradingView capture has fewer than
+  **5 closed trades** (r3: the reference's count only), is **UNGRADABLE**, never MATCH. Grading is re-planned on the true RDDT count
   (about 660 bars), with eligible, SPY-probe and ungradable counts given separately (5.2 E, 5.3).
 - **Review notes:**
   - N1: anchors moved to train `1b8b4616d8`; every W4 lane is merged, so the W4 conflicts are
@@ -47,7 +67,8 @@ Citations and names:
   `origin/integ/pine-train-2026-11-05` @ **`1b8b4616d8`**. The train holds master plus:
   - W2, W3 and E-LOWS;
   - W4-T0 to W4-T4, W4-T7 to W4-T15, W4-T13S and W4-T17;
-  - W5-T12, W5-T15 and SCORE.
+  - W5-T12 and SCORE. **W5-T11, W5-T14 and W5-T15 are not on the train at `1b8b4616d8`.** They
+    land through it.
 - `FE` = `app/src/components/chart/engine/ast/pineRuntimeFrontend.js`: 11,115 lines on master,
   12,310 on the train.
 - `RT/` = `app/src/components/chart/engine/runtime/`.
@@ -248,14 +269,22 @@ the 40 only-W9 scripts, 12 are firm.
    - **Rail** (T2, `RT/__tests__/brokerPinsLock.test.js`):
      - `brokerPins.lock.json` is append-only, `{ "<SCRIPT_ENGINE_VERSION>": "<sha256 of the
        canonical resolved ledger>" }`.
-     - The rail computes the sha256 of the committed `brokerPins.resolved.json` and asserts
-       `lock[SCRIPT_ENGINE_VERSION] === sha`.
-     - A ledger change without a bump finds the old sha under the current version: red.
-     - A bump without a lock entry: red.
-     - An edit to an older entry: red (the entries are pinned by their own digest list).
+     - The rail computes the sha256 of the committed `brokerPins.resolved.json`.
+     - It takes the entry at the **greatest version ≤ `SCRIPT_ENGINE_VERSION`** and asserts
+       that entry's sha equals the computed one.
+     - **Case 1, a ledger change without a bump: red.** The governing entry (the current version's
+       own, or an older one) holds the old sha.
+     - **Case 2, a non-pin bump (a W4, W5 or other lane's bump) with no lock edit: green.** The
+       governing entry is the last pin landing's, and its sha still equals the unchanged ledger.
+       No other lane ever touches W9's lock.
+     - **Case 3, a pin landing with a bump and a new entry: green.**
+     - **Case 4, an edit to an older entry, or a removed entry: red.** Append-only; the rail keeps
+       a committed digest of all older entries.
+     - **Case 5, a new entry under a version that is not greater than every existing key: red.**
      - Mutations:
-       - change one pin and leave the version: red;
-       - bump and leave the lock: red.
+       - change one pin and leave the version and the lock: red (case 1);
+       - make the lookup exact-version instead of ≤: case 2 goes red;
+       - drop the sha comparison: case 1 goes green, so the rail is red.
    - **Freshness rail:** `brokerPins.resolved.json` is committed, never generated inside the
      Docker build. Resolving it again from the committed verdict files must reproduce it byte for
      byte, so the web and service builds can never resolve different pin sets from one commit.
@@ -340,10 +369,20 @@ the 40 only-W9 scripts, 12 are firm.
   ```
 
   All of these import it:
-  - `scan_evaluator._MAX_BARS = HISTORY_WINDOW_BARS` (W5-T14's sweep; `scan_evaluator.py:227` on
-    the train);
-  - `screener_backtest.MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS` (W5-T15; `:160` on the train;
-    retires the restatement that `:156-159` explains);
+  - `scan_evaluator._MAX_BARS = HISTORY_WINDOW_BARS` (the sweep; `scan_evaluator.py:227`, already
+    on master and the train). The comment at `:223`, "matching `snapshot_builder._read_daily_bars`",
+    becomes true by construction.
+  - `screener_backtest.MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS` (`:160`, on master and the
+    train). This retires the restatement that `:156-159` explains.
+  - **`snapshot_builder.DEEP_BARS = HISTORY_WINDOW_BARS`** (`snapshot_builder.py:667`, train). It
+    is the same quantity, not a different one:
+    - it is the depth of the one daily read per ticker (`_read_daily_bars`, `:670-672`) that feeds
+      the nightly screener rows the sweep evaluates;
+    - its own comment says "5000 matches the bars API ceiling";
+    - `scan_evaluator`'s comment says it matches this read.
+    Three modules claiming agreement in comments is exactly an unwired one-authority value. A
+    longer window (D9) should deepen the snapshot's ATH read with it, so the two cannot disagree
+    about how much history a server lane sees.
   - the T14 route.
 
   The move is task **T14a**, owned with W5's owner and done before T14.
@@ -360,15 +399,16 @@ the 40 only-W9 scripts, 12 are firm.
     the new route stays green. E-3 asserts the number of handlers it walked, so the new route is
     walked, not skipped. T14's PR quotes that E-3 run.
   - **One authority** (new, T14a: `tests/test_history_window_one_authority.py`). It parses by AST:
-    - `scan_evaluator._MAX_BARS`, `screener_backtest.MAX_BARS_PER_SYMBOL` and the T14 route's
-      window are each bound to the name `HISTORY_WINDOW_BARS`, imported from
-      `api.services.bars_window`;
-    - no other assignment of an integer literal `5000` / `5_000` appears in those three modules;
+    - `scan_evaluator._MAX_BARS`, `screener_backtest.MAX_BARS_PER_SYMBOL`,
+      `snapshot_builder.DEEP_BARS` and the T14 route's window are each bound to the name
+      `HISTORY_WINDOW_BARS`, imported from `api.services.bars_window`;
+    - no other assignment of an integer literal `5000` / `5_000` appears in those four modules;
     - `bars_window.py` holds exactly one assignment.
 
     Mutations:
     - restore `_MAX_BARS = 5000`: red;
     - give the route a literal: red;
+    - restore `DEEP_BARS = 5000`: red;
     - add a second assignment in `bars_window.py`: red.
 - **The rule.** Every broker run uses the last `HISTORY_WINDOW_BARS` bars.
   - `fromListing` is true only when the window reaches the listing.
@@ -381,8 +421,8 @@ the 40 only-W9 scripts, 12 are firm.
   - The value arrives in the run context (T11) from the server, which reads `bars_window`.
   - The chart's `/api/bars?bars=5000` request literal is a pre-existing third copy owned by the
     chart lane, named as a follow-up (section 9). W9 reads only the context.
-- **Other 5,000 literals** in the API (alert lanes, snapshot depth, render panels) belong to other
-  lanes. They are out of R10's scope here and are listed for the coordinator, not touched.
+- **Other 5,000 literals** in the API (alert lanes, render panels, `user_definitions`) belong to
+  other lanes. They are out of R10's scope here and are listed for the coordinator, not touched.
 - **W9.4 shape:**
   - `want: "#strategy"` on the W5 service returns the record under profile `backtest`.
   - New route `POST /api/pine/strategy-backtest` (D5). It reuses, by import:
@@ -502,25 +542,41 @@ names at launch; re-check the anchors then.
   verdict files.
 - **The lock** (rule 7). The coordinator appends one entry per bump that changes the ledger.
 - **The strategy grade**, applied in order:
-  1. **Gradability.**
+  0. **The reference floor, decided from the capture alone, before our output is read.**
+     - TradingView's captured closed-trade count in the graded span is read from the fixture.
+     - **Below 5: UNGRADABLE on that symbol** ("the reference has too few trades"). The grader
+       stops there, and **our run is never consulted**: our count is not read, compared or
+       logged by this step.
+     - The routing in 5.2 E (RDDT → SPY variant → named ungradable) uses this verdict only.
+     - **Our broker's count never selects a symbol and never makes a script ungradable.**
+  1. **Expected refusals.**
      - Our run refused by rule 11, or by another wave's wall, is **EXPECTED-REFUSAL**. It is
-       tallied apart from the W9 DIVERGE count and never graded.
+       tallied apart from the W9 DIVERGE count.
      - Any other refusal by our run against a TradingView value is DIVERGE.
-     - **Fewer than 5 closed trades on either side** in the graded span is **UNGRADABLE "too few
-       trades"**, never MATCH (5.2 E justifies the floor).
   2. **Bar identity.** OHLCV must be identical to the tick over the graded span. For method (a)
      that is the whole window; for method (b) it is `[X − warm-up, Y)`. The data settings must
      match (5.1). Otherwise the grade is INCONCLUSIVE "bars differ".
   3. **Signal identity**, method (b) only. The script's own plots must be identical inside
      `[X, Y)`. Otherwise the grade is INCONCLUSIVE "the warm-up has not converged". This catches
      recursive kernels (EMA, RMA) whose seeds differ between the two windows.
-  4. **Trades and values.** They are **joined on bar time, never bar index.** Indexes differ by a
-     constant on method (b). Prices are compared to the tick, quantities exactly, currency to
-     1e-9 relative. A difference names its fill's `rule`.
+  4. **Trades and values**, with the reference at or above the floor.
+     - **Trade counts differ: DIVERGE.** For example, the reference closes 6 and we close 2, or
+       the reference closes 6 and we close 9. The verdict names the first unmatched fill by time
+       and its `rule`.
+     - With equal counts, trades and values are compared **joined on bar time, never bar index**
+       (on method (b) the indexes differ by a constant). Prices are compared to the tick,
+       quantities exactly, currency to 1e-9 relative.
+     - All equal: **MATCH**. Any difference: DIVERGE, naming its fill's `rule`.
 - **Rails:**
   - a missing fixture fails;
   - a DIVERGE or INCONCLUSIVE fixture does not pin;
-  - **a 0-trade fixture grades UNGRADABLE**, and so does a 4-trade one;
+  - **reference 6, ours 2: DIVERGE.** This is the coordinator's 6-against-2 rail, with the
+    reference at or above the floor;
+  - **reference 2, ours 6: UNGRADABLE on that symbol**, and our count is never read. A spy on our
+    record's trade accessor asserts it was not called;
+  - reference 0, ours 0: UNGRADABLE;
+  - reference 4, ours 4: UNGRADABLE;
+  - reference 5, ours 5, all equal: MATCH;
   - an EXPECTED-REFUSAL never enters the DIVERGE tally;
   - bars differ gives INCONCLUSIVE;
   - a method (b) fixture offset by 1,000 bars still joins and matches;
@@ -528,7 +584,10 @@ names at launch; re-check the anchors then.
   - freshness.
 - **Mutations:**
   - INCONCLUSIVE counted as MATCH;
-  - remove the trade floor: the 0-trade fixture MATCHes, red;
+  - remove the reference floor: the 0/0 fixture MATCHes, red;
+  - apply the floor to our count (per side, or to either side): the reference-6/ours-2 fixture
+    turns UNGRADABLE, red;
+  - read our count in step 0: the accessor spy fires, red;
   - join on index: the offset fixture fails, red;
   - skip bar identity;
   - change the ledger without a bump: the lock is red.
@@ -662,6 +721,8 @@ The three tabs, the refusal sentences and the stamp. **Depends:** T13a.
   - new `api/services/bars_window.py`;
   - the `_MAX_BARS` line in `scan_evaluator.py` (`:227`, train);
   - `screener_backtest.py`: `:156-160`, the `MAX_BARS_PER_SYMBOL` restatement and its comment;
+  - `snapshot_builder.py:667` (`DEEP_BARS`) and its comment;
+  - the comment at `scan_evaluator.py:223`;
   - new `tests/test_history_window_one_authority.py`.
 - **Delivers:** 3.4's constant and rails. Behaviour is identical: the value is still 5,000.
 - **Rails:**
@@ -669,7 +730,16 @@ The three tabs, the refusal sentences and the stamp. **Depends:** T13a.
   - E-3 unchanged and green;
   - the existing scan and backtest suites.
 - **Engine bump:** none; no translator or door output changes.
-- **Depends:** W5-T14 merged (W5-T15 already is).
+- **Base:** the train tip (`origin/integ/pine-train-2026-11-05`). The three constants it binds
+  (`scan_evaluator.py:227`, `screener_backtest.py:160`, `snapshot_builder.py:667`) are already
+  on master and on the train.
+- **Order:**
+  - W5-T11, W5-T14 and W5-T15 are not on the train at `1b8b4616d8`. They land through it.
+  - W5-T14 edits `scan_evaluator.py`, and W5-T15 edits the `screener_backtest.py:156-163`
+    comment.
+  - **Merge T14a into the train first, and let those W5 lanes rebase onto it.** If one of them
+    lands first, fold T14a into the next train merge rather than waiting.
+- **Depends:** none.
 
 ### T14 Server-side strategy backtests | M | Opus | no capture of its own
 
@@ -733,11 +803,15 @@ Wording in `strategiesAreRuled.test.js` (after D7) and the spec's "pinned by" co
     identity inside `[X, Y)` (T2).
   - **`AMEX:SPY 1D`:** TradingView's 1,800 bars start on 2019-08-06.
     - Probes use X = 2023-01-03, Y = 2025-01-02.
-    - Grading variants use X = TradingView's first bar + 500 bars (about 2021-08) and Y = the last
-      closed bar before the capture. That gives about **1,300 graded bars, about twice RDDT's
-      660**. 500 bars is at least twice the longest lookback in the sample (200 on these
-      scripts; the 400 belongs to a script that is ungradable anyway). That is room for recursive
-      kernels to converge, and T2 step 3 checks it rather than assuming it.
+    - Grading variants use **X = TradingView's first bar + 5 × the script's longest lookback**
+      and Y = the last closed bar before the capture.
+      - For a 200-bar lookback, X is about 2023-08, giving about 820 graded bars.
+      - For `footprint-strategy`'s 300, X is about 2025-08, giving about 320 graded bars.
+      The 5x warm-up (review N4) gives EMA/RMA-type seeds room to converge to the tick. T2 step 3
+      checks that rather than assuming it.
+    - A variant whose signals still differ inside `[X, Y)` is **UNGRADABLE by name** ("warm-up does
+      not converge"). `trend-following-parabolic-buy-sell-strategy-tradedots` (SAR, which depends
+      on its path from bar 0) is expected to land there.
   - **`AMEX:SPY 15`** (W9-R1i only): X and Y within the last 20 sessions. **Schedulable only
     after one depth read** of TradingView's 15-minute history on the rig plan and of ours,
     session recorded. 5,000 ETH 15-minute bars cover far fewer than 192 RTH sessions.
@@ -817,7 +891,8 @@ All probes are under `tools/visual_conformance/probes/`. T3b writes every one ma
 
 **E. Grading the 70 (unmodified sources on RDDT; `range_guard.py` variants on SPY)**
 
-**The floor is 5 closed trades on each side within the graded span.** Five is the smallest count
+**The floor is 5 closed trades in TradingView's capture (the reference) within the graded span.**
+It is decided from the capture before our output is read (T2 step 0). Five is the smallest count
 at which the grade exercises what a broker gets wrong, rather than agreeing by coincidence:
 - **0 trades** matches trivially, and is the review's vacuous MATCH.
 - **1 trade** cannot test equity compounding. Percent-of-equity sizing, the sizing rule of 39
@@ -829,16 +904,20 @@ at which the grade exercises what a broker gets wrong, rather than agreeing by c
 - A higher floor (10) would push about a third more scripts to the SPY variant and buy no rule
   coverage that 5 lacks.
 
-The floor is applied per side, so a script where we fire 6 trades and TradingView fires 2 is
-UNGRADABLE rather than MATCH. That case is also flagged for review: a trade-count disagreement
-of that size is itself a lead.
+**The floor is never applied to our count.**
+- Reference at or above 5, with any difference from us, including a different trade count:
+  **DIVERGE**.
+- Reference at or above 5, all equal: **MATCH**.
+- Reference below 5: **UNGRADABLE on that symbol**, whatever we did. The script routes to its
+  SPY variant, or is named.
+- Our broker under-trading or over-trading can therefore never hide a script from grading.
 
 **Classification** (static estimate, 2026-11-05: scan of the 70 sources, section 7):
 
 | class | count | how it is graded | of which also wait on another wave's wall |
 |---|---:|---|---:|
 | **MATCH-eligible on RDDT 1D**, method (a), unmodified | **49** | as is; about 660 bars | 15 |
-| **SPY-probe**: longest lookback ≥ 150 bars, or long-only with lookback ≥ 100, so likely fewer than 5 closed trades in the about 460 bars left on RDDT after warm-up | **11** | `range_guard.py` variant on `AMEX:SPY 1D`, about 1,300 graded bars | 7 |
+| **SPY-probe (expected)**: longest lookback ≥ 150 bars, or long-only with lookback ≥ 100, so TradingView likely closes fewer than 5 trades in the about 460 bars left on RDDT after warm-up | **11** | captured on RDDT first, like every script. Only if **TradingView's** RDDT count is below 5 does it get a `range_guard.py` variant on `AMEX:SPY 1D` (5x-lookback warm-up) | 7 |
 | **UNGRADABLE by name** | **10** | never graded; tallied as EXPECTED-REFUSAL or zero-trade | 8 |
 
 The **10 ungradable, by name:**
@@ -872,14 +951,16 @@ The **11 SPY-probe:**
 **Graded by W9 alone, today:** 34 RDDT plus 4 SPY = **38**. The other 22 wait on other waves'
 walls. The 10 ungradable are listed above.
 
-**The estimate is replaced by a measurement before block E is scheduled.** T2's
-grade-preparation step runs our broker (gate on, local, light) over RDDT 1D for every eligible
-script and counts closed trades:
-- a script below 5 moves to SPY-probe;
-- an SPY-probe script with 5 or more on RDDT moves back;
-- an SPY variant still below 5 on SPY becomes UNGRADABLE by name.
-TradingView's side is applied after capture. The resulting three counts replace the table
-above in the queue doc.
+**Routing uses TradingView's captured count only.** Our broker is never run to choose. The estimate
+above sizes rig time and nothing else.
+1. Capture all 60 non-ungradable scripts on RDDT 1D.
+2. For each, read TradingView's closed-trade count from the capture (T2 step 0):
+   - 5 or more: graded on RDDT;
+   - fewer than 5: an SPY variant is captured.
+3. An SPY variant whose **TradingView** count is still below 5, or whose warm-up does not
+   converge, is **UNGRADABLE by name** and is added to the list above.
+4. The three measured counts (RDDT-graded, SPY-graded, ungradable) replace this table in the
+   queue doc.
 
 ### 5.3 Size of the set
 
@@ -892,7 +973,7 @@ above in the queue doc.
 | B': fact capture Q-S1n | 2 | 2 |
 | A: spike | 1 session | 1 |
 | D: live | 2 | 0 |
-| E: grading | 49 RDDT + 11 SPY = **60** (10 ungradable are not captured) | after the pins, the reader and T2's trade-count measurement; 38 of the 60 are gradable without other waves |
+| E: grading | **60 on RDDT** + about **11 SPY variants** (only for scripts whose TradingView count on RDDT is below 5), about 71 in all; the 10 ungradable are not captured | after the pins and the reader; 38 of the 60 are gradable without other waves |
 
 At the evidence-engine pacing (30 s throttle, 40 per session), the 44 + 2 take about **2
 sessions** plus the spike. E is about 2 more sessions.
@@ -933,7 +1014,7 @@ sessions** plus the spike. E is about 2 more sessions.
 | T1 → every W9 engine task | creates the files | T1 first |
 | T1 ⟂ W4 lanes | **resolved by merge order.** W4-T2, T7-T15, T13S and T17 are merged into the train, and T1's anchors (F1-F12) are taken after them | T1 on the train tip |
 | T11 ⟂ W5-T1, W5-T19 | `runtimeColumns.js` | W5 first |
-| T14a ⟂ W5-T14 | `scan_evaluator.py:227` | W5-T14 first |
+| T14a ⟂ W5-T14, W5-T15 | `scan_evaluator.py:227`; the `screener_backtest.py:156-163` comment. Both W5 lanes land through the train and are not on it yet | T14a first, built from the train tip; the W5 lanes rebase. If a W5 lane lands first, fold T14a into the next train merge |
 | T14 ⟂ W5-T11, T14a | codec, constant | both first |
 | T2 ⟂ coordinator bumps | the lock and `SCRIPT_ENGINE_VERSION` | pin merges are the coordinator's, in merge order |
 | T4 ⟂ T5 ⟂ T7 ⟂ T8 | `RT/broker.js` | T4, T7, T5, T8 |
@@ -996,8 +1077,8 @@ sessions** plus the spike. E is about 2 more sessions.
 - **D7.** The scorecard wording. The screener ruling stays.
 - **D8.** Metrics we cannot compute: show the refusal (recommended).
 - **D9.** A longer window is a change to `bars_window.HISTORY_WINDOW_BARS`, for every server lane.
-- **D10.** The grading floor of 5 closed trades per side (5.2 E). The coordinator proposed it;
-  the owner confirms or moves it.
+- **D10.** The grading floor: 5 closed trades in TradingView's capture, the reference only
+  (5.2 E). Set by coordinator ruling; the owner may move the number.
 
 ---
 
@@ -1011,11 +1092,13 @@ sessions** plus the spike. E is about 2 more sessions.
    shows it.
 6. **The chart lane's `/api/bars?bars=5000`** looks like a restated third copy of the window. It
    is a follow-up for the chart lane, so that it reads `bars_window` through an endpoint. The
-   other 5,000 literals in `api/` (alert lanes, `snapshot_builder.DEEP_BARS`, `render_panels`,
-   `user_definitions`) are not R10's; the coordinator decides whether they should be.
+   other 5,000 literals in `api/` (alert lanes, `render_panels`, `user_definitions`) are not
+   R10's; the coordinator decides whether they should be. `snapshot_builder.DEEP_BARS` is R10's
+   and is folded in by T14a (3.4).
 7. How the current statement walker skips an order-only `if` (F10).
 8. The broker's cost on the W5 service.
 9. TradingView's 15-minute depth on the rig plan (W9-R1i).
 10. Whether S1's rail passes once ported.
-11. **Actual closed-trade counts per script.** 5.2 E's 49 / 11 / 10 is a static proxy, and T2's
-    measurement on our side replaces it. TradingView's side is known only after capture.
+11. **TradingView's actual closed-trade counts per script.** 5.2 E's 49 / 11 / 10 is a static
+    proxy for rig sizing. Routing waits for the RDDT captures, and our broker's counts are never
+    used.
