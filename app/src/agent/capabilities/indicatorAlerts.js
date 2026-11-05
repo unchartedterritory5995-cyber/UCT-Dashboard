@@ -45,7 +45,7 @@ function slim(r) {
     threshold: r.threshold == null ? null : Number(r.threshold), tf: String(r.tf || 'D'), active: !!r.active,
     instanceId: r.instance_id ? String(r.instance_id) : null, scope: r.scope || null, state: r.state || null,
     detail: r.state_detail ? String(r.state_detail) : null, instanceMissing: !!r.instance_missing,
-    params: paramsOf(r.params_json),
+    params: paramsOf(r.params_json), instanceLabel: r.instance_label ? String(r.instance_label) : null,
   }
 }
 /** `params_json` as served (an object, or the stored JSON string) → an object, or null. */
@@ -180,6 +180,8 @@ const labelFor = (a) => {
     const t = String(a.params.ma_type || 'ema').toUpperCase()
     return `${t} ${a.params.fast} / ${t} ${a.params.slow}`
   }
+  // the server's own name for this row's instance ("RSI(7)"): two alerts that differ only by their settings must read apart
+  if (a.instanceLabel) return a.instanceLabel
   for (const e of cache.catalog || []) for (const p of plotsOf(e)) if (p.value === a.indicator) return p.label || e.label || a.indicator
   return a.indicator
 }
@@ -246,8 +248,16 @@ export const indicatorAlertLibraryKind = {
   },
 }
 const crossKey = (params) => (params ? JSON.stringify([String(params.ma_type || '').toLowerCase(), Number(params.fast), Number(params.slow)]) : '')
+// The settings an alert is EVALUATED with, as the server resolves them (indicator_alert_evaluator.instance_label): each knob the
+// plot declares, its stored value, else the catalog's default — so a stored null IS the default, and a stored "14" is 14.
+const knobValueKey = (v) => (v !== '' && v != null && Number.isFinite(Number(v)) ? Number(v) : String(v ?? '').toLowerCase())
+function paramsKey(address, params) {
+  const inputs = plotOfAddress(address)?.inputs
+  const keys = Object.keys(inputs || params || {}).sort()
+  return JSON.stringify(keys.map(k => [k, knobValueKey(params?.[k] ?? inputs?.[k])]))
+}
 const sameAlert = (a, c) => a.sym === c.sym && a.indicator === c.indicator && a.condition === c.condition && (a.threshold ?? null) === (c.threshold ?? null) && a.tf === c.tf
-  && (!isCrossAddress(a.indicator) || crossKey(a.params) === crossKey(c.params))
+  && (isCrossAddress(a.indicator) ? crossKey(a.params) === crossKey(c.params) : paramsKey(a.indicator, a.params) === paramsKey(a.indicator, c.params))
 
 export const indicatorAlertKind = {
   name: 'indicatorAlert',
@@ -390,7 +400,8 @@ export function registerIndicatorAlertCapabilities() {
       if (r.why) return r.why
       if (st.creates.length >= MAX_CREATES) return `That's more than ${MAX_CREATES} alerts in one request — ask for them in smaller groups.`
       const c = toCreate(r)
-      if (st.alerts.find(a => a.active && sameAlert(a, c)) || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(c)}.`
+      const dup = st.alerts.find(a => a.active && sameAlert(a, c))
+      if (dup || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(dup || c)}.`
       return null
     },
     apply: (st, args, env) => ({ ...st, creates: [...st.creates, toCreate(resolveCreate(args, env))] }),
