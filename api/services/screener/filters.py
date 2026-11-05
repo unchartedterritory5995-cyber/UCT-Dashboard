@@ -154,6 +154,9 @@ def _bool(key, label, category, column, description=None):
 
 #: What every scan primitive is measured on. These are nightly: the live tier does not re-derive them.
 _LAST_SESSION = "Measured at the last completed session."
+#: What a live-overlaid distance is measured on, because a field-to-field comparison can put it beside a nightly field.
+_LIVE_IN_SESSION = ("During the session this follows the live price, while a field measured at the last completed "
+                    "session does not, so comparing the two mixes two clocks.")
 #: How a signed run reads, said once for all six.
 _RUN_RULE = ("Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on "
              "the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N "
@@ -447,7 +450,9 @@ FILTERS = dict([
     _range("pct_vs_ema20", "EMA20 Distance", "technical", "pct_vs_ema20",
            [{"label": "Any"},
             {"label": "Within 1%", "op": "between", "min": -1, "max": 1},
-            {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%"),
+            {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%",
+           description="Percent the price is above (+) or below (-) its 20-day exponential moving average. "
+                       + _LIVE_IN_SESSION),
     # ── scan primitives (`technicals.scan_primitives`) ──
     # ⭐ COMPOSABLE CONDITIONS, NOT NAMED SCANS: each is one fact a screen combines with others. "Breakout on volume"
     # is new_high_lookback plus vol_ratio, never a field of its own. ⛔ Each states its definition here, because a
@@ -455,9 +460,11 @@ FILTERS = dict([
     # none reads a later session than the one it describes, and none reads a base, pattern, rating or flow output.
     # The first two are stored distances that had columns, a view seat and display defs but no filter.
     _open_range("pct_vs_sma50", "SMA50 Distance", "technical", "pct_vs_sma50", unit="%",
-                description="Percent the price is above (+) or below (-) its 50-day simple moving average."),
+                description="Percent the price is above (+) or below (-) its 50-day simple moving average. "
+                            + _LIVE_IN_SESSION),
     _open_range("pct_vs_sma200", "SMA200 Distance", "technical", "pct_vs_sma200", unit="%",
-                description="Percent the price is above (+) or below (-) its 200-day simple moving average."),
+                description="Percent the price is above (+) or below (-) its 200-day simple moving average. "
+                            + _LIVE_IN_SESSION),
     _open_range("pct_vs_ema9", "EMA9 Distance", "technical", "pct_vs_ema9", unit="%",
                 description="Percent the close is above (+) or below (-) its 9-day exponential moving average. "
                             + _LAST_SESSION),
@@ -1149,6 +1156,49 @@ def field_catalog() -> list[dict]:
     ]
 
 
+#: Enum filters whose column is a DELIMITER-WRAPPED token list (`,hammer,bullish-engulfing,`), so `in` / `not_in` cannot be a
+#: plain `col IN (...)`: that compares the whole cell, and misses every bar holding more than one pattern.
+def is_token_list(key) -> bool:
+    """Is this enum's column a wrapped token list? Read off the filter: `options_list_column` marks one, and a fixed preset
+    list written entirely in `contains` is one (`candle_type`). ⛔ A key, never a column name off the request."""
+    f = FILTERS.get(key) or {}
+    if f.get("type") != "enum":
+        return False
+    if f.get("options_list_column"):
+        return True
+    ops = {p.get("op") for p in f.get("presets") or [] if p.get("op")}
+    return ops == {"contains"}
+
+
+def wrap_token(value) -> str:
+    """`hammer` -> `,hammer,`, and a value already wrapped stays as it is. Unwrapped, ids collide as substrings
+    (`doji` sits inside `gravestone-doji`), so the test would match a pattern it was not asked for."""
+    v = str(value).strip(",")
+    return f",{v},"
+
+
+def live_field_keys() -> list:
+    """Filter keys whose column the live tier can overlay during the session (`live_tier.LIVE_COLUMNS`, the one list)."""
+    from api.services.screener import live_tier
+    live = set(live_tier.LIVE_COLUMNS)
+    return sorted(k for k, f in FILTERS.items() if k not in RETIRED and f.get("column") in live)
+
+
+def preset_options() -> dict:
+    """The value lists of enum filters whose presets ARE the vocabulary (no snapshot column to read): a member's word
+    matches a `label` in `values`, and `wire` says what the engine stores for it. `token` marks a wrapped list, where a bar
+    can hold several values. No coverage counts: a row with no pattern today is not a row we failed to classify."""
+    out: dict = {}
+    for key, f in FILTERS.items():
+        if key in RETIRED or f.get("type") != "enum" or f.get("options_column") or f.get("options_list_column"):
+            continue
+        wire = {p["label"]: p["value"] for p in f.get("presets") or []
+                if p.get("op") in ("eq", "contains") and isinstance(p.get("value"), str)}
+        if wire:
+            out[key] = {"values": list(wire), "wire": wire, **({"token": True} if is_token_list(key) else {})}
+    return out
+
+
 def field_options() -> dict:
     """The VALUES each value-list field can hold, read off the artifact — for callers that turn a
     member's words into a list filter (UCT Agent: "software stocks" → industry ∈ {Software -
@@ -1158,9 +1208,10 @@ def field_options() -> dict:
     ``with_value`` / ``total`` say how much of the universe the field classifies at all: a row
     with no industry can never match an industry filter, and a caller that reports a screen as
     exhaustive must be able to say so. One cheap DISTINCT + COUNT per field; no distributions.
+    Fields whose presets are the vocabulary come from `preset_options`, snapshot or no snapshot.
     """
     from api.services.screener import snapshot_db
-    out: dict = {}
+    out: dict = preset_options()
     try:
         with snapshot_db.connect() as conn:
             total = int(conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0] or 0)
@@ -1174,7 +1225,7 @@ def field_options() -> dict:
                 out[key] = {"values": [r["v"] for r in rows],
                             "with_value": sum(int(r["n"]) for r in rows), "total": total}
     except Exception:  # noqa: BLE001 — no snapshot yet: no options, never a 500
-        return {}
+        return preset_options()
     return out
 
 
