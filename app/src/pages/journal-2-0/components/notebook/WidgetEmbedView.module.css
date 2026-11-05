@@ -369,3 +369,17 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 @media (max-width: 1024px) {
   .placeholderReload { min-height: var(--tap-min); min-width: var(--tap-min); }
 }
+
+/* Audit 2026-11-05, spec S3: the chart header's ticker button (the Charts page's SymbolSearch) and
+   its Live / Snapshot segment. Compact: the segment's two buttons share one border line, and on a
+   phone the row wraps rather than overflowing (the toolbar already wraps). */
+.tickerBtn {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 11px;
+}
+.segment { display: inline-flex; }
+.segment > .toolBtn + .toolBtn { margin-left: -1px; }
+.segment > .toolBtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.segment > .toolBtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }
