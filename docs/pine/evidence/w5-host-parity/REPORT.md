@@ -1,7 +1,7 @@
 # W5-T5 cross-engine report (HP-8, H7, H8): data only, nothing gates
 
 Lane: W5-T5 (docs/pine/SERVER-RUNTIME-DESIGN.md section 7), desktop machine. Branch `feat/pine-w5-t5-cross-engine`,
-stacked on W5-T4 tip `eb922686fe` (`origin/feat/pine-w5-t4-host-parity`). Measured 2026-11-04. Engine bump: NO (no engine
+re-stacked (r1) on W5-T4 r2 code tip `da8da64717` (originally `eb922686fe`) (`origin/feat/pine-w5-t4-host-parity`). Measured 2026-11-04. Engine bump: NO (no engine
 source touched; SCRIPT_ENGINE_VERSION unchanged). This is a report: no rail here is red or green by design (H8).
 
 Hosts (all headless, Playwright's own builds from `%LOCALAPPDATA%/ms-playwright`; no branded Chrome, no profile):
@@ -149,3 +149,22 @@ every anchor except WebKit's `log`.
 (logs `_resume-2026-11-01/runs/w5t5-final/`): gate pytest 46 passed; hygiene clean (34733 files); rails pytest 216 passed; full chart+hooks vitest
 Test Files 1 failed | 1336 passed | 27 skipped, Tests 1 failed | 22536 passed | 118 skipped. The one failure is `src/hooks/pollingSites.rail.test.js`, the desktop baseline.
 `hostParity.rail.test.js` (which loads the changed `.mjs`) passed inside the full run.
+
+## r1: re-stack on W5-T4 r2 (review B1, N1)
+`git merge --no-ff` of `origin/feat/pine-w5-t4-host-parity` (code tip `da8da64717`; T4's later tip is evidence only) into this branch;
+the only conflict was `tools/pine_runtime_host_parity.py` (both sides kept: T4's REPORTED print and `verdict.json.reported`; T5's `--browser`,
+column diff and report-only exit 0). Merge commit `9c67b4f0e4`.
+- Column diff now INCLUDES REPORTED cases: `differing` matches `RED `, `INCONCLUSIVE ` and `REPORTED ` lines. Re-run (Chromium 145, Firefox 146.0.1,
+  WebKit 26.0, one vite build): chromium `column-diff.json` has 2 cases / 2 columns (`transcendental@forming` and `@listing`, column p3); firefox 2 cases / 4 columns.
+  node vs chromium and vs firefox: `HP-3 GREEN: 164/166; 2 REPORTED`. WebKit: `HP-3 RED 159/166; 2 REPORTED` (the 5 `rma_alma_hma` RED and the
+  two trig cases, as in the first report; report-only exit 0). Python codec 135/135 on each.
+- One ulp rule: the JS tool (`ulpStats`) is the authority. The Python `ulp_gap` stays (it needs per-column first-example detail the JS summary does not
+  print) but now follows the JS rule for infinities ("inf/nan", not a distance), and `tests/test_pine_ulp_gap_matches_js.py` fails if the two drift
+  (it caught that difference).
+- Node 20.18 (V8 11.3, portable zip, scratch dir): `node tools/pine_cross_engine_probe.mjs` ran (`probe-node20.json` under `runs/w5t5r1/`); not yet
+  folded into the summaries (open item above stays).
+- Not done: a rail that `--browser chromium` still returns the verdict (review N3).
+
+final-tip: `bash $S/final-tip.sh pine-dsk-w5t5 dsk-w5t5r1-final tests/test_pine_runtime_engine_identity.py tests/test_pine_runtime_codec.py tests/test_pine_ulp_gap_matches_js.py`,
+`dsk/heavy-final3.lock`, code tip `9c67b4f0e4`, run LAST: gate pytest 46 passed; hygiene clean (34738 files); rails pytest 217 passed; full chart+hooks
+vitest Test Files 1 failed | 1337 passed | 27 skipped (1365), the one failure `pollingSites.rail.test.js` (desktop baseline). Logs `_resume-2026-11-01/runs/w5t5r1/`.
