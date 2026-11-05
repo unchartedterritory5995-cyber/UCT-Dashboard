@@ -30,7 +30,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 
@@ -81,7 +81,20 @@ def _answer(user_id: str, note_id: str, conn: sqlite3.Connection, *, created: bo
             "created": created, "templateMissing": missing}
 
 
-def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dict[str, Any]:
+def _seed_list(seed_blocks: Any) -> list[dict]:
+    try:
+        got = seed_blocks() if callable(seed_blocks) else seed_blocks
+    except Exception:  # noqa: BLE001 -- the seed is a convenience; the day's note is not
+        return []
+    return [b for b in (got or []) if isinstance(b, dict)]
+
+
+def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None, *,
+                    seed_blocks: Callable[[], list[dict]] | list[dict] | None = None) -> dict[str, Any]:
+    """`seed_blocks` (the Today home, audit 2026-11-05 S18): blocks that START a note this call MAKES, above the
+    template's body -- a list, or a function called only when the note is made (so an open of an existing note
+    computes nothing). Never applied to a note that already exists, like the template itself. A seed that cannot
+    be built is left out; the note is still made."""
     from api.services.journal_two import notes as notes_service
     from api.services.journal_two import note_templates
 
@@ -110,6 +123,12 @@ def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dic
                 # it is not an edit (the one authority, journal_styles.with_trailing_paragraph).
                 payload["bodyJson"] = _js.with_trailing_paragraph(_js.without_placeholder_lines(tpl["bodyJson"]))
                 properties = tpl["properties"] or None
+        seed = _seed_list(seed_blocks)
+        if seed:
+            from api.services.journal_two import journal_styles as _js
+            body = payload.get("bodyJson") if isinstance(payload.get("bodyJson"), dict) else None
+            rest = list(body.get("content") or []) if body else []
+            payload["bodyJson"] = _js.with_trailing_paragraph({"type": "doc", "content": [*seed, *rest]})
         try:
             note = notes_service.create_note(user_id, payload, conn=conn,
                                              daily_date=iso, properties=properties)

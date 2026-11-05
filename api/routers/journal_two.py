@@ -229,6 +229,9 @@ _J2_TELEMETRY_EVENTS = {
     # the member's own tickers, a recap written, and a trust incident. Counts, enums and bools only. Read back by
     # GET /api/admin/notebook-return-metrics (journal_two/notebook_return_metrics.py).
     "first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident",
+    # Audit 2026-11-05, S15 + S20 (the morning open): the Today home was opened, with the ET session it opened in
+    # and whether that open made the day's note. Enums and bools only.
+    "today_opened",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -374,6 +377,10 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     "trust_incident": {
         "kind": ("publish_undone", "widget_restored"),
         "ms": "num",
+    },
+    "today_opened": {
+        "session": ("premarket", "open", "after_close", "closed"),
+        "created": "bool",
     },
 }
 
@@ -2641,6 +2648,17 @@ def daily_note_endpoint(
     if isinstance(out, dict) and "note" in out:
         out = {**out, "note": _servable_note(out["note"])}
     return out
+
+
+@router.get("/notes/today")
+def notes_today_endpoint(user: dict = Depends(get_current_user_with_plan)) -> dict[str, Any]:
+    """Audit 2026-11-05, S15/S18: the Today home's ONE aggregated read (`notebook_today.py`) -- today's note
+    (made from the member's daily template the first time today, ET, through the daily note door), the setups
+    near entry, the member's names, what is open from yesterday, on this day, the market line and the session.
+    Every section degrades on its own (`null` plus a reason in `reasons`); no vendor or model call is reachable.
+    ⛔ Declared above every `/notes/{note_id}` route, like `/notes/daily`."""
+    from api.services.journal_two import notebook_today
+    return notebook_today.get_today(user["id"], paid=is_paid_user(user))
 
 
 NOTE_BATCH_EXPORT_MAX = 500
