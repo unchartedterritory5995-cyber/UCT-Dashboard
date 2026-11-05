@@ -197,6 +197,7 @@ describe('fix round 2: a title save refetches only the views that show a title',
     '/api/j2/notes/backlinks?symbol=NVDA&limit=5',
     '/api/j2/notes/tasks?status=open', '/api/j2/notes/documents?q=x', '/api/j2/notes/excerpts?q=x',
     '/api/j2/notes/connectors/status', '/api/j2/notes/import/repair-notice', '/api/j2/notes/research/NVDA/summary',
+    '/api/j2/notes/by-trade-ref?ref=t1&type=trade',
     '/api/j2/notes/folder-counts', '/api/j2/note-folders', '/api/j2/notes/tags', '/api/j2/notes/n1',
   ]
   it('pins exactly which keys a title save asks again', () => {
@@ -205,6 +206,10 @@ describe('fix round 2: a title save refetches only the views that show a title',
       '/api/j2/notes/recents', '/api/j2/notes/favorites', '/api/j2/notes/by-folders?ids=f1&limit=200',
       '/api/j2/notes/graph', '/api/j2/notes/switcher', '/api/j2/notes/link-targets?q=x',
       '/api/j2/notes/backlinks?symbol=NVDA&limit=5',
+      // Fix round 3 (re-review 2, R2-1): these show a note's title too -- each task row names its
+      // note, and the research page and linked-notes panels list notes by title.
+      '/api/j2/notes/tasks?status=open', '/api/j2/notes/research/NVDA/summary',
+      '/api/j2/notes/by-trade-ref?ref=t1&type=trade',
     ])
   })
 })

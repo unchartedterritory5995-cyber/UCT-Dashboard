@@ -44,10 +44,15 @@ export const NOTE_VIEW_WORDS = new Set([
   'connectors', 'media', 'daily', 'batch', 'search', 'enrichment',
 ])
 /** Fix round 2 (re-review N2): the views that SHOW a note's title -- the only ones a title save asks
- *  again (with the list itself, every `/api/j2/notes?…` page, search results included). Tasks,
- *  documents, excerpts, connector status, the import notice and the counts cannot change with a
- *  title, and asking them on every landed autosave was load on the busiest edit in the product. */
-const TITLE_WORDS = new Set(['recents', 'favorites', 'by-folders', 'graph', 'switcher', 'link-targets', 'backlinks'])
+ *  again (with the list itself, every `/api/j2/notes?…` page, search results included). Documents,
+ *  excerpts, connector status, the import notice and the counts cannot change with a title, and
+ *  asking them on every landed autosave was load on the busiest edit in the product. */
+// Fix round 3 (re-review 2, R2-1): tasks (each row names its note), the research page and the
+// linked-notes panel (by-trade-ref) list notes by title too.
+const TITLE_WORDS = new Set([
+  'recents', 'favorites', 'by-folders', 'graph', 'switcher', 'link-targets', 'backlinks',
+  'tasks', 'research', 'by-trade-ref',
+])
 /** The tag cloud (opt-in: the most expensive read). */
 const TAG_WORDS = new Set(['tags', 'tag-members'])
 
