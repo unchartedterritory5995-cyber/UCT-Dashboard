@@ -227,4 +227,40 @@ describe('the object door builds what master builds', () => {
     expect(pane.ok).toBe(true)
     expect(door.ok).toBe(false)
   })
+
+  // W4-T12 r1 (review B1): the other two gates, each with its own rail. A colour SWITCH / IF and a
+  // colour ARRAY are proved colours on the pane and are NOT at the door, which keeps master's answer.
+  it('a colour switch is off at the door (master refused it: runtime:colour)', () => {
+    const src = `${head}c = switch
+    close > 101 => color.red
+    => color.green
+bgcolor(c)
+plot(close)
+`
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {} }).ok).toBe(true)
+    const door = buildRuntimeIr(src, { bars: BARS, inputs: {}, objectDoor: true })
+    expect(door.ok).toBe(false)
+    expect(door.refusal.guard).toBe('runtime:colour')
+  })
+  it('a colour if-block is off at the door', () => {
+    const src = `${head}c = if close > 101
+    color.red
+else
+    color.green
+bgcolor(c)
+plot(close)
+`
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {} }).ok).toBe(true)
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {}, objectDoor: true }).ok).toBe(false)
+  })
+  it('an element of a colour array is off at the door (master refused it: runtime:colour)', () => {
+    const src = `${head}a = array.from(color.red, color.green)
+bgcolor(array.get(a, 0))
+plot(close)
+`
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {} }).ok).toBe(true)
+    const door = buildRuntimeIr(src, { bars: BARS, inputs: {}, objectDoor: true })
+    expect(door.ok).toBe(false)
+    expect(door.refusal.guard).toBe('runtime:colour')
+  })
 })
