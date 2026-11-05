@@ -19,12 +19,14 @@
 // selectGroupsV2 has selectGroups' interface (the held-out scorer's NLM1_ROUTER='nlm1'). routeManifestV2 packs it
 // under the SAME per-request budget as v1, in priority order:
 //   1. pinned   always-on, undo rider, a reroute's groups, a pending proposal's and the last change's groups (= v1)
-//   2. own      v1's regex hits (smallest first, = v1), then the strong scored groups (best first)
-//   3. carried  the groups the model's question was asked with (`after`, = v1)
-//   4. weak     every other group with lexical evidence, best first
-//   5. context  short follow-ups: the last change's RELATED groups (vocabulary.json `related`)
-//   6. fill     nothing recognised at all: v1's own unrecognised-message order (soft, charts, then smallest)
-// A group that does not fit is named, never partially sent (= v1). `overBudget` lists only tiers 1–3.
+//   2. lead     v1 recognised the message: its regex hits (smallest first, = v1), the carried groups (`after`, = v1), then v2's
+//               own groups. It did not: the single best evidence (a capability's description, else the best scored group)
+//   3. guesses  the critical and entity-likely groups
+//   4. v1 sent  every group v1's own request carries for this message, in v1's own priority, so v2 is below v1 only when tiers
+//               1-3 left no room (v1SupersetRail.test.js counts those)
+//   5. v2 rest  v2's other strong and named groups on a message v1 did not recognise
+//   6. fill     nothing decisive: the evidenced groups, then v1's order; then the weak and context tiers
+// A group that does not fit is named, never partially sent (= v1). `overBudget` lists every group the message needed.
 //
 // KNOWING ≠ DOING (unchanged): routing only changes what the model SEES. Every op is re-validated against the full
 // registry in the browser and against the sent manifest on the server; approvals and protected layouts apply as
@@ -175,6 +177,12 @@ function bytesFor(manifest, opts) {
   return BYTES_MEMO.val
 }
 
+/** The groups v1's own request carries for this message, read from v1 itself (bar the words v2 reaches from descriptions). */
+function v1Groups(manifest, message, opts, extra) {
+  const sent = routeManifest(manifest, message, { ...opts, without: V1_ONLY_WORDS }, extra).manifest
+  return new Set(sent.map(c => groupOfAction(c.name)).filter(Boolean))
+}
+
 /** Route a manifest — routeManifest's contract (manifest, routing, overBudget, refresh), plus `v2` diagnostics. */
 export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const k = T()
@@ -258,9 +266,19 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   //     D1.2: only while v2's evidence is NOT decisive (CRITICAL_WHEN)
   const critical = (k.CRITICAL_WHEN === 'uncertain' ? doubt : v1Fill) ? k.CRITICAL.filter(g => known.has(g)) : []
   const needed = [...new Set([...pinned, ...own, ...critical, ...likely, ...after])]
+  // V1 SUPERSET (owner's bar: no capability below v1): every group v1's own request carries for this message is packed ahead of
+  // every weaker tier, so v2 misses one only when the tiers before it left no room. Not with the phrase layers off: the rail for
+  // descriptions must prove them alone.
+  const v1Sent = k.PHRASES ? v1Groups(manifest, message, opts, extra) : new Set()
+  const v1Priority = [...(sel.v1Soft || sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)]
+  const honoured = [...new Set(v1Priority)].filter(id => v1Sent.has(id))
+  // On a message v1 recognised, its groups and the question's carried groups lead whatever v2 adds. On one it did not, only v2's
+  // single best evidence leads v1's broad fallback: a second weak guess must not push out a group v1 would have sent
+  const bestNamed = capNamed.slice(0, 1)
+  const leading = [...(sel.uncertain ? ['charts'] : []), ...(bestNamed.length ? bestNamed : sel.uncertain ? lead : sel.strong.slice(0, 1))]
+  const first = sel.v1Matched ? [...pinned, ...v1Order, ...after, ...own] : [...pinned, ...leading, ...after]
   // v1's fill goes BEFORE v2's weak / context tiers: on an unrecognised-by-v1 message v1's order is the safer one
-  const order = fillOn ? [...new Set([...needed, ...(doubt ? evidenced : []), ...fill, ...weak, ...context])]
-    : [...new Set([...needed, ...weak, ...context])]
+  const order = [...new Set([...first, ...critical, ...likely, ...honoured, ...own, ...(fillOn ? [...(doubt ? evidenced : []), ...fill] : []), ...weak, ...context])]
   // D1.3 BYTE BUDGET (#785 reserves the per-turn cap on bytes): a request is never larger than v1's own fallback request
   // for this manifest (v1's largest), and under doubt the fill stops at DOUBT_FILL of it — v2's own, critical, likely and
   // evidenced groups are packed first, so what the fill leaves out is what nothing in the message pointed at
@@ -269,7 +287,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   let used = counts.get(null) || 0
   let usedBytes = groupBytes.get(null) || 0
   const over = []
-  const fillOnly = new Set(fill.filter(id => !needed.includes(id) && !(doubt && evidenced.includes(id))))
+  const fillOnly = new Set(fill.filter(id => !needed.includes(id) && !v1Sent.has(id) && !(doubt && evidenced.includes(id))))
   for (const id of order) {
     const n = sizeOf(id)
     if (!n) continue
