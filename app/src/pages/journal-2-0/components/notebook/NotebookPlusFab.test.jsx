@@ -1,45 +1,64 @@
 // S12 + VIS-4 (audit 2026-11-05, M9): ONE floating "+" on a phone's Notebook, with a Sheet of quick doors, replacing
 // the five floating buttons (the Compass orb and its Train Me, paperclip and agent menu, and the Help "?") on
-// Notebook routes only. ⛔ jsdom lays nothing out: the phone-only drawing is pinned on the stylesheets below.
+// Notebook routes only. Fix round 1: the sheet is its own chunk (NotebookPlusSheet, fetched on first open); the Help
+// row opens the Help & Feedback menu; the orb's "in a call" attribute is pinned by a RENDERED test
+// (FloatingOrb.coachmark.test.jsx). ⛔ jsdom lays nothing out: the phone-only drawing is pinned on the stylesheets.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
+import { useRef, useState } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import NotebookPlusFab, { NOTEBOOK_ROUTE_ATTR } from './NotebookPlusFab'
+import NotebookPlusSheet from './NotebookPlusSheet'
+import { OPEN_FEEDBACK_EVENT } from '../../../../components/feedbackDoor'
 
 afterEach(cleanup)
 function Where() { const l = useLocation(); return <output data-testid="where">{l.pathname}</output> }
+function Harness(props) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  return (
+    <>
+      <NotebookPlusFab ref={ref} open={open} onOpen={() => setOpen(true)} />
+      <NotebookPlusSheet open={open} onClose={() => setOpen(false)} returnFocusTo={ref} onQuickNote={vi.fn()} {...props} />
+    </>
+  )
+}
 const mount = (props = {}) => render(
-  <MemoryRouter initialEntries={['/journal/notebook']}><NotebookPlusFab onQuickNote={vi.fn()} {...props} /><Where /></MemoryRouter>,
+  <MemoryRouter initialEntries={['/journal/notebook']}><Harness {...props} /><Where /></MemoryRouter>,
 )
 const open = () => { fireEvent.click(screen.getByRole('button', { name: 'Add to your notebook' })); return screen.getByRole('dialog', { name: 'Add' }) }
 
 describe('the floating "+"', () => {
-  it('opens a sheet of Quick note, Voice note, Ask AI and Help (every gate on)', () => {
-    mount({ onVoiceNote: vi.fn(), askAi: true })
+  it('opens a sheet of Quick note, Voice note, Photo, Ask AI and Help & feedback (every gate on)', () => {
+    mount({ onVoiceNote: vi.fn(), onPhoto: vi.fn(), askAi: true })
     const sheet = open()
-    expect(within(sheet).getAllByRole('button').map((b) => b.textContent.trim()).filter((t) => t))
-      .toEqual(expect.arrayContaining(['Quick note', 'Voice note', 'Ask AI', 'Help']))
+    expect(screen.getByRole('button', { name: 'Add to your notebook' })).toHaveAttribute('aria-expanded', 'true')
+    for (const name of ['Quick note', 'Voice note', 'Ask AI', 'Help & feedback']) {
+      expect(within(sheet).getByRole('button', { name })).toBeTruthy()
+    }
+    expect(within(sheet).getByLabelText('Photo / chart screenshot')).toHaveAttribute('type', 'file')
   })
 
-  it('each row runs its door: Quick note creates, Ask AI opens Compass, Help opens Support', () => {
+  it('each row runs its door: Quick note creates, Ask AI opens Compass, Help opens the Help & Feedback menu', () => {
     const onQuickNote = vi.fn()
+    const feedback = vi.fn()
+    window.addEventListener(OPEN_FEEDBACK_EVENT, feedback)
     mount({ onQuickNote, askAi: true })
     fireEvent.click(within(open()).getByRole('button', { name: 'Quick note' }))
     expect(onQuickNote).toHaveBeenCalledTimes(1)
     fireEvent.click(within(open()).getByRole('button', { name: 'Ask AI' }))
     expect(screen.getByTestId('where').textContent).toBe('/journal/compass')
-    fireEvent.click(within(open()).getByRole('button', { name: 'Help' }))
-    expect(screen.getByTestId('where').textContent).toBe('/support')
+    fireEvent.click(within(open()).getByRole('button', { name: 'Help & feedback' }))
+    expect(feedback).toHaveBeenCalledTimes(1)
+    window.removeEventListener(OPEN_FEEDBACK_EVENT, feedback)
   })
 
   it('Photo / chart screenshot is the file input label (the picker opens inside the tap) and hands the file on', () => {
     const onPhoto = vi.fn()
     mount({ onPhoto })
-    const sheet = open()
-    const input = within(sheet).getByLabelText('Photo / chart screenshot')
-    expect(input).toHaveAttribute('type', 'file')
+    const input = within(open()).getByLabelText('Photo / chart screenshot')
     expect(input).toHaveAttribute('accept', 'image/*')
     const f = new File(['x'], 'chart.png', { type: 'image/png' })
     fireEvent.change(input, { target: { files: [f] } })
@@ -52,7 +71,8 @@ describe('the floating "+"', () => {
     const sheet = open()
     expect(within(sheet).queryByRole('button', { name: 'Voice note' })).toBeNull()
     expect(within(sheet).queryByRole('button', { name: 'Ask AI' })).toBeNull()
-    expect(within(sheet).getByRole('button', { name: 'Help' })).toBeTruthy()
+    expect(within(sheet).queryByLabelText('Photo / chart screenshot')).toBeNull()
+    expect(within(sheet).getByRole('button', { name: 'Help & feedback' })).toBeTruthy()
   })
 
   it('marks <html> while the Notebook is on screen, and clears it after', () => {
@@ -65,15 +85,15 @@ describe('the floating "+"', () => {
 
 describe('the stylesheets: phone-only, and the five floating buttons give way on the Notebook only', () => {
   const css = (p) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
-  it('the "+" is drawn only at <=640 px', () => {
+  it('the "+" is drawn only at <=640 px, and steps up above an orb in a call', () => {
     const fab = css('pages/journal-2-0/components/notebook/NotebookPlusFab.module.css')
     expect(fab).toMatch(/^\.fab \{\s*display: none;\s*\}/m)
     expect(fab).toMatch(/@media \(max-width: 640px\) \{\s*\.fab \{\s*position: fixed;/)
+    expect(fab).toMatch(/:global\(html:has\(\[data-in-session\]\)\) \.fab \{\s*bottom: calc\(100px/)
   })
-  it('the orb cluster (Compass, Train Me, paperclip, agent menu) gives way on the phone Notebook, never mid-call', () => {
+  it('the orb cluster gives way on the phone Notebook unless a call is live or failing', () => {
     expect(css('components/voice/FloatingOrb.module.css'))
       .toMatch(/@media \(max-width: 640px\) \{\s*:global\(html\[data-notebook-route\]\) \.orbCluster:not\(\[data-in-session\]\) \{\s*display: none;/)
-    expect(css('components/voice/FloatingOrb.jsx')).toMatch(/data-in-session=\{inSession \? '' : undefined\}/)
   })
   it('the Help "?" gives way on the phone Notebook', () => {
     expect(css('components/FeedbackWidget.module.css'))

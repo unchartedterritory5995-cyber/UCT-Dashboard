@@ -3,12 +3,23 @@
 import { describe, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { useRef, useState } from 'react'
 import { axeSurface } from './surface'
 import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
+import NotebookPlusSheet from '../components/notebook/NotebookPlusSheet'
 
-const mount = () => render(
-  <MemoryRouter><main><NotebookPlusFab onQuickNote={vi.fn()} onVoiceNote={vi.fn()} onPhoto={vi.fn()} askAi /></main></MemoryRouter>,
-)
+function Harness() {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  return (
+    <main>
+      <NotebookPlusFab ref={ref} open={open} onOpen={() => setOpen(true)} />
+      <NotebookPlusSheet open={open} onClose={() => setOpen(false)} returnFocusTo={ref}
+        onQuickNote={vi.fn()} onVoiceNote={vi.fn()} onPhoto={vi.fn()} askAi />
+    </main>
+  )
+}
+const mount = () => render(<MemoryRouter><Harness /></MemoryRouter>)
 
 describe('the floating "+" -- axe', () => {
   axeSurface('notebook-plus-fab', async () => {

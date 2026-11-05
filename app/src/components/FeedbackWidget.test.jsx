@@ -3,7 +3,8 @@
 // just to close it. Now Esc closes it and focus goes back to the "?" button; a click outside closes
 // it AND reaches what was clicked; and nothing invisible is left over the page.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import { openFeedback } from './feedbackDoor'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }))
@@ -99,5 +100,17 @@ describe('Send Feedback lands focus in the message (fix round 2)', () => {
     fireEvent.click(trigger)
     fireEvent.click(screen.getByRole('button', { name: 'Send Feedback' }))
     expect(document.activeElement).toBe(screen.getByLabelText('Feedback message'))
+  })
+})
+
+// Tier 1b fix round 1 (review Minor 8): the phone Notebook does not draw the "?" (S12); its "+" sheet's Help row opens
+// THIS menu through components/feedbackDoor.js, so Send Feedback stays reachable there.
+describe('the feedback door (Minor 8)', () => {
+  it('openFeedback() opens the Help & Feedback menu, with Send Feedback in it', () => {
+    mount()
+    expect(screen.queryByRole('button', { name: /Send Feedback/ })).toBeNull()
+    act(() => { openFeedback() })
+    fireEvent.click(screen.getByRole('button', { name: /Send Feedback/ }))
+    expect(screen.getByLabelText('Feedback message')).toBeInTheDocument()
   })
 })

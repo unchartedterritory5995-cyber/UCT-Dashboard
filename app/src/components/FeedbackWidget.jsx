@@ -6,6 +6,7 @@ import useHideOnScroll from '../hooks/useHideOnScroll'
 import useScrollLocked from '../hooks/useScrollLocked'
 import fb from './FeedbackWidget.module.css'
 import Textarea from './ui/Textarea'
+import { OPEN_FEEDBACK_EVENT } from './feedbackDoor'
 
 const S = {
   btn: {
@@ -107,6 +108,14 @@ export default function FeedbackWidget() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
+
+  // Tier 1b fix round 1 (review Minor 8): the phone Notebook does not draw the "?" (S12); its "+" sheet opens this
+  // menu through components/feedbackDoor.js.
+  useEffect(() => {
+    const onOpen = (e) => setMode(e.detail?.mode === 'feedback' ? 'feedback' : 'menu')
+    window.addEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+  }, [])
 
   if (!user || location.pathname.startsWith('/admin')) return null
   // Hide when a modal/sheet is open so the "?" never covers its bottom CTA.

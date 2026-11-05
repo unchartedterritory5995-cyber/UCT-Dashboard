@@ -193,6 +193,8 @@ const PublishFolderSheet = lazyDialog(() => import('../components/notebook/Publi
 // rendered only while a voice note is in progress, so each start mounts it afresh.
 const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
 // Notebook P1: the Journal styles manager, fetched the first time it is opened (a creating door, gated below).
+// S12 (M9): the phone "+" sheet, on its first open through `lazyDialog` (fix round 1: first-open bytes).
+const NotebookPlusSheet = lazyDialog(() => import('../components/notebook/NotebookPlusSheet'), 'add')
 const StylesManager = lazyDialog(() => import('../components/notebook/styles/StylesManager'), 'journal styles')
 // Task 7.6: the "Save view" name prompt, fetched the first time a member opens it (before that, a closed
 // Sheet renders nothing, which is what lazyDialog renders).
@@ -597,6 +599,9 @@ export default function NotebookTab() {
   // The sheet is the same panel (one FolderSidebar), drawn over the note by CSS while `data-folder-sheet` is set;
   // the scrim, the panel's own Hide button or opening anything closes it.
   const [folderSheet, setFolderSheet] = useState(false)
+  // S12: the phone "+" and its sheet (NotebookPlusSheet, on demand).
+  const [plusOpen, setPlusOpen] = useState(false)
+  const plusRef = useRef(null)
   useEffect(() => { setFolderSheet(false) }, [noteId])
   const openFolders = () => {
     if (noteId) setFolderSheet(true)
@@ -3157,8 +3162,11 @@ export default function NotebookTab() {
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
-      {/* S12 (M9): the phone Notebook's one floating "+" (phone only, CSS). Its rows are this tab's own doors. */}
-      <NotebookPlusFab onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
+      {/* S12 (M9): the phone Notebook's one floating "+" (phone only, CSS). Its rows are this tab's own doors; the
+          sheet is fetched on its first open (lazyDialog), so the first open pays only for the button. */}
+      <NotebookPlusFab ref={plusRef} open={plusOpen} onOpen={() => setPlusOpen(true)} />
+      <NotebookPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} returnFocusTo={plusRef}
+        onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
         onPhoto={(file) => createNote({ title: 'Chart screenshot', onCreated: (c) => holdImageForNote(c.id, file) })}
         askAi={auth?.isPaid === true} busy={creating} />
     </div>
