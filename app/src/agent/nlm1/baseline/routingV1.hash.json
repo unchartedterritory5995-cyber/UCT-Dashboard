@@ -1,5 +1,5 @@
 {
-  "about": "NLM-1 D1 (d): sha256 of v1 routeManifest answers (routingV1Identity.test.js), frozen from PRISTINE code per base. An entry is added only when this branch moves onto a new base, computed with routing / capability / corpus inputs identical to that base.",
+  "about": "NLM-1 D1 (d), BRANCH-ERA RECORD: sha256 of v1 routeManifest answers, frozen from PRISTINE code per base while NLM-1 lived on a branch. Since PACKAGE 1 lands on master the test compares against master's own v1 router on the same tree (live), because other teams change routing inputs on master; these entries are no longer enforced.",
   "bases": [
     {
       "base": "c87ab6d578 (origin/master, pristine)",
