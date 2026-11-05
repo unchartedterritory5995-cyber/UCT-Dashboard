@@ -444,6 +444,17 @@ _MEMBERS_WITH_WORK_SQL = (
     " ORDER BY COALESCE(m.last_at, '') ASC, w.user_id ASC")
 
 
+#: Fix round 1 (review finding 18): the waiting count is a status line, not a measurement -- one
+#: read per member a minute (the sweep runs every 15), and it stops counting at this many.
+PENDING_CACHE_TTL_S = 60
+PENDING_COUNT_CAP = 1000
+_pending_cache: dict[str, tuple[float, int]] = {}
+
+
+def clear_pending_cache() -> None:
+    _pending_cache.clear()
+
+
 def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
                   provider: EmbeddingProvider | None = None) -> int | None:
     """Audit 2026-11-05, spec S4 (B18): how many of the member's live notes the meaning search
@@ -454,20 +465,30 @@ def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
     ⛔ Dark: None, and no connection is opened."""
     if not semantic_enabled():
         return None
+    hit = _pending_cache.get(user_id)
+    if hit and PENDING_CACHE_TTL_S > 0 and (_now() - hit[0]) < PENDING_CACHE_TTL_S:
+        return hit[1]
     provider = provider or get_provider()
     owned = conn is None
     conn = conn or get_connection()
     try:
         conn.row_factory = sqlite3.Row
         ensure_semantic_schema(conn)
+        # Bounded: the inner query stops at PENDING_COUNT_CAP rows (the panel needs "some are
+        # waiting", not an exact census of a library mid-backfill).
         r = conn.execute(
-            "SELECT COUNT(*) FROM j2_notes n LEFT JOIN ("
+            "SELECT COUNT(*) FROM (SELECT 1 FROM j2_notes n LEFT JOIN ("
             "  SELECT note_id, MAX(updated_at) AS at FROM j2_note_embeddings"
             "  WHERE user_id = ? GROUP BY note_id) i ON i.note_id = n.id"
             " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
-            " AND (i.at IS NULL OR i.at <> (n.updated_at || '|' || ?))",
-            (user_id, user_id, provider.name)).fetchone()
-        return int(r[0] or 0) if r else 0
+            " AND (i.at IS NULL OR i.at <> (n.updated_at || '|' || ?)) LIMIT ?)",
+            (user_id, user_id, provider.name, int(PENDING_COUNT_CAP))).fetchone()
+        n = int(r[0] or 0) if r else 0
+        _pending_cache[user_id] = (_now(), n)
+        if len(_pending_cache) > 5000:            # bounded: drop the oldest half
+            for k, _ in sorted(_pending_cache.items(), key=lambda kv: kv[1][0])[:2500]:
+                _pending_cache.pop(k, None)
+        return n
     finally:
         if owned:
             conn.close()

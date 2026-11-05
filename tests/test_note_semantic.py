@@ -105,8 +105,12 @@ def _no_cached_query_vectors():
     """Ruling D-H6 caches query vectors per (member, provider, query) for ten
     minutes; each test starts and ends without any."""
     ns.clear_query_cache()
+    if hasattr(ns, "clear_pending_cache"):
+        ns.clear_pending_cache()
     yield
     ns.clear_query_cache()
+    if hasattr(ns, "clear_pending_cache"):
+        ns.clear_pending_cache()
 
 
 def P(t):
@@ -486,7 +490,14 @@ def test_PLAN_RAIL_flag_on_a_TICKER_query_is_still_exactly_lexical(db_path, monk
     ns.index_member(U)
     _, handler = _record_handler(monkeypatch, q="why sell NVDA now")
     direct = _record_direct(monkeypatch, "why sell NVDA now")
-    assert [s for s, _ in handler] == [s for s, _ in direct]
+    # Fix round 1 (review finding 5): a search that found nothing by meaning also reads the
+    # bounded, cached waiting count -- whatever the query's shape. That read is the ONLY addition:
+    # no vector is read and nothing is embedded for a ticker query.
+    waiting = [s for s, _ in handler if "COUNT(*) FROM (SELECT 1 FROM j2_notes" in s
+               or s.lstrip().upper().startswith("CREATE")]
+    assert len([s for s in waiting if "COUNT(*)" in s]) == 1
+    assert [s for s, _ in handler if s not in waiting] == [s for s, _ in direct]
+    assert not any("vector" in s for s, _ in handler)
 
 
 # ── the account leaves, its vectors leave with it ────────────────────────────
@@ -516,8 +527,9 @@ def test_account_deletion_purges_the_members_vectors_and_only_theirs(db_path, on
 # fills on a 15-minute sweep (api/main.py, `notebook_semantic_sweep`), so a new note is not in
 # it yet; the search now SAYS so, with the count of the member's notes still waiting.
 
-def test_pending_count_is_the_live_notes_not_yet_indexed(db_path, on_noop):
+def test_pending_count_is_the_live_notes_not_yet_indexed(db_path, on_noop, monkeypatch):
     from api.services.journal_two import notes
+    monkeypatch.setattr(ns, "PENDING_CACHE_TTL_S", 0)   # every read fresh in this rail
     a = _note(U, "First", "one two three")
     assert ns.pending_count(U) == 1
     ns.index_member(U)
@@ -544,7 +556,37 @@ def test_a_meaning_search_with_no_meaning_hit_reports_what_is_waiting(db_path, o
     assert body["meaningPending"] == 1
 
 
-def test_a_lexical_query_carries_no_waiting_count(db_path, on_noop, monkeypatch):
+def test_B18_the_audits_own_two_word_query_gets_the_waiting_count(db_path, on_noop, monkeypatch):
+    """Fix round 1 (review finding 5): "consolidation pattern" is two tokens, so `query_shape` says
+    LEXICAL and the first cut never counted -- the B18 report verbatim. The count does not depend on
+    the query's shape: it is sent whenever meaning search was asked for and found nothing."""
     _note(U, "Tight flag", "price coiled under resistance for weeks")
-    body, _ = _record_handler(monkeypatch, q="NVDA")
+    body, _ = _record_handler(monkeypatch, q="consolidation pattern")
+    assert body["meaningPending"] == 1
+
+
+def test_a_one_word_query_gets_it_too(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q="flag")
+    assert body["meaningPending"] == 1
+
+
+def test_no_query_no_waiting_count(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q=None)
     assert "meaningPending" not in body
+
+
+def test_pending_count_is_cached_per_member_and_bounded(db_path, on_noop, monkeypatch):
+    """Fix round 1 (review finding 18): one count per member a minute, never a library-wide query on
+    every debounced keystroke; and the count stops at PENDING_COUNT_CAP."""
+    ns.clear_pending_cache()
+    _note(U, "One", "words one")
+    assert ns.pending_count(U) == 1
+    _note(U, "Two", "words two")
+    assert ns.pending_count(U) == 1                     # cached
+    ns.clear_pending_cache()
+    assert ns.pending_count(U) == 2
+    monkeypatch.setattr(ns, "PENDING_COUNT_CAP", 1)
+    ns.clear_pending_cache()
+    assert ns.pending_count(U) == 1                     # capped

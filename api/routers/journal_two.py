@@ -2024,11 +2024,13 @@ def list_notes_endpoint(
             user["id"], q, rows, total=total, offset=offset, limit=limit,
             only_query=only_query,
         )
-        # Audit 2026-11-05, spec S4 (B18): a meaning-shaped search that found nothing by meaning
-        # says how many of the member's notes the index has not reached yet (the sweep runs every
-        # 15 minutes). Armed and meaning-shaped only: dark, or a lexical query, issues no SQL here.
-        if (only_query and note_semantic.semantic_enabled()
-                and note_semantic.query_shape(q) == note_semantic.SEMANTIC
+        # Audit 2026-11-05, spec S4 (B18): a search that found nothing by meaning says how many of
+        # the member's notes the index has not reached yet (the sweep runs every 15 minutes).
+        # ⛔ Fix round 1 (review finding 5): WHATEVER THE QUERY'S SHAPE -- the count does not depend
+        # on it, and the B18 report was a two-word query ("consolidation pattern"), which
+        # `query_shape` classes LEXICAL. Armed, unfiltered, first page, a real query only; dark
+        # issues no SQL here. The count is cached per member (note_semantic.pending_count).
+        if (only_query and (q or "").strip() and note_semantic.semantic_enabled()
                 and not offset and not any(r.get("matchKind") == "meaning" for r in rows)):
             try:
                 meaning_pending = note_semantic.pending_count(user["id"])

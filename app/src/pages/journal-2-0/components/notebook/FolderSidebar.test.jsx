@@ -325,7 +325,8 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
       : { notes: [], isLoading: false, isValidating: false, error: null }))
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
-    typeQuery('consolidation pattern breakout')
+    // Fix round 1 (review finding 5): the audit's own two-word query.
+    typeQuery('consolidation pattern')
     settle()
     expect(screen.getByText('New notes join meaning search within about 15 minutes. 2 are waiting.')).toBeInTheDocument()
   })
