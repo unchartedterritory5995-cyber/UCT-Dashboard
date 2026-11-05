@@ -35,6 +35,22 @@ def db(monkeypatch):
                      (uid, f"{uid}@x.test", "x", "member"))
     conn.commit()
     conn.close()
+    # Re-review R4: the boot never builds the first-visit index; the post-boot one-shot does. Most rails read the
+    # "index present" state, so it is built here; `bare_db` below is the state before it lands.
+    from api.services.journal_two import notebook_return_metrics as m
+    assert m.build_activity_index() is True
+    yield tmp.name
+    os.unlink(tmp.name)
+
+
+@pytest.fixture
+def bare_db(monkeypatch):
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
     yield tmp.name
     os.unlink(tmp.name)
 
@@ -209,3 +225,79 @@ def test_I5_the_admin_read_is_cached_per_window():
     finally:
         m.compute = real
         m._CACHE.clear()
+
+
+# ── Fix round 2 (re-review R4): the index is built after boot; until then the read reads nothing ───────────────
+
+def test_R4_the_boot_schema_never_builds_the_first_visit_index(bare_db):
+    from api.services import auth_db
+    from api.services.journal_two import notebook_return_metrics as m
+    conn = auth_db.get_connection()
+    assert m.index_ready(conn) is False
+    conn.close()
+
+
+def test_R4_without_the_index_the_read_answers_warming_and_reads_no_activity_rows(bare_db):
+    from api.services import auth_db
+    from api.services.journal_two import notebook_return_metrics as m
+    conn = auth_db.get_connection()
+    conn.execute("INSERT INTO users (id, email, password_hash, role) VALUES ('a','a@x.test','x','member')")
+    conn.execute("INSERT INTO activity_log (id, user_id, action, details, created_at)"
+                 " VALUES ('r1','a','j2:notebook_tab_visit','{}','2026-10-20 14:00:00')")
+    conn.commit()
+    seen = []
+    conn.set_trace_callback(seen.append)
+    out = m.compute(30, now=NOW, conn=conn)
+    conn.close()
+    assert out["warming"] is True and out["message"] == m.WARMING_SENTENCE
+    assert not any("FROM activity_log" in q for q in seen), seen
+    assert "day1" not in out
+
+
+def test_R4_a_warming_answer_is_never_cached(bare_db):
+    from api.services.journal_two import notebook_return_metrics as m
+    m._CACHE.clear()
+    assert m.compute_cached(30, clock=lambda: 0.0)["warming"] is True
+    assert 30 not in m._CACHE
+    assert m.build_activity_index() is True
+    assert "warming" not in m.compute_cached(30, clock=lambda: 1.0)       # ready at once, not 10 minutes later
+    m._CACHE.clear()
+
+
+def test_R4_the_build_is_isolated_and_retried_a_failure_logs_and_never_raises(bare_db):
+    from api.services import auth_db
+    from api.services.journal_two import notebook_return_metrics as m
+    tries, naps = [], []
+
+    def flaky():
+        tries.append(1)
+        if len(tries) < 3:
+            raise RuntimeError("database is locked")
+        return auth_db.get_connection()
+    assert m.build_activity_index(connect=lambda: (_ for _ in ()).throw(RuntimeError("locked"))) is False
+    assert m.run_activity_index_build(attempts=5, wait_s=7, sleep=naps.append, connect=flaky) is True
+    assert len(tries) == 3 and naps == [7, 7]                              # retried, then stopped once built
+    conn = auth_db.get_connection()
+    assert m.index_ready(conn) is True
+    conn.close()
+
+
+def test_R4_the_admin_door_says_warming_until_the_index_exists(bare_db):
+    from api.routers import client_errors as router_mod
+    from api.services.journal_two import notebook_return_metrics as m
+    m._CACHE.clear()
+    fa = FastAPI()
+    fa.include_router(router_mod.router)
+    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": "a", "role": "admin"}
+    body = TestClient(fa).get("/api/admin/notebook-return-metrics?days=30").json()
+    assert body["warming"] is True and body["message"] == "Metrics are warming up; try again in a few minutes."
+    m._CACHE.clear()
+
+
+def test_R4_main_schedules_the_build_after_the_auth_schema_never_inside_it():
+    import pathlib
+    main = pathlib.Path("api/main.py").read_text(encoding="utf-8")
+    schema = pathlib.Path("api/services/auth_db.py").read_text(encoding="utf-8")
+    assert "start_activity_index_build()" in main
+    assert main.index("start_activity_index_build()") > main.index("_init_auth_db()")
+    assert "CREATE INDEX IF NOT EXISTS idx_activity_action_user_created" not in schema

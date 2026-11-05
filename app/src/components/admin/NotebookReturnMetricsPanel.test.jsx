@@ -49,3 +49,11 @@ test('durations read short', () => {
   expect(fmtSeconds(7200)).toBe('2.0h')
   expect(fmtSeconds(null)).toBe('—')
 })
+
+test('re-review R4: while the server builds its index it says so, with Try again, and shows no numbers', () => {
+  mockData = { days: 30, warming: true, message: 'Metrics are warming up; try again in a few minutes.', definitions: {} }
+  render(<NotebookReturnMetricsPanel />)
+  expect(screen.getByRole('status')).toHaveTextContent('Metrics are warming up; try again in a few minutes.')
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+  expect(screen.queryByText('50.0%')).toBeNull()
+})

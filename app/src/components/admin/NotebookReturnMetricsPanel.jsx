@@ -39,7 +39,8 @@ export default function NotebookReturnMetricsPanel() {
   const [days, setDays] = useState(30)
   // Fix round 1 (review I5): read on open and on Retry only. No polling: the read is the server's, on the prod pod.
   const { data, error, mutate } = useSWR(`${RETURN_METRICS_URL}?days=${days}`, fetcher, { revalidateOnFocus: false })
-  const d = data || null
+  const warming = data?.warming === true ? data : null
+  const d = data && !warming ? data : null
   const defs = d?.definitions || {}
 
   return (
@@ -62,6 +63,13 @@ export default function NotebookReturnMetricsPanel() {
       </div>
 
       <PanelReadError error={!data && error} what="Notebook return metrics" onRetry={mutate} />
+      {/* Re-review R4: until its index is built after a deploy, the server reads nothing and says so. */}
+      {warming && (
+        <div className={styles.analyticsBarLabel} role="status" style={{ margin: '4px 0 8px', whiteSpace: 'normal' }}>
+          {warming.message}{' '}
+          <button type="button" className={styles.auditToggle} onClick={() => mutate()}>Try again</button>
+        </div>
+      )}
       <div className={styles.statsGrid}>
         <Stat n={d ? pct(d.day1?.rate) : '—'} label="Day-1 return" sub={d ? `${d.day1.returned} of ${d.day1.of}` : null} />
         <Stat n={d ? pct(d.day7?.rate) : '—'} label="Day-7 return" sub={d ? `${d.day7.returned} of ${d.day7.of}` : null} />
