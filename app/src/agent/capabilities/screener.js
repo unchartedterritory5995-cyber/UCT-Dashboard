@@ -51,7 +51,9 @@ import { matchName } from '../nl/match'
 import { serverServesScan, serverDataKinds, activeConversationId } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
-import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn } from './scanHidden'
+import { WIDGET_REGISTRY } from '../../widgets/registry'
+import { widgetControls } from '../../widgets/widgetControls'
+import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn, FLOW_FIELDS } from './scanHidden'
 import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN, UNIVERSE_KEYS } from './scanRefine'
 
 // W1.1 R-05: a message shaped like a screen or a refinement of one (a screen verb, "only / just", a universe noun, a
@@ -93,6 +95,30 @@ const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at m
 // and DEFAULT_ORDER_WORDS come from scanHidden.js, generated from the server's spec.DEFAULT_SORT: one authority.
 /** SC-1 §2d: the refusal sentence when ANY part of a wire spec names a hidden field (a filter, an `other`, a logic
  *  leaf, an arithmetic term, the sort, a rank criterion, a column), or null. One walk, every shape. */
+// ⛔ OWNER EXCEPTION TO F-16 (AUDIT 11-05), narrow on purpose: the Agent operates controls already available to the member.
+// With an Options Flow widget ON THIS BOARD, a message that asks for that widget's Calls filter, however it is worded, is
+// not claimed as a screen and reaches widget.setOption. All of it must hold: the hidden phrase IS the widget's name (never
+// "dark pool", never a rating), the member TYPED the word on the Calls chip (`typed`: a typo reading of another word is not
+// that word, and a reading of "calls" must not claim it back), and it asks for no universe of stocks. The approval names this
+// one filter: another chip is told so in plain words. Anything else stays the F-16 refusal, and buildSpec refuses a hidden
+// field on any path, so this opens no field, no data and no route: only the control a member could click.
+const FLOW_WIDGET = 'optionsflow'
+const STOCK_UNIVERSE = /\b(?:stocks?|names|tickers?|equities|companies)\b/
+const namesFlowWidgetHere = (lower, phrase, key, host) => {
+  if (!FLOW_FIELDS.has(key) || STOCK_UNIVERSE.test(lower)) return false
+  let raw = []
+  try { raw = host?.widgets?.snapshot?.()?.raw || [] } catch { raw = [] }
+  if (!raw.some(w => w.type === FLOW_WIDGET)) return false
+  const { header, menu } = WIDGET_REGISTRY[FLOW_WIDGET].labels
+  const name = phrase.replace(/[\s-]+/g, ' ').replace(/^option /, 'options ')   // "option flow", "options-flow"
+  return [header, menu].some(t => t.toLowerCase() === name)
+}
+const flowChips = () => widgetControls(FLOW_WIDGET).flatMap(f => Object.values(f.shown || {}))
+const saysWord = (typed, word) => new RegExp(`\\b${word.toLowerCase().replace(/s$/, '')}s?\\b`).test(String(typed).toLowerCase())
+const asksCallsOnly = (typed) => saysWord(typed, 'Calls')
+/** The first other chip on the widget that the member typed, or null. */
+const otherFlowChip = (typed) => flowChips().find(w => w !== 'Calls' && saysWord(typed, w)) || null
+
 export function hiddenRefusal(spec) {
   const keys = []
   const walk = (v, depth = 0) => {
@@ -1188,7 +1214,7 @@ export function registerScreenerCapabilities() {
     // the (paid) planner. The strongest phrase is fixed wording, so it is claimed WITHOUT the catalog; answer()
     // awaits the catalog and checks `rs_rank` exists then (a failed load is a refusal sentence, never a model
     // call). With the catalog loaded and no `rs_rank`, it is the planner's, exactly as before.
-    fast: ({ lower }) => {
+    fast: ({ lower, host, typed = lower }) => {
       if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
         // ⛔ SC-1 §2d (owner F-16 ruling): "strongest" in UCT's vocabulary IS the RS Rank ranking, a proprietary
         // rating. The phrase stays claimed so it never reaches the planner, and answer() refuses it with the §2d
@@ -1211,7 +1237,11 @@ export function registerScreenerCapabilities() {
       // (a SAVED screen named in the message — "run my Composite screen" — is screener.runSaved's, which refuses a rated
       // saved screen by its own name; the planner / its fast path keep it)
       const hp = hiddenPhraseIn(lower)
-      if (hp && hiddenScreenRequest(lower) && !namesSavedScreen(lower)) {
+      const flowHere = !!hp && namesFlowWidgetHere(lower, hp.phrase, hp.key, host)
+      if (flowHere && hiddenScreenRequest(lower) && !asksCallsOnly(typed) && otherFlowChip(typed)) {
+        return { __say: `The only Options Flow filter I can set is Calls Only. For ${otherFlowChip(typed)}, use the chip on the widget itself.` }
+      }
+      if (hp && hiddenScreenRequest(lower) && !namesSavedScreen(lower) && !(flowHere && asksCallsOnly(typed))) {
         return { filters: [{ field: hp.key, op: 'gte', value: 0, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null }
       }
       if (!cache.meta) return null
