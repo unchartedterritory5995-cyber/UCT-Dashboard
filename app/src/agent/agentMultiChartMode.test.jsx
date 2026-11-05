@@ -51,7 +51,7 @@ import AgentPanel from './AgentPanel'
 import useMultiChartState from '../pages/charts/grid/useMultiChartState'
 import MultiChartGrid from '../pages/charts/grid/MultiChartGrid'
 import { buildWorkspaceHost, buildCellSync, gridPositionWord, scopeHostToGrid } from './host'
-import { screenGridOps, GRID_BOARD_REFUSAL, GRID_HIDDEN_REFUSAL } from './gridMode'
+import { watchGridSync, screenGridOps, GRID_BOARD_REFUSAL, GRID_HIDDEN_REFUSAL } from './gridMode'
 import { cellPatch, cellStored, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
 import { peekDrawings, removeDrawing } from '../components/chart/drawingsStore'
 import { guideState, endGuide } from './guide/guideStore'
@@ -509,12 +509,39 @@ describe('Multi Chart: what does not carry over', () => {
     expect(screenGridOps([{ action: 'layout.open', target: 'layouts', args: {} }], {}).refuse).toBe(GRID_BOARD_REFUSAL)
     expect(screenGridOps([{ action: 'layout.list', target: 'layouts', args: {} }], {})).toBe(null)
   })
-  it('time-range sync: a date jump says the other charts follow', () => {
-    const on = { charts: { grid: () => ({ groupsMode: () => false, syncTimeRange: () => true }) } }
-    const off = { charts: { grid: () => ({ groupsMode: () => false, syncTimeRange: () => false }) } }
+  describe('time-range sync: a date jump reports what moved, read back after it', () => {
     const op = [{ action: 'chart.goToDate', target: 'c0', args: { date: '2024-03-01' } }]
-    expect(screenGridOps(op, on).note).toMatch(/other charts in this grid follow that view/)
-    expect(screenGridOps(op, off)).toBe(null)
+    const hostOf = (edges, sync = true) => ({ charts: {
+      grid: () => ({ groupsMode: () => false, syncTimeRange: () => sync }),
+      list: () => [{ ref: 'c0', symbol: 'NVDA' }, { ref: 'c1', symbol: 'AMD' }, { ref: 'c2', symbol: 'TSLA' }, { ref: 'c3', symbol: null }],
+      read: (r) => ({ view: { rightMs: edges[r] } }),
+    } })
+    it('promises nothing up front', () => { expect(screenGridOps(op, hostOf({}))).toBe(null) })
+    it('sync off: nothing to watch', () => { expect(watchGridSync(op, hostOf({}, false))).toBe(null) })
+    it('only a date jump is watched', () => { expect(watchGridSync([{ action: 'chart.setTimeframe', target: 'c0', args: {} }], hostOf({}))).toBe(null) })
+    it('every cell moved', async () => {
+      const e = { c1: 1, c2: 1 }
+      const done = watchGridSync(op, hostOf(e))
+      e.c1 = 2; e.c2 = 2
+      expect(await done()).toMatch(/other charts in this grid moved with it/)
+    })
+    it('no cell moved: says so, and an empty cell is not counted', async () => {
+      const e = { c1: 1, c2: 1 }
+      expect(await watchGridSync(op, hostOf(e))()).toBe('Time-range sync is on, but the other charts stayed where they were.')
+    })
+    it('one moved, one did not: each is named', async () => {
+      const e = { c1: 1, c2: 1 }
+      const done = watchGridSync(op, hostOf(e))
+      e.c1 = 2
+      expect(await done()).toBe('Time-range sync is on: AMD moved with it, TSLA stayed where it was.')
+    })
+    it('a cell that moves a little later still counts', async () => {
+      const e = { c1: 1, c2: 1 }
+      const done = watchGridSync(op, hostOf(e))
+      e.c1 = 2
+      setTimeout(() => { e.c2 = 2 }, 120)
+      expect(await done()).toMatch(/moved with it/)
+    })
   })
 })
 

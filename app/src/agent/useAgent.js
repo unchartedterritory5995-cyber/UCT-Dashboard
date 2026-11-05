@@ -28,7 +28,7 @@ import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
-import { screenGridOps } from './gridMode'
+import { screenGridOps, watchGridSync } from './gridMode'
 import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
@@ -781,7 +781,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
@@ -1191,9 +1191,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // OWNER 2026-10-12: a Save followed by ONE chart add says both in ONE message — this receipt is
       // HELD and becomes the add's lead (said first in its message; said on its own if the add never runs)
       const holdForAdd = next.length === 1 && !!next[0].awaitDefinition && !deferred.length
+      // what moved past the chart it names is read back, never promised up front (gridMode.watchGridSync)
+      const afterNote = afterCommit ? await afterCommit() : null
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, charts: receiptCharts(host, plan, res), ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      if (!holdForAdd) push({ role: 'receipt', lines, undoId: res.undo?.id || null, charts: receiptCharts(host, plan, res), ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
@@ -1308,7 +1310,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const idsBefore = undoRef.current.map(e => e.id)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset, afterCommit: gridMode ? watchGridSync(opsIn, host) : null })
     } finally { traceEnd('done') }
     // ⭐ MISSION 3: an add + change-existing request, run as its parts in the member's order — each part the SAME
     // executeInner (planning, protection, policy, board check, commit, persistence, receipt and its own Undo entry). A part

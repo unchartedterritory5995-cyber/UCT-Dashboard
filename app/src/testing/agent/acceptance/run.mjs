@@ -723,15 +723,15 @@ scn('mc sync a member wheel', [], { query: 'multichart=sync' }, async (p, t) => 
   t.ok('a real wheel zoomed the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
   for (const id of others('g0')) t.ok(id + ' followed the wheel', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels, months(b.find(x => x.id === id)) + ' vs ' + months(b.find(x => x.id === 'g0')))
 })
-const jump = (name, say, date, months) => scn(name, [], { query: 'multichart=sync' }, async (p, t) => {
+const jump = (name, say, date, months, { follows = true } = {}) => scn(name, [], { query: 'multichart=sync' }, async (p, t) => {
   await p.select('g0')
-  const r = await act(p, t, { say, plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date } }] }), touch: FILLED, says: /follow/i })
+  const r = await act(p, t, { say, plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date } }] }), touch: follows ? FILLED : ['g0'], says: follows ? /moved with it/i : /stayed where they were/i })
   t.ok('the date is on the clicked cell\'s axis', axisHas(r.chart('g0'), months), r.chart('g0').text.slice(-6).join(' '))
-  for (const id of others('g0')) t.ok(id + ' followed', axisHas(r.chart(id), months), r.chart(id).text.slice(-6).join(' '))
+  if (follows) for (const id of others('g0')) t.ok(id + ' followed', axisHas(r.chart(id), months), r.chart(id).text.slice(-6).join(' '))
 })
 jump('mc sync an Agent date jump', 'go to june 2 2025', '2025-06-02', /^(May|Jun)$/)
-// near the start of the 200-bar fixture the view is mostly empty, so the cell does not send it: the receipt still says the others follow
-jump('mc sync an Agent date jump near the start of history', 'go to march 3 2025', '2025-03-03', /^(Feb|Mar)$/)
+// near the start of the 200-bar fixture the view is mostly empty, so the cell does not send it, and the receipt says the others stayed
+jump('mc sync an Agent date jump near the start of history', 'go to march 3 2025', '2025-03-03', /^(Feb|Mar)$/, { follows: false })
 scn('mc sync a wheel from inside the bars', [], { query: 'multichart=sync' }, async (p, t) => {
   await p.select('g0')
   await dragCell(p, 'g0')
