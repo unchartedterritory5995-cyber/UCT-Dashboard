@@ -10,9 +10,12 @@
 //     that plot's own list, a threshold when the condition needs one, the chart's symbol and
 //     timeframe, the instance's inputs (`params`) and the instance it was armed from (`instance_id`);
 //   • it may be paused / resumed (toggle), re-arms by itself, and delete is a HARD delete;
-//   • a plot whose output is a yes/no SIGNAL takes a trigger policy instead of a threshold — the
-//     popover's own flow; the Agent does not arm those (it says where to).
-// So the Agent offers exactly: create (proposed; Undo deletes what it made), toggle (exact Undo),
+//   • a plot whose output is a yes/no SIGNAL (only a member's own formula: the server refuses a policy
+//     on a shipped indicator) takes a trigger policy instead of a threshold — the popover's own flow,
+//     armed here with the same payload after the same browser gate; the server still decides at arm;
+//   • the timeframe is the chart's, or another NATIVE one (the popover's list): the evaluator reads
+//     stored bars, on that timeframe, whatever the chart shows.
+// So the Agent offers exactly: list, create (proposed; Undo deletes what it made), toggle (exact Undo),
 // delete (proposed, permanent). The instance comes from the chart's indicators (indicator.list /
 // the indicators context: `id`); the catalog decides what is alertable — nothing here enumerates.
 //
@@ -24,19 +27,24 @@ import { indicatorsOn } from './indicators'
 import { instancesForAddress, addressBase } from '../../components/chart/engine/alertSets'
 import { getDefinition } from '../../components/chart/engine/nativeRegistry'
 import { calcTimeframeOf } from '../../components/chart/engine/instanceTimeframe'
-import { isNativeTf, NATIVE_TFS, tfLabel } from '../../components/chart/timeframes'
+import { isNativeTf, isValidTf, NATIVE_TFS, tfLabel } from '../../components/chart/timeframes'
+import {
+  takesTriggerPolicy, signalAlertGate, outputTypeForAddress, compileTriggerPolicy, policyOf, policyLabel, POLICY_OPTIONS,
+} from '../../components/chart/engine/triggerPolicy'
+import { alertNeedsAttention } from '../../components/chart/alertState'
+import { showOnOf } from './indicatorControls'
 
 const MAX_CREATES = 5
 const SHOW_IN_CONTEXT = 25
 const ALWAYS_SHOW_UP_TO = 10
 const ALERT_WORDS = /\b(alerts?|alarm|notify|notification|ping me|tell me when|let me know when|warn me|pause|resume|re-?arm|turn (on|off)|delete|remove|cancel|that one|those|it)\b/i
-const SIGNAL_TYPES = new Set(['signal', 'condition', 'boolean', 'bool'])
 
 function slim(r) {
   return {
     id: String(r.id), sym: String(r.sym || '').toUpperCase(), indicator: String(r.indicator || ''), condition: r.condition || null,
     threshold: r.threshold == null ? null : Number(r.threshold), tf: String(r.tf || 'D'), active: !!r.active,
     instanceId: r.instance_id ? String(r.instance_id) : null, scope: r.scope || null, state: r.state || null,
+    detail: r.state_detail ? String(r.state_detail) : null, instanceMissing: !!r.instance_missing,
     params: paramsOf(r.params_json),
   }
 }
@@ -162,8 +170,11 @@ function findInstance(host, instanceId, chartRef = null) {
   return hits[0]
 }
 const money = (n) => (Number.isFinite(n) ? (Math.abs(n) >= 1000 ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : String(n)) : '')
+const plotOfAddress = (address) => { for (const e of cache.catalog || []) for (const p of plotsOf(e)) if (p.value === address) return p; return null }
+/** "becomes true" for a yes/no alert (the popover's reading: never the 0.5 it compiles to), else null. */
+const policyWords = (a) => (takesTriggerPolicy(plotOfAddress(a.indicator)?.output_type) ? policyLabel(policyOf(a.condition, a.threshold))?.toLowerCase() || null : null)
 /** "NVDA RSI (14) above 70 (D)" */
-export const indicatorAlertPhrase = (a, label = null) => `${a.sym} ${label || a.indicator} ${a.condition ? a.condition.replace(/_/g, ' ') : ''}${a.threshold != null ? ` ${money(a.threshold)}` : ''} (${a.tf})`.replace(/\s+/g, ' ')
+export const indicatorAlertPhrase = (a, label = null) => `${a.sym} ${label || a.indicator} ${policyWords(a) || `${a.condition ? a.condition.replace(/_/g, ' ') : ''}${a.threshold != null ? ` ${money(a.threshold)}` : ''}`} (${a.tf})`.replace(/\s+/g, ' ')
 const labelFor = (a) => {
   if (a.params && isCrossAddress(a.indicator) && a.params.fast != null && a.params.slow != null) {
     const t = String(a.params.ma_type || 'ema').toUpperCase()
@@ -208,7 +219,7 @@ export const indicatorAlertLibraryKind = {
       // the SAME SHAPE as the popover's payload (IndicatorAlertPopover.handleAdd): sym, indicator (the PLOT address), condition,
       // tf, params when the plot has inputs (the INSTANCE's own inputs for the plot's declared knobs — not the popover's
       // catalog defaults), instance_id; threshold when the condition needs one; no scope = global
-      const payload = { sym: c.sym, indicator: c.indicator, condition: c.condition, tf: c.tf, ...(c.params ? { params: c.params } : {}), instance_id: c.instanceId, ...(c.threshold != null ? { threshold: c.threshold } : {}) }
+      const payload = { sym: c.sym, indicator: c.indicator, condition: c.condition, tf: c.tf, ...(c.params ? { params: c.params } : {}), instance_id: c.instanceId, ...(c.threshold != null ? { threshold: c.threshold } : {}), ...(c.triggerPolicy ? { trigger_policy: c.triggerPolicy } : {}) }
       let res
       try { res = await src.create(payload) } catch (e) { res = { ok: false, error: e?.message || 'error' } }
       if (!res || !res.ok) { const e = new Error(res?.error || 'The server refused this alert.'); e.created = created; throw e }
@@ -303,9 +314,42 @@ export function registerIndicatorAlertCapabilities() {
       if (all.length > ALWAYS_SHOW_UP_TO && !nl1 && !ALERT_WORDS.test(message)) return undefined
       const ordered = [...all.filter(a => a.active), ...all.filter(a => !a.active)]
       return ordered.slice(0, SHOW_IN_CONTEXT).map(a => ({
-        ref: refFor('indicatorAlert', a.id), symbol: a.sym, indicator: labelFor(a), when: `${a.condition ? a.condition.replace(/_/g, ' ') : ''}${a.threshold != null ? ` ${a.threshold}` : ''}`.trim(),
+        ref: refFor('indicatorAlert', a.id), symbol: a.sym, indicator: labelFor(a), when: policyWords(a) || `${a.condition ? a.condition.replace(/_/g, ' ') : ''}${a.threshold != null ? ` ${a.threshold}` : ''}`.trim(),
         timeframe: a.tf, status: statusOf(a), ...(a.scope ? { chartOnly: true } : {}),
       }))
+    },
+  })
+
+  // ── indicatorAlert.list (QUERY): the server's list, read now (the context entry is capped) ──
+  registerCapability({
+    name: 'indicatorAlert.list',
+    surfaces: ['charts'],
+    available: (ctx) => ctx.surface === 'charts',
+    target: 'indicatorAlertLibrary',
+    query: true,
+    summary: 'Show the member\'s indicator alerts from UCT\'s real list: symbol, indicator, condition, timeframe, whether each is active or paused, and why one can\'t fire. Use this (disposition apply) for "show my indicator alerts", "why hasn\'t my RSI alert fired".',
+    hints: 'target = the ref of the indicatorAlertLibrary entry. symbol: one ticker, or null. status: active | paused | attention (alerts that can\'t fire) | null (all).',
+    args: { type: 'object', properties: { symbol: { type: ['string', 'null'] }, status: { type: ['string', 'null'], enum: ['active', 'paused', 'attention', null] } }, required: ['symbol', 'status'], additionalProperties: false },
+    fast: ({ lower }) => (/^(?:show|list)(?: me)?(?: all)?(?: of)? my indicator alerts$/.test(lower) ? { symbol: null, status: null } : null),
+    async answer(_snap, { symbol = null, status = null } = {}) {
+      let all
+      try {
+        if (!hostRef?.indicatorAlerts) throw new Error('not reachable here')
+        all = await loadIndicatorAlerts(hostRef, { force: true })
+      } catch (e) { return `I couldn't read your indicator alerts right now (${e?.message || 'error'}).` }
+      const sym = symbol ? String(symbol).trim().toUpperCase() : null
+      const faulty = (a) => alertNeedsAttention(a) || a.instanceMissing
+      const rowsNow = all.filter(a => (!sym || a.sym === sym) && (!status || (status === 'attention' ? faulty(a) : status === 'active' ? a.active : !a.active)))
+      const what = `${status === 'attention' ? 'indicator alerts needing attention' : status ? `${status} indicator alerts` : 'indicator alerts'}${sym ? ` on ${sym}` : ''}`
+      if (!rowsNow.length) return `You have no ${what}.`
+      const note = (a) => (alertNeedsAttention(a) ? a.detail || `This alert is in the state “${a.state}”.` : a.instanceMissing ? 'The chart indicator it was armed from is gone.' : '')
+      return {
+        text: `You have ${rowsNow.length} ${rowsNow.length === 1 ? what.replace('alerts', 'alert') : what}.`,
+        table: {
+          columns: [{ key: 'symbol', label: 'Symbol' }, { key: 'indicator', label: 'Indicator' }, { key: 'when', label: 'When' }, { key: 'tf', label: 'Timeframe' }, { key: 'status', label: 'Status' }, { key: 'note', label: 'Note' }],
+          rows: rowsNow.map(a => ({ symbol: a.sym, indicator: labelFor(a), when: policyWords(a) || `${a.condition ? a.condition.replace(/_/g, ' ') : ''}${a.threshold != null ? ` ${a.threshold}` : ''}`.trim(), tf: a.tf, status: statusOf(a), note: note(a) })),
+        },
+      }
     },
   })
 
@@ -317,20 +361,21 @@ export function registerIndicatorAlertCapabilities() {
     target: 'indicatorAlertLibrary',
     risk: 'confirm',
     createsResource: true,
-    summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), as the chart\'s Indicator Alerts popover does: the alert watches that chart\'s symbol and timeframe with the instance\'s own settings. Undo deletes it.',
-    hints: 'target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); '
-      + 'plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; '
-      + 'condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: "crosses above 70" = cross_above 70; "is over 70" = above 70); '
-      + 'threshold = the level as a number when the condition has one, else null. A PRICE level alert ("when NVDA hits 150") is alert.create, not this. '
-      + 'MA cross ("the 9 ema crosses above the 20"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. '
-      + 'chart = the ref of the chart the alert is for (one indicator id can be on several charts). '
-      + 'Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.',
+    summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member\'s own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart\'s symbol with the instance\'s own settings, on the chart\'s timeframe or another native one. Undo deletes it.',
+    hints: 'target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart\'s indicators entry (never a name); chart = the ref of the chart it is on; '
+      + 'plot = null, or for several lines the address the catalog names (macd.signal) — not sure which line: ask. '
+      + 'condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower ("crosses above 70" = cross_above; "is over 70" = above); threshold = the level, else null. '
+      + 'MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. '
+      + 'The member\'s own yes/no signal: trigger = becomes_true ("turns on") | becomes_false ("turns off") | is_true, condition and threshold null; trigger = null otherwise. '
+      + 'timeframe = null for the chart\'s own, or 1 | 5 | 15 | 30 | 60 | D | W | M ("alert on the weekly RSI" = W). '
+      + 'A PRICE level ("when NVDA hits 150") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.',
     args: { type: 'object', properties: {
-      instance: { type: 'string' }, plot: { type: ['string', 'null'] }, condition: { type: 'string' }, threshold: { type: ['number', 'null'] },
+      instance: { type: 'string' }, plot: { type: ['string', 'null'] }, condition: { type: ['string', 'null'] }, threshold: { type: ['number', 'null'] },
       crossWith: { type: ['string', 'null'] }, chart: { type: ['string', 'null'] },
-    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith', 'chart'], additionalProperties: false },
-    // 2026-11-04 — `crossWith` and `chart` were ADDED; an arg shape from before them (key left out) reads as null.
-    absentAsNull: ['crossWith', 'chart'],
+      trigger: { type: ['string', 'null'], enum: [...POLICY_OPTIONS.map(o => o.value), null] }, timeframe: { type: ['string', 'null'] },
+    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith', 'chart', 'trigger', 'timeframe'], additionalProperties: false },
+    // 2026-11-04 — `crossWith` and `chart` were ADDED, then `trigger` and `timeframe`; an arg shape from before them (key left out) reads as null.
+    absentAsNull: ['crossWith', 'chart', 'trigger', 'timeframe'],
     // the model's chart ref → the real chart ref (useAgent translateRefs)
     argRefs: { chart: 'chart' },
     async prepare() {
@@ -340,50 +385,21 @@ export function registerIndicatorAlertCapabilities() {
       try { await loadIndicatorAlerts(host, { force: true }); fresh = true } catch { fresh = false }
       return { iaCatalog: catalog, iaBookFresh: fresh }
     },
-    check(st, { instance, plot, condition, threshold, crossWith = null, chart = null }, env) {
-      const found = findInstance(hostRef, instance, chart)
-      if (found?.noChart) return 'That chart isn’t on this board any more, so nothing was created — ask again for the chart you mean.'
-      if (!found) return `There's no indicator “${instance}” on your charts — use an id from the indicators entry, or add the indicator to a chart first.`
-      if (found.ambiguousRef) return `“${instance}” could be ${found.ambiguousRef.length > 1 ? found.ambiguousRef.join(' or ') : `more than one ${found.ambiguousRef[0]}`} on your chart — say which indicator the alert is for.`
-      if (found.ambiguous) return `That indicator is on ${found.ambiguous.length} charts with different symbols — say which chart the alert is for.`
-      if (!env?.iaCatalog) return 'I couldn\'t read which indicator alerts UCT offers right now, so nothing was created — try again in a moment.'
-      if (!env?.iaBookFresh) return 'I couldn\'t read your indicator alerts just now, so nothing was created — try again in a moment.'
-      const plots = plotsForInstance(env.iaCatalog, found.inst)
-      if (!plots.length) return `Alerts aren't available for ${found.inst.name} — UCT's alert catalog doesn't offer it (set a price alert, or pick an indicator it lists).`
-      let p = null
-      if (plot != null) { p = plots.find(x => x.value === String(plot)); if (!p) return `${found.inst.name} has no line “${plot}” — its lines are ${plots.map(x => `${x.value} (${plotLabel(x)})`).join(', ')}.` }
-      else if (plots.length === 1) p = plots[0]
-      else return `${found.inst.name} has several lines — which one? ${plots.map(x => `${x.value} (${plotLabel(x)})`).join(', ')}.`
-      if (p.output_type && SIGNAL_TYPES.has(String(p.output_type).toLowerCase())) return `${plotLabel(p)} is a yes/no signal — set that alert from the chart's Indicator Alerts popover (it takes a trigger policy, not a level).`
-      const cond = (p.conditions || []).find(c => c.value === condition)
-      if (!cond) return `${plotLabel(p)} can alert on ${(p.conditions || []).map(c => `${c.value} (${c.label})`).join(', ')} — not “${condition}”.`
-      if (cond.needs_threshold && !Number.isFinite(threshold)) return `Say the level for “${cond.label}” on ${plotLabel(p)} (a number).`
-      let cross = null
-      if (isCrossPlot(p)) {
-        cross = resolveCross(found, crossWith, condition)
-        if (typeof cross === 'string') return cross
-      } else if (crossWith != null && String(crossWith).trim()) {
-        return `${plotLabel(p)} alerts on one line — “crossWith” is only for a moving-average cross.`
-      }
-      const faithful = cannotWatchFaithfully(found, p, String(found.chart.tf || 'D'))
-      if (faithful) return faithful
+    check(st, args, env) {
+      const r = resolveCreate(args, env)
+      if (r.why) return r.why
       if (st.creates.length >= MAX_CREATES) return `That's more than ${MAX_CREATES} alerts in one request — ask for them in smaller groups.`
-      const c = toCreate(found, p, condition, cond.needs_threshold ? threshold : null, cross)
+      const c = toCreate(r)
       if (st.alerts.find(a => a.active && sameAlert(a, c)) || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(c)}.`
       return null
     },
-    apply(st, { instance, plot, condition, threshold, crossWith = null, chart = null }, env) {
-      const found = findInstance(hostRef, instance, chart)
-      const plots = plotsForInstance(env.iaCatalog, found.inst)
-      const p = plot != null ? plots.find(x => x.value === String(plot)) : plots[0]
-      const cond = (p.conditions || []).find(c => c.value === condition)
-      const cross = isCrossPlot(p) ? resolveCross(found, crossWith, condition) : null
-      return { ...st, creates: [...st.creates, toCreate(found, p, condition, cond.needs_threshold ? threshold : null, cross)] }
-    },
+    apply: (st, args, env) => ({ ...st, creates: [...st.creates, toCreate(resolveCreate(args, env))] }),
     describe(b, a) {
       if (a.creates.length <= b.creates.length) return null
       const c = a.creates[a.creates.length - 1]
-      return `Indicator alert: ${c.sym} ${c.label} ${c.condLabel.toLowerCase()}${c.threshold != null ? ` ${money(c.threshold)}` : ''} on the ${c.tf} chart — watched with that indicator's own settings`
+      const level = c.threshold != null && !c.triggerPolicy ? ` ${money(c.threshold)}` : ''
+      const where = c.tf === c.chartTf ? `on the ${c.tf} chart` : `on ${tfLabel(c.tf)} bars (the chart shows ${tfLabel(c.chartTf)})`
+      return `Indicator alert: ${c.sym} ${c.label} ${c.condLabel.toLowerCase()}${level} ${where} — watched with that indicator's own settings`
     },
   })
 
@@ -510,8 +526,17 @@ function settingOutOfReach(inst, def, p) {
   return null
 }
 const nativeWords = () => NATIVE_TFS.map(t => tfLabel(t)).join(', ')
+/** The timeframe the alert runs on: the one the member named (a code or a word), else the chart's. */
+function alertTf(found, timeframe) {
+  const said = timeframe == null ? '' : String(timeframe).trim()
+  if (!said) return String(found.chart.tf || 'D')
+  if (isNativeTf(said)) return said
+  const read = showOnOf(said)
+  return read && read.preset === 'custom' && read.tfs.length === 1 ? read.tfs[0] : said
+}
 /** Why an alert on this plot, on this timeframe, would not be watching what the chart draws — or null. */
 function cannotWatchFaithfully(found, p, tf) {
+  if (!isValidTf(tf)) return `“${tf}” isn't a timeframe. Nothing was created — an alert can run on ${nativeWords()}.`
   if (!isNativeTf(tf)) return `Indicator alerts read stored bars, and ${tfLabel(tf)} is a custom timeframe with none, so that alert could never fire. Nothing was created — it can run on ${nativeWords()}.`
   const stored = (found.chart.cs?.indicatorInstances || []).find(i => i && i.instanceId === found.inst.instanceId)
   const calc = calcTimeframeOf(stored)
@@ -521,12 +546,66 @@ function cannotWatchFaithfully(found, p, tf) {
   return out ? `${plotLabel(p)} alerts can't use ${found.inst.name}'s ${out.label} of ${out.value}, so an alert would watch a different line than your chart draws. Nothing was created — set that back to its default, or pick another indicator.` : null
 }
 
+// ── A YES/NO OUTPUT: the popover's reading of its type, the same server-side rule for who may carry a policy ──
+const USER_ADDRESS = /^u_[0-9a-f]{12}\./
+function signalOf(p) {
+  const installed = outputTypeForAddress(getDefinition, p.value)
+  return { signal: takesTriggerPolicy(installed ? installed.type : (p.output_type ?? null)), installed }
+}
+/** Everything one create request resolves to, or { why }: the check's sentence, in the check's order. */
+function resolveCreate({ instance, plot, condition, threshold, crossWith = null, chart = null, trigger = null, timeframe = null }, env) {
+  const found = findInstance(hostRef, instance, chart)
+  if (found?.noChart) return { why: 'That chart isn’t on this board any more, so nothing was created — ask again for the chart you mean.' }
+  if (!found) return { why: `There's no indicator “${instance}” on your charts — use an id from the indicators entry, or add the indicator to a chart first.` }
+  if (found.ambiguousRef) return { why: `“${instance}” could be ${found.ambiguousRef.length > 1 ? found.ambiguousRef.join(' or ') : `more than one ${found.ambiguousRef[0]}`} on your chart — say which indicator the alert is for.` }
+  if (found.ambiguous) return { why: `That indicator is on ${found.ambiguous.length} charts with different symbols — say which chart the alert is for.` }
+  if (!env?.iaCatalog) return { why: 'I couldn\'t read which indicator alerts UCT offers right now, so nothing was created — try again in a moment.' }
+  if (!env?.iaBookFresh) return { why: 'I couldn\'t read your indicator alerts just now, so nothing was created — try again in a moment.' }
+  const plots = plotsForInstance(env.iaCatalog, found.inst)
+  if (!plots.length) return { why: `Alerts aren't available for ${found.inst.name} — UCT's alert catalog doesn't offer it (set a price alert, or pick an indicator it lists).` }
+  const lines = () => plots.map(x => `${x.value} (${plotLabel(x)})`).join(', ')
+  let p = null
+  if (plot != null) { p = plots.find(x => x.value === String(plot)); if (!p) return { why: `${found.inst.name} has no line “${plot}” — its lines are ${lines()}.` } }
+  else if (plots.length === 1) p = plots[0]
+  else return { why: `${found.inst.name} has several lines — which one? ${lines()}.` }
+  const tf = alertTf(found, timeframe)
+  const { signal, installed } = signalOf(p)
+  if (signal) {
+    if (!USER_ADDRESS.test(p.value)) return { why: `${plotLabel(p)} is a yes/no output I can't arm here: a trigger applies only to one of your own indicators.` }
+    if (crossWith != null && String(crossWith).trim()) return { why: `${plotLabel(p)} alerts on one line — “crossWith” is only for a moving-average cross.` }
+    if (trigger == null) return { why: `${plotLabel(p)} is a yes/no signal — should it alert when it ${POLICY_OPTIONS.map(o => o.label.toLowerCase()).join(', ')}?` }
+    if (!POLICY_OPTIONS.some(o => o.value === trigger)) return { why: `${plotLabel(p)} can alert when it ${POLICY_OPTIONS.map(o => o.label.toLowerCase()).join(', ')} — not “${trigger}”.` }
+    const faithful = cannotWatchFaithfully(found, p, tf)
+    if (faithful) return { why: faithful }
+    if (installed) {
+      const gate = signalAlertGate(installed.def, installed.key, { tf })
+      if (gate.status === 'refused') return { why: gate.reason }
+    }
+    return { found, p, tf, policy: trigger, ...compileTriggerPolicy(trigger), cross: null }
+  }
+  if (trigger != null) return { why: `${plotLabel(p)} is a number on every bar, not a yes/no — say a condition and a level instead.` }
+  const cond = (p.conditions || []).find(c => c.value === condition)
+  if (!cond) return { why: `${plotLabel(p)} can alert on ${(p.conditions || []).map(c => `${c.value} (${c.label})`).join(', ')} — not “${condition}”.` }
+  if (cond.needs_threshold && !Number.isFinite(threshold)) return { why: `Say the level for “${cond.label}” on ${plotLabel(p)} (a number).` }
+  let cross = null
+  if (isCrossPlot(p)) {
+    cross = resolveCross(found, crossWith, condition)
+    if (typeof cross === 'string') return { why: cross }
+  } else if (crossWith != null && String(crossWith).trim()) {
+    return { why: `${plotLabel(p)} alerts on one line — “crossWith” is only for a moving-average cross.` }
+  }
+  const faithful = cannotWatchFaithfully(found, p, tf)
+  if (faithful) return { why: faithful }
+  return { found, p, tf, policy: null, condition, threshold: cond.needs_threshold ? threshold : null, cross }
+}
+
 /** The alert to create, from the chart the instance is on and the catalog's plot — the popover's own fields. */
-function toCreate(found, p, condition, threshold, cross = null) {
+function toCreate({ found, p, tf, policy, condition, threshold, cross }) {
+  const common = { sym: String(found.chart.symbol || '').toUpperCase(), tf, chartTf: String(found.chart.tf || 'D'), indicator: p.value }
   if (cross) {
     const t = cross.params.ma_type.toUpperCase()
     return {
-      sym: String(found.chart.symbol || '').toUpperCase(), tf: String(found.chart.tf || 'D'), indicator: p.value, condition: cross.rule,
+      ...common, condition: cross.rule,
       threshold: null, params: cross.params, instanceId: cross.fastInst.instanceId,
       label: `${t} ${cross.params.fast} / ${t} ${cross.params.slow}`, condLabel: condLabel(p, cross.rule), base: addressBase(p.value),
     }
@@ -536,8 +615,8 @@ function toCreate(found, p, condition, threshold, cross = null) {
   const def = defOf(found.inst)
   const params = keys.length ? Object.fromEntries(keys.map(k => [k, knobValue(found.inst, def, k, p.inputs[k])])) : null
   return {
-    sym: String(found.chart.symbol || '').toUpperCase(), tf: String(found.chart.tf || 'D'), indicator: p.value, condition,
+    ...common, condition, ...(policy ? { triggerPolicy: policy } : {}),
     threshold: threshold == null ? null : Number(threshold), params, instanceId: found.inst.instanceId,
-    label: `${plotLabel(p)}${found.inst.name && found.inst.name !== plotLabel(p) ? ` (${found.inst.name})` : ''}`, condLabel: condLabel(p, condition), base: addressBase(p.value),
+    label: `${plotLabel(p)}${found.inst.name && found.inst.name !== plotLabel(p) ? ` (${found.inst.name})` : ''}`, condLabel: policy ? policyLabel(policy) : condLabel(p, condition), base: addressBase(p.value),
   }
 }

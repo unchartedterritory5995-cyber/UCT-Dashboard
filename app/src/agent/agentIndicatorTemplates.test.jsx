@@ -298,4 +298,13 @@ describe('approval through the real panel (scripted model)', () => {
     await click(/^Dismiss/)
     expect(list()).toHaveLength(1)
   })
+  it('deleting: Apply removes it; "undo" puts it back', async () => {
+    const { p, say, click, lib, list } = mounted()
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'indicatorTemplate.delete', target: lib(body), args: { name: 'Swing Setup' } }]))
+    await say('delete the swing setup template')
+    await click(/^Apply/)
+    await waitFor(() => expect(list()).toEqual([]))
+    await say('undo')
+    await waitFor(() => expect(list().map(t => t.name)).toEqual(['Swing Setup']))
+  })
 })

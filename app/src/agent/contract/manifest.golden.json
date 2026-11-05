@@ -1908,11 +1908,55 @@
    "shape": null
   },
   {
+   "name": "indicatorAlert.list",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlertLibrary",
+   "summary": "Show the member's indicator alerts from UCT's real list: symbol, indicator, condition, timeframe, whether each is active or paused, and why one can't fire. Use this (disposition apply) for \"show my indicator alerts\", \"why hasn't my RSI alert fired\".",
+   "hints": "target = the ref of the indicatorAlertLibrary entry. symbol: one ticker, or null. status: active | paused | attention (alerts that can't fire) | null (all).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "status": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "active",
+       "paused",
+       "attention",
+       null
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "status"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicatorAlert.create",
    "domain": "indicatorAlert",
    "target": "indicatorAlertLibrary",
-   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
-   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. MA cross (\"the 9 ema crosses above the 20\"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. chart = the ref of the chart the alert is for (one indicator id can be on several charts). Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member's own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart's symbol with the instance's own settings, on the chart's timeframe or another native one. Undo deletes it.",
+   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart's indicators entry (never a name); chart = the ref of the chart it is on; plot = null, or for several lines the address the catalog names (macd.signal) — not sure which line: ask. condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (\"crosses above 70\" = cross_above; \"is over 70\" = above); threshold = the level, else null. MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. The member's own yes/no signal: trigger = becomes_true (\"turns on\") | becomes_false (\"turns off\") | is_true, condition and threshold null; trigger = null otherwise. timeframe = null for the chart's own, or 1 | 5 | 15 | 30 | 60 | D | W | M (\"alert on the weekly RSI\" = W). A PRICE level (\"when NVDA hits 150\") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.",
    "args": {
     "type": "object",
     "properties": {
@@ -1926,7 +1970,10 @@
       ]
      },
      "condition": {
-      "type": "string"
+      "type": [
+       "string",
+       "null"
+      ]
      },
      "threshold": {
       "type": [
@@ -1945,6 +1992,24 @@
        "string",
        "null"
       ]
+     },
+     "trigger": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "becomes_true",
+       "becomes_false",
+       "is_true",
+       null
+      ]
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
@@ -1953,7 +2018,9 @@
      "condition",
      "threshold",
      "crossWith",
-     "chart"
+     "chart",
+     "trigger",
+     "timeframe"
     ],
     "additionalProperties": false
    },
