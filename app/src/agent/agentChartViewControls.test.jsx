@@ -9,7 +9,7 @@ import { setupPanel, ONE } from './testing/panelHarness'
 import { getCapability } from './capabilities'
 import { CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { RANGE_OPTS } from '../components/chart/rangeOptions'
-import { anyMovingAverageOn, withMovingAverages } from '../components/chart/movingAverageVisibility'
+import { anyAverageOn, withAveragesShown } from '../components/chart/averageVisibility'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -21,8 +21,9 @@ const op = (action, args) => p.env('apply', [{ action, target: 'c', args }])
 
 /** The chart's view on the fixture board: `viewDo` is the chart's own control, `land: false` a control that did nothing. */
 function withView(h, start = {}) {
-  const v = { activeRange: null, atDefaultView: false, indicatorsHidden: false, land: true, calls: [], ...start }
-  const meta = () => ({ firstMs: 0, lastMs: 1, rightMs: 1, activeRange: v.activeRange, atDefaultView: v.atDefaultView, indicatorsHidden: v.indicatorsHidden })
+  const v = { activeRange: null, atDefaultView: false, indicatorsHidden: false, land: true, calls: [], fromRight: 150, toRight: -9, locked: false, lock: null, ...start }
+  const frameOf = () => (v.noFrame ? null : { fromRight: v.fromRight, toRight: v.toRight, activeRange: v.activeRange, locked: v.locked, lock: v.lock })
+  const meta = () => ({ firstMs: 0, lastMs: 1, rightMs: 1, activeRange: v.activeRange, atDefaultView: v.atDefaultView, indicatorsHidden: v.indicatorsHidden, frame: frameOf() })
   const base = h.charts
   const read = base.read, list = base.list
   h.charts = {
@@ -32,7 +33,9 @@ function withView(h, start = {}) {
     viewDo: (ref, o, arg) => {
       v.calls.push([ref, o, arg])
       if (!v.land) return true
-      if (o === 'applyRange') { v.activeRange = arg; v.atDefaultView = false }
+      // as the real one: a window from the newest bar, and the view lock overwritten for the next ticker
+      if (o === 'applyRange') { v.activeRange = arg; v.atDefaultView = false; v.fromRight = 21 * (arg === 'origin' ? 100 : Number(arg) || 8); v.toRight = -4; v.locked = true; v.lock = { anchorFrac: 0.9, width: v.fromRight, tf: 'D', hLocked: true } }
+      if (o === 'restoreView') { v.fromRight = arg.fromRight; v.toRight = arg.toRight; v.activeRange = arg.activeRange; v.locked = arg.locked; v.lock = arg.lock; v.atDefaultView = false }
       if (o === 'resetView') { v.activeRange = null; v.atDefaultView = true }
       if (o === 'setIndicatorsHidden') v.indicatorsHidden = arg
       return true
@@ -87,11 +90,50 @@ describe('chartSetup.setRange: the range bar', () => {
     expect(await say('show one year')).toMatch(/hasn.t finished loading/)
   }, 40000)
 
-  it('says it has no Undo rather than offering one it cannot honour', async () => {
+  it('Undo puts back the exact window and view lock the range replaced, from a chart held by a pan and from a free one', async () => {
+    for (const held of [{ locked: true, lock: { anchorFrac: 0.7, width: 90, tf: 'D', top: 0.1, bottom: 0.8 } }, { locked: false, lock: null }]) {
+      const { say, h } = p.mount(...ONE('NVDA'))
+      const v = withView(h, { fromRight: 88.25, toRight: -3.5, ...held })
+      p.st.envelopes.push(op('chartSetup.setRange', { range: '1Y' }))
+      const out = await say('show one year')
+      expect(out).not.toMatch(/has no Undo|can't be undone/)
+      expect(v.activeRange).toBe(12)
+      await say('undo')
+      expect(v.calls.at(-1)[1]).toBe('restoreView')
+      expect({ from: v.fromRight, to: v.toRight, range: v.activeRange, locked: v.locked, lock: v.lock }).toEqual({ from: 88.25, to: -3.5, range: null, ...held })
+      cleanup()
+    }
+  }, 60000)
+
+  it('Undo goes back to the range the member was on, so the chart still reads as showing it', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
-    withView(h)
+    const v = withView(h, { activeRange: 3, fromRight: 63, toRight: -4, locked: true, lock: { anchorFrac: 0.9, width: 63, tf: 'D' } })
+    p.st.envelopes.push(op('chartSetup.setRange', { range: '5Y' }))
+    await say('show five years')
+    expect(v.activeRange).toBe(60)
+    await say('undo')
+    expect(v.activeRange).toBe(3)
+    expect(v.fromRight).toBe(63)
+  }, 60000)
+
+  it('a member who panned off the range keeps their view: Undo refuses as stale and moves nothing', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withView(h)
     p.st.envelopes.push(op('chartSetup.setRange', { range: '1Y' }))
-    expect(await say('show one year')).toMatch(/has no Undo/)
+    await say('show one year')
+    Object.assign(v, { activeRange: null, fromRight: 40 })           // the pan: getDateMeta stops reporting the range
+    const calls = v.calls.length
+    await say('undo')
+    expect(document.body.textContent).toMatch(/has changed since/)
+    expect(v.calls.length).toBe(calls)
+    expect(v.fromRight).toBe(40)
+  }, 60000)
+
+  it('a view that never read back offers no Undo, and the receipt says so', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    withView(h, { noFrame: true })
+    p.st.envelopes.push(op('chartSetup.setRange', { range: '1Y' }))
+    expect(await say('show one year')).toMatch(/can't be undone here: pick another range, or reset the view/)
   }, 40000)
 })
 
@@ -104,6 +146,14 @@ describe('chartSetup.resetView: right-click → Reset view', () => {
     await say('reset the view')
     expect(v.atDefaultView).toBe(true)
     expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it('says it has no Undo, and declares none: a reset also drops a dragged price scale, which nothing reads back', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    withView(h, { activeRange: 12 })
+    p.st.envelopes.push(op('chartSetup.resetView', {}))
+    expect(await say('reset the view')).toMatch(/A view reset has no Undo/)
+    expect(getCapability('chartSetup.resetView').undo).toBe('none')
+    expect(getCapability('chartSetup.setRange').undo).toBe('exact')
   }, 40000)
   it('already at the default view: a no-op', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
@@ -135,12 +185,12 @@ describe('chartSetup.setMovingAverages: Ctrl+M\'s writer', () => {
 
   it('the shared writer: live overlay slots and average instances flip, tombstones and other indicators do not', () => {
     const cs = { overlays: [{ enabled: true }, { removed: true, enabled: false }], indicatorInstances: [avg('a'), avg('d', { deleted: true }), other('r')] }
-    expect(anyMovingAverageOn(cs, REG)).toBe(true)
-    const off = withMovingAverages(cs, false, REG)
+    expect(anyAverageOn(cs, REG)).toBe(true)
+    const off = withAveragesShown(cs, false, REG)
     expect(off.overlays).toEqual([{ enabled: false }, { removed: true, enabled: false }])
     expect(off.indicatorInstances).toEqual([avg('a', { hidden: true }), avg('d', { deleted: true }), other('r')])
-    expect(anyMovingAverageOn(off, REG)).toBe(false)
-    expect(withMovingAverages(off, true, REG).indicatorInstances[0].hidden).toBe(false)
+    expect(anyAverageOn(off, REG)).toBe(false)
+    expect(withAveragesShown(off, true, REG).indicatorInstances[0].hidden).toBe(false)
   })
 
   it('through the panel: every moving average hidden in the stored chart (the overlay slots are adopted instances); Undo restores it byte for byte', async () => {
