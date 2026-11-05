@@ -34,7 +34,7 @@ import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
-import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnEnd } from './trace'
+import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnMarkMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
@@ -729,6 +729,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // a local turn's time to its first useful output (content-free: one number) rides the telemetry row
     const ms = turnOutputMs()
     if (body?.telemetry && body.telemetry.latency_ms == null && ms != null) body = { ...body, telemetry: { ...body.telemetry, latency_ms: ms } }
+    // and when the change reached the screen and when it was read back and saved: the two times the member actually feels
+    if (body?.telemetry) body = { ...body, telemetry: { ...body.telemetry, visible_ms: turnMarkMs('commit:end'), verified_ms: turnMarkMs('persist') } }
     const res = await agentRecord({ conversationId: conversationRef.current, ...body })
     if (res.ok && res.data?.conversationId && res.data.conversationId !== conversationRef.current) {
       setConversationId(res.data.conversationId)

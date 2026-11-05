@@ -312,7 +312,7 @@ def _v2_finish(uid, cid: str, out: dict, voice: bool, background: BackgroundTask
     background.add_task(store.record_telemetry, uid, cid, {
         "path": "model", "disposition": "answer", "actions": [s.get("action") for s in env.get("steps") or []],
         "clarified": False, "latency_ms": usage.get("latency_ms"), "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
-        "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice,
+        "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice, **_speed_fields(usage),
     })
     log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s", usage.get("rounds"),
              usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
@@ -617,6 +617,11 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         _give_back(uid)
         if shown:
             store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
+        # the accuracy side of the speed comparison: a plan that could not be read (a reason code, never words)
+        reason = str(getattr(e, "reason", None) or "")
+        if reason.startswith("unreadable"):
+            store.record_telemetry(uid, cid, {"path": "failed", "disposition": "error", "unsupported": reason, "voice": body.voice,
+                                              "schema_mode": "constant" if agent.constant_schema() else "routed"})
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001 -- a provider failure is a sentence, not a 500
         _give_back(uid)
@@ -660,7 +665,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         "clarified": env["disposition"] == "clarify", "latency_ms": usage.get("latency_ms"),
         "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
         "research_calls": usage.get("research_calls"), "unsupported": env.get("unsupported_category"),
-        "voice": body.voice,
+        "voice": body.voice, **_speed_fields(usage),
     })
     # STAGE TIMINGS, ms only (the member's words, replies and values are never in them): pre = caps +
     # conversation store before the model; build/model/research from run_turn; post = stores after it.
@@ -673,6 +678,11 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                                                    "latency_ms", "research_calls", "citations", "model_calls",
                                                    "cache_read_tokens", "cache_write_tokens")},
                       "stages": stages}}
+
+
+def _speed_fields(usage: dict) -> dict:
+    """What the speed report reads off one turn: counts and the schema mode, never content."""
+    return {k: usage.get(k) for k in ("model_calls", "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "schema_mode")}
 
 
 def _set_title(uid: int, cid: str, title: str) -> None:
