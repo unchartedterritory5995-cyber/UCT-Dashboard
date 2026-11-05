@@ -829,6 +829,7 @@ STYLE
 Concise, trader to trader, plain text (short paragraphs or "- " bullets, no headings, no markdown tables). Educational, not personalized buy/sell advice.
 Answer in one or two sentences unless the member asks for detail; never show formulas, code, settings or how UCT works inside unless they ask, and never repeat what a receipt or card already says.
 DATA ANSWERS. When a plan reads data (stock.*, news.*, a screen), `reply` states no figures, dates, estimates, beats or misses: UCT's card shows them, and you have not seen them.
+HISTORICAL / STATISTICAL MARKET QUESTIONS ("how does SPY do after new highs", "what usually happens after a gap", win rates, typical returns, pullback sizes, seasonality): answer ONLY by planning an action that reads UCT's data (an event study, price history, breadth history, a screen). With no such action, say in one line that you can't answer it from UCT's data yet — never give figures, ranges, typical moves or tendencies from general knowledge.
 Never put the double-quote character inside reply, question or choice text: write names plainly or in “curly quotes”.
 
 NEVER A FALSE LIMITATION. Never tell the member that something is unavailable, not possible, or "not yet" from here when an action under AVAILABLE ACTIONS (or MORE AVAILABLE ACTIONS, or an action group named below as not listed) does it: indicator alerts (an EMA / SMA cross, RSI, MACD…), price alerts, drawings, layouts, watchlists, screens, templates, replay. Plan it with that action, ask for its group, or clarify the one thing you need (which chart, which indicator, which level). If <validation_error> says an action IS available, plan with it or clarify — never repeat the claim.
@@ -1962,6 +1963,55 @@ def is_undo_command(msg: str | None) -> bool:
     return bool(msg) and bool(_UNDO_COMMAND.match(str(msg))) and not re.search(r"\b(?:how|why|what|when|does|do i|can i)\b.*\bundo\b", str(msg), re.I)
 
 
+# ⛔ SG-3 (AUDIT live prod f591d31720, 2026-11-04): "how does SPY do after new 50-day highs" with no event-study kind
+# served went to the model, which answered with invented statistics (a typical pullback size and horizon, volume
+# effects) and no data. A historical / statistical MARKET question answered as TALK (no op read anything, no research)
+# is ungrounded by construction: any figure or tendency in it comes from the model's memory. Such a reply is replaced
+# by an honest sentence; the reply never streams for such a question, so the member never sees the invented text.
+_STAT_WORDS = (r"after|following|historically|typically|usually|normally|on average|in the past|tends? to|win rate|"
+               r"hit rate|odds|probabilit\w*|how often|statistic\w*|backtest\w*|seasonal\w*|forward returns?|"
+               r"average (?:return|gain|loss|move|pullback|drawdown|decline|rally)|(?:best|worst) (?:month|day|week)s?")
+_MARKET_STAT_Q = re.compile(rf"\b(?:{_STAT_WORDS})\b", re.I)
+_MARKET_NOUN = re.compile(
+    r"\b(?:\$?[a-z]{1,5} (?:do|does|did|trade[sd]?|perform\w*|react\w*|behave\w*|move[sd]?)|stocks?|shares|market|s&p|"
+    r"nasdaq|dow|spx|spy|qqq|iwm|index(?:es)?|etfs?|breadth|breakouts?|break(?:s|ing)? out|gaps?|gapp\w+|"
+    r"(?:new )?\d*[- ]?(?:day|week|month|year) (?:highs?|lows?)|all[- ]time highs?|highs|lows|earnings|rsi|macd|"
+    r"moving averages?|\d+[- ]?(?:day|dma|sma|ema)|pullbacks?|rall(?:y|ies)|sell[- ]?offs?|crash(?:es)?|corrections?|"
+    r"returns?|bounces?|drawdowns?|thrusts?|vix|fed|cpi|fomc)\b", re.I)
+_NOT_MARKET_STAT = re.compile(r"\b(?:what (?:is|does|are) (?:a|an|the) |what does .+ mean|explain|define|definition|"
+                              r"how (?:do|can) i\b|where (?:do|can) i\b|after (?:i|you|we)\b|refresh\w*|updat\w*|reload\w*|sync\w*)", re.I)
+_STAT_CLAIM = re.compile(
+    r"\d+(?:\.\d+)?\s?(?:%|percent\b|bps\b|basis points\b)|\b\d+(?:\.\d+)?\s?(?:to|-|–)\s?\d+(?:\.\d+)?\s?"
+    r"(?:days|sessions|weeks|months|years)\b|\b(?:historically|typically|usually|normally|on average|tends? to|"
+    r"more often than not|most of the time|the majority of|odds|probabilit\w*|win rate|hit rate)\b", re.I)
+UNGROUNDED_STATS = ("I can't answer that from UCT's data yet: nothing in UCT was read for it, so I won't give historical "
+                    "or statistical market figures or tendencies from general knowledge.")
+UNGROUNDED_STATS_STUDY = (" I can run an event study on one stock's own history — for example “how has NVDA done after "
+                          "5% gaps” or “after new 50-day highs”.")
+
+
+def market_stat_question(msg: str | None) -> bool:
+    """A historical / statistical question about markets or stocks, as far as words can tell (never a concept question,
+    a definition, or a how-do-I about UCT)."""
+    m = str(msg or "")
+    return (bool(m) and len(m) <= 400 and bool(_MARKET_STAT_Q.search(m)) and bool(_MARKET_NOUN.search(m))
+            and not _NOT_MARKET_STAT.search(m))
+
+
+def guard_ungrounded_stats(envelope: dict, msg: str | None, cap_names: set[str] | None = None) -> dict:
+    """SG-3: a TALK answer (no op, not research-grounded) to a market-statistics question that states a figure or a
+    tendency is replaced by the honest sentence (a study is offered only when `history.afterEvent` was in the
+    request). Anything else is returned unchanged."""
+    if not isinstance(envelope, dict) or envelope.get("disposition") != "answer" or envelope.get("ops"):
+        return envelope
+    reply = str(envelope.get("reply") or "")
+    if not market_stat_question(msg) or not _STAT_CLAIM.search(reply):
+        return envelope
+    log.warning("uct_agent ungrounded market statistics: replaced a %d-char answer", len(reply))
+    study = cap_names is not None and "history.afterEvent" in cap_names
+    return {**envelope, "reply": UNGROUNDED_STATS + (UNGROUNDED_STATS_STUDY if study else "")}
+
+
 def promote_talk_reads(env: Any, msg: str | None = None, cap_names: set[str] | None = None) -> Any:
     """⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" — the planner returned the right READ op
     (chart.describeSetup) under disposition `answer`, with the reply "Checking NVDA's daily setup now.". TALK never
@@ -2533,7 +2583,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # (a coach turn never streams its reply: the guard must see the whole text before the member does)
         rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
                           allowed=((round_ > 0 or not forced_research) and pre_research is None and not coach_turn
-                                   and not kn_on))      # review #768: knowledge on → an answer never streams
+                                   and not kn_on        # review #768: knowledge on → an answer never streams
+                                   and not market_stat_question(msg)))   # SG-3: the guard sees the whole reply first
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         category = ("reroute" if reroute else "turn") if round_ == 0 else ("repair" if usage.get("repaired") == "server" else "after_research")
@@ -2797,6 +2848,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                                                              claim_repaired=bool(usage.get("false_claim")),
                                                              knowledge_no_web=kn_no_web,
                                                              answer_only=answer_only), env), caps)
+        if not answer_only and not research_read:
+            envelope = guard_ungrounded_stats(envelope, msg, cap_names)      # SG-3: no invented market statistics
         if coach_turn:
             envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)

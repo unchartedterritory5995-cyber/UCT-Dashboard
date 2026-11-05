@@ -6071,7 +6071,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 23,
+   "phrasings": 30,
    "evidence": {
     "nl": [
      "screener.adr: \"find stocks with ADR above 5%\"",
@@ -6124,6 +6124,7 @@
      "scan.refine.sector: after an earlier turn",
      "scan.refine.price: after an earlier turn",
      "scan.refine.sort: after an earlier turn",
+     "scan.sector-word: after an earlier turn",
      "GW-06.hidden-field-refused",
      "GW-25.scan-conversation"
     ],
