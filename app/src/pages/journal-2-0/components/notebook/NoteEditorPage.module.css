@@ -236,6 +236,9 @@
   color: var(--text-bright);
   padding: 8px 0;
   line-height: 1.15;
+  /* Notebook visual audit issue 2: Georgia's default figures are old-style, so
+     prices in a title read as uneven heights. Lining + tabular figures. */
+  font-variant-numeric: lining-nums tabular-nums;
 }
 /* ⚰️ Wave 8 (8A): the base rules no longer suppress the outline at all (the
    focus-suppression rail forbids a suppression with no replacement in the
@@ -251,10 +254,23 @@
    clicking into the editor to place a cursor doesn't wrap the whole body in
    an outline. Competitive audit finding Accessibility QW-1, 2026-09-22. */
 .titleInput:focus-visible,
-.subtitleInput:focus-visible,
-.proseEditor:focus-visible {
+.subtitleInput:focus-visible {
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
+}
+/* Notebook visual audit issue 3: the "silent for a mouse click" claim above holds
+   for the title and subtitle INPUTS, but NOT for the body: a contenteditable
+   matches :focus-visible on a pointer click too, so every click wrapped the whole
+   note body in a gold ring with the text touching it. The body's focus cue is now
+   a 2 px gold LEFT EDGE, set off from the text by the 10 px gutter that
+   .proseEditor reserves (border + padding, cancelled by its negative margin so
+   the text stays aligned with the title). It is visible for keyboard focus, and
+   quiet enough that a mouse click no longer frames the page. The replacement
+   sits in THIS rule (border-color), as the focus-suppression rail requires
+   (a11y/focusSuppression.test.js). */
+.proseEditor:focus-visible {
+  outline: none;
+  border-color: var(--ut-gold);
 }
 .subtitleInput {
   background: transparent;
@@ -393,6 +409,19 @@
   line-height: 1.7;
   color: var(--text-bright);
   min-height: 400px;
+  /* Issue 2: lining, tabular figures (Georgia defaults to old-style). */
+  font-variant-numeric: lining-nums tabular-nums;
+  /* Issue 3: the gutter the keyboard focus edge paints in (see :focus-visible
+     above). Transparent at rest; net horizontal offset 0 (-12 + 2 + 10). */
+  border-left: 2px solid transparent;
+  padding-left: 10px;
+  margin-left: -12px;
+}
+/* Issue 2: a widget embed is app chrome (Snapshot, See it now, Change), not
+   prose, so it speaks the UI sans rather than inheriting the body's Georgia.
+   The hook is the same attribute the prose guard below uses. */
+.proseEditor [data-widget-embed-view] {
+  font-family: var(--font-sans);
 }
 /* The first block sits flush under the subtitle — so a divider (or heading)
    inserted at the top doesn't leave a big gap above it. */
@@ -475,6 +504,15 @@
 .proseEditor ul:not(:where([data-widget-embed-view] *)),
 .proseEditor ol:not(:where([data-widget-embed-view] *)) { padding-left: 24px; margin: 12px 0; }
 .proseEditor li:not(:where([data-widget-embed-view] *)) { margin: 4px 0; }
+/* Notebook visual audit issue 4: the `p { margin: 12px 0 }` above also landed on
+   the paragraph TipTap wraps inside every list item, task item and table cell,
+   which doubled list pitch (59 px per checklist row, 41 px per bullet, for 17 px
+   text). Inside those containers the paragraph carries no margin; the item's
+   own margin is the rhythm. */
+.proseEditor li > p:not(:where([data-widget-embed-view] *)),
+.proseEditor ul[data-type="taskList"] li > div > p:not(:where([data-widget-embed-view] *)),
+.proseEditor td > p:not(:where([data-widget-embed-view] *)),
+.proseEditor th > p:not(:where([data-widget-embed-view] *)) { margin: 0; }
 .proseEditor table:not(:where([data-widget-embed-view] *)) {
   border-collapse: collapse;
   margin: 14px 0;
@@ -538,7 +576,10 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding-top: 2px;
+  /* Issue 4: centre the 16 px box on the FIRST line box (1.7em tall), so it
+     sits beside its text instead of floating above it. em = the label's own
+     size, which inherits the body's, so a resized note still centres. */
+  padding-top: calc((1.7em - 16px) / 2);
   user-select: none;
 }
 .proseEditor ul[data-type="taskList"] li > label input[type="checkbox"] {
@@ -980,6 +1021,16 @@
     width: 100%;
   }
   :global(body.uct-print-note) [data-export-exclude] { display: none; }
+}
+
+/* Notebook visual audit issue 13: on the touch tier the global anti-zoom rule
+   (tokens.css, `input, select, textarea { font-size: 16px !important }`) shrank
+   the note title to 16 px, smaller than its own H2 (24 px). The title is an
+   <input>, so only an !important rule can lift it; at (0,1,0) it beats the
+   global (0,0,1). 28 px matches the phone size above and is well past the 16 px
+   iOS zoom threshold. The global 16 px rule itself is unchanged. */
+@media (max-width: 1024px) {
+  .titleInput { font-size: 28px !important; }
 }
 
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------

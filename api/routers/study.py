@@ -668,9 +668,9 @@ def import_bank(body: ImportIn, _: None = Depends(require_push_secret)):
             it["asof"] = it.get("asof") or spec.get("asof")
         ready.append(it)
     try:
-        up = study_store.upsert_items(ready) if ready else {"inserted": 0, "updated": 0, "ids": []}
+        up = study_store.upsert_items(ready) if ready else {"inserted": 0, "updated": 0, "kept": 0, "ids": []}
         n_terms = study_store.upsert_terms(body.terms) if body.terms else 0
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"inserted": up["inserted"], "updated": up["updated"], "ids": up["ids"],
+    return {"inserted": up["inserted"], "updated": up["updated"], "kept": up.get("kept", 0), "ids": up["ids"],
             "terms": n_terms, "misses": misses, "rejected": rejected, "flagged": flagged}

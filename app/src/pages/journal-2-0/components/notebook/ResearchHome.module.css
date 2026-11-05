@@ -287,7 +287,9 @@
   appearance: none;
   min-height: 38px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  /* Visual audit issue 10: a field edge is --field-edge (3:1 on every surface);
+     --border measured 1.26:1 on OLED, so the box dissolved into the page. */
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-md, 6px);
   background: var(--bg-surface);
   color: var(--text-bright);
@@ -304,11 +306,12 @@
   border-color: rgba(220, 187, 94, 0.4);
   background: var(--bg-hover);
 }
-.searchBox:focus,
-.searchBox:focus-visible {
-  outline: none;
+/* Visual audit issue 25: keyboard focus measured as a 1 px border change only.
+   The `outline: none` is gone, so the app-wide :focus-visible ring (tokens.css)
+   draws; the border turns gold as well. No box-shadow ring beside it, which
+   would double the ring. */
+.searchBox:focus {
   border-color: var(--ut-gold);
-  box-shadow: 0 0 0 2px var(--ut-gold);
 }
 
 /* A folding dashboard box (HomeBox, over the shared CollapsibleSection). */

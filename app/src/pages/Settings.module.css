@@ -214,7 +214,9 @@
 .railSearchWrap { position: relative; margin-bottom: 10px; }
 .railSearch {
   width: 100%; box-sizing: border-box;
-  background: var(--bg-hover); border: 1px solid var(--border);
+  /* --field-edge, not --border: a field edge must reach 3:1 on every surface
+     (Notebook visual audit issue 10; --border measured 1.26:1 on OLED). */
+  background: var(--bg-hover); border: 1px solid var(--field-edge);
   border-radius: var(--radius-md); color: var(--text-bright);
   font-size: 12.5px; padding: 8px 10px; outline: none; font-family: inherit;
 }
