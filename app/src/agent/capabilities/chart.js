@@ -305,7 +305,17 @@ export const chartKind = {
   async commit(host, ref, patch) {
     const { goto, replay, volPanePref, viewDo, ...rest } = patch
     let ok = true
+    // ⛔ AUDIT review of #866: hide-all goes before a setting is written ("show volume" under it does both). A chart that does not
+    // confirm it stops here with nothing saved, so "nothing was left changed" stays true; a write it then refuses puts it back.
+    const hideAll = viewDo?.op === 'setIndicatorsHidden'
+    if (hideAll) {
+      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
+      const t0 = Date.now()
+      while (Date.now() - t0 < 5000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+      if (!viewDone(host.charts.read(ref)?.view, viewDo)) return false
+    }
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
+    if (hideAll && !ok) host.charts.viewDo?.(ref, viewDo.op, !viewDo.arg)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
     if ('volPanePref' in patch && ok) {
       if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw new Error('the server did not confirm the change, so it is not saved')
@@ -315,7 +325,7 @@ export const chartKind = {
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
-    if (viewDo && ok) {
+    if (viewDo && !hideAll && ok) {
       if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
       const t0 = Date.now()
       while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))

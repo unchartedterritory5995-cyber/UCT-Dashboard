@@ -382,3 +382,65 @@ describe('defect 6: a sort on a signed distance', () => {
     expect(orderWords({ key, dir })).toBe(words)
   })
 })
+
+describe('review of #866, D1: a show that cannot lift hide-all changes nothing', () => {
+  const rsi = (board) => p.instancesOn(board, 'c').find(r => r.defId === 'rsi')
+  const stillUndoes = async (say) => {
+    const text = await say('undo')
+    expect(text).not.toMatch(/could not be undone|Nothing was undone/)
+  }
+  it('indicator.show: the eye stays as it was, and the earlier hide can still be undone', async () => {
+    const { say, h, board } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await withRsi(say)
+    p.st.envelopes.push(planIs('indicator.hide', 'ixe:c', { instance: 'rsi' }))
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    expect(await say('show the rsi')).toMatch(/did not confirm/)
+    expect(rsi(board).hidden).toBe(true)
+    await stillUndoes(say)
+    expect(rsi(board).hidden).toBeFalsy()
+  }, 40000)
+  it('volume.setState: Volume stays as it was', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await say('hide volume')
+    expect(h.charts.read('c').cs.volume.visible).toBe(false)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('volume.setState', 'c', { state: 'visible' }))
+    await say('bring the volume back please')
+    expect(h.charts.read('c').cs.volume.visible).toBe(false)
+    await stillUndoes(say)
+    expect(h.charts.read('c').cs.volume.visible).not.toBe(false)
+  }, 40000)
+  it('setMovingAverages: the averages stay as they were', async () => {
+    const { say, h, board } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await say('add a 20 ema')
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: false }))
+    await say('hide my moving averages')
+    const hiddenNow = () => p.instancesOn(board, 'c').filter(r => r.defId === 'movingAverage').every(r => r.hidden === true)
+    expect(hiddenNow()).toBe(true)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: true }))
+    await say('show my moving averages')
+    expect(hiddenNow()).toBe(true)
+  }, 40000)
+  it.each([
+    ['indicator.show', 'ixe:c', { instance: 'rsi' }],
+    ['volume.setState', 'c', { state: 'visible' }],
+  ])('%s: a settings write the chart refuses puts hide-all back', async (action, target, args) => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    p.st.envelopes.push(planIs('indicator.hide', 'ixe:c', { instance: 'rsi' }))
+    await say('hide the rsi')
+    await say('hide volume')
+    v.hidden.set('c', true)
+    h.charts.commit = () => false
+    p.st.envelopes.push(planIs(action, target, args))
+    await say('bring that back please')
+    expect(v.hidden.get('c')).toBe(true)
+  }, 40000)
+})

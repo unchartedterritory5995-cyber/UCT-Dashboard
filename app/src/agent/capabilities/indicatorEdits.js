@@ -382,22 +382,35 @@ export const indicatorEditsKind = {
   },
   stateOf: (s) => ({ chart: s.label, chartRef: s.chartRef, cs: s.cs, canManage: s.canManage, rows: s.rows, allHidden: s.allHidden, change: null, lift: false }),
   patch: (before, after) => (after.change || after.lift ? { ...(after.change ? { change: after.change } : {}), ...(after.lift ? { lift: true } : {}) } : null),
+  // ⛔ AUDIT review of #866: the view flag goes FIRST, because it is the half that can fail with nothing to undo. A chart that does
+  // not confirm it stops the request before a setting is written, so "nothing was left changed" stays true and the Undo stack
+  // stays good. A settings write that then fails puts the flag back.
+  async commit(host, ref, patch) {
+    if (!patch.lift && !patch.rehide) return indicatorEditsKind.mutate(host, ref, patch)
+    const chartRef = chartRefOf(ref)
+    const cur = host.charts.read(chartRef)
+    if (!cur) throw fail('that chart is no longer on the board')
+    const hidden = !!patch.rehide
+    await setHideAll(host, chartRef, hidden)
+    // hide-all alone: lifted by a "show", put back by that show's Undo. Nothing in the settings changes.
+    if (hidden && !patch.undo) return { lines: [`Hid every indicator and Volume on ${cur.label} again.`], undoData: null }
+    if (!hidden && !patch.change) return { lines: [LIFT_LINE(cur.label)], undoData: { lifted: true, token: null } }
+    let res
+    try {
+      res = await indicatorEditsKind.mutate(host, ref, patch)
+    } catch (e) {
+      if (!e?.unreverted) await setHideAll(host, chartRef, !hidden).catch(() => {})
+      throw e
+    }
+    return hidden ? res : { lines: [...res.lines, LIFT_LINE(cur.label)], undoData: { lifted: true, token: res.undoData } }
+  },
   // A change, or an Undo — both through the Indicators interface, then the chart's own
   // persist, then the authoritative read-back.
-  async commit(host, ref, patch) {
+  async mutate(host, ref, patch) {
     const chartRef = chartRefOf(ref)
     const cur = host.charts.read(chartRef)
     if (!cur) throw fail('that chart is no longer on the board')
     const label = cur.label
-    // hide-all alone: lifted by a "show", put back by that show's Undo. Nothing in the settings changes.
-    if (patch.rehide && !patch.undo) {
-      await setHideAll(host, chartRef, true)
-      return { lines: [`Hid every indicator and Volume on ${label} again.`], undoData: null }
-    }
-    if (patch.lift && !patch.change) {
-      await setHideAll(host, chartRef, false)
-      return { lines: [LIFT_LINE(label)], undoData: { lifted: true, token: null } }
-    }
     const ctx = mutationCtx(host, chartRef)
     // ⭐ the chart's STORED pref (null when it stores nothing) is the change's restore point, so an Undo with nothing
     // changed since puts back exactly what was stored, not the effective settings (docs/indicators/AGENT-HANDOFF-EXACT-UNDO-2026-10-30.md)
@@ -428,10 +441,8 @@ export const indicatorEditsKind = {
       mentioned = [...mentioned, ...r.instanceIds.map(id => ({ chartRef, instanceId: id }))].slice(-48)
     }
     if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
-    if (patch.rehide || patch.lift) await setHideAll(host, chartRef, !!patch.rehide)
     // (`note`: what a capability adds to the receipt that the mutation cannot know, e.g. which saved template it came from)
-    const lines = [receiptLine(done.receipt, label), ...(patch.change?.note ? [patch.change.note] : []), ...(patch.lift ? [LIFT_LINE(label)] : [])]
-    return { lines, undoData: patch.lift ? { lifted: true, token: done.undo || null } : done.undo || null }
+    return { lines: [receiptLine(done.receipt, label), ...(patch.change?.note ? [patch.change.note] : [])], undoData: done.undo || null }
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
   landed: () => true,
