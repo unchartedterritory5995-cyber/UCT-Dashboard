@@ -116,7 +116,22 @@ _SECONDS_PER_DAY = 86_400.0
 #: document (owner decision A, 2026-10-06). A semantics-2 record therefore lives
 #: under its own key and can never be read as, merge with, or overwrite the
 #: semantics-1 record of the same tree; existing rows keep their bare hash.
-_HASH_RE = _defs.RESULT_IDENTITY_RE
+class _IdentityShape:
+    """A record key is a tree's result identity (`user_definitions.RESULT_IDENTITY_RE`) OR a stored
+    runtime document's handle (`runtime_definitions.HASH_PREFIX` + 64 hex), the very key the scan
+    lanes file the same document under (W5-T16 r1, one rule). The prefix is READ, never retyped."""
+
+    def match(self, value: Any):
+        if _defs.RESULT_IDENTITY_RE.match(value):
+            return True
+        from api.services import runtime_definitions as _rt
+        prefix = _rt.HASH_PREFIX
+        if value.startswith(prefix) and re.fullmatch(r"[0-9a-f]{64}", value[len(prefix):]):
+            return True
+        return None
+
+
+_HASH_RE = _IdentityShape()
 
 #: ⛔ ONE TIMEFRAME VOCABULARY, NOT TWO. Read off the ledger rather than
 #: re-declared, because the failure this guards is a second spelling of one
@@ -613,23 +628,31 @@ RUNTIME_REFUSALS: dict[str, str] = {
 RUNTIME_WARMUP_GUARD = "runtime:warmup-unreported"
 
 
+def _service_tf(label: str) -> str:
+    """The bars-store CODE the runtime service accepts for a record's product label (`1D` -> `D`).
+    The inverse of `ledger._BARS_STORE_TF_KEYS`, derived from it and never retyped."""
+    for code, name in ledger._BARS_STORE_TF_KEYS.items():
+        if name == label:
+            return code
+    raise ValueError(f"the rule record has no bars-store code for timeframe {label!r}")
+
+
 def record_runtime_pass(rev: int, tf: str, sym: str, *, row: Mapping, plot_key: str,
                         bars: Sequence[dict], params: Optional[Mapping] = None,
                         column_fn: Any = None, at: Optional[float] = None) -> dict:
     """The runtime-lane twin of `record_pass` (W5-T16, design 5.1): evaluate a STORED RUNTIME
     DOCUMENT's plot over `bars` through the server lane and record what it said.
 
-    * `def_hash` is DERIVED from the stored document (`runtime_definitions.handle`, minus its
-      `runtime:` namespace prefix so it is a result identity); there is no `def_hash` parameter.
+    * `def_hash` is DERIVED from the stored document (`runtime_definitions.handle`, the same
+      `runtime:sha256:` key the scan lanes file it under); there is no `def_hash` parameter.
     * The run goes through `runtime_server_lane.runtime_column_fn(row, plot_key, "record")` (or the
       `column_fn` a test hands in), so the verdict, admission and transport questions are asked on
       this call. A `ServerLaneWithheld` is NOT raised: nothing is recorded and `skipped` carries the
       lane's own `guard: sentence`.
     * The WARM-UP PAD is the run's own: the column the lane returns carries `.warmup`
       (`{"withheldBars": n}`, the runtime's `runtimeWarmupOf`). A column with no usable warm-up is
-      never guessed at: nothing is recorded and `skipped` is `RUNTIME_WARMUP_GUARD`. (Schema gap as
-      built: `pine_runtime_client.JobResult` carries no warm-up, so the shipped lane fn returns none
-      and this refuses until the protocol reports it.)
+      never guessed at: nothing is recorded and `skipped` is `RUNTIME_WARMUP_GUARD`.
+    * The service is asked in the bars-store CODE (`D`), not the record's label (`1D`): `_service_tf`.
     * The forward-only origin rule is `record_evaluation`'s, unchanged.
 
     Returns the same dict as `record_pass`."""
@@ -638,9 +661,7 @@ def record_runtime_pass(rev: int, tf: str, sym: str, *, row: Mapping, plot_key: 
     definition = row.get("definition") if isinstance(row, Mapping) else None
     if not runtime_definitions.is_runtime(definition):
         raise ValueError(f"the rule record refuses this pass: it {RUNTIME_REFUSALS['not_runtime']}")
-    handle = runtime_definitions.handle(definition)
-    prefix = "runtime:"
-    def_hash = handle[len(prefix):] if handle.startswith(prefix) else handle
+    def_hash = runtime_definitions.handle(definition)
     rev, tf_label = _definition_key(def_hash, rev, tf)[1:]
     sym = _symbol(sym)
 
@@ -649,7 +670,7 @@ def record_runtime_pass(rev: int, tf: str, sym: str, *, row: Mapping, plot_key: 
     out = {"def_hash": def_hash, "evaluated": 0, "true": 0, "first_bar_time": None,
            "through_bar_time": None, "recorded": False, "skipped": None}
     try:
-        column = fn(bars, dict(params or {}), tf=tf_label, ticker=sym)
+        column = fn(bars, dict(params or {}), tf=_service_tf(tf_label), ticker=sym)
     except runtime_server_lane.ServerLaneWithheld as exc:
         out["skipped"] = f"{exc.guard}: {exc.sentence}"
         return out

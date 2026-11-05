@@ -29,7 +29,7 @@ def _row(source=SOURCE):
 
 
 ROW = _row()
-HASH = runtime_definitions.handle(ROW["definition"]).split(":", 1)[1]
+HASH = runtime_definitions.handle(ROW["definition"])
 
 
 def _bars(n, start=T0, step=86_400):
@@ -201,16 +201,47 @@ def lane(monkeypatch):
     prc._forget_signing_times()
 
 
-def test_schema_gap_the_shipped_lane_reports_no_warmup_so_the_record_refuses(store, lane):
-    """T11's `runtime_column_fn` returns a plain list and `JobResult` has no warm-up field, so
-    until the protocol reports one every real run is refused by name rather than padded by a guess."""
+def _bars_n(n):
+    return [{"t": T0 + i * 86_400, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.0 + i, "v": 10} for i in range(n)]
+
+
+def test_the_real_lane_records_with_the_runs_own_warmup(store, lane):
+    """End to end through the real client, lane adapter and the T11 fake: the fake's run withholds
+    k bars (NaN in [0,k)); the pass records evaluated == n-k from bar k."""
+    _, fake, make = lane
+    k, n = 3, 8
+    fake.withheld_bars = k
+    fake.script = lambda cols: {"value": [float("nan")] * k + [1.0] * (n - k)}
+    fn = lane_mod.runtime_column_fn(ROW, "value", "record", client_factory=make)
+    bars = _bars_n(n)
+    out = dr.record_runtime_pass(1, "1D", "AAA", row=ROW, plot_key="value", bars=bars, column_fn=fn)
+    assert fake.calls[0]["profile"] == "record"
+    assert out["recorded"] is True and (out["evaluated"], out["true"]) == (n - k, n - k)
+    assert out["first_bar_time"] == bars[k]["t"]
+    assert rows(store) == [(HASH, 1, "1D", "AAA", bars[k]["t"], bars[-1]["t"], n - k, n - k)]
+
+
+@pytest.mark.parametrize("label", sorted(ledger._PRODUCT_TIMEFRAMES))
+def test_the_service_is_asked_in_the_bars_store_code_not_the_record_label(store, lane, label):
     _, fake, make = lane
     fn = lane_mod.runtime_column_fn(ROW, "value", "record", client_factory=make)
-    bars = [{"t": T0 + i * 86_400, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.0 + i, "v": 10} for i in range(5)]
-    out = dr.record_runtime_pass(1, "1D", "AAA", row=ROW, plot_key="value", bars=bars, column_fn=fn)
-    assert len(fake.calls) == 1 and fake.calls[0]["profile"] == "record"
-    assert out["recorded"] is False and out["skipped"].startswith(dr.RUNTIME_WARMUP_GUARD)
-    assert rows(store) == []
+    dr.record_runtime_pass(1, label, "AAA", row=ROW, plot_key="value", bars=_bars_n(4), column_fn=fn)
+    sent = fake.calls[0]["jobs"][0]["tf"]
+    assert ledger._BARS_STORE_TF_KEYS[sent] == label
+    assert sent in ledger._BARS_STORE_TF_KEYS and (label != "1D" or sent == "D")
+
+
+def test_every_record_label_has_exactly_one_code():
+    for label in ledger._PRODUCT_TIMEFRAMES:
+        code = dr._service_tf(label)
+        assert ledger._BARS_STORE_TF_KEYS[code] == label
+
+
+def test_the_runtime_record_key_is_the_scan_lanes_handle(store):
+    assert HASH.startswith(runtime_definitions.HASH_PREFIX)
+    out = run(_bars(3), col([1.0] * 3, {"withheldBars": 0}))
+    assert out["def_hash"] == runtime_definitions.handle(ROW["definition"]) == HASH
+    assert dr.origin(HASH, 1) is not None
 
 
 def test_a_withheld_verdict_through_the_real_lane_records_nothing(store, lane):
