@@ -125,7 +125,9 @@ def test_step_2_runs_hp1_and_the_hp4_control_and_keeps_chromium_out_of_the_gate(
     assert (REPO / "tools" / "pine_runtime_host_parity.mjs").is_file()
     # HP-2/HP-3 (Chromium) and the smoke are NOT gate steps: heavy / need a live service
     assert "pine_runtime_host_parity.py" not in _pine_text()
-    assert "pine_runtime_service_smoke" not in _pine_text()
+    # train (W5-T19 x W5-T9): the LIVE smoke tool is not a gate step; its offline rail
+    # tests/test_pine_runtime_service_smoke.py (no service needed) is, by the every-file rule
+    assert "tools/pine_runtime_service_smoke.py" not in _pine_text()
 
 
 def test_step_3_names_the_engine_identity_file_and_it_exists():

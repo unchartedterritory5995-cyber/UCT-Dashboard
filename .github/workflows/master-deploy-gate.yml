@@ -572,7 +572,7 @@ jobs:
       # merge order T17 before T19), and this gate's own rail.
       - name: Pine runtime - client, codec and composition rails
         run: |
-          /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_client.py tests/test_pine_runtime_codec.py tests/test_pine_runtime_composition.py tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_shared_stamp.py tests/test_pine_runtime_stop_telemetry.py tests/test_pine_runtime_switch_on.py -q -p no:cacheprovider
+          /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_client.py tests/test_pine_runtime_codec.py tests/test_pine_runtime_composition.py tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_result_integrity.py tests/test_pine_runtime_service_smoke.py tests/test_pine_runtime_shared_stamp.py tests/test_pine_runtime_stop_telemetry.py tests/test_pine_runtime_switch_on.py -q -p no:cacheprovider
 
       # 7. Dockerfile agreement: the image's Node pin and VITE_* set equal Dockerfile.web's.
       - name: Pine runtime - the image agrees with Dockerfile.web

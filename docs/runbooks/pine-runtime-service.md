@@ -101,7 +101,7 @@ reversible; section 6 is the rollback.
    `services/pine_runtime/railway.json` (builder DOCKERFILE, healthcheck `/health`, restart ALWAYS).
 4. **Watch paths** (set in the dashboard; they are per-service there): `services/pine_runtime/**`,
    `app/src/components/chart/engine/**`, `app/src/lib/marketClock/**`,
-   `app/src/components/chart/indicators.js`, `app/src/components/chart/builder/authoring/crossContext.json`,
+   `app/src/components/chart/indicators.js`, `app/src/components/chart/timeframes.js`, `app/src/components/chart/builder/authoring/crossContext.json`,
    `app/package*.json`, `app/vite.config.js`, `app/scripts/build-pine-runtime.mjs`.
 5. **Networking.** Generate NO public domain. Private only: `pine-runtime.railway.internal`. The service
    listens dual-stack on `PORT`, default 8080.
