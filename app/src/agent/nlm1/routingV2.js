@@ -104,6 +104,13 @@ export function selectGroupsV2(message, opts = {}) {
   const known = new Set(GROUPS.map(g => g.id))
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   const followUps = [...new Set([...(opts.pendingActions || []), ...(opts.recentActions || [])].map(groupOfAction).filter(Boolean))]
+  // D1.1: ANY undo signal (its words or its vocabulary) offers Undo — add-only, one action (#766's rule)
+  // ⛔ …and never its index. The undo group's document is its own description, and in a document that small the words that
+  // carry the score are the generic ones: "last" alone scored 1.91 ("when did nh/nl last go negative", "last earnings date"),
+  // past the floor, where "undo" itself scores 0.58. So Undo was read from a question, and the question counted as recognised.
+  // Without a signal the group has no score to rank on.
+  const undoSignal = known.has('undo') && ((sc.vocab.undo || 0) > 0 || wordsSelect('undo', message))
+  if (!undoSignal) delete scores.undo
   // CONTEXT: a short follow-up to the last change ("make it blue" after an indicator was added) — the last change's
   // RELATED groups (vocabulary.json `related`) get CONTEXT_W on top of whatever the message's own words gave them, and
   // may be selected on that evidence alone
@@ -130,8 +137,6 @@ export function selectGroupsV2(message, opts = {}) {
   // D1.1 (held-out, AUDIT 11-04): v2 recognising a message v1 did not, on evidence short of decisive, is UNCERTAIN — the
   // page's own controls (charts) stay in its selection, as v1's fallback puts them first
   const uncertain = !v1.matched && matched && top < k.STRONG
-  // D1.1: ANY undo signal (its words, its vocabulary, its index) offers Undo — add-only, one action (#766's rule)
-  const undoSignal = known.has('undo') && ((sc.vocab.undo || 0) > 0 || (sc.lex.undo || 0) >= k.STRONG_FLOOR || wordsSelect('undo', message))
   const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong,
     v1: v1.matched ? v1Own : null, v1Matched: v1.matched, v1Soft: v1.soft || [], uncertain, undoSignal }
   if (!matched) return { ...v1, ...diag }
