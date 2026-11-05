@@ -2493,7 +2493,7 @@ export default function NoteEditorPage({
   }, [])
   const onVoiceNoteSaved = useCallback((created) => {
     if (!created?.id) return
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+    invalidateNoteViews({ tags: true })   // S6: the one note-views helper (fix round 2, N1's twins)
     setUploadToast({ message: `Saved as a new note: “${created.title || 'Voice note'}”`, tone: 'success' })
   }, [])
   // ── Wave 11 lane 11D: the trade-plan canvas ───────────────────────────────
@@ -2534,7 +2534,7 @@ export default function NoteEditorPage({
         live.chain().focus().insertContent([
           { type: 'noteLink', attrs: { noteId: created.id } }, { type: 'text', text: ' ' },
         ]).run()
-        globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+        invalidateNoteViews({ tags: true })   // S6: the one note-views helper (fix round 2)
         setUploadToast({ message: `Trade plan created and linked: “${created.title}”. Open it from the link.`, tone: 'success' })
       } else if (created?.id) {
         setUploadToast({ message: `Trade plan created: “${created.title}”. This note could not take the link.`, tone: 'error' })
@@ -4562,11 +4562,8 @@ export default function NoteEditorPage({
         // P2 Tier 3 final fix I1: a copy, so the server starts its check-ins unpicked.
         isCopy: true,
       })
-      // Same predicate NotebookTab's own refreshSidebarCounts uses -- the
-      // sidebar's note lists (All notes/Recents/per-folder) are OTHER
-      // components' SWR hooks, unreachable from here except through the
-      // shared global cache.
-      globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+      // The one note-views helper (S6): every list, count and the folder tree, never this editor's note.
+      invalidateNoteViews({ tags: true })
       setSearchParams((prev) => applyTargetToParams(prev, { noteId: created.id, depth: 'note' }))
     } catch (e) {
       console.error('[notebook] duplicate failed', e)

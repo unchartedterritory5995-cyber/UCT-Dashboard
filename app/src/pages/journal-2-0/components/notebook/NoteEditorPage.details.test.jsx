@@ -427,3 +427,19 @@ describe('S6: a move from the editor revalidates the note views', () => {
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith())
   })
 })
+
+// Fix round 2 (re-review N1): Duplicate kept its own `/api/j2/notes*` predicate -- a second authority
+// that revalidated the open note under its editor and missed the folder tree. It uses the helper.
+describe('S6: Duplicate revalidates through the one helper', () => {
+  it('a duplicate calls invalidateNoteViews({ tags: true })', async () => {
+    invalidateSpy.mockClear()
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init = {}) => (String(url) === '/api/j2/notes' && init.method === 'POST'
+      ? { ok: true, status: 200, json: async () => ({ note: { id: 'n2', title: 'Copy of A plain note' } }) }
+      : base(url, init)))
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Duplicate note' }))
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ tags: true }))
+  })
+})
