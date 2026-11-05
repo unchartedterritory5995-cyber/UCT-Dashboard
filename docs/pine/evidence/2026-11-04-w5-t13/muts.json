@@ -60,16 +60,16 @@
   "        if t is None:\n"
  ],
  [
-  "M11 prime ignores the server-lane admission",
+  "M11 r1: prime ignores the one public admission",
   "api/services/alert_user_series.py",
-  "        if runtime_definitions.server_lane_refusal(row, lane=RUNTIME_LANE) is not None:\n            continue\n",
-  ""
+  "                   if rsl.admission(row, plot, RUNTIME_LANE) is None]\n",
+  "                   if True]\n"
  ],
  [
-  "M12 prime ignores the stored verdict",
-  "api/services/alert_user_series.py",
-  "        if user_definitions.engine_withheld_reason(row):\n            continue\n",
-  ""
+  "M12 r1: runtime plot follows the forming rollback",
+  "api/services/indicator_alert_evaluator.py",
+  "    resolved = (\"closed\" if _aus.runtime_window_for_alert(alert) is not None\n",
+  "    resolved = (\"closed\" if False\n"
  ],
  [
   "M13 no batch: one request per alert",
@@ -166,5 +166,17 @@
   "api/services/alert_user_series.py",
   "        return (str(def_id), version, job.ticker,",
   "        return (str(def_id), None, job.ticker,"
+ ],
+ [
+  "M29 r1: T11 r2 finite warm-up check removed (T11 file)",
+  "api/services/pine_runtime_client.py",
+  "            if any(v == v for v in col[:wb]):\n",
+  "            if False:\n"
+ ],
+ [
+  "M30 r1: NaN reaches the alert column",
+  "api/services/alert_user_series.py",
+  "            out[i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None\n",
+  "            out[i] = v\n"
  ]
 ]

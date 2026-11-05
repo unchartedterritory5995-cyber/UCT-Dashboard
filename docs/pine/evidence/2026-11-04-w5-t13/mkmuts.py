@@ -4,6 +4,7 @@ import json, sys
 A = 'api/services/alert_user_series.py'
 EV = 'api/services/indicator_alert_evaluator.py'
 IAS = 'api/services/indicator_alert_service.py'
+CLIENT = 'api/services/pine_runtime_client.py'   # T11's file: mutated in this worktree only, restored byte-exact
 M = [
     ("M01 server-lane gate not asked", A,
      "    if is_runtime_document(definition):\n        _gate_server_lane(row)\n        return definition\n",
@@ -35,12 +36,12 @@ M = [
     ("M10 duplicate instant not refused", A,
      "        if t is None or (prev is not None and not t > prev):\n",
      "        if t is None:\n"),
-    ("M11 prime ignores the server-lane admission", A,
-     "        if runtime_definitions.server_lane_refusal(row, lane=RUNTIME_LANE) is not None:\n            continue\n",
-     ""),
-    ("M12 prime ignores the stored verdict", A,
-     "        if user_definitions.engine_withheld_reason(row):\n            continue\n",
-     ""),
+    ("M11 r1: prime ignores the one public admission", A,
+     "                   if rsl.admission(row, plot, RUNTIME_LANE) is None]\n",
+     "                   if True]\n"),
+    ("M12 r1: runtime plot follows the forming rollback", EV,
+     "    resolved = (\"closed\" if _aus.runtime_window_for_alert(alert) is not None\n",
+     "    resolved = (\"closed\" if False\n"),
     ("M13 no batch: one request per alert", A,
      "    batch = _RUNTIME_BATCH.get()\n    if batch is None:\n        return _runtime_client\n",
      "    batch = _RUNTIME_BATCH.get()\n    if True:\n        return _runtime_client\n"),
@@ -89,6 +90,12 @@ M = [
     ("M28 batch key ignores the version", A,
      "        return (str(def_id), version, job.ticker,",
      "        return (str(def_id), None, job.ticker,"),
+    ("M29 r1: T11 r2 finite warm-up check removed (T11 file)", CLIENT,
+     "            if any(v == v for v in col[:wb]):\n",
+     "            if False:\n"),
+    ("M30 r1: NaN reaches the alert column", A,
+     "            out[i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None\n",
+     "            out[i] = v\n"),
 ]
 json.dump([list(m) for m in M], open(sys.argv[1], 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
 print(len(M))

@@ -492,7 +492,13 @@ def test_a_finite_warm_up_value_never_reaches_the_alert(world):
     the silent-alert sweep names the guard."""
     fake, bars = world["fake"], world["bars"]["D"]
     aid = _alert(VALUE, threshold=0.0)           # armed on an honest run
-    fake.withheld_bars = 5                        # the default script is finite on every bar
+    # a reply whose warm-up covers bars that carry finite values (the engine would have
+    # blanked them; the fake does, so the reply is edited after the run)
+    def finite_warm_up(reply):
+        for r in reply["results"]:
+            r["warmup"] = {"withheldBars": 5}
+        return reply
+    fake.tamper = finite_warm_up
     assert ev._run_one_cycle()["evaluated"] == 0 and world["fires"] == []
     _sweep_far_ahead()
     assert ias.get(aid)["state_detail"].startswith(f"Withheld: {prc.INTEGRITY} — ")
