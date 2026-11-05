@@ -3,7 +3,11 @@ bytes restored. Run from the worktree root: python docs/pine/evidence/2026-11-04
 import os, pathlib, subprocess, sys
 P = pathlib.Path('api/services/definition_record.py')
 orig = P.read_bytes()
-src = orig.decode('utf-8')
+CRLF = b'
+' in orig
+src = orig.decode('utf-8').replace('
+', '
+')
 i = src.index('def record_runtime_pass')
 def at(old, new, start=i):
     k = src.index(old, start)
@@ -29,7 +33,9 @@ M = [
 res = []
 try:
     for name, new in M:
-        P.write_bytes(new.encode('utf-8'))
+        P.write_bytes((new.replace('
+', '
+') if CRLF else new).encode('utf-8'))
         r = subprocess.run([sys.executable, "-B", "-m", "pytest", "tests/test_definition_record_runtime.py", "-q", "-x", "-p", "no:cacheprovider"],
                            capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
         f = [l for l in r.stdout.splitlines() if l.startswith("FAILED")][:1]
