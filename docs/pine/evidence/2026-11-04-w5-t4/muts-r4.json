@@ -1,0 +1,50 @@
+[
+ [
+  "control:noop-comment",
+  "../tools/pine_runtime_host_parity.mjs",
+  "// W5-T19: HP-1 on a V8 other than",
+  "// W5-T19 (noop): HP-1 on a V8 other than"
+ ],
+ [
+  "v8:always-moved",
+  "../tools/pine_runtime_host_parity.mjs",
+  "const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)",
+  "const v8Moved = true"
+ ],
+ [
+  "v8:never-moved",
+  "../tools/pine_runtime_host_parity.mjs",
+  "const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)",
+  "const v8Moved = false"
+ ],
+ [
+  "v8:missing-v8-moves",
+  "../tools/pine_runtime_host_parity.mjs",
+  "const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)",
+  "const v8Moved = v8Was !== v8Now"
+ ],
+ [
+  "v8:any-field-reported",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (ro.has(name) && ds.every((d) => d.field === 'digest')) {\n        reportedLines",
+  "if (ro.has(name)) {\n        reportedLines"
+ ],
+ [
+  "v8:any-case-reported",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (ro.has(name) && ds.every((d) => d.field === 'digest')) {\n        reportedLines",
+  "if (ds.every((d) => d.field === 'digest')) {\n        reportedLines"
+ ],
+ [
+  "v8:summary-uncounted",
+  "../tools/pine_runtime_host_parity.mjs",
+  "${n - rep}/${n} cases equal the committed",
+  "${n}/${n} cases equal the committed"
+ ],
+ [
+  "v8:reported-not-printed",
+  "../tools/pine_runtime_host_parity.mjs",
+  "  lines.push(...reportedLines)\n",
+  "  \n"
+ ]
+]

@@ -442,7 +442,25 @@ export function checkAgainst(expected, got, corpus) {
   for (const [set, sha] of Object.entries(got.barsSha256)) {
     if (expected.barsSha256[set] !== sha) { lines.push(`RED bars "${set}": generator output moved (${sha.slice(0, 12)})`); code = 1 }
   }
-  const diffs = compareRecords(expected.cases, got.records).filter((d) => !inconclusive.includes(d.case))
+  let diffs = compareRecords(expected.cases, got.records).filter((d) => !inconclusive.includes(d.case))
+  // W5-T19: HP-1 on a V8 other than the one the digests were recorded on (the gate runs Node 20 =
+  // V8 11.3; recorded on V8 13.6). ONLY the NAMED report-only cases, ONLY when their sole difference
+  // is the digest, ONLY when the V8 moved. On the recording V8 they are gated like every other case.
+  const v8Was = expected.recordedOn && expected.recordedOn.v8, v8Now = got.recordedOn && got.recordedOn.v8
+  const v8Moved = Boolean(v8Was && v8Now && v8Was !== v8Now)
+  const reportedLines = []
+  if (v8Moved) {
+    const ro = reportOnlyOf(corpus)
+    const byCase = new Map()
+    for (const d of diffs) byCase.set(d.case, [...(byCase.get(d.case) || []), d])
+    const keep = []
+    for (const [name, ds] of byCase) {
+      if (ro.has(name) && ds.every((d) => d.field === 'digest')) {
+        reportedLines.push(`REPORTED ${name}: digest differs from the one recorded on V8 ${v8Was}; this run is V8 ${v8Now}; ${ro.get(name)}`)
+      } else keep.push(...ds)
+    }
+    diffs = keep
+  }
   if (diffs.length) {
     code = 1
     const bumped = !sameIdentity(expected.identity, got.identity)
@@ -453,6 +471,7 @@ export function checkAgainst(expected, got, corpus) {
     const was = expected.recordedOn && expected.recordedOn.v8, now = got.recordedOn && got.recordedOn.v8
     if (was && now && was !== now) lines.push(`NOTE committed on V8 ${was}, this run is V8 ${now}: a last-ulp Math difference between V8 builds reads as this red`)
   }
+  lines.push(...reportedLines)
   const nd = distinguishes(got.records)
   if (nd) { code = 1; lines.push(`RED corpus: ${nd}`) }
   for (const h of hostileFailures(corpus, got.records)) { code = 1; lines.push(`RED hostile ${h}`) }
@@ -461,6 +480,13 @@ export function checkAgainst(expected, got, corpus) {
     lines.push(`INCONCLUSIVE (wall-clock stop, never a verdict): ${inconclusive.join(', ')}`)
   }
   return { code, lines }
+}
+
+/** The HP-1 verdict line. REPORTED cases (a V8 other than the recording V8) are counted apart. */
+export function hp1Summary(r, n) {
+  const rep = r.lines.filter((l) => l.startsWith('REPORTED ')).length
+  if (r.code === 0) return `HP-1 GREEN: ${n - rep}/${n} cases equal the committed digests${rep ? `; ${rep} REPORTED, not gated (V8 differs from the recording V8)` : ''}`
+  return r.code === 2 ? 'HP-1 INCONCLUSIVE' : 'HP-1 RED'
 }
 
 /** --write: refuse to move an existing case's digest unless the engine identity moved. */
@@ -654,8 +680,7 @@ async function main(argv) {
       if (only) for (const k of Object.keys(expected.cases)) if (!got.records[k]) delete expected.cases[k]
       const r = checkAgainst(expected, got, corpus)
       r.lines.forEach((l) => console.log(l))
-      const n = Object.keys(got.records).length
-      console.log(r.code === 0 ? `HP-1 GREEN: ${n}/${n} cases equal the committed digests` : r.code === 2 ? 'HP-1 INCONCLUSIVE' : 'HP-1 RED')
+      console.log(hp1Summary(r, Object.keys(got.records).length))
       return r.code
     }
     return 0
