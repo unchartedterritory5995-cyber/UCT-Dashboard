@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useId, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import {
   buildCaptureIntent, captureBlockers, captureConfirmation, captureDestination,
@@ -6,6 +6,7 @@ import {
 } from '../../lib/capture'
 import { looksLikeUrl, submitThought, thoughtBlockers } from '../../lib/thoughtCapture'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
+import lazyChunk from '../../lib/lazyChunk'
 import styles from './CaptureDialog.module.css'
 
 /** S13 (audit 2026-11-05): the quick thought teaches the alert phrasing the Notebook really reads
@@ -13,6 +14,9 @@ import styles from './CaptureDialog.module.css'
  *  note, that sentence offers a ready "Set alert" chip). Only where that chip exists (`smartChipsEnabled`); off, the
  *  box keeps its plain prompt rather than teach a sentence nothing reads. */
 export const ALERT_EXAMPLE = 'alert me if NVDA closes below 190'
+// Tier 2 fix round 1 (review Important 2): the sentence the placeholder teaches is offered HERE (CaptureAlertOffer),
+// never only once the saved note is reopened. Loaded only when a thought says "alert" with the chip on.
+const CaptureAlertOffer = lazyChunk(() => import('./CaptureAlertOffer'))
 export function thoughtPlaceholder() {
   return smartChipsEnabled() ? `Try: ${ALERT_EXAMPLE}` : 'What are you thinking?'
 }
@@ -229,6 +233,9 @@ export default function CaptureDialog({
                     value={thought} onChange={(e) => setThought(e.target.value)}
                     placeholder={thoughtPlaceholder()} />
           <p className={styles.hint}>Your own words — saved as a note.</p>
+          {smartChipsEnabled() && /\balert\b/i.test(thought) && (
+            <Suspense fallback={null}><CaptureAlertOffer text={thought} /></Suspense>
+          )}
           {looksLikeUrl(thought) && (
             /* Offered, never done for them. */
             <div className={styles.offer} role="status">
