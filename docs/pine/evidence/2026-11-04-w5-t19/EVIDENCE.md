@@ -56,6 +56,12 @@ Alternatives, not implemented:
 3. **Run the gate on Node 24**: bit-equal to the recorded digests, but breaks "same Node as the image" (the image is 20.18.0, V8 11.3), and
    the gate would then not exercise the V8 production runs.
 
+## Coordinator-facing statements (plain)
+(a) **The HP-1 Node 20 choice is a PROPOSAL for the coordinator, not a ruling.** The implemented report-only-on-a-moved-V8 rule leaves one gap: a real
+trig-only regression that changes only the two named digests passes the Node 20 gate; only the pre-merge HP-1 on the recording V8 (Node 24) and the
+Chromium half catch it. Alternatives (per-V8 digests; JS sin/cos in the engine; gate on Node 24) are listed under "The HP-1 / Node 20 decision". Replace the choice if you prefer another.
+(b) **The closure step (step 4) makes the gate RED on any master that lacks W5-T2.** Merge order T2 BEFORE T19 is mandatory.
+
 ## Results
 Real Node v20.18.0 (portable zip unzipped in a scratch dir; no install, PATH only inside the job; the job aborts if `node -v` is not v20.18.0),
 the gate's own commands, tip code at the time of the run, lock `heavy-final3.lock`, log `_resume-2026-11-01/runs/dsk-w5t19-n20b.out`:
@@ -112,6 +118,11 @@ lock `dsk/heavy-final3.lock` (held 39.6 min), code tip `ff5445c33a`, tested on m
 - full chart+hooks vitest: Test Files 1 failed | 1337 passed | 27 skipped (1365); the only failure is the baseline `pollingSites.rail`.
   `hostParity.v8.rail.test.js` (9) and `hostParity.rail.test.js` passed in the run.
 
+
+### final-tip, second run on the final tree (`d174e885fb`)
+Command: same pytest files, label `dsk-w5t19-final2`, lock `dsk/heavy-final3.lock` (held 48.9 min), log `_resume-2026-11-01/runs/dsk-w5t19-final2.out`.
+Gate pytest 46 passed; hygiene clean; rails pytest 64 passed, 0 failed; full chart+hooks vitest: Test Files 1 failed | 1337 passed | 27 skipped (1365); the only failure is baseline `pollingSites.rail`.
+This supersedes the first run's rails failure above.
 
 ## Open items
 - T2 must merge first (above). T9 merge needs the Dockerfile COPY lines (checklist item 3; the rail arms itself).
