@@ -1,4 +1,18 @@
 {
+ "pages/journal-2-0/JournalLayout.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 7px": 1,
+  "font-size 16px": 1,
+  "spacing 10px": 4,
+  "spacing 14px": 4,
+  "spacing 18px": 1,
+  "spacing 20px": 2,
+  "spacing 3px": 1,
+  "spacing 40px": 1,
+  "spacing 6px": 3,
+  "spacing 7px": 5,
+  "spacing 9px": 2
+ },
  "pages/journal-2-0/SharedNotePage.module.css": {
   "border-radius 10px": 1,
   "font-size 18px": 2,
@@ -18,6 +32,11 @@
   "spacing 5px": 1,
   "spacing 6px": 2,
   "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/accounts/AccountSelector.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 2,
+  "spacing 6px": 3
  },
  "pages/journal-2-0/components/connectors/NoteConnectorsTrustStrip.module.css": {
   "spacing 6px": 1
@@ -261,9 +280,6 @@
   "border-radius 2px": 1,
   "border-radius 3px": 3,
   "border-radius 7px": 3,
-  "font-size 10px": 5,
-  "font-size 12.5px": 2,
-  "font-size 15px": 1,
   "font-size 16px": 7,
   "font-size 9px": 2,
   "spacing 10px": 13,
@@ -298,7 +314,6 @@
   "icon-size 12px": 1
  },
  "pages/journal-2-0/components/notebook/GettingStartedList.module.css": {
-  "font-size 13.5px": 3,
   "spacing 10px": 2,
   "spacing 14px": 1
  },
@@ -651,10 +666,7 @@
   "spacing 10px": 1
  },
  "pages/journal-2-0/components/notebook/ResearchHome.module.css": {
-  "font-size 10px": 1,
-  "font-size 13.5px": 2,
   "font-size 16px": 1,
-  "font-size 18px": 1,
   "spacing -1px": 1,
   "spacing 10px": 8,
   "spacing 14px": 1,
@@ -766,9 +778,6 @@
  },
  "pages/journal-2-0/components/notebook/TemplatePicker.module.css": {
   "border-radius 10px": 2,
-  "font-size 10px": 1,
-  "font-size 11.5px": 2,
-  "font-size 13.5px": 1,
   "spacing 10px": 1,
   "spacing 14px": 2,
   "spacing 34px": 1,
@@ -1271,6 +1280,20 @@
   "spacing 1px": 2,
   "spacing 3px": 1,
   "spacing 6px": 11
+ },
+ "pages/journal-2-0/surfaces/TodaySurface.module.css": {
+  "border-radius 10px": 5,
+  "font-size 30px": 1,
+  "spacing 10px": 5,
+  "spacing 11px": 1,
+  "spacing 14px": 8,
+  "spacing 18px": 2,
+  "spacing 1px": 1,
+  "spacing 20px": 1,
+  "spacing 3px": 2,
+  "spacing 6px": 5,
+  "spacing 7px": 2,
+  "spacing 9px": 1
  },
  "pages/journal-2-0/tabs/NotebookTab.jsx": {
   "icon-size 12px": 4,

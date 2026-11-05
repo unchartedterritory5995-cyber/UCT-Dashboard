@@ -1,5 +1,9 @@
 .wrap {
   display: flex;
+  /* Tier 4 fix round 2 (live scorecard): the body's 15 px (tokens.css, app-wide) was what every inheriting line in the
+     Notebook read ("Your notebook is empty.", the link buttons); 15 is off the V1 scale. The Notebook reads 14
+     (--text-lg, body UI). The note body sets its own 17 px reading size and is unchanged. */
+  font-size: var(--text-lg);
   min-height: 70vh;
   position: relative;
   /* Height is set in JS to fill the viewport below the journal chrome; overflow

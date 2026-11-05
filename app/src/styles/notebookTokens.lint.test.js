@@ -49,7 +49,9 @@ export function notebookFiles() {
   const modules = walk(J2).filter((p) => /(Note|Notebook)[^/\\]*\.module\.css$/.test(p) && !isTest(p))
   // Fix round 1 (review 6): the one GLOBAL stylesheet every note body wears (lib/tiptap.js imports it into the editor,
   // the shared page and the version previews). Named, not matched: it is an authority, not a pattern.
-  const named = [join(J2, 'lib', 'noteContent.css')]
+  // Fix round 2 (live scorecard): the Journal Today surface and the Journal shell every Notebook screen sits in.
+  const named = [join(J2, 'lib', 'noteContent.css'), join(J2, 'surfaces', 'TodaySurface.module.css'),
+    join(J2, 'JournalLayout.module.css'), join(J2, 'components', 'accounts', 'AccountSelector.module.css')]
   return [...new Set([...notebook, ...tab, ...modules, ...named])].sort()
 }
 
@@ -66,7 +68,7 @@ function currentTally() {
 const readBaseline = () => JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
 
 /** Fix round 1 (review 2): the per-rule ceiling (see the test that reads it). Only ever lowered. */
-const CEILING = Object.freeze({ 'font-size': 226, 'border-radius': 68, 'transition-all': 0, 'raw-duration': 0, spacing: 1195, 'icon-size': 244 })
+const CEILING = Object.freeze({ 'font-size': 209, 'border-radius': 76, 'transition-all': 0, 'raw-duration': 0, spacing: 1251, 'icon-size': 244 })
 
 describe('VIS-6: Notebook token rail', () => {
   it('covers the Notebook (the walk finds the editor, the tab and its CSS modules)', () => {
@@ -74,6 +76,9 @@ describe('VIS-6: Notebook token rail', () => {
     expect(files).toContain('pages/journal-2-0/components/notebook/NoteEditorPage.module.css')
     expect(files).toContain('pages/journal-2-0/tabs/NotebookTab.module.css')
     expect(files).toContain('pages/journal-2-0/tabs/NotebookTab.jsx')
+    expect(files).toContain('pages/journal-2-0/lib/noteContent.css')
+    expect(files).toContain('pages/journal-2-0/surfaces/TodaySurface.module.css')
+    expect(files).toContain('pages/journal-2-0/JournalLayout.module.css')
     expect(files.length).toBeGreaterThan(150)
     expect(files.some(isTest)).toBe(false)
   })

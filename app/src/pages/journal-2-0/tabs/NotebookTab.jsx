@@ -2779,6 +2779,7 @@ export default function NotebookTab() {
             onCreateThesis={createThesisNote}
             onImport={openImport}
             hasAnyNotes={hasAnyNotes}
+            notesKnown={notesKnown}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
             titleOf={titleOfAnyNote}
