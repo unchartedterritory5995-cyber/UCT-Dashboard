@@ -232,3 +232,65 @@ another session (desktop-verified).
    (sym, tf, definition version), not per (sym, tf) when a group mixes definitions.
 7. The intraday window of 32,768 bars is fetched per group per cycle (design 5.1). Its cost on
    the pod is unmeasured.
+
+## FIX r1 (review NO-GO @a21ad7df75, `_resume-2026-11-01/dsk/reviews/W5-T13.md`)
+
+- **Refresh:**
+  - Merged T11 r1 `1e384edbfe` (merge `ac457b1fc7`).
+  - Per the desktop correction, merged T11 r2 `7df06fe3fd` in place of r1 as the final base. T11 r2
+    verifies the engine's warm-up curtain and refuses a finite warm-up value as
+    `runtime:server-integrity`.
+  - Tested on master `9bfd567837`, unchanged.
+- **B1, warm-up:** there is NO mask in T13; the warm-up check is T11's alone (one authority, desktop
+  ruling). Two alert-level rails cover it:
+  - `test_a_warm_up_bar_is_never_fired_on_prefilled_or_used_as_previous`. With every closed bar in
+    warm-up, nothing fires, the prefill is None and the column is all None. With every bar but the
+    newest in warm-up, a `cross_above` that a leaked "previous" would fire does not fire.
+  - `test_a_finite_warm_up_value_never_reaches_the_alert`. A reply whose warm-up covers finite
+    values is refused as integrity. Nothing fires, and the alert goes to needs-attention with
+    `Withheld: runtime:server-integrity — …`. The prefill raises that guard.
+  - Mutation **M29** removes T11's check (`pine_runtime_client.py`, mutated in this worktree only
+    and restored byte-exact). Its killer is the finite rail. **M30** lets NaN into the alert column;
+    its killer is the warm-up rail.
+- **Item 3, one admission:** `_prime_runtime_batch` now asks T11's public
+  `runtime_server_lane.admission(row, plot, "alert")` per plot. The second copy of the step-2/4
+  chain is deleted.
+  - Rail: `test_the_cycle_asks_the_one_public_admission_and_sends_nothing_it_refuses`, over kill,
+    server-stage and not-graded. `admission(...)` equals the refusal, 0 requests are sent, and the
+    needs-attention detail names the guard.
+  - Killer: **M11** (filter dropped).
+- **Item 4, ruling:** a runtime plot is always judged on the closed lane, even under
+  `ALERT_EVAL_MODE=forming` (`_evaluate_for_cycle`). `diagnose` follows the same rule.
+  - Rail: `test_a_runtime_plot_is_judged_on_the_closed_lane_even_under_the_forming_rollback`. Under
+    the forming mode, the fire's value and its `bar_time` are the closed bar's.
+  - Killer: **M12**.
+  - The diagnose half has no rail of its own. Under the forming mode it reads the newest
+    non-None value, which for a runtime column is the same closed bar: an equivalent survivor.
+- **Red on base:** pre-r1 code (`a21ad7df75`'s 5 code files) on the r2-merged tree, via
+  `redbase.py a21ad7df75 <the 4 r1 rails>`: 1 failed, 5 passed. The forming-rollback rail fails.
+  The other three hold through T11 r2 and the unchanged chain; they are regression rails for the
+  one-authority wiring, with their mutations above.
+  Log: `runs/w5t13r1/redbase.log`.
+- **Mutations:** 30/30 killed, 0 survivors (`runs/w5t13r1/mut.log`, through `heavy-mut.lock`).
+  M11 and M12 replace r0's prime-chain rows; M29 and M30 are new.
+- **Item 5, notes:**
+  - On the first cycle after a restart or an edit (`forget`), the prime batches only registered
+    functions. Each runtime alert re-arms unbatched, so that cycle costs one request per alert
+    (bounded to one cycle; review N2).
+  - The 32,768-bar intraday window is fetched per group per cycle and is unmeasured on the pod
+    (review N4). It must be measured before the stage leaves `admins`.
+  - Also noted: on a runtime edit, `forget(user_id)` also drops that member's formula
+    registrations, which re-prove on the next cycle (review N3, cost only).
+  - The browser preflight still answers `lane`, not `server-lane` (T17 `server_lanes`). This must
+    be closed before the stage is on for members.
+- **Existing alert tests** (the same 103 files plus the rail file, through `heavy-final2.lock`):
+  **16 failed, 3485 passed**. These are exactly the 16 pre-existing failures that fail alone on
+  base too; there is no new failure (`runs/w5t13r1/tip-alerts.log`).
+- **final-tip** on `d7184220d1`, the final code tree (the commit after it is this evidence only):
+  - deploy-gate pytest: rc 0, 46 passed;
+  - hygiene: rc 0;
+  - rails (7 files): rc 0, 352 passed;
+  - vitest: Test Files 2 failed | 1333 passed | 27 skipped; Tests 2 failed | 22512 passed.
+  The 2 failures are the baselines `pollingSites.rail` and `settingsScope.rail`. Logs:
+  `runs/dsk-w5t13r1-final/`, `runs/w5t13r1/final-tip.out`.
+- **Engine bump:** no.
