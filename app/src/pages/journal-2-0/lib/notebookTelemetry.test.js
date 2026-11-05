@@ -3,7 +3,7 @@
 // tests/test_notebook_telemetry_events.py, which reads THIS module's source.
 import { describe, it, expect, vi } from 'vitest'
 import {
-  NOTEBOOK_EVENTS, EVENT_SCHEMAS, CORE_ACTION_EVENTS, sanitizeProps, trackNotebookEvent, startNoteOpenTimer, markFirstLiveWidget,
+  NOTEBOOK_EVENTS, EVENT_SCHEMAS, CORE_ACTION_EVENTS, sanitizeProps, trackNotebookEvent, startNoteOpenTimer, markFirstLiveWidget, __setFirstLiveWidgetForTests,
 } from './notebookTelemetry'
 import { ADAPTERS } from './importer/registry'
 import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
@@ -192,6 +192,7 @@ describe('S20 - the return-metric events carry counts and enums, never a ticker 
     expect(sanitizeProps('trust_incident', { kind: 'my note title' }).kind).toBe('other')
   })
   it('markFirstLiveWidget sends ONCE per browser, and nothing for zero names', () => {
+    __setFirstLiveWidgetForTests(true)
     const store = new Map()
     const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
     const f = vi.fn(() => Promise.resolve({ ok: true }))

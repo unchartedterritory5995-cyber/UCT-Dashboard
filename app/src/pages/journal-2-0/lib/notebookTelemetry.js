@@ -273,6 +273,12 @@ export function trackNotebookEvent(event, props, { fetchImpl } = {}) {
   return clean
 }
 
+// The suites written before S20 pin "this widget renders without a fetch"; the beacon is off there by default
+// (src/test-setup.js), and on in the rails that measure it. Always on in the app.
+let firstLiveOn = true
+/** Tests only. */
+export function __setFirstLiveWidgetForTests(on) { firstLiveOn = on !== false }
+
 /** Where the once-per-browser `first_live_widget` mark lives. */
 export const FIRST_LIVE_WIDGET_KEY = 'uct.nb.firstLiveWidget'
 
@@ -283,7 +289,7 @@ export const FIRST_LIVE_WIDGET_KEY = 'uct.nb.firstLiveWidget'
  * @returns the props sent, or null
  */
 export function markFirstLiveWidget(source, names, { fetchImpl, storage } = {}) {
-  if (!(Number(names) > 0)) return null
+  if (!firstLiveOn || !(Number(names) > 0)) return null
   let store = storage
   try { store = store || globalThis.localStorage } catch { return null }
   if (!store) return null

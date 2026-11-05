@@ -35,7 +35,7 @@ vi.mock('../../../../components/StockChart', async () => {
 })
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchListAllTimeframes: vi.fn() }))
 
-import SetupsBoard, { MOUNT_LIMIT, PAGE_SIZE, emptyBoardText } from './SetupsBoard'
+import SetupsBoard, { FIRST_PLAN, MOUNT_LIMIT, PAGE_SIZE, emptyBoardText } from './SetupsBoard'
 import { distanceText, daysText, planPriceLines } from './BoardCard'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import { Providers } from '../../a11y/fixtures'
@@ -175,12 +175,16 @@ describe('SetupsBoard', () => {
     expect(screen.queryByText(/^Page /)).toBeNull()              // one page: no pager
   })
 
-  it('a member with no drawn plan is told how to start, and no chart mounts', async () => {
+  it('S17 (M7): a member with no drawn plan is asked to draw the first one, and no chart mounts', async () => {
     // with the chart plan ON; with it off the line names no step (honestWhenOff.finFe2.test.jsx)
     latchNotebookFlags({ notebook_setups_board_enabled: true, notebook_chart_plan_enabled: true })
     stub([[/\/api\/j2\/setups-board$/, contractBody('setups-board.empty')]])
     renderBoard()
-    expect(await screen.findByText(/No open setups yet\. Draw an entry line on a chart in a plan note/)).toBeTruthy()
+    expect(await screen.findByText(FIRST_PLAN.title)).toBeTruthy()
+    for (const step of FIRST_PLAN.steps) expect(screen.getByText(step)).toBeTruthy()
+    expect(screen.getByLabelText('Ticker to plan')).toBeTruthy()
+    expect(screen.getAllByRole('link', { name: /^Plan (NVDA|SPY|QQQ)$/ }).map((a) => a.getAttribute('href'))).toEqual([
+      '/journal/notebook/research/NVDA', '/journal/notebook/research/SPY', '/journal/notebook/research/QQQ'])
     expect(h.everMounted).toEqual([])
     expect(screen.queryByRole('alert')).toBeNull()
   })
