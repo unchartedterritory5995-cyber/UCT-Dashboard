@@ -297,6 +297,7 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         // ── arrangement (Batch 5): the board's exact widgets (for exact Undo) and its own
         // pure geometry rules. Nothing here writes; applyBoard below is the one writer.
         raw: all.map(w => JSON.parse(JSON.stringify(w))),
+        groupSyms: widgetOps.groupSyms?.() || {},
         layoutTheme: layout.layoutTheme ?? null,
         grid: widgetOps.grid?.() || null,
         minOf: (w) => widgetOps.minOf?.(w) || { minW: 2, minH: 3 },
