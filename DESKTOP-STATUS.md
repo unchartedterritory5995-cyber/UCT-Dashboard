@@ -491,3 +491,8 @@ Merging to master is still not authorized in this file; the owner approves it di
 - 2026-11-05 12:11 W9-T3a/b 38777a9f47 READY pending review (reader 21 slots, 48 probes, mutations 42/42). W9-T0 9054c0197c re-checking coverageAudit.
 - 2026-11-05 12:21 W9-T0 dd4a99831b: GO-WITH-NOTES. 13/13 counts reproduced independently. The coverageAudit red is the same delta-rsi wall-clock flake; the lane changes no app/ file. Follow-up F18: the only-W9 count includes 6 wall-less false-transfer rows (37 on the 11-02 map), so the EVIDENCE wording needs correcting; three mutation survivors to rail.
 - 2026-11-05 12:22 W9-T3 38777a9f47: NO-GO. B1: the settings check gives a false AGREE with 0 compared when a comment contains 'strategy ('; 4 of 25 corpus strategies affected. Fix r1 sent.
+- 2026-11-05 13:04 TRAIN COMPLETE 1eb3ba53e5 (engine 17). M1/M2/M3 ok apart from master baselines.
+  - Measure-pair against 646dca8cbf: C18 395/395 identical (one camarilla refusal-name change, still refused); probes identical; harness 0 of 336 changed; production census has 0 movers; the runtime lane gains 11 attaches, each named in a lane's EVIDENCE.
+  - Merges clean onto master c5f5dd41b5 (merge-tree).
+  - Engine map in runs/train/ENGINE.md: T4=6, T3=7, W3=8, T7=9, T2=10, T9=11, T8=12, T10=13, T11=14, T12=15, T13=16, T15=17.
+  READY TO LAND. Waiting on the owner's explicit approval of the master merge and production deploy.
