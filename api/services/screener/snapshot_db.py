@@ -170,6 +170,13 @@ COLUMNS = [
     # leaves both NULL. Listed here so filters, sort and column requests can name them.
     # Spec docs/superpowers/specs/2026-10-16-screener-focus-next-design.md section 2.
     "premarket_price", "premarket_chg_pct",
+    # scan primitives (`technicals.scan_primitives`). Additive: NULL on every row until the next
+    # build, and NULL matches no threshold. Definitions live on the filters.
+    "pct_vs_ema9", "pct_vs_ema10", "run_close_ema20", "run_close_sma50", "run_close_sma200",
+    "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
+    "sma200_rising", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run",
+    "vol_down_run", "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age",
+    "low_52w_age",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -227,7 +234,12 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # an unscanned symbol stays NULL -- see `pattern_join`).
         "pattern_engine_vcp", "pattern_engine_flat_base",
         # trader archive counts (display only)
-        "archive_calls_n", "archive_traders_n", "archive_setup_n"}
+        "archive_calls_n", "archive_traders_n", "archive_setup_n",
+        # scan primitives: signed runs, run lengths, ages, and bools stored 0/1
+        "run_close_ema20", "run_close_sma50", "run_close_sma200", "run_ema9_ema20",
+        "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
+        "sma200_rising", "vol_up_run", "vol_down_run", "new_high_lookback",
+        "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age"}
 
 
 # ---------------------------------------------------------------------------
