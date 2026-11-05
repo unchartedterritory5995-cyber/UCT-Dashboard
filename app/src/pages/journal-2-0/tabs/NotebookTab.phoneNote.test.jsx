@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
 const NOTES = [
@@ -530,5 +530,49 @@ describe('B13 -- Folders inside a note opens a sheet (phone)', () => {
     await waitFor(() => expect(sheet()).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(door()))
     expect(localStorage.getItem('uct.j2.nb.sidebarOpen')).toBe(before)
+  })
+})
+
+// Tier 1b fix round 2 (re-review N1, N3, N4).
+describe('the folders sheet is phone-only, single, and closes before it navigates (fix round 2)', () => {
+  afterEach(() => { setWidth(realWidth); localStorage.removeItem('uct.j2.nb.sidebarOpen'); document.body.style.overflow = '' })
+  const sheet = () => screen.queryByRole('dialog', { name: 'Folders' })
+
+  // N1: on a desktop with a note open and the panel collapsed, "Show folders panel" EXPANDS the panel. The sheet
+  // (and its second copy of the tree) is a phone thing.
+  it('N1: 1200 px, a note open, the panel collapsed: "Show folders panel" expands the panel and opens no dialog', async () => {
+    setWidth(1200)
+    localStorage.setItem('uct.j2.nb.sidebarOpen', '0')
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(showFoldersBtn())
+    await waitFor(() => expect(showFoldersBtn()).toBeNull())   // the panel is open: its toggle is gone
+    expect(sheet()).toBeNull()
+    expect(screen.getAllByTestId('folder-sidebar')).toHaveLength(1)
+  })
+
+  // N3: while the sheet is open, the hidden in-page panel is inert (it is still mounted, so nothing is lost), so its
+  // ids, tour anchors and controls are not live twice.
+  it('N3: with the sheet open the in-page panel is inert, and only the sheet\'s copy is live', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(screen.getByRole('button', { name: 'Show folders' }))
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    const inPage = document.getElementById('notebook-folders-panel')
+    expect(inPage.hasAttribute('inert')).toBe(true)
+    expect(sheet().contains(inPage)).toBe(false)
+  })
+
+  // N4: choosing a folder from the sheet closes the sheet FIRST, then leaves the note: the scroll lock is released and
+  // focus lands on a real element (the list's heading), never <body>.
+  it('N4: a folder chosen in the sheet: the sheet closes, the scroll lock is released, focus is on a real element', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(screen.getByRole('button', { name: 'Show folders' }))
+    await waitFor(() => expect(sheet()).not.toBeNull())
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Pick Swing ideas' }))
+    await waitFor(() => expect(sheet()).toBeNull())
+    await waitFor(() => expect(document.body.style.overflow).not.toBe('hidden'))
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body))
+    expect(document.activeElement.isConnected).toBe(true)
   })
 })

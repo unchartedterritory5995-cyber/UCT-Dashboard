@@ -604,11 +604,15 @@ export default function NotebookTab() {
   // FolderSidebar, opened from a Folders button that stays on screen; it never touches the stored sidebar choice.
   const [folderSheet, setFolderSheet] = useState(false)
   const folderSheetBtnRef = useRef(null)
+  // Fix round 2 (re-review N1): the sheet is a PHONE thing. On a tablet or desktop the panel itself is on screen beside
+  // a note, so Folders expands it. Read at the press (the width the member is looking at; this file's other phone
+  // checks read `innerWidth` the same way, and a media hook can be stale at first paint).
   const openFolders = () => {
-    if (noteId) { setFolderSheet(true); return }
+    if (noteId && typeof window !== 'undefined' && window.innerWidth <= 640) { setFolderSheet(true); return }
     if (!sidebarOpen) toggleSidebar()
   }
   useEffect(() => { setFolderSheet(false) }, [noteId])
+  const closeSheetThen = (fn) => (...args) => { setFolderSheet(false); fn?.(...args) }
   // S12: the phone "+" and its sheet (NotebookPlusSheet, on demand).
   const [plusOpen, setPlusOpen] = useState(false)
   const plusRef = useRef(null)
@@ -2438,7 +2442,7 @@ export default function NotebookTab() {
         <button
           type="button"
           className={styles.sidebarToggle}
-          onClick={openFolders}
+          onClick={toggleSidebar}
           aria-label="Show folders panel"
           title="Show folders"
         >
@@ -2452,7 +2456,7 @@ export default function NotebookTab() {
           mounted (so reopening loses nothing), and without `inert` Tab and a screen reader still
           walked its folder tree, All notes and Trash -- controls nobody can see (desktop crawl,
           2026-10-09). */}
-      <div id="notebook-folders-panel" className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined} data-tour-reveal="notebook-sidebar">
+      <div id="notebook-folders-panel" className={styles.sidebarSlot} inert={!sidebarOpen || folderSheet ? true : undefined} data-tour-reveal="notebook-sidebar">
         <div className={styles.sidebarInner}>
           <FolderSidebar {...folderSidebarProps} key={folderRefreshKey} />
         </div>
@@ -3169,8 +3173,14 @@ export default function NotebookTab() {
           sheet is fetched on its first open (lazyDialog), so the first open pays only for the button. */}
       {noteId && (
         <FolderSheet open={folderSheet} onClose={() => setFolderSheet(false)} returnFocusTo={folderSheetBtnRef}>
+          {/* Fix round 2 (N4): every choice in the sheet CLOSES it first, then acts -- a folder or a note leaves this
+              note, which unmounts the sheet and its trigger; closing first lets the Sheet release its lock and hand
+              focus back in order. (N3: the in-page panel is `inert` meanwhile.) */}
           <FolderSidebar {...folderSidebarProps} sidebarOpen onToggleSidebar={() => setFolderSheet(false)}
-            onSearchModeChange={NOOP} />
+            onSearchModeChange={NOOP}
+            onSelectFolder={closeSheetThen(handleSelectFolder)} onSelectTag={closeSheetThen(handleSelectTag)}
+            onOpenNote={closeSheetThen(openNote)} onSelectView={closeSheetThen(handleSelectView)}
+            onSelectAllNotes={closeSheetThen(selectAllNotes)} />
         </FolderSheet>
       )}
       <NotebookPlusFab ref={plusRef} open={plusOpen} onOpen={() => setPlusOpen(true)} />
