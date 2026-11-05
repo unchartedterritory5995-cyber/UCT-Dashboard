@@ -490,3 +490,4 @@ Merging to master is still not authorized in this file; the owner approves it di
   - The C18 measure-pair is running.
 - 2026-11-05 12:11 W9-T3a/b 38777a9f47 READY pending review (reader 21 slots, 48 probes, mutations 42/42). W9-T0 9054c0197c re-checking coverageAudit.
 - 2026-11-05 12:21 W9-T0 dd4a99831b: GO-WITH-NOTES. 13/13 counts reproduced independently. The coverageAudit red is the same delta-rsi wall-clock flake; the lane changes no app/ file. Follow-up F18: the only-W9 count includes 6 wall-less false-transfer rows (37 on the 11-02 map), so the EVIDENCE wording needs correcting; three mutation survivors to rail.
+- 2026-11-05 12:22 W9-T3 38777a9f47: NO-GO. B1: the settings check gives a false AGREE with 0 compared when a comment contains 'strategy ('; 4 of 25 corpus strategies affected. Fix r1 sent.
