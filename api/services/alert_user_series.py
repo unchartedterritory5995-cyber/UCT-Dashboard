@@ -47,11 +47,15 @@ fail loudly instead of being covered by the next one down.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
+import json
 import math
 import os
 import re
 import sys
 import threading
+import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 _logger_name = __name__
@@ -86,6 +90,8 @@ GATES: tuple[str, ...] = (
     "scalar",         # P0 0F: reads a current-only screener scalar (no history)
     "presentation",   # UIE P6: an `hlines` guide plot — drawn at fixed levels, not a value
     "line",           # 2026-11-02: the line this alert watched was deleted; a new line reuses its key
+    "server-lane",    # W5-T13: a runtime document the server lanes do not run (server_lane_refusal)
+    "server-run",     # W5-T13: the runtime service gave no value for the plot on these bars
 )
 
 
@@ -157,6 +163,14 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     # line's alerts). The key resolves, but to a line created after the one this alert
     # was bound to (`user_definitions.line_identity`).
     "line": "watched a line that was deleted; a newer line using the same name is not watched by this alert",
+    # ⭐ W5-T13 -- design 5.2 step 4: `runtime_definitions.server_lane_refusal`'s guard and
+    # sentence follow the fragment verbatim (kill list, graded allowlist, pane stage, server
+    # stage, service configured), so the member reads the chart's own reason.
+    "server-lane": "is a script drawn bar by bar that the server does not run for alerts right now",
+    # ⭐ W5-T13 -- design 5.1: the arm-time run (`_gate_runtime_service`, which replaces
+    # `_gate_cross_lane` for a runtime document) did not answer `ok` for the plot; the
+    # guard and its sentence follow (a run-wide runtime guard, or a `runtime:server-*`).
+    "server-run": "the runtime service gave no value for it on these bars",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -826,6 +840,462 @@ def _with_line(fn: Any, user_id: Any, def_id: str, plot_key: str,
     return fn
 
 
+# ─── W5-T13: A RUNTIME DOCUMENT ON THE ALERT LANE ────────────────────────────
+#
+# ⭐ `docs/pine/SERVER-RUNTIME-DESIGN.md` 5.1 / 5.2 / 3.7. A stored `compute.kind ==
+# "runtime"` document (a Pine script drawn bar by bar) is computed by the separate
+# pine-runtime service, reached ONLY through `runtime_server_lane.runtime_column_fn`
+# (W5-T11), which asks the stored verdict and `runtime_definitions.server_lane_refusal`
+# on EVERY call before any network call. This block adds what the ALERT lane owns:
+# the arm-time run (`_gate_runtime_service`, replacing `_gate_cross_lane`), the value
+# function (`_make_runtime_value_fn`, beside `_make_value_fn`), the bar-time unit the
+# wire carries (`runtime_wire_bars`), the window (`runtime_window_for_alert`) and the
+# cycle's ONE request per (sym, tf) group and definition (`runtime_cycle_batch`).
+#
+# ⛔ v1 EVALUATES CLOSED BARS ONLY (ruling Q3): the bars sent end at the newest CLOSED
+# bar (`indicator_alert_evaluator.closed_bar_index`, the closed lane's own reader) and
+# the client stamps `newestBarIsForming: false`. A bar still forming is never sent, so
+# no value the service returns can describe it; its slot in the column is `None`.
+
+#: The service profile the alert lane runs under (design 3.2 / 3.4: alert priority, 15 s).
+RUNTIME_LANE = "alert"
+
+#: The timeframes whose store key is a calendar DATE (`bars_sqlite`: a ``YYYYMMDD`` int).
+RUNTIME_DATE_TFS = ("D", "W", "M")
+
+#: ⭐ The profile window a runtime document reads (design 5.1: "5,000 D / 32,768
+#: intraday"), because it has no tree whose lookback could be measured. 32,768 is the
+#: runtime's own `HISTORY` limit (`engine/runtime/limits.js` `DEFAULT_LIMITS`), held equal
+#: by a rail, and the service's `bars.n` ceiling (design 3.2).
+RUNTIME_WINDOW_DATE = 5000
+RUNTIME_WINDOW_INTRADAY = 32768
+
+#: The cycle's batch for the (sym, tf) group being evaluated, or None (see
+#: `runtime_cycle_batch`). A context variable, so a batch never leaks into another
+#: thread's evaluation.
+_RUNTIME_BATCH: contextvars.ContextVar = contextvars.ContextVar("alert_runtime_batch", default=None)
+
+
+def is_runtime_document(definition: Any) -> bool:
+    """Is this a runtime-lane document? The store's own reader, never retyped."""
+    from api.services import runtime_definitions
+    return bool(runtime_definitions.is_runtime(definition))
+
+
+def runtime_window(tf: Any) -> int:
+    """How many bars a runtime alert on ``tf`` reads (design 5.1)."""
+    return RUNTIME_WINDOW_DATE if str(tf or "") in RUNTIME_DATE_TFS else RUNTIME_WINDOW_INTRADAY
+
+
+def runtime_output_keys(definition: Mapping[str, Any]) -> list:
+    """The plot keys a runtime document computes (`compute.outputs`, in order). A plot
+    with no output (drawn by the run's objects) is not a value an alert can watch."""
+    outputs = (definition.get("compute") or {}).get("outputs") or {}
+    return [str(k) for k in outputs]
+
+
+def runtime_inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dict:
+    """The script's inputs for one alert: the row's ``params_json`` restricted to the
+    inputs the document DECLARES (``inputs[].key``). The runtime reads the same keys and
+    drops every other one itself (`runtimeInputs.js::runtimeInputValues`), so the
+    restriction moves no value; it keeps an unrelated field a client wrote from being
+    sent (and refused by the client as a malformed input)."""
+    declared = {str(s.get("key")) for s in (definition.get("inputs") or [])
+                if isinstance(s, Mapping) and s.get("key")}
+    return {str(k): v for k, v in dict(params or {}).items() if str(k) in declared}
+
+
+class RuntimeBarsRefused(RuntimeError):
+    """A bar whose time this lane cannot state in the unit the runtime reads."""
+
+    def __init__(self, guard: str, sentence: str):
+        super().__init__(f"{guard}: {sentence}")
+        self.guard = guard
+        self.sentence = sentence
+
+
+def _wire_time(t: Any, tf: str) -> Optional[float]:
+    """One stored bar's ``t`` as the instant the runtime reads, or ``None``.
+
+    ⭐⭐ THE UNIT DECISION (W5-T13). The store keys a date timeframe by a ``YYYYMMDD``
+    INT and an intraday one by unix SECONDS (`bars_sqlite`'s docstring; the evaluator
+    passes it verbatim). The chart hands the runtime a date bar as its ISO date and an
+    intraday bar as unix seconds, and the runtime's clocks place an ISO date at its
+    session's opening instant (`indicators.js::barOpenInstant`). The wire carries numbers
+    only (design 3.2: ``t`` is Float64), so a date bar is sent as THAT instant, computed
+    by the Python twin of the same rule (`indicator_compute.bar_open_instant`), never by
+    a second rule written here. An intraday instant passes the twin's unit gate verbatim.
+    A ``YYYYMMDD`` int sent raw would be read as seconds (August 1970)."""
+    from api.services import indicator_compute
+    if str(tf) in RUNTIME_DATE_TFS:
+        if isinstance(t, str):
+            iso = t[:10]
+        elif isinstance(t, int) and not isinstance(t, bool) and 19000101 <= t <= 99991231:
+            iso = "%04d-%02d-%02d" % (t // 10000, (t // 100) % 100, t % 100)
+        else:
+            return None
+        return indicator_compute.bar_open_instant(iso, str(tf))
+    if isinstance(t, (str, bool)):
+        return None
+    return indicator_compute.bar_open_instant(t, str(tf))
+
+
+def runtime_wire_bars(bars: Sequence[Mapping[str, Any]], tf: str, now: float) -> tuple:
+    """``(wire_bars, k)``: the CLOSED bars ``bars[:k + 1]`` with ``t`` stated as the
+    instant the runtime reads (`_wire_time`), and ``k`` the newest closed bar (``-1``:
+    none). RAISES `RuntimeBarsRefused` (``runtime:server-integrity``) when a bar's time
+    cannot be stated, or two bars state one instant: a hole is never sent as a guess."""
+    from api.services import indicator_alert_evaluator as ev
+    from api.services import pine_runtime_client as prc
+    rows = list(bars or [])
+    k = ev.closed_bar_index(rows, str(tf or ""), now)
+    out = []
+    prev = None
+    for i, b in enumerate(rows[:k + 1]):
+        t = _wire_time(b.get("t"), str(tf or ""))
+        if t is None or (prev is not None and not t > prev):
+            raise RuntimeBarsRefused(
+                prc.INTEGRITY, f"bar {i} has a time ({b.get('t')!r}) this lane cannot state as "
+                f"an instant on the {tf!r} timeframe, so nothing is sent")
+        prev = t
+        out.append({"t": t, "o": b.get("o"), "h": b.get("h"), "l": b.get("l"),
+                    "c": b.get("c"), "v": b.get("v")})
+    return out, k
+
+
+class RuntimeBatch:
+    """The answers one (sym, tf) group's requests returned, one per definition version.
+
+    `runtime_cycle_batch` fills it; every runtime value function evaluated inside the
+    group asks it first (`_BatchedClient`), so the group costs ONE request per stored
+    definition version (design 3.2: a request carries one definition) instead of one per
+    alert. A lookup that misses goes to the service on its own: a miss costs a request,
+    never a value."""
+
+    def __init__(self, sym: str, tf: str, now: float):
+        self.sym, self.tf, self.now = sym, tf, now
+        self.results: dict = {}
+        self.requests = 0
+        self.misses = 0
+
+    @staticmethod
+    def key(def_id: Any, version: Any, job: Any) -> Optional[tuple]:
+        from api.services import pine_runtime_client as prc
+        try:
+            _n, _cols, bars_sha = prc.encode_bars(job.bars)
+            inputs = json.dumps(dict(job.runtime_inputs or {}), sort_keys=True,
+                                separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+        except Exception:  # noqa: BLE001 -- an unencodable job is the client's to refuse
+            return None
+        return (str(def_id), version, job.ticker, job.exchange, job.tf, inputs, bars_sha)
+
+    def lookup(self, def_id: Any, version: Any, job: Any) -> Any:
+        k = self.key(def_id, version, job)
+        hit = self.results.get(k) if k is not None else None
+        if hit is None:
+            return None
+        wanted, result = hit
+        return result if set(job.want) <= wanted else None
+
+
+class _BatchedClient:
+    """A `PineRuntimeClient`-shaped door that answers from the group's batch and sends
+    only what the batch does not hold."""
+
+    def __init__(self, batch: RuntimeBatch):
+        self.batch = batch
+
+    def run(self, *, def_id, version, doc, owner_id, profile, jobs, cache=None):
+        if profile == RUNTIME_LANE and len(jobs) == 1:
+            hit = self.batch.lookup(def_id, version, jobs[0])
+            if hit is not None:
+                return [hit]
+        self.batch.misses += 1
+        return _runtime_client().run(def_id=def_id, version=version, doc=doc, owner_id=owner_id,
+                                     profile=profile, jobs=jobs, cache=cache)
+
+
+def _runtime_client():
+    """The one door (`pine_runtime_client.client_from_env`), read per call."""
+    from api.services import pine_runtime_client as prc
+    return prc.client_from_env()
+
+
+def _client_factory() -> Callable[[], Any]:
+    batch = _RUNTIME_BATCH.get()
+    if batch is None:
+        return _runtime_client
+    return lambda: _BatchedClient(batch)
+
+
+def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
+                           definition: Mapping[str, Any]) -> Callable[..., Optional[float]]:
+    """One admitted (runtime document, plot) -> "what number is this script at now".
+
+    The `_make_value_fn` shape (``fn`` + ``fn.column``), with the symbol the run reads:
+    ``fn(bars, params, tf=None, sym=None)``. Callers reach it through `call_series`, the
+    one place that knows which arguments a value function takes.
+
+    The column is ``len(bars)`` long, ``None`` for na and for every bar after the newest
+    closed one. A refusal (the stored verdict, the server-lane admission, the run, the
+    transport) RAISES `runtime_server_lane.ServerLaneWithheld` by name -- never an
+    all-``None`` column -- so the cycle records nothing and `diagnose` names the guard.
+    `_last_finite` reads the value, exactly as for a formula."""
+    from api.services import pine_runtime_client as prc
+    from api.services import runtime_server_lane as rsl
+
+    address = f"{def_id}.{plot_key}"
+
+    def column(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
+               sym: Optional[str] = None) -> list:
+        if not sym or not tf:
+            raise rsl.ServerLaneWithheld(
+                prc.INTEGRITY, f"{address}: a script drawn bar by bar runs on one symbol and "
+                "timeframe, and this call named none")
+        batch = _RUNTIME_BATCH.get()
+        now = batch.now if batch is not None and (batch.sym, batch.tf) == (sym, tf) else time.time()
+        try:
+            wire, k = runtime_wire_bars(bars, tf, now)
+        except RuntimeBarsRefused as exc:
+            raise rsl.ServerLaneWithheld(exc.guard, exc.sentence) from exc
+        out: list = [None] * len(bars or [])
+        if k < 0:
+            return out
+        run = rsl.runtime_column_fn(row, plot_key, RUNTIME_LANE, client_factory=_client_factory())
+        col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
+        if len(col) != len(wire):
+            raise AssertionError(
+                f"{address}: the runtime column is {len(col)} long for {len(wire)} closed bars")
+        for i, v in enumerate(col):
+            out[i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None
+        return out
+
+    def fn(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
+           sym: Optional[str] = None) -> Optional[float]:
+        return _last_finite(column(bars, params, tf, sym))
+
+    def withheld(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None) -> Optional[str]:
+        """No block-run gates: `meta.blockRuns` is an `ast` stamp (design 5.2 step 5); the
+        runtime decides its own analogue inside the run and answers with a guard."""
+        return None
+
+    column.__name__ = f"_runtime_column_{def_id}_{plot_key}"
+    fn.__name__ = f"_runtime_value_{def_id}_{plot_key}"
+    for f in (fn, column):
+        f.runtime_plot = plot_key                       # type: ignore[attr-defined]
+        f.runtime_row = row                             # type: ignore[attr-defined]
+        f.reads_symbols = ()                            # type: ignore[attr-defined]
+    fn.column = column                                  # type: ignore[attr-defined]
+    fn.withheld = withheld                              # type: ignore[attr-defined]
+    fn.block_runs_refusal = lambda *a, **k: None        # type: ignore[attr-defined]
+    fn.lookback = None                                  # type: ignore[attr-defined]
+    return fn
+
+
+def call_series(f: Any, bars: list, params: Mapping, *, tf: Optional[str] = None,
+                sym: Optional[str] = None) -> Any:
+    """⭐ THE ONE CALL SHAPE for an alert value function or column: a runtime plot takes
+    the timeframe and the symbol (the run reads both), a plot reading another symbol the
+    timeframe (`_symbol_bars`), every other the bars and params alone. The two evaluator
+    lanes and `diagnose` call through here, and the prefill does for a runtime plot, so
+    none can hand a runtime plot a call without the symbol it runs on."""
+    if getattr(f, "runtime_plot", None) is not None:
+        return f(bars, params, tf=tf, sym=sym)
+    if getattr(f, "reads_symbols", None):
+        return f(bars, params, tf=tf)
+    return f(bars, params)
+
+
+def _stored_row(user_id: Any, def_id: str, version: Any = None) -> Optional[dict]:
+    from api.services import user_definitions
+    try:
+        return user_definitions.get(user_id, def_id, version)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def runtime_window_for_alert(alert: Mapping[str, Any]) -> Optional[int]:
+    """The window a RUNTIME alert reads (`runtime_window`), or ``None`` for any other
+    alert. No admission, no bars, no service call: the registered function says it is a
+    runtime plot, or the stored row's lane does."""
+    address = str(alert.get("indicator") or "")
+    if not is_user_address(address):
+        return None
+    fn = USER_FUNCS.get(scoped_key(alert.get("user_id"), address))
+    if fn is not None:
+        return runtime_window(alert.get("tf")) if getattr(fn, "runtime_plot", None) else None
+    def_id, _plot = str(address).partition(".")[::2]
+    row = _stored_row(alert.get("user_id"), def_id, alert.get("def_version"))
+    if row and is_runtime_document(row.get("definition")):
+        return runtime_window(alert.get("tf"))
+    return None
+
+
+def _runtime_fn_is_current(fn: Any, user_id: Any, def_id: str) -> bool:
+    """Is the registered runtime function still the stored definition's newest version?
+
+    ⛔ A runtime save does not `forget` (`user_definitions._save_runtime` appends and
+    returns; the formula `save` forgets on every append), so a function captured at arm
+    would run the OLD script for ever after an edit. Asked on every registry hit: a new
+    version, a changed source or a tombstone drops the entry and re-enters the arm path."""
+    held = getattr(fn, "runtime_row", None) or {}
+    row = _stored_row(user_id, def_id, None)
+    return (bool(row) and row.get("deleted_at") is None
+            and row.get("version") == held.get("version")
+            and row.get("ast_hash") == held.get("ast_hash"))
+
+
+def _gate_server_lane(row: Mapping[str, Any]) -> None:
+    """5.2 step 4 -- `runtime_definitions.server_lane_refusal(row, lane="alert")`, the ONLY
+    admission question a server lane asks of a runtime document, asked before any network
+    call. A refusal is the gate `server-lane` carrying the guard and its own sentence."""
+    from api.services import runtime_definitions
+    try:
+        refused = runtime_definitions.server_lane_refusal(row, lane=RUNTIME_LANE)
+    except Exception as exc:  # noqa: BLE001 -- an admission that cannot answer admits nothing
+        refused = ("runtime:server-unavailable",
+                   f"the server-lane admission could not answer ({type(exc).__name__})")
+    if refused is None:
+        return
+    if not (isinstance(refused, tuple) and len(refused) == 2):
+        refused = ("runtime:server-unavailable", "the server-lane admission gave no reason")
+    guard, sentence = refused
+    exc = AdmissionRefused(
+        "server-lane",
+        f"{row.get('def_id')!r} {REFUSAL_FRAGMENTS['server-lane']} ({guard}: {sentence})")
+    exc.runtime_guard = guard                           # type: ignore[attr-defined]
+    exc.runtime_sentence = sentence                     # type: ignore[attr-defined]
+    raise exc
+
+
+def _server_run_refusal(def_id: str, plot: str, guard: str, sentence: str) -> AdmissionRefused:
+    exc = AdmissionRefused(
+        "server-run", f"{def_id}{'.' + plot if plot else ''}: {REFUSAL_FRAGMENTS['server-run']} "
+        f"({guard}: {sentence})")
+    exc.runtime_guard = guard                           # type: ignore[attr-defined]
+    exc.runtime_sentence = sentence                     # type: ignore[attr-defined]
+    return exc
+
+
+def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any], def_id: str,
+                          bars: list, *, sym: Optional[str], tf: Optional[str],
+                          params: Optional[Mapping]) -> dict:
+    """⭐ REPLACES `_gate_cross_lane` FOR A RUNTIME DOCUMENT (design 5.1). ONE service run
+    on the alert's own bars, symbol, timeframe and inputs must answer ``ok``; its answer
+    per plot is returned (``{"plots": {key: None | Refusal}, ...}``). The host parity the
+    formula lane proves here at 1e-9 is proved for the runtime by HP-3 at build time, not
+    per arm. A run-wide refusal (or a transport failure) RAISES `server-run` with the
+    guard's sentence; a per-output refusal withholds that plot only (`admit_user_definition`)."""
+    from api.services import pine_runtime_client as prc
+    if not bars:
+        raise AdmissionRefused("bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id}")
+    if not sym or not tf:
+        raise _server_run_refusal(def_id, "", prc.INTEGRITY,
+                                  "a script drawn bar by bar is armed on one symbol and timeframe, "
+                                  "and this arm named none")
+    try:
+        wire, k = runtime_wire_bars(bars, tf, time.time())
+    except RuntimeBarsRefused as exc:
+        raise _server_run_refusal(def_id, "", exc.guard, exc.sentence) from exc
+    if k < 0 or not wire:
+        raise AdmissionRefused("bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id} (no bar has closed)")
+    keys = runtime_output_keys(definition)
+    job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire, want=tuple(keys),
+                  runtime_inputs=runtime_inputs_for(definition, params))
+    [res] = _runtime_client().run(def_id=def_id, version=row.get("version"), doc=definition,
+                                  owner_id=row.get("user_id"), profile=RUNTIME_LANE, jobs=[job])
+    run = res.run_refusal()
+    if run is None and res.status != "ok":
+        run = prc.Refusal("*", prc.INTEGRITY, "the job is withheld with no run-wide reason")
+    if run is not None:
+        raise _server_run_refusal(def_id, "", run.guard, run.sentence)
+    return {"plots": {key: res.refusal_for(key) for key in keys}, "compared": len(wire),
+            "rel_tol": None, "digest": res.digest}
+
+
+@contextlib.contextmanager
+def runtime_cycle_batch(alerts: Sequence[Mapping[str, Any]], bars: list, sym: str, tf: str):
+    """⭐ THE CYCLE'S ONE REQUEST PER (sym, tf) GROUP (design 5.1, `indicator_alert_service`
+    row): every ARMED runtime alert of the group on one stored definition version is sent
+    in ONE request over the group's own closed bars -- one job per distinct input set,
+    wanting every plot those alerts watch -- before any of them is evaluated; each alert's
+    value function then reads its answer from the batch (`_BatchedClient`). A request
+    carries one definition (design 3.2), so a group with alerts on two definitions costs
+    two requests; it never costs one per alert.
+
+    ⛔ THE ADMISSION IS ASKED BEFORE THE REQUEST (5.2 steps 2 and 4, the same two
+    authorities `runtime_column_fn` asks per call): a killed, staged-off or engine-refused
+    definition is not sent at all, and each of its alerts is then refused by name, with no
+    network, when it is evaluated. Only a registered (armed) function is batched; a
+    registry miss re-arms on its own path. Nothing here raises into the cycle."""
+    batch = RuntimeBatch(str(sym), str(tf), time.time())
+    try:
+        _prime_runtime_batch(batch, alerts, bars)
+    except Exception:  # noqa: BLE001 -- a failed prime costs requests, never a value
+        import logging
+        logging.getLogger(_logger_name).exception("[alert-user-series] runtime batch prime failed")
+    token = _RUNTIME_BATCH.set(batch)
+    try:
+        yield batch
+    finally:
+        _RUNTIME_BATCH.reset(token)
+
+
+def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]], bars: list) -> None:
+    from api.services import indicator_alert_evaluator as ev
+    from api.services import pine_runtime_client as prc
+    per_def: dict = {}
+    for alert in alerts:
+        address = str(alert.get("indicator") or "")
+        if not is_user_address(address):
+            continue
+        fn = USER_FUNCS.get(scoped_key(alert.get("user_id"), address))
+        row = getattr(fn, "runtime_row", None) if fn is not None else None
+        if not row:
+            continue
+        # a function captured before an edit is not batched: its alert re-arms on the
+        # new version (`value_function_for_alert`), and a stale run would be wasted
+        if not _runtime_fn_is_current(fn, alert.get("user_id"), str(row.get("def_id"))):
+            continue
+        per_def.setdefault((str(row.get("user_id")), str(row.get("def_id")), row.get("version")),
+                           (row, []))[1].append((alert, fn.runtime_plot))
+    if not per_def:
+        return
+    try:
+        wire, k = runtime_wire_bars(bars, batch.tf, batch.now)
+    except RuntimeBarsRefused:
+        return
+    if k < 0 or not wire:
+        return
+    from api.services import runtime_server_lane as rsl
+    for (_owner, def_id, version), (row, members) in per_def.items():
+        # ⭐ FIX r1 -- 5.2 steps 2 and 4 through THE one public question
+        # (`runtime_server_lane.admission`, the chain `runtime_column_fn` asks per call),
+        # per plot; a refused plot is not sent, and an all-refused definition sends nothing.
+        members = [(alert, plot) for alert, plot in members
+                   if rsl.admission(row, plot, RUNTIME_LANE) is None]
+        if not members:
+            continue
+        definition = row.get("definition") or {}
+        jobs: dict = {}
+        for alert, plot in members:
+            inputs = runtime_inputs_for(definition, ev._parse_params(dict(alert)))
+            ikey = json.dumps(inputs, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                              default=str)
+            jobs.setdefault(ikey, (inputs, set()))[1].add(plot)
+        batch_jobs = [prc.Job(job=f"{batch.sym}|{batch.tf}|{i}", ticker=batch.sym, tf=batch.tf,
+                              bars=wire, want=tuple(sorted(plots)), runtime_inputs=inputs)
+                      for i, (inputs, plots) in enumerate(jobs.values())]
+        batch.requests += 1
+        results = _runtime_client().run(def_id=def_id, version=version, doc=definition,
+                                        owner_id=row.get("user_id"), profile=RUNTIME_LANE,
+                                        jobs=batch_jobs)
+        for job, res in zip(batch_jobs, results):
+            key = RuntimeBatch.key(def_id, version, job)
+            if key is not None:
+                batch.results[key] = (set(job.want), res)
+
+
 def lookback_for_alert(alert: Mapping[str, Any]) -> Optional[int]:
     """A USER alert's declared lookback, or ``None`` for a builtin address.
 
@@ -848,6 +1318,11 @@ def lookback_for_alert(alert: Mapping[str, Any]) -> Optional[int]:
     address = str(alert.get("indicator") or "")
     if not is_user_address(address):
         return None
+    # ⭐ W5-T13 -- a RUNTIME document has no tree to measure: the profile's window
+    # (design 5.1: 5,000 D / 32,768 intraday).
+    window = runtime_window_for_alert(alert)
+    if window is not None:
+        return window
     fn = USER_FUNCS.get(scoped_key(alert.get("user_id"), address))
     known = getattr(fn, "lookback", None)
     if isinstance(known, int) and not isinstance(known, bool):
@@ -897,9 +1372,18 @@ def _gate_engine(row: Mapping[str, Any], def_id: str) -> None:
 
 
 def _gate_lane(row: Mapping[str, Any]) -> dict:
-    """It is a FORMULA. `compute.kind` is the lane, and only `ast` is one."""
+    """It is a FORMULA. `compute.kind` is the lane, and only `ast` is one.
+
+    ⭐ W5-T13 -- OR A RUNTIME DOCUMENT THE SERVER LANES RUN. `compute.kind == "runtime"`
+    is admitted when `runtime_definitions.server_lane_refusal(row, lane="alert")` is
+    None (design 5.1); otherwise it is refused at `server-lane` with the guard's own
+    sentence (`_gate_server_lane`). A runtime row stores no requirements (`"[]"`), so
+    asking this before `_gate_requirements` cannot change which door a member reads."""
     definition = row.get("definition") or {}
     compute = definition.get("compute") or {}
+    if is_runtime_document(definition):
+        _gate_server_lane(row)
+        return definition
     if compute.get("kind") != "ast":
         raise AdmissionRefused(
             "lane",
@@ -949,7 +1433,14 @@ def _gate_repaint(row: Mapping[str, Any], definition: Mapping[str, Any]) -> None
       * `repaints`            -> refused outright. An alert whose own fire may
         stop having happened is not an alert.
     """
-    verdicts = row.get("repaint") or {}
+    # ⭐ W5-T13 -- a runtime document's class is RE-DERIVED from its source by the one
+    # reader the store and the client door use (`runtime_definitions.repaint_stamp`,
+    # design 5.1), never read off the stored column or the document.
+    if is_runtime_document(definition):
+        from api.services import runtime_definitions
+        verdicts = runtime_definitions.repaint_stamp(definition)
+    else:
+        verdicts = row.get("repaint") or {}
     for plot_key in sorted(verdicts):
         mode = verdicts[plot_key]
         if mode == REPAINT_CLEAN:
@@ -998,6 +1489,10 @@ def _gate_budget(definition: Mapping[str, Any], def_id: str) -> None:
     budget refusal is the wrong-door defect this module's header is about. They
     propagate as themselves.
     """
+    # ⭐ W5-T13 -- does not apply to a runtime document (design 5.1): its budgets are
+    # the runtime's own instruction limits, enforced inside the service run.
+    if is_runtime_document(definition):
+        return
     from api.services import ast_budget
     compute = definition.get("compute") or {}
     try:
@@ -1175,7 +1670,8 @@ def plot_admissions(def_id: str, definition: Mapping[str, Any]) -> tuple:
 
 def admit_user_definition(user_id: Any, def_id: str,
                           version: Optional[int] = None, *,
-                          bars: list) -> dict:
+                          bars: list, sym: Optional[str] = None, tf: Optional[str] = None,
+                          params: Optional[Mapping] = None) -> dict:
     """Admit a user formula to the alert lane, or RAISE naming the gate.
 
     Three conditions, all MEASURED, none assumed, in a declared order:
@@ -1204,6 +1700,15 @@ def admit_user_definition(user_id: Any, def_id: str,
     definition = _gate_lane(row)
     _gate_requirements(row, def_id)
     _gate_repaint(row, definition)
+    if is_runtime_document(definition):
+        # ⭐ W5-T13 -- `sym`, `tf` and `params` are the alert's own: the arm-time run
+        # (`_gate_runtime_service`) is taken on what the alert will evaluate.
+        admitted, fns = _admit_runtime_definition(user_id, row, def_id, definition, bars,
+                                                  sym=sym, tf=tf, params=params)
+        with _REGISTRY_LOCK:
+            for address, fn in fns:
+                USER_FUNCS[scoped_key(user_id, address)] = fn
+        return admitted
     _gate_budget(definition, def_id)
     report = _gate_cross_lane(definition, def_id, bars)
 
@@ -1226,6 +1731,36 @@ def admit_user_definition(user_id: Any, def_id: str,
     if withheld:
         admitted["withheld"] = withheld
     return admitted
+
+
+def _admit_runtime_definition(user_id: Any, row: Mapping[str, Any], def_id: str,
+                              definition: Mapping[str, Any], bars: list, *,
+                              sym: Optional[str], tf: Optional[str],
+                              params: Optional[Mapping]) -> tuple:
+    """`admit_user_definition`'s runtime half: the one arm-time run, then one function per
+    plot the run answered, returned as ``(admitted, [(address, fn)])`` for
+    `admit_user_definition` -- the ONE writer of `USER_FUNCS` -- to register. A plot the
+    run refused (a per-output guard) is kept under its address as a `server-run` refusal
+    and not registered, so its siblings still arm -- the C45 rule, by the run's own answer."""
+    report = _gate_runtime_service(row, definition, def_id, bars, sym=sym, tf=tf, params=params)
+    addresses: list = []
+    fns: list = []
+    withheld: dict = {}
+    for plot_key, refusal in report["plots"].items():
+        address = f"{def_id}.{plot_key}"
+        if refusal is not None:
+            withheld[address] = _server_run_refusal(def_id, plot_key, refusal.guard, refusal.sentence)
+            continue
+        fn = _make_runtime_value_fn(row, def_id, plot_key, definition)
+        _with_line(fn, user_id, def_id, plot_key, row.get("version"))
+        fns.append((address, fn))
+        addresses.append(address)
+    admitted = {"def_id": def_id, "version": row.get("version"), "rev": row.get("rev"),
+                "ast_hash": row.get("ast_hash"), "addresses": addresses,
+                "compared": report.get("compared"), "rel_tol": None, "digest": report.get("digest")}
+    if withheld:
+        admitted["withheld"] = withheld
+    return admitted, fns
 
 
 def user_value_function(user_id: Any, address: str
@@ -1274,6 +1809,17 @@ def user_value_function(user_id: Any, address: str
     _gate_requirements(row, def_id)
     _gate_repaint(row, definition)
     _gate_budget(definition, def_id)
+    if is_runtime_document(definition):
+        # ⭐ W5-T13 -- the prefill's (and `create`'s line read's) runtime plot. No service
+        # call here: the function asks the verdict and the admission on every call.
+        keys = set(runtime_output_keys(definition))
+        if plot_key not in keys:
+            raise AdmissionRefused(
+                "definition",
+                f"{address!r} {REFUSAL_FRAGMENTS['definition']} — "
+                f"{def_id} computes plots {sorted(keys)}")
+        return _with_line(_make_runtime_value_fn(row, def_id, plot_key, definition), user_id,
+                          def_id, plot_key, row.get("version"))
     keys = {str(p.get("key")) if isinstance(p, dict) else str(p)
             for p in (definition.get("plots") or [])}
     if plot_key not in keys:
@@ -1328,6 +1874,10 @@ def value_function_for_alert(alert: Mapping[str, Any], bars: Optional[list] = No
         return None
     user_id = alert.get("user_id")
     fn = USER_FUNCS.get(scoped_key(user_id, address))
+    if fn is not None and getattr(fn, "runtime_plot", None) is not None \
+            and not _runtime_fn_is_current(fn, user_id, split_user_address(address)[0]):
+        forget(user_id)                 # ⭐ W5-T13: an edited runtime script re-arms
+        fn = None
     if fn is not None:
         return _check_line(alert, address, fn)
     # ⭐ L1 — the re-arm is asked with the row's own params, as the arm was
@@ -1567,6 +2117,10 @@ def user_catalog(user_id: Any) -> list[dict]:
             # away from being a wrong one.
             continue
         pairs = _plots_of(definition)
+        if is_runtime_document(definition):
+            # ⭐ W5-T13 -- a runtime document lists the plots its run computes.
+            outputs = set(runtime_output_keys(definition))
+            pairs = [(p, k) for p, k in pairs if k in outputs]
         if not pairs:
             continue
         plots = [
@@ -1688,10 +2242,13 @@ def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
         # cross-lane 1e-9 proof is taken on these bars; proving equality over 200
         # while the cycle then computes over 700 proves it for a series the alert
         # never evaluates. The tree's own `max_lookback` sizes both.
+        probe = {"indicator": indicator, "user_id": user_id, "tf": tf}
+        window = runtime_window_for_alert(probe)
         bars = ev._fetch_bars_for_alert(
-            sym, tf, ev.bars_wanted(lookback_for_alert(
-                {"indicator": indicator, "user_id": user_id}) or 0))
-    admitted = admit_user_definition(user_id, def_id, None, bars=bars)
+            sym, tf, window if window is not None
+            else ev.bars_wanted(lookback_for_alert(probe) or 0))
+    admitted = admit_user_definition(user_id, def_id, None, bars=bars, sym=sym, tf=tf,
+                                     params=params)
     # ⭐ C45 — THE PLOT BEING ARMED IS THE ONE THAT MUST BE ANSWERABLE. The
     # admission registered every plot the lane can answer and kept the refusal of
     # any it cannot; an alert on one of those is refused here, BEFORE the row is

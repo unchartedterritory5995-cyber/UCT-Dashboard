@@ -435,8 +435,12 @@ def get_current_value(sym: str, tf: str, indicator: str,
             indicator_alert_evaluator.bars_needed_for_alert(
                 {"indicator": address, "params_json": parsed,
                  "user_id": user["id"]}))
-        value = (user_fn(bars, parsed) if user_fn is not None
-                 else indicator_alert_evaluator.address_value(address, bars, parsed))
+        # ⭐ W5-T13 -- a runtime plot runs on this symbol and timeframe.
+        if user_fn is not None and getattr(user_fn, "runtime_plot", None) is not None:
+            value = alert_user_series.call_series(user_fn, bars, parsed, tf=tf, sym=sym.upper())
+        else:
+            value = (user_fn(bars, parsed) if user_fn is not None
+                     else indicator_alert_evaluator.address_value(address, bars, parsed))
     except Exception as exc:  # noqa: BLE001 - a prefill is never worth a 500
         return {"value": None, "detail": f"{type(exc).__name__}: {exc}"}
     label = (alert_user_series.instance_label_for(user["id"], address, parsed)

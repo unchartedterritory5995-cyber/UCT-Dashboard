@@ -43,7 +43,8 @@ test('L1 can fail: every token is caught, an allowlisted line passes only verbat
   for (const benign of ['const offset = 2', 'http_status = 200 // https docs', 'a.processed = true', 'reimport(x)', 'myFetch(x)']) {
     assert.deepEqual(scanBundle(benign, []).hits, [], benign)
   }
-  const entry = L1_ALLOWLIST[0]
+  // train: L1_ALLOWLIST is empty since W5-T2 cut the edges it excused; the matcher is proved on a synthetic entry
+  const entry = { token: 'network', line: 'return fetch(url, { credentials: "include" }).then((r) => {', why: 'synthetic, for the matcher' }
   assert.deepEqual(scanBundle(`    ${entry.line}`, [entry]), { hits: [], stale: [] })
   assert.equal(scanBundle(`${entry.line} // and more`, [entry]).hits.length, 1, 'only the exact line is excused')
   assert.deepEqual(scanBundle('nothing here', [entry]).stale, [entry])
