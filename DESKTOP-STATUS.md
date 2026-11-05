@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 18:18 CT
+updated: 2026-11-04 18:27 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -345,10 +345,14 @@ built (files: api/services/alert_user_series.py, indicator_alert_service.py, ind
 checks: 24 new rails (all red on base); 306 passed on tip across 7 rail files; mutations 28/28 killed. Alert suite (103 files): 3 tip-only failures were intended contract changes, fixed; the other 16 fail alone on base too. final-tip: gate 46, hygiene clean, vitest Tests 2 failed | 22512 passed = pollingSites.rail + settingsScope.rail baselines (DESKTOP-VERIFIED). Stage unset: real admission and client refuse, nothing sent.
 open: real T7 answers withheld until W5-T7b (READY) merges and T11 r1 accepts `warmup`; browser evaluability.js still answers `lane` for a runtime document instead of `server-lane`; _save_runtime does not call forget() and runs no rev migration (T13 guards the first itself); adopt T17's server_lane_composition after T17 merges; the wire cannot carry daily ISO dates; the 32,768-bar intraday fetch cost is unmeasured. PID 20096 is NOT this lane (desktop correction above).
 ## W5-T14 scans (needs T11 READY + T12 on master)
-state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
-branch: feat/pine-w5-t14-scans   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
-
+state: READY            round: r0            updated: 2026-11-04 18:27 CT
+branch: feat/pine-w5-t14-scans   tip: 176b78683f (docs-only over the single code commit 95ce2713b0, the final-tip tree)   base: merge 28a6bd424d = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11)   tested on master: 9bfd567837   worktree: pine-dsk-w5t14   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t14/EVIDENCE.md
+built (files: api/services/screener/scan_runtime.py NEW, scan_evaluator.py, scan_run.py, tests/test_scan_runtime_lane.py): runtime documents go through T11's client in chunks of 50 with admission asked again per chunk; service-withheld symbols count as withheld, never non-hits; a nightly run with any withheld symbol files no receipt and logs a coverage line; daily bars sent as unix seconds at the 09:30 ET open (bar_open_instant = the W5-T7b rule); scan_run._load_definition turns a runtime refusal into gate:not-scannable with the guard's sentence; door helpers live in scan_runtime.py because test_scan_evaluator_off_request_path forbids the request path naming the sweep. Stage unset: rail on the real admission shows nothing swept, run or sent.
+checks: 50 lane rails (47 red on base copies; 3 test the new module directly); mutations 36, 35 killed, the survivor is the no-op control. Existing screener suite MEASURED (desktop asked): the same 68 named files back to back 17:55-18:25 CT, final tree 24 failed / 2666 passed, base copies 24 failed / 2666 passed, identical sets (23 pre-existing + test_screener_live_read_path::test_a_STALE_overlay_row_serves_nightly__the_dead_sweeper_contract, which depends on the hour and fails on base at the same hour). final-tip: gate 46, hygiene clean, lane rails 50, vitest 2 failed = pollingSites.rail + settingsScope.rail baselines.
+decisions to confirm (coordinator): the scan plot is the document's one output (more than one refused by name); the plot must be a 0/1 condition; live mode refuses runtime documents with gate:cadence because the service reads closed bars only (Q3).
+open: real sweeps withhold every symbol until W5-T7b merges and T11 r1 lands; T11 should expose a public admission function (this lane uses its underscore names); T17 needs a result_identity runtime branch; adopt T17's server_lane_composition after T17 merges.
 ## W5-T15 backtest (needs T11 READY + T12 on master)
 state: BUILDING r1 (READY at r0)            round: r0            updated: 2026-11-04 16:21 CT
 branch: feat/pine-w5-t15-backtest   tip: 96340d3186 (docs-only addendum over code tip 560d8e6958, the final-tip tree)   base: merge e710d36d6a = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t15   model: Sonnet
