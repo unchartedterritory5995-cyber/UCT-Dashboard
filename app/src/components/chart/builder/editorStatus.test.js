@@ -794,7 +794,10 @@ describe('the runtime lane\'s own disclosure of the calls it never draws is a wi
   it('the name and the phrases are the door\'s own (memberPaneDefinition.js)', () => {
     const door = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'memberPane', 'memberPaneDefinition.js'), 'utf8')
     expect(door).toContain(`name: '${RUNTIME_UNDRAWN_NOTE}'`)
-    for (const phrase of ["fill: 'a fill between two plots'", "hline: 'a horizontal line'", "plotcandle: 'candles'", "plotbar: 'bars'"]) {
+    // train (EDITOR-E2 x W4-T13): W4-T13 draws plotcandle / plotbar from the run, so the door no longer
+    // lists them in RUNTIME_UNDRAWN_KINDS. editorStatus.js keeps reading the 'candles' / 'bars' phrases
+    // because a runtime document saved before that engine still carries the old note until re-translated.
+    for (const phrase of ["fill: 'a fill between two plots'", "hline: 'a horizontal line'"]) {
       expect(door, phrase).toContain(phrase)
     }
   })
