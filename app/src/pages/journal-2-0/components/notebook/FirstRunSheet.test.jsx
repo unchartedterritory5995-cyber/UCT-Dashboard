@@ -252,6 +252,31 @@ describe('Build my Notebook', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'd1' }))
   })
+
+  // Audit 2026-11-05, S15: once the Notebook has a Today home, Done closes onto it; "Open it" still opens the plan.
+  it('with a Today home, Done closes onto Today', async () => {
+    window.matchMedia = vi.fn((q) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }))
+    const onOpenToday = vi.fn()
+    const { onOpenNote } = mount({ onOpenToday })
+    const d = await screen.findByRole('dialog', { name: FIRST_RUN_COPY.title })
+    await fillAndBuild(d)
+    fireEvent.click(await within(d).findByRole('button', { name: 'Done' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+    expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('with a Today home, "Open it" opens the plan note, not Today', async () => {
+    window.matchMedia = vi.fn((q) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }))
+    const onOpenToday = vi.fn()
+    const { onOpenNote } = mount({ onOpenToday })
+    const d = await screen.findByRole('dialog', { name: FIRST_RUN_COPY.title })
+    await fillAndBuild(d)
+    fireEvent.click(await within(d).findByRole('button', { name: 'Open it' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'd1' }))
+    expect(onOpenToday).not.toHaveBeenCalled()
+  })
 })
 
 describe('Skip', () => {

@@ -46,6 +46,8 @@
  * widget deleted and then brought back by undo). Day-1 return, Day-7 return and the morning open rate need no new
  * event: they are read from `notebook_tab_visit`'s own timestamps. The admin read is
  * api/services/journal_two/notebook_return_metrics.py. Counts, enums and booleans only: never a ticker or a title.
+ * Audit 2026-11-05, S15: `today_opened` (the Today home opened: the ET session it opened in, and whether that open
+ * made the day's note) -- the morning open counted at the surface built for it, beside the visit timestamps.
  */
 
 export const NOTEBOOK_EVENTS = Object.freeze({
@@ -74,6 +76,7 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   FIRST_LIVE_WIDGET: 'first_live_widget',
   RECAP_WRITTEN: 'recap_written',
   TRUST_INCIDENT: 'trust_incident',
+  TODAY_OPENED: 'today_opened',
 })
 
 /**
@@ -229,6 +232,11 @@ export const EVENT_SCHEMAS = Object.freeze({
   trust_incident: {
     kind: oneOf('publish_undone', 'widget_restored'),
     ms: num,
+  },
+  // S15 + S20 "Morning open rate": the Today home opened, in which ET session, and whether it made the day's note.
+  today_opened: {
+    session: oneOf('premarket', 'open', 'after_close', 'closed'),
+    created: bool,
   },
 })
 

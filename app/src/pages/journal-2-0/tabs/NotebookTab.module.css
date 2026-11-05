@@ -769,3 +769,9 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Audit 2026-11-05, S15: a bare Notebook while the member's landing is still being read. It holds the space the
+   landing will fill, so the page does not jump when it arrives. */
+.landingPending {
+  min-height: 60vh;
+}

@@ -75,6 +75,7 @@ import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
+import { HOME_VIEW, LANDING_PREF, TODAY_VIEW, resolveLanding, todayLandingOn } from '../lib/todayHome'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
@@ -154,6 +155,8 @@ const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardVie
 const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
+// Audit 2026-11-05, S15: the Today home, fetched the first time it is shown (lib/todayHome.js is the eager half).
+const TodayHome = lazyView(() => import('../components/notebook/TodayHome'), 'today')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 // Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
 // says there is one to show, so the first-open bytes are unchanged for everyone else.
@@ -862,11 +865,23 @@ export default function NotebookTab() {
   // fix: a deep link into ANY real view mode is "I asked for a view", same as
   // `all`/`tasks` already were.
   const viewParam = searchParams.get('view')
+  // Audit 2026-11-05, S15: a bare Notebook (no note, no filter, no `?view=`) opens on the member's LANDING -- what
+  // they chose ("Open the Notebook on", the `notebook_landing` preference), else the Today home (lib/todayHome.js).
+  // `?view=today` is the Today home and `?view=home` Research Home, whatever the landing. Until the preferences
+  // answer, a bare Notebook shows neither home (`landingPending`): opening Today makes the day's note.
+  const { prefs: landingPrefs, loading: landingPrefsLoading } = usePreferences()
+  const bareNotebook = !noteId && !hasActiveFilters && !viewParam && !isTrashView
+  const landing = resolveLanding(landingPrefs?.[LANDING_PREF])
+  const landingPending = bareNotebook && todayLandingOn() && Boolean(landingPrefsLoading)
+  const isToday = !noteId && !hasActiveFilters && !isTrashView
+    && (viewParam === TODAY_VIEW || (bareNotebook && !landingPending && landing === 'today'))
   const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
-  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+    || (bareNotebook && !landingPending && landing === 'all')
+  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView && !isToday
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'
+      : isToday ? 'Today'
       : isHome ? 'Research home'
         : activeView?.name ? `Saved view: ${activeView.name}`
           : tag ? `Notes tagged ${tag}`
@@ -1186,6 +1201,22 @@ export default function NotebookTab() {
       return next
     }, { replace: false })
   }
+  // Audit 2026-11-05, S15: the Today home and Research Home, each one click away (`?view=today` / `?view=home`).
+  const openHomeView = (view) => {
+    setFolderId(null)
+    setTag(null)
+    setActiveView(null)
+    setTickerFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', view)
+      next.delete('note')
+      next.delete(SIDE_PARAM)
+      return next
+    }, { replace: false })
+  }
+  const openTodayHome = () => openHomeView(TODAY_VIEW)
+  const openResearchHome = () => openHomeView(HOME_VIEW)
   // Wave 6 item 7 — "open to the side". ⛔⛔ The main note is refused (focus
   // goes to it); the side note already there just takes focus. With no note
   // open there is no "beside" yet, so the note opens as the one note.
@@ -1387,7 +1418,7 @@ export default function NotebookTab() {
   // per row/card (list, table) and in the Trash. The board, calendar and graph
   // keep their own gestures — a checkbox there would be a second way to write
   // the same property the card's own control already writes.
-  const selectionOn = !noteId && !isHome && (isShelfView || viewMode === 'list' || viewMode === 'table')
+  const selectionOn = !noteId && !isHome && !isToday && (isShelfView || viewMode === 'list' || viewMode === 'table')
   const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
   const selection = useNoteSelection(visibleIds)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -2293,8 +2324,11 @@ export default function NotebookTab() {
     onRenameView: onRenameView,
     onDeleteView: onDeleteViewRequest,
     onAddStarterViews: addStarterThesisViews,
-    isHome: isHome,
+    isHome: isHome || isToday,
     onSelectAllNotes: selectAllNotes,
+    // Audit 2026-11-05, S15: the Today row, above All notes.
+    isToday: isToday,
+    onSelectToday: openTodayHome,
     onRenameTag: onRenameTag,
     extraFolderActions: extraFolderActions,
     // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
@@ -2308,7 +2342,7 @@ export default function NotebookTab() {
     <div
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
-      data-list-toolbar={!noteId && !isHome ? '' : undefined}
+      data-list-toolbar={!noteId && !isHome && !isToday ? '' : undefined}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
       // D2 (design finding D-1): a phone stacks the folder panel ABOVE the notes,
       // so a `?note=` link painted the folder panel first and put the note's title
@@ -2650,6 +2684,21 @@ export default function NotebookTab() {
               </NotePaneContext.Provider>
             </div>
           )}
+          </>
+        ) : landingPending ? (
+          <div role="status" aria-label="Opening the Notebook" className={styles.landingPending} />
+        ) : isToday ? (
+          // Audit 2026-11-05, S15 (M1): the Today home -- one read, the cards in the session's order.
+          <>
+          {repairNotice}
+          <TodayHome
+            onOpenNote={openNote}
+            onCreateNote={() => createNote()}
+            onSelectAllNotes={selectAllNotes}
+            onOpenResearchHome={openResearchHome}
+            onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
+            onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
+          />
           </>
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
@@ -3180,7 +3229,8 @@ export default function NotebookTab() {
       )}
       {/* S16 (audit 2026-11-05): the 60-second first run, on a member's first visit (no notes yet) and from Settings.
           The gate is small; the sheet is a lazy leaf fetched only when it shows. */}
-      <FirstRunGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} onOpenNote={openNote} />
+      <FirstRunGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} onOpenNote={openNote}
+        onOpenToday={todayLandingOn() ? openTodayHome : undefined} />
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
