@@ -35,6 +35,21 @@ export function planRoleColor(role) {
   return PLAN_ROLE_FALLBACK[role]
 }
 
+/** For a CHART (a canvas, which cannot paint `var()`): a plan role's colour, or the muted ink for a line with no plan
+ *  role (the canvas's plain "Level"). Always a real colour value -- review Critical 1, rail planColors.canvas.test.js. */
+const MUTED_FALLBACK = '#cfcac0' // tokens.css :root --text-muted
+export function planLineColor(role) {
+  const plan = planRoleColor(role)
+  if (plan) return plan
+  try {
+    if (typeof document !== 'undefined' && typeof getComputedStyle === 'function') {
+      const live = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim()
+      if (live) return live
+    }
+  } catch { /* no document to read */ }
+  return MUTED_FALLBACK
+}
+
 /** A chart embed's annotations with every plan-role line in its role's colour. Unchanged (the same array)
  *  when none carries a role, so a chart without a plan re-renders nothing. */
 export function colorPlanAnnotations(annotations) {

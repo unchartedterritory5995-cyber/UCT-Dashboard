@@ -32,7 +32,7 @@
  * frozen-evidence semantics a journal chart snapshot already uses), so a plan
  * written last week shows what the member saw and costs ~100 bytes.
  */
-import { PLAN_ROLE_VAR } from './planColors'
+import { PLAN_ROLE_VAR, planLineColor } from './planColors'
 
 export const CANVAS_NODE = 'tradeCanvas'
 export const CANVAS_FLAG = 'notebook_trade_canvas_enabled'
@@ -81,6 +81,15 @@ export const LEVEL_ROLES = Object.freeze([
 ])
 const ROLE_BY_ID = Object.fromEntries(LEVEL_ROLES.map((r) => [r.id, r]))
 export const roleOf = (role) => ROLE_BY_ID[role] || ROLE_BY_ID.custom
+// ⛔ `roleOf(...).color` is a CSS value (`var(--…)`), for the level chips' `--level-color` only. A chart CANVAS cannot
+// paint it (review Critical 1: the canvas stroked stop and target in an arbitrary colour), so the chart's lines are
+// built here, with real colour values (planLineColor). Rail: lib/planColors.canvas.test.js.
+export function levelAnnotations(levels) {
+  return (levels || []).map((lv) => ({
+    id: `level-${lv.id}`, type: 'horizontal', points: [{ price: lv.price }],
+    color: planLineColor(ROLE_BY_ID[lv.role] ? lv.role : 'custom'), lineWidth: 2, showPriceLabel: true,
+  }))
+}
 const ROLE_ORDER = { entry: 0, stop: 1, target: 2, custom: 3 }
 
 export const STICKY_COLORS = Object.freeze(['gold', 'blue', 'green', 'red', 'purple'])
