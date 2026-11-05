@@ -202,7 +202,7 @@ describe('which rows and buttons the library adds (M-3, ruling P3a-T10-R3)', () 
     flags()
     updatesAnswer = NONE
     openManager()
-    expect(await screen.findByRole('button', { name: 'Community' })).toBeInTheDocument()          // control: library on
+    expect(await screen.findByRole('button', { name: 'Template library' })).toBeInTheDocument()          // control: library on
     await waitFor(() => expect(called('GET', /\/template-gallery\/updates$/).length).toBeGreaterThan(0))
     await act(async () => {})
     expect(screen.queryByRole('button', { name: /^Updates/ })).toBeNull()
@@ -270,7 +270,7 @@ describe('the doors open the community library at Styles', () => {
   it('the manager\'s Community button opens the same library', async () => {
     flags()
     openManager()
-    fireEvent.click(await screen.findByRole('button', { name: 'Community' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Template library' }))
     const dialog = await screen.findByRole('dialog', { name: 'Template library' })
     const types = await within(dialog).findByRole('group', { name: 'Filter by type' })
     expect(within(types).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')

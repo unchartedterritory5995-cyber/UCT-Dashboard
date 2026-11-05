@@ -162,7 +162,7 @@ describe('browse', () => {
     const picks = await screen.findByRole('region', { name: 'UCT picks' })
     expect(within(picks).getByRole('heading', { name: PICK.title })).toBeInTheDocument()
     for (const t of LISTED.filter((x) => x.featured)) expect(within(picks).getByRole('heading', { name: t.title })).toBeInTheDocument()
-    const community = screen.getByRole('region', { name: 'Community' })
+    const community = screen.getByRole('region', { name: 'From members' })
     expect(within(community).getByText(/by Alice Trader/)).toBeInTheDocument()
     expect(within(community).getByText(ALICE.description)).toBeInTheDocument()
     expect(within(community).queryByText(PICK.title)).not.toBeInTheDocument()   // a pick is not listed twice

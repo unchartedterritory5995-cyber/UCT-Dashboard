@@ -573,7 +573,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
           )}
           {community.length > 0 && (
             <section className={styles.section} aria-labelledby={`${uid}-community`}>
-              <h4 className={styles.sectionLabel} id={`${uid}-community`}>Community</h4>
+              <h4 className={styles.sectionLabel} id={`${uid}-community`}>From members</h4>
               {renderCards(community)}
             </section>
           )}

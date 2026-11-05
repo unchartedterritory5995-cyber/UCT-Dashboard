@@ -289,7 +289,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     await mutate()
     pendingFocus.current = next ? { type: 'kindRow', id: next.id } : { type: 'addKind' }
     const n = out?.purgedDeletedStyles || 0
-    setStatus(n ? `Kind deleted. ${plural(n, 'template you had deleted', 'templates you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Kind deleted.')
+    setStatus(n ? `Note type deleted. ${plural(n, 'template you had deleted', 'templates you had deleted')} for it ${n === 1 ? 'was' : 'were'} removed for good.` : 'Note type deleted.')
   })
 
   const applyOffer = () => run(async () => {
@@ -374,7 +374,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 {starter.on && (
                   <button type="button" className={`${styles.btn} ${styles.quiet}`} onClick={starter.open}>Starter packs</button>
                 )}
-                {libraryOn && <LibraryDoor label="Community" className={styles.btn} />}
+                {libraryOn && <LibraryDoor label="Template library" className={styles.btn} />}
                 {libraryOn && updates.length > 0 && (
                   <button type="button" className={styles.btn} aria-expanded={showUpdates} aria-controls="js-library-updates"
                     onClick={() => setShowUpdates((v) => !v)}>{`Updates (${updates.length})`}</button>

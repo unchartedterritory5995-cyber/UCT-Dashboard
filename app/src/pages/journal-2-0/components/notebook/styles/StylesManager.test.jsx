@@ -852,7 +852,7 @@ describe('kinds of note', () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText(/Kind deleted\. 2 templates you had deleted for it were removed for good\./)
+    await screen.findByText(/Note type deleted. 2 templates you had deleted for it were removed for good\./)
   })
 
   it('the server’s own answer with wave 11 dark (one deleted style went with the kind) is worded in the singular', async () => {
@@ -862,17 +862,17 @@ describe('kinds of note', () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted. 1 template you had deleted for it was removed for good.')
+    await screen.findByText('Note type deleted. 1 template you had deleted for it was removed for good.')
   })
 
-  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Kind deleted." alone', async () => {
+  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Note type deleted." alone', async () => {
     expect(KIND_DELETED_W11.purgedDeletedStyles).toBe(0)
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED_W11])
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted.')
+    await screen.findByText('Note type deleted.')
     expect(screen.queryByText(/removed for good/)).toBeNull()
   })
 
