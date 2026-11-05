@@ -2640,7 +2640,16 @@ def daily_note_endpoint(
     from api.services.journal_two import note_daily
     body = payload or {}
     try:
-        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
+        # Tier 3b fix round 1 (I3, I9): `seedToday: true` -- the door that MAKES the day's note on an explicit press
+        # (the first run's Build, Today's "Start a fresh one") starts it with the Today home's plan, so the names
+        # the member just typed reach today's plan. Applied only when this call makes the note.
+        seed = None
+        if body.get("seedToday") is True:
+            from api.middleware.auth_middleware import get_user_plan
+            from api.services.journal_two import notebook_today
+            paid = is_paid_user({**user, "plan": get_user_plan(user["id"])})
+            seed = lambda: notebook_today.plan_seed_for(user["id"], paid=paid)  # noqa: E731
+        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"), seed_blocks=seed)
     except note_daily.DailyNoteError as e:
         raise HTTPException(status_code=400, detail=str(e))
     # Wave 10 (10D): an existing daily note stored before the depth cap opens
@@ -2651,14 +2660,19 @@ def daily_note_endpoint(
 
 
 @router.get("/notes/today")
-def notes_today_endpoint(user: dict = Depends(get_current_user_with_plan)) -> dict[str, Any]:
+def notes_today_endpoint(
+    make: int = Query(default=1, ge=0, le=1),
+    user: dict = Depends(get_current_user_with_plan),
+) -> dict[str, Any]:
     """Audit 2026-11-05, S15/S18: the Today home's ONE aggregated read (`notebook_today.py`) -- today's note
     (made from the member's daily template the first time today, ET, through the daily note door), the setups
     near entry, the member's names, what is open from yesterday, on this day, the market line and the session.
     Every section degrades on its own (`null` plus a reason in `reasons`); no vendor or model call is reachable.
+    `?make=0` (fix round 1, I9): never make the day's note (the first run is pending or open); a trashed day's note
+    is never replaced by this read either (I3).
     ⛔ Declared above every `/notes/{note_id}` route, like `/notes/daily`."""
     from api.services.journal_two import notebook_today
-    return notebook_today.get_today(user["id"], paid=is_paid_user(user))
+    return notebook_today.get_today(user["id"], paid=is_paid_user(user), make=bool(make))
 
 
 NOTE_BATCH_EXPORT_MAX = 500
