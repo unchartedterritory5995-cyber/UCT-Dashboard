@@ -63,7 +63,7 @@ import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
 } from '../runtime/runtimeInputs.js'
-import { TEXT_FNS, producesText } from '../runtime/text.js'
+import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
@@ -6759,8 +6759,41 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           return textCall('str.tostring', [lowerExpr(v0, scope)])
         }
+        // ⭐⭐ W4-T11 — `str.format_time(time, format [, timezone])` in the EXCHANGE's
+        // zone (New York) with a literal pattern of the letters `compileTimeFormat`
+        // answers; any other zone or pattern is refused BY NAME, never approximated.
+        if (node.name === 'str.format_time') {
+          const at = locate(node.tok)
+          objectDoorRefuses('`str.format_time` over a value the run computes', at)
+          if ((node.args || []).some((a) => a && a.name)) {
+            throw new RuntimeRefusal('runtime:statement', 'a named argument on `str.format_time`', at)
+          }
+          const given = (node.args || []).map((x) => (x && x.value !== undefined ? x.value : x))
+          if (given.length < 2 || given.length > 3) {
+            throw new RuntimeRefusal('runtime:builtin-args',
+              `\`str.format_time\` takes a time, a pattern and an optional zone, given ${given.length}`, at)
+          }
+          const zone = clockZoneOf(given[2], scope, at, 'str.format_time')
+          if (zone !== 'exchange') {
+            throw new RuntimeRefusal('runtime:clock-zone',
+              '`str.format_time` is answered in the exchange\'s zone (New York) only; another zone is not one '
+              + 'this lane prints exactly', at)
+          }
+          const fc = given[1] && given[1].type === 'string' ? { text: given[1].value } : constantArgOf(given[1], scope)
+          if (fc.frameName) throw frameBoundRefusal(fc.frameName, at, 'is the pattern `str.format_time` prints with')
+          if (typeof fc.text !== 'string' || compileTimeFormat(fc.text) === null) {
+            throw new RuntimeRefusal('runtime:builtin-args',
+              '`str.format_time` prints with a pattern written as text fixed before the first bar, made of '
+              + '`yyyy yy MM M dd d HH H mm m ss s`, quoted text and separators; any other letter is not one '
+              + 'this lane prints exactly', at)
+          }
+          return textCall('str.format_time/ny', [lowerExpr(given[0], scope), str(fc.text)])
+        }
         if (Object.prototype.hasOwnProperty.call(TEXT_FNS, node.name)) {
           const spec = TEXT_FNS[node.name]
+          if (spec.afterDoor === true) {
+            objectDoorRefuses('`' + node.name + '` over a value the run computes', locate(node.tok))
+          }
           for (const arg of node.args) {
             if (arg && arg.name) {
               throw new RuntimeRefusal('runtime:statement',
@@ -6768,13 +6801,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
           }
           const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
-          if (given.length !== spec.args.length) {
+          // ⭐ W4-T11 — an optional trailing argument is a SHORTER entry
+          // (`spec.variants`), never a defaulted one the VM would fill in.
+          const variant = spec.variants && spec.variants[given.length]
+          if (given.length !== spec.args.length && !variant) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` takes ${spec.args.length} argument`
               + `${spec.args.length === 1 ? '' : 's'}, given ${given.length}`,
               locate(node.tok))
           }
-          return textCall(node.name, given.map((x) => lowerExpr(x, scope)))
+          return textCall(variant || node.name, given.map((x) => lowerExpr(x, scope)))
         }
         // ⭐⭐ A SERVED `color.*` IS ADMITTED HERE, for the same reason a served
         // `str.*` is: `callFamily` refuses the whole `color.` namespace as
