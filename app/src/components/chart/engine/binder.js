@@ -225,6 +225,67 @@ function ohlcPayload(bars) {
   return { kind: OHLC_KIND, bars: Array.isArray(bars) ? bars : [] }
 }
 
+// ─── W4-T13 · A CANDLE / BAR FROM FOUR COMPUTED COLUMNS ─────────────────────────────────
+//
+// A document row whose style is `candles` / `ohlcBars` and which names its price columns
+// (`plots[].ohlc`, validated by `defSchema.validateOhlc`) is drawn from the SAME run that computed
+// them: bar i is `{open, high, low, close}` read from the four columns at i, and the colours of its
+// body, wick and border from the colour columns `ohlcColors` names (a packed `0xTTBBGGRR` integer,
+// NaN where the script's colour is `na`). The payload is the one the symbol path hands the series
+// (`ohlcPayload`), so the series, the legend and the last-value tag read it unchanged.
+//
+// ⛔ A BAR WITH ANY NON-FINITE PRICE IS WHITESPACE (`toOhlcPoints`), so an `na` open hides the
+// candle exactly as TradingView draws nothing for it. ⛔ A COLOUR THAT IS `na` IS THE TRANSPARENT
+// ENTRY, never the series colour: the script chose nothing there, so a stand-in would be a colour it
+// never wrote. ⛔ MEMOISED ON THE IDENTITY OF EVERY COLUMN IT READS AND THE CHART'S BARS, so an
+// unchanged run hands the point memo the SAME payload (a fresh object each sync would rebuild the
+// points, and re-set the series data, every second).
+const _computedOhlcMemo = new WeakMap()
+
+function computedOhlcDeclared(plot) {
+  return !!plot && (plot.style === 'candles' || plot.style === 'ohlcBars')
+    && !!plot.ohlc && typeof plot.ohlc === 'object'
+}
+
+/** The PAYLOAD (not the bars) is what is memoised: its identity is what the point memo keys on. */
+export function computedOhlcPayload(plot, cols, bars) {
+  if (!computedOhlcDeclared(plot)) return null
+  const close = cols[plot.key]
+  const read = {
+    o: cols[plot.ohlc.open], h: cols[plot.ohlc.high], l: cols[plot.ohlc.low], c: close,
+  }
+  if (!read.o || !read.h || !read.l || !close) return null
+  const colourCols = {}
+  for (const [part, key] of Object.entries(plot.ohlcColors || {})) {
+    if (cols[key]) colourCols[part] = cols[key]
+  }
+  const sources = [read.o, read.h, read.l, ...Object.keys(colourCols).sort().map((k) => colourCols[k])]
+  const sig = Object.keys(colourCols).sort().join('|')
+  const memo = _computedOhlcMemo.get(close)
+  if (memo && memo.bars === bars && memo.sig === sig && memo.sources.length === sources.length
+      && memo.sources.every((s, i) => s === sources[i])) return memo.payload
+  const packed = { transparency: null }
+  const colourAt = (part, i) => {
+    const col = colourCols[part]
+    if (!col) return undefined
+    return packedPointColour(packed, col[i]) || PACKED_NA_POINT
+  }
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const bar = { t: bars[i].t, o: read.o[i], h: read.h[i], l: read.l[i], c: close[i] }
+    const body = colourAt('body', i)
+    const wick = colourAt('wick', i)
+    const border = colourAt('border', i)
+    if (body !== undefined) bar.color = body
+    if (wick !== undefined) bar.wickColor = wick
+    if (border !== undefined) bar.borderColor = border
+    out[i] = bar
+  }
+  const payload = ohlcPayload(out)
+  _computedOhlcMemo.set(close, { bars, sig, sources, payload })
+  return payload
+}
+
 /** Is this binding payload the coordinated bar shape rather than a column? */
 function isOhlcPayload(v) {
   return !!v && typeof v === 'object' && v.kind === OHLC_KIND
@@ -259,6 +320,11 @@ function toOhlcPoints(payload, adjustTime) {
       continue
     }
     out[i] = { time, open: b.o, high: b.h, low: b.l, close: b.c }
+    // W4-T13 - the colours a COMPUTED candle carries per bar (a symbol's bars carry none, so
+    // theirs are unchanged): the library lets a point's own colours beat the series options.
+    if (b.color !== undefined) out[i].color = b.color
+    if (b.wickColor !== undefined) out[i].wickColor = b.wickColor
+    if (b.borderColor !== undefined) out[i].borderColor = b.borderColor
   }
   return out
 }
@@ -1900,8 +1966,13 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // (the projection, `computeFor`, the memo) is untouched, which is why
         // `MA(QQQ)` and a QQQ line are byte-identical.
         const ohlcBars = ohlcBarsForPlot(def, inst, plotKey)
+        // W4-T13 - …or a row that names its own four columns, drawn from the run.
+        const computedPlot = ohlcBars ? null : (def.plots || []).find((pl) => pl && pl.key === plotKey)
+        const computedBars = computedPlot && computedOhlcDeclared(computedPlot)
+          && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
+          ? computedOhlcPayload(computedPlot, cols, bars) : null
         columns.set(bindingKey(inst.instanceId, plotKey),
-          ohlcBars ? ohlcPayload(ohlcBars) : cols[plotKey])
+          ohlcBars ? ohlcPayload(ohlcBars) : (computedBars || cols[plotKey]))
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
