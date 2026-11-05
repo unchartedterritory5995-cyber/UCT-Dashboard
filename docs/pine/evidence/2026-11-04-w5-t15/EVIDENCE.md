@@ -121,3 +121,7 @@ Merged T11 r2 (`7df06fe3fd`: the client refuses a finite value inside the run's 
   standing rail forbids routers importing that module, so there is no obvious shared home. Both call
   `indicator_compute.bar_open_instant`, the one authority; only the YYYYMMDD->ISO step is duplicated.
   Candidate home if wanted: a `store_time_to_iso` beside `bar_open_instant` (not done; T14's file is not ours).
+- final-tip r2 (tree `d375523120`, `heavy-final2.lock`, 51 min): gate pytest 46 passed; hygiene clean; 10 pytest
+  files (8 backtest + `test_pine_runtime_client`, `test_runtime_server_lane`) 345 passed; vitest chart+hooks
+  2 failed | 1333 passed | 27 skipped (baselines `settingsScope.rail`, `pollingSites.rail`).
+  Log: `_resume-2026-11-01/runs/w5t15r2/final.out`. Engine bump: no.
