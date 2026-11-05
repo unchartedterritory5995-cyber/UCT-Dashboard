@@ -48,7 +48,7 @@ import {
   recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq, connectNotebookDb,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
+import { blockedLabel, unsyncedLabel, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
@@ -4903,6 +4903,23 @@ export default function NoteEditorPage({
   // background revalidation failure while a perfectly good `note` from an
   // earlier successful fetch is still on screen; that case must keep
   // rendering the note, not this error card).
+  // VIS-5 (audit 2026-11-05, issue 16): a note the server says is NOT THERE (404) is said as that, with the
+  // two ways on -- never blamed on the connection. Every other failure keeps its own sentence below.
+  if (!note && String(loadError?.message) === '404') {
+    return (
+      <div className={styles.loadError} role="alert" data-note-missing="">
+        <p>This note doesn't exist or was deleted</p>
+        <div className={styles.loadErrorActions}>
+          <button type="button" className="btn btn-primary" onClick={() => navigateTo('/journal/notebook?view=all')}>
+            Back to All notes
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => navigateTo('/journal/notebook?folder=__trash__')}>
+            Check Trash
+          </button>
+        </div>
+      </div>
+    )
+  }
   if (!note) {
     return (
       <div className={styles.loadError} role="alert">
@@ -5130,7 +5147,7 @@ export default function NoteEditorPage({
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {blockedLabel(durable.persisted)}
           </div>
-        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        ) : durable.unsynced && !isOffline && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {unsyncedLabel(durable.persisted)}
@@ -5150,19 +5167,11 @@ export default function NoteEditorPage({
             {REFUSED_COPY_MESSAGE}
           </div>
         )}
-        {/* ⛔⛔ A DIFFERENT AXIS FROM THE THREE ABOVE — connectivity, not save
-            status. Independent (never else-if'd with the blocked/unsynced/
-            conflict states): a member can be offline AND have an unrelated
-            queued-write problem at the same time, and each fact is honest on
-            its own. Auto-clears the instant `online` fires -- no dismiss
-            state to manage for something that already un-shows itself.
-            Competitive audit finding Accessibility QW-5, 2026-09-22. */}
-        {isOffline && (
-          <div className={styles.saveStatus} role="status">
-            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {OFFLINE_VIEWING_BANNER}
-          </div>
-        )}
+        {/* VIS-5 (audit 2026-11-05, issue 17): offline, the member reads ONE message -- the indicator's pill below,
+            "Offline · saved on this device", in its reserved slot. ⚰️ Three lines used to appear together here
+            (the unsynced line, "Viewing an earlier saved copy — you're offline." and "Couldn't reach the server —
+            … retrying…") and push the header down 26 px. The unsynced line and the retrying line stand down while
+            offline WITH the work committed locally; a save that failed with nothing committed still speaks. */}
         {/* ⛔ Wave 10 F7 (Part A, 5d): the retrying state used to put its whole sentence
             (`friendlySaveError(..., {retrying:true})`, e.g. "Couldn't reach the server —
             your note is unchanged, retrying automatically.") ONLY in the `title` tooltip
@@ -5172,7 +5181,7 @@ export default function NoteEditorPage({
             walk's silent-failure sweep read this as SILENT under a forced-offline autosave
             PUT (`is_sentence` requires 3+ words; "Reconnecting…" is one). The sentence is
             now the VISIBLE text, same as the 'error' branch already did. */}
-        {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        {(saveStatus === 'error' || saveStatus === 'reconnecting') && !(isOffline && durable.unsynced) && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {saveStatus === 'reconnecting'
@@ -5180,7 +5189,7 @@ export default function NoteEditorPage({
               : `Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
           </div>
         )}
-        {/* Audit 2026-11-05, spec S10 (M4): "Saved", "Saving…" or "Offline, kept on this device", always visible,
+        {/* Audit 2026-11-05, spec S10 (M4): "Saved", "Saving…" or "Offline · saved on this device" (VIS-5), always visible,
             read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
             one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
             announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}

@@ -2,7 +2,7 @@
 // NoteEditorPage.
 //   1. The header holds exactly FOUR controls -- Favorite · AI · Share · ⋯ -- and every control on it is inside one of
 //      them (Find, Outline and Move to Trash are in ⋯; the folder is on the line under the title).
-//   2. The indicator says "Saved", "Saving…" or "Offline, kept on this device", read from the editor's save state and
+//   2. The indicator says "Saved", "Saving…" or "Offline · saved on this device" (VIS-5's words), read from the editor's save state and
 //      the outbox (useDurableNote, MOCKED here to hold committed unsent work); it is a polite region mounted EMPTY.
 //   3. Enter in the title puts the caret in the body and types no newline; Shift+Enter goes to the subtitle.
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react'
@@ -119,19 +119,26 @@ describe('2. the Saved indicator', () => {
     expect(saveIndicatorWords({ status: 'saved' })).toBe(SAVED_WORDS)
     expect(saveIndicatorWords({ status: 'dirty' })).toBe(SAVING_WORDS)
     expect(saveIndicatorWords({ status: 'saving' })).toBe(SAVING_WORDS)
+    // VIS-5 (audit 2026-11-05, issue 17): ONE offline message, in the spec's words. It was "Offline, kept on this
+    // device" (S10), beside two more header lines saying the same state three ways; they are reconciled into this.
     expect(saveIndicatorWords({ status: 'saving', offline: true, unsynced: true, persisted: true }))
-      .toBe('Offline, kept on this device')
+      .toBe('Offline · saved on this device')
     // The noun narrows when the platform will not promise retention (Wave Q1's rule).
-    expect(offlineKept(false)).toBe('Offline, kept in this browser')
-    // Offline with nothing unsent: the server has it all.
-    expect(saveIndicatorWords({ status: 'saved', offline: true, unsynced: false })).toBe(SAVED_WORDS)
+    expect(offlineKept(false)).toBe('Offline · saved in this browser')
+    // Offline with nothing unsent: still the ONE offline message (it replaced "Viewing an earlier saved copy").
+    expect(saveIndicatorWords({ status: 'saved', offline: true, unsynced: false, persisted: true }))
+      .toBe('Offline · saved on this device')
+    // Offline, a write only intended (not yet in the outbox): never claimed as saved.
+    expect(saveIndicatorWords({ status: 'dirty', offline: true, unsynced: false })).toBe(SAVING_WORDS)
+    // Offline, a failed save with nothing committed: silent here, the error line speaks.
+    expect(saveIndicatorWords({ status: 'error', offline: true, unsynced: false })).toBe('')
     // Silent where another header line speaks for the state.
     for (const status of ['conflict', 'refused']) expect(saveIndicatorWords({ status })).toBe('')
     expect(saveIndicatorWords({ status: 'saved', blocked: true })).toBe('')
     expect(saveIndicatorWords({ status: 'error' })).toBe('')
   })
 
-  it('is a polite live region, then moves Saved -> Saving… -> Offline, kept on this device', async () => {
+  it('is a polite live region, then moves Saved -> Saving… -> Offline · saved on this device', async () => {
     await renderEditor()
     const el = indicator()
     expect(el).toHaveAttribute('role', 'status')
@@ -144,7 +151,7 @@ describe('2. the Saved indicator', () => {
     DURABLE.override = { unsynced: true, persisted: true }
     onLine = false
     act(() => { window.dispatchEvent(new Event('offline')) })
-    await waitFor(() => expect(indicator().textContent).toBe('Offline, kept on this device'))
+    await waitFor(() => expect(indicator().textContent).toBe('Offline · saved on this device'))
   })
 
   it('is mounted EMPTY, and filled after (a region that arrives holding words is not read)', async () => {
