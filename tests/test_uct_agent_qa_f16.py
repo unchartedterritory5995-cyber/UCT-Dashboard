@@ -106,6 +106,7 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 #: `logic_enabled`, `live_fields` and clock definitions.
 #: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
 #: then report that very change.
+#: move this pin when a reviewed PR intentionally changes api/services/screener
 SCREENER_PIN = "ab52621501fa7261a8d8583a03dba15cd5568890"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
