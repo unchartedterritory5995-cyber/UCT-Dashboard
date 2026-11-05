@@ -72,7 +72,7 @@ def store(tmp_path, monkeypatch):
     # starter allowlist answered "graded" for these synthetic sources.
     # `test_pine_runtime_switch_on.py` rails both doors themselves.
     monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
-    monkeypatch.setattr(rt, "not_graded", lambda source: None)
+    monkeypatch.setattr(rt, "not_graded", lambda source, graded_only=False: None)
     return tmp_path
 
 
