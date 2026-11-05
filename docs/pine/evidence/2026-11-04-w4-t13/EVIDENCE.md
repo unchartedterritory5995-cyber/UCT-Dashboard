@@ -85,3 +85,34 @@ Yes: door outcomes change on the runtime lane (a refusal becomes a served candle
   for candles is a separate ruling.
 - The pane's per-plot Style colour/width controls exist for a candle row but do nothing (the run owns its colours).
 No licence-held text is included.
+
+## Round r1 (review NO-GO @7e05c067bf: B1 HIGH, notes N1-N3)
+
+Merged `origin`'s W4-T12 r1 tip `4e813ca81c` (`git merge --no-ff`, clean). Final code tip `ad22867045`.
+- B1 (a script with both `plotcandle` and `plotbar` crashed the pane): the front end now numbers `group` PER CALL KIND
+  (`candleGroups[callName]`), so the pane's per-kind lists are dense and each row is paired with its own host output and run
+  columns. The pane keys a candle's columns by the role the run names (`byRole`), not by position. Rails
+  (`w4T13CandlePane.test.js`, "a script with both plotcandle and plotbar"): candle+bar, bar+candle, candle+bar+candle and
+  bar+bar+candle each draw the right rows and series with the right per-call data (highs differ per call); the FE rail pins the
+  per-kind `group` numbers. Count mismatch still declines `runtime:output-map` (unchanged code path).
+- N1: `RUNTIME_CANDLE_ROLES` is the one roles list (exported by the front end, pinned by the FE rail; the pane keeps no list, it reads
+  `ro.role`; importing the front end into the pane is refused by `pineRuntimeFrontendGate`, found by the first final-tip, so the pane
+  reads roles off the run's descriptors). `RUNTIME_CANDLE_STYLE` derives from `defSchema.OHLC_DEF_STYLES`. `literalBool` is the single
+  exported helper from T12 r1 (this lane's copy is gone).
+- N2: the binder binds an EMPTY OHLC payload (draws nothing) for a declared candle row whose columns are missing, never the scalar close.
+  Rail: "a declared OHLC row whose columns are missing draws NOTHING".
+- N3: vitest logs are also at `runs/dsk-w4t13b-final2/js.log` (earlier round) and `runs/dsk-w4t13r1b-final/js.log` (this round).
+
+Mutations r1 (all KILLED, run on the final tree, `runs/w4t13b/mut-r1b.log`): X1 global group counter restored (the review's crash; killed by the
+FE per-kind rail and the mixed-order pane rails), X2 binder scalar fallback, X3 roles list swapped, X4 group counter not advanced.
+
+measure-pair r1 (base `pine-dsk-mpbase3` switched to T12 r1 tip `4e813ca81c`, HEAD asserted before and after each side, no mismatch; tip
+`8aa11e6485`, `runs/w4t13b/mp3r1-rt0.log`, `mp3r1-rt1.log`): both lanes C18 audit diff 0 (timing field only), probes diff 0, harness 0 changed
+(`93/103/140` and `111/107/118`). Census lane 0: 4 rows differ (uptrick attach intended; the rest time-budget noise). Lane 1: 17 rows, the same
+set as r0 (every plotcandle/plotbar script moved to a later wall or attached; `uptrick-volatility-adjusted-trail` the only attach flip; the extra
+`market-structure-with-inducements-sweeps-luxalgo` row is translate-budget noise and uses neither call). No census row writes both calls, and the
+last commit (pane keys by role) changes pairing only, so it was not re-measured; the final tree is covered by final-tip.
+
+final-tip r1 on the final tree `ad22867045` (`runs/w4t13b/final-r1b.out`): gate pytest `46 passed`; extra pytest `90 passed`; hygiene clean;
+vitest `Test Files 1 failed | 1337 passed | 27 skipped (1365)`, the one failure the `pollingSites.rail` baseline. (An earlier r1 final-tip on `8aa11e6485` also
+failed `pineRuntimeFrontendGate` for the pane-imports-front-end line; fixed.) Engine bump: yes (unchanged). Open: W4-P1.
