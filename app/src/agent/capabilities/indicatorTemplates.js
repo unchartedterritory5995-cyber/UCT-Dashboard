@@ -12,7 +12,7 @@
 //   indicatorTemplate.save    capture ONE chart's indicators. A same-named template is shown first (confirmIf); Undo puts it back.
 //   indicatorTemplate.delete  always shown first; Undo puts it back.
 //
-// ⛔ THE LIST IS WRITTEN WITH setPrefMerged (host.prefs.merge), never whole: the bar's own rule, so a template another tab
+// ⛔ THE LIST IS WRITTEN WITH setPrefMerged, through host.prefs.merge, never whole: the bar's own rule, so a template another tab
 // just saved survives. Each write re-judges against the list as it stands at that instant, so an overwrite that was approved
 // for one template can never replace a different one that took its name meanwhile.
 
