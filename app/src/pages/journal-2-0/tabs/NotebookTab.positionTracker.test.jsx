@@ -81,7 +81,10 @@ const renderDeepLink = () => render(
   <MemoryRouter initialEntries={['/journal?new=position-tracker']}><NotebookTab /></MemoryRouter>,
 )
 // Every write but telemetry (the Notebook counts a template pick; that is not a note write).
-const writes = () => calls.filter((c) => c.method !== 'GET' && !c.url.startsWith('/api/j2/telemetry'))
+// (Audit 2026-11-05, S5/B3: a template create also ticks the Get started step -- a preference
+// write, a side channel like telemetry, not one of the note's writes.)
+const writes = () => calls.filter((c) => c.method !== 'GET' && !c.url.startsWith('/api/j2/telemetry')
+  && !c.url.startsWith('/api/auth/preferences'))
 const noteCreates = () => calls.filter((c) => c.url === '/api/j2/notes' && c.method === 'POST')
 
 async function opened() {

@@ -45,6 +45,13 @@ def test_the_table_prices_every_verified_model_without_a_key_or_a_ledger():
     assert d["request_bytes_round1"]["claude-haiku-4-5"] > 50_000          # the full deferred-tools catalog rides every call
 
 
+def test_the_request_prices_the_real_screener_section_never_a_stub():
+    assert "screener" not in dry.SAMPLE_CONTEXT
+    text = dry.build_request("claude-haiku-4-5", 0)["messages"][0]["content"]
+    assert len(dry.real_context()["screener"][0]["fields"]) > 4_000
+    assert "market_cap:Market Cap($);price:Price($)" in text and "dollar_volume_1d:" in text and len(text) > 5_000
+
+
 def test_the_worst_case_is_the_ledgers_own_math():
     kw = dry.build_request("claude-haiku-4-5", 0)
     assert kw["tools"][0]["name"] == "tool_search_tool_regex" and kw["messages"][0]["role"] == "user"

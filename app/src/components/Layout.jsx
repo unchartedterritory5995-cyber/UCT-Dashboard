@@ -69,7 +69,7 @@ function usePageTitle() {
     if (path === lastPath.current) return
     lastPath.current = path
 
-    const title = titleForPath(path)
+    const title = titleForPath(path, location.search)
     if (title) document.title = title
   }, [location.pathname])
 }

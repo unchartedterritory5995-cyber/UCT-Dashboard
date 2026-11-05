@@ -364,3 +364,23 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     expect(embeds().map((n) => n.attrs.params.symbol)).toEqual(['AMD'])
   })
 })
+
+// ⛔ Audit 2026-11-05, spec S3 (detail #36): the chart picker stayed open after Insert, over the
+// chart it had just made. It closes now, and the inserted chart takes focus (selected, so its
+// header and its type-to-search answer at once).
+describe('S3: Insert closes the picker and lands on the chart', () => {
+  it('a real editor: Insert chart closes the panel and selects the new chart', () => {
+    const ed = new Editor({ extensions: buildExtensions(), content: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Before' }] }] } })
+    const onClose = vi.fn()
+    render(<WidgetPalette editor={ed} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Chart'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'AMD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Insert chart' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    const sel = ed.state.selection
+    expect(sel.node?.type.name).toBe('widgetEmbed')
+    expect(sel.node.attrs.params.symbol).toBe('AMD')
+    ed.destroy()
+  })
+})

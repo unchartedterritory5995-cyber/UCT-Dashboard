@@ -7,10 +7,19 @@
 // rendered (the sheet's template gallery, the research page's New thesis), so absence is
 // never vacuous.
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AUTH, installFetch, latchWave8Flags, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import NotebookTab from './NotebookTab'
+
+// S6 (B5): the doors call the one note-views helper. The fixture renders under a per-render SWR
+// cache the helper's global mutate cannot reach, so the CALL is what is observed here; what the
+// helper revalidates is railed in lib/offline/invalidateNoteViews.test.jsx through real SWR.
+const viewsSpy = vi.hoisted(() => vi.fn())
+vi.mock('../lib/offline/invalidateNoteViews', async (importOriginal) => ({
+  ...(await importOriginal()),
+  invalidateNoteViews: (...args) => viewsSpy(...args),
+}))
 import TickerResearchWorkspace from '../components/notebook/TickerResearchWorkspace'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
@@ -46,6 +55,7 @@ describe('the New note sheet — Trade-plan canvas', () => {
     latchWave8Flags(true, { notebook_trade_canvas_enabled: true })
     const sheet = await openNewNoteSheet()
     const group = within(sheet).getByRole('group', { name: 'Plan a trade' })
+    viewsSpy.mockClear()
     fireEvent.click(within(group).getByRole('button', { name: /Trade-plan canvas/ }))
     await waitFor(() => {
       const post = spy.mock.calls.find(([u, o]) => String(u) === '/api/j2/notes' && o?.method === 'POST')
@@ -55,6 +65,9 @@ describe('the New note sheet — Trade-plan canvas', () => {
       expect(body.tags).toEqual(['trade-plan'])
     })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull())
+    // S6 (B5): the canvas door refreshed the sidebar's own page only; the folder counts were
+    // never asked again, so the sidebar and the list disagreed until a reload.
+    await waitFor(() => expect(viewsSpy).toHaveBeenCalledWith(expect.objectContaining({ tags: true })))
   })
 })
 
