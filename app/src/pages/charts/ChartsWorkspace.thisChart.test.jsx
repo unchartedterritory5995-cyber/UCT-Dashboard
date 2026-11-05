@@ -254,7 +254,7 @@ test('a layout switch makes the selection STALE — even back on the same layout
   expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])
 }, 45000)
 
-test('MODEL path: the selected chart is in the context, and a plan on ANOTHER chart never runs there — "this" plus a click settles it, no question', async () => {
+test('MODEL path: the selected chart is in the context, and a plan on ANOTHER chart is never run — asked, then resumed on the pick', async () => {
   mount()
   await screen.findByTestId('chart-c-left')
   await click('c-left')
@@ -268,10 +268,12 @@ test('MODEL path: the selected chart is in the context, and a plan on ANOTHER ch
   const sent = turns[0].context.charts
   expect(sent.filter(c => c.selected).map(c => c.label)).toEqual(['Left chart (NVDA)'])
   expect(sent.find(c => c.label === 'Right chart (AMD)').selected).toBeUndefined()
+  expect(await screen.findByText(/Did you mean Left chart \(NVDA\)\?/, {}, { timeout: 15000 })).toBeTruthy()
+  expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])            // nothing ran
+  await act(async () => { screen.getByRole('button', { name: /Left chart \(NVDA\)/ }).click() })
   await waitFor(() => expect(tfOf('c-left')).toBe('W'), { timeout: 15000 })
   expect(tfOf('c-right')).toBe('D')
-  expect(screen.queryByText(/Did you mean/)).toBeNull()
-  expect(turns).toHaveLength(1)                                           // the plan was re-aimed: no second model call
+  expect(turns).toHaveLength(1)                                           // the pick resumed the plan: no second model call
   await waitFor(() => expect(receiptCards()).toHaveLength(1), { timeout: 15000 })   // ONE receipt for ONE change
   expect(applied('chart.setTimeframe')).toHaveLength(1)                   // the op ran ONCE (never a second execution)
   expect(receiptCards()[0].querySelectorAll('[data-testid="agent-receipt-summary"]')).toHaveLength(1)

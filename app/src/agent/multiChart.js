@@ -53,13 +53,6 @@ function timeframeIn(lower) {
   return hits.length === 1 ? hits[0] : (hits.length ? false : null)        // false = two timeframes: not this module's
 }
 
-/** One timeframe in the member's own words is the timeframe (production 11-05: "put the nvidia chart on the hourly" set 1 minute).
- *  Two in the sentence ("make the daily chart weekly") are not read here: the plan's value stands. */
-export function saidTimeframe(ops, text) {
-  const tf = timeframeIn(String(text || '').toLowerCase())
-  return tf ? (ops || []).map(o => (o?.action === 'chart.setTimeframe' && o.args?.timeframe !== tf ? { ...o, args: { ...o.args, timeframe: tf } } : o)) : ops
-}
-
 // ── position words ──
 const POS_RE = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/i
 const normPos = (w) => w.toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')

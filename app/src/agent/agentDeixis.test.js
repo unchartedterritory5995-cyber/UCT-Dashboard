@@ -51,7 +51,7 @@ describe('resolveDeictic', () => {
   it('selection → that chart; none → ask with every chart as a choice; single chart → it', () => {
     const { host, state } = makeHost({ selected: 'R' })
     const kind = chartKind()
-    expect(resolveDeictic({ host, kind, candidates: host.charts.list(), text: 'switch this chart to weekly' })).toMatchObject({ ref: 'R' })
+    expect(resolveDeictic({ host, kind, candidates: host.charts.list(), text: 'switch this chart to weekly' })).toEqual({ ref: 'R' })
     state.selected = null
     const r = resolveDeictic({ host, kind, candidates: host.charts.list(), text: 'switch this chart to weekly' })
     expect(r.ask.choices.map(c => c.ref)).toEqual(['L', 'R'])
@@ -72,8 +72,7 @@ describe('screenDeicticOps (model plans)', () => {
   const op = (target) => ({ action: 'chart.setTimeframe', target, args: { timeframe: 'W' } })
   it('a plan on another chart → asked; on the selected chart → passes; no deictic words → passes', () => {
     const { host } = makeHost({ selected: 'L' })
-    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put this stock on weekly', getTargetKind, getCapability }).aim[0].target).toBe('L')
-    expect(screenDeicticOps({ host, ops: [op('R')], text: 'make it weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put this stock on weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
     expect(screenDeicticOps({ host, ops: [op('L')], text: 'put this stock on weekly', getTargetKind, getCapability })).toBeNull()
     expect(screenDeicticOps({ host, ops: [op('R')], text: 'put the right one on weekly', getTargetKind, getCapability })).toBeNull()
   })

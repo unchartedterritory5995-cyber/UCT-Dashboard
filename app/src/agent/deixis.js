@@ -10,14 +10,13 @@
 // the selection; a single-chart board needs no selection at all.
 
 import { addableRows } from './capabilities/indicatorEdits'
-import { resolvedTicker } from './nl/tickers'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
 const POINTS = /\b(?:(?:this|that|the|my|current|active|selected|focused)\s+(?:current\s+|active\s+|selected\s+)?(?:chart|stock|ticker|symbol|name)|this\s+one|(?:on|in)\s+here|right\s+here)\b/i
 const IT = /\bit\b/i
 // "this NVDA chart" — a ticker between the pointer word and "chart" (never a position or ordinal word)
-const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|middle|center|centre|other|first|second|third|last|main|new|old|big|small|current|active|selected|focused|same|whole|entire)\s)([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+(?:chart|tab)\b/i
+const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|middle|center|centre|other|first|second|third|last|main|new|old|big|small|current|active|selected|focused|same|whole|entire)\s)([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+chart\b/i
 
 // NL (2026-10-12): "the 5 minute chart", "the daily chart" — a chart named by its TIMEFRAME
 const TF_NAMED = /\b(?:this|that|the)\s+(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)\s+chart\b/i
@@ -59,8 +58,7 @@ export function chartQualifier(text, charts = []) {
   }
   const nm = NAMED.exec(s)
   if (nm) {
-    // (a company's name, once the ticker search has answered for it: chartNameWord)
-    const sym = resolvedTicker(nm[1])
+    const sym = nm[1].toUpperCase()
     const hits = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
     if (hits.length) return { match: withPrep(s, nm), word: nm[1], hits }
     const shown = charts.filter(c => carries(c, nm[1]))
@@ -80,13 +78,6 @@ function withPrep(s, m) {
   const before = s.slice(0, m.index)
   const p = /\s+(?:on|to|onto|in|from|off|for|of)\s*$/i.exec(before)
   return p ? { index: p.index, 0: s.slice(p.index, m.index + m[0].length) } : { index: m.index, 0: m[0] }
-}
-
-/** "the nvidia chart": the word in a chart's place that no chart answers to yet. Worth one ticker search before a gate reads it. */
-export function chartNameWord(text, charts = []) {
-  const s = String(text || '')
-  const nm = NAMED.exec(s)
-  return nm && !chartQualifier(s, charts) && !STATE_NAMED.test(s) ? nm[1] : null
 }
 
 /**
@@ -152,7 +143,7 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     return { ask: { text: 'Which chart do you mean?', choices: choices.map(c => ({ ref: c.ref, label: c.label })) } }
   }
   const hit = sel ? backed.filter(b => b.chart === sel) : []
-  if (hit.length === 1) return { ref: hit[0].c.ref, clicked: true }
+  if (hit.length === 1) return { ref: hit[0].c.ref }
   return { ask: { text: sel ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: candidates.map(c => ({ ref: c.ref, label: c.label })) } }
 }
 
@@ -326,7 +317,6 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (dests.size === 1 && otherChartMeant(text, charts, [...dests][0], ops)) return null
   }
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
-  const aimed = new Map()
   for (const o of ops || []) {
     const cap = getCapability(o?.action)
     const kind = cap ? getTargetKind(cap.target) : null
@@ -336,12 +326,10 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (!snap || !chartRefOf(kind, snap) || list.length < 2) continue
     const r = resolveDeictic({ host, kind, candidates: list, text, chartOp: true })
     if (r?.ask) return { ask: { ...r.ask, action: o.action } }
-    // "this chart" with a chart clicked is settled: the plan goes there, no question (production 11-05: "Did you mean" the right chart)
-    if (r?.ref && r.ref !== o.target && r.clicked && POINTS.test(String(text || ''))) { aimed.set(o, r.ref); continue }
     if (r?.ref && r.ref !== o.target) {
       const meant = list.find(s => s.ref === r.ref)
       return { ask: { text: `Did you mean ${meant?.label || 'the selected chart'}?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
   }
-  return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
+  return null
 }

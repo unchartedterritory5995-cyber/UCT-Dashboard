@@ -102,7 +102,7 @@ function snapOf(host) {
   // (host `visible`) leaves them out. Nothing here may re-tile or edit one it cannot see.
   const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
-  return { ref: 'board', label: 'Board', raw: s.raw, groupSyms: s.groupSyms, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
+  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
     charts: chartsOf(host), maxWidgets: s.max }
 }
 // widget id → { ref, symbol, tf } of each chart on the board (the chart a widget shows now: its own ref,
@@ -583,8 +583,6 @@ function findTab(w, tab) {
     || (all.filter(t => t.label.toLowerCase() === q).length === 1 ? all.find(t => t.label.toLowerCase() === q) : null)
 }
 const MAX_CHART_TABS = 8
-// what a chart tab shows (production 11-05: "the AAPL tab" could not be told from the others): a tab follows its link colour
-const tabSymbol = (s, w, t, i) => { const syms = s.groupSyms || {}; return (t.color === 'N' ? syms[`N:${i === 0 ? w.id : `${w.id}~${t.key}`}`] : syms[t.color]) || null }
 
 let registered = false
 export function registerBoardCapabilities() {
@@ -608,7 +606,7 @@ export function registerBoardCapabilities() {
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
           // a widget's own tabs (the WidgetHost tab strip, any widget type): main + extras
           ...(sanitizeWidgetTabs(w).tabs.length ? { widgetTabs: wtabsOf(w).map(t => ({ tab: t.key, label: t.label, type: label(t.type), ...(t.active ? { active: true } : {}) })) } : {}),
-          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map((t, i) => { const symbol = tabSymbol(s, w, t, i); return { tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color, ...(symbol ? { symbol } : {}) } }) } : {}),
+          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map(t => ({ tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color })) } : {}),
         })),
       }]
     },
