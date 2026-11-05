@@ -97,3 +97,27 @@ an unreadable value is returned unchanged so the client refuses it by name. The 
 - final-tip r1 (tree `69761bfa87`, `heavy-final3.lock`, 45.8 min): gate pytest 46 passed; hygiene clean;
   8 backtest pytest files 175 passed; vitest chart+hooks 2 failed | 1333 passed | 27 skipped (baselines
   `settingsScope.rail`, `pollingSites.rail`). Log: `_resume-2026-11-01/runs/w5t15/w5t15-final.out`.
+
+## r2 (fix): the warm-up charged is the service's; one history rule; T11's public admission
+Review NO-GO: the tally read run-withheld but finite warm-up bars beyond a fixed 500-bar charge.
+Merged T11 r2 (`7df06fe3fd`: the client refuses a finite value inside the run's own `withheldBars` as
+`server-integrity`, no masking; each ok result carries `warmup={"withheldBars": k}`).
+- ONE HISTORY RULE: `RUNTIME_HISTORY_LEAD`=500 (was `RUNTIME_WARMUP_BARS`) only SIZES the read before the
+  run (the window is fixed before the service answers); it charges nothing. What is charged to warm-up
+  is the run's own `withheldBars`, carried by the column as `.warmup_bars`; `run_backtest` charges
+  `max(seed, column.warmup_bars)` per symbol and states the longest in `method.warmup_bars`. Warm-up
+  bars (na by T11's check) are never a signal or a "no"; later na bars are `bars_not_computable`. A
+  script whose warm-up outruns the lead has the shortfall charged to warm-up, not tallied.
+- Admission is T11's public `runtime_server_lane.admission(row, plot, "backtest")` (door and every
+  chunk); the private `_verdict`/`_admission` use is gone.
+- Rails (30 tests now): service warm-up charged and identity `answered+warm-up+holes==in-window`; lead
+  charges nothing and sizes the read (+30 lead = +30 bars read); a finite value inside the warm-up
+  fails the request 500 integrity; a warm-up equal to the tape leaves a named refusal; admission asked
+  with the chosen plot.
+- Mutations (`heavy-mut.lock`, 10/10 killed, log `_resume-2026-11-01/runs/w5t15r2/mut.out`), incl. T11's
+  check removed in `api/services/pine_runtime_client.py` (restored byte-exact; tree clean after) ->
+  `test_a_finite_value_inside_the_services_own_warmup_fails_the_request_as_integrity`.
+- Store-time-to-seconds helper: T14 keeps a private `_runtime_bar_seconds` in `scan_evaluator.py`, and a
+  standing rail forbids routers importing that module, so there is no obvious shared home. Both call
+  `indicator_compute.bar_open_instant`, the one authority; only the YYYYMMDD->ISO step is duplicated.
+  Candidate home if wanted: a `store_time_to_iso` beside `bar_open_instant` (not done; T14's file is not ours).
