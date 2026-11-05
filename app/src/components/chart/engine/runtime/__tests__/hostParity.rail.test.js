@@ -24,7 +24,7 @@ describe('HP-1 / HP-4 / HP-7 end to end (the server bundle, built fresh)', () =>
   it('HP-1: the bundle computes exactly the committed digests over the whole corpus', () => {
     const p = run('--host', 'node', '--check')
     // hp1Summary contract: equal count on the recording V8, N-k equal plus k REPORTED on another V8 (the V8 rail owns the split)
-    expect(p.stdout).toMatch(/HP-1 GREEN: [0-9]+/[0-9]+ cases equal the committed digests/)
+    expect(p.stdout).toMatch(/HP-1 GREEN: [0-9]+\/[0-9]+ cases equal the committed digests/)
     expect(p.status).toBe(0)
   }, 240000)
 
