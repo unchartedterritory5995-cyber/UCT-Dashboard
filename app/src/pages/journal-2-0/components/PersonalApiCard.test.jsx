@@ -228,4 +228,20 @@ describe('PersonalApiCard', () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'Confirm revoke' })).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' })))
   })
+
+  // Fix round 3 (re-review m-9): after a confirmed revoke the row (and the focused button) is gone;
+  // focus goes to the "Make a token" name field, never <body>.
+  it('a confirmed revoke puts focus on the token name field', async () => {
+    let tokens = [{ id: 't1', label: 'iPhone Shortcuts', createdAt: '2026-09-01T00:00:00+00:00', expired: false }]
+    global.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method === 'DELETE') { tokens = []; return json(200, { revoked: true }) }
+      return json(200, { tokens })
+    })
+    renderCard()
+    const row = await screen.findByTestId('personal-api-token')
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke iPhone Shortcuts' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Confirm revoke' })).getByRole('button', { name: 'Revoke' }))
+    await waitFor(() => expect(screen.queryByTestId('personal-api-token')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Token name' })))
+  })
 })

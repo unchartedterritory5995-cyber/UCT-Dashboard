@@ -80,6 +80,7 @@ export default function PersonalApiCard() {
   // Audit 2026-11-05, spec S1 (B19): Revoke asks first. The id of the token being asked about.
   const [confirmId, setConfirmId] = useState(null)
   const cancelRevokeRef = useRef(null)
+  const labelInputRef = useRef(null)
   useEffect(() => { if (confirmId) cancelRevokeRef.current?.focus() }, [confirmId])
   // Fix round 1 (review minor 9): leaving the confirm without revoking hands focus back to that
   // row's Revoke button (a NEW element, so it is found after the swap), and Esc leaves it.
@@ -146,6 +147,7 @@ export default function PersonalApiCard() {
         return
       }
       await mutate()
+      labelInputRef.current?.focus()   // fix round 3 (m-9): the row is gone; focus to the name field
     } catch {
       setMessage('Could not revoke that token. Try again.')
     } finally {
@@ -203,6 +205,7 @@ export default function PersonalApiCard() {
               maxLength={80}
               placeholder="Name it, e.g. iPhone Shortcuts"
               aria-label="Token name"
+              ref={labelInputRef}
               onChange={(e) => setLabel(e.target.value)}
             />
             <button type="submit" className="btn btn-primary" disabled={making || !named}>
