@@ -1244,7 +1244,6 @@ def runtime_cycle_batch(alerts: Sequence[Mapping[str, Any]], bars: list, sym: st
 def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]], bars: list) -> None:
     from api.services import indicator_alert_evaluator as ev
     from api.services import pine_runtime_client as prc
-    from api.services import runtime_definitions, user_definitions
     per_def: dict = {}
     for alert in alerts:
         address = str(alert.get("indicator") or "")
@@ -1268,10 +1267,14 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
         return
     if k < 0 or not wire:
         return
+    from api.services import runtime_server_lane as rsl
     for (_owner, def_id, version), (row, members) in per_def.items():
-        if user_definitions.engine_withheld_reason(row):
-            continue
-        if runtime_definitions.server_lane_refusal(row, lane=RUNTIME_LANE) is not None:
+        # ⭐ FIX r1 -- 5.2 steps 2 and 4 through THE one public question
+        # (`runtime_server_lane.admission`, the chain `runtime_column_fn` asks per call),
+        # per plot; a refused plot is not sent, and an all-refused definition sends nothing.
+        members = [(alert, plot) for alert, plot in members
+                   if rsl.admission(row, plot, RUNTIME_LANE) is None]
+        if not members:
             continue
         definition = row.get("definition") or {}
         jobs: dict = {}

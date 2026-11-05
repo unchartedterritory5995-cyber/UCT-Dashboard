@@ -1080,7 +1080,8 @@ def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Op
                       "so nothing can be computed")
     params = ev._parse_params(alert)
     tf = alert.get("tf")
-    closed = ev.eval_mode() == "closed"
+    # a runtime plot is always judged on the closed lane (W5-T13 FIX r1, `_evaluate_for_cycle`)
+    closed = ev.eval_mode() == "closed" or aus.runtime_window_for_alert(alert) is not None
     try:
         fn = ev._user_value_function(alert, bars)
         why = fn.withheld(bars, params, tf)

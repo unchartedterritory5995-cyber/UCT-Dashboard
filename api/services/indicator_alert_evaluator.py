@@ -2529,7 +2529,12 @@ def _evaluate_for_cycle(alert: dict, bars: list[dict], *,
     ordering would name the wrong bar the moment the rollback lever is pulled.
     Left `None`, `mode` asks `eval_mode()`, the module's only reader.
     """
-    resolved = _lane_for(alert.get("indicator"), mode)
+    # ⭐ W5-T13 FIX r1 (desktop ruling) -- A RUNTIME PLOT IS ALWAYS JUDGED ON THE CLOSED LANE,
+    # even under the `ALERT_EVAL_MODE=forming` rollback: its run never sees a forming bar
+    # (ruling Q3), so only the closed lane names the bar its value came from.
+    from api.services import alert_user_series as _aus
+    resolved = ("closed" if _aus.runtime_window_for_alert(alert) is not None
+                else _lane_for(alert.get("indicator"), mode))
     if resolved == "closed":
         return _evaluate_one_closed(alert, bars, now_epoch=now_epoch)
     value, triggered = _evaluate_one(alert, bars=bars, mode="forming",

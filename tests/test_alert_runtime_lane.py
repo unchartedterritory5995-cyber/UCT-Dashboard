@@ -106,12 +106,17 @@ def world(tmp_path, monkeypatch):
         fetched.append((sym, tf, count))
         return [dict(b) for b in bars.get(tf, daily_bars())][-int(count):]
     monkeypatch.setattr(ev, "_fetch_bars_for_alert", fetch)
-    delivered = []
-    monkeypatch.setattr(ev, "_dispatch_delivery", lambda alert, value, **k: delivered.append(alert["id"]))
+    delivered, fires = [], []
+
+    def deliver(alert, value, **k):
+        delivered.append(alert["id"])
+        fires.append((alert["id"], value, k.get("bar_time")))
+    monkeypatch.setattr(ev, "_dispatch_delivery", deliver)
     monkeypatch.setattr(ev, "_accrue_ledger_receipt", lambda *a, **k: None)
     aus.forget()
     ud.save(USER, DEF_ID, runtime_doc(), role="admin")
-    yield {"adm": adm, "fake": fake, "bars": bars, "fetched": fetched, "delivered": delivered}
+    yield {"adm": adm, "fake": fake, "bars": bars, "fetched": fetched, "delivered": delivered,
+           "fires": fires}
     aus.forget()
     prc._forget_signing_times()
 
@@ -121,8 +126,8 @@ def _wire_t(req, job=0):
     return list(struct.unpack("<%dd" % b["n"], base64.b64decode(b["t"])))
 
 
-def _alert(indicator=VALUE, threshold=0.0, params=None, sym="AAPL", tf="D"):
-    return ias.create(user_id=USER, sym=sym, indicator=indicator, condition="above",
+def _alert(indicator=VALUE, threshold=0.0, params=None, sym="AAPL", tf="D", condition="above"):
+    return ias.create(user_id=USER, sym=sym, indicator=indicator, condition=condition,
                       threshold=threshold, tf=tf, params_json=params)
 
 
@@ -441,3 +446,92 @@ def test_the_batch_never_answers_a_plot_it_did_not_ask_for():
     other = prc.Job(job="b", ticker="AAPL", tf="D", bars=bars, want=("signal",))
     assert batch.lookup(DEF_ID, 1, other) is None
     assert batch.lookup(DEF_ID, 2, asked) is None
+
+
+# ── FIX r1 ───────────────────────────────────────────────────────────────────
+
+def _warm_up_script(k):
+    """The engine's own warm-up shape: na (NaN) on the first ``k`` bars, then 2 * close."""
+    def script(cols):
+        c = cols["c"]
+        return {"value": [float("nan") if i < k else 2.0 * x for i, x in enumerate(c)],
+                "signal": [float("nan") if i < k else x for i, x in enumerate(c)]}
+    return script
+
+
+def test_a_warm_up_bar_is_never_fired_on_prefilled_or_used_as_previous(world):
+    """B1 (review r1) at the ALERT level. The run's first `withheldBars` bars are na (the
+    engine NaNs them; T11 r2 refuses a finite one): such a bar is never the value fired on,
+    never the prefill and never the "previous" a crossing is judged from."""
+    fake, bars = world["fake"], world["bars"]["D"]
+    n = len(bars)
+    fake.script = _warm_up_script(n)
+    fake.withheld_bars = n                       # every closed bar is warm-up
+    a_all = _alert(VALUE, threshold=0.0)
+    ev._run_one_cycle()
+    assert world["fires"] == [] and ias.get(a_all)["last_value"] is None
+    assert aus.call_series(aus.user_value_function(USER, VALUE), bars, {}, tf="D", sym="AAPL") is None
+    fn = aus.USER_FUNCS[aus.scoped_key(USER, VALUE)]
+    assert fn.column(bars, {}, tf="D", sym="AAPL") == [None] * n
+    ias.delete(a_all)
+    # the newest bar answers and the one before it is warm-up: a crossing a leaked
+    # "previous" would fire (prev < threshold < current) must not fire
+    fake.script = _warm_up_script(n - 1)
+    fake.withheld_bars = n - 1
+    threshold = 2 * bars[-2]["c"] + 1.0
+    a_cross = _alert(VALUE, threshold=threshold, condition="cross_above")
+    ev._run_one_cycle()
+    col = fn.column(bars, {}, tf="D", sym="AAPL")
+    assert col[:-1] == [None] * (n - 1) and col[-1] == pytest.approx(2 * bars[-1]["c"])
+    assert [f for f in world["fires"] if f[0] == a_cross] == []
+
+
+def test_a_finite_warm_up_value_never_reaches_the_alert(world):
+    """B1, the other half: a column whose warm-up bars carry FINITE numbers is refused by the
+    client (T11 r2: `runtime:server-integrity`), so the alert neither fires nor prefills, and
+    the silent-alert sweep names the guard."""
+    fake, bars = world["fake"], world["bars"]["D"]
+    aid = _alert(VALUE, threshold=0.0)           # armed on an honest run
+    fake.withheld_bars = 5                        # the default script is finite on every bar
+    assert ev._run_one_cycle()["evaluated"] == 0 and world["fires"] == []
+    _sweep_far_ahead()
+    assert ias.get(aid)["state_detail"].startswith(f"Withheld: {prc.INTEGRITY} — ")
+    from api.services import runtime_server_lane as rsl
+    with pytest.raises(rsl.ServerLaneWithheld) as e:
+        aus.call_series(aus.user_value_function(USER, VALUE), bars, {}, tf="D", sym="AAPL")
+    assert e.value.guard == prc.INTEGRITY
+
+
+@pytest.mark.parametrize("refusal", [
+    ("runtime:killed", "definition `u_0a1b2c3d4e5f` is on the kill list"),
+    ("runtime:server-stage", "not switched on for server runs for this account right now"),
+    ("runtime:not-yet-graded", "this script has not yet been graded against TradingView"),
+])
+def test_the_cycle_asks_the_one_public_admission_and_sends_nothing_it_refuses(world, refusal):
+    from api.services import runtime_server_lane as rsl
+    aid = _alert(VALUE)
+    world["adm"].refusal = refusal
+    row = ud.get(USER, DEF_ID, None)
+    assert rsl.admission(row, "value", "alert") == refusal
+    before = len(world["fake"].calls)
+    assert ev._run_one_cycle()["evaluated"] == 0
+    assert len(world["fake"].calls) == before
+    _sweep_far_ahead()
+    assert ias.get(aid)["state_detail"].startswith(f"Withheld: {refusal[0]} — ")
+
+
+def test_a_runtime_plot_is_judged_on_the_closed_lane_even_under_the_forming_rollback(world, monkeypatch):
+    """Desktop ruling (review note N1): under `ALERT_EVAL_MODE=forming` a runtime alert still
+    takes the closed lane, so a fire's value and its `bar_time` name the same (closed) bar."""
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
+    assert ev.eval_mode() == "forming"
+    now = time.time()
+    open_now = int(now // 300) * 300
+    world["bars"]["5"] = [{"t": open_now - 300 * (39 - i), "o": 10.0 + i, "h": 11.0 + i, "l": 9.0 + i,
+                           "c": 10.0 + i, "v": 5} for i in range(40)]
+    aid = _alert(tf="5")
+    ev._run_one_cycle()
+    closed = world["bars"]["5"][-2]
+    [(fid, value, bar_time)] = world["fires"]
+    assert fid == aid and value == pytest.approx(2 * closed["c"])
+    assert bar_time == closed["t"], (bar_time, closed["t"], world["bars"]["5"][-1]["t"])
