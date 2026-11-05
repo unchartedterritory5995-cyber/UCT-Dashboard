@@ -1,0 +1,18 @@
+[hl] 18:40:33 free RAM 2882 MB before 'w2-deploy-gate'
+[heavy-lock] 'w2-deploy-gate' waiting: held by 'w2-j2-vitest' (pid 23192) for 4s
+C:\Users\pgosz\uct-venv\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+....................................................                     [100%]
+============================== warnings summary ===============================
+<unknown>:7
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+52 passed, 12 warnings in 327.25s (0:05:27)
+[heavy-lock] 'w2-deploy-gate' released after 6.8 min

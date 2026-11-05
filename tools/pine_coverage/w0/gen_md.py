@@ -2,10 +2,10 @@
 """Render the W0 tables (markdown fragments) from coverage-map.json and the targets JSON.
 
   python tools/pine_coverage/w0/gen_md.py --map docs/pine/coverage-map.json \
-      --old-map <previous coverage-map.json> --targets docs/pine/coverage-targets-2026-11-02.json \
+      --old-map <previous coverage-map.json> --targets docs/pine/coverage-targets-<date>.json \
       --out <scratch>/tables.md            # the wall lists go to <scratch>/tables-walls.md
 
-Every number in a fragment is read from those JSON files: COVERAGE-MAP-2026-11-02.md is these
+Every number in a fragment is read from those JSON files: the COVERAGE-MAP-<date>.md document is these
 fragments pasted under its prose headings."""
 import argparse
 import json
@@ -20,6 +20,7 @@ ap.add_argument("--old-map", required=True, help="the previous coverage-map.json
 ap.add_argument("--targets", required=True, help="the JSON written by targets.py")
 ap.add_argument("--out", required=True, help="the fragments file, *.md; the wall lists go to *-walls.md beside it")
 a = ap.parse_args()
+TARGETS_NAME = os.path.basename(a.targets)   # `a` is rebound by loops below
 if not a.out.endswith(".md"):
     ap.error("--out must end in .md (the wall lists are written to <out>-walls.md)")
 out_p = a.out
@@ -47,7 +48,7 @@ h, oh = d["headline"], o["headline"]
 ro, oro = d["runtimeOn"], o["runtimeOn"]
 N = h["sample"]
 w("## HEADLINE")
-w("| measure | 2026-10-31 (`%s`) | 2026-11-02 (`%s`) | change |" % (o["masterSha"], d["masterSha"]))
+w("| measure | %s (`%s`) | %s (`%s`) | change |" % (o.get("measuredOn") or "previous", o["masterSha"], d.get("measuredOn") or "this run", d["masterSha"]))
 w("|---|---:|---:|---:|")
 rows = [
     ("Transfer fully, production lane", oh["transfer"], h["transfer"]),
@@ -147,7 +148,7 @@ for wv in ("W1", "W3", "W4", "W6", "W7", "W8", "W9", "other"):
     w("- **production, only this wave left (%d; firm marked \\*):** %s" % (
         len(p["onlyThisWave"]), ", ".join("`%s`%s" % (k.split(":", 1)[1], "\\*" if k in p["firm"] else "") for k in p["onlyThisWave"]) or "none"))
     w("- **runtime-on, only this wave left (%d):** %s" % (len(r["onlyThisWave"]), names(r["onlyThisWave"]) or "none"))
-    w("- production blocks %d, runtime-on blocks %d: full lists in `coverage-targets-2026-11-02.json` (`prodWaves.%s.blocks`, `runtimeWaves.%s.blocks`)." % (len(p["blocks"]), len(r["blocks"]), wv, wv))
+    w("- production blocks %d, runtime-on blocks %d: full lists in `%s` (`prodWaves.%s.blocks`, `runtimeWaves.%s.blocks`)." % (len(p["blocks"]), len(r["blocks"]), TARGETS_NAME, wv, wv))
     w("")
 w("## CAPTURES")
 vp, vr = t["verifiedByLane"]["production"], t["verifiedByLane"]["runtime-on"]
@@ -173,6 +174,9 @@ def n_are(n):
 
 U, cov, picks = t["unverifiedItems"], t["unverifiedItemsCoveredByGreedy"], t["captureGreedy"]
 rto, nc = t["unverifiedItemsMatchingOnlyInRuntimeOn"], t["unverifiedItemsNotCovered"]
+rt_lane, div = t["unverifiedItemsCoveredRuntimeLaneOnly"], t["captureExcludedDiverging"]
+n_prod = sum(1 for c in picks if c["lane"] == "production")
+n_rt = len(picks) - n_prod
 rest = []
 if nc["ungraded"]:
     rest.append("%s ungraded names (`strategy.*`, `alert*`, `log.*`, `runtime.*`: the harness never grades them)" % n_are(len(nc["ungraded"])))
@@ -183,23 +187,34 @@ if nc["onlyInScriptsThatAlreadyMatch"]:
     rest.append("%s used only by transferring scripts that already MATCH in their own lane (%s)" % (
         n_are(len(nc["onlyInScriptsThatAlreadyMatch"])),
         "; ".join("`%s`: %s" % (n, names(ks)) for n, ks in nc["onlyInScriptsThatAlreadyMatch"].items())))
-if nc["onlyInRuntimeOnTransfersAlreadyVerifiedThere"]:
-    rest.append("%s used only by runtime-on transfers, and a capture already MATCHes with it in the runtime-on run (%s)" % (
-        n_are(len(nc["onlyInRuntimeOnTransfersAlreadyVerifiedThere"])), ticks(nc["onlyInRuntimeOnTransfersAlreadyVerifiedThere"])))
+if nc["onlyInScriptsWhoseCaptureDiverges"]:
+    rest.append("%s used only by scripts whose existing capture already DIVERGEs (%s): capturing them again on the same RDDT/SPY daily "
+                "setup cannot verify the item, the divergence is the lead (7.2)" % (
+                    n_are(len(nc["onlyInScriptsWhoseCaptureDiverges"])),
+                    "; ".join("`%s`: %s" % (n, names(ks)) for n, ks in nc["onlyInScriptsWhoseCaptureDiverges"].items())))
+if nc["onlyInRuntimeOnTransfers"]:
+    rest.append("%s used only by runtime-on transfers, so a capture grades the runtime lane and not the production count (%s)" % (
+        n_are(len(nc["onlyInRuntimeOnTransfers"])), ticks(nc["onlyInRuntimeOnTransfers"])))
 w("**7.1 Greedy over unverified items.** %d Pine items translate today but have **no MATCH capture in the production "
   "harness run** (`supported-unverified`).%s Each row is a transferring script (either lane) with no MATCH in its own "
-  "lane yet that verifies the most still-unverified items, then the next%s. %d captures cover %d of the %d. Of the "
-  "other %d, %s. Capture on the dedicated rig, RDDT and SPY daily, per `docs/pine/capture-procedure.md`." % (
+  "lane yet and **no DIVERGE capture of its own** (%d such scripts are left out: %s), that verifies the most "
+  "still-unverified items, then the next. **%d production-lane captures cover %d of the %d.** %s Of the other %d, %s. "
+  "Capture on the dedicated rig, RDDT and SPY daily, per `docs/pine/capture-procedure.md`." % (
       U, (" %d of them %s used by a capture that MATCHes only in the runtime-on run (%s): that grades the runtime lane's "
           "handling of them, not the translator's." % (len(rto), "is" if len(rto) == 1 else "are", ticks(rto))) if rto else "",
-      "; a runtime-on row does not count those %d" % len(rto) if rto else "",
-      len(picks), cov, U, U - cov, "; ".join(rest) or "none"))
+      len(div), "; ".join("`%s` (%s)" % (k.split(":", 1)[1], ", ".join("`%s`" % x for x in v)) for k, v in div.items()) or "none",
+      n_prod, cov, U,
+      ("The %d runtime-on rows below credit the RUNTIME lane only (%d item%s, %s): a runtime-on capture grades the runtime lane's "
+       "handling, so none of it counts in the production figure." % (n_rt, len(rt_lane), "" if len(rt_lane) == 1 else "s", ticks(rt_lane) or "none")
+       if n_rt else "No runtime-on row is in the list."),
+      U - cov, "; ".join(rest) or "none"))
 w("")
 w("| # | script | lane | existing capture (own lane) | items it would verify first |")
 w("|---:|---|---|---|---|")
 for i, c in enumerate(picks, 1):
     w("| %d | `%s` (%s) | %s | %s | %s |" % (i, c["key"], (c["title"] or "").replace("|", "/"), c["lane"], c["existingCapture"] or "none",
-                                          ", ".join("`%s`" % x for x in c["verifiesNewItems"])))
+                                          ", ".join("`%s`" % x for x in c["verifiesNewItems"])
+                                          + (" (runtime lane only)" if c["lane"] == "runtime-on" else "")))
 w("")
 PV = {s["key"]: s["vendorVerdict"] for s in d["scripts"]}
 

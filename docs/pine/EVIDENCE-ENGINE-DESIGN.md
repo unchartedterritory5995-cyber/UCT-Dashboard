@@ -107,8 +107,9 @@ text, its doc's wave tag (the filename after the date: `wsc-history`, `c47`, ...
   never batched, because a guessed chart answers nobody's question. "from the listing" sets
   the listing-date assertion.
 - **flags**: `needsLive` (market hours, realtime, forming bar, `varip`, twice minutes apart,
-  1m), `needsVariant`, `needsTwoWitnesses`. A `needsLive` row is never in an unattended
-  batch: a forming bar cannot be captured after the close.
+  1m). A `needsLive` row is never in an unattended batch: a forming bar cannot be captured
+  after the close. (A version variant is not a flag: it takes its sibling file or the row is
+  NEEDS_PROBE, rule 3 above.)
 - **guards**: every refusal token the row names (`pine:*`, `runtime:*`, `fn:*`, `paint:*`,
   `lower-tf:*`).
 - **named scripts**: corpus slugs the row names (`engulfingcandle__0df91dc775`).
@@ -120,10 +121,17 @@ shapes; these rules are what makes them machine-readable without rewriting them)
 
 - A table whose header has a cell `settled` / `served` / `was` / `now` / `witness`, or whose
   first header is `refused as`, is a LEDGER of what is already known, not a queue. So is a
-  RECORD of finished captures: a table under a heading `CAPTURED` / `READINGS` / `BUILT` /
-  `Taken` (at any level above it), or one whose `capture` column names only committed
-  captures. Both are counted per doc (`contextTables`), never silently dropped. (The
+  RECORD of finished captures: a table under a heading that opens with `captured` /
+  `readings` / `built` / `taken` (at any level above it; any case, after an optional number
+  such as `5.`, `3)` or `A.`; `Built-in ...` is not one), or one whose `capture` column names
+  only committed captures. Both are counted per doc (`contextTables`), never silently dropped. (The
   2026-09-27 CAPTURED table, read as a queue, made seven targets on a guessed chart.)
+- Only a row's REQUEST cells can ask for a probe. A column headed as prose (`question`,
+  `settles`, anything starting `what ...`, `shipped ...`, `why`, `notes`, `gap`, `where`, ...:
+  `evidence_engine.PROSE_HEAD_RX`) holds references, never requests: a probe or `.pine` file
+  named there is filed as a fixture reference (`fixtureRefs`), is not the row's source, and is
+  not an owed probe. Every other column (probe, script, capture, chart, unheaded) can still
+  ask.
 - Inheritance is by SECTION first: a row with no source takes the one `.pine` file named in
   the heading above its table (`### 6. vw-mintick.pine ...`); only a section that names none
   defers to the doc's preamble. Only explicit `.pine` names are handed down, never a bare stem
@@ -145,15 +153,16 @@ from disk on every build:
 | `CAPTURED` | a fixture ANYWHERE under `tests/fixtures/vendor/` (recursive: 17 committed captures sit beside `harness/`) carries this source sha on this symbol and timeframe |
 | `VERDICT_LOCAL` | a licence-held capture was graded and its verdict filed in the evidence ledger (no fixture in git, by design) |
 | `STALE` | a fixture of this source's capture stem on this chart exists, but the file changed since (sha differs): re-capture to grade the current one |
-| `QUEUED` | runnable unattended: source on disk, a chart someone named, licence-clear or local-evidence mode, not live |
+| `QUEUED` | runnable unattended: a probe or `corpus/committed/` file on disk, a chart someone named, not live |
 | `NEEDS_CHART` | no row, section or preamble names a chart this parser can read: the chart would be a guess (excluded from batches, whatever a fixture on the guessed chart says; `capturedOn` lists the charts this source IS captured on) |
 | `NEEDS_LIVE` | runnable only with the owner watching a live session (excluded from batches) |
 | `NEEDS_PROBE` | no runnable source yet (row-level; no target is formed) |
-| `LICENCE_HOLD` | the source exists only in the gitignored survey cache (builtin / reference-only); capturable in local-evidence mode only |
+| `LICENCE_HOLD` | a guard, not a state anything reaches today: a target whose source is neither a probe nor a corpus file with a clear licence is held here, never QUEUED, never in a manifest. Every target source today is a probe or a corpus file, so no target has this status (the builtin / reference-only census scripts are listed apart, see 2.4) |
 
 **The capture stem** (`evidence_engine.capture_stem`, ONE authority) is the `<script>` of a capture id
 `<script>-<sym>-<tf>-<yyyy-mm-dd>`: the manifest hands it to the driver (`captureStem`), the STALE lookup
-finds older captures by it, and the gate holds every id to it. House rule, as the census slug
+finds older captures by it, and the gate holds every id to it (to the run manifest's own value when the
+run has one, so a same-slug file added between the capture and the promote changes nothing). House rule, as the census slug
 `batch_manifest.py` selects on: `__<hash>` dropped, lowercased, and `-<sha8>` appended when two files share
 the slug (three `support-and-resistance__*` today). Before it existed the manifest handed over the raw stem,
 every corpus capture came back as `name__hash-...`, failed the gate's own id rule and was retaken by every
@@ -182,9 +191,12 @@ confirmation of shipped behaviour, valuable but not unblocking.
 
 Besides the queue docs, the census names scripts that already transfer and have never been
 graded. These are the cheapest MATCHes there are: no engine work, one capture each.
-`committed` scripts (source in git, MPL/MIT/Apache) are `QUEUED`; `builtin` and `reference`
-scripts are `LICENCE_HOLD` (their source is in the gitignored cache; `LICENSING.md` forbids
-committing it).
+`committed` scripts (source in git, MPL/MIT/Apache) become targets and are `QUEUED`. `builtin`
+and `reference` scripts do NOT become targets: they are listed in the queue's
+`licenceHeldCensus` (key, population, title, cachedSource, sourcePresent) and nothing more,
+because their source lives only in the gitignored survey cache and `LICENSING.md` forbids
+committing it. There is no local-evidence mode (capturing a cached source, grading it locally,
+filing only the verdict): see section 7.
 
 ### 2.5 Waves
 
@@ -197,8 +209,8 @@ text-colour-values -> W1; runtime-only guards -> W4; nothing derived -> `E` (con
 
 ## 3. [M] From queue to manifest
 
-`evidence_engine.py manifest --top N [--wave TAG] [--plan-wave W3] [--local-evidence]`
-selects `QUEUED` targets (and `LICENCE_HOLD` only with `--local-evidence`), in priority
+`evidence_engine.py manifest --top N [--wave TAG] [--plan-wave W3] [--include-stale] [--only ID]`
+selects `QUEUED` targets (and `STALE` ones with `--include-stale`), in priority
 order, then groups by chart within each priority band so a batch switches symbol as few
 times as it can without letting a lower-priority capture jump a higher one. It writes a
 `uct.vendor-batch-manifest/v1` that `batch_capture.py` already reads, with per-script
@@ -283,16 +295,21 @@ run's orphan study is removed only by the id it recorded.
 
 - **Validate** (`fixture_gate`): `verify_capture.mjs` (shape, receipt, source sha: the one
   authority, called, never re-implemented) + the file name equals `<id>.json` and the id has
-  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>`, where for a source the repository holds
-  (a probe or corpus file, by sha) `<script>` must be THAT source's capture stem + **licence**
+  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>`, where `<script>` must be the stem the
+  RUN MANIFEST asked the driver for (its entry's `captureStem`, when that entry carries this
+  capture's source sha; a same-slug file added after the capture must not unpromote it), else,
+  for a source the repository holds (a probe or corpus file, by sha), THAT source's capture
+  stem + **licence**
   (below) + **no overwrite** (an id already in the directory it would be filed in, or anywhere
   in the fixture tree, is refused; evidence is appended, never replaced).
 - **Licence gate.** A fixture embeds its Pine verbatim, so a capture may enter git only if
   its source is (a) one of our own probes (sha equals a file under the probe dirs), (b) a
   `corpus/committed/` file (sha match), or (c) carries an explicit permitted header
   (`tools/pine_survey/corpus_licence.is_permitted`: MPL-2.0 / MIT / Apache-2.0). Anything
-  else is `LICENCE_HOLD`: graded locally, its verdict filed in the ledger with its source
-  sha, its capture kept outside git.
+  else is licence-held: the packet marks it `LEDGER_ONLY`, `promote` files its verdict in the
+  ledger with its source sha and keeps the capture outside git. (No queue target yields such a
+  capture today: every target's source is a probe or a corpus file. It arises only from a
+  hand-made manifest or run.)
 - **Grade** = the existing corpus harness over `<run>/captures`, run through
   `heavy_lock.py` (machine rule: one heavy job at a time), with the door-flag state from the
   manifest. The lock tool is `$HEAVY_LOCK` (the laptop's env sets it), else the desktop's
@@ -326,6 +343,13 @@ work, filed by the wave that owns the guard.
 
 ## 7. What this does not do
 
+- It has no local-evidence mode. A builtin or reference-only script (the census's
+  `licenceHeldCensus`) is never a target and never in a manifest, and there is no flag that
+  takes one. Building it would mean: put the cached source in a target (its capture stem and
+  path outside the repository), let the manifest carry it (`localOnly`, which the driver
+  already passes through to provenance), grade it locally and let `promote` file only its
+  verdict (`LEDGER_ONLY` already does that for a capture whose source is not ours). Until
+  then those scripts are captured by hand.
 - It does not write probes from prose rows (NEEDS_PROBE stays a person's job).
 - It does not take live / realtime captures (NEEDS_LIVE stays attended).
 - It does not widen any tolerance, admit any refusal, or count a render as evidence.

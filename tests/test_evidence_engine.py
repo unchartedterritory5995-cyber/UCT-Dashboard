@@ -78,7 +78,7 @@ Probe `alpha.pine`, NYSE:RDDT 1D from the listing.
 |---|---|---|
 | S1 | which of the two this means is not said | AMEX:SPY 60 |
 
-### 5. Readings already on disk
+### 5. What is already on disk
 
 | probe | capture | note |
 |---|---|---|
@@ -239,6 +239,41 @@ def test_a_fixture_reference_is_never_a_source_and_the_section_decides(world):
     assert "alpha@AMEX:SPY@60" not in t and _rows(q)["S1"]["needsProbe"].startswith("no probe file named")
 
 
+PROSE_CELL_DOC = """# Capture queue - 2026-11-04 prose cells
+
+Charts: NYSE:RDDT 1D.
+
+| id | probe | what it settles |
+|---|---|---|
+| R1 | | the old `bravo.pine` read 0 on bar 0, see `charlie` and `bravo-spy-15` (after `owed-thing.pine` lands) |
+| R2 | `delta.pine` | like `echo`, which `foxtrot.pine` agreed with |
+
+| id | question |
+|---|---|
+| R3 | `echo` on AMEX:SPY 1D |
+
+| id | detail |
+|---|---|
+| R4 | the old `bravo-spy-15` capture read 0 |
+"""
+
+
+def test_a_probe_named_in_a_prose_cell_is_a_reference_never_a_request(world):
+    (world.docs_dir / "capture-queue-2026-11-04-prose-cells.md").write_text(PROSE_CELL_DOC, encoding="utf-8")
+    d = ee.parse_doc(world, world.docs_dir / "capture-queue-2026-11-04-prose-cells.md")
+    rows = {r["key"].split("#", 1)[1]: r for r in d["rows"]}
+    # R1 asks for nothing: its only probe names are in the prose cell. Not a source, and not an OWED probe either
+    assert rows["R1"]["sources"] == [] and rows["R1"]["needsProbe"].startswith("no probe file named")
+    assert sorted(rows["R1"]["fixtureRefs"]) == ["bravo", "charlie"]
+    # R2 asks for delta (its probe cell); echo and foxtrot in the prose cell are only referred to
+    assert [pathlib.PureWindowsPath(s["path"]).name for s in rows["R2"]["sources"]] == ["delta.pine"]
+    assert sorted(rows["R2"]["fixtureRefs"]) == ["echo", "foxtrot"]
+    # a column headed `question` is prose too, so R3 names `echo` only as a reference
+    assert rows["R3"]["sources"] == [] and rows["R3"]["fixtureRefs"] == ["echo"]
+    # in a REQUEST cell (`detail` is not a prose header) a token naming a capture of a probe is still no source
+    assert rows["R4"]["sources"] == [] and rows["R4"]["fixtureRefs"] == ["bravo"]
+
+
 def test_a_finished_capture_table_is_context_not_queue(world):
     _, rows = _doc_rows(world)
     assert "bravo" not in rows             # the table under `## CAPTURED - 2026-10-01`
@@ -246,6 +281,126 @@ def test_a_finished_capture_table_is_context_not_queue(world):
     t = _by_id(ee.build_queue(world))
     assert "charlie@NYSE:RDDT@D" not in t
     assert t["bravo@NYSE:RDDT@D"]["rows"] == ["capture-queue-2026-11-02-test#Q1"]
+
+
+SECTION_DOC = """# Capture queue - 2026-11-04 sections
+
+Probe `alpha.pine`; AMEX:SPY 1D, full history.
+
+| id | question |
+|---|---|
+| F1 | a row in the preamble's own table |
+
+### 1. a section that names its own chart, and the listing
+
+Run on NASDAQ:QQQ 60, from the listing.
+
+| id | question |
+|---|---|
+| X1 | nothing named here |
+
+### 2. a section that names its own chart, not the listing
+
+Run on NASDAQ:QQQ 15 minute bars.
+
+| id | question |
+|---|---|
+| X2 | nothing named here |
+
+### 3. a section that names no chart
+
+| id | question |
+|---|---|
+| X3 | nothing named here |
+
+### 4. a section that says the listing, over a row that names its own chart
+
+Everything here is from the listing.
+
+| id | question |
+|---|---|
+| X4 | AMEX:SPY 5 |
+"""
+
+
+def test_a_sections_chart_beats_the_preambles_and_the_listing_flag_follows_the_chart_that_was_used(world):
+    (world.docs_dir / "capture-queue-2026-11-04-sections.md").write_text(SECTION_DOC, encoding="utf-8")
+    d = ee.parse_doc(world, world.docs_dir / "capture-queue-2026-11-04-sections.md")
+    rows = {r["key"].split("#", 1)[1]: r for r in d["rows"]}
+    got = {k: (r["charts"], r["chartSource"], r["fromListing"]) for k, r in rows.items()}
+    assert got["F1"] == ([["AMEX:SPY", "1D"]], "preamble", True)         # the preamble says "full history"
+    assert got["X1"] == ([["NASDAQ:QQQ", "60"]], "section", True)         # the section's chart, the section's listing
+    # the section's chart wins, and the PREAMBLE's listing wording does not follow a chart it did not supply
+    assert got["X2"] == ([["NASDAQ:QQQ", "15"]], "section", False)
+    assert got["X3"] == ([["AMEX:SPY", "1D"]], "preamble", True)          # no chart in the section: the preamble's
+    # a row naming its own chart is on that chart: the section's listing wording is not about it
+    assert got["X4"] == ([["AMEX:SPY", "5"]], "row", False)
+    assert all(r["sources"] == [{"kind": "probe", "path": rows[k]["sources"][0]["path"]}] for k, r in rows.items())
+
+
+HEADING_DOC = """# Capture queue - 2026-11-04 headings
+
+Probe `alpha.pine`; NYSE:RDDT 1D.
+
+| id | question |
+|---|---|
+| H0 | a live request |
+
+## 5. Captured so far
+
+| id | question |
+|---|---|
+| H1 | numbered, mixed case |
+
+### Readings
+
+| id | question |
+|---|---|
+| H2 | mixed case |
+
+## **3)** Built on the branch
+
+| id | question |
+|---|---|
+| H3 | bold number, mixed case |
+
+## A. Taken since this was written
+
+| id | question |
+|---|---|
+| H4 | lettered |
+
+## 2.1 CAPTURED - 2026-10-01
+
+| id | question |
+|---|---|
+| H5 | dotted number, upper case |
+
+## Built-in functions still to capture
+
+| id | question |
+|---|---|
+| H6 | not a record: a request |
+
+## What lands when it is captured
+
+| id | question |
+|---|---|
+| H7 | not a record: a request |
+
+## Takeaways
+
+| id | question |
+|---|---|
+| H8 | not a record: a request |
+"""
+
+
+def test_a_finished_capture_heading_is_recognised_numbered_or_in_any_case(world):
+    (world.docs_dir / "capture-queue-2026-11-04-headings.md").write_text(HEADING_DOC, encoding="utf-8")
+    d = ee.parse_doc(world, world.docs_dir / "capture-queue-2026-11-04-headings.md")
+    rows = {r["key"].split("#", 1)[1] for r in d["rows"]}
+    assert rows == {"H0", "H6", "H7", "H8"} and d["contextTables"] == 5
 
 
 # ── status, from disk ────────────────────────────────────────────────────────
@@ -425,8 +580,9 @@ class RefusingVerifier:
         return {"ok": False, "verdict": "VERDICT: FAIL", "tail": "the receipt does not match", "exit": 1}
 
 
-def _run_dir(tmp_path, world, items, verdict_for=None):
-    """items: [(capture id, source text)] -> a run dir with captures, results, manifest, verdicts."""
+def _run_dir(tmp_path, world, items, verdict_for=None, asked_stem=None):
+    """items: [(capture id, source text)] -> a run dir with captures, results, manifest, verdicts.
+    `asked_stem`: the captureStem (and source sha) the run's manifest entries carry, as a real manifest does."""
     rd = tmp_path / "run"
     for sub in ("captures", "results"):
         (rd / sub).mkdir(parents=True, exist_ok=True)
@@ -438,7 +594,8 @@ def _run_dir(tmp_path, world, items, verdict_for=None):
             "slug": slug, "captureId": cid, "outcome": "CAPTURED",
             "provenance": {"account": "abc123def456", "runId": "r"}}), encoding="utf-8")
         scripts.append({"slug": slug, "queueTargetId": f"{slug}@NYSE:RDDT@D", "rows": ["d#Q1"],
-                        "chartDefaulted": False, "chartSource": "row"})
+                        "chartDefaulted": False, "chartSource": "row",
+                        **({"captureStem": asked_stem, "sha256": _sha(text)} if asked_stem else {})})
         if verdict_for is None or cid in verdict_for:
             verdicts.append({"id": cid, "verdict": "MATCH", "reason": "ok", "plots": []})
     (rd / "manifest.json").write_text(json.dumps({"scripts": scripts}), encoding="utf-8")
@@ -485,6 +642,47 @@ def test_a_capture_id_off_the_house_form_or_off_its_capture_stem_is_refused(tmp_
     raw = by["gamma__abcdef1234-rddt-1d-2026-11-02"]
     assert raw["action"] == "REFUSE" and any("capture stem of its source" in p for p in raw["problems"])
     assert by["gamma-rddt-1d-2026-11-02"]["action"] == "PROMOTE"       # control: the stem the manifest asks for
+
+
+def _add_a_same_slug_corpus_file(world):
+    """What changes a source's capture stem: another file of the world with its house slug (`alpha` gets `-<sha8>`)."""
+    (world.corpus / "committed" / "alpha__ffff000000.pine").write_text(
+        '// SPDX-License-Identifier: MIT\nindicator("Alpha twin")\nplot(low)\n', encoding="utf-8", newline="")
+    world._corpus = world._by_sha = world._stems = None
+
+
+def test_a_capture_is_held_to_the_stem_its_run_manifest_asked_for_not_to_todays_world(tmp_path, world):
+    fx, ledger = tmp_path / "fixtures", tmp_path / "l.jsonl"
+    cid = "alpha-rddt-1d-2026-11-02"
+    rd = _run_dir(tmp_path, world, [(cid, ALPHA)], asked_stem="alpha")
+    sha = ee.write_packet(rd, ee.build_packet(rd, world, OkVerifier(), fx))
+    # a same-slug file lands between the capture and the promote: `alpha` is now `alpha-<sha8>` in the world
+    _add_a_same_slug_corpus_file(world)
+    assert ee.capture_stem(world, world.probes["alpha"]) == "alpha-" + _sha(ALPHA)[:8]
+    (item,) = ee.build_packet(rd, world, OkVerifier(), fx)["items"]
+    assert (item["action"], item["problems"]) == ("PROMOTE", [])
+    out = ee.promote(rd, sha[:12], world=world, verifier=OkVerifier(), fixtures_dir=fx, ledger=ledger,
+                     log=lambda *a: None)
+    assert out["promoted"] == [cid] and (fx / f"{cid}.json").exists()
+    # without a manifest stem the same capture IS refused (the stem a gate derives today), so the rail has teeth
+    rd2 = _run_dir(tmp_path / "b", world, [(cid, ALPHA)])
+    (item2,) = ee.build_packet(rd2, world, OkVerifier(), tmp_path / "fixtures-b")["items"]
+    assert item2["action"] == "REFUSE" and any("capture stem of its source" in p for p in item2["problems"])
+
+
+def test_a_manifest_stem_is_still_the_stem_an_id_must_open_with_and_only_for_its_own_source(tmp_path, world):
+    cid = "alpha-rddt-1d-2026-11-02"
+    # the manifest asked for another stem: the id is wrong, whatever the world says
+    rd = _run_dir(tmp_path / "a", world, [(cid, ALPHA)], asked_stem="alpha-other")
+    (item,) = ee.build_packet(rd, world, OkVerifier(), tmp_path / "fx")["items"]
+    assert item["action"] == "REFUSE" and any("run manifest asked the driver for" in p for p in item["problems"])
+    # an entry whose sha is not this capture's source is not about it: the world's stem rules
+    rd = _run_dir(tmp_path / "b", world, [(cid, ALPHA)], asked_stem="alpha-other")
+    m = json.loads((rd / "manifest.json").read_text(encoding="utf-8"))
+    m["scripts"][0]["sha256"] = "0" * 64
+    (rd / "manifest.json").write_text(json.dumps(m), encoding="utf-8")
+    (item,) = ee.build_packet(rd, world, OkVerifier(), tmp_path / "fx")["items"]
+    assert (item["action"], item["problems"]) == ("PROMOTE", [])
 
 
 def test_a_capture_verify_capture_refuses_is_refused(tmp_path, world):
@@ -608,6 +806,19 @@ def test_a_corpus_target_runs_from_the_manifest_through_the_driver_to_a_promotab
 
 
 # ── the real docs ────────────────────────────────────────────────────────────
+# ── what the design promises is what exists ──────────────────────────────────
+def test_there_is_no_local_evidence_mode_and_the_design_doc_says_so(capsys):
+    with pytest.raises(SystemExit) as exc:
+        ee.main(["manifest", "--local-evidence"])
+    assert exc.value.code == 2 and "--local-evidence" in capsys.readouterr().err
+    doc = (REPO / "docs" / "pine" / "EVIDENCE-ENGINE-DESIGN.md").read_text(encoding="utf-8")
+    assert "It has no local-evidence mode." in doc
+    assert "--local-evidence]" not in doc                   # not offered as a manifest option
+    # LICENCE_HOLD is a guard, not a state any target reaches: no target of the real queue has it
+    assert not any(t["status"] == "LICENCE_HOLD" for t in ee.build_queue()["targets"])
+    assert "a guard, not a state anything reaches today" in doc
+
+
 def test_every_committed_queue_doc_parses_and_every_target_resolves_to_its_file():
     q = ee.build_queue()
     assert q["schema"] == ee.QUEUE_SCHEMA and q["docs"]

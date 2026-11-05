@@ -199,3 +199,8 @@ tests/econ/fixtures/** text=auto eol=lf
 
 # Windows batch: cmd.exe mis-parses labels/goto on LF-only files (wave 14 OPS).
 tools/restore_drill_weekly.cmd text eol=crlf
+
+# train: a script with a `#!` line is imported by vitest (tools/pine_runtime_closure.mjs from
+# serverBundle.rail / hostNeutralClosure.rail); with core.autocrlf=true its shebang line checks out
+# with a CR and vite's loader fails with "Invalid or unexpected token". Keep it LF.
+tools/pine_runtime_closure.mjs text eol=lf
