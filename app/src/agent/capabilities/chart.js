@@ -38,7 +38,7 @@ import { keepIndicatorState } from '../../components/chart/indicatorPreservation
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
-import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
+import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
 
@@ -434,12 +434,14 @@ const CAPABILITIES = [
         : String(said).replace(/\s+(?:on|in|to)\s+(?:the|my|this)\s+(?:main |active |current )?chart$/i, '')
       // An explicit "symbol/ticker to X" may be lowercase: the noun removes the
       // ambiguity that keeps "show volume" from ever reading as a ticker.
+      const named = /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
         || /^(?:chart|open|show|load|pull up|put|switch to|go to|(?:change|flip|switch)(?: it| this| that| the chart| this chart| my chart)? to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
-        || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
+        || named
       // ⛔ "change the ticker to it" / "$" aside, a pronoun is never a ticker (nl/tickers.js)
       const typed = m && raw.includes(`$${m[1]}`) ? `$${m[1]}` : m?.[1]   // "$IT" is explicitly a ticker
-      if (m) return !isPronounToken(typed, said) ? { symbol: m[1].toUpperCase() } : null
+      // "show YTD" is a range, not a ticker: the request goes on to the model. "$YTD" and "change the ticker to YTD" say ticker.
+      if (m) return !isPronounToken(typed, said) && (named || !isReservedWord(typed)) ? { symbol: m[1].toUpperCase() } : null
       // NL N4: a LOWERCASE ticker after a chart verb ("pull up nvda", "chart amd") — only a word UCT
       // does not know (nor a typo of one) and never a pronoun; prepare then asks the ticker search
       // whether it exists (or is an exact company name). "switch to weekly" stays a timeframe.
