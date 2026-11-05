@@ -159,8 +159,9 @@ describe('Multi Chart: the Agent starts here at all', () => {
     await waitFor(() => expect(body).not.toBeNull())
     expect(body.context.charts.map(c => c.label)).toEqual(['Top-left chart (NVDA)', 'Top-right chart (AMD)', 'Bottom-left chart (TSLA)', 'Bottom-right chart (empty)'])
     expect(body.context.charts.every(c => c.linkedWidgets === 0)).toBe(true)
-    expect(body.context.board).toBeUndefined()
-    expect(body.context.workspace).toBeUndefined()
+    // named as hidden and nothing else: none of the board's contents, and a plan for it gets the grid's refusal (gridMode.js)
+    expect(body.context.board).toEqual([{ ref: expect.any(String), label: 'Board (hidden while Multi Chart is on)' }])
+    expect(body.context.workspace).toEqual([{ ref: expect.any(String), label: 'Workspace (hidden while Multi Chart is on)' }])
   }, 30000)
 })
 

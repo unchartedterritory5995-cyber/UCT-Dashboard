@@ -2,10 +2,12 @@
 // scripted model: what these prove is that a plan runs and is receipted truthfully. Whether a real model picks that plan is
 // the next real-model run's question, not this file's.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, ONE, TWO } from './testing/panelHarness'
 import { buildContext } from './capabilities'
+import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
+import { preflightRefusals } from './nl1/interpreter'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -251,4 +253,54 @@ describe('defect 3: a pending card is resolved by itself', () => {
     expect(text).toMatch(/I withdrew the proposal above/)
     expect(tfOf(board) ?? 'D').toBe('D')
   }, 40000)
+})
+
+describe('defect 4: a question reaches the panel only with its options', () => {
+  const clarify = (text, choices = [], extra = {}) => ({ disposition: 'clarify', reply: '', question: { text, choices }, ops: [], unsupported_category: null, ...extra })
+  const questions = () => screen.queryAllByTestId('agent-question')
+  it('the server\'s empty "which one?" on the board says nothing changed and what to say instead', async () => {
+    const { say } = p.mount(...TWO('AAPL', 'NVDA'))
+    p.st.envelopes.push(clarify('Which one do you mean?', [], { unplaced_actions: ['chart.setTimeframe'] }))
+    expect(await say('sort this one out for me')).toMatch(/couldn’t tell which one you meant/)
+    expect(questions().length).toBe(0)
+  }, 40000)
+  it('a model question that has options is still a question with its buttons', async () => {
+    const { say } = p.mount(...TWO('AAPL', 'NVDA'))
+    p.st.envelopes.push(clarify('Which chart?', ['Left', 'Right']))
+    await say('sort this one out for me')
+    expect(questions().length).toBe(1)
+    expect(screen.getByRole('button', { name: 'Left' })).toBeTruthy()
+  }, 40000)
+  it('a model question with no options is a plain line, and the next message still answers it', async () => {
+    const { say } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(clarify('What level should the alert use?'))
+    expect(await say('set an alert for me')).toMatch(/What level should the alert use\? Tell me in your next message; nothing has changed yet\./)
+    expect(questions().length).toBe(0)
+    await say('150')
+    expect(p.lastTurnBody().message).toMatch(/150/)
+  }, 40000)
+  it('a local question that lost its options is a plain line too', () => {
+    expect(withOptionsOrPlain({ role: 'question', text: 'Which one?', choices: [] }).role).toBe('agent')
+    expect(withOptionsOrPlain({ role: 'question', text: 'Which one?', choices: [{ label: 'A' }] }).role).toBe('question')
+    expect(withOptionsOrPlain({ role: 'question', text: 'Which?', authoring: true }).role).toBe('question')
+  })
+  describe('on the grid, a board change is refused by name', () => {
+    const grid = { multiChart: true, charts: { grid: () => ({ maximized: () => null, groupsMode: () => false }) } }
+    it.each([['widget.add'], ['widget.remove'], ['widget.arrange']])('%s', (action) => {
+      expect(noOptionRefusal({ question: { text: 'Which one do you mean?' }, unplaced_actions: [action] }, grid, [])).toMatch(/hidden while Multi Chart is on/)
+    })
+    it('NEGATIVE: a chart action there is no board refusal', () => {
+      expect(noOptionRefusal({ question: { text: 'Which one do you mean?' }, unplaced_actions: ['chart.setTimeframe'] }, grid, [])).toMatch(/couldn’t tell which one/)
+    })
+    it('NEGATIVE: a real question is left alone', () => {
+      expect(noOptionRefusal({ question: { text: 'Which timeframe?' } }, grid, [])).toBe(null)
+      expect(noOptionRefusal({ question: { text: 'Which one do you mean?' } }, grid, [{ label: 'A' }])).toBe(null)
+    })
+    it('the board is named in the model\'s context, so a plan for it has a real target; the planner refuses it, and no repair is paid for', () => {
+      const h = { ...p.mount(...ONE('AAPL')).h, multiChart: true, widgets: undefined, charts: { ...grid.charts, list: () => [] } }
+      const { refMap } = buildContext(h, { surface: 'charts', message: '' })
+      expect(Object.values(refMap).filter(v => v.kind === 'workspace' || v.kind === 'board').map(v => v.ref).sort()).toEqual(['board', 'workspace'])
+      expect(preflightRefusals(h, [{ action: 'widget.add', target: 'workspace', args: { type: 'news', as: null } }])).toEqual([])
+    })
+  })
 })

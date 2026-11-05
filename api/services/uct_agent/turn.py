@@ -2091,10 +2091,12 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # An answer with nothing in it would show the member a blank reply.
         _unreadable("empty_answer", ops=len(ops))
     if bad_targets:
-        # A target the browser never offered: ask, don't guess.
+        # A target the browser never offered: ask, don't guess. No options exist here, so `unplaced_actions`
+        # tells the browser what was planned: it says why by name (Multi Chart) instead of showing an empty question.
         return {"disposition": "clarify", "reply": "",
                 "question": {"text": "Which one do you mean?", "choices": []},
-                "ops": [], "unsupported_category": None}
+                "ops": [], "unsupported_category": None,
+                "unplaced_actions": sorted({str(o.get("action")) for o in bad_targets})[:MAX_OPS]}
     q = env.get("question") if disp == "clarify" else None
     if disp == "clarify" and not (isinstance(q, dict) and q.get("text")):
         q = {"text": env.get("reply") or "Which one do you mean?", "choices": []}

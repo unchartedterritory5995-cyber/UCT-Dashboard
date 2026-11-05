@@ -593,6 +593,7 @@ export function registerBoardCapabilities() {
   registerContextProvider({
     key: 'board',
     build: (host, refFor) => {
+      if (host?.multiChart) return [{ ref: refFor('board', 'board'), label: 'Board (hidden while Multi Chart is on)' }]
       const s = snapOf(host)
       if (!s) return undefined
       return [{

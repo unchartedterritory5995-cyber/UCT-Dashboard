@@ -216,6 +216,20 @@ def test_an_unknown_target_is_a_question_never_a_guess():
     assert out["envelope"]["disposition"] == "clarify" and out["envelope"]["ops"] == []
 
 
+def test_an_unknown_target_names_what_was_planned_so_the_browser_can_refuse_it_by_name():
+    bad = dict(OP, target="c7")
+    c = caller_of(_resp(env("apply", ops=[bad, OP])))
+    out = turn.run_turn(message="bars", context=CTX, history=[], capabilities=CAPS, caller=c)
+    assert out["envelope"]["unplaced_actions"] == [OP["action"]]
+    assert out["envelope"]["question"]["choices"] == []
+
+
+def test_a_placed_plan_carries_no_unplaced_actions():
+    c = caller_of(_resp(env("apply", ops=[OP])))
+    out = turn.run_turn(message="bars", context=CTX, history=[], capabilities=CAPS, caller=c)
+    assert "unplaced_actions" not in out["envelope"]
+
+
 def test_a_mutating_disposition_with_no_ops_is_just_a_reply():
     c = caller_of(_resp(env("apply", ops=[], reply="hmm")))
     out = turn.run_turn(message="bars", context=CTX, history=[], capabilities=CAPS, caller=c)

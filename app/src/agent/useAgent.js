@@ -29,6 +29,7 @@ import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, c
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
+import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
 import { boardRefusalIn } from '../pages/charts/boardBound'
 import { chartFaultedSince, onChartFault } from '../pages/charts/chartFaults'
 import { bindCreated } from './createdBinding'
@@ -711,7 +712,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (item?.role && item.role !== 'member') turnOutput(item.role)
     const id = item?.id || nid()
     if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
-    setItems(xs => [...xs, { at: Date.now(), ...item, id }])
+    setItems(xs => [...xs, { at: Date.now(), ...withOptionsOrPlain(item), id }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
   // ⛔ APPROVAL BINDING: a change that RAN (any write, or an Undo) withdraws a proposal still waiting —
@@ -2583,6 +2584,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const streamed = live.settle(talk ? { text: env.reply, sources } : null)
       if (talk) {
         if (!streamed) push({ role: 'agent', text: env.reply, sources })
+        return
+      }
+      // a "which one?" with nothing behind it is no question (noOptionQuestion.js)
+      const unasked = env.disposition === 'clarify' ? noOptionRefusal(env, host, clarifyChoices(env.question?.choices)) : null
+      if (unasked) {
+        push({ role: 'refusal', text: unasked })
+        record({ member: null, outcome: unasked, outcomeData: { kind: 'refused', actions: env.unplaced_actions || [] }, telemetry: { path: 'model', refused: true, voice } })
         return
       }
       // the member's words this question is about stay with it, for the answer (screenUnnamedTargets)

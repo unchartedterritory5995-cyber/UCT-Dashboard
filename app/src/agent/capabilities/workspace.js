@@ -230,6 +230,8 @@ export function registerWorkspaceCapabilities() {
     key: 'workspace',
     // A one-item LIST so the workspace gets a minted short ref like every target.
     build: (host, refFor) => {
+      // Multi Chart hides the board: named, so a plan for it reaches the planner and gets the grid's refusal (gridMode.js)
+      if (host?.multiChart) return [{ ref: refFor('workspace', 'workspace'), label: 'Workspace (hidden while Multi Chart is on)' }]
       if (!host?.widgets) return undefined
       const s = host.widgets.snapshot()
       return [{
