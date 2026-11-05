@@ -3495,7 +3495,7 @@ function ChartsWorkspaceBoard() {
                 : `Switched to “${layoutUndo.plan.to.name || 'layout'}”.`)}
             </span>
             {!layoutUndo.note && !layoutUndo.plan.discarded && layoutUndo.plan.from && (
-              <button type="button" onClick={undoLayoutOpen}>Undo</button>
+              <button type="button" data-guide="workspace.layoutUndo" onClick={undoLayoutOpen}>Undo</button>
             )}
             <button type="button" aria-label="Dismiss" onClick={() => setLayoutUndo(null)}>×</button>
           </div>

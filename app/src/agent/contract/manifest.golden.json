@@ -5647,6 +5647,9 @@
       "enum": [
        "drawingEdit",
        "indicatorManage",
+       "layoutAction",
+       "tabAction",
+       "watchlistAction",
        "alertAction",
        "panelAction",
        "compareAction",
