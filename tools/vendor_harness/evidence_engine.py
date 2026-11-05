@@ -1151,6 +1151,74 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
     return {"promoted": promoted, "ledgerOnly": filed, "refused": refused, "ledgerRows": n, "packetSha256": sha}
 
 
+# ─── W9-T2: the broker pin ledger (design rule 7) ────────────────────────────
+RT_DIR = REPO / "app" / "src" / "components" / "chart" / "engine" / "runtime"
+PINS_SRC = RT_DIR / "brokerPins.json"
+PINS_OUT = RT_DIR / "brokerPins.resolved.json"
+PINS_SCHEMA = "uct.broker-pins/v1"
+PINS_RESOLVED_SCHEMA = "uct.broker-pins.resolved/v1"
+
+
+class PinResolveError(Exception):
+    """A pin names a fixture with no committed verdict, or the source is malformed."""
+
+
+def read_ledger_rows(path: pathlib.Path = LEDGER) -> list:
+    rows = []
+    path = pathlib.Path(path)
+    if not path.exists():
+        return rows
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        if not ln.strip():
+            continue
+        rows.append(json.loads(ln))
+    return rows
+
+
+def resolve_pins(pins: dict, ledger_rows: list) -> dict:
+    """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
+    fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
+    fixture with NO committed verdict, an empty fixture list or a malformed source is an ERROR (a
+    missing fixture fails, it never silently un-pins)."""
+    if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
+        raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
+    verdicts = {}
+    for r in ledger_rows:
+        cid = r.get("captureId")
+        if cid:
+            verdicts.setdefault(cid, []).append(r.get("verdict"))
+    kept = {}
+    for rule in sorted(pins["rules"]):
+        ids = pins["rules"][rule]
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, str) and i for i in ids):
+            raise PinResolveError(f"rule {rule!r}: a non-empty list of fixture ids is required")
+        missing = [i for i in ids if i not in verdicts]
+        if missing:
+            raise PinResolveError(f"rule {rule!r}: no committed verdict for fixture(s) {sorted(missing)}")
+        if all(v == "MATCH" for i in ids for v in verdicts[i]):
+            kept[rule] = sorted(set(ids))
+    return {"schema": PINS_RESOLVED_SCHEMA, "rules": kept}
+
+
+def canonical_pins_text(doc: dict) -> str:
+    """Sorted keys at every level, no spaces, one trailing newline: what the JS lock rail's
+    `canonicalJson` produces byte for byte."""
+    return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
+
+
+def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER) -> int:
+    text = canonical_pins_text(resolve_pins(json.loads(pathlib.Path(src).read_text(encoding="utf-8")),
+                                            read_ledger_rows(ledger)))
+    out = pathlib.Path(out)
+    if check:
+        have = out.read_bytes().decode("utf-8") if out.exists() else ""
+        print(f"VERDICT: {'PASS' if have == text else 'FAIL'} ({rel(out)} {'is' if have == text else 'is NOT'} the resolution of its sources)")
+        return 0 if have == text else 1
+    write_atomic(out, text)
+    print(f"[pins] wrote {rel(out)}; the coordinator appends a brokerPins.lock.json entry with the bump")
+    return 0
+
+
 # ─── the CLI ─────────────────────────────────────────────────────────────────
 def print_counts(q: dict) -> None:
     c = q["counts"]
@@ -1235,7 +1303,12 @@ def main(argv=None) -> int:
     pr.add_argument("--run-dir", required=True)
     pr.add_argument("--packet-sha", required=True)
     pr.add_argument("--only", action="append", default=None)
+    pn = sub.add_parser("pins", help="resolve brokerPins.json against the committed verdicts (W9-T2)")
+    pn.add_argument("--check", action="store_true")
     args = ap.parse_args(argv)
+
+    if args.cmd == "pins":
+        return cmd_pins(check=args.check)
 
     if args.cmd == "queue":
         qd = build_queue(World())
