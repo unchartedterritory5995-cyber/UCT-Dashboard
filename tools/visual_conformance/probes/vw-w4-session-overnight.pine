@@ -1,0 +1,30 @@
+//@version=5
+indicator("UCTPROBE_VW_W4_SESSION_OVERNIGHT", overlay = false)
+
+// W4 T3, row W4-T3b. AN OVERNIGHT WINDOW (end <= start): WHICH BARS, AND WHICH DAY?
+//
+// The columnar lane refuses a window that wraps midnight: the 2026-09-27 capture read "2000-0000" as
+// `na` on every SPY bar, but no SPY bar opens after 20:00, so it cannot say whether such a window is
+// empty or runs to midnight (`pine.js::sessionClockOf`). Corpus scripts that wait on it:
+// `cm-forex-sessions-highlight-v1` ("1700-0200", "1900-0400"), `trading-session-indicator`
+// ("1900-0200"), `session-hilo` (input default "1800-1500").
+//
+// A 24x7 symbol has bars at every hour. Grade, per bar, from HOUR and DOW:
+//   O1 ("1800-0200:1234567") in session for hours 18..23 and 0..1? (membership of a wrapping window)
+//   O2 ("1800-0200:23456")  which weekday does the after-midnight part belong to: the calendar day
+//      of the bar (Tue-Sat early morning drop out) or the day the session STARTED (Mon-Fri 18:00
+//      through Tue-Sat 01:59 stay in)?
+//   O3 ("2000-0000:1234567") "to midnight": hours 20..23 in, or never?
+//   O4 ("0000-0000:1234567") the whole-day window.
+//
+// ⛔ CAPTURE: BITSTAMP:BTCUSD 60 (>= 400 bars, several whole weeks), inputs at defaults.
+
+isNa(t) => na(t) ? 1 : 0
+
+plot(bar_index, "O0_bar_index_CONTROL")
+plot(hour, "HOUR")
+plot(dayofweek, "DOW_dayofweek")
+plot(isNa(time(timeframe.period, "1800-0200:1234567")), "O1_na_wrap_all_days")
+plot(isNa(time(timeframe.period, "1800-0200:23456")), "O2_na_wrap_weekdays")
+plot(isNa(time(timeframe.period, "2000-0000:1234567")), "O3_na_to_midnight")
+plot(isNa(time(timeframe.period, "0000-0000:1234567")), "O4_na_whole_day")
