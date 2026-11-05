@@ -1134,12 +1134,14 @@
   gap: 4px;
 }
 .shareSlot { display: contents; }
-/* S10 (M4): the folder, a small quiet select at the start of the line under the title. */
+/* S10 (M4): the folder, a small quiet select at the start of the line under the title.
+   Tier 4 fix round 2 (live scorecard, field border 1:1): it IS a field (it moves the note), so it wears the field
+   edge every field wears (V1: --field-edge, 3.28:1), not a transparent one; hover lifts it to --border-accent. */
 .folderInline {
   max-width: 14em;
   min-height: 28px;
   padding: 2px 6px;
-  border: 1px solid transparent;
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-sm, 6px);
   background: transparent;
   color: var(--text-muted);
@@ -1150,6 +1152,7 @@
 }
 .folderInline:hover {
   color: var(--text-bright);
+  border-color: var(--border-accent);
 }
 .folderInline:focus-visible {
   outline: 2px solid var(--ut-gold);

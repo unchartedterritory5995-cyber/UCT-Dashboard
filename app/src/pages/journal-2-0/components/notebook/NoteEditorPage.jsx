@@ -841,6 +841,9 @@ export function NoteLinkedTradeChips({ noteId }) {
  * (`lesson: a control that can be dismissed [here: refused] needs the member
  * to know it, not just a developer reading the registry`).
  */
+/** The note body's accessible shape: a named, multi-line text field (fix round 2). */
+export const NOTE_BODY_ARIA = Object.freeze({ role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note body' })
+
 function ToolButton({ active, onClick, label, title, disabled }) {
   const ranOnPressRef = useRef(false)
   return (
@@ -3109,7 +3112,10 @@ export default function NoteEditorPage({
       // this file's own test harness and `focusableWithin`'s `[tabindex]`
       // selector both need to recognise the body as focusable at all --
       // without it `openFocus="body"` (Q1's fix) silently focused nothing.
-      attributes: { class: styles.proseEditor, 'aria-label': 'Note body', tabindex: '0' },
+      // Tier 4 fix round 2 (live scorecard, axe serious `aria-prohibited-attr` at every profile): the editor no longer
+      // stamps a role, and `aria-label` is prohibited on a role-less div. The body IS a multi-line text field, so it
+      // says so: NOTE_BODY_ARIA (role textbox, aria-multiline). Rail: a11y/noteBodyRole.a11y.test.jsx.
+      attributes: { class: styles.proseEditor, ...NOTE_BODY_ARIA, tabindex: '0' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         const terminalLink = !Array.from(items || []).some((i) => i.kind === 'file')
