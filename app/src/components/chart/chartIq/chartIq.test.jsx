@@ -289,3 +289,18 @@ describe('weekly bar dates', () => {
     expect(d.segments[0].t1).toBe('2026-10-23')
   })
 })
+
+// Tier 2 fix round 1 (review minor 13): the toggle carries the head's padding and the gap before the close, so the old
+// div[role=button]'s whole area still toggles (jsdom lays nothing out: the boxes are read from the styles).
+describe('ChartIqPanel head: the full click target', () => {
+  it('the row has no padding or gap of its own; the toggle has the old 5 px / 8 px padding and the 6 px before the close', () => {
+    render(<ChartIqPanel data={PAYLOAD} layers={defaultLayers()} onLayer={() => {}} onClose={() => {}} />)
+    const row = document.querySelector('[data-chart-iq-head]')
+    const toggle = screen.getByRole('button', { expanded: false })
+    expect(row.style.gap).toBe('0px')
+    expect(row.style.paddingLeft).toBe('0px')
+    expect(row.style.paddingTop).toBe('0px')
+    expect(toggle.style.padding).toBe('5px 6px 5px 8px')
+    expect(toggle.style.flex).toMatch(/^1/)
+  })
+})

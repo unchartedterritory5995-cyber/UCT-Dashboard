@@ -3,8 +3,8 @@
 The SDK retries twice by default. One charged attempt that times out could therefore be
 three billed calls, and no ledger or daily count sees the extra two. A lane that keeps a
 retry must be named in KEPT_RETRIES with the retry count its worst-case charge multiplies
-by (worst case x (retries + 1)). The options-flow files are the exception: they are not
-edited without their owner, keep the SDK default and are under-charged on a timeout.
+by (worst case x (retries + 1)). The two options-flow lanes keep the SDK default, and a
+failed call charges exactly that: tests/test_flow_lanes_failed_call_charged.py.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 REQUEST = httpx.Request("POST", "https://example.invalid/v1/messages")
 
 #: path -> (retries kept, why). A new entry needs a worst case x (retries + 1) charge.
-HANDS_OFF = "untouched: options-flow hands-off; under-charged on timeout (known gap, owner decision)"
+HANDS_OFF = "options-flow: retries kept; a failed call charges worst case x (retries + 1)"
 KEPT_RETRIES: dict[str, tuple[int, str]] = {
     "api/flow_explain.py": (anthropic.DEFAULT_MAX_RETRIES, HANDS_OFF),
     "api/schwab_router.py": (anthropic.DEFAULT_MAX_RETRIES, HANDS_OFF),

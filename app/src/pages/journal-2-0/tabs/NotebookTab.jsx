@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -49,9 +49,10 @@ import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
 import useToolbarRoving from '../lib/useToolbarRoving'
 import useGridRoving from '../lib/useGridRoving'
-import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { useIsDesktop, useIsPhone } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { openJournalTools, registerJournalToolsDoor } from '../lib/journalToolsDoor'
 import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
@@ -74,6 +75,7 @@ import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
 import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
+import FirstRunGate from '../components/notebook/FirstRunGate'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
@@ -279,6 +281,20 @@ const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'renameTag', 'trash', 'res
 // UNCAPPED preview (GET /notes/tag-members), unlike every other bulk op's ids
 // (the member's own, page-bounded, selection).
 const RENAME_TAG_CHUNK_SIZE = 500
+
+/** The phone fold rule (one authority for the seed and the effect): at <=640 px, on a list or Home (not a note, not
+ *  the `#search` door, which opens the panel on purpose), the folders panel is folded. Exported for its rail. */
+/** The sort select's choices: the full words, and the compact ones a phone shows (Tier 2). */
+export const SORT_OPTIONS = Object.freeze([
+  { value: 'updated', label: 'Recently updated', short: 'Updated' },
+  { value: 'created', label: 'Recently created', short: 'Created' },
+  { value: 'title', label: 'Title', short: 'Title' },
+])
+
+export function phoneArrivalFolds(noteId, hash) {
+  if (typeof window === 'undefined' || window.innerWidth > 640) return false
+  return !noteId && hash !== NOTEBOOK_SEARCH_HASH
+}
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -581,6 +597,11 @@ export default function NotebookTab() {
 
   // Folders panel: open/closed + width, persisted locally so it survives reloads.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Tier 2 (production check of Tier 1b, phone CLS 0.30): on a phone the panel is a drawer that folds on arrival
+    // (the effect below). Seeded OPEN from the stored choice, it painted the whole folder tree above the notes for
+    // one frame and the fold then moved the notes pane up by the tree's height -- one layout shift of 0.3035, the
+    // whole phone CLS. It now STARTS folded wherever that effect would fold it, so no frame ever paints it open.
+    if (phoneArrivalFolds(noteId, location.hash)) return false
     try { return localStorage.getItem('uct.j2.nb.sidebarOpen') !== '0' } catch { return true }
   })
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -760,10 +781,7 @@ export default function NotebookTab() {
   // the labelled "Folders" button (`.sidebarToggle`, un-hidden at phone) reopens it. Never on the
   // `#search` door, which opens the panel on purpose for its search box.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.innerWidth > 640) return
-    if (noteId) return
-    if (location.hash === NOTEBOOK_SEARCH_HASH) return
+    if (!phoneArrivalFolds(noteId, location.hash)) return
     setSidebarOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, folderId, tag, noteId])
@@ -854,6 +872,13 @@ export default function NotebookTab() {
   const viewParam = searchParams.get('view')
   const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
+  // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
+  const listToolbarShown = !noteId && !isHome
+  // the compact sort words, on a phone only (review minor 12)
+  const phoneSortWords = useIsPhone()
+  // a LAYOUT effect: registered in the list's first commit, before the browser paints it (no fold after a paint)
+  useLayoutEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'
@@ -2189,6 +2214,9 @@ export default function NotebookTab() {
     { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
     { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
+    // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
+    { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
@@ -2739,9 +2767,10 @@ export default function NotebookTab() {
               // "combo box, Recently updated" with nothing saying what it orders.
               aria-label="Sort notes"
             >
-              <option value="updated">Recently updated</option>
-              <option value="created">Recently created</option>
-              <option value="title">Title</option>
+              {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
+                  of its own. On a PHONE the words are compact (review minor 12: only there); the control's NAME
+                  ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
             </select>
           )}
           {tickerFilter && (
@@ -2797,7 +2826,8 @@ export default function NotebookTab() {
             </div>
             <div className={styles.menuSlot}>
               <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
-                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button">
+                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button"
+                data-journal-tools-door="">
                 <UIcon name="more" size={16} gold={false} />
               </button>
               {moreMenu.open && (
@@ -3166,6 +3196,9 @@ export default function NotebookTab() {
       {notebookFlag('notebook_onboarding_enabled') === true && (
         <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}
+      {/* S16 (audit 2026-11-05): the 60-second first run, on a member's first visit (no notes yet) and from Settings.
+          The gate is small; the sheet is a lazy leaf fetched only when it shows. */}
+      <FirstRunGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} onOpenNote={openNote} />
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />

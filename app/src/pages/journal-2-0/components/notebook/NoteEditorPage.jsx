@@ -151,6 +151,7 @@ import { noteDayOf } from '../../lib/blocks/toolDays'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import TickerCardSlot from './widgets/TickerCardSlot'
+import NotebookTipSlot from './NotebookTipSlot'
 // Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
 // also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
 // imports below, and the chip itself is lazy.
@@ -6001,6 +6002,8 @@ export default function NoteEditorPage({
         )}
         {/* Notebook widgets W1: the $TICKER chip's card, a lazy chunk (widgets/TickerCardSlot.jsx). */}
         {widgetsWaveOn(1) && <TickerCardSlot editor={editor} />}
+        {/* S13 (audit 2026-11-05): the one-time tips at the moment of need -- the first $TICKER, the first chart. */}
+        <NotebookTipSlot editor={editor} />
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
             <ScreenshotTagOffer editor={editor} offer={screenshotOffer}

@@ -46,7 +46,7 @@ function renderSupport(entry = '/support') {
 const walkthroughs = () => screen.findByRole('heading', { level: 2, name: 'Walkthroughs' }, { timeout: 3000 })
 
 describe('Help > Walkthroughs on keys (W14-keys)', () => {
-  it('"Skip to Walkthroughs" lands on the Walkthroughs heading; the next Tab is the first Replay', async () => {
+  it('"Skip to Walkthroughs" lands on the Walkthroughs heading; the next Tab is the first Start/Replay', async () => {
     latchNotebookFlags(SWITCH_ON)
     renderSupport()
     const heading = await walkthroughs()
@@ -57,7 +57,7 @@ describe('Help > Walkthroughs on keys (W14-keys)', () => {
     expect(document.activeElement).toBe(heading)
     const user = userEvent.setup()
     await user.tab()
-    expect(document.activeElement).toHaveTextContent('Replay')
+    expect(document.activeElement).toHaveTextContent(/^(Start|Replay)$/)
     expect(document.activeElement.closest('li')).toHaveTextContent('Notebook basics')
   })
 
