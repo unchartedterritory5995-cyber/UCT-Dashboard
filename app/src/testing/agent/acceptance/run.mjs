@@ -656,9 +656,10 @@ scn('full board banner', [], { prefs: board(Array.from({ length: 16 }, (_, i) =>
   const note = await p.b.evaluate(`document.querySelector('[data-testid="board-bound-note"]')?.textContent || ''`)
   t.ok('the Widgets menu carries the bound note', /16|full|widget/i.test(note), note)
 })
-scn('multi chart gate', [], { prefs: { multichart_state: JSON.stringify({ mode: 'grid', layout: '2x2', cells: [{ sym: 'SPY', tf: 'D' }, { sym: 'NVDA', tf: 'D' }, { sym: 'AAPL', tf: 'D' }, null], groups: {}, syncTimeRange: false }) } }, async (p, t) => {
-  await act(p, t, { say: 'make the top-left chart weekly', plan: { ops: [{ action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }] }, noReceipt: true, busy: false })
-  t.ok('recorded', true, await p.last())
+// (#835 lifted the gate this scenario was written for: a saved grid opens with an empty cell, and a change on it runs)
+scn('multi chart from a saved grid', [], { emptyCell: true, prefs: { multichart_state: JSON.stringify({ mode: 'grid', layout: '2x2', cells: [{ sym: 'SPY', tf: 'D' }, { sym: 'NVDA', tf: 'D' }, { sym: 'AAPL', tf: 'D' }, null], groups: {}, syncTimeRange: false }) } }, async (p, t) => {
+  const r = await act(p, t, { say: 'make the top-left chart weekly', plan: { ops: [{ action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }] }, receipt: /weekly/i, undoable: true })
+  t.ok('the top-left cell is weekly, the others are not', r.after.filter(c => c.type === 'chart' && c.sym).map(c => c.tf).join() === '1W,1D,1D', JSON.stringify(r.after.map(brief)))
 })
 
 // ── Multi Chart (needs #835 and #839: run only on a build holding them, filter "^mc ") ─────────────────────
@@ -821,7 +822,7 @@ for (const s of S) {
     await p.settle()
     await p.openPanel()
     // the workspace mounts panels in batches: a board is ready when every chart on it has painted
-    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || (x.id === 'g3' && !x.sym)) })()`, { timeout: 30000 })
+    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ((x.id === 'g3' || ${!!s.opts.emptyCell}) && !x.sym)) })()`, { timeout: 30000 })
     t.ok('every chart on the board painted', !!up, JSON.stringify((await p.charts()).map(brief)))
     await p.settle()
     await s.fn(p, t)
