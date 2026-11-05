@@ -14,7 +14,8 @@ await registerCatalog()
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
 // the panel names the charts, so the member can just answer (#807's form)
-const NOTHING = { unchanged: true, modelTurns: 0, says: ['here \(the .* charts?\), not [23]', 'Say which', 'Nothing has changed'] }
+// (`says` entries are regular expressions: the literal parentheses are escaped — '\(' in a JS string is just '(')
+const NOTHING = { unchanged: true, modelTurns: 0, says: ['here \\(the .* charts?\\), not [23]', 'Say which', 'Nothing has changed'] }
 const MISMATCH = [
   ['M1.owner-sentence', 'FOUR', 'add rsi to the top right chart', 'Actually, do the same for the other two.'],
   ['M2.same-for', 'FOUR', 'add rsi to the top right chart', 'same for the other two'],

@@ -192,6 +192,16 @@ def streaming_enabled() -> bool:
     return str(os.environ.get(STREAM_ENV) or "").strip().lower() in ("1", "true", "on", "yes")
 
 
+ROUTING_V2_ENV = "UCT_AGENT_ROUTING_V2"
+
+
+def routing_v2_enabled() -> bool:
+    """NLM-1 (owner policy 11-04: ON by default for admins; the Agent is admin-only). UCT_AGENT_ROUTING_V2=0 / false /
+    off / no is the server KILL SWITCH (the browser has its own: localStorage uct.agent.routingV2 = '0'). Routing only
+    changes which capabilities the model SEES; the server validates every op against the manifest it was sent, as before."""
+    return str(os.environ.get(ROUTING_V2_ENV) or "").strip().lower() not in ("0", "false", "off", "no")
+
+
 @router.get("/api/agent/config")
 def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
@@ -203,7 +213,9 @@ def agent_config(user: dict = Depends(require_admin_dark)):
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
             "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner(),
             # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
-            "coach": coach.enabled()}
+            "coach": coach.enabled(),
+            # NLM-1 D1: registry-derived routing v2, UCT_AGENT_ROUTING_V2 (default ON; 0 = kill switch) -- the browser has its own kill switch
+            "routing_v2": routing_v2_enabled()}
 
 
 # ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──

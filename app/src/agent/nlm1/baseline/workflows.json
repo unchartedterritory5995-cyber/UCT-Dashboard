@@ -1,0 +1,1502 @@
+{
+ "version": 1,
+ "about": "NLM-1 D2 (multi-step planning with references) and D3 (conversational context) — capreg golden-workflow format (qa/capabilityRegression/testing/run.jsx replay), replayed through the REAL panel with NLM-1 ON (both keys) and asserted on FINAL WORKSPACE STATE plus Undo restoring exactly. Every step is read deterministically (modelTurns 0): no model, no paid call. Written by the nlm1 track; the independent held-out set is qa/nlm1-heldout/.",
+ "workflows": [
+  {
+   "id": "D2-01.new-chart-then-rsi-on-it",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD and put RSI on it",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-02.new-chart-weekly-and-ema",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "open a chart for AMD, make it weekly and add a 21 ema",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ],
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21,
+        "inputs.maType": "ema"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-03.new-chart-make-it-weekly",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for TSLA and make it weekly",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "TSLA"
+       ],
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-04.new-chart-then-macd-own-pane",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "create a new chart for TSLA then put MACD on it",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "TSLA"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "macd"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-05.symbol-then-ema-on-it",
+   "kind": "D2",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "switch to AMD and put the 21 ema on it",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD"
+       ]
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21,
+        "inputs.maType": "ema"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-06.ema-then-colour-it",
+   "kind": "D2",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add a 21 ema and make it orange",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21,
+        "inputs.maType": "ema"
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "orange"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-07.new-chart-then-ema-on-both",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD and put the 21 ema on both",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ]
+      },
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-08.same-for-qqq-new-chart",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD with RSI",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "same for QQQ",
+     "expect": {
+      "charts": {
+       "count": 3,
+       "symbolSet": [
+        "NVDA",
+        "AMD",
+        "QQQ"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-09.left-then-same-on-right",
+   "kind": "D2",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add the 21 ema to the left chart",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "same for the right one",
+     "expect": {
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-10.top-left-then-other-three",
+   "kind": "D2",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "put the 21 ema on the top left chart",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "do that for the other three charts",
+     "expect": {
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-11.weekly-left-then-other-two",
+   "kind": "D2",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "make the top left chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D",
+        "D",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "do the same for the bottom two",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D",
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D",
+        "D",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-12.two-charts-each-with-ema",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "open charts for AMD and QQQ, each with the 21 ema",
+     "expect": {
+      "charts": {
+       "symbolSet": [
+        "NVDA",
+        "AMD",
+        "QQQ"
+       ]
+      },
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ],
+       "except": [
+        "c1"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo all of that",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-13.new-chart-then-cross-turn-it",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put rsi on it",
+     "expect": {
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and make it weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-14.same-but-weekly-new-chart",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for TSLA",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "TSLA"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "same but weekly",
+     "expect": {
+      "charts": {
+       "count": 3,
+       "symbolSet": [
+        "NVDA",
+        "TSLA",
+        "TSLA"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-15.symbol-ema-then-same-for-other",
+   "kind": "D2",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "put TSLA on the left chart with the 21 ema",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "TSLA",
+        "AMD"
+       ]
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-16.one-for-qqq-too",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and one for QQQ",
+     "expect": {
+      "charts": {
+       "count": 3,
+       "symbolSet": [
+        "NVDA",
+        "AMD",
+        "QQQ"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-17.weekly-rsi-then-same-on-right",
+   "kind": "D2",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make the left chart weekly and add rsi",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "do the same on the right chart",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D2-18.new-chart-ema-orange",
+   "kind": "D2",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD with the 21 ema and make it orange",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "orange"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-01.it-after-symbol-switch",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "switch to AMD",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put the 21 ema on it",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-02.that-one-weekly-after-create",
+   "kind": "D3",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make that one weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-03.the-new-one-rsi",
+   "kind": "D3",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "add rsi to the new one",
+     "expect": {
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-04.hide-it-show-it",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add rsi",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "hide it",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       },
+       "has": {
+        "hidden": true
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "show it again",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-05.ema-make-it-red",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add the 21 ema",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make it red",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "red"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-06.the-9-green-other-one-yellow",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add the 9 and 21 ema",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "include": [
+        "movingAverage(9 ema)",
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make the 9 green",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "inputs.period": 9
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "green"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and the other one yellow",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "inputs.period": 21
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "yellow"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-07.same-but-weekly-symbol",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "put TSLA on the right chart",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "NVDA",
+        "TSLA"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "same on the left but weekly",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "TSLA",
+        "TSLA"
+       ],
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-08.now-the-right-one-too",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make the left chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "now the right one too",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-09.those-on-other-charts",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add the 9 and 21 ema to the left chart",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "include": [
+        "movingAverage(9 ema)",
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put those on the other chart too",
+     "expect": {
+      "indicators": {
+       "chart": 1,
+       "include": [
+        "movingAverage(9 ema)",
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-10.bump-it-to-30",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add rsi",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make it a 30",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi",
+        "inputs.period": 30
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-11.remove-it",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add macd",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "macd"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "actually remove it",
+     "expect": {
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-12.same-for-qqq-symbol",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "put TSLA on the left chart",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "TSLA",
+        "AMD"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and QQQ on the right one",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "TSLA",
+        "QQQ"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-13.weekly-then-the-other-one",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make the right chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and the other one monthly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "M",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-14.created-chart-then-same-but-weekly",
+   "kind": "D3",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make it weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-15.it-is-last-created-not-selected",
+   "kind": "D3",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for QQQ",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put rsi on it",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "exclude": [
+        "rsi"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-16.that-chart-log",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "put TSLA on the right chart",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "NVDA",
+        "TSLA"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make that chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-17.both-of-them-rsi",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make both charts weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "add the 21 ema to both of them",
+     "expect": {
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-18.the-20-thicker",
+   "kind": "D3",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add the 9 and 21 ema",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "include": [
+        "movingAverage(9 ema)",
+        "movingAverage(21 ema)"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make the 21 blue",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "inputs.period": 21
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "blue"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-19.create-two-then-those-weekly",
+   "kind": "D3",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add charts for AMD and QQQ",
+     "expect": {
+      "charts": {
+       "symbolSet": [
+        "NVDA",
+        "AMD",
+        "QQQ"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make all of them weekly",
+     "expect": {
+      "charts": {
+       "tf": "W"
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-20.symbol-then-chart-weekly-same-subject",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "put TSLA on the right chart",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "NVDA",
+        "TSLA"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make it weekly and add rsi",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-21.other-two-charts-after-one",
+   "kind": "D3",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "add rsi to the top left chart",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "do that for the top right and bottom left charts",
+     "expect": {
+      "instance": {
+       "chart": 2,
+       "find": {
+        "defId": "rsi"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "D3-22.same-but-monthly-tf",
+   "kind": "D3",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make the left chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "same on the right but monthly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "M"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  }
+ ]
+}

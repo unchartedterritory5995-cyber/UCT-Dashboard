@@ -451,6 +451,21 @@ DEFAULT_THRESHOLDS = {
     # neutral Size row instead — real size shouldn't vanish on an uncertain side
     # (UW's own doc: a fill at the bid is "not necessarily a sell"). 0 disables.
     "keep_sizeless_min_premium": 1000000,
+    # REST side-recovery (2026-11-04). A big print's Side is written BLANK at
+    # ingest and only filled in later by the worker's NBBO re-pass once the Q-pool
+    # re-covers the contract — which can lag the 10-min auto-push window. So a
+    # genuine directional print (MU 700C 11/4: a $73.7M ask SWEEP) sits side-less
+    # while it could still fire: it never counts in the net-flow split, and its
+    # real side ('A') lands only AFTER the window closed — the owner had to push it
+    # by hand. When a blank-Side print this big appears, resolve the side NOW from
+    # the CONSOLIDATED REST NBBO as it stood at the fill (the same source the
+    # side-confirm gate uses) instead of waiting for the re-pass, so it is
+    # directional in-window. Today's prints only; memoized. A fresh at/through ask
+    # -> 'A', at/through bid -> 'BB'; inside-the-spread / no fresh quote stays
+    # neutral (unchanged). 0 floor / enabled=false disables.
+    "rest_side_recover_enabled": True,
+    "rest_side_recover_min_premium": 1000000,  # only resolve a blank Side this big
+    "rest_side_recover_max_age_ms": 2500,      # pre-fill quote must be this fresh
     # Heavy-block hedge de-direction (2026-07-26). A single BLOCK of this premium
     # or larger is treated as a dark-pool hedge / structural print, not a
     # directional bet: its Bull/Bear is dropped so it surfaces as a neutral
@@ -1856,6 +1871,7 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     lottery, spread legs) is still dropped. Side accuracy itself is a separate,
     worker-side fix; here we just stop the broken sides from hiding real repeats.
     """
+    row = dict(row)   # local copy: REST side-recovery below may set row["Side"]
     cp_full = row["CallPut"]
     cp_short = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
     side = row["Side"] or ""
@@ -1864,6 +1880,31 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     spot = _parse_float(row["Spot"])
     money_pct, money_label = _moneyness(strike, spot, cp_full)
     premium = _parse_int(row["Premium"])
+
+    # REST side-recovery (2026-11-04): a blank Side on a big print means the NBBO
+    # re-pass hasn't caught up (Q-pool churn). Resolve it from the consolidated
+    # REST NBBO-at-fill NOW so the print is directional IN the auto-push window and
+    # counts in the net-flow split, instead of waiting for the re-pass (which
+    # lagged past the window on MU 700C 11/4 — a $73.7M ask SWEEP that never
+    # auto-fired). Today's prints only (no REST storm when browsing history);
+    # memoized. Runs BEFORE _derive_direction so every downstream guard (deep-ITM,
+    # heavy-block) still applies to the recovered side.
+    if not (side or "").strip():
+        try:
+            _rs_thr = _load_thresholds()
+            _rs_on = _rs_thr.get("rest_side_recover_enabled", True)
+            _rs_floor = _rs_thr.get("rest_side_recover_min_premium", 1_000_000)
+        except Exception:
+            _rs_thr, _rs_on, _rs_floor = DEFAULT_THRESHOLDS, True, 1_000_000
+        _type_up_rs = (row.get("Type", "") or "").upper().strip().strip("/")
+        _aggr_rs = ("SWEEP" in _type_up_rs or "ISO" in _type_up_rs or "BLOCK" in _type_up_rs
+                    or _type_up_rs in ("BLK", "BL", "BT", "S", "SW", "IS"))
+        if (_rs_on and _aggr_rs and premium and _rs_floor and premium >= _rs_floor
+                and str(row.get("CreatedDate") or "") == _today_mdyyyy()):
+            _rs = _rest_side_recover(row, _rs_thr)
+            if _rs:
+                side = _rs
+                row["Side"] = _rs
 
     direction = _derive_direction(cp_full, side, row.get("Type", ""),
                                   vol=_parse_int(row.get("Volume")), oi=_parse_int(row.get("OI")))
@@ -6093,6 +6134,59 @@ def _nbbo_at(occ: str, ts_ns: int):
     return (bid, ask, (ts_ns - (qts or ts_ns)) / 1e6)
 
 
+_RS_MEMO: dict = {}   # (occ, fill_epoch_sec) -> "A" | "BB" | None  (blank-Side REST recovery)
+
+
+def _rest_side_recover(row: dict, thr: dict):
+    """Resolve a BLANK Side from the CONSOLIDATED REST NBBO as it stood at the fill,
+    so a big directional print isn't held side-less while the worker's own NBBO
+    re-pass catches up (which can lag the auto-push window). Returns 'A' (clean
+    at/through ask), 'BB' (clean at/through bid), or None (no fresh quote / inside
+    the spread -> stays neutral). Memoized per (contract, fill-second); one Massive
+    REST quote call; fail-open to None on any gap."""
+    try:
+        sym = str(row.get("Symbol") or "").upper().strip()
+        exp = str(row.get("ExpirationDate") or "")
+        strike = _parse_strike(row.get("Strike"))
+        px = _parse_float(row.get("Price"))
+        cp_full = row.get("CallPut")
+        cp = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
+        if not (sym and exp and cp and strike > 0 and px and px > 0):
+            return None
+        em, ed, ey = exp.split("/")
+        occ = (f"O:{sym}{int(ey) % 100:02d}{int(em):02d}{int(ed):02d}"
+               f"{cp}{int(round(strike * 1000)):08d}")
+        ts = _ts_from_row(str(row.get("CreatedDate") or ""), str(row.get("CreatedTime") or ""))
+        if not ts:
+            return None
+    except (TypeError, ValueError, AttributeError):
+        return None
+    mkey = (occ, int(ts))
+    if mkey in _RS_MEMO:
+        return _RS_MEMO[mkey]
+    res = None
+    try:
+        nb = _nbbo_at(occ, int(ts * 1e9))
+        if nb:
+            bid, ask, age_ms = nb
+            max_age = float(thr.get("rest_side_recover_max_age_ms", 2500) or 0)
+            if age_ms is not None and (max_age <= 0 or age_ms <= max_age):
+                b = float(bid) if bid is not None else 0.0
+                a = float(ask) if ask is not None else 0.0
+                if a > 0 and b > 0 and a >= b:
+                    tol = float(thr.get("side_confirm_ask_tol", 0.005) or 0)
+                    if px >= a - tol:
+                        res = "A"
+                    elif px <= b + tol:
+                        res = "BB"
+    except (TypeError, ValueError):
+        res = None
+    if len(_RS_MEMO) > 100_000:
+        _RS_MEMO.clear()
+    _RS_MEMO[mkey] = res
+    return res
+
+
 def _side_confirms(a: dict, thr: dict) -> bool:
     """True only if the NBBO confirms a CLEAN aggressive print in the claimed
     direction. Default (side_confirm_use_fill_nbbo): classify the fill against the
@@ -7198,6 +7292,9 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         # sweep_empty_side_as_ask above (missing 7/3 → 7/16).
         "direction_max_itm_pct",     # deep-ITM cap above which direction is dropped
         "keep_sizeless_min_premium", # premium floor to keep a direction-less print as neutral Size
+        "rest_side_recover_enabled",      # resolve a blank Side from REST NBBO instead of waiting for the re-pass
+        "rest_side_recover_min_premium",  # only recover a blank Side at/above this premium
+        "rest_side_recover_max_age_ms",   # pre-fill REST quote must be this fresh to recover a side
         "heavy_block_premium",       # $10M+ BLOCK => drop direction, show as neutral hedge Size
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated

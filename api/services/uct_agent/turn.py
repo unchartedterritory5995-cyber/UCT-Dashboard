@@ -1282,6 +1282,10 @@ ACTIONLESS_OUTCOME_KINDS = frozenset({
     "undo-unsaved", "unsupported",
     # W2: UCT's own fixed sentences — what part of a request was not done; where a split request stopped
     "split-stopped",
+    # NLM-1 (#806 LOW-1): a multi-step request whose take-back could not finish — UCT's own fixed sentence saying how many
+    # of its changes are still on the board (each of them already has its own receipt row, with its actions); this row
+    # names no action, so the model never reads it as an applied change
+    "compound-takeback-failed",
 })
 
 

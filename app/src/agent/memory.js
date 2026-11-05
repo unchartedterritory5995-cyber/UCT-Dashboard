@@ -150,7 +150,8 @@ export function createMemory({ now = () => Date.now() } = {}) {
       if (!fresh(turn) || !sameBoard(turn, epoch) || !turn.steps.length) return null
       const ops = turn.steps.flatMap(s => s.ops)
       const charts = [...new Set(ops.map(o => o.target).filter(t => typeof t === 'string'))]
-      return { ops, charts, undoIds: turn.steps.map(s => s.undoId).filter(Boolean) }
+      // `id`: the member message (beginTurn) that committed it — NLM-1's referent tracker reads which message that was
+      return { id: turn.id, ops, charts, undoIds: turn.steps.map(s => s.undoId).filter(Boolean) }
     },
     recentCorrections() { return corrections.filter(c => fresh(c)) },
 

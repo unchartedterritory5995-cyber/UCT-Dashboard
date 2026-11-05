@@ -1,0 +1,1007 @@
+{
+ "version": 1,
+ "about": "NLM-1 D1 DEV paraphrases: written by the nlm1 track while building routing v2, used to TUNE it (thresholds, vocabulary). NOT the independent held-out set (qa/nlm1-heldout/, written by another agent and read only after D1 is frozen). Each case: the actions the request needs; optional recentActions (the last change) and after (the pending question's groups).",
+ "cases": [
+  {
+   "text": "slap a 21 ema on there",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "throw on some bollinger",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "I want the stochastic oscillator under price",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "can I get MACD on this",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "load up the 10 and 20 day MAs",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "get rid of the RSI study",
+   "needs": [
+    "indicator.remove"
+   ]
+  },
+  {
+   "text": "kill the bollinger bands",
+   "needs": [
+    "indicator.remove"
+   ]
+  },
+  {
+   "text": "which studies do I have on this chart",
+   "needs": [
+    "indicator.list"
+   ]
+  },
+  {
+   "text": "tweak the RSI length to 7",
+   "needs": [
+    "indicator.update"
+   ]
+  },
+  {
+   "text": "change the 50 to a 65 period",
+   "needs": [
+    "indicator.update"
+   ]
+  },
+  {
+   "text": "temporarily hide the MACD",
+   "needs": [
+    "indicator.hide"
+   ]
+  },
+  {
+   "text": "bring the RSI back, unhide it",
+   "needs": [
+    "indicator.show"
+   ]
+  },
+  {
+   "text": "make the 21 ema orange",
+   "needs": [
+    "indicatorStyle.set"
+   ]
+  },
+  {
+   "text": "thicker line on the 200 sma",
+   "needs": [
+    "indicatorStyle.set"
+   ]
+  },
+  {
+   "text": "put the RSI in its own window",
+   "needs": [
+    "indicatorStyle.placeIn"
+   ]
+  },
+  {
+   "text": "move the macd pane above the rsi pane",
+   "needs": [
+    "pane.move"
+   ]
+  },
+  {
+   "text": "give the RSI pane more room",
+   "needs": [
+    "pane.resize"
+   ]
+  },
+  {
+   "text": "copy all the studies from this chart onto the right chart",
+   "needs": [
+    "indicatorCopy.copyTo"
+   ]
+  },
+  {
+   "text": "do I have any custom indicators saved",
+   "needs": [
+    "definition.search"
+   ]
+  },
+  {
+   "text": "what inputs does the keltner channel take",
+   "needs": [
+    "definition.describe"
+   ]
+  },
+  {
+   "text": "flip to AMD",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "bring up COIN",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "lemme see the 65 minute",
+   "needs": [
+    "chart.setTimeframe"
+   ]
+  },
+  {
+   "text": "go to the weekly view",
+   "needs": [
+    "chart.setTimeframe"
+   ]
+  },
+  {
+   "text": "zoom out to monthly bars",
+   "needs": [
+    "chart.setTimeframe"
+   ]
+  },
+  {
+   "text": "heikin ashi please",
+   "needs": [
+    "chart.setType"
+   ]
+  },
+  {
+   "text": "draw it as OHLC bars",
+   "needs": [
+    "chart.setType"
+   ]
+  },
+  {
+   "text": "make the price axis logarithmic",
+   "needs": [
+    "chart.setScale"
+   ]
+  },
+  {
+   "text": "show premarket and after hours",
+   "needs": [
+    "chart.setSession"
+   ]
+  },
+  {
+   "text": "hide the extended session",
+   "needs": [
+    "chart.setSession"
+   ]
+  },
+  {
+   "text": "turn off the volume bars",
+   "needs": [
+    "volume.setState"
+   ]
+  },
+  {
+   "text": "black background please",
+   "needs": [
+    "chart.setBackground"
+   ]
+  },
+  {
+   "text": "green and red candles",
+   "needs": [
+    "chart.setCandleColors"
+   ]
+  },
+  {
+   "text": "lose the gridlines",
+   "needs": [
+    "chart.setSetting"
+   ]
+  },
+  {
+   "text": "overlay QQQ on this",
+   "needs": [
+    "chart.compare"
+   ]
+  },
+  {
+   "text": "how does it look relative to SPY, put SPY on top",
+   "needs": [
+    "chart.compare"
+   ]
+  },
+  {
+   "text": "jump back to march 2020",
+   "needs": [
+    "chart.goToDate"
+   ]
+  },
+  {
+   "text": "add a 3 hour interval",
+   "needs": [
+    "chart.addCustomTimeframe"
+   ]
+  },
+  {
+   "text": "reset the chart look to stock",
+   "needs": [
+    "chart.resetDefaults"
+   ]
+  },
+  {
+   "text": "rewind the chart to last tuesday and hide what came after",
+   "needs": [
+    "chart.replay"
+   ]
+  },
+  {
+   "text": "save this look as my swing preset",
+   "needs": [
+    "chartSetup.saveTemplate"
+   ]
+  },
+  {
+   "text": "make the left one match the right one",
+   "needs": [
+    "chartSetup.copyLook"
+   ]
+  },
+  {
+   "text": "what's the setup on this chart",
+   "needs": [
+    "chart.describeSetup"
+   ]
+  },
+  {
+   "text": "quad view with AAPL MSFT GOOGL and META",
+   "needs": [
+    "chartGrid.set"
+   ]
+  },
+  {
+   "text": "I want NVDA AMD AVGO side by side",
+   "needs": [
+    "chartGrid.set"
+   ]
+  },
+  {
+   "text": "one chart each for XLE, XLF and XLK",
+   "needs": [
+    "chartGrid.set"
+   ]
+  },
+  {
+   "text": "swap the two charts around",
+   "needs": [
+    "board.swap"
+   ]
+  },
+  {
+   "text": "clone this chart",
+   "needs": [
+    "board.duplicateChart"
+   ]
+  },
+  {
+   "text": "stick a news feed widget on the board",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "add a heatmap",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "get rid of the scanner widget",
+   "needs": [
+    "widget.remove"
+   ]
+  },
+  {
+   "text": "make the watchlist panel wider",
+   "needs": [
+    "widget.resize"
+   ]
+  },
+  {
+   "text": "tidy up the board",
+   "needs": [
+    "widget.arrange"
+   ]
+  },
+  {
+   "text": "unlink the left chart",
+   "needs": [
+    "widget.setLink"
+   ]
+  },
+  {
+   "text": "add a chart tab for the 5 minute",
+   "needs": [
+    "chart.addTab"
+   ]
+  },
+  {
+   "text": "open charts for TSLA and RIVN",
+   "needs": [
+    "widget.addCharts"
+   ]
+  },
+  {
+   "text": "switch to my earnings layout",
+   "needs": [
+    "layout.open"
+   ]
+  },
+  {
+   "text": "save this board as momentum setup",
+   "needs": [
+    "layout.saveAs"
+   ]
+  },
+  {
+   "text": "which layouts do I have",
+   "needs": [
+    "layout.list"
+   ]
+  },
+  {
+   "text": "rename this layout to swing v2",
+   "needs": [
+    "layout.rename"
+   ]
+  },
+  {
+   "text": "stick NVDA in my tech list",
+   "needs": [
+    "watchlist.add"
+   ]
+  },
+  {
+   "text": "pull PLTR out of my watchlist",
+   "needs": [
+    "watchlist.remove"
+   ]
+  },
+  {
+   "text": "what's in my longs list",
+   "needs": [
+    "watchlist.show"
+   ]
+  },
+  {
+   "text": "make a new list called breakouts",
+   "needs": [
+    "watchlist.create"
+   ]
+  },
+  {
+   "text": "alphabetize my watchlist",
+   "needs": [
+    "watchlist.reorder"
+   ]
+  },
+  {
+   "text": "jot a note on AMD in my list: earnings run",
+   "needs": [
+    "watchlist.setNote"
+   ]
+  },
+  {
+   "text": "find me liquid names near 52 week highs",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "which stocks are up 5% on big volume today",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "run my VCP scan",
+   "needs": [
+    "screener.runSaved"
+   ]
+  },
+  {
+   "text": "save that scan as tight bases",
+   "needs": [
+    "screener.saveAs"
+   ]
+  },
+  {
+   "text": "ping me if TSLA gets to 300",
+   "needs": [
+    "alert.create"
+   ]
+  },
+  {
+   "text": "let me know when NVDA breaks 150",
+   "needs": [
+    "alert.create"
+   ]
+  },
+  {
+   "text": "which alerts went off today",
+   "needs": [
+    "alert.list"
+   ]
+  },
+  {
+   "text": "heads up when RSI gets oversold on this",
+   "needs": [
+    "indicatorAlert.create"
+   ]
+  },
+  {
+   "text": "notify me when the 9 crosses the 21",
+   "needs": [
+    "indicatorAlert.create"
+   ]
+  },
+  {
+   "text": "pause the rsi alert",
+   "needs": [
+    "indicatorAlert.toggle"
+   ]
+  },
+  {
+   "text": "draw a line at 182.50",
+   "needs": [
+    "drawing.addLevel"
+   ]
+  },
+  {
+   "text": "mark support at 95",
+   "needs": [
+    "drawing.addLevel"
+   ]
+  },
+  {
+   "text": "clear all my markups on this",
+   "needs": [
+    "drawing.clear"
+   ]
+  },
+  {
+   "text": "lock that level",
+   "needs": [
+    "drawing.lock"
+   ]
+  },
+  {
+   "text": "move the 180 line to 185",
+   "needs": [
+    "drawing.setLevel"
+   ]
+  },
+  {
+   "text": "trendline from the march low to the may low",
+   "needs": [
+    "drawing.addTrendline"
+   ]
+  },
+  {
+   "text": "fib from the january high to the april low",
+   "needs": [
+    "drawing.addFib"
+   ]
+  },
+  {
+   "text": "anchor a vwap at the earnings gap",
+   "needs": [
+    "drawing.addAvwap"
+   ]
+  },
+  {
+   "text": "box the base from june to august",
+   "needs": [
+    "drawing.addRectangle"
+   ]
+  },
+  {
+   "text": "what's AAPL trading at",
+   "needs": [
+    "stock.quote"
+   ]
+  },
+  {
+   "text": "how much is SHOP right now",
+   "needs": [
+    "stock.quote"
+   ]
+  },
+  {
+   "text": "when does CRWD report",
+   "needs": [
+    "stock.earnings"
+   ]
+  },
+  {
+   "text": "what was NVDA's EPS last quarter",
+   "needs": [
+    "stock.earnings"
+   ]
+  },
+  {
+   "text": "what sector is CELH in",
+   "needs": [
+    "stock.profile"
+   ]
+  },
+  {
+   "text": "any headlines on SMCI",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "why is HIMS ripping today",
+   "needs": [
+    "news.catalysts"
+   ]
+  },
+  {
+   "text": "how far is META off its highs",
+   "needs": [
+    "stock.dailyBars"
+   ]
+  },
+  {
+   "text": "which groups are leading this month",
+   "needs": [
+    "stock.themes"
+   ]
+  },
+  {
+   "text": "stack up AMD against NVDA fundamentally",
+   "needs": [
+    "stock.compare"
+   ]
+  },
+  {
+   "text": "how's market participation looking",
+   "needs": [
+    "breadth.show"
+   ]
+  },
+  {
+   "text": "what percent of stocks are above the 200 day",
+   "needs": [
+    "breadth.show"
+   ]
+  },
+  {
+   "text": "last time new lows outnumbered new highs on nasdaq",
+   "needs": [
+    "breadth.history"
+   ]
+  },
+  {
+   "text": "switch the app to light mode",
+   "needs": [
+    "settings.setAppTheme"
+   ]
+  },
+  {
+   "text": "new charts should open on the daily",
+   "needs": [
+    "settings.setDefaultTimeframe"
+   ]
+  },
+  {
+   "text": "turn off the alert chime",
+   "needs": [
+    "settings.setAlertSound"
+   ]
+  },
+  {
+   "text": "take me to the breadth page",
+   "needs": [
+    "app.open"
+   ]
+  },
+  {
+   "text": "email me a weekly digest",
+   "needs": [
+    "settings.setWatchlistDigest"
+   ]
+  },
+  {
+   "text": "what does ADR mean",
+   "needs": [
+    "guide.explain"
+   ]
+  },
+  {
+   "text": "where do I find replay mode",
+   "needs": [
+    "guide.show"
+   ]
+  },
+  {
+   "text": "what can you actually do",
+   "needs": [
+    "agent.capabilities"
+   ]
+  },
+  {
+   "text": "revert that",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "put it back how it was",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "make it blue",
+   "needs": [
+    "indicatorStyle.set"
+   ],
+   "recentActions": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "now the weekly",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "recentActions": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "same for QQQ",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "recentActions": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "and put it in its own pane",
+   "needs": [
+    "indicatorStyle.placeIn"
+   ],
+   "recentActions": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "do that on the other two charts as well",
+   "needs": [
+    "indicator.add"
+   ],
+   "recentActions": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "bump it to 30",
+   "needs": [
+    "indicator.update"
+   ],
+   "recentActions": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "also alert me if it closes above 200",
+   "needs": [
+    "alert.create"
+   ],
+   "recentActions": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "the bottom left one",
+   "needs": [
+    "indicatorAlert.create"
+   ],
+   "after": [
+    "indicatorAlerts"
+   ]
+  },
+  {
+   "text": "add a chart for AMD and put the 50 SMA on it",
+   "needs": [
+    "widget.add",
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "pull up TSLA on the weekly with the 10 and 40 week lines",
+   "needs": [
+    "chart.setSymbol",
+    "chart.setTimeframe",
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "scan for stocks above their 50 day and dump them into a new watchlist",
+   "needs": [
+    "screener.run",
+    "watchlist.create"
+   ]
+  },
+  {
+   "text": "put a level at 120 and ping me if it gets there",
+   "needs": [
+    "drawing.addLevel",
+    "alert.create"
+   ]
+  },
+  {
+   "text": "yo throw NFLX up for me",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "lemme peek at UBER",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "gimme PANW real quick",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "swtich to ORCL",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "could you kindly replace the current ticker on my chart with ADBE please",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "take a look at DKNG",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "check out CAVA",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "ARM",
+   "needs": [
+    "chart.setSymbol"
+   ]
+  },
+  {
+   "text": "oops",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "my bad, go back to before",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "ctrl z",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "nah that is wrong, put it the way it was",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "whoops reverse that",
+   "needs": [
+    "agent.undo"
+   ]
+  },
+  {
+   "text": "heads up if MSFT crosses 450",
+   "needs": [
+    "alert.create"
+   ]
+  },
+  {
+   "text": "let me know if NVDA drops below 120",
+   "needs": [
+    "alert.create"
+   ]
+  },
+  {
+   "text": "warn me when AAPL trades above 240",
+   "needs": [
+    "alert.create"
+   ]
+  },
+  {
+   "text": "text me if SPY breaks 600",
+   "needs": [
+    "alert.create"
+   ]
+  },
+  {
+   "text": "4 up with SPY QQQ IWM DIA",
+   "needs": [
+    "chartGrid.set"
+   ]
+  },
+  {
+   "text": "six up: AAPL MSFT NVDA AMZN META GOOGL",
+   "needs": [
+    "chartGrid.set"
+   ]
+  },
+  {
+   "text": "i want to read what people are saying about PLTR",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "any articles on RIVN lately",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "wipe all my lines off this chart",
+   "needs": [
+    "drawing.clear"
+   ]
+  },
+  {
+   "text": "read the chart for me",
+   "needs": [
+    "chart.describeSetup"
+   ]
+  },
+  {
+   "text": "what do you see on this one",
+   "needs": [
+    "chart.describeSetup"
+   ]
+  },
+  {
+   "text": "show me stocks gapping up on volume",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "add bolinger bands",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "add the stochastc",
+   "needs": [
+    "indicator.add"
+   ]
+  },
+  {
+   "text": "find movers up 8% today",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "which names gained more than 5 percent today",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "show me 10%+ gainers",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "stocks down 7% today on volume",
+   "needs": [
+    "screener.run"
+   ]
+  },
+  {
+   "text": "add a news panel",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "add a heatmap panel to my board",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "open a watchlist widget",
+   "needs": [
+    "widget.add"
+   ]
+  },
+  {
+   "text": "put AAPL on percent scale",
+   "needs": [
+    "chart.setScale"
+   ]
+  },
+  {
+   "text": "whats out on SOFI today",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "what are people saying about HOOD",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "anything happening with RKLB",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "i want to read up on CRWV",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "AMD 5 day change",
+   "needs": [
+    "stock.dailyBars"
+   ]
+  },
+  {
+   "text": "how has NVDA done this month",
+   "needs": [
+    "stock.dailyBars"
+   ]
+  },
+  {
+   "text": "MSFT performance over the last 20 days",
+   "needs": [
+    "stock.dailyBars"
+   ]
+  }
+ ]
+}
