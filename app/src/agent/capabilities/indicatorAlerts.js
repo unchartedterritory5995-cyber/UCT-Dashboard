@@ -225,8 +225,10 @@ export const indicatorAlertLibraryKind = {
       if (!res || !res.ok) { const e = new Error(res?.error || 'The server refused this alert.'); e.created = created; throw e }
       created[`#${i}`] = String(res.id)
     }
-    await loadIndicatorAlerts(host, { force: true })
-    return { created }
+    // the receipt words what the server STORED (normalize_params may change a value), read back from the fresh list
+    const book = await loadIndicatorAlerts(host, { force: true })
+    const lines = patch.create.map((c, i) => { const row = book.find(a => a.id === created[`#${i}`]); return createLine(c, row ? row.params : null) })
+    return { created, lines }
   },
   landed(snap, patch) {
     if (!snap) return false
@@ -282,6 +284,20 @@ export const indicatorAlertKind = {
   async refreshForApproval(host) {
     try { await loadIndicatorAlerts(host, { force: true }); return { ok: true } } catch { return { ok: false, what: 'your indicator alerts' } }
   },
+}
+
+/** What the settings claim may say. `stored` undefined = the plan (nothing is stored yet); null = the row could not be read back. */
+function settingsWords(c, stored) {
+  const own = "watched with that indicator's own settings"
+  if (stored === undefined || !c.params) return own
+  if (stored === null) return "saved, but I couldn't read back the settings it watches"
+  const off = Object.keys(c.params).filter(k => String(stored[k]) !== String(c.params[k]))
+  return off.length ? `saved with ${off.map(k => `${k} ${stored[k] ?? 'not set'} (your chart: ${c.params[k]})`).join(', ')}` : own
+}
+function createLine(c, stored) {
+  const level = c.threshold != null && !c.triggerPolicy ? ` ${money(c.threshold)}` : ''
+  const where = c.tf === c.chartTf ? `on the ${c.tf} chart` : `on ${tfLabel(c.tf)} bars (the chart shows ${tfLabel(c.chartTf)})`
+  return `Indicator alert: ${c.sym} ${c.label} ${c.condLabel.toLowerCase()}${level} ${where} — ${settingsWords(c, stored)}`
 }
 
 let registered = false
@@ -396,10 +412,7 @@ export function registerIndicatorAlertCapabilities() {
     apply: (st, args, env) => ({ ...st, creates: [...st.creates, toCreate(resolveCreate(args, env))] }),
     describe(b, a) {
       if (a.creates.length <= b.creates.length) return null
-      const c = a.creates[a.creates.length - 1]
-      const level = c.threshold != null && !c.triggerPolicy ? ` ${money(c.threshold)}` : ''
-      const where = c.tf === c.chartTf ? `on the ${c.tf} chart` : `on ${tfLabel(c.tf)} bars (the chart shows ${tfLabel(c.chartTf)})`
-      return `Indicator alert: ${c.sym} ${c.label} ${c.condLabel.toLowerCase()}${level} ${where} — watched with that indicator's own settings`
+      return createLine(a.creates[a.creates.length - 1])
     },
   })
 

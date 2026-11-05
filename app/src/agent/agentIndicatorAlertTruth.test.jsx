@@ -11,7 +11,7 @@ import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { buildIndicatorAlertSource } from './host'
 import { answerFor } from './discovery'
-import { _resetIndicatorAlertCache, loadIndicatorAlerts, indicatorAlertKind } from './capabilities/indicatorAlerts'
+import { _resetIndicatorAlertCache, loadIndicatorAlerts, indicatorAlertLibraryKind, indicatorAlertKind } from './capabilities/indicatorAlerts'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
 import { parseFormula, astHash } from '../components/chart/engine/ast/parse'
 import { setupPanel, ONE } from './testing/panelHarness'
@@ -112,6 +112,31 @@ describe('indicatorAlert.toggle really pauses and resumes the alert', () => {
     seed()
     await indicatorAlertKind.commit(chartWith([]), '7', { toggle: true, to: true, sig: null })
     expect(srv.rows[0].active).toBe(true)
+  })
+})
+
+describe('the create receipt words the settings the server stored', () => {
+  const macd = { instanceId: 'inst:macd:a', defId: 'macd', name: 'MACD', inputs: { fastPeriod: 8 } }
+  const run = async (storeAs) => {
+    const h = chartWith([macd])
+    const made = []
+    h.indicatorAlerts = { ...h.indicatorAlerts,
+      list: async () => made,
+      create: async (b) => { made.push({ id: 900, active: true, ...b, instance_id: b.instance_id, params_json: storeAs(b.params) }); return { ok: true, id: 900 } } }
+    await loadIndicatorAlerts(h, { force: true })
+    const c = { sym: 'NVDA', indicator: 'macd.macd', condition: 'above', tf: 'D', chartTf: 'D', threshold: 0, params: { fast: 8, slow: 26 }, instanceId: macd.instanceId, label: 'MACD', condLabel: 'above' }
+    return (await indicatorAlertLibraryKind.commit(h, 'x', { create: [c] })).lines[0]
+  }
+  it('what was sent came back: it says so', async () => {
+    expect(await run(p => ({ ...p, fast: '8' }))).toMatch(/watched with that indicator's own settings/)
+  })
+  it('the server changed a value: it names the stored one, never "own settings"', async () => {
+    const line = await run(p => ({ ...p, slow: 21 }))
+    expect(line).toMatch(/saved with slow 21 \(your chart: 26\)/)
+    expect(line).not.toMatch(/own settings/)
+  })
+  it('the stored settings are absent: it says it could not read them back', async () => {
+    expect(await run(() => null)).toMatch(/couldn't read back/)
   })
 })
 
