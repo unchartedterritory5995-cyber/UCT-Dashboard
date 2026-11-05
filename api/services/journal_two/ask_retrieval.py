@@ -807,11 +807,17 @@ def coverage(conn, user_id: str) -> dict[str, Any]:
         # this counted 3. That number goes straight into the prompt as
         # "SEARCHED: n document pages", so a page nobody could read was being
         # reported to the model as searched. A row is not a page we have.
+        # Fix round 1 (review minor 14): pages and excerpts on a TRASHED note are out of the corpus,
+        # exactly as their documents are (B17) -- the same live-note join.
         "document_pages_searchable": one(
-            "SELECT COUNT(*) FROM j2_note_document_pages"
-            " WHERE user_id = ? AND TRIM(text) != ''", user_id),
+            "SELECT COUNT(*) FROM j2_note_document_pages p"
+            " JOIN j2_note_documents d ON d.id = p.document_id AND d.user_id = p.user_id"
+            " JOIN j2_notes n ON n.id = d.note_id AND n.user_id = d.user_id"
+            " WHERE p.user_id = ? AND TRIM(p.text) != '' AND n.deleted_at IS NULL", user_id),
         "excerpts_searchable": one(
-            "SELECT COUNT(*) FROM j2_note_excerpts WHERE user_id = ?", user_id),
+            "SELECT COUNT(*) FROM j2_note_excerpts x"
+            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = x.user_id"
+            " WHERE x.user_id = ? AND n.deleted_at IS NULL", user_id),
         "documents_by_status": docs,
         # The honesty fields: sources that exist but could NOT be searched.
         "documents_not_searchable": sum(docs.get(s, 0) for s in _UNSEARCHABLE_STATUSES),
@@ -936,6 +942,11 @@ def _fmt_plan_price(v: float) -> str:
     return s.rstrip("0").rstrip(".") if "." in s else s
 
 
+#: Fix round 1 (review minor 14): the mark a drawn-plan fact carries in its text, so it can never be
+#: read (or quoted, or cited) as words the member wrote in the note.
+PLAN_FACT_MARK = "[Plan drawn on a chart in this note, not text in it]"
+
+
 def plan_fact_line(symbol: str, reading) -> str | None:
     """`Plan on NVDA: entry 206, stop 196, target 225` for a reading that names a level, or None.
     Only levels the reader resolved (state ok) are said; a contradiction is left out, never guessed."""
@@ -978,6 +989,7 @@ def _chart_plans(conn, user_id: str, entity: dict[str, Any] | None,
         line = plan_fact_line(symbol, reading)
         if not line:
             continue
+        line = f"{PLAN_FACT_MARK} {line}"
         if row["id"] in present:
             it = present[row["id"]]
             if line not in (it.get("text") or ""):

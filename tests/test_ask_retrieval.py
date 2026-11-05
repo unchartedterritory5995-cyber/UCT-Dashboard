@@ -349,6 +349,26 @@ class TestCoverage:
         assert c["documents_not_searchable_detail"] == {"document": {"pending": 1}}
 
 
+class TestTrashedNotesLeaveEveryCount:
+    """Fix round 1 (review minor 14): "SEARCHED: n document pages" and the excerpt count still
+    counted pages and excerpts on trashed notes -- the B17 honesty problem in the other numbers."""
+
+    def test_pages_and_excerpts_on_a_trashed_note_are_not_counted(self, corpus):
+        before = ar.retrieve(U, "margins", conn=corpus)["coverage"]
+        corpus.execute("INSERT INTO j2_notes VALUES ('n_gone',?,'Trashed',NULL,'{}','',"
+                       "'{}','2026-11-01','2026-11-01')", (U,))
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_gone',?,'n_gone','old.pdf','ready','/old.pdf')", (U,))
+        corpus.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                       " VALUES ('d_gone',?,1,'words on a trashed page')", (U,))
+        corpus.execute("INSERT INTO j2_note_excerpts VALUES "
+                       "('e_gone',?,'n_gone','d_gone',1,'words','','','')", (U,))
+        corpus.commit()
+        after = ar.retrieve(U, "margins", conn=corpus)["coverage"]
+        assert after["document_pages_searchable"] == before["document_pages_searchable"]
+        assert after["excerpts_searchable"] == before["excerpts_searchable"]
+
+
 class TestChartPlanLevelsAreRetrievable:
     """Audit 2026-11-05, spec S4 (B17): "What is my stop on NVDA?" missed a stop the member had
     DRAWN on a chart in a note. A chart plan lives in the embed's annotations, never in
@@ -375,6 +395,17 @@ class TestChartPlanLevelsAreRetrievable:
         assert "Plan on NVDA: entry 206, stop 196, target 225" in plans[0]["text"]
         assert plans[0]["source_id"] == "n_plan"
         assert r["no_answer"] is False
+        # Fix round 1 (review minor 14): marked as a drawn plan, never passable as quoted text.
+        assert ar.PLAN_FACT_MARK in plans[0]["text"]
+
+    def test_a_plan_added_to_a_matched_passage_is_marked_as_not_its_text(self, corpus):
+        from api.services.journal_two import ask_evidence as ev
+        self._plan_note(corpus)
+        item = ev.from_note({"id": "n_plan", "user_id": U, "title": "NVDA swing", "ticker": "NVDA"},
+                            snippet="Swing idea.", location={"from": 1, "to": 6}, citation_validity=ev.CITE_EXACT)
+        ar._chart_plans(corpus, U, {"symbol": "NVDA"}, ["n_plan"], [item])
+        assert item["text"].startswith("Swing idea.")
+        assert f"{ar.PLAN_FACT_MARK} Plan on NVDA" in item["text"]
 
     def test_a_trashed_note_s_plan_is_not_read(self, corpus):
         self._plan_note(corpus, deleted="2026-11-01")
