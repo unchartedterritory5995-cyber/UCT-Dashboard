@@ -286,6 +286,148 @@ def test_side_unconfirmed_suppress_default_on_and_allowlisted():
         assert src.count(f'"{k}"') >= 2, k
 
 
+# ── REST side-recovery (2026-11-04) ──────────────────────────────────────────
+# A big print's Side is written BLANK at ingest and only filled by the worker's
+# NBBO re-pass once the Q-pool re-covers the contract — which can lag the 10-min
+# auto-push window, so a genuine directional print (MU 700C 11/4: a $73.7M ask
+# SWEEP) never fires. Resolve the side from the consolidated REST NBBO-at-fill
+# NOW instead of waiting. Vendor read monkeypatched; today's prints only.
+
+def _blank_row(**kw):
+    base = {"Symbol": "MU", "CallPut": "CALL", "Strike": "700",
+            "ExpirationDate": "1/15/2027", "Price": "143.95", "Side": "",
+            "Type": "SWEEP", "CreatedDate": lmr._today_mdyyyy(),
+            "CreatedTime": "3:29:29 PM", "Premium": "73684880"}
+    base.update(kw)
+    return base
+
+
+def _full_row(**kw):
+    base = {
+        "id": 1, "Symbol": "MU", "CallPut": "CALL", "Strike": "700",
+        "ExpirationDate": "1/15/2027", "Price": "143.95", "Side": "",
+        "Type": "SWEEP", "Color": "YELLOW", "Premium": "73684880",
+        "Volume": "5120", "OI": "4153", "Spot": "794.455", "Dte": "72",
+        "CreatedDate": lmr._today_mdyyyy(), "CreatedTime": "3:29:29 PM",
+        "Sector": "Technology", "MktCap": "250000000000", "Weekly": "0",
+        "ER": "", "Uoa": "", "source": "stocks",
+    }
+    base.update(kw)
+    return base
+
+
+def test_rest_side_recover_at_ask(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(), lmr.DEFAULT_THRESHOLDS) == "A"
+
+
+def test_rest_side_recover_at_bid(monkeypatch):
+    # a genuine at-bid sell (price <= bid) recovers as BB — a sold call is Bear,
+    # NOT neutral; recovery must not just presume ask.
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(Price="140.0"), lmr.DEFAULT_THRESHOLDS) == "BB"
+
+
+def test_rest_side_recover_inside_spread_none(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(Price="142.0"), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_stale_none(monkeypatch):
+    # pre-fill quote older than rest_side_recover_max_age_ms (2500) -> abstain,
+    # same freshness principle as side-confirm (don't classify off a stale book).
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 6800.0))
+    assert lmr._rest_side_recover(_blank_row(), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_no_quote_none(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: None)
+    assert lmr._rest_side_recover(_blank_row(), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_memoized(monkeypatch):
+    lmr._RS_MEMO.clear()
+    calls = {"n": 0}
+
+    def _spy(occ, ts):
+        calls["n"] += 1
+        return (140.0, 143.95, 47.0)
+
+    monkeypatch.setattr(lmr, "_nbbo_at", _spy)
+    r = _blank_row()
+    assert lmr._rest_side_recover(r, lmr.DEFAULT_THRESHOLDS) == "A"
+    assert lmr._rest_side_recover(r, lmr.DEFAULT_THRESHOLDS) == "A"
+    assert calls["n"] == 1   # second call served from _RS_MEMO, no re-fetch
+
+
+def test_rest_side_recover_bad_row_none(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(ExpirationDate=""), lmr.DEFAULT_THRESHOLDS) is None
+    assert lmr._rest_side_recover(_blank_row(Price="0"), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_defaults_and_allowlisted():
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("rest_side_recover_enabled") is True
+    assert d.get("rest_side_recover_min_premium") == 1000000
+    assert d.get("rest_side_recover_max_age_ms") == 2500
+    src = inspect.getsource(lmr)
+    for k in ("rest_side_recover_enabled", "rest_side_recover_min_premium",
+              "rest_side_recover_max_age_ms"):
+        assert src.count(f'"{k}"') >= 2, k   # in DEFAULT_THRESHOLDS AND the allow-list
+
+
+def test_row_to_alert_recovers_blank_side_today(monkeypatch):
+    # end-to-end: a blank-Side, today, $73.7M ask SWEEP comes out directional Bull
+    # with _side='A' — so it counts in the net-flow split and tiers normally,
+    # in-window, instead of waiting for the re-pass.
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: dict(lmr.DEFAULT_THRESHOLDS))
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    a = lmr._row_to_alert(_full_row())
+    assert a is not None
+    assert a["_side"] == "A"
+    assert a["_direction"] == "Bull"
+    assert a["_directionUnconfirmed"] is False
+
+
+def test_row_to_alert_recovery_gated_to_today(monkeypatch):
+    # a prior-day blank print must NOT trigger a REST call (no history storm).
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: dict(lmr.DEFAULT_THRESHOLDS))
+    calls = {"n": 0}
+
+    def _spy(occ, ts):
+        calls["n"] += 1
+        return (140.0, 143.95, 47.0)
+
+    monkeypatch.setattr(lmr, "_nbbo_at", _spy)
+    lmr._row_to_alert(_full_row(CreatedDate="1/2/2020"))
+    assert calls["n"] == 0
+
+
+def test_row_to_alert_recovery_gated_by_premium(monkeypatch):
+    # below rest_side_recover_min_premium, a blank print is NOT REST-resolved.
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: dict(lmr.DEFAULT_THRESHOLDS))
+    calls = {"n": 0}
+
+    def _spy(occ, ts):
+        calls["n"] += 1
+        return (140.0, 143.95, 47.0)
+
+    monkeypatch.setattr(lmr, "_nbbo_at", _spy)
+    lmr._row_to_alert(_full_row(Premium="50000", Volume="3"))
+    assert calls["n"] == 0
+
+
 def test_relabel_unverified_copies_and_neutralizes():
     a = _dir_alert()
     out = lmr._relabel_unverified(a)
