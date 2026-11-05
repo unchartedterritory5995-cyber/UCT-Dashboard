@@ -41,6 +41,8 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
+// ⭐ W4-T8 — GENERATED from TradingView's v6 reference (tools/pine_survey/emit_length_qualifiers.js).
+import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 import { splitCommaStatements } from './objectFnInline.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
@@ -2465,6 +2467,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ready rather than acted on. */
   const needsRuntime = (node, scope) => {
     if (!node || typeof node !== 'object') return false
+    // ⭐⭐ W4-T8 — A WINDOW WHOSE v6 `series int` LENGTH THE FOLD CANNOT SETTLE IS A RUNTIME CALL.
+    // Left to the columnar lane it refuses `pine:window` ("a Pine length has to reach the engine as a
+    // plain whole number"), so `ta.highest(high, bar_index % 7 + 1)` never reached the window path.
+    if (node.type === 'call' && Array.isArray(node.args) && seriesLengthFn(node.name)
+        && windowTarget(node.name) && !node.args.some((a) => a && a.name)) {
+      const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+      const lenNode = given.length === 2 ? given[1] : (given.length === 1 ? given[0] : null)
+      if (lenNode && given.length === 2 && !constValueOf(lenNode, scope)) return true
+    }
     if (node.type === 'name' && scope.lookup(node.name) !== null) return true
     // Inside a function, a GLOBAL mutable name must also reach the runtime path
     // — only so it can be refused precisely there.
@@ -5206,6 +5217,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
 
 
+  /** ⭐⭐ W4-T8 — A v6 WINDOW LENGTH THE REFERENCE DECLARES `series int` MAY CHANGE EVERY BAR.
+   *
+   *  The qualifier is READ from the extracted reference (`windowLengthQualifiers.json`), never
+   *  typed here: `ta.sma`/`ta.highest`/`ta.stdev`... say `length (series int)`, `ta.ema`/`ta.rsi`
+   *  say `simple int` and keep their refusal. v6 and v5 only, each from its own version reference (v4 and below have no section),
+   *  never in a request's value (it has its own series), and ⛔ never at the live OBJECT door:
+   *  that door keeps master's answer until a TradingView capture settles the shape (W4-S1).
+   *  https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma */
+  const seriesLengthFn = (pineName) => {
+    if (atObjectDoor || inRequestValue || pineVersion === null) return false
+    // ⭐ W4-T8 r1 - the table of the script own version: v6 from the v6 reference, v5 from the v5 reference
+    // (both generated). v4 and below have no section, so they serve nothing.
+    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length : (pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length : null)
+    if (!table) return false
+    const name = String(pineName)
+    // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it: the
+    // bare name asks the same reference entry, spelled with its `ta.` namespace
+    return table[name] === 'series int' || table['ta.' + name] === 'series int'
+  }
+
   /** ⭐⭐ THE AUTHORITATIVE FINITE-WINDOW CLASSIFIER (2F-2B).
    *
    *  Same five-authority discipline as `pointwiseTarget`, with `FINITE_WINDOW`
@@ -6801,7 +6832,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
             // ⛔ and a length only known while the bar runs over that source says
             // so — never "a mutable GLOBAL" about a price series.
-            if (!len) {
+            if (!len && !seriesLengthFn(node.name)) {
               note('runtime:history-dynamic-offset')
               throw new RuntimeRefusal('runtime:history-dynamic-offset',
                 `the length of \`${node.name}\` is only known while the bar is running, `
@@ -6854,9 +6885,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⭐ THE LENGTH FOLDS THE SAME WAY A HISTORY OFFSET DOES — literal or
           // input-derived, off the CANONICAL TREE. A length only known while the
           // bar runs cannot size a ring before bar 0.
-          const n = foldConstNode(given[1], at,
-            `the length of \`${node.name}\` is only known while the bar is running, `
-            + 'so the ring it needs cannot be sized before bar 0', scope)
+          // ⭐⭐ W4-T8 — A FOLDABLE LENGTH STAYS A FIXED WINDOW (cheaper, and what every
+          // script that already worked computes). Only a length the fold REFUSES, for a
+          // function whose length the reference declares `series int`, is read per bar:
+          // `lenExpr` is the runtime expression, the ring is sized to Pine's history ceiling.
+          // ⛔ A refusal that carries a frame name stays a refusal here: it is how a call
+          // site fixes the length (`simpleSpecialisation`), and that path owns it.
+          let n
+          let lenExpr = null
+          const dynFamilyBefore = diagnostics.families['runtime:history-dynamic-offset']
+          try {
+            n = foldConstNode(given[1], at,
+              `the length of \`${node.name}\` is only known while the bar is running, `
+              + 'so the ring it needs cannot be sized before bar 0', scope)
+          } catch (err) {
+            if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset'
+              || typeof err.frameName === 'string' || !seriesLengthFn(node.name)) throw err
+            // a length that FOLDS to a number which is no whole length (2.5, -3) is a mistake, not a per-bar
+            // length: it keeps the build refusal
+            const folded = constValueOf(given[1], scope)
+            if (folded && folded.value !== undefined) throw err
+            // the refusal was a probe, not an outcome: take back what `note` counted for it
+            if (dynFamilyBefore === undefined) delete diagnostics.families['runtime:history-dynamic-offset']
+            else diagnostics.families['runtime:history-dynamic-offset'] = dynFamilyBefore
+            n = MBB_LIMIT
+            lenExpr = lowerExpr(given[1], scope)
+          }
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
@@ -6879,7 +6933,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // inside one opcode. The measured `skip` policy needs a ring of the
           // last `n` FINITE observations, which is STATE, and state that two
           // call sites shared would interleave two series into one window.
-          const entry = { fn: win.table, name: `${node.name}(${srcLabel},${n})`, historySlot: histIndex, span }
+          const entry = { fn: win.table, name: `${node.name}(${srcLabel},${lenExpr ? 'per bar' : n})`, historySlot: histIndex, span }
+          // ⭐ W4-T8 — the plan says the length is read per bar; `span` is then the RING (the ceiling)
+          if (lenExpr) entry.dynamic = true
           let widx
           if (owner !== null) {
             const list = functions[owner].windowLocals || (functions[owner].windowLocals = [])
@@ -6893,7 +6949,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // WS-C / R4: every policy but `skip` reads the COMMITTED bar ring, so
           // in a block it would count bars where Pine counts the call's runs.
           if (FINITE_WINDOW[win.table].na !== 'skip') r4Guard(`\`${node.name}\``, at)
-          const call = windowCall(widx, read(varSlot))
+          const call = windowCall(widx, read(varSlot), lenExpr || undefined)
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
           // reducer with a flipped comparison. One reducer, one negation node.

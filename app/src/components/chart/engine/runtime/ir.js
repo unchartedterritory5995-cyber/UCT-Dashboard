@@ -491,6 +491,22 @@ export function validateIr(p) {
           throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${(p.windows || []).length}`)
         }
         walkExpr(e.source, `${where}.source`)
+        // ⭐⭐ W4-T8 — A WINDOW PLANNED `dynamic` READS ITS LENGTH EACH BAR, AND ONLY THAT ONE DOES.
+        // The plan entry and the node must agree, or the opcode would pop a length nobody pushed
+        // (a corrupted stack) or leave one behind (a stack that grows once per bar).
+        // (a body's site is FRAME-RELATIVE: it is read off the first call site's `windowBase`)
+        let planned
+        if (walkingFn === null) planned = (p.windows || [])[e.site]
+        else {
+          const cs = (p.callSites || []).find((c) => c.fn === walkingFn)
+          if (cs) planned = (p.windows || [])[(cs.windowBase || 0) + e.site]
+        }
+        const dyn = !!(planned && planned.dynamic === true)
+        if (planned && dyn !== (e.length !== undefined)) {
+          throw new IrError(`${where}: window site ${e.site} is ${dyn ? '' : 'not '}planned with a per-bar length `
+            + `but the call ${e.length !== undefined ? 'passes' : 'passes no'} one`)
+        }
+        if (e.length !== undefined) walkExpr(e.length, `${where}.length`)
         return
       }
       case EXPR.BUILTIN: {
@@ -843,7 +859,9 @@ export const builtin = (fn, args) => ({ kind: EXPR.BUILTIN, fn, args })
 /** ⭐ A finite-window builtin over a runtime series. `site` indexes the program's
  *  window table; `source` is the expression producing the CURRENT bar's value, and
  *  the committed bars come from that series' own history ring. */
-export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source })
+// ⭐ W4-T8 — `length` (an expression) is present ONLY for a `dynamic` plan entry: the v6 `series int` length.
+export const windowCall = (site, source, length) =>
+  (length === undefined ? { kind: EXPR.WINDOW, site, source } : { kind: EXPR.WINDOW, site, source, length })
 
 /** ⭐ A carried-state builtin over a runtime series. `site` is FRAME-RELATIVE:
  *  the VM adds the invocation's `carriedBase`, so one compiled body serves every

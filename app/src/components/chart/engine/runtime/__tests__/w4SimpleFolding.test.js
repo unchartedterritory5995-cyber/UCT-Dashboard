@@ -66,11 +66,19 @@ const smaIs = (src, len, inputs = {}, extra = {}) => {
   expect(program.windows.map((w) => w.span), 'the window is sized to the folded length').toEqual([len])
   sameSeries(outs[0], pureLane(`ta.sma(close, ${len})`), `sma ${len}`)
 }
+// ⭐ W4-T8 r1 - these controls are `//@version=5`, and v5 declares `length (series int)`: a length that does
+// NOT fold is no longer refused, it is read PER BAR. The control survives as "the name did not FOLD": either
+// the old refusal, or a program whose window is per-bar (a wrong fold would give a fixed window and fail).
 const refuses = (src, inputs = {}, extra = {}) => {
   const b = build(src, inputs, extra)
-  expect(b.ok, 'expected a refusal, got a program').toBe(false)
-  expect(b.refusal.guard).toBe('runtime:history-dynamic-offset')
-  return b.refusal
+  if (!b.ok) {
+    expect(b.refusal.guard).toBe('runtime:history-dynamic-offset')
+    return b.refusal
+  }
+  const program = lowerIrProgram(b.ir)
+  expect(program.windows.length, 'a built program must hold the window').toBeGreaterThan(0)
+  expect(program.windows.every((w) => w.dynamic === true), 'a name that does not fold is read per bar, never fixed').toBe(true)
+  return null
 }
 const MODE = 'mode = input.string("A", "Mode", options = ["A", "B", "C"])\n'
 
