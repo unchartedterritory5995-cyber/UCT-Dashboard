@@ -1156,6 +1156,16 @@ def bars_needed_for_alert(alert: dict) -> int:
         params = _parse_params(alert)
     except Exception:  # noqa: BLE001  pragma: no cover
         params = {}
+    # ⭐ W5-T13 -- a RUNTIME alert reads the profile's window (design 5.1: 5,000 D /
+    # 32,768 intraday) verbatim: no warm-up pad and no `BARS_MAX` cap, because the
+    # runtime has no tree whose lookback a pad could serve.
+    try:
+        from api.services import alert_user_series as _aus
+        window = _aus.runtime_window_for_alert(alert)
+    except Exception:  # noqa: BLE001
+        window = None
+    if window is not None:
+        return window
     lookback = 0
     try:
         from api.services import alert_user_series
@@ -1338,8 +1348,9 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
     try:
         # ⭐ PHASE 5 -- a user plot that reads another symbol loads it at the
         # alert's own timeframe (`alert_user_series._symbol_bars`).
-        value = (fn(bars, params, tf=alert.get("tf")) if getattr(fn, "reads_symbols", None)
-                 else fn(bars, params))
+        # ⭐ W5-T13 -- the one call shape (a runtime plot also takes the symbol).
+        from api.services import alert_user_series as _aus
+        value = _aus.call_series(fn, bars, params, tf=alert.get("tf"), sym=alert.get("sym"))
     except Exception:
         _logger.exception(
             "[alert-eval] compute failed for alert %s (%s/%s/%s)",
@@ -1728,8 +1739,9 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 
     params = _parse_params(alert)
     try:
-        series = (series_fn(bars, params, tf=alert.get("tf"))
-                  if getattr(series_fn, "reads_symbols", None) else series_fn(bars, params))
+        from api.services import alert_user_series as _aus
+        series = _aus.call_series(series_fn, bars, params, tf=alert.get("tf"),
+                                  sym=alert.get("sym"))
         if len(series) != len(bars):
             # The identical assertion `alert_series.series_for` makes, kept HERE
             # because resolving the function up front is what lets one call site
@@ -2517,7 +2529,12 @@ def _evaluate_for_cycle(alert: dict, bars: list[dict], *,
     ordering would name the wrong bar the moment the rollback lever is pulled.
     Left `None`, `mode` asks `eval_mode()`, the module's only reader.
     """
-    resolved = _lane_for(alert.get("indicator"), mode)
+    # ⭐ W5-T13 FIX r1 (desktop ruling) -- A RUNTIME PLOT IS ALWAYS JUDGED ON THE CLOSED LANE,
+    # even under the `ALERT_EVAL_MODE=forming` rollback: its run never sees a forming bar
+    # (ruling Q3), so only the closed lane names the bar its value came from.
+    from api.services import alert_user_series as _aus
+    resolved = ("closed" if _aus.runtime_window_for_alert(alert) is not None
+                else _lane_for(alert.get("indicator"), mode))
     if resolved == "closed":
         return _evaluate_one_closed(alert, bars, now_epoch=now_epoch)
     value, triggered = _evaluate_one(alert, bars=bars, mode="forming",
@@ -2527,6 +2544,32 @@ def _evaluate_for_cycle(alert: dict, bars: list[dict], *,
     # value, and `prev` is the previous POLL's number — so the bar under
     # judgement is `bars[-1]`, whatever the clock says about whether it closed.
     return value, triggered, (len(bars) - 1 if bars else None)
+
+
+def group_bars(sym: str, tf: str, alerts_in_group: list[dict]) -> tuple:
+    """``(bars, host_bars, runtime_ids)`` for one (sym, tf) group: ONE fetch.
+
+    ⭐ W5-T13 -- a runtime alert reads the profile window (`bars_needed_for_alert`: up to
+    32,768 intraday), wider than any formula's (`BARS_MAX`). The fetch is the widest any
+    member needs, as before; a FORMULA alert is then handed the window the group's
+    formula members declare (``host_bars``, the newest bars of the same fetch), so a
+    runtime neighbour never changes the series a formula is computed and proven on.
+    A group with no runtime alert gets ``host_bars is bars``, exactly as before."""
+    from api.services import alert_user_series as _aus
+    need = []
+    for a in alerts_in_group:
+        try:
+            runtime = _aus.runtime_window_for_alert(a) is not None
+        except Exception:  # noqa: BLE001
+            runtime = False
+        need.append((a, bars_needed_for_alert(a), runtime))
+    bars = _fetch_bars_for_alert(sym, tf, max(n for _a, n, _r in need))
+    runtime_ids = {id(a) for a, _n, r in need if r}
+    host = [n for _a, n, r in need if not r]
+    host_bars = bars
+    if runtime_ids and host and len(bars) > max(host):
+        host_bars = bars[-max(host):]
+    return bars, host_bars, runtime_ids
 
 
 def _run_one_cycle() -> dict[str, Any]:
@@ -2574,66 +2617,74 @@ def _run_one_cycle() -> dict[str, Any]:
             # 400-bar series its neighbour asked for — and the shortfall would
             # show up as `unresolved_lookback` refusing a tree that the store
             # could actually have answered.
-            bars = _fetch_bars_for_alert(
-                sym, tf, max(bars_needed_for_alert(a) for a in alerts_in_group))
+            bars, host_bars, runtime_ids = group_bars(sym, tf, alerts_in_group)
         except Exception:
             _logger.exception("[alert-eval] fetch failed for %s/%s", sym, tf)
             summary["errors"] += 1
             continue
 
-        for alert in alerts_in_group:
-            try:
-                if _rev.consume_if_suppressed(alert, bars=bars):
-                    summary["suppressed"] += 1
-                    continue
-                value, triggered, judged_index = _evaluate_for_cycle(
-                    alert, bars)
-                if value is None:
-                    continue
-                summary["evaluated"] += 1
-                if triggered:
-                    summary["triggered"] += 1
-                    # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
-                    # `bar_time`, NULL on every row of `indicator_alert_fires`
-                    # until `dd2da6f7` stamped it.
-                    #
-                    # ⛔ AND THE INDEX COMES OUT OF THE EVALUATION, NOT OUT OF A
-                    # SECOND CALCULATION. `_evaluate_for_cycle` returns the bar
-                    # its own answer is about — `bars[-1]` on the forming lane,
-                    # `closed_bar_index` on the closed one — so the receipt
-                    # cannot name a bar the value did not come from. Recomputing
-                    # `closed_bar_index` here would be two functions agreeing,
-                    # and they would stop agreeing the first time the wall clock
-                    # ticked between them.
-                    bar_time = _fire_bar_time(bars, judged_index)
-                    recorded = ias.record_trigger(alert["id"], last_value=value,
-                                                  bar_time=bar_time)
-                    _dispatch_delivery(alert, value, bar_time=bar_time)
-                    # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
-                    # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
-                    # `record_trigger` returns True exactly when a new row landed
-                    # under `UNIQUE(alert_id, fire_key)`, so "one receipt per
-                    # fire" is the SAME decision the fire log already made, not a
-                    # copy of it that can drift. Two consequences, both wanted:
-                    # a level condition keys on its ARMED EPISODE, so "RSI is
-                    # still above 70" accrues ONE receipt for the episode instead
-                    # of one per bar it stays true; and the retry above (a
-                    # released lease re-delivering on a later cycle) returns
-                    # False here, so a second DELIVERY of one fire cannot become
-                    # a second receipt.
-                    #
-                    # ⛔ THIS IS NOT `if record_trigger(...): _dispatch_delivery`
-                    # — the ruling Task 8 measured and refused. The dispatch
-                    # above stays UNCONDITIONAL; only the receipt is gated.
-                    if recorded:
-                        _accrue_ledger_receipt(alert, value, judged_index, bars)
-                else:
-                    ias.record_evaluation(alert["id"], last_value=value)
-            except Exception:
-                _logger.exception(
-                    "[alert-eval] eval failed for alert %s", alert.get("id"),
-                )
-                summary["errors"] += 1
+        # ⭐ W5-T13 -- EVERY RUNTIME ALERT OF THIS GROUP IN ONE SERVICE REQUEST (one per
+        # stored definition version), sent before the loop; each one's value is then read
+        # from that answer (`alert_user_series.runtime_cycle_batch`).
+        from api.services import alert_user_series as _aus
+        with _aus.runtime_cycle_batch([a for a in alerts_in_group if id(a) in runtime_ids],
+                                      bars, sym, tf):
+            for alert in alerts_in_group:
+                # a formula reads the window its own group members declare; a runtime
+                # alert the profile window (`group_bars`)
+                bars_of = bars if id(alert) in runtime_ids else host_bars
+                try:
+                    if _rev.consume_if_suppressed(alert, bars=bars_of):
+                        summary["suppressed"] += 1
+                        continue
+                    value, triggered, judged_index = _evaluate_for_cycle(
+                        alert, bars_of)
+                    if value is None:
+                        continue
+                    summary["evaluated"] += 1
+                    if triggered:
+                        summary["triggered"] += 1
+                        # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
+                        # `bar_time`, NULL on every row of `indicator_alert_fires`
+                        # until `dd2da6f7` stamped it.
+                        #
+                        # ⛔ AND THE INDEX COMES OUT OF THE EVALUATION, NOT OUT OF A
+                        # SECOND CALCULATION. `_evaluate_for_cycle` returns the bar
+                        # its own answer is about — `bars[-1]` on the forming lane,
+                        # `closed_bar_index` on the closed one — so the receipt
+                        # cannot name a bar the value did not come from. Recomputing
+                        # `closed_bar_index` here would be two functions agreeing,
+                        # and they would stop agreeing the first time the wall clock
+                        # ticked between them.
+                        bar_time = _fire_bar_time(bars_of, judged_index)
+                        recorded = ias.record_trigger(alert["id"], last_value=value,
+                                                      bar_time=bar_time)
+                        _dispatch_delivery(alert, value, bar_time=bar_time)
+                        # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
+                        # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
+                        # `record_trigger` returns True exactly when a new row landed
+                        # under `UNIQUE(alert_id, fire_key)`, so "one receipt per
+                        # fire" is the SAME decision the fire log already made, not a
+                        # copy of it that can drift. Two consequences, both wanted:
+                        # a level condition keys on its ARMED EPISODE, so "RSI is
+                        # still above 70" accrues ONE receipt for the episode instead
+                        # of one per bar it stays true; and the retry above (a
+                        # released lease re-delivering on a later cycle) returns
+                        # False here, so a second DELIVERY of one fire cannot become
+                        # a second receipt.
+                        #
+                        # ⛔ THIS IS NOT `if record_trigger(...): _dispatch_delivery`
+                        # — the ruling Task 8 measured and refused. The dispatch
+                        # above stays UNCONDITIONAL; only the receipt is gated.
+                        if recorded:
+                            _accrue_ledger_receipt(alert, value, judged_index, bars_of)
+                    else:
+                        ias.record_evaluation(alert["id"], last_value=value)
+                except Exception:
+                    _logger.exception(
+                        "[alert-eval] eval failed for alert %s", alert.get("id"),
+                    )
+                    summary["errors"] += 1
     return summary
 
 
