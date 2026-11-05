@@ -46,7 +46,24 @@ export const isOn = (el) => STATE_ATTRS.some(k => el?.getAttribute?.(k) === 'tru
 /** The control is there but greyed out. */
 export const isDisabled = (el) => !!el && (el.disabled === true || el.getAttribute?.('aria-disabled') === 'true')
 
-const hasWords = (el, words) => String(el.textContent || '').toLowerCase().includes(String(words).toLowerCase())
+// the words, and not a longer number that starts with them: "EMA 20" is not "EMA 200". A chip's text runs its value into its
+// name ("EMA 2099.54"), so its accessible name is read as well
+function holds(text, words) {
+  const t = String(text || '').toLowerCase()
+  const w = String(words).toLowerCase()
+  for (let i = t.indexOf(w); i >= 0; i = t.indexOf(w, i + 1)) if (!/\d$/.test(w) || !/\d/.test(t[i + w.length] || '')) return true
+  return false
+}
+const hasWords = (el, words) => holds(el.getAttribute?.('aria-label'), words) || holds(el.textContent, words)
+// the divider along the top of the pane whose legend names these words: the last one above that legend
+function dividerAbove(lines, box, words) {
+  const cell = box.closest?.('[data-widget-id]') || box
+  const chip = [...cell.querySelectorAll('[data-guide="chart.chip"]')].find(c => hasWords(c, words))
+  if (!chip) return []
+  const y = chip.getBoundingClientRect().top
+  const above = lines.filter(l => l.getBoundingClientRect().top <= y).sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top)
+  return above.slice(0, 1)
+}
 // what a target's own narrowing leaves inside one box
 function inside(box, t) {
   const sel = t.aria ? `[aria-label="${esc(t.aria)}"]`
@@ -59,7 +76,10 @@ function inside(box, t) {
     const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
     return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => own(el) === want)
   }
-  if (t.cursor) return [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
+  if (t.cursor) {
+    const lines = [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
+    return t.above ? dividerAbove(lines, box, t.above) : lines
+  }
   const els = sel ? [...box.querySelectorAll(sel)] : [box]
   return t.text ? els.filter(el => hasWords(el, t.text)) : els
 }

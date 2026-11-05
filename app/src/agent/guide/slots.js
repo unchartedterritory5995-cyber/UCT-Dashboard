@@ -88,7 +88,7 @@ function catalog() {
     for (const w of new Set([r.name, r.shortName].filter(Boolean))) out.push({ word: w, id: r.id, name: r.name, say })
     for (const i of r.inputs || []) {
       if (i?.type !== 'enum' || !/type/i.test(`${i.key} ${i.label}`)) continue
-      for (const o of i.options || []) if (/^[A-Z]{2,5}$/.test(String(o.label))) out.push({ word: o.label, id: r.id, name: r.name, say: o.label })
+      for (const o of i.options || []) if (/^[A-Z]{2,5}$/.test(String(o.label))) out.push({ word: o.label, id: r.id, name: r.name, say: o.label, perLength: true })
     }
   }
   // the longest name first: "Stochastic RSI" is not "RSI"
@@ -96,10 +96,22 @@ function catalog() {
     .map(x => ({ ...x, re: new RegExp(`(^|[^a-z0-9])${escapeRe(String(x.word).toLowerCase())}($|[^a-z0-9])`) }))
   return catalogCache
 }
-/** The one catalog indicator the words name → { id, name, say } | null. */
+// "EMA 20", "the 20 EMA", "20-day EMA", "EMA(20)": which one, of several of the same kind
+function lengthIn(q, word) {
+  const w = escapeRe(String(word).toLowerCase())
+  const m = new RegExp(`(?:^|[^a-z0-9.])(\\d{1,3})(?:[- ](?:day|period|bar|week))?[- ]${w}(?:$|[^a-z0-9])`).exec(q)
+    || new RegExp(`(?:^|[^a-z0-9])${w}[ (-]*(\\d{1,3})(?:$|[^0-9.])`).exec(q)
+  return m ? m[1] : null
+}
+/** The one catalog indicator the words name → { id, name, say, label, labelName } | null. `say` is what to search for, and
+ *  `label` is the one on the chart: "EMA 20" when the words give its length, so the EMA 9 above it is not taken for it. */
 export function readIndicator(text) {
   const q = String(text || '').toLowerCase()
-  return catalog().find(c => c.re.test(q)) || null
+  const hit = catalog().find(c => c.re.test(q))
+  if (!hit) return null
+  const n = hit.perLength ? lengthIn(q, hit.word) : null
+  const label = n ? `${hit.say} ${n}` : hit.say
+  return { ...hit, label, labelName: n ? label : hit.name }
 }
 
 // widgets/registry.js: the product's own menu, and its own words for each widget

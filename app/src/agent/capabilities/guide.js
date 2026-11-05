@@ -18,6 +18,7 @@ import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } fro
 import { findTarget, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
+import { namedChart, namesAChart } from '../guide/namedChart'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -52,7 +53,10 @@ export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
   const steps = stepsFor(f, words)
   const needsChart = steps.some(s => scoped(s.target))
-  const chart = needsChart ? guideChart(host) : null
+  // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
+  const asked = needsChart ? namedChart(words, chartsOf(host)) : null
+  if (asked?.say) return asked.say
+  const chart = needsChart ? asked?.chart || guideChart(host) : null
   if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
   // ⭐ Multi Chart: a cell has no "more timeframes" menu or drawing strip, so a chart step past the first goes unless it is there
@@ -177,7 +181,8 @@ export function registerGuideCapabilities() {
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
       const f = matchFeature(q, null, here)
-      if (f) return f.slots ? { feature: f.id, detail: q } : { feature: f.id }
+      // the words travel when they choose something: a family's row, or the chart they name
+      if (f) return f.slots || namesAChart(q, chartsOf(host)) ? { feature: f.id, detail: q } : { feature: f.id }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
       const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
       return charts?.everyPage ? { feature: charts.id } : null
