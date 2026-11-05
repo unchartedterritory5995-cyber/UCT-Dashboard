@@ -19,7 +19,7 @@ export default function NotebookPlusSheet({ open, onClose, returnFocusTo, onQuic
     askAi && { key: 'ask', label: 'Ask AI', icon: 'compass', run: () => navigate('/journal/compass') },
     // Review Minor 8: the Help "?" is not drawn on the phone Notebook, so this row opens ITS menu (Send Feedback,
     // Submit a ticket) through the widget's own door -- not a second form.
-    { key: 'help', label: 'Help & feedback', icon: 'info', run: () => openFeedback() },
+    { key: 'help', label: 'Help & feedback', icon: 'info', run: () => openFeedback('menu', returnFocusTo?.current || null) },
   ].filter(Boolean)
   const choose = (run) => () => { setOpen(false); run?.() }
 

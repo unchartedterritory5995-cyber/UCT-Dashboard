@@ -3,7 +3,10 @@
 // just to close it. Now Esc closes it and focus goes back to the "?" button; a click outside closes
 // it AND reaches what was clicked; and nothing invisible is left over the page.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
+import { useRef, useState } from 'react'
+import NotebookPlusFab from '../pages/journal-2-0/components/notebook/NotebookPlusFab'
+import NotebookPlusSheet from '../pages/journal-2-0/components/notebook/NotebookPlusSheet'
 import { openFeedback } from './feedbackDoor'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -106,11 +109,36 @@ describe('Send Feedback lands focus in the message (fix round 2)', () => {
 // Tier 1b fix round 1 (review Minor 8): the phone Notebook does not draw the "?" (S12); its "+" sheet's Help row opens
 // THIS menu through components/feedbackDoor.js, so Send Feedback stays reachable there.
 describe('the feedback door (Minor 8)', () => {
-  it('openFeedback() opens the Help & Feedback menu, with Send Feedback in it', () => {
+  it('openFeedback() opens the Help & Feedback menu, with Send Feedback in it', async () => {
     mount()
     expect(screen.queryByRole('button', { name: /Send Feedback/ })).toBeNull()
     act(() => { openFeedback() })
-    fireEvent.click(screen.getByRole('button', { name: /Send Feedback/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Send Feedback/ }))
     expect(screen.getByLabelText('Feedback message')).toBeInTheDocument()
+  })
+})
+
+// Tier 1b fix round 2 (re-review N2): from the phone Notebook's "+" sheet, "Help & feedback" opens THIS menu with focus
+// in it, and Escape hands focus back to the "+" that started it -- not to the "?", which is not drawn there.
+describe('the feedback door from the "+" returns focus to the "+" (N2)', () => {
+  it('"+" -> Help & feedback: focus lands on Send Feedback; Escape returns it to the "+"', async () => {
+    function Plus() {
+      const [open, setOpen] = useState(false)
+      const ref = useRef(null)
+      return (
+        <>
+          <NotebookPlusFab ref={ref} open={open} onOpen={() => setOpen(true)} />
+          <NotebookPlusSheet open={open} onClose={() => setOpen(false)} returnFocusTo={ref} onQuickNote={vi.fn()} />
+        </>
+      )
+    }
+    render(<MemoryRouter initialEntries={['/journal/notebook']}><Plus /><FeedbackWidget /></MemoryRouter>)
+    const plus = screen.getByRole('button', { name: 'Add to your notebook' })
+    plus.focus()
+    fireEvent.click(plus)
+    fireEvent.click(screen.getByRole('button', { name: 'Help & feedback' }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Send Feedback/ })))
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    await waitFor(() => expect(document.activeElement).toBe(plus))
   })
 })

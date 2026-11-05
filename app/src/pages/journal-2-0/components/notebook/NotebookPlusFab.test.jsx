@@ -4,7 +4,7 @@
 // row opens the Help & Feedback menu; the orb's "in a call" attribute is pinned by a RENDERED test
 // (FloatingOrb.coachmark.test.jsx). ⛔ jsdom lays nothing out: the phone-only drawing is pinned on the stylesheets.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { readFileSync } from 'node:fs'
@@ -41,7 +41,7 @@ describe('the floating "+"', () => {
     expect(within(sheet).getByLabelText('Photo / chart screenshot')).toHaveAttribute('type', 'file')
   })
 
-  it('each row runs its door: Quick note creates, Ask AI opens Compass, Help opens the Help & Feedback menu', () => {
+  it('each row runs its door: Quick note creates, Ask AI opens Compass, Help opens the Help & Feedback menu', async () => {
     const onQuickNote = vi.fn()
     const feedback = vi.fn()
     window.addEventListener(OPEN_FEEDBACK_EVENT, feedback)
@@ -51,7 +51,7 @@ describe('the floating "+"', () => {
     fireEvent.click(within(open()).getByRole('button', { name: 'Ask AI' }))
     expect(screen.getByTestId('where').textContent).toBe('/journal/compass')
     fireEvent.click(within(open()).getByRole('button', { name: 'Help & feedback' }))
-    expect(feedback).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(feedback).toHaveBeenCalledTimes(1))   // on the next frame (fix round 2, N2)
     window.removeEventListener(OPEN_FEEDBACK_EVENT, feedback)
   })
 
