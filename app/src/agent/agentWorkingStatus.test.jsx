@@ -63,7 +63,7 @@ function holdPlans() {
 function fixture(ids = ['c1']) {
   const board = makeBoard(ids.map((id, i) => ({ id, type: 'chart', x: i * 12, y: 0, w: 12, h: 10, color: 'N', opts: { tf: 'D', settings: mergeChartSettings(null) } })),
     Object.fromEntries(ids.map((id, i) => [`N:${id}`, ['SPY', 'QQQ'][i]])))
-  const h = { ...board.host, charts: { ...board.host.charts, canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => null }, persist: async () => ({ ok: true }) }
+  const h = { ...board.host, epoch: () => 1, charts: { ...board.host.charts, canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => null }, persist: async () => ({ ok: true }) }
   return { board, h }
 }
 
@@ -87,6 +87,13 @@ function scriptProposal() {
   })
 }
 const transcript = () => screen.getByTestId('agent-transcript').textContent
+const composerLine = () => screen.getByTestId('agent-typing').textContent
+/** Hold the board save. `h.persist` is read when the save runs, so this works on a mounted panel. */
+function holdSave(h) {
+  const held = []
+  h.persist = vi.fn(() => new Promise((res, rej) => held.push({ res, rej })))
+  return { at: () => held.length, finish: (r = { ok: true }) => held.shift().res(r), fail: (e) => held.shift().rej(e) }
+}
 const tf = (board) => board.state.widgets.find(w => w.id === 'c1').opts.tf
 
 describe('working signal (agent/trace.js)', () => {
@@ -98,8 +105,9 @@ describe('working signal (agent/trace.js)', () => {
     mark('commit:start')
     expect(isWorking()).toBe(true)
     mark('prepared')                               // any other mark leaves it alone
+    mark('commit:end')                             // the write landed; its save is still to come
     expect(isWorking()).toBe(true)
-    mark('commit:end')
+    mark('persist', 'ok')
     expect(isWorking()).toBe(false)
     mark('undo:start')
     expect(isWorking()).toBe(true)
@@ -108,10 +116,10 @@ describe('working signal (agent/trace.js)', () => {
     expect(fn).toHaveBeenCalledTimes(4)
     off()
     mark('commit:start')
-    mark('commit:end')
+    mark('persist', 'ok')
     expect(fn).toHaveBeenCalledTimes(4)
   })
-  it('a commit that never reaches commit:end is cleared by traceEnd, and by turnEnd', () => {
+  it('a commit that never reaches its persist mark is cleared by traceEnd, and by turnEnd', () => {
     traceStart('t')
     mark('commit:start')
     traceEnd('done')
@@ -129,7 +137,7 @@ describe('working signal (agent/trace.js)', () => {
   })
   it('a subscriber that throws never breaks a write', () => {
     const off = subscribeWorking(() => { throw new Error('reader') })
-    expect(() => { mark('commit:start'); mark('commit:end') }).not.toThrow()
+    expect(() => { mark('commit:start'); mark('persist', 'ok') }).not.toThrow()
     off()
   })
 })
@@ -142,6 +150,7 @@ describe('the panel header during real execution', () => {
     send('change the timeframe to weekly')
     await waitFor(() => expect(hold.at()).toBe(1))
     expect(status()).toBe('UCT Agent is working')
+    expect(composerLine()).toBe('UCT Agent is working')
     hold.release()
     await idle()
     expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1)
@@ -182,7 +191,7 @@ describe('the panel header during real execution', () => {
     expect(screen.getByTestId('agent-transcript').textContent).toMatch(/nope/)
   }, 20000)
 
-  it('commitPlan itself throwing (it never reaches commit:end): working clears, and the turn ends idle', async () => {
+  it('commitPlan itself throwing (it never reaches persist): working clears, and the turn ends idle', async () => {
     const { h } = fixture()
     const { result } = renderHook(() => useAgent({ host: h }))
     let during = null
@@ -228,8 +237,51 @@ describe('the panel header during real execution', () => {
     const { send } = await mount()
     send('what do you think of breadth lately and why does it matter')
     await waitFor(() => expect(status()).toBe('typing'))
+    expect(composerLine()).toBe('UCT Agent is typing…')
     expect(isWorking()).toBe(false)
     answer(new Response(JSON.stringify({ conversationId: 'ac_1', envelope: { disposition: 'answer', reply: 'ok', question: null, ops: [], unsupported_category: null }, usage: { research_calls: 0, citations: [] } }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    await idle()
+  }, 20000)
+
+  it('a commit\'s save: header and composer stay on working until the save ends, then Online', async () => {
+    const { h, send } = await mount()
+    const save = holdSave(h)
+    send('change the timeframe to weekly')
+    await waitFor(() => expect(save.at()).toBe(1), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-receipt')).toHaveLength(0)      // the write is done; its receipt waits for the save
+    expect(status()).toBe('UCT Agent is working')
+    expect(composerLine()).toBe('UCT Agent is working')
+    save.finish()
+    await idle()
+    expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1)
+  }, 20000)
+
+  it.each([
+    ['refused', (save) => save.finish({ ok: false, reason: 'not-saved' })],
+    ['rejected', (save) => save.fail(new Error('network'))],
+  ])('a commit\'s save that is %s: never stuck on working', async (_, end) => {
+    const { h, send } = await mount()
+    const save = holdSave(h)
+    send('change the timeframe to weekly')
+    await waitFor(() => expect(save.at()).toBe(1), { timeout: 8000 })
+    expect(status()).toBe('UCT Agent is working')
+    end(save)
+    await idle()
+    expect(isWorking()).toBe(false)
+    expect(transcript()).toMatch(/not saved/i)
+  }, 20000)
+
+  it('Undo\'s save is NOT covered (it runs in useAgent.js, after undo:end): typing until it ends, then Online', async () => {
+    const { h, send } = await mount()
+    send('change the timeframe to weekly')
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1), { timeout: 8000 })
+    await idle()
+    const save = holdSave(h)
+    send('undo')
+    await waitFor(() => expect(save.at()).toBe(1), { timeout: 8000 })
+    await waitFor(() => expect(status()).toBe('typing'))
+    expect(composerLine()).toBe('UCT Agent is typing…')
+    save.finish()
     await idle()
   }, 20000)
 

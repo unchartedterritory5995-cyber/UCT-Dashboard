@@ -20,10 +20,11 @@ export function traceStart(label) {
 
 // ── WORKING SIGNAL: is a website write in flight right now? ───────────────────────────────────
 // Read from the same marks as the trace, so the panel header shows real execution, never a guess. It
-// lives outside the trace: mark() always reaches it, with or without an open trace or turn. commitPlan
-// can throw past 'commit:end', so traceEnd() and turnEnd() (both in a finally) clear it too.
+// lives outside the trace: mark() always reaches it, with or without an open trace or turn. A commit
+// runs through its 'persist' mark (the write AND the save that follows it; Undo's save runs in useAgent.js,
+// after 'undo:end'). A throw skips that mark, so traceEnd() and turnEnd() (both in a finally) clear it too.
 const WORK_STARTS = new Set(['commit:start', 'undo:start'])
-const WORK_ENDS = new Set(['commit:end', 'undo:end'])
+const WORK_ENDS = new Set(['persist', 'undo:end'])
 let working = false
 const workingSubs = new Set()
 function setWorking(next) {
