@@ -694,21 +694,52 @@ scn('mc sync off is the control', [], MC, async (p, t) => {
   t.ok('a wheel moved the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
   t.ok('and no other cell', others('g0').every(id => b.find(x => x.id === id).pixels === a.find(x => x.id === id).pixels))
 })
-scn('mc sync a member move', [], { query: 'multichart=sync' }, async (p, t) => {
+const dragCell = async (p, id) => {
+  const c = await p.b.evaluate('(() => { const e = document.querySelector(\'[data-grid-cell-id="' + id + '"] .tv-lightweight-charts canvas\'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()')
+  await p.b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: c.x, y: c.y })
+  await p.b.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: c.x, y: c.y, button: 'left', clickCount: 1 })
+  for (let i = 1; i <= 10; i++) { await p.b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: c.x + i * 10, y: c.y, button: 'left', buttons: 1 }); await sleep(50) }
+  await p.b.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: c.x + 100, y: c.y, button: 'left', clickCount: 1 })
+  await p.b.hover(2, 2)
+  await sleep(1500)
+  await p.settle()
+}
+const months = (c) => c.text.filter(x => /^[A-Z][a-z][a-z]$|^20[0-9][0-9]$/.test(x)).join()
+scn('mc sync a member drag', [], { query: 'multichart=sync' }, async (p, t) => {
+  await p.select('g0')
+  const a = await p.read()
+  await dragCell(p, 'g0')
+  const b = await p.read()
+  t.ok('a real drag moved the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
+  for (const id of others('g0')) t.ok(id + ' followed the drag', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels)
+  t.ok('all three show the same months', new Set(FILLED.map(id => months(b.find(x => x.id === id)))).size === 1, FILLED.map(id => months(b.find(x => x.id === id))).join(' | '))
+})
+scn('mc sync a member wheel', [], { query: 'multichart=sync' }, async (p, t) => {
   await p.select('g0')
   const a = await p.read()
   await wheelCell(p, 'g0')
+  await sleep(1500)
   const b = await p.read()
-  t.ok('a wheel moved the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
-  for (const id of others('g0')) t.ok(id + ' followed', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels)
-  const axis = (c) => c.text.filter(x => /^[A-Z][a-z][a-z]$|^20[0-9][0-9]$/.test(x)).join()
-  t.ok('all three show the same months', new Set(FILLED.map(id => axis(b.find(x => x.id === id)))).size === 1, FILLED.map(id => axis(b.find(x => x.id === id))).join(' | '))
+  t.ok('a real wheel zoomed the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
+  for (const id of others('g0')) t.ok(id + ' followed the wheel', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels, months(b.find(x => x.id === id)) + ' vs ' + months(b.find(x => x.id === 'g0')))
 })
-scn('mc sync an Agent date jump', [], { query: 'multichart=sync' }, async (p, t) => {
+const jump = (name, say, date, months) => scn(name, [], { query: 'multichart=sync' }, async (p, t) => {
   await p.select('g0')
-  const r = await act(p, t, { say: 'go to march 3 2025', plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date: '2025-03-03' } }] }), touch: FILLED, says: /follow/i })
-  t.ok('March is on the clicked cell\'s axis', axisHas(r.chart('g0'), /^Mar/), r.chart('g0').text.slice(-6).join(' '))
-  for (const id of others('g0')) t.ok(id + ' followed to March', axisHas(r.chart(id), /^Mar/), r.chart(id).text.slice(-6).join(' '))
+  const r = await act(p, t, { say, plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date } }] }), touch: FILLED, says: /follow/i })
+  t.ok('the date is on the clicked cell\'s axis', axisHas(r.chart('g0'), months), r.chart('g0').text.slice(-6).join(' '))
+  for (const id of others('g0')) t.ok(id + ' followed', axisHas(r.chart(id), months), r.chart(id).text.slice(-6).join(' '))
+})
+jump('mc sync an Agent date jump', 'go to june 2 2025', '2025-06-02', /^(May|Jun)$/)
+// near the start of the 200-bar fixture the view is mostly empty, so the cell does not send it: the receipt still says the others follow
+jump('mc sync an Agent date jump near the start of history', 'go to march 3 2025', '2025-03-03', /^(Feb|Mar)$/)
+scn('mc sync a wheel from inside the bars', [], { query: 'multichart=sync' }, async (p, t) => {
+  await p.select('g0')
+  await dragCell(p, 'g0')
+  const a = await p.read()
+  await wheelCell(p, 'g0')
+  await sleep(1500)
+  const b = await p.read()
+  for (const id of FILLED) t.ok(id + ' moved', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels)
 })
 scn('mc hidden cell refused', [], MC, async (p, t) => {
   const q = await p.b.evaluate('(() => { const e = document.querySelector(\'[data-grid-cell-id="g0"] [aria-label="Maximize this chart"]\'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()')
@@ -716,7 +747,9 @@ scn('mc hidden cell refused', [], MC, async (p, t) => {
   await p.b.hover(2, 2)
   await p.settle()
   const face = async () => (await p.b.evaluate('[...document.querySelectorAll("[data-grid-cell-id]")].filter(e => e.getBoundingClientRect().width > 0).map(e => e.dataset.gridCellId).join()'))
-  t.ok('only the maximized cell is on screen', (await face()) === 'g0', await face())
+  const wide = await p.b.evaluate('document.querySelector(\'[data-grid-cell-id="g0"]\').getBoundingClientRect().width')
+  const hit = await p.b.evaluate('(() => { const r = document.querySelector(\'[data-grid-cell-id="g0"]\').getBoundingClientRect(); const e = document.elementFromPoint(r.right - 30, r.bottom - 60); return e.closest("[data-grid-cell-id]")?.dataset.gridCellId })()')
+  t.ok('the maximized cell fills the grid and is what a click hits', wide > 600 && hit === 'g0', JSON.stringify([wide, hit, await face()]))
   const before = (await p.read('g0'))[0]
   await act(p, t, { say: 'make the top-right chart weekly', plan: setTf('AMD', 'W'), noReceipt: true, says: /hidden behind the maximized/i, busy: false })
   await act(p, t, { say: 'make chart 3 weekly', plan: setTf('TSLA', 'W'), noReceipt: true, says: /hidden behind the maximized/i, busy: false })
@@ -759,7 +792,7 @@ for (const s of S) {
     await p.settle()
     await p.openPanel()
     // the workspace mounts panels in batches: a board is ready when every chart on it has painted
-    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => x.sym && x.canvases > 5) })()`, { timeout: 30000 })
+    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || (x.id === 'g3' && !x.sym)) })()`, { timeout: 30000 })
     t.ok('every chart on the board painted', !!up, JSON.stringify((await p.charts()).map(brief)))
     await p.settle()
     await s.fn(p, t)

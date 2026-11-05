@@ -191,7 +191,7 @@ const READ = `(() => {
       const row = { id: e.dataset.widgetId, type: e.dataset.widgetType || (e.dataset.gridCellId ? 'chart' : undefined), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }
       if (row.type === 'chart') {
         row.sym = e.querySelector('[data-testid="sym-label"]')?.textContent?.trim() || null
-        row.tf = [...e.querySelectorAll('[data-guide="chart.timeframe"] button')].filter(b => /Active/.test(b.className)).map(b => b.textContent.trim()).join(',')
+        row.tf = [...e.querySelectorAll('[data-guide="chart.timeframe"] button')].filter(b => /tfBtnActive/.test(b.className)).map(b => b.textContent.trim()).join(',')
         row.pixels = chartHash(e)
         const on = (sel) => [...e.querySelectorAll(sel)].filter(b => /[Aa]ctive|[Oo]n_|Selected/.test(b.className) || b.getAttribute('aria-pressed') === 'true').map(b => b.textContent.trim())
         row.scale = on('[class*="scaleToggleBtn"]').join(',')
