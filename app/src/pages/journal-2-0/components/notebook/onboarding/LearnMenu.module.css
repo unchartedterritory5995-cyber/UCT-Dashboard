@@ -173,3 +173,23 @@
     min-height: var(--tap-min);
   }
 }
+
+/* S14 (audit 2026-11-05, detail #65): each tour says what the member has done with it -- a gold ✓ for done, a
+   small "New" for never taken. The name takes the room; the mark sits at the right edge. */
+.itemLabel { flex: 1 1 auto; min-width: 0; }
+.doneBadge {
+  flex: none;
+  margin-left: 8px;
+  color: var(--ut-gold);
+  font-weight: 700;
+}
+.newBadge {
+  flex: none;
+  margin-left: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-size: 11px;
+  line-height: 18px;
+}

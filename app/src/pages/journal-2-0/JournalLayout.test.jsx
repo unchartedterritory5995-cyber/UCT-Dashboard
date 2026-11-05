@@ -5,9 +5,10 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 // ── controllable paid state ──────────────────────────────────────────────────
 let mockIsPaid = true
+let mockUser = null   // S14: a signed-in member renders the Help menu (FeedbackWidget)
 vi.mock('../../context/AuthContext', () => ({
   useIsPaid: () => mockIsPaid,
-  useAuth: () => ({ isPaid: mockIsPaid }),
+  useAuth: () => ({ isPaid: mockIsPaid, user: mockUser }),
 }))
 
 // ── shell hooks / header pieces / modals (stubbed — routing is under test) ────
@@ -88,6 +89,7 @@ vi.mock('./surfaces/TodaySurface', () => ({
   default: () => <div data-testid="today-surface" />,
 }))
 
+import FeedbackWidget from '../../components/FeedbackWidget'
 import JournalLayout, { HOTKEY_ROUTES } from './JournalLayout'
 import TodaySurface from './surfaces/TodaySurface'
 import TradesSurface from './surfaces/TradesSurface'
@@ -115,11 +117,13 @@ function LocationProbe() {
   return <div data-testid="loc">{`${loc.pathname}${loc.search}`}</div>
 }
 
-function renderAt(route, { paid = true } = {}) {
+function renderAt(route, { paid = true, withHelpMenu = false } = {}) {
   mockIsPaid = paid
+  mockUser = withHelpMenu ? { id: 'u1' } : null
   return render(
     <MemoryRouter initialEntries={[route]}>
       <LocationProbe />
+      {withHelpMenu && <FeedbackWidget />}
       <Routes>
         <Route path="/journal" element={<JournalLayout />}>
           <Route index element={<TodaySurface />} />
@@ -533,27 +537,47 @@ describe('JournalLayout — mobile quick-log FAB (B5)', () => {
 // comment beside the `useHotkeys` call in JournalLayout.jsx for the traced
 // mechanism). Both are fixed here; this block proves it with real key events.
 describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
-  it('Enter on the "Show keyboard shortcuts" button opens the dialog', async () => {
-    renderAt('/journal')
-    const btn = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
-    btn.focus()
-    fireEvent.keyDown(btn, { key: 'Enter' })
-    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+  // S14 (audit 2026-11-05): the header's "?" is now THE Help button (the one Help menu, FeedbackWidget's). The
+  // A2R-04 contracts move with it: the button answers Enter, Space and a click; its menu's "Keyboard shortcuts" row
+  // opens the sheet; Escape hands focus back to the button. Shift+? still opens the sheet directly (below).
+  it.each([['Enter', '{Enter}'], ['Space', ' '], ['a click', null]])('%s on the Help button opens the Help menu', async (_, key) => {
+    const user = userEvent.setup()
+    renderAt('/journal', { withHelpMenu: true })
+    const btn = screen.getByRole('button', { name: 'Help' })
+    if (key) { btn.focus(); await user.keyboard(key) } else await user.click(btn)
+    expect(await screen.findByRole('menu', { name: 'Help' })).toBeInTheDocument()
+    // exactly one "?": the corner one steps aside while the header's is on screen
+    expect(screen.queryByRole('button', { name: 'Help & Feedback' })).toBeNull()
   })
 
-  it('Space on the "Show keyboard shortcuts" button opens the dialog', async () => {
-    renderAt('/journal')
-    const btn = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
-    btn.focus()
-    fireEvent.keyDown(btn, { key: ' ' })
-    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+  it('Help > Keyboard shortcuts opens the sheet; Escape closes it and focus returns to the Help button', async () => {
+    const user = userEvent.setup()
+    renderAt('/journal', { withHelpMenu: true })
+    const opener = screen.getByRole('button', { name: 'Help' })
+    await user.click(opener)
+    await user.click(await screen.findByRole('menuitem', { name: 'Keyboard shortcuts' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Close' })))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
   })
 
-  it('a plain click still opens it too (regression)', async () => {
+  it('the Help button again closes its menu (a toggle, like the corner "?")', async () => {
+    const user = userEvent.setup()
+    renderAt('/journal', { withHelpMenu: true })
+    const btn = screen.getByRole('button', { name: 'Help' })
+    await user.click(btn)
+    expect(await screen.findByRole('menu', { name: 'Help' })).toBeInTheDocument()
+    await user.click(btn)
+    await waitFor(() => expect(screen.queryByRole('menu', { name: 'Help' })).toBeNull())
+  })
+
+  it('with no menu to open (the touch hub, which does not mount it), Help goes to the Support page', async () => {
+    const user = userEvent.setup()
     renderAt('/journal')
-    fireEvent.click(screen.getByRole('button', { name: 'Show keyboard shortcuts' }))
-    // I-A bytes: the sheet's chunk loads on its first open, so the dialog is awaited.
-    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Help' }))
+    await waitFor(() => expect(loc()).toBe('/support'))
   })
 
   it('the "?" shortcut opens the dialog from a settled, non-input focus', async () => {
@@ -590,20 +614,6 @@ describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
     expect(screen.queryByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeNull()
   })
 
-  it('Escape closes it and focus returns to the button that opened it', async () => {
-    renderAt('/journal')
-    const opener = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
-    opener.focus()
-    fireEvent.keyDown(opener, { key: 'Enter' })
-    const dialog = await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
-    // I-A bytes: the sheet now arrives from its own chunk, so the dialog can be in the DOM a
-    // moment before its open effect (Close focused, the Escape listener attached) has run.
-    // Wait for that effect, as a member's keypress always would; the assertions are unchanged.
-    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Close' })))
-    fireEvent.keyDown(window, { key: 'Escape' })
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    await waitFor(() => expect(document.activeElement).toBe(opener))
-  })
 })
 
 // ── The cheat sheet loads on its first open (I-A bytes, controller ruling 2026-10-16) ──
@@ -624,7 +634,7 @@ describe('JournalLayout — the keyboard shortcuts sheet loads on its first open
     expect(screen.queryByTestId('shortcut-sheet-door'), 'a resting page carries the door’s live region').toBeNull()
     expect(loader, 'the sheet was fetched before anybody opened it').not.toHaveBeenCalled()
 
-    const opener = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
+    const opener = screen.getByRole('button', { name: 'Help' })
     opener.focus()
     fireEvent.keyDown(opener, { key: '?', code: 'Slash', shiftKey: true })
     const status = within(screen.getByTestId('shortcut-sheet-door')).getByRole('status')
