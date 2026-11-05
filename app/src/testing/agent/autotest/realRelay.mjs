@@ -4,15 +4,18 @@
 // The same shape as the scripted relay, so the driver cannot tell them apart. `ask` does nothing: nothing is scripted here.
 import { createServer } from 'node:http'
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { isGranted } from './realGuard.mjs'
 
 const GATE = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../tools/agent_autotest_gate.py')
+// the project's venv holds anthropic; the machine's python does not (the gate's check needs neither)
+const VENV = 'C:/Users/blake/projects/UCT-Dashboard/.venv/Scripts/python.exe'
 
 export async function startRealRelay(grant, { publicSha, heldoutSha, spendLog } = {}) {
   if (!isGranted(grant) || grant.target !== 'local') throw new Error('REAL-MODEL: no grant from the authorization file; refused')
-  const child = spawn('python', [GATE, 'serve', '--stage', grant.stage, '--public-sha', publicSha, ...(heldoutSha ? ['--heldout-sha', heldoutSha] : []), ...(spendLog ? ['--spend-log', spendLog] : [])], { stdio: ['ignore', 'pipe', 'inherit'] })
+  const child = spawn(existsSync(VENV) ? VENV : 'python', [GATE, 'serve', '--stage', grant.stage, '--public-sha', publicSha, ...(heldoutSha ? ['--heldout-sha', heldoutSha] : []), ...(spendLog ? ['--spend-log', spendLog] : [])], { stdio: ['ignore', 'pipe', 'inherit'] })
   const gatePort = await new Promise((res, rej) => {
     let buf = ''
     child.stdout.on('data', (d) => { buf += d; const m = /READY (\d+)/.exec(buf); if (m) res(Number(m[1])); else if (/refused:/.test(buf)) rej(new Error(buf.trim())) })

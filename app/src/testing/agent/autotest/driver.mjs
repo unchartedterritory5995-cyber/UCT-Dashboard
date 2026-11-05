@@ -119,7 +119,7 @@ export async function runRequest(ctx, req) {
     p = ctx.openFn ? await ctx.openFn(R) : await open(R, { query: B.query || '', prefs: B.prefs || null, fixtures: { routes: ctx.routes || [] }, iaCatalog: B.iaCatalog || null })
     await p.settle()
     await p.openPanel()
-    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || !x.sym) })()`, { timeout: 30000 })
+    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ${q(req.board)} === 'MC' && x.id === 'g3') })()`, { timeout: 30000 })
     if (!up) throw new Error('the board never painted')
     await p.settle()
     if (req.select) await p.select(BOARDS[req.board].roles[req.select].id)

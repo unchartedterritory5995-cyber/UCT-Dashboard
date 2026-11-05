@@ -12,16 +12,16 @@ export function chartSurface(L) {
   sym('phrasing', 'lets see what microsoft looks like', [setS('MSFT')], symOk('MSFT'))
   sym('phrasing', 'throw META on this chart please', [setS('META')], symOk('META'))
   sym('params', 'chart ticker QQQ', [setS('QQQ')], symOk('QQQ'))
-  sym('params', 'show the russell small cap etf, IWM', [setS('IWM')], symOk('IWM'))
+  sym('params', 'show the dow etf, DIA', [setS('DIA')], symOk('DIA'))
   sym('target', 'put NVDA on the right chart', [setS('NVDA', 'B')], symOk('NVDA', 'B'), { select: null })
-  sym('target', 'the left chart should be GOOGL', [setS('GOOGL')], symOk('GOOGL'), { select: 'B' })
+  sym('target', 'the left chart should be PLTR', [setS('PLTR')], symOk('PLTR'), { select: 'B' })
   sym('target', 'change the bottom right chart to AVGO', [setS('AVGO', 'BR')], symOk('AVGO', 'BR'), { board: 'FOUR', select: 'TL' })
-  sym('target', 'chart 2 should show COIN', [setS('COIN', 'TR')], symOk('COIN', 'TR'), { board: 'FOUR', select: null })
-  sym('target', 'make this chart MU', [], asks({ says: 'which' }), { board: 'FOUR', select: null, turns: [say('make this chart MU', clarify('Which chart?', ['Top left', 'Top right', 'Bottom left', 'Bottom right']))] })
+  sym('target', 'chart 2 should show TSM', [setS('TSM', 'TR')], symOk('TSM', 'TR'), { board: 'FOUR', select: null })
+  sym('target', 'make this chart PLTR', [], asks({ says: 'which' }), { board: 'FOUR', select: null, turns: [say('make this chart PLTR', clarify('Which chart?', ['Top left', 'Top right', 'Bottom left', 'Bottom right']))] })
   sym('followup', [say('go to NVDA', [setS('NVDA')]), say('actually make that AMD', [setS('AMD')])], null, changes(['A'], [['A.sym', 'eq', 'AMD']]))
   sym('combo', 'NVDA on the left and AMD on the right', [setS('NVDA'), setS('AMD', 'B')], changes(['A', 'B'], [['A.sym', 'eq', 'NVDA'], ['B.sym', 'eq', 'AMD']], { undo: true }))
   sym('multistep', 'open NVDA on this chart and make it a 5 minute', [setS('NVDA'), op('chart.setTimeframe', '$chart:A', { timeframe: '5' })], changes(['A'], [['A.sym', 'eq', 'NVDA'], ['A.tf', 'eq', '5']], { undo: true }))
-  sym('invalid', 'change this chart to ZZZZZZZZZZ', [setS('ZZZZZZZZZZ')], refuses({ expect: [['A.sym', 'eq', 'SPY']] }), { unverifiable: ['the fixture ticker search answers every query, so only the real search can refuse an unknown ticker: on the harness a failure here is the fixture'] })
+  sym('invalid', 'change this chart to ZZZZZZZZZZ', [setS('ZZZZZZZZZZ')], refuses({ expect: [['A.sym', 'eq', 'SPY']] }), { browserOnly: true })
   sym('unsupported', 'put the fear and greed index on this chart', [], refuses(), { turns: [say('put the fear and greed index on this chart', unsupported('UCT has no chart for that.'))] })
 
   // ── timeframe ───────────────────────────────────────────────────────────────────────────
@@ -65,13 +65,13 @@ export function chartSurface(L) {
   ty('unsupported', 'make this a point and figure chart', [], refuses(), { turns: [say('make this a point and figure chart', unsupported('Point and figure is not a chart type UCT has.'))] })
 
   // ── session ─────────────────────────────────────────────────────────────────────────────
-  const se = family(L, 'session', { inv: ['C1-019', 'C1-020'] })
+  const se = family(L, 'session', { inv: ['C1-019'], board: 'TWO5', unverifiable: ['the daily-chart rule depends on the clock: extended hours there work only outside regular hours, and the harness clock is not pinned'] })
   const setSe = (m, role = 'A') => op('chart.setSession', `$chart:${role}`, { mode: m })
-  se('phrasing', 'include premarket and after hours', [setSe('extended')], changes(['A'], [['A.session', 'changed']]))
-  se('phrasing', 'show the extended session on this', [setSe('extended')], changes(['A'], [['A.session', 'changed']]))
-  se('params', 'turn on ETH', [setSe('extended')], changes(['A'], [['A.session', 'changed']]))
-  se('target', 'extended hours on the right chart only', [setSe('extended', 'B')], changes(['B'], [['B.session', 'changed']]), { select: null })
-  se('followup', [say('show extended hours', [setSe('extended')]), say('turn that back off', [setSe('regular')])], null, { outcome: 'change', only: ['A'], expect: [['A.session', 'same']] })
+  se('phrasing', 'cut out premarket and after hours', [setSe('regular')], changes(['A'], [['A.session', 'changed']]))
+  se('phrasing', 'regular session only on this one', [setSe('regular')], changes(['A'], [['A.session', 'changed']]))
+  se('params', 'turn off ETH', [setSe('regular')], changes(['A'], [['A.session', 'changed']]))
+  se('target', 'RTH on the right chart only', [setSe('regular', 'B')], changes(['B'], [['B.session', 'changed']]), { select: null })
+  se('followup', [say('regular hours only', [setSe('regular')]), say('turn the extended session back on', [setSe('extended')])], null, { outcome: 'change', only: ['A'], expect: [['A.session', 'same']] })
 
   // ── scale ───────────────────────────────────────────────────────────────────────────────
   const sc = family(L, 'scale', { inv: ['C1-022', 'C1-023'] })

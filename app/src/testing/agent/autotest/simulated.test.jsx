@@ -1,11 +1,12 @@
+/* global process */
 // UCT Agent AUTOTEST, mode SIMULATED: every request, scripted plan, the REAL panel in jsdom over the fixture board.
 // Skipped unless AGENT_AUTOTEST=1: it is a report, not a CI gate (a failure here is data, it never fails this file).
 //   AGENT_AUTOTEST=1 AT_OUT=<dir> npx vitest run src/testing/agent/autotest/simulated.test.jsx
 // A request on a board with no jsdom form (real Watchlist widget, scanner, Multi Chart, layout library) is recorded as
-// `browser-only`, and graded by its plan's validity alone: the plan is lint-checked, not executed, in this mode.
+// `browser-only`, pass null: it is not a pass. Its plan is lint-checked, not executed, in this mode.
 import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
 import { cleanup, screen, fireEvent } from '@testing-library/react'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { registerCatalog } from '../../../agent/qa/capabilityRegression/testing/registry'
 import { mountCase, BOARDS as CASE_BOARDS, receiptsNow, proposalsNow } from '../../../agent/qa/capabilityRegression/testing/harness'
 import { pinClock } from '../../../agent/qa/capabilityRegression/testing/clock'
@@ -156,7 +157,7 @@ describe.skipIf(!ON)('autotest SIMULATED', () => {
     const label = req.set === 'heldout' ? req.id : `${req.id} ${req.turns[0].say}`
     it(label, async () => {
       if (!BOARDS[req.board].sim || req.browserOnly) {
-        rows.push({ id: req.id, set: req.set, family: req.family, kind: req.kind, board: req.board, inventory: req.inventory, pass: true, graded: 0, na: 0, modelCalls: null, path: 'browser-only' })
+        rows.push({ id: req.id, set: req.set, family: req.family, kind: req.kind, board: req.board, inventory: req.inventory, pass: null, graded: 0, na: 0, modelCalls: null, path: 'browser-only' })
         return
       }
       const { evidence, result } = await runOne(req)

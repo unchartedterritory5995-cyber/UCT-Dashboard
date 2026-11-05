@@ -1,3 +1,4 @@
+/* global Buffer */
 // UCT Agent AUTOTEST: the rig's own unit tests. Free: no browser, no model, no network. Runs in CI with the Agent suites.
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'

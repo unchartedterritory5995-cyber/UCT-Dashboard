@@ -24,6 +24,8 @@ export function classify(request, ev, result, { known = null, mode = 'SIMULATED'
     if (expected.length && !got.length && /can.?t|cannot|unable|not able|don.?t have|isn.?t something/i.test(said)) return { layer: 'capability', why: 'the model said it cannot' }
     if (expected.length && !sameMulti(expected, got) && ev.turns.every(t => t.modelCalls > 0)) return { layer: 'interpretation', why: `planned ${got.join() || 'nothing'}, expected ${expected.join()}` }
   }
+  // no model was asked: the browser's instant path took the words and answered them itself
+  if (expected.length && ev.turns.length && ev.turns.every(t => t.modelCalls === 0 && !t.envelope) && (tags.has('state') || tags.has('receipt'))) return { layer: 'interpretation', why: `the instant path took it, no model call: ${said.slice(-120)}` }
   if (tags.has('target')) return { layer: 'target', why: failed.find(c => c.tag === 'target').name }
   const refused = /didn.?t change anything|nothing was changed|nothing changed|refused|isn.?t a|is not a|not valid|can.?t|cannot/i.test(said)
   if (request.oracle.outcome === 'refuse' && (tags.has('unchanged') || tags.has('receipt'))) return { layer: 'validation', why: 'an invalid or unsupported request changed something' }

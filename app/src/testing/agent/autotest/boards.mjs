@@ -16,6 +16,7 @@ export const IA_CATALOG = [
 ]
 
 const two = () => [chart('w-chart-a', 'A', 0, 0, 9, 20), chart('w-chart-b', 'B', 9, 0, 9, 20), WATCH()]
+const two5 = () => [chart('w-chart-a', 'A', 0, 0, 9, 20, '5'), chart('w-chart-b', 'B', 9, 0, 9, 20, '5'), WATCH()]
 const four = () => [chart('c-tl', 'A', 0, 0, 9, 10), chart('c-tr', 'B', 9, 0, 9, 10), chart('c-bl', 'C', 0, 10, 9, 10), chart('c-br', 'D', 9, 10, 9, 10), WATCH()]
 const one = () => [chart('w-chart-a', 'A', 0, 0, 18, 20), WATCH()]
 const scan = () => [chart('w-chart-a', 'A', 0, 0, 12, 20), { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 0, w: 12, h: 20, opts: {} }]
@@ -25,6 +26,12 @@ export const BOARDS = {
     roles: { A: { id: 'w-chart-a', position: 'left', sym: 'SPY' }, B: { id: 'w-chart-b', position: 'right', sym: 'AAPL' } },
     browser: { prefs: prefsOf(two(), GROUPS), iaCatalog: IA_CATALOG },
     sim: { widgets: two, groups: GROUPS, extra: { watchlists: LISTS, drawings: true, indicatorAlerts: true, timeNav: true, prefs: true } },
+  },
+  // both charts on 5 minutes: the session toggle on daily and above works only outside regular hours, so it would depend on the clock
+  TWO5: {
+    roles: { A: { id: 'w-chart-a', position: 'left', sym: 'SPY' }, B: { id: 'w-chart-b', position: 'right', sym: 'AAPL' } },
+    browser: { prefs: prefsOf(two5(), GROUPS) },
+    sim: { widgets: two5, groups: GROUPS, extra: { watchlists: LISTS, drawings: true } },
   },
   FOUR: {
     roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TR: { id: 'c-tr', position: 'top-right', sym: 'QQQ' }, BL: { id: 'c-bl', position: 'bottom-left', sym: 'NVDA' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'TSLA' } },

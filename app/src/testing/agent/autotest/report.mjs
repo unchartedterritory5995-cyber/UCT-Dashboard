@@ -35,19 +35,20 @@ export function writeFailure(dir, req, evidence, row, mode) {
 export function finish(dir, mode, rows, meta = {}) {
   const pub = rows.filter(r => r.set !== 'heldout')
   const held = rows.filter(r => r.set === 'heldout')
-  const fails = rows.filter(r => !r.pass)
-  const families = dedupe(pub.filter(r => !r.pass))
+  const fails = rows.filter(r => r.pass === false)
+  const notRun = rows.filter(r => r.pass === null)
+  const families = dedupe(pub.filter(r => r.pass === false))
   const byLayer = {}
   for (const f of fails) byLayer[f.layer] = (byLayer[f.layer] || 0) + 1
   const out = {
     MODE: mode, statement: MODES[mode], meta,
-    totals: { requests: rows.length, passed: rows.filter(r => r.pass).length, failed: fails.length, publicRequests: pub.length, heldoutRequests: held.length, heldoutPassed: held.filter(r => r.pass).length, modelCalls: rows.reduce((n, r) => n + (r.modelCalls || 0), 0), localOnly: rows.filter(r => !r.modelCalls).length, checksGraded: rows.reduce((n, r) => n + (r.graded || 0), 0), checksNotReadable: rows.reduce((n, r) => n + (r.na || 0), 0), byLayer },
+    totals: { requests: rows.length, passed: rows.filter(r => r.pass === true).length, failed: fails.length, notRunInThisMode: notRun.length, publicRequests: pub.length, heldoutRequests: held.length, heldoutPassed: held.filter(r => r.pass === true).length, modelCalls: rows.reduce((n, r) => n + (r.modelCalls || 0), 0), localOnly: rows.filter(r => r.modelCalls === 0).length, checksGraded: rows.reduce((n, r) => n + (r.graded || 0), 0), checksNotReadable: rows.reduce((n, r) => n + (r.na || 0), 0), byLayer },
     failureFamilies: families,
-    heldoutFailuresByFamilyAndLayer: held.filter(r => !r.pass).reduce((m, r) => { const k = `${r.family} / ${r.layer}`; m[k] = (m[k] || 0) + 1; return m }, {}),
+    heldoutFailuresByFamilyAndLayer: held.filter(r => r.pass === false).reduce((m, r) => { const k = `${r.family} / ${r.layer}`; m[k] = (m[k] || 0) + 1; return m }, {}),
     rows: [...pub, ...held.map(redact)],
   }
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `results.${mode}.json`), JSON.stringify(out, null, 1))
-  say(mode, `${out.totals.passed}/${out.totals.requests} passed; ${out.totals.modelCalls} model calls; ${families.length} failure families`)
+  say(mode, `${out.totals.passed}/${out.totals.requests - notRun.length} passed${notRun.length ? `, ${notRun.length} not run in this mode` : ''}; ${out.totals.modelCalls} model calls; ${families.length} failure families`)
   return out
 }

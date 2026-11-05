@@ -243,3 +243,32 @@ def test_no_environment_variable_grants_anything():
     assert src.count("os.environ.get(") == 2       # the two pytest-only paths
     assert "max_retries=0" in src
     assert "stub_research" in src
+
+
+def test_the_real_turn_runs_through_the_session_and_the_http_shape(env):
+    """The server's own run_turn behind the gate's HTTP handler, on loopback, with a stand-in SDK: the whole paid path but the bill."""
+    import http.client
+    import threading
+    from http.server import ThreadingHTTPServer
+
+    from api.services.uct_agent import turn
+    from tests.test_uct_agent import _resp, env as make_env
+    from tools.agent_eval_run import CeilingMeter
+
+    ledger.stub_research(turn)
+    caps = [c for c in json.load(open("app/src/agent/contract/manifest.golden.json", encoding="utf-8"))["capabilities"] if c["name"] == "chart.setTimeframe"]
+    reply = make_env("apply", [{"action": "chart.setTimeframe", "target": "c1", "args": {"timeframe": "W"}}])
+    sess = gate.Session(ceilings=ceilings(), client_create=lambda **_k: _resp(reply), turn_mod=turn, key_fp="abcd1234", meter_cls=lambda: CeilingMeter(2))
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), gate.handler_for(sess))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        c = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=20)
+        c.request("POST", "/turn", json.dumps({"message": "weekly please", "context": {"surface": "charts", "charts": [{"ref": "c1", "label": "Chart (SPY)"}]}, "capabilities": caps, "manifestVersion": 1}), {"content-type": "application/json"})
+        r = c.getresponse()
+        out = json.loads(r.read())
+    finally:
+        srv.shutdown()
+    assert r.status == 200 and out["envelope"]["ops"][0]["action"] == "chart.setTimeframe"
+    assert out["usage"]["turn_usd"] > 0
+    row = ledger.Ledger().rows()[0]
+    assert row["status"] == "settled" and row["tool"] == gate.TOOL and row["run_id"].startswith(gate.RUN_PREFIX)
