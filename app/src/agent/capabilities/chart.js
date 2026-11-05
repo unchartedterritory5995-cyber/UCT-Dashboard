@@ -31,7 +31,8 @@ import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
-import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
+import { paneVolumePct } from '../../components/chart/pane/paneLook'
+import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue, canvasLock, settingHiddenNote } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
 import { keepIndicatorState } from '../../components/chart/indicatorPreservation'
@@ -142,6 +143,23 @@ function comparisonsAfter(st, { add, remove, clear }) {
 }
 
 // ── chart.setSetting helpers (generated from the product's descriptor table) ──
+// ⛔ THE STATE THE CHART ACTUALLY DRAWS FROM. Two rows do not live in the settings blob (the descriptor's `store`):
+// they are read and written where the manual control reads and writes them, and landed() reads THAT state back.
+const VOL_PANE_PREF = 'charts_vol_pane_pct'                  // the member's own: every chart surface (ChartPane.handleVolPaneResize)
+function readSetting(st, d) {
+  if (d.store === 'volumePanePref') return st.volPanePct
+  if (d.store === 'watermarkPos') return st.watermarkPos?.[d.id.split('.')[1]] ?? settingValue(st.cs, d)
+  return settingValue(st.cs, d)
+}
+function writeSetting(st, d, v) {
+  if (d.store === 'volumePanePref') return { ...st, volPanePref: String(v), volPanePct: v }
+  if (d.store === 'watermarkPos') {
+    const at = (axis) => st.watermarkPos?.[axis] ?? st.cs?.watermark?.[axis] ?? 0.5
+    // `anchor: null`: the old pixel anchor would out-vote the new fraction; the chart derives a new one on its next draw
+    return { ...st, watermarkPos: { x: at('x'), y: at('y'), [d.id.split('.')[1]]: v, anchor: null } }
+  }
+  return { ...st, cs: withSetting(st.cs, d, v) }
+}
 const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off')
   : d.labels ? (Object.entries(d.labels).find(([, x]) => x === v)?.[0] ?? String(v)) : String(v))
 const SETTING_HINTS = (() => {
@@ -201,6 +219,13 @@ function fastSetting(text) {
 
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
+// Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
+export function viewDone(meta, { op, arg }) {
+  if (!meta) return false
+  if (op === 'applyRange') return meta.activeRange === arg
+  if (op === 'resetView') return meta.atDefaultView === true
+  return meta.indicatorsHidden === arg
+}
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
 export function viewAt(meta, target) {
@@ -233,15 +258,25 @@ const findTemplate = (name) => {
   return hits.length === 1 ? hits[0] : null
 }
 
+// What the chart draws from that is the MEMBER's, not the chart's (raw pref kept, so Undo restores an unset pref as unset).
+function withMemberState(host, snap) {
+  if (!snap) return null
+  const prefs = host?.prefs?.read?.() || null
+  const raw = prefs?.[VOL_PANE_PREF]
+  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function' }
+}
+
 // ── target kind ─────────────────────────────────────────────────────────────
 // `host.charts` is the workspace binding (agent/host.js) over every mounted
 // ChartWidget's agent adapter.
 export const chartKind = {
   name: 'chart',
-  list: (host) => host?.charts?.list() || [],
-  read: (host, ref) => host?.charts?.read(ref) || null,
+  list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
+  read: (host, ref) => withMemberState(host, host?.charts?.read(ref) || null),
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay }),
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay,
+    watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
+    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
@@ -249,17 +284,32 @@ export const chartKind = {
     if (after.symbol !== before.symbol) p.symbol = after.symbol
     if (after.goto != null) p.goto = after.goto
     if (after.replay !== before.replay) p.replay = after.replay ?? null
+    if (after.watermarkPos !== before.watermarkPos) p.watermarkPos = after.watermarkPos
+    if (after.volPanePref !== before.volPanePref) p.volPanePref = after.volPanePref
+    if (after.viewDo != null) p.viewDo = after.viewDo
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
+    // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
+    if ('volPanePref' in patch && ok) {
+      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw new Error('the server did not confirm the change, so it is not saved')
+      const t0 = Date.now()
+      while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
+    }
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
+    // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
+    if (viewDo && ok) {
+      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
+      const t0 = Date.now()
+      while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+    }
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
       const t0 = Date.now()
@@ -277,6 +327,9 @@ export const chartKind = {
     if ('symbol' in patch && snap.symbol !== patch.symbol) return false
     if ('goto' in patch && !viewAt(snap.view, patch.goto)) return false
     if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
+    if ('watermarkPos' in patch && !sameJson(snap.watermarkPos ?? null, patch.watermarkPos)) return false
+    if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
+    if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     return true
   },
   undoPatch(item) {
@@ -289,6 +342,13 @@ export const chartKind = {
     if ('goto' in item.patch) { if (item.before.view?.rightMs == null) return null; p.goto = item.before.view.rightMs }
     // Undo a replay = the cutoff as it was (off → clear it: every bar is back)
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
+    if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
+    if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
+    // A range or a reset has no exact way back (the zoom and the view lock it replaced are not restorable): `undoNote` says so
+    if ('viewDo' in item.patch) {
+      if (item.patch.viewDo.op !== 'setIndicatorsHidden') return null
+      p.viewDo = { op: 'setIndicatorsHidden', arg: !!item.before.view?.indicatorsHidden }
+    }
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
@@ -297,7 +357,10 @@ export const chartKind = {
   fingerprintFor: (host, snap, item) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol,
     ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
     // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
-    ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : [])]),
+    ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : []),
+    ...('watermarkPos' in (item?.patch || {}) ? [snap.watermarkPos ?? null] : []),
+    ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
+    ...('viewDo' in (item?.patch || {}) ? [!!snap.view?.indicatorsHidden] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -576,7 +639,7 @@ const CAPABILITIES = [
       const m = /^(?:the\s+)?(?:background|bg|background color|canvas)\s+(?:to\s+|=\s*)?(.+)$/.exec(core)
       return m && normalizeColor(m[1]) ? { color: m[1].trim() } : null
     },
-    check: (st, { color }) => (normalizeColor(color) ? null : `“${color}” isn't a color I can set — use a hex value like #f3efe4.`),
+    check: (st, { color }) => (normalizeColor(color) ? canvasLock(st.cs, st.canvasTheme) : `“${color}” isn't a color I can set — use a hex value like #f3efe4.`),
     apply(st, { color }) {
       const c = normalizeColor(color)
       if (st.cs.background === c && st.cs.bgMode !== 'gradient') return st
@@ -594,7 +657,7 @@ const CAPABILITIES = [
       if (up == null && down == null) return 'Which candle color?'
       if (up != null && !normalizeColor(up)) return `“${up}” isn't a color I can set.`
       if (down != null && !normalizeColor(down)) return `“${down}” isn't a color I can set.`
-      return null
+      return canvasLock(st.cs, st.canvasTheme, ['sunrise'])
     },
     apply(st, { up, down }) {
       const c = { ...(st.cs.candles || {}) }
@@ -666,23 +729,24 @@ const CAPABILITIES = [
       if (!d || d.agent !== 'eligible') return `“${setting}” isn't a chart setting UCT Agent can change.`
       const v = coerceSettingValue(d, d.type === 'color' ? (normalizeColor(value) || value) : value)
       if (!v.ok) return `${d.label}: ${v.why}.`
-      return settingUnavailable(d, st.cs)
+      if (d.store === 'volumePanePref' && !st.prefsWritable) return 'I can\'t reach your saved Volume pane height from here.'
+      return settingUnavailable(d, st.cs, { canvasTheme: st.canvasTheme }) || d.refuseValue?.(v.value) || null
     },
     apply(st, { setting, value }) {
       const d = settingDescriptor(setting)
       const v = coerceSettingValue(d, d.type === 'color' ? (normalizeColor(value) || value) : value).value
-      if (sameJson(settingValue(st.cs, d), v)) return st
-      return { ...st, cs: withSetting(st.cs, d, v) }
+      if (sameJson(readSetting(st, d), v)) return st
+      return writeSetting(st, d, v)
     },
     describe(b, a, { setting }) {
       const d = settingDescriptor(setting)
-      const now = settingValue(a.cs, d)
-      if (sameJson(settingValue(b.cs, d), now)) return null
-      return `${d.label}: ${settingWord(d, now)}`
+      const now = readSetting(a, d)
+      if (sameJson(readSetting(b, d), now)) return null
+      return `${d.label}: ${settingWord(d, now)}${d.scope === 'member' ? ' (this applies to all your charts)' : ''}${settingHiddenNote(d, a.tf, now)}`
     },
     noop: (b, a, { setting } = {}) => {
       const d = settingDescriptor(setting)
-      return d ? `${d.label} is already ${settingWord(d, settingValue(a.cs, d))}` : 'Already set'
+      return d ? `${d.label} is already ${settingWord(d, readSetting(a, d))}` : 'Already set'
     },
   },
   {

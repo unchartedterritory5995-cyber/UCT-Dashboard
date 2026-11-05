@@ -83,6 +83,10 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
         snap: {
           ref: e.ref, label: `${name} (${e.r.symbol})`, position: pos || null,
           symbol: e.r.symbol, tf: e.r.tf, cs: e.r.cs, stored: e.r.stored,
+          // the chart's hand-placed watermark (opts.watermarkPos), which beats cs.watermark.x/y; null = centred
+          watermarkPos: e.r.watermarkPos ?? null,
+          // the workspace chart theme this chart draws with ('sunrise' overrides the member's canvas colors)
+          canvasTheme: e.r.canvasTheme ?? null,
           linkedCount, group: e.r.groupKey,
           // where the chart sits on the board (grid cells) — "the middle chart" (agent/deixis.js ordinalChart)
           cell: { x: e.w.x, y: e.w.y, w: e.w.w, h: e.w.h },
@@ -159,6 +163,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
       e.api.agent.goToDate(ms)
       return true
     },
+    // The chart's own view controls (range bar, Reset view, hide all indicators); chart.js waits for the read-back.
+    viewDo: (ref, op, arg) => !!entries().find(x => x.ref === ref)?.api.agent.viewDo?.(op, arg),
   }
 }
 

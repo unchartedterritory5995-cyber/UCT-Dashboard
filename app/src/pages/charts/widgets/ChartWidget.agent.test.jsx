@@ -85,6 +85,17 @@ test('extra chart tab: reads and writes ONLY that tab', () => {
   expect(o.chartTabs[0].settings.chartType).toBe('line')
 })
 
+test('the watermark position: the widget-level opts.watermarkPos the chart draws, on any tab, read back from there', () => {
+  render(<Wrap initialOpts={{ tf: 'D', chartTabs: [{ id: 't1', color: 'B', tf: '5', settings: null }], activeChartTab: 1 }} />)
+  const pos = { x: 0.2, y: 0.5, anchor: null }
+  act(() => { adapter().commit({ watermarkPos: pos }) })
+  expect(optsLog[0].watermarkPos).toEqual(pos)
+  expect(optsLog[0].chartTabs[0].settings).toBe(null)   // the tab is untouched
+  expect(adapter().read().watermarkPos).toEqual(pos)
+  act(() => { adapter().commit({ watermarkPos: null }) })
+  expect(adapter().read().watermarkPos).toBe(null)
+})
+
 test('end to end through the real host: plan → one write → read-back ACK → undo', async () => {
   render(<Wrap initialOpts={{ tf: 'D' }} />)
   const host = buildWorkspaceHost({

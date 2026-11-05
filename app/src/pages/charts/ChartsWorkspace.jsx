@@ -3172,6 +3172,8 @@ function ChartsWorkspaceBoard() {
           alert_sound_type: (x) => sp('alert_sound_type', x),
           // the member's saved chart templates (a JSON list) — the key Chart Settings → Templates writes
           chart_templates: (x) => sp('chart_templates', x),
+          // the Volume pane's height on every chart — the key dragging its separator writes (ChartPane.handleVolPaneResize)
+          charts_vol_pane_pct: (x) => sp('charts_vol_pane_pct', x),
         }[k]
         return w ? w(v) : Promise.resolve(false)
       },
