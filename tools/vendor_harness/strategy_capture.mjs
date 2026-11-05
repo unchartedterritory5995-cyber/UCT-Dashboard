@@ -103,9 +103,36 @@ export function chartDataOf(c) {
 
 /** `name = value` arguments of the FIRST `strategy(...)` call in a Pine source, as raw text.
  *  Positional arguments are not read (they are the title and shorttitle only in practice). */
+/** `source` with comment text and string contents replaced by spaces: same length, same newlines
+ *  (the rule of `range_guard.py::blank`). A `strategy (` in a header comment or a string is not a declaration. */
+export function blankSource(source) {
+  const s = String(source || '')
+  const out = s.split('')
+  let i = 0
+  while (i < s.length) {
+    const ch = s[i]
+    if (ch === '/' && s[i + 1] === '/') {
+      while (i < s.length && s[i] !== '\n') { if (s[i] !== '\r') out[i] = ' '; i += 1 }
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      i += 1
+      while (i < s.length && s[i] !== ch && s[i] !== '\n') {
+        if (s[i] === '\\' && i + 1 < s.length) { out[i] = ' '; i += 1 }
+        out[i] = ' '
+        i += 1
+      }
+      i += 1
+      continue
+    }
+    i += 1
+  }
+  return out.join('')
+}
+
 export function declaredStrategyArgs(source) {
   const text = String(source || '')
-  const m = /\bstrategy\s*\(/.exec(text)
+  const m = /(?<![\w.])strategy\s*\(/.exec(blankSource(text))
   if (!m) return null
   let depth = 1
   let i = m.index + m[0].length
@@ -169,7 +196,8 @@ function sameValue(kind, declared, read) {
 export function settingsAgreement(c) {
   const ss = ((c || {}).provenance || {}).strategySettings
   const { found, missing } = propertiesByKey(ss)
-  const declared = declaredStrategyArgs(c && c.source && c.source.text) || {}
+  const decl = declaredStrategyArgs(c && c.source && c.source.text)
+  const declared = decl || {}
   const disagreements = []
   let compared = 0
   for (const p of PROPERTY_TABLE) {
@@ -184,7 +212,13 @@ export function settingsAgreement(c) {
   const cd = chartDataOf(c)
   const unread = [...missing.map((k) => `property:${k}`),
     ...Object.entries(cd).filter(([, v]) => !v.read).map(([k]) => `chartData:${k}`)]
-  return { verdict: disagreements.length ? 'INCONCLUSIVE' : 'AGREE', compared, disagreements, unread }
+  // ⛔ NEVER AGREE ON NOTHING: a verdict needs at least one declared literal compared with its read-back.
+  // No `strategy(` declaration, or one that declares no literal this reads, is a NAMED inconclusive.
+  let reason = null
+  if (decl === null) reason = 'strategy-settings:no-declaration (no strategy() call found in the source outside comments and strings)'
+  else if (compared === 0) reason = 'strategy-settings:nothing-compared (the declaration holds no literal setting to compare with the read-back)'
+  const verdict = disagreements.length || reason ? 'INCONCLUSIVE' : 'AGREE'
+  return { verdict, reason, compared, disagreements, unread }
 }
 
 // ── method (a) / (b) provenance ──────────────────────────────────────────────────

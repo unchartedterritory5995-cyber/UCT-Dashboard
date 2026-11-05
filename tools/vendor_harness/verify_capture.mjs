@@ -70,7 +70,7 @@ function verifyFiles(paths) {
       // A disagreement is INCONCLUSIVE and is reported, never turned into a pass or a grade.
       if (isStrategyCapture(c) && Number(c.tool && c.tool.version) >= STRATEGY_TOOL_VERSION) {
         const a = settingsAgreement(c)
-        console.log(`SETTINGS: ${a.verdict} (${a.compared} compared, ${a.disagreements.length} disagree, ${a.unread.length} unread)`)
+        console.log(`SETTINGS: ${a.verdict} (${a.compared} compared, ${a.disagreements.length} disagree, ${a.unread.length} unread)${a.reason ? ` ${a.reason}` : ''}`)
       }
     }
     else { bad += 1; console.error(`FAIL ${p}\n  - ${v.errors.join('\n  - ')}`) }

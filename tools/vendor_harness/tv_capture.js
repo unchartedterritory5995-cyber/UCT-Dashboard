@@ -384,11 +384,17 @@
       }
       return Array.from(out).sort()
     }
+    // ⛔ DESCRIPTORS ONLY: walk the prototype chain to the object that owns `k` and read ITS descriptor.
+    // `o[k]` or `proto[k]` would run an inherited getter (with the chart model as receiver); a getter is
+    // reported as 'accessor' and is never invoked.
     const describe = (o, k) => tryOr(() => {
-      const d = Object.getOwnPropertyDescriptor(o, k)
-      if (d && 'value' in d) return typeOf(d.value)
-      if (d) return 'accessor'
-      return typeof Object.getPrototypeOf(o)[k] === 'function' ? 'function' : 'inherited'
+      for (let p = o, d = 0; p && p !== Object.prototype && d < 6; p = Object.getPrototypeOf(p), d += 1) {
+        const ds = Object.getOwnPropertyDescriptor(p, k)
+        if (!ds) continue
+        if ('value' in ds) return typeOf(ds.value)
+        return 'accessor'
+      }
+      return 'inherited'
     }, 'unreadable')
     const level1 = names(ds).map((k) => ({ name: k, type: describe(ds, k) }))
     const level2 = {}

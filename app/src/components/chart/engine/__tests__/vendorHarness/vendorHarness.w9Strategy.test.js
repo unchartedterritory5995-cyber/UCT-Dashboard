@@ -207,7 +207,57 @@ describe('W9-T3a · 3 · the settings read-back agreement', () => {
     const c = strategyCapture({ source: src })
     c.provenance.strategySettings.properties = props({ pyramiding: 9 })
     expect(declaredStrategyArgs(src)).toMatchObject({ pyramiding: 'inputPyr' })
-    expect(settingsAgreement(sealCapture(c))).toMatchObject({ verdict: 'AGREE', compared: 0 })
+    // ⛔ nothing compared is NEVER an AGREE: it is a named inconclusive
+    expect(settingsAgreement(sealCapture(c))).toMatchObject({ verdict: 'INCONCLUSIVE', compared: 0, reason: expect.stringMatching(/^strategy-settings:nothing-compared/) })
+  })
+
+  describe('B1 (review W9-T3): the declaration is read on comment- and string-blanked text', () => {
+    const HEADER = '//@version=6\n// a strategy (simple) demo of the cross\n'
+    const decl = 'strategy("REAL", initial_capital = 5000, pyramiding = 2)\n'
+    const withProps = (src, over) => {
+      const c = strategyCapture({ source: src })
+      c.provenance.strategySettings.properties = props(over)
+      return sealCapture(c)
+    }
+    it('the reviewer\'s case: a commented "strategy (" above the real declaration; 5000 declared vs 100000 read back is INCONCLUSIVE, never AGREE', () => {
+      const a = settingsAgreement(withProps(HEADER + decl, { 'Initial Capital': 100000 }))
+      expect(a.verdict).toBe('INCONCLUSIVE')
+      expect(a.compared).toBeGreaterThan(0)
+      expect(a.disagreements).toEqual([{ key: 'initial_capital', declared: 5000, readBack: 100000 }])
+      expect(declaredStrategyArgs(HEADER + decl)).toMatchObject({ initial_capital: '5000', pyramiding: '2' })
+      // control: the same source with a matching read-back agrees
+      expect(settingsAgreement(withProps(HEADER + decl, { 'Initial Capital': 5000 }))).toMatchObject({ verdict: 'AGREE', reason: null })
+    })
+    it('a "strategy (" inside a string literal or after code on a comment tail is not the declaration either', () => {
+      const src = '//@version=6\nlbl = "strategy (x)"\nstrategy("R", initial_capital = 5000) // strategy (again)\n'
+      expect(declaredStrategyArgs(src)).toMatchObject({ initial_capital: '5000' })
+      expect(settingsAgreement(withProps(src, { 'Initial Capital': 100000 })).verdict).toBe('INCONCLUSIVE')
+    })
+    it('⛔ never AGREE when nothing was compared: no declaration at all, and a declaration with no literal, are named', () => {
+      const none = settingsAgreement(withProps('//@version=6\n// strategy (only in a comment)\nplot(close)\n', {}))
+      expect(none).toMatchObject({ verdict: 'INCONCLUSIVE', compared: 0, reason: expect.stringMatching(/^strategy-settings:no-declaration/) })
+      const bare = settingsAgreement(withProps('//@version=6\nstrategy("X")\n', {}))
+      expect(bare).toMatchObject({ verdict: 'INCONCLUSIVE', compared: 0, reason: expect.stringMatching(/^strategy-settings:nothing-compared/) })
+    })
+    it('the four corpus strategies the reviewer named parse a real declaration', () => {
+      const dir = path.join(REPO, 'corpus/committed')
+      for (const stem of ['atr-god-strategy-by-tradesmart', 'heikin-ashi-supertrend', 'highlow-channel-swing', 'optimized-trend-tracker']) {
+        const f = fs.readdirSync(dir).find((n) => n.startsWith(`${stem}__`))
+        expect(f, stem).toBeTruthy()
+        const text = fs.readFileSync(path.join(dir, f), 'utf8')
+        const args = declaredStrategyArgs(text)
+        expect(args, stem).not.toBeNull()
+        expect(Object.keys(args).length, stem).toBeGreaterThan(0)
+      }
+    })
+    it('verify_capture prints the reason beside an INCONCLUSIVE it could not compare', () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uctw9b1-'))
+      const f = path.join(dir, 'c.json')
+      fs.writeFileSync(f, JSON.stringify(withProps('//@version=6\nstrategy("X")\n', {})))
+      const r = spawnSync(process.execPath, [path.join(HERE_TOOLS, 'verify_capture.mjs'), f], { encoding: 'utf8' })
+      fs.rmSync(dir, { recursive: true, force: true })
+      expect(r.stdout).toMatch(/SETTINGS: INCONCLUSIVE \(0 compared.*strategy-settings:nothing-compared/)
+    })
   })
 
   it('reads enum literals (strategy.fixed / strategy.commission.percent) as the Properties names them', () => {
@@ -255,6 +305,24 @@ describe('W9-T3a · 4 · the tester-report reader (SYNTHETIC tree: the key names
     expect(Object.values(f).every((v) => v.status === 'unpinned')).toBe(true)
   })
 
+  it('N2a: an unpinned slot is never filled by guessing a key of its own name (a tree with a root netProfit stays unpinned)', () => {
+    const f = extractReportFields({ netProfit: 77, sharpeRatio: 1 }, Object.fromEntries(REPORT_SLOTS.map((s) => [s, null])))
+    expect(f.netProfit).toEqual({ status: 'unpinned', reason: 'strategy-report:unpinned' })
+    expect(f.sharpeRatio.status).toBe('unpinned')
+  })
+
+  it('N2b: a PARTIAL report is refused by readReport, never read as ok', () => {
+    const c = strategyCapture()
+    c.provenance.report = { status: 'partial', reason: 'node limit 50000 hit at $.a', tree: TREE }
+    expect(readReport(sealCapture(c), SLOTS())).toMatchObject({ status: 'refused', reason: expect.stringMatching(/strategy-report:partial/) })
+  })
+
+  it('N2d: method (a) carries no gradeRange', () => {
+    const c = strategyCapture()
+    c.provenance.gradeRange = { fromTime: 1, toTime: 2, warmupBars: 0 }
+    expect(errs(sealCapture(c))).toMatch(/method \(a\) carries no gradeRange/)
+  })
+
   it('readReport: a capture with no report, a refused report, and an ok report each say so', () => {
     const none = strategyCapture()
     expect(readReport(none, SLOTS())).toMatchObject({ status: 'refused', reason: expect.stringMatching(/strategy-report:absent/) })
@@ -273,7 +341,7 @@ describe('W9-T3a · 5 · the TradingView-side snippet against a RECORDING DOUBLE
   const each = (items) => ({ each: (cb) => { for (const [i, v] of items) { if (cb(i, v)) break } } })
   const SENTINEL_VALUE = 987654.321
 
-  function install({ strategy = true, reportTree = { perf: { net: SENTINEL_VALUE } }, spy = {} } = {}) {
+  function install({ strategy = true, reportTree = { perf: { net: SENTINEL_VALUE } }, spy = {}, getters = null } = {}) {
     const mainSeries = {
       bars: () => each([[-1000001, [0, 0, 0, 0, 0, 0]], ...BARS.map((b, i) => [i, b])]),
       symbolInfo: () => ({ name: 'RDDT', pro_name: 'NYSE:RDDT', exchange: 'NYSE', timezone: 'America/New_York', pricescale: 100, minmov: 1, session: '0930-1600', type: 'stock', adjustment: 'splits', backadjustment: 'inherit' }),
@@ -297,6 +365,10 @@ describe('W9-T3a · 5 · the TradingView-side snippet against a RECORDING DOUBLE
       reportData: () => { spy.reportData = (spy.reportData || 0) + 1; return reportTree },
       exportData: () => { spy.exportData = (spy.exportData || 0) + 1; return 'EXPORT' },
       settings: { depth: { deep: SENTINEL_VALUE }, flag: true },
+    }
+    if (getters) {
+      Object.setPrototypeOf(ds, { get protoGetter() { getters.protoGetter = 1; return 1 } })
+      Object.defineProperty(ds, 'ownGetter', { enumerable: true, get() { getters.ownGetter = 1; return 1 } })
     }
     const model = { dataSources: () => [{ metaInfo: () => ({ id: 'Splits@tv-basicstudies', shortId: 'Splits' }), title: () => 'Splits' }, ds], mainSeries: () => mainSeries }
     window._exposed_chartWidgetCollection = { activeChartWidget: { value: () => ({ model: () => ({ model: () => model }) }) } }
@@ -337,6 +409,28 @@ describe('W9-T3a · 5 · the TradingView-side snippet against a RECORDING DOUBLE
     vh.cleanup()
     expect(c.tool.version).toBe(2)
     expect('provenance' in c).toBe(false)
+  })
+
+  it('N1: _strategyKeys never runs a getter, own or inherited; it reports it as an accessor', () => {
+    const spy = {}
+    const vh = install({ spy, getters: spy })
+    const k = vh._strategyKeys()
+    vh.cleanup()
+    expect(spy.protoGetter).toBeUndefined()
+    expect(spy.ownGetter).toBeUndefined()
+    expect(k.level1.find((e) => e.name === 'protoGetter')).toEqual({ name: 'protoGetter', type: 'accessor' })
+    expect(k.level1.find((e) => e.name === 'ownGetter')).toEqual({ name: 'ownGetter', type: 'accessor' })
+  })
+
+  it('N2c: a method (b) capture records the warm-up bars it was given, not zero', () => {
+    const X = BARS[4][0]
+    const Y = BARS[10][0]
+    const src = SRC + `if time >= ${X * 1000} and time < ${Y * 1000}\n    strategy.entry("L", strategy.long)\n`
+    const vh = install()
+    const c = run(vh, { source: src, gradeMethod: 'b', startsAtBar0: false, gradeRange: { fromTime: X, toTime: Y, warmupBars: 4 } })
+    vh.cleanup()
+    expect(c.provenance.gradeRange).toEqual({ fromTime: X, toTime: Y, warmupBars: 4 })
+    expect(validateCapture(c)).toEqual({ ok: true, errors: [] })
   })
 
   it('_strategyKeys is names and types only: it calls nothing and carries no value', () => {
