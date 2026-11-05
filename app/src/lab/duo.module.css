@@ -579,3 +579,7 @@
 
 /* round 14: the top bar on a phone — the mood buttons stay on one row */
 @media (max-width: 640px) { .topbar { flex-wrap: wrap; row-gap: 8px; } .topbar .coinRow { gap: 6px; flex: none; margin-left: auto; } }
+
+/* a StartButton that is not ready yet (the drill's Check before an answer is picked) */
+.startDisabled, .startDisabled:hover { opacity: .45; animation: none; cursor: default; transform: none; filter: none; }
+.startDisabled::after { animation: none; }

@@ -25,6 +25,7 @@ import StudyMark from '../../components/study/StudyMark'
 import { appendForwardBars, studyFetch } from './useStudySession'
 import { feedbackPrefs, revealFeedback } from './studyFeedback'
 import { FEEDBACK_KINDS, VERDICTS, answerWord, feedbackUrl, lessonParts } from './revealCardHelpers'
+import { brandWords } from './drills/types'
 import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
@@ -119,7 +120,7 @@ export function FeedbackBar({ itemId, attemptId = null, reviewer = false, post =
 
 export default function RevealCard({
   correct, reveal, item, profile, onContinue, fire = true, className = '',
-  attemptId = null, reviewer = false, feedback = true, post = studyFetch,
+  attemptId = null, reviewer = false, feedback = true, post = studyFetch, hideVerdict = false,
 }) {
   const fired = useRef(false)
   useEffect(() => {
@@ -141,14 +142,14 @@ export default function RevealCard({
 
   return (
     <section className={`${styles.card} ${className}`.trim()} data-testid="reveal-card" data-correct={correct ? '1' : '0'}>
-      <StudyMark mood={correct ? 'happy' : 'oops'} size={44} className={styles.mark} />
-      <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
+      {!hideVerdict && <StudyMark mood={correct ? 'happy' : 'oops'} size={44} className={styles.mark} />}
+      {!hideVerdict && <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
         <span className={styles.verdictIcon} aria-hidden="true">
           <UIcon name={correct ? 'check' : 'x'} size={20} gold={!!correct} />
         </span>
         <span className={styles.verdictWord}>{correct ? CORRECT_WORD : WRONG_WORD}</span>
         {!correct && key && <span className={styles.verdictKey}>The answer: {key}</span>}
-      </p>
+      </p>}
       {(sym || dates || ref) && (
         <p className={styles.meta}>
           {sym && <span className={styles.sym}>{sym}</span>}
@@ -162,12 +163,12 @@ export default function RevealCard({
           {parts.map((p) => (
             <div key={p.key} className={styles.part}>
               <dt className={styles.partLabel}>{p.label}</dt>
-              <dd className={styles.partText}>{p.text}</dd>
+              <dd className={styles.partText}>{brandWords(p.text)}</dd>
             </div>
           ))}
         </dl>
       ) : (
-        lesson && <p className={styles.lesson}>{lesson}</p>
+        lesson && <p className={styles.lesson}>{brandWords(lesson)}</p>
       )}
       <details className={styles.why}>
         <summary className={styles.whySummary}>Why</summary>
@@ -181,7 +182,7 @@ export default function RevealCard({
           {next && (
             <p className={styles.whyLine}>
               <span className={styles.whyLabel}>What happened next</span>
-              {next}
+              {brandWords(next)}
             </p>
           )}
           {!next && forwardCount > 0 && (

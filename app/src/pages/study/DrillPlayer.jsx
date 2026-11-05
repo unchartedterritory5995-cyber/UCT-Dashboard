@@ -32,7 +32,6 @@ import UIcon from '../../components/ui/UIcon'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
 import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
 import useStudySession from './useStudySession'
-import useHouseChart from './useHouseChart'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
 import { studyOpenMarkers } from './studyOverlays'
@@ -44,8 +43,12 @@ import ScreenFeedback from './ScreenFeedback'
 import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
 import StudyMark from '../../components/study/StudyMark'
-import { Stamp } from '../../lab/bits'
-import { spot, rayAt } from '../../lab/pointers'
+import { spot, rayAt, arrowAt } from '../../lab/pointers'
+import { StartButton } from '../../lab/StartCard'
+import JourneyStrip from './JourneyStrip'
+import RevealTakeover from './RevealTakeover'
+import { barStats } from './drillLook'
+import { memberSettingsOverride } from './studyChartLook'
 import { setupName } from './challenges/challengeBank'
 import d5 from '../../lab/duo.module.css'
 import styles from './DrillPlayer.module.css'
@@ -54,7 +57,7 @@ import { registerShortcuts } from '../command/shortcutRegistry'
 export const LEAVE_COPY = 'Leave? Your answers so far are saved.'
 export const CHART_SLOW_MS = 2000
 export const CHART_SKIP_MS = 6000
-export const CHART_HEIGHT = 240
+export const CHART_HEIGHT = 380
 export const SET_SIZE = 10
 
 /** The chip over the chart: the skill in the member's words (the workbench's question chip). */
@@ -150,12 +153,11 @@ export default function DrillPlayer({
   const chartVisible = needsChart && chartItemId === item?.id && chartMounted
   const chartItem = chartItemId ? s.items.find((it) => it.id === chartItemId) || item : null
   const chartOpts = chartItem?.prompt_json?.chart
-  const houseSettings = useHouseChart(fetcher)
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
   const studyOverride = useMemo(
-    () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(chartItem) }),
-    [chartOpts, houseSettings, chartItem],
+    () => memberSettingsOverride(chartOpts, { instances: slingshotInstances(chartItem) }),
+    [chartOpts, chartItem],
   )
   // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
@@ -172,25 +174,22 @@ export default function DrillPlayer({
   // THE WORKBENCH LOOK (owner, 2026-11-04: "it looks nothing like the work we did in the local host"): the forward
   // bars run on one at a time after the verdict instead of appearing at once, and a chart item carries the pointer
   // at the candle in question, then the verdict colour and the low-of-day ray on the reveal.
+  // Round 17 (owner, batch 16): the forward bars land at once (the run-on was "UGLY"), and the pointer is the full
+  // workbench pointer: a halo on the candle, an arrow into it, the label; green or red with the low-of-day ray on the reveal.
   const forwardCount = phase === 'reveal' && Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
   const baseLen = Math.max(0, (chartBars?.length || 0) - forwardCount)
-  const [run, setRun] = useState({ id: null, k: 0 })
-  useEffect(() => {
-    if (phase !== 'reveal' || !forwardCount || !item) return undefined
-    let k = 0
-    const t = setInterval(() => { k += 1; setRun({ id: item.id, k }); if (k >= forwardCount) clearInterval(t) }, 160)
-    return () => clearInterval(t)
-  }, [phase, forwardCount, item])
-  const runK = run.id === item?.id ? run.k : 0
-  const shownBars = useMemo(() => (forwardCount && chartBars ? chartBars.slice(0, baseLen + runK) : chartBars), [chartBars, forwardCount, baseLen, runK])
+  const shownBars = chartBars
   const pointer = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
     const i = baseLen - 1
     if (phase === 'reveal' && result) {
-      return [...spot(chartBars, i, { label: result.correct ? 'you were right' : 'the answer', id: 'pt', color: result.correct ? '#2faf68' : '#df4646', halo: false }), ...rayAt(chartBars[i], 'l', { id: 'ptl', label: '' })]
+      const color = result.correct ? '#2faf68' : '#df4646'
+      return [...spot(chartBars, i, { label: result.correct ? 'you were right' : 'the answer', id: 'pt', color, halo: true }), ...arrowAt(chartBars, i, { id: 'pta', color }), ...rayAt(chartBars[i], 'l', { id: 'ptl', label: '' })]
     }
-    return spot(chartBars, i, { label: 'this candle', id: 'pt', halo: false })
+    return [...spot(chartBars, i, { label: 'this candle', id: 'pt', halo: true }), ...arrowAt(chartBars, i, { id: 'pta' })]
   }, [chartVisible, chartBars, item?.type, baseLen, phase, result])
+  // the facts a trader reads before answering, from the bars in hand (the question's own window, not the forward bars)
+  const stats = useMemo(() => (needsChart && chartBars?.length ? barStats(chartBars.slice(0, baseLen || chartBars.length)) : []), [needsChart, chartBars, baseLen])
 
   // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
   // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
@@ -298,6 +297,8 @@ export default function DrillPlayer({
   const combo = s.combo
   const label = !unscored && (phase === 'answer' || phase === 'checking') ? 'Check' : 'Continue'
   const framing = item && needsChart && mod.framingOf ? mod.framingOf(item) : ''
+  // round 17: the bar count is gone from the framing (the chart facts carry the window); the rest of the sentence stays
+  const framingShort = framing ? framing.replace(/^[A-Za-z]+ chart, \d+ bars ending at the cutoff date\.\s*/, '').trim() : ''
   const Overlay = mod.ChartOverlay
 
   let body
@@ -332,13 +333,17 @@ export default function DrillPlayer({
   } else if (item) {
     body = (
       <>
-        <div className={d5.ask}>
-          <StudyMark mood={phase === 'reveal' && result ? (result.correct ? 'happy' : 'oops') : state ? 'think' : 'idle'} size={60} />
-          <div className={d5.bubble}><h2 className={styles.question} id="study-question">{questionOf(item)}</h2></div>
+        <div className={`${d5.ask} ${styles.ask}`}>
+          <StudyMark mood={phase === 'reveal' && result ? (result.correct ? 'happy' : 'oops') : 'live'} size={112} />
+          <div className={`${d5.bubble} ${styles.bubble}`}><h2 className={styles.question} id="study-question">{questionOf(item)}</h2></div>
         </div>
-        {needsChart && skillChip(item.skill_id) ? (
-          <div className={d5.qLine}><span className={d5.qSetup}>{skillChip(item.skill_id)}</span>{framing && <span className={d5.qText}>{framing}</span>}</div>
+        {needsChart ? (
+          <div className={styles.qLine}>
+            {skillChip(item.skill_id) && <span className={d5.qSetup}>{skillChip(item.skill_id)}</span>}
+            {framingShort && <span className={styles.framingSm}>{framingShort}</span>}
+          </div>
         ) : (framing && <p className={styles.framing}>{framing}</p>)}
+        <div className={`${styles.chartRow} ${needsChart && stats.length > 0 ? styles.chartRowFacts : ''}`}>
         <div
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
           aria-hidden={!needsChart}
@@ -387,7 +392,23 @@ export default function DrillPlayer({
           {chartVisible && Overlay && (
             <Overlay item={item} state={state} setState={setState} locked={locked} reveal={reveal} bars={chartBars} />
           )}
-          {chartVisible && phase === 'reveal' && result && !unscored && <Stamp ok={!!result.correct} />}
+        </div>
+        {needsChart && stats.length > 0 && (
+          <div className={styles.facts} data-testid="chart-stats">
+            <div className={styles.factsHead}>The read on this chart</div>
+            <table className={styles.factsTable}>
+              <tbody>
+                {stats.map((st) => (
+                  <tr key={st.id} className={styles[`row_${st.tone}`] || ''}>
+                    <th scope="row">{st.label}</th>
+                    <td className={styles.factVal}>{st.value}</td>
+                    <td className={styles.gauge}><span className={styles.gaugeBar} style={{ width: `${Math.min(100, (Math.abs(st.num || 0) / 30) * 100)}%` }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         </div>
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />
@@ -415,7 +436,7 @@ export default function DrillPlayer({
         <button type="button" className={styles.close} onClick={requestClose} aria-label="Close">
           <UIcon name="x" size={18} gold={false} />
         </button>
-        <ProgressStrip index={s.index} total={s.items.length || SET_SIZE} results={s.results} items={s.items} />
+        <JourneyStrip index={s.index} total={s.items.length || SET_SIZE} results={s.results} items={s.items} />
         {combo >= 2 && !s.finished ? (
           <span className={styles.combo} data-testid="combo-chip" aria-label={`Combo ${combo}`}>x{combo}</span>
         ) : (
@@ -431,22 +452,27 @@ export default function DrillPlayer({
 
       <div className={styles.scroll}><div className={`${d5.lesson} ${styles.lessonIn}`}>{body}</div></div>
 
-      {!s.finished && s.status === 'ready' && item && (
-        <div className={`${styles.bottom} ${phase === 'reveal' && result ? (result.correct ? styles.good : styles.bad) : ''}`}>
+      {!s.finished && s.status === 'ready' && item && phase === 'reveal' && result && !unscored && (
+        <RevealTakeover correct={!!result.correct} reveal={reveal} item={item} profile={profile}
+          attemptId={result.attempt_id ?? null} reviewer={reviewer} onContinue={primary} label={label} />
+      )}
+      {!s.finished && s.status === 'ready' && item && !(phase === 'reveal' && result && !unscored) && (
+        <div className={styles.bottom}>
           {phase === 'reveal' && result && (
             <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}
               attemptId={result.attempt_id ?? null} reviewer={reviewer} />
           )}
           <StickyActionBar className={styles.bar}>
-            <button
-              type="button"
-              className={styles.primary}
+            <StartButton
+              icon={label === 'Check' ? 'check' : 'play'}
+              label={label}
               onClick={primary}
+              hotkey={false}
               disabled={phase === 'checking' || (phase === 'answer' && !answerable)}
-              data-testid="primary-action"
-            >
-              {label}
-            </button>
+              ariaLabel={label}
+              testId="primary-action"
+              className={styles.primaryBtn}
+            />
           </StickyActionBar>
         </div>
       )}

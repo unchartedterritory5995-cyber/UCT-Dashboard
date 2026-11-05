@@ -15,14 +15,14 @@ const ICONS = {
   eye: <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
 }
 
-export function StartButton({ icon = 'play', label, sub, onClick, tone = 'gold', hotkey = true, className = '', ariaLabel = null }) {
+export function StartButton({ icon = 'play', label, sub, onClick, tone = 'gold', hotkey = true, className = '', ariaLabel = null, disabled = false, testId = null }) {
   useEffect(() => {
-    if (!hotkey) return undefined
+    if (!hotkey || disabled) return undefined
     const k = (e) => { if (e.key === 'Enter' && !e.repeat && !(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) onClick?.() }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
-  }, [onClick, hotkey])
+  }, [onClick, hotkey, disabled])
   return (
-    <button type="button" className={`${d5.startBtn} ${tone === 'red' ? d5.startRed : tone === 'dark' ? d5.startDark : ''} ${className}`} onClick={onClick} aria-label={ariaLabel || undefined}>
+    <button type="button" className={`${d5.startBtn} ${tone === 'red' ? d5.startRed : tone === 'dark' ? d5.startDark : ''} ${disabled ? d5.startDisabled : ''} ${className}`} onClick={onClick} aria-label={ariaLabel || undefined} disabled={disabled} data-testid={testId || undefined}>
       <span className={d5.startIcon}><svg viewBox="0 0 24 24" width="22" height="22" fill={icon === 'play' || icon === 'crown' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{ICONS[icon] || ICONS.play}</svg></span>
       <span className={d5.startText}><b>{label}</b>{sub ? <small>{sub}</small> : null}</span>
       <span className={d5.startKey}>↵</span>
