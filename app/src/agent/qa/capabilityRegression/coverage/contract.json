@@ -540,7 +540,7 @@
    "target": "chart",
    "risk": "local",
    "reversible": true,
-   "undo": "exact",
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"

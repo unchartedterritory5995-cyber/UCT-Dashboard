@@ -14,6 +14,7 @@ import { planPlacement, planGroupPlacement } from '../pages/charts/placement/pla
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
+import { withoutDerivedOpts } from './derivedOpts'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 import * as drawingsStore from '../components/chart/drawingsStore'
 import { readFlagged, writeFlagged } from '../hooks/flaggedStore'
@@ -181,10 +182,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
  *  approvalState) compare them. A null-valued key is the same widget as an absent one — an Undo that restores a chart's
  *  never-persisted settings writes `settings: null` — and opts that are absent, `{}` or only null keys all sign as
  *  "null", so none of them ever reads as a later edit. Any real value (including one that BECOMES null from a value)
- *  still changes the signature. Top-level keys only: a nested null is content and stays significant. */
+ *  still changes the signature. Top-level keys only: a nested null is content and stays significant. A value the chart
+ *  derives for itself is not an edit either (derivedOpts.js). */
 export function optsSignature(opts) {
   if (!opts || typeof opts !== 'object') return JSON.stringify(null)
-  const kept = Object.entries(opts).filter(([, v]) => v != null)
+  const kept = Object.entries(withoutDerivedOpts(opts)).filter(([, v]) => v != null)
   return JSON.stringify(kept.length ? Object.fromEntries(kept) : null)
 }
 

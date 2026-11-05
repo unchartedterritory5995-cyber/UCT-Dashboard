@@ -36,12 +36,13 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
-import { labelMap, WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../../widgets/registry'
+import { labelMap, WIDGET_REGISTRY } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { withoutDerivedOpts } from '../derivedOpts'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
 import { CHART_TIMEFRAMES } from './chart'
@@ -68,7 +69,7 @@ const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mai
 // daily charts for …, each with RSI" → undo, undo, …: the board exactly as it was). A removed indicator's tombstone
 // draws nothing either. A chart the grid REUSED keeps the exact comparison (its Undo keeps the chart).
 function addedChartOpts(w) {
-  const o = w?.opts ?? null
+  const o = withoutDerivedOpts(w?.opts ?? null)
   if (!o || typeof o !== 'object' || w.type !== 'chart') return JSON.stringify(o)
   let cs = null
   try { cs = mergeChartSettings(o.settings == null ? null : (typeof o.settings === 'string' ? o.settings : JSON.stringify(o.settings))) } catch { return JSON.stringify(o) }
@@ -80,11 +81,12 @@ function addedChartOpts(w) {
 // bookkeeping in the stored settings, see docs/agent/PHASE3-INDICATORS-HANDOFF.md) is no edit the grid's Undo would
 // overwrite. Everything it DOES write is still compared exactly: a newer edit of any of those still refuses.
 function reusedChartOpts(w) {
-  const o = w?.opts ?? null
+  const o = withoutDerivedOpts(w?.opts ?? null)
   if (!o || typeof o !== 'object' || w.type !== 'chart') return JSON.stringify(o)
   const { settings, ...rest } = o                                       // eslint-disable-line no-unused-vars
   return JSON.stringify(rest)
 }
+const fieldFp = (w, f) => JSON.stringify((f === 'opts' ? withoutDerivedOpts(w[f]) : w[f]) ?? null)
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const intOk = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi
@@ -126,6 +128,16 @@ const changedIds = (before, after) => {
   const b = new Map(before.map(w => [w.id, w]))
   return after.filter(w => !b.has(w.id) || FIELDS.some(f => !same(w[f], b.get(w.id)[f]))).map(w => w.id)
 }
+
+// A widget's scalar paramsSchema fields that widget.setOption could offer: the one list the capability and its rail read
+// (settingsLiveness.test.js). Offered only once marked `live`, and never an unbounded number.
+const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
+const bounded = (f) => f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min < f.max)
+// marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
+const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
+const optionCandidates = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key))
+export const widgetOptionFields = (type) => optionCandidates(type).filter(bounded)
+export const widgetUnboundedFields = (type) => optionCandidates(type).filter(f => !bounded(f))
 
 export const boardKind = {
   name: 'board',
@@ -215,7 +227,7 @@ export const boardKind = {
     if ('layoutTheme' in p) out.layoutTheme = item.before?.layoutTheme ?? null
     return Object.keys(out).length ? out : null
   },
-  fingerprint: (s) => JSON.stringify(s.raw.map(w => [w.id, ...GEOM.map(k => w[k]), w.color, JSON.stringify(w.opts ?? null)])),
+  fingerprint: (s) => JSON.stringify(s.raw.map(w => [w.id, ...GEOM.map(k => w[k]), w.color, fieldFp(w, 'opts')])),
   // Undo is stale only if a widget THIS change touched has changed since (or a removed one is back).
   fingerprintFor(host, s, item) {
     const p = item.patch || {}
@@ -234,7 +246,7 @@ export const boardKind = {
     const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
-      return w ? [id, ...FIELDS.map(f => JSON.stringify(w[f] ?? null))] : [id, 'gone']
+      return w ? [id, ...FIELDS.map(f => fieldFp(w, f))] : [id, 'gone']
     }))
   },
 }
@@ -891,11 +903,7 @@ export function registerBoardCapabilities() {
   // widget reads back from opts (a Theme Tracker's period is its own tab state). Offered ONLY when the field is marked
   // `live: true` — default-deny, so a new schema field is never settable by accident — and settingsLiveness.test.js
   // fails a `live` field whose widget does not read it from opts. A declared field that is not live refuses in words.
-  const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
-  const bounded = (f) => f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min < f.max)
-  // marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
-  const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
-  const scalarsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key) && bounded(f))
+  const scalarsOf = widgetOptionFields
   const optionsOf = (type) => scalarsOf(type).filter(f => f.live === true)
   const TRUE_WORDS = ['true', 'on', 'yes', 'show', 'enabled'], FALSE_WORDS = ['false', 'off', 'no', 'hide', 'disabled']
   /** The value in the option's own type, or a refusal. */
@@ -916,7 +924,8 @@ export function registerBoardCapabilities() {
     return { value: n }
   }
   const optionWord = (f) => `${f.key}${f.type === 'enum' ? ` (${(f.options || []).join('|')})` : f.type === 'boolean' ? ' (on/off)' : ` (${f.min}–${f.max})`}`
-  const OPTION_HINT = WORKSPACE_MENU_TYPES.map(t => [t, optionsOf(t)]).filter(([, os]) => os.length).map(([t, os]) => `${t}: ${os.map(optionWord).join(', ')}`).join('; ')
+  // every registered type, not only the Widgets menu's: News and a Period Sort reach the board by their own doors
+  const OPTION_HINT = Object.keys(WIDGET_REGISTRY).map(t => [t, optionsOf(t)]).filter(([, os]) => os.length).map(([t, os]) => `${t}: ${os.map(optionWord).join(', ')}`).join('; ')
   reg({
     ...common,
     name: 'widget.setOption',
@@ -937,7 +946,10 @@ export function registerBoardCapabilities() {
       const t = widgetOf(st, widget)
       const f = optionsOf(t.type).find(o => o.key === String(key))
       const opts = { ...(t.opts || {}), [f.key]: coerceOption(f, value).value }
-      return same(opts, t.opts) ? st : { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
+      if (same(opts, t.opts)) return st
+      // what the widget's own control clears with it (`clears`: News's applied preset no longer describes the filters)
+      for (const k of f.clears || []) if (opts[k] != null) opts[k] = null
+      return { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
     },
     describe(b, a, { widget, key }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))

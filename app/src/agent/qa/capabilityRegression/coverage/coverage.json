@@ -14,7 +14,7 @@
     "applicable": 174
    },
    "routing": {
-    "covered": 116,
+    "covered": 120,
     "applicable": 174
    },
    "args": {
@@ -38,15 +38,15 @@
     "applicable": 174
    },
    "undo": {
-    "covered": 54,
-    "applicable": 112
+    "covered": 56,
+    "applicable": 111
    },
    "multiStep": {
-    "covered": 38,
+    "covered": 36,
     "applicable": 174
    },
    "phrasings": {
-    "covered": 116,
+    "covered": 120,
     "applicable": 174
    }
   }
@@ -2315,7 +2315,7 @@
    "target": "chart",
    "risk": "local",
    "reversible": true,
-   "undo": "exact",
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"
@@ -2323,30 +2323,38 @@
    "fast": false,
    "protections": {
     "nl": true,
-    "routing": false,
+    "routing": true,
     "args": true,
     "execution": true,
     "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
     "nl": [
-     "GW-31.chartSetup-resetView"
+     "chartSetup.resetView: \"reset the view\"",
+     "chartSetup.resetView: \"reset the chart view\"",
+     "chartSetup.resetView: \"reset the zoom on this chart\"",
+     "chartSetup.resetView: \"put this chart back to its default view\""
     ],
-    "routing": [],
+    "routing": [
+     "chartSetup.resetView: \"reset the view\"",
+     "chartSetup.resetView: \"reset the chart view\"",
+     "chartSetup.resetView: \"reset the zoom on this chart\"",
+     "chartSetup.resetView: \"put this chart back to its default view\""
+    ],
     "args": [
-     "GW-31.chartSetup-resetView"
+     "corpus chartSetup.resetView"
     ],
     "execution": [
-     "GW-31.chartSetup-resetView"
+     "chartSetup.resetView (c)"
     ],
     "receipt": [
-     "GW-31.chartSetup-resetView"
+     "chartSetup.resetView (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -2425,37 +2433,45 @@
    "fast": false,
    "protections": {
     "nl": true,
-    "routing": false,
+    "routing": true,
     "args": true,
     "execution": true,
     "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": true,
-    "phrasings": false
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
     "nl": [
-     "GW-32.chartSetup-hideAllIndicators"
+     "chartSetup.setIndicatorsHidden: \"hide all indicators on this chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all my indicators for now\"",
+     "chartSetup.setIndicatorsHidden: \"hide every indicator on the chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all of the indicators and volume for a second\""
     ],
-    "routing": [],
+    "routing": [
+     "chartSetup.setIndicatorsHidden: \"hide all indicators on this chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all my indicators for now\"",
+     "chartSetup.setIndicatorsHidden: \"hide every indicator on the chart\"",
+     "chartSetup.setIndicatorsHidden: \"hide all of the indicators and volume for a second\""
+    ],
     "args": [
-     "GW-32.chartSetup-hideAllIndicators"
+     "corpus chartSetup.setIndicatorsHidden"
     ],
     "execution": [
-     "GW-32.chartSetup-hideAllIndicators"
+     "chartSetup.setIndicatorsHidden (c)"
     ],
     "receipt": [
-     "GW-32.chartSetup-hideAllIndicators"
+     "chartSetup.setIndicatorsHidden (c)"
     ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [
-     "GW-32.chartSetup-hideAllIndicators"
+    "undo": [
+     "chartSetup.setIndicatorsHidden: undo restores"
     ],
+    "multiStep": [],
     "phrasings": []
    }
   },
@@ -2473,39 +2489,45 @@
    "fast": false,
    "protections": {
     "nl": true,
-    "routing": false,
+    "routing": true,
     "args": true,
     "execution": true,
     "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": true,
-    "phrasings": false
+    "multiStep": false,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
     "nl": [
-     "GW-33.chartSetup-hideMovingAverages"
+     "chartSetup.setMovingAverages: \"hide all moving averages\"",
+     "chartSetup.setMovingAverages: \"hide every moving average on this chart\"",
+     "chartSetup.setMovingAverages: \"hide all my moving averages\"",
+     "chartSetup.setMovingAverages: \"turn off all the moving averages\""
     ],
-    "routing": [],
+    "routing": [
+     "chartSetup.setMovingAverages: \"hide all moving averages\"",
+     "chartSetup.setMovingAverages: \"hide every moving average on this chart\"",
+     "chartSetup.setMovingAverages: \"hide all my moving averages\"",
+     "chartSetup.setMovingAverages: \"turn off all the moving averages\""
+    ],
     "args": [
-     "GW-33.chartSetup-hideMovingAverages"
+     "corpus chartSetup.setMovingAverages"
     ],
     "execution": [
-     "GW-33.chartSetup-hideMovingAverages"
+     "chartSetup.setMovingAverages (c)"
     ],
     "receipt": [
-     "GW-33.chartSetup-hideMovingAverages"
+     "chartSetup.setMovingAverages (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "GW-33.chartSetup-hideMovingAverages"
+     "chartSetup.setMovingAverages: undo restores"
     ],
-    "multiStep": [
-     "GW-33.chartSetup-hideMovingAverages"
-    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
@@ -2523,34 +2545,44 @@
    "fast": false,
    "protections": {
     "nl": true,
-    "routing": false,
+    "routing": true,
     "args": true,
     "execution": true,
     "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
     "nl": [
-     "GW-30.chartSetup-setRange-1y"
+     "chartSetup.setRange: \"show one year on this chart\"",
+     "chartSetup.setRange: \"set the chart range to 1Y\"",
+     "chartSetup.setRange: \"frame this chart on the last year\"",
+     "chartSetup.setRange: \"show 1Y on the chart\""
     ],
-    "routing": [],
+    "routing": [
+     "chartSetup.setRange: \"show one year on this chart\"",
+     "chartSetup.setRange: \"set the chart range to 1Y\"",
+     "chartSetup.setRange: \"frame this chart on the last year\"",
+     "chartSetup.setRange: \"show 1Y on the chart\""
+    ],
     "args": [
-     "GW-30.chartSetup-setRange-1y"
+     "corpus chartSetup.setRange"
     ],
     "execution": [
-     "GW-30.chartSetup-setRange-1y"
+     "chartSetup.setRange (c)"
     ],
     "receipt": [
-     "GW-30.chartSetup-setRange-1y"
+     "chartSetup.setRange (c)"
     ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chartSetup.setRange: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

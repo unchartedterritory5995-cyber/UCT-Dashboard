@@ -29,6 +29,7 @@ import { breadthRecord } from '../../hooks/useBreadthSymbols'
 import { isEconomicId } from '../../components/chart/engine/econMark'
 import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
+import { watermarkSpot } from '../derivedOpts'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { paneVolumePct } from '../../components/chart/pane/paneLook'
@@ -155,7 +156,8 @@ function writeSetting(st, d, v) {
   if (d.store === 'volumePanePref') return { ...st, volPanePref: String(v), volPanePct: v }
   if (d.store === 'watermarkPos') {
     const at = (axis) => st.watermarkPos?.[axis] ?? st.cs?.watermark?.[axis] ?? 0.5
-    // `anchor: null`: the old pixel anchor would out-vote the new fraction; the chart derives a new one on its next draw
+    // `anchor: null`: the old pixel anchor would out-vote the new fraction; the chart derives a new one on its next draw and
+    // stores it (useWatermarkAnchorMigration), which only a drawn pane can, so x/y is what every check compares (derivedOpts.js)
     return { ...st, watermarkPos: { x: at('x'), y: at('y'), [d.id.split('.')[1]]: v, anchor: null } }
   }
   return { ...st, cs: withSetting(st.cs, d, v) }
@@ -224,8 +226,11 @@ export function viewDone(meta, { op, arg }) {
   if (!meta) return false
   if (op === 'applyRange') return meta.activeRange === arg
   if (op === 'resetView') return meta.atDefaultView === true
+  if (op === 'restoreView') return sameFrame(meta.frame, arg)
   return meta.indicatorsHidden === arg
 }
+// The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
+const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
 export function viewAt(meta, target) {
@@ -327,7 +332,7 @@ export const chartKind = {
     if ('symbol' in patch && snap.symbol !== patch.symbol) return false
     if ('goto' in patch && !viewAt(snap.view, patch.goto)) return false
     if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
-    if ('watermarkPos' in patch && !sameJson(snap.watermarkPos ?? null, patch.watermarkPos)) return false
+    if ('watermarkPos' in patch && !sameJson(watermarkSpot(snap.watermarkPos), watermarkSpot(patch.watermarkPos))) return false
     if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     return true
@@ -344,10 +349,13 @@ export const chartKind = {
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
-    // A range or a reset has no exact way back (the zoom and the view lock it replaced are not restorable): `undoNote` says so
+    // A range goes back to the window and the view lock it replaced (never read = no Undo, and `undoNote` says so).
+    // A reset has no way back: it also drops a dragged price scale, which nothing reads back (undo: 'none').
     if ('viewDo' in item.patch) {
-      if (item.patch.viewDo.op !== 'setIndicatorsHidden') return null
-      p.viewDo = { op: 'setIndicatorsHidden', arg: !!item.before.view?.indicatorsHidden }
+      const { op } = item.patch.viewDo
+      if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
+      else if (op === 'applyRange' && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else return null
     }
     return p
   },
@@ -358,9 +366,11 @@ export const chartKind = {
     ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
     // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
     ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : []),
-    ...('watermarkPos' in (item?.patch || {}) ? [snap.watermarkPos ?? null] : []),
+    // x/y, never the anchor the chart derives from them a moment later (derivedOpts.js)
+    ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
-    ...('viewDo' in (item?.patch || {}) ? [!!snap.view?.indicatorsHidden] : [])]),
+    // a range's Undo is stale once the member panned or zoomed off it
+    ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null) : !!snap.view?.indicatorsHidden] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.

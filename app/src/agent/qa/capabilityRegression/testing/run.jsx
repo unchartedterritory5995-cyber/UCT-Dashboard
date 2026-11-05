@@ -1,6 +1,9 @@
 // CAPABILITY REGRESSION (Mission 2) — replay one case (a corpus phrasing at level c, or a golden workflow) through
 // the REAL panel and assert its STATE: the board, the charts' indicators, which canonical reads / writes ran, a
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
+import { anyAverageOn } from '../../../../components/chart/averageVisibility'
+import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
@@ -183,14 +186,6 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
-  // the chart's view after its own control ran (TIMED board): only the fields a case names
-  if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toBe(v)
-  if ('averagesHidden' in e) {
-    // every moving average on the first chart, hidden or shown (they stay on the chart)
-    const ma = p.instancesOn(board, chartsOf(board)[0]?.id).filter(i => i.defId === 'movingAverage')
-    expect(ma.length, `${label}: the chart's moving averages`).toBeGreaterThan(0)
-    expect(ma.every(i => !!i.hidden === e.averagesHidden), `${label}: every moving average hidden = ${e.averagesHidden}`).toBe(true)
-  }
   if (e.listView) {
     // what the Watchlist widget shows (the LISTVIEW board): only the fields a case names
     const now = ctx.st.listViewNow()
@@ -211,6 +206,10 @@ export function checkExpect(ctx, e, label) {
     for (const n of e.indicatorTemplates.exclude || []) expect(names, `${label}: no indicator template ${n}`).not.toContain(n)
   }
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
+  // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
+  if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
+  // is any moving average on the first chart showing (the same answer Ctrl+M reads)
+  if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)

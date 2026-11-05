@@ -49,7 +49,8 @@
 //
 // ── Params layer (journal embeds) ───────────────────────────────────────────
 // - paramsSchema   — (`live: true` on a field = the mounted widget reads it back from `opts`, so UCT Agent's
-//                    widget.setOption may write it; agent/settingsLiveness.test.js proves the read)
+//                    widget.setOption may write it; `clears` = opts keys its control resets with it;
+//                    agent/settingsLiveness.test.js proves the read, both ways)
 //                    declarative field descriptors for the widget's FROZEN
 //                    params: what an embedded snapshot stores in the notebook
 //                    doc and re-renders from. Types: 'symbol' | 'tf' | 'ts' |
@@ -751,7 +752,7 @@ const PANEL_MANIFESTS = {
     paramsSchema: [
       { key: 'start', type: 'number', required: true },      // YYYYMMDD int (the widget's wire format)
       { key: 'end', type: 'number', required: true },        // YYYYMMDD int
-      { key: 'group', type: 'enum', options: ['theme', 'sector', 'industry'] },
+      { key: 'group', type: 'enum', options: ['theme', 'sector', 'industry'], live: true },
       { key: 'settings', type: 'json' },
       { key: 'colCfg', type: 'json' },          // session-only ephemeral columns — freeze or lose them
     ],
@@ -848,8 +849,8 @@ const PANEL_MANIFESTS = {
     themeFollow: true,
     paramsSchema: [
       { key: 'settings', type: 'json' },
-      { key: 'follow', type: 'boolean', default: true },
-      { key: 'linked', type: 'boolean', default: false },
+      { key: 'follow', type: 'boolean', default: true, live: true },
+      { key: 'linked', type: 'boolean', default: false, live: true, clears: ['presetId'] },
       { key: 'watchlistId', type: 'string' },
       // UCT News V2: the Saved Headlines view (the toolbar bookmark) and its filters.
       { key: 'view', type: 'string' },
@@ -882,8 +883,8 @@ const PANEL_MANIFESTS = {
       { key: 'to', type: 'string' },
       { key: 'sort', type: 'string' },
       { key: 'view', type: 'string' },
-      { key: 'follow', type: 'boolean', default: true },
-      { key: 'linked', type: 'boolean', default: false },
+      { key: 'follow', type: 'boolean', default: true, live: true },
+      { key: 'linked', type: 'boolean', default: false, live: true, clears: ['presetId'] },
       { key: 'watchlistId', type: 'string' },
     ],
     plainText: () => '[library: saved UCT News headlines]',

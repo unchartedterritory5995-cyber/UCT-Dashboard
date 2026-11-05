@@ -9,18 +9,18 @@ import { isOverlayRemoved, liveOverlayList } from './chartDefaults'
 
 const isAverage = (getDefinition, i) => !!i && typeof i === 'object' && i.deleted !== true && !!getDefinition(i.defId)?.meta?.appearance
 
-export function movingAverageCount(cs, getDefinition) {
+export function averageCount(cs, getDefinition) {
   const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
   return liveOverlayList(Array.isArray(cs?.overlays) ? cs.overlays : []).length + list.filter(i => isAverage(getDefinition, i)).length
 }
 
-export function anyMovingAverageOn(cs, getDefinition) {
+export function anyAverageOn(cs, getDefinition) {
   const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
   return liveOverlayList(Array.isArray(cs?.overlays) ? cs.overlays : []).some(o => o?.enabled)
     || list.some(i => isAverage(getDefinition, i) && i.hidden !== true)
 }
 
-export function withMovingAverages(cs, visible, getDefinition) {
+export function withAveragesShown(cs, visible, getDefinition) {
   const overlays = Array.isArray(cs?.overlays) ? cs.overlays : []
   const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
   return {

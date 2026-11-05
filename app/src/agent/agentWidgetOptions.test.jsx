@@ -31,6 +31,40 @@ async function plan(h, ops) {
 const optsOf = (board, id) => board.state.widgets.find(x => x.id === id).opts
 const refuse = async (h, args) => (await plan(h, [op(args)])).p.refusals[0]?.reason
 
+describe('widget.setOption — options the widget reads, off the Widgets menu too', () => {
+  const BOARD2 = () => [w('tn', 'tradeExchangeNews', 0, 0, { presetId: 'p1', presets: [{ id: 'p1', name: 'Mine' }] }), w('rl', 'researchLibrary', 6, 0, {}), w('ps', 'periodsort', 12, 0, { start: 1, end: 2 })]
+  const apply = async (host, args) => {
+    const { p, env } = await plan(host, [op(args)])
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    return commitPlan(host, p, { env })
+  }
+  it('News: pause (follow) and the linked filter; a Period Sort: its grouping; each listed for the model, each undone exactly', async () => {
+    const { host, state } = makeBoard(BOARD2(), {})
+    const hints = getCapability('widget.setOption').hints
+    expect(hints).toMatch(/tradeExchangeNews: follow \(on\/off\), linked \(on\/off\)/)
+    expect(hints).toMatch(/periodsort: group \(theme\|sector\|industry\)/)
+    for (const [widget, key, value, want] of [['tn', 'follow', 'off', false], ['rl', 'linked', 'on', true], ['ps', 'group', 'Sector', 'sector']]) {
+      const before = JSON.stringify(state.widgets)
+      const res = await apply(host, { widget, key, value })
+      expect(optsOf({ state }, widget)[key], `${widget}.${key}`).toBe(want)
+      expect((await undoEntry(host, res.undo)).ok).toBe(true)
+      expect(JSON.stringify(state.widgets)).toBe(before)
+    }
+  })
+  it('the linked filter clears the applied preset as the widget\'s own control does; a no-op does not, and Undo puts the preset back', async () => {
+    const { host, state } = makeBoard(BOARD2(), {})
+    const res = await apply(host, { widget: 'tn', key: 'linked', value: 'on' })
+    expect(optsOf({ state }, 'tn')).toMatchObject({ linked: true, presetId: null })
+    await undoEntry(host, res.undo)
+    expect(optsOf({ state }, 'tn').presetId).toBe('p1')
+    await apply(host, { widget: 'tn', key: 'follow', value: 'off' })
+    expect(optsOf({ state }, 'tn').presetId).toBe('p1')                       // follow is no filter: a preset does not store it
+    const { host: h2, state: s2 } = makeBoard([w('tn', 'tradeExchangeNews', 0, 0, { linked: true, presetId: 'p1' })], {})
+    await plan(h2, [op({ widget: 'tn', key: 'linked', value: 'on' })])
+    expect(s2.widgets[0].opts.presetId).toBe('p1')
+  })
+})
+
 describe('widget.setOption — the registry schema decides, the board writer writes, Undo is exact', () => {
   it('a Fundamentals view: the option written beside the widget\'s other opts (nothing else touched); receipt; Undo restores the exact previous opts', async () => {
     const { host, state } = makeBoard(...[BOARD(), { 'N:ch': 'NVDA' }])

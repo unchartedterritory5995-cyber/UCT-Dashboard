@@ -4,16 +4,18 @@
 // Source inspection on purpose: it runs on every key, every time, with nothing to mount.
 //
 //   chart.setSetting   every `eligible` row is read by the render path, or carries `inert` (which refuses) or `store`.
-//   widget.setOption   default-deny: only `live: true` registry fields are offered, and each widget must read that key
-//                      from `opts`. A new option therefore cannot be inert: unmarked it is refused, marked it must be read.
+//   widget.setOption   default-deny: only `live: true` registry fields are offered. Both directions are grepped from each
+//                      mounted widget's own source: a live field must be read from `opts`, and a field that IS read must be
+//                      live. So an option can be neither inert (offered, unread) nor silently denied (read, refused).
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { dirname, join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { getCapability } from './capabilities'
 import { ELIGIBLE_SETTINGS } from '../components/chart/chartSettingsDescriptors'
-import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../widgets/registry'
+import { WIDGET_REGISTRY } from '../widgets/registry'
+import { widgetOptionFields, widgetUnboundedFields } from './capabilities/board'
 
 registerBuiltins()
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -43,32 +45,80 @@ describe('chart.setSetting: nothing the chart does not read', () => {
   })
 })
 
-describe('widget.setOption: nothing the widget does not read', () => {
-  // each workspace type → its mounted component, from WidgetHost's own table, so a new widget is covered the day it exists
-  const host = read('pages/charts/WidgetHost.jsx')
-  const fileOf = Object.fromEntries([...host.matchAll(/^import (\w+) from '\.\/widgets\/(\w+)'/gm)].map(m => [m[1], `pages/charts/widgets/${m[2]}.jsx`]))
-  const componentOf = (type) => new RegExp(`^\\s*${type}: \\{ component: (\\w+)`, 'm').exec(host)?.[1]
-  const liveFields = WORKSPACE_MENU_TYPES.flatMap(t => (WIDGET_REGISTRY[t].paramsSchema || []).filter(f => f.live).map(f => [t, f.key]))
+// ── What a mounted widget reads from `opts`, by grep ──
+const code = (src) => src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).map(l => l.replace(/\s\/\/\s.*$/, '')).join('\n')
+/** Default and named relative imports of a file: local name → that file's path under src. */
+function localImports(rel, src) {
+  const out = {}
+  const resolve = (spec) => ['', '.js', '.jsx'].map(x => posix.join(posix.dirname(rel), spec) + x).find(p => existsSync(join(SRC, p)) && statSync(join(SRC, p)).isFile())
+  for (const m of src.matchAll(/^import\s+(?:(\w+)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s+'(\.[^']+)'/gm)) {
+    const file = resolve(m[3])
+    if (!file) continue
+    if (m[1]) out[m[1]] = file
+    for (const n of (m[2] || '').split(',')) { const local = n.trim().split(/\s+as\s+/).at(-1); if (local) out[local] = file }
+  }
+  // a code-split component: `const X = lazy(() => import('./y'))`
+  for (const m of src.matchAll(/^const (\w+) = lazy\(\(\) => import\('(\.[^']+)'\)\)/gm)) { const file = resolve(m[2]); if (file) out[m[1]] = file }
+  return out
+}
+/** Every key read from `opts`: opts.key, opts?.key, opts['key'], `const { key } = opts`, through an alias (`const o = opts || {}`),
+ *  and on through a child handed `opts={opts}` and a helper called with `opts`. */
+export function optsReadsOf(rel, seen = new Set()) {
+  const reads = new Set()
+  if (seen.has(rel)) return reads
+  seen.add(rel)
+  const src = code(read(rel))
+  const aliases = ['opts', ...[...src.matchAll(/\bconst (\w+) = opts\b(?:\s*(?:\|\||\?\?)\s*\{\s*\})?\s*$/gm)].map(m => m[1])]
+  for (const a of aliases) {
+    for (const m of src.matchAll(new RegExp(`\\b${a}(?:\\?\\.|\\.)(\\w+)|\\b${a}(?:\\?\\.)?\\[['"](\\w+)['"]\\]`, 'g'))) reads.add(m[1] || m[2])
+    for (const m of src.matchAll(new RegExp(`\\{([^{}]*)\\}\\s*=\\s*${a}\\b`, 'g'))) for (const k of m[1].split(',')) { const key = k.trim().split(/[:=\s]/)[0]; if (key) reads.add(key) }
+  }
+  const imports = localImports(rel, read(rel))
+  const next = [...src.matchAll(/<(\w+)\b[^>]*?\bopts=\{opts\}/g), ...src.matchAll(/\b(\w+)\(opts\b/g)].map(m => imports[m[1]]).filter(Boolean)
+  for (const f of next) for (const k of optsReadsOf(f, seen)) reads.add(k)
+  return reads
+}
 
-  it('there are live fields to check, and every one is read back from opts by its mounted widget', () => {
-    expect(liveFields.length).toBeGreaterThan(0)
-    for (const [type, key] of liveFields) {
-      const file = fileOf[componentOf(type)]
-      expect(file, `${type}: no widget file`).toBeTruthy()
-      expect(read(file), `${type}.${key}`).toMatch(new RegExp(`opts(?:\\?\\.|\\.)${key}\\b`))
-    }
+describe('widget.setOption: exactly what the widget reads', () => {
+  // every type mounted on /charts → its component file, from WidgetHost's own table, so a new widget is covered the day it exists
+  const host = read('pages/charts/WidgetHost.jsx')
+  const hostImports = localImports('pages/charts/WidgetHost.jsx', host)
+  const mounted = [...host.matchAll(/^ {2}(\w+): \{\s*component: (\w+)/gm)].map(m => [m[1], hostImports[m[2]]])
+  const name = (t, f) => `${t}.${f.key}`
+  const rows = mounted.flatMap(([t, file]) => { const reads = optsReadsOf(file); return widgetOptionFields(t).map(f => ({ t, f, read: reads.has(f.key) })) })
+
+  it('every field its mounted widget reads is live (a read option is never refused)', () => {
+    expect(rows.filter(r => r.read && r.f.live !== true).map(r => name(r.t, r.f))).toEqual([])
+  })
+  it('every live field is read back from opts by its mounted widget (a refused option is never offered)', () => {
+    expect(rows.filter(r => !r.read && r.f.live === true).map(r => name(r.t, r.f))).toEqual([])
+  })
+  it('a read number with no product range stays refused, by name: a new one has to be given its range or added here on purpose', () => {
+    const read = mounted.flatMap(([t, file]) => { const reads = optsReadsOf(file); return widgetUnboundedFields(t).filter(f => reads.has(f.key)).map(f => name(t, f)) })
+    expect(read).toEqual(['volumescan.minRvol', 'volumescan.minMove', 'volumescan.minDollarK'])
   })
   it('the offered options are exactly the live fields (default-deny)', () => {
     const hints = getCapability('widget.setOption').hints
-    for (const t of WORKSPACE_MENU_TYPES) {
+    for (const [t] of mounted) {
       for (const f of WIDGET_REGISTRY[t].paramsSchema || []) {
         const named = new RegExp(`\\b${t}: [^;]*\\b${f.key} \\(`).test(hints)
         expect(named, `${t}.${f.key}`).toBe(f.live === true)
       }
     }
   })
-  it('the rail can see a widget at all (guards the parse above)', () => {
+  it('the rail can see what it checks (guards the parse above)', () => {
     expect(readdirSync(join(SRC, 'pages/charts/widgets')).length).toBeGreaterThan(10)
-    expect(fileOf[componentOf('fundamentals')]).toBe('pages/charts/widgets/FundamentalsWidget.jsx')
+    expect(mounted.map(([t]) => t).sort()).toEqual(Object.keys(WIDGET_REGISTRY).filter(t => mounted.some(([m]) => m === t)).sort())
+    expect(mounted.length).toBeGreaterThanOrEqual(20)
+    expect(mounted.every(([, file]) => !!file), 'a mounted type with no component file').toBe(true)
+    expect(Object.fromEntries(mounted).chart).toBe('pages/charts/widgets/ChartWidget.jsx')                         // a multi-line entry
+    expect(Object.fromEntries(mounted).researchLibrary).toBe('pages/charts/widgets/TradeExchangeNewsWidget.jsx')   // the same component, a second type
+    const news = optsReadsOf('pages/charts/widgets/TradeExchangeNewsWidget.jsx')
+    for (const k of ['follow', 'linked', 'view', 'categories']) expect(news.has(k), k).toBe(true)
+    expect(optsReadsOf('pages/charts/widgets/PeriodSortWidget.jsx').has('group')).toBe(true)
+    // a child handed `opts={opts}` is read too: the Theme Tracker reads its basis and set from there, and no period
+    const themes = optsReadsOf('pages/charts/widgets/ThemesWidget.jsx')
+    expect(themes.has('todayBasis')).toBe(true)
+    expect(themes.has('period')).toBe(false)
   })
 })

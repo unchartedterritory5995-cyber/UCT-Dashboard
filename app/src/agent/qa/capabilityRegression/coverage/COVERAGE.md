@@ -8,15 +8,15 @@ Catalog: **174** capabilities (every server-gated kind on; 165 with production's
 | protection | covered / applicable |
 |---|---|
 | nl | 122 / 174 |
-| routing | 116 / 174 |
+| routing | 120 / 174 |
 | args | 122 / 174 |
 | execution | 122 / 174 |
 | receipt | 96 / 174 |
 | refusal | 31 / 174 |
 | permission | 168 / 174 |
-| undo | 54 / 112 |
-| multiStep | 38 / 174 |
-| phrasings | 116 / 174 |
+| undo | 56 / 111 |
+| multiStep | 36 / 174 |
+| phrasings | 120 / 174 |
 
 ## Known gaps (2)
 
@@ -72,11 +72,11 @@ Catalog: **174** capabilities (every server-gated kind on; 165 with production's
 | chartSetup.deleteTemplate | chartSetup | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | chartSetup.favoriteTimeframe | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chartSetup.removeTimeframe | chartSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| chartSetup.resetView | chartSetup | local | exact | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ |
+| chartSetup.resetView | chartSetup | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | chartSetup.saveTemplate | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| chartSetup.setIndicatorsHidden | chartSetup | local | exact | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✗ |
-| chartSetup.setMovingAverages | chartSetup | local | exact | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ |
-| chartSetup.setRange | chartSetup | local | exact | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ |
+| chartSetup.setIndicatorsHidden | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| chartSetup.setMovingAverages | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| chartSetup.setRange | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | coach.consent | coach | confirm | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | · | ✗ | ✗ |
 | coach.explain | coach | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | definition.delete | definitions | confirm | exact | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✗ |

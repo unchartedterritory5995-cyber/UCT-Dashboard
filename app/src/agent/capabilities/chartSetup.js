@@ -17,10 +17,12 @@
 //                                (the shared chartTemplatesAfterSave: a same-named template is replaced —
 //                                then it is proposed first). Undo puts the old list back.
 //   chartSetup.deleteTemplate    a template's ✕ (chartTemplatesAfterDelete). Proposed; Undo puts it back.
-//   chartSetup.setRange          the range bar's buttons (StockChart.applyRange). A view, read back from the time scale.
-//   chartSetup.resetView         right-click → Reset view (doResetView). A view, read back from the time scale.
+//   chartSetup.setRange          the range bar's buttons (StockChart.applyRange). A view, read back from the time scale;
+//                                Undo restores the window and the view lock it replaced (restoreView).
+//   chartSetup.resetView         right-click → Reset view (doResetView). A view, read back from the time scale. No Undo:
+//                                it also drops a dragged price scale, which nothing reads back.
 //   chartSetup.setIndicatorsHidden  Alt+Shift+I: every indicator and Volume off the canvas, until a reload. Nothing saved.
-//   chartSetup.setMovingAverages Ctrl+M's writer (movingAverageVisibility.js): every moving average hidden or shown.
+//   chartSetup.setMovingAverages Ctrl+M's writer (averageVisibility.js): every moving average hidden or shown.
 //
 // ⛔ copyLook carries the target chart's indicator keys over UNCHANGED (keepIndicatorState) — never the source chart's.
 // The one indicator write here is setMovingAverages, which IS the chart's own Ctrl+M write, not a second one.
@@ -31,7 +33,7 @@ import { makeTfCode, isValidTf, tfLabel as tfShort, NATIVE_TFS } from '../../com
 import { chartTemplatesAfterSave, chartTemplatesAfterDelete, CHART_TEMPLATE_NAME_MAX } from '../../components/chart/chartTemplateApply'
 import { MAX_CHART_TEMPLATES } from '../../components/chart/chartCeilings'
 import { RANGE_OPTS } from '../../components/chart/rangeOptions'
-import { movingAverageCount, withMovingAverages } from '../../components/chart/movingAverageVisibility'
+import { averageCount, withAveragesShown } from '../../components/chart/averageVisibility'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
@@ -41,7 +43,8 @@ const onCharts = (ctx) => ctx.surface === 'charts'
 const RANGE_LABELS = RANGE_OPTS.map(([label]) => label)
 const rangeOf = (raw) => RANGE_OPTS.find(([label]) => label.toLowerCase() === String(raw ?? '').trim().toLowerCase()) || null
 const NOT_READY = 'That chart hasn\'t finished loading, so I can\'t confirm its view. Try again in a moment.'
-const VIEW_ONLY_UNDO = 'A view change like this has no Undo: pick another range, or reset the view.'
+const RANGE_NO_UNDO = 'I couldn\'t read how the chart was framed before, so this can\'t be undone here: pick another range, or reset the view.'
+const RESET_NO_UNDO = 'A view reset has no Undo: pan or zoom the chart, or pick a range.'
 
 // ── copyLook: what a chart's LOOK is NOT (kept from the target chart) ──
 // Top-level keys that are data or per-chart tools, not appearance.
@@ -261,10 +264,10 @@ export function registerChartSetupCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartSetup.setRange',
-    summary: `Show ONE chart over a set date range: the range bar's buttons (${RANGE_LABELS.join(', ')}; Origin = from the first bar). A view change: every bar stays on the chart, nothing is drawn or removed, and the chart keeps this window on the next ticker until it is panned or reset.`,
+    summary: `Show ONE chart over a set date range: the range bar's buttons (${RANGE_LABELS.join(', ')}; Origin = from the first bar). A view change: every bar stays on the chart, nothing is drawn or removed, and the chart keeps this window on the next ticker until it is panned or reset. Undo puts the previous view back.`,
     hints: `range = one of ${RANGE_LABELS.join(', ')}. "One year" = 1Y, "year to date" = YTD, "five years" = 5Y, "since IPO" = Origin. Other spans have no button: use chart.goToDate, or say which ranges exist.`,
     args: { type: 'object', properties: { range: { type: 'string' } }, required: ['range'], additionalProperties: false },
-    undoNote: VIEW_ONLY_UNDO,
+    undoNote: RANGE_NO_UNDO,
     check(st, { range }) {
       if (!rangeOf(range)) return `“${range}” isn't a chart range. The range buttons are ${RANGE_LABELS.join(', ')}.`
       return st.view ? null : NOT_READY
@@ -280,10 +283,11 @@ export function registerChartSetupCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartSetup.resetView',
-    summary: 'Reset ONE chart\'s view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched.',
+    summary: 'Reset ONE chart\'s view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched. No Undo.',
     hints: 'target = the chart. For a chart\'s SETTINGS use chart.resetDefaults.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
-    undoNote: VIEW_ONLY_UNDO,
+    undo: 'none',
+    undoNote: RESET_NO_UNDO,
     check: (st) => (st.view ? null : NOT_READY),
     apply: (st) => (st.view?.atDefaultView ? st : { ...st, viewDo: { op: 'resetView' } }),
     describe: (b, a) => (a.viewDo ? 'Reset this chart\'s view to the default window and put the price scale back on auto' : null),
@@ -308,9 +312,9 @@ export function registerChartSetupCapabilities() {
     summary: 'Hide or show EVERY moving average on ONE chart at once (Ctrl+M). They stay on the chart, hidden, and this is saved. Other indicators are untouched. Undo puts each one back as it was.',
     hints: 'visible = false to hide them all, true to show them all.',
     args: { type: 'object', properties: { visible: { type: 'boolean' } }, required: ['visible'], additionalProperties: false },
-    check: (st) => (movingAverageCount(st.cs, nativeRegistry.getDefinition) ? null : 'This chart has no moving averages.'),
+    check: (st) => (averageCount(st.cs, nativeRegistry.getDefinition) ? null : 'This chart has no moving averages.'),
     apply(st, { visible }) {
-      const next = withMovingAverages(st.cs, visible, nativeRegistry.getDefinition)
+      const next = withAveragesShown(st.cs, visible, nativeRegistry.getDefinition)
       return sameJson(next.overlays, st.cs?.overlays ?? []) && sameJson(next.indicatorInstances, st.cs?.indicatorInstances ?? []) ? st : { ...st, cs: next }
     },
     describe: (b, a, { visible }) => (sameJson(b.cs, a.cs) ? null : (visible ? 'Showed every moving average on this chart' : 'Hid every moving average on this chart (they are still on it)')),

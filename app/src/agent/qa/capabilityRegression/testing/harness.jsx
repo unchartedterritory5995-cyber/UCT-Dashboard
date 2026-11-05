@@ -378,20 +378,23 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff;
     // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
-    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true, activeRange: null, atDefaultView: false, indicatorsHidden: false })
+    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
+      activeRange: null, atDefaultView: false, indicatorsHidden: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
     st.replay = null
     const charts = mounted.h.charts
     const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
-      setReplay: (iso) => { st.replay = iso ?? null; return true },
+      // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
       viewDo: (ref, op, arg) => {
         const v = viewOf(ref)
-        if (op === 'applyRange') { v.activeRange = arg; v.atDefaultView = false }
-        if (op === 'resetView') { v.activeRange = null; v.atDefaultView = true }
+        if (op === 'applyRange') Object.assign(v, { activeRange: arg, atDefaultView: false, frame: { fromRight: 252, toRight: -8, activeRange: arg, locked: true, lock: { hLocked: true } } })
+        if (op === 'restoreView') Object.assign(v, { activeRange: arg.activeRange, atDefaultView: false, frame: { ...arg } })
+        if (op === 'resetView') Object.assign(v, { activeRange: null, atDefaultView: true, frame: { fromRight: 150, toRight: -8, activeRange: null, locked: false, lock: null } })
         if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
         return true
-      } }
+      },
+      setReplay: (iso) => { st.replay = iso ?? null; return true } }
     st.views = views
   }
   if (extra.drawings) {
