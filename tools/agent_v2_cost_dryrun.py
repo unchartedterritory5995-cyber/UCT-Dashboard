@@ -21,7 +21,6 @@ import argparse
 import functools
 import json
 import os
-import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +30,7 @@ sys.path.insert(0, ROOT)
 GOLDEN = os.path.join(ROOT, "app", "src", "agent", "contract", "manifest.golden.json")
 ACCEPTANCE = os.path.join(ROOT, "app", "src", "agent", "__fixtures__", "program", "v2-acceptance.json")
 OUT = os.path.join(ROOT, "app", "src", "agent", "__fixtures__", "program", "scores", "v2-cost-dryrun.json")
+CORPUS_EXPORT = os.path.join(ROOT, "tests", "fixtures", "agent_v2_corpus_requests.json")
 CUMULATIVE_CAP_USD = 21.0
 #: a step's tool_result as the browser writes it (receipt / value-free query summary), and the model's tool_use
 STEP_RESULT_BYTES = 400
@@ -57,37 +57,17 @@ SAMPLE_MESSAGE = ("Find stocks above their 20 EMA with volume at least twice ave
                   "and save this as W1 Test")
 
 
-#: the catalog line for a distance field (screener.js DIST_BELOW_HIGH / DIST_ABOVE_LOW, DIST_UNIT)
-_DIST_BELOW_HIGH = re.compile(r"^dist_(?:\w+_)?high_pct$|^dist_ath_pct$")
-_DIST_ABOVE_LOW = re.compile(r"^dist_(?:\w+_)?low_pct$")
-_DIST_UNIT = {"neg": "(%, ≤0: −5 = 5% below the high)", "pos": "(%, ≥0: 5 = 5% above the low)"}
-_SESSION_MEASURES = os.path.join(ROOT, "app", "src", "agent", "capabilities", "sessionMeasures.js")
-
-
 @functools.lru_cache(maxsize=1)
 def real_screener_section() -> list[dict]:
-    """The `screener` context section as the browser sends a member with no saved screens on a screening request:
-    capabilities/screener.js's provider, built from the server's own registry (the /api/screener/fields catalog less
-    hidden fields, the session measures, the starter screens). A stub here makes every v2 figure read low: the section
-    rides every round, and it is several KB."""
-    from api.services.screener import filters, saved_screens
-    from api.services.uct_agent.scan import hidden
-
-    def line(key: str, label: str, typ: str, unit: str | None) -> str:
-        dist = "neg" if _DIST_BELOW_HIGH.match(key) else "pos" if _DIST_ABOVE_LOW.match(key) else None
-        tail = _DIST_UNIT[dist] if dist else f"({unit})" if unit else "(yes/no)" if typ == "bool" else "(list)" if typ == "enum" else ""
-        return f"{key}:{label}{tail}"
-
-    hide = hidden.rating_keys() | hidden.flow_keys()
-    fields = [line(f["key"], f.get("label") or f["key"], f["type"], f.get("unit")) for f in filters.field_catalog()
-              if f.get("key") and f["key"] not in hide and f.get("type") in ("range", "bool", "enum")]
-    with open(_SESSION_MEASURES, encoding="utf-8") as f:
-        measures = re.findall(r"\{ key: '(\w+)', label: '([^']+)', unit: '([^']*)'", f.read())
-    if not fields or not measures:
-        raise RuntimeError("the real screener section could not be built")
-    fields += [line(k, label, "range", unit) for k, label, unit in measures]
-    starters = [{"id": str(s["id"]), "name": s["name"], "kind": "starter"} for s in saved_screens.starters()][:40]
-    return [{"ref": "s1", "label": "Screener", "fields": ";".join(fields), "savedScreens": starters}]
+    """The `screener` context section the browser sends a member with no saved screens on a screening request. Read from the
+    corpus fixture, which capabilities/screener.js's own provider wrote over the real registry and starters
+    (agentPlannerV2CostExport.test.jsx): the section now carries notes and composing rules only that provider can build, and a
+    second copy here would drift low. A stub or a partial section makes every v2 figure read low: this one rides every round."""
+    with open(CORPUS_EXPORT, encoding="utf-8") as f:
+        sec = json.load(f)["boards"]["ONE"]["screener"]
+    if not sec or sec[0].get("fields") in (None, "", "loading") or not sec[0].get("compose"):
+        raise RuntimeError("the corpus fixture has no real screener section: regenerate it (tools/agent_v2_corpus_cost.py)")
+    return sec
 
 
 def real_context() -> dict:

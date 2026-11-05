@@ -27,8 +27,8 @@ def test_index_layout_finishes_every_corpus_intent_under_the_cap_with_margin(ind
     assert index["turn_cap_usd"] == 0.25 and s["intents"] == 158
     assert s["v2_finished"] == s["intents"] and s["v2_stopped"] == []
     assert all(r["v2"]["steps_done"] == r["v2"]["steps"] for r in index["rows"])           # no step refused (args / target)
-    # over the real Screener section: measured $0.1189 → margin $0.1311. This is the RUNTIME gate (spent + next worst); the
-    # summed worst case is the stricter figure, $0.2910 here, and it is over the cap (see test_uct_agent_v2_cost_measure.py)
+    # over the real Screener section: measured $0.1409 → margin $0.1091. This is the RUNTIME gate (spent + next worst); the
+    # summed worst case is the stricter figure, $0.3387 here, and it is over the cap (see test_uct_agent_v2_cost_measure.py)
     assert s["v2_gate_peak_usd_max"] < 0.25 and s["v2_margin_usd"] >= 0.10
     assert all(r["v2"]["rounds"] <= index["rounds_cap"] for r in index["rows"])
 
