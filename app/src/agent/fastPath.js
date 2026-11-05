@@ -44,7 +44,8 @@ const CANON = [
   [/\bexponential moving average\b/g, 'ema'], [/\bsimple moving average\b/g, 'sma'],
   [/\b(\d+)[\s-]*(?:period|bar|day)s?\s+(?=ema|sma|rsi|atr|vwap|ma\b|moving average)/g, '$1 '],
   // "the rsi indicator" → "rsi"; "rsi study" → "rsi"
-  [/\b(\w+) (?:indicator|study)\b/g, '$1'],
+  // (never before "alerts": "my indicator alerts" read as "my alerts" answered from the PRICE alert list)
+  [/\b(\w+) (?:indicator|study)\b(?! alerts?\b)/g, '$1'],
   // conversational lead-ins and "that chart" (the chart just changed — on a one-chart board, the chart)
   [/^(?:(?:now|ok|okay|and|then|also|alright|great|cool),?\s+)+/, ''],
   // ⭐ Gate B (0C): politeness and filler carry no meaning — "can you show me the weekly", "monthly view

@@ -40,7 +40,7 @@ def test_the_guarded_actions_are_a_deliberate_list():
                        "chartSetup.deleteTemplate", "definition.delete", "definition.duplicate", "drawing.clear",
                        "indicator.discardDraft", "indicator.remove", "indicator.saveDraft",
                        # W1-B B-03 (owner's Wave 1 directive): create = confirm; delete is a hard delete in the product
-                       "indicatorAlert.create", "indicatorAlert.delete", "layout.create", "layout.delete",
+                       "indicatorAlert.create", "indicatorAlert.delete", "indicatorTemplate.delete", "layout.create", "layout.delete",
                        "layout.duplicate", "layout.rename", "layout.saveAs", "layout.saveCurrent", "screener.deleteSaved",
                        "screener.duplicateSaved", "screener.renameSaved", "screener.saveAs", "watchlist.clear",
                        "watchlist.create", "watchlist.delete", "watchlist.rename"]

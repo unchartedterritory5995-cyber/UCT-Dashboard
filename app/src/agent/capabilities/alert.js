@@ -296,7 +296,7 @@ export function registerAlertCapabilities() {
       + 'If they give a level WITHOUT saying above or below (e.g. "an alert on NVDA at 200", "when it hits 200"), clarify with choices above / below — never guess. '
       + 'One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. '
       + 'Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question ("why is TSLA moving? and set an alert above 300": propose the alert AND ask research for the question). '
-      + 'For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.',
+      + 'An alert on an indicator (RSI, MACD, a moving-average cross…) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.',
     args: {
       type: 'object',
       properties: { symbol: { type: 'string' }, price: { type: 'number' }, direction: { type: 'string', enum: ['above', 'below'] } },

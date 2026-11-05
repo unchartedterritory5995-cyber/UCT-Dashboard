@@ -53,11 +53,13 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)', domains: ['chartSetup'], fillLast: true,
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
-    actions: ['chart.replay', 'chart.describeSetup'],
+    // Phase 1: indicator templates here by action name — the group's own `templates?` word already names them, and a
+    // member's saved template NAME brings the group (NAME_GROUPS), so no new phrase rule
+    actions: ['chart.replay', 'chart.describeSetup', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'],
     // CG-33 (corpus #774, live LT-7): Replay Mode had no words of its own — "replay", "bar replay", "as of <date>", "hide
     // what came after", "step through", "exit / stop replay" (routing only ADDS this group) — the first words below
     // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
@@ -327,7 +329,7 @@ export function routingEnabled() {
 // ⭐ Gate B (0C): the member's OWN names route too — "open swing board", "put the first 3 in swing",
 // "take smci off momentum": a layout / watchlist / saved screen named in the message (whole words,
 // from live state the caller passes in) brings its group. Pure: nothing here reads state.
-const NAME_GROUPS = { layouts: 'layouts', watchlists: 'lists', screens: 'screener' }
+const NAME_GROUPS = { layouts: 'layouts', watchlists: 'lists', screens: 'screener', indicatorTemplates: 'chartSetup' }
 const normWords = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z0-9$&+.\- ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
 function namedGroups(q, names) {
   const out = new Set()
@@ -348,6 +350,11 @@ export function routingNames(host) {
     layouts: read(() => host?.layouts?.snapshot?.()?.entries?.map(e => e.name)),
     watchlists: read(() => host?.watchlists?.snapshot?.()?.map(l => l.name)),
     screens: read(() => host?.savedScreens?.snapshot?.()?.map(s => s.name)),
+    indicatorTemplates: read(() => {
+      const raw = host?.prefs?.read?.()?.indicator_templates
+      const list = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return Array.isArray(list) ? list.map(t => t?.name).filter(Boolean) : []
+    }),
   }
 }
 
