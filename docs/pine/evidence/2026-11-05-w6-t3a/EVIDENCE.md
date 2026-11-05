@@ -126,3 +126,30 @@ lock `heavy-final3.lock`. Logs `runs/w6t3a-final/`, `runs/w6t3a/ft.out`.
     `aria-hidden`/`tabindex` render diff from the train's EDITOR-E2 surface, no FE involvement).
 - ready-check: expected to FAIL only because its allowlist names two of the four agreed baselines; every failure is
   outside this lane.
+
+# Round 2 (review GO-WITH-NOTES @a10566902e, note N1)
+
+Code tip `8a5d839b00`: merge of `origin/master` `6fe0577df8` (the train landed as be5fd05ea2). The merge touches no
+lane file, and `SCRIPT_ENGINE_VERSION` is still 17 (not bumped; the coordinator assigns 18 at landing).
+
+## N1 fix: a collection that is still `na` stops BY NAME
+- `runtime/vm.js`, `OP.ARRAY` operand check: an `array` operand holding `na` now throws `CollectionError` ("the array is
+  `na` (no array was assigned to it before this call); Pine stops the script here with a runtime error"). This reuses
+  the existing collection stop, which `runtimeColumns` reports as `runtime:CollectionError`.
+- A non-`na` number still meets the VM's own kind check, unchanged (the C18 untyped-parameter rule).
+- Rail: `w6TypeDescriptor.test.js`, new case "(review N1)". It covers `a.size()`, `a.push(close)` and
+  `array.get(a, 0)` on `var array<float> a = na`; a number handed to an untyped parameter still reads "takes an array,
+  got number"; and the control runs once an array is assigned. 23/23 green on Node 20.20.2.
+- Mutations (`runs/w6t3a/muts-n1.json`, log `n1-mut2.log`): no-op control SURVIVED; guard removed KILLED; any number
+  treated as `na` KILLED (it was a survivor until the number case was added).
+
+## final-tip: NOT COMPLETE
+`final-tip.sh pine-dsk-w6t3a w6t3a-final2` started at 14:27:49 on `8a5d839b00` under `heavy-final3.lock`. During the
+gate pytest step, Claude Code killed it because the machine was low on memory. It was not a test failure. The lock was
+released, the tree is clean, and no process from the run is left. Per the harness rule, the agent did not restart it.
+
+**Exact next step:** when free RAM allows, run `bash _resume-2026-11-01/runs/w6t3a/ft2.sh` under
+`lock_run` on `heavy-final3.lock`. It is FULL scope, 2 parallel shards, Node 20.20.2 via `dsk/node20.sh`, and writes
+`runs/w6t3a-final2/`. Expected reds: pollingSites, settingsScope, enumerationSites and vendorHarness, plus the
+coverageAudit flake. Then run `ready-check.sh pine-dsk-w6t3a runs/w6t3a-final2`. HEAD must still be `8a5d839b00`
+plus this docs-only commit.
