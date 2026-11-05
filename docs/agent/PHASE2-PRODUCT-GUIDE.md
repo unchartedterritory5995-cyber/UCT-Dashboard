@@ -155,6 +155,8 @@ Status per action is in the coverage pass's `teach-status.md`, generated from re
 - **Multi Chart walkthroughs run.** Each chart in the grid is a cell the guide can scope to. The session buttons do not fit on a narrow cell, so that row says so.
 - **"Do it for me" while the Agent is busy** used to drop the click. The card now says so in fixed words.
 - A target below the fold of a long window is scrolled up, rather than passed over for its fallback.
+- **Two charts with the Agent open squeeze the drawing strip to nothing:** the fixed buttons beside it take the whole line, and "where are the drawing tools" got a sentence instead of a walkthrough. While a step needs the strip, the buttons beside it step aside, and they come back when the step ends. Nothing is stored.
+- **The Canvas walkthrough ended on a step that repeated the last one,** so the card stayed on Skip. The tab is now its last step and the card offers Done.
 
 ### What the browser found that tests could not
 
