@@ -398,6 +398,9 @@ GUARDED = {
     "api/services/journal_two/passed_setups.py": "names saved from a scan and not traded",
     "api/services/journal_two/similar_matches.py": "the templates the nightly market match runs on",
     "api/services/journal_two/setups_board.py": "the board's count: an example card is shown, marked, and not counted",
+    "api/services/journal_two/import_repair/runner.py": "the link repair's plan and its dry-run counts: classify() "
+                                                        "skips the sample (sample_marker.is_sample, ruling C6), so an "
+                                                        "example note is never repaired or counted",
     "api/services/journal_two/visual_playbook.py": "the playbook's count, facets and slice numbers: an example card "
                                                     "is shown, marked, and in none of them",
     "api/services/journal_two/note_kinds.py": "the kind-mapping offer's count and the notes its apply writes; the "
@@ -470,8 +473,6 @@ EXEMPT = {
     # Connector fidelity (Plans A, E, F): import plumbing that stores, links or repairs the note itself.
     "api/services/journal_two/import_repair/links.py": "repairs links inside the member's own imported notes; "
                                                        "the note itself, never a fact about the member",
-    "api/services/journal_two/import_repair/runner.py": "selects imported notes (import_key set; a sample has "
-                                                        "none) for the link repair and its dry-run report",
     "api/services/journal_two/note_connectors/adoption.py": "matches a live connector note to the member's own "
                                                             "file-imported copy of it; the note itself",
     "api/services/journal_two/note_connectors/corpora/corpora_gen.py": "the connector certification corpora "
