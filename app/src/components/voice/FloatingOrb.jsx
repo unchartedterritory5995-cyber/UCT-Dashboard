@@ -11,6 +11,8 @@ import VisionAttachButton from './VisionAttachButton'
 import UIcon from '../ui/UIcon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 import useScrollLocked from '../../hooks/useScrollLocked'
+import { useIsPhone } from '../../hooks/useBreakpoint'
+import { isCompactHeaderRoute } from '../../pages/journal-2-0/lib/compactHeaderRoute'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
@@ -134,7 +136,12 @@ export default function FloatingOrb({ context = 'global' }) {
   // (showCoachmark untouched) and shows on the next ordinary page. The list is measured,
   // not guessed: viewportLockedRoutes.js.
   const onViewportLockedPage = isViewportLockedRoute(useLocation().pathname)
+  // Tier 1b fix round 1 (review Important 5): on a PHONE's Notebook the cluster gives way to the Notebook's own "+"
+  // (S12, FloatingOrb.module.css), so the card that names the compass button WAITS there too -- not dismissed.
+  const pathname = useLocation().pathname
+  const onPhoneNotebook = useIsPhone() && isCompactHeaderRoute(pathname)
   const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld && !onViewportLockedPage
+    && !onPhoneNotebook
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
@@ -354,7 +361,9 @@ export default function FloatingOrb({ context = 'global' }) {
       <div
         ref={clusterRef}
         className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? (tuckSide === 'left' ? styles.tuckedLeft : styles.tuckedRight) : ''}`}
-        data-in-session={inSession ? '' : undefined}
+        // The phone Notebook hides the cluster EXCEPT while this is set (S12): a live call, and a call that fell into
+        // error, whose glyph and label are how the member learns it failed (review Minor 9).
+        data-in-session={inSession || (voice.mode === 'c' && status === 'error') ? '' : undefined}
         style={clusterStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

@@ -251,3 +251,49 @@ describe('"Meet Compass" at the desktop width keeps clear of the feedback "?"', 
     expect(Number(desk[1])).toBeGreaterThan(right + width)
   })
 })
+
+// Tier 1b fix round 1 (review Important 5): on a PHONE's Notebook the orb cluster gives way to the Notebook's "+"
+// (S12), so the card -- "Tap the compass button" -- WAITS there, exactly as on a viewport-locked page: not shown, not
+// dismissed. The slot itself stays (the tour-offer toast lives in it too).
+describe('"Meet Compass" waits on the phone Notebook', () => {
+  const realMM = window.matchMedia
+  const phone = (on) => {
+    window.matchMedia = (q) => ({ matches: on && /max-width:\s*640px/.test(q) && !/min-width/.test(q), media: q,
+      addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
+  }
+  afterEach(() => { window.matchMedia = realMM })
+
+  it('phone + /journal/notebook: no card, the key is not written', () => {
+    phone(true)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    expect(card()).toBeNull()
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('control: a phone on another page shows it', () => {
+    phone(true)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/trades' })
+    expect(card()).not.toBeNull()
+  })
+
+  it('control: the Notebook on a wider screen shows it (the orb is there)', () => {
+    phone(false)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    expect(card()).not.toBeNull()
+  })
+})
+
+// Review Minors 9 + 19: the phone Notebook hides the cluster unless `data-in-session` is on it. Rendered, not read from
+// source: a live call carries it, and so does a call that fell into ERROR (its error glyph and label are how the member
+// learns the call failed); an idle orb does not.
+describe('the cluster says when a call is live or failing (data-in-session)', () => {
+  it.each([
+    ['connected', true], ['error', true], ['idle', false],
+  ])('voice mode c, status %s -> data-in-session %s', (status, on) => {
+    const { container } = renderWithProviders(<VoiceOverride voice={{ mode: 'c', status }}><FloatingOrb /></VoiceOverride>)
+    expect(cluster(container).hasAttribute('data-in-session')).toBe(on)
+  })
+})
