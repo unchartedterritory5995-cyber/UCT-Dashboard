@@ -105,3 +105,54 @@ is false at the door (`atObjectDoor`); mutation M3 proves the gate.
   (`//@version=5`) therefore does NOT attach, and the spec "attach expected" does not hold. The extracted v5 reference
   also declares `length (series int)` for `ta.sma`, `ta.stdev`, `ta.highest`, so serving v5 would be defensible, but it
   contradicts the spec mutation "serve v5: the v5 control goes red". Not widened.
+
+## FIX r1 (desktop ruling): widen to v5 where the v5 reference declares `series int`
+
+Ruling: serve v5 where the extracted v5 reference declares the `length` parameter `series int` (read per function per
+version from the extracted reference); v6 path unchanged; v4 and below stay refused.
+
+### Changes
+- `tools/pine_survey/emit_length_qualifiers.js --ref <v6> --ref5 <v5>`: the generated `windowLengthQualifiers.json` now
+  holds `length` (v6) and `v5Length` (v5). v5 reference: `ta.sma/wma/stdev/highest/lowest/highestbars/lowestbars`,
+  `ta.dev`, `ta.median`, `math.sum` all `series int`; `ta.ema`/`ta.rsi` `simple int`.
+- `seriesLengthFn`: v6+ reads `length`, v5 reads `v5Length`, anything older serves nothing; the object door and request
+  values are still excluded.
+- A constant length that folds to no whole number (`2.5`, `-3`) keeps its build refusal in v5/v6 (it is a mistake, not a
+  per-bar length; first seen as 3 pinned v5 controls going green-to-red).
+- Rails: the "serve v5 control" became a **v4 control**; per-function v5 rails (10 functions), v5 over a price column,
+  v5 object-door control, v5 `ta.ema` still refused, constant 2.5 / -3 refused (v5, v6). `w4SeriesLength` is 41 tests.
+- v5-era controls of earlier lanes restated (they pinned "a per-bar length is refused" on `//@version=5` scripts):
+  `w4SimpleFolding` (`refuses` now accepts a built program only if every window is per-bar, never a wrong fold),
+  `finiteWindow` (pinned in v4), `constantLengthRefusal` (uses `ta.ema`), `pureWindowInFunction` (pinned in v4).
+
+### Mutations (heavy-mut.lock; `runs/w4t8r1/muts-r1.json`, `muts-r5.json`, logs `mut2.log`)
+R1 drop the v5 section: KILLED (v5 rails). R2 serve v4: KILLED (v4 control). R4 v6 loses its table: KILLED.
+R5 constant non-whole length goes per-bar: KILLED. R6 object door ungated: KILLED. R7 gate widened to every version:
+KILLED. R3 (v5 reads the v6 table): SURVIVED, equivalent - the two tables hold identical entries for every served
+window, so the content is railed by the generator `--check` (run with both references) instead.
+The earlier v6 vm/ir mutations M1, M4-M10, M12-M14 were re-run on this code: all KILLED.
+Wider rails on the r1 code: w4SeriesLength, w4SimpleFolding, simpleArgWindow, finiteWindow, w4FrameHoist,
+manifestFormatting: 6 files, 163 passed.
+
+### measure-pair (heavy-mp2.lock, label w4t8r1-mp; script `runs/w4t8r1/mpjob.sh`; out `runs/w4t8r1/mp0`, `mp1`)
+Tip `8fef069f8a` (code identical to the final tip; later commits are tests and docs only). Base `b8e8698406` in
+`pine-dsk-mpbase2`, HEAD asserted before and after every base side: lane 0 18:56:19 / 19:16:42, lane 1 19:35:12 /
+19:54:51 (`BASE-HEAD-OK` lines in `mp.log`). Red on base: v5 + v6 rail 31 failed / 10 passed (controls).
+`== side` lines: lane 0 tip 18:36:41, base 18:56:19; lane 1 tip 19:16:42, base 19:35:11.
+- C18 corpus audit and C18 probes: 0 diffs on both lanes. Vendor harness: 0 verdict diffs (L0 MATCH 93 / DIVERGE 103 /
+  INCONCLUSIVE 140; L1 MATCH 111 / DIVERGE 107 / INCONCLUSIVE 118, identical to base).
+- **heatmap-volume-xdecow (v5) now ATTACHES on lane 1** (peel 2 -> 0, `attached True`, runtime lane). On lane 0
+  (production) its steps are unchanged; only the shadow `runtime` probe field flips to attached.
+- Lane 1 other first-wall movers (all `series int` lengths): `smarter-snr` (v5; spec list), `market-structure-break-
+  order-block` (spec list; wall now `runtime:function-global-state`), `auto-length-moving-average-trend-signals-
+  zeiierman`, `ict-institutional-order-flow-fadi`, `trend-levels-chartprime` (v5; now reaches the runtime lane, step 7
+  attached with objects in this runtime-on lane), `market-sessions-and-volume-profile-by-leviathan`,
+  `open-interest-profile-fixed-range-by-leviathan`, `volume-open-interest-footprint-by-leviathan`,
+  `luxy-super-duper-supertrend-predictor-engine`. Still on their wall: `zigzag-multi-time-frame-with-fibonacci-
+  retracement`.
+- **Object door / production lane 0**: no production step, C18 audit, probe or harness change by script name. Lane 0 rows
+  that differ are timing noise: `halftrend-longshort-signal-engine-bigbeluga` (tip differs from itself across two runs),
+  `luxy-momentum-trend-and-breakout-indicators-with-multi-timeframe-bias` (v6, 110 s run, +-1 drop counts; identical
+  tip vs base when re-run alone), `market-structure-with-inducements-sweeps-luxalgo` (identical alone), plus the
+  `heatmap-volume-xdecow` shadow field above. Re-runs alone: `runs/w4t8r1/run-*` (heavy-mp2.lock, label w4t8r1-mini).
+  Object door stays gated (`atObjectDoor`, mutation R6).
