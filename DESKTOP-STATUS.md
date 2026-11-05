@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 18:31 CT
+updated: 2026-11-04 19:16 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -392,11 +392,14 @@ evidence: docs/pine/evidence/2026-11-04-w5-t18/EVIDENCE.md
 built (files: app/src/components/chart/builder/RunsOnLine.jsx NEW, BuilderSheet.jsx +8 lines mounting it beside the repaint notice for the open row, BuilderSheet.runsOn.test.jsx): no status panel existed, so a new RunsOnLine renders from server_lanes. All true -> "Runs on: chart, alerts, screener, scans"; a refused lane -> "<lane>: <sentence>" verbatim and never listed as running; ast row (no key / null) -> nothing; malformed stamp -> only "Not confirmed for: <lanes>", never a claim (fails closed).
 checks: rail 17 tests run by path with the count checked; base has no component or mount (M1 = remove the mount = base behaviour, goes red; not run against a base checkout). Mutations 10/10 killed (M2 null-stamp survivor fixed with component-alone tests; M5 array guard equivalent, removed). final-tip (heavy-final2): gate 46, hygiene clean, vitest Tests 2 failed | 22378 passed | 118 skipped = pollingSites.rail + settingsScope.rail baselines (DESKTOP-VERIFIED).
 ## W5-T19 gate + runbook (needs T4, T10, T11, all READY)
-state: BUILDING   round: r0   updated: 2026-11-04 14:37 CT
-branch: feat/pine-w5-t19-gate   base: W5-T10 a1523b3897 + local merges of W5-T4 09753c9426 and W5-T11 86218da704 (STACK)   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
-note: workflow file edited on the branch only; never pushed to master; HP-1 under Node 20 is red on the two trig cases (W5-T4 r1), so the builder proposes the gate's handling for the coordinator.
-
+state: READY            round: r0            updated: 2026-11-04 19:16 CT
+branch: feat/pine-w5-t19-gate   tip: b6c5668922 (docs-only over code tree d174e885fb, the final-tip tree)   base: merge 3ce311e502 = W5-T10 a1523b3897 + W5-T4 r1 09753c9426 + W5-T11 86218da704 (T9 and T2 not merged)   tested on master: 5d95103c8a   worktree: pine-dsk-w5t19   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t19/EVIDENCE.md
+built (DESKTOP-VERIFIED files): .github/workflows/master-deploy-gate.yml (8 "Pine runtime" steps after the app npm ci: design section 8 steps 1-7 plus a Node-agreement step; step 4 runs T2's `node tools/pine_runtime_closure.mjs --check`); tests/test_pine_runtime_deploy_gate.py (25: step presence and order, never conditional, every tests/test_pine_runtime_*.py named, one Node pin read from the image Dockerfile, the Node step run under bash with a fake node, a self-arming rail for the image COPYs of T9's canary files); docs/runbooks/pine-runtime-service.md (pre-merge checklist, T20 Railway steps for the owner, smoke, rollback) + a deploy-windows.md paragraph; tools/pine_runtime_host_parity.mjs (T4's file, minimal) + hostParity.v8.rail.test.js (9).
+HP-1 under Node 20 (ruling R2 accepts it): on real Node v20.18.0 the two named trig cases are REPORTED only when the running V8 differs from recordedOn.v8 and the digest is the only difference; 164/166 equal + 2 REPORTED. Cost: a trig-only regression passes the Node 20 gate; the Node 24 pre-merge run catches it. Alternatives in EVIDENCE.md.
+checks: mutations 28/28 pytest + 12/12 vitest killed, controls survive; Node 20 gate steps all rc 0 (the closure step not run locally, T2 absent on this base). final-tip r2 on d174e885fb (desktop sent it back: the first run had a since-fixed failure): gate 46, hygiene clean, rails pytest 64 passed / 0 failed, vitest Tests 1 failed | 22551 passed | 118 skipped = pollingSites.rail (DESKTOP-VERIFIED).
+MERGE ORDER (mandatory): W5-T2 BEFORE W5-T19, or the gate is red on master. Not verified: no actionlint, no Docker (image never built), CI Python steps untested on the prod venv; whether the smoke tool ships in the web image is unchecked.
 ## W5-T7b result digest + warm-up on the wire (desktop-opened fix lane for the T11 + T16 schema gaps)
 state: READY            round: r0            updated: 2026-11-04 17:35 CT
 branch: feat/pine-w5-t7b-result-integrity   tip: e13d282eae (docs-only evidence over code tip f8726b84f4, the final-tip tree)   base: f526d609e4 (= W5-T7 5e6c63e24e + W5-T4 eb922686fe; STACK: T1 -> T6 -> T7, T3 -> T4)   worktree: pine-dsk-w5t7b   model: Opus
