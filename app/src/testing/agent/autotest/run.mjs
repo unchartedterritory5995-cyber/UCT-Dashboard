@@ -71,6 +71,8 @@ if (MODE === 'REAL-MODEL') {
   ctx = { R: await startRelay({ groupOfAction }), mock: true }
 }
 const { runRequest } = await import('./driver.mjs')
+const { runProfile } = await import('../../../econHarness/cdp.mjs')
+ctx.profile = runProfile()         // one Chrome profile for the run, removed when the process ends
 
 say(MODE, `${list.length} requests, set ${A.set}, out ${dir}`)
 const rows = []

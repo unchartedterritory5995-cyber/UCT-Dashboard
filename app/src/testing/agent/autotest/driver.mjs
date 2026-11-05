@@ -116,7 +116,7 @@ export async function runRequest(ctx, req) {
   const ev = { turns: [], undo: null, guide: null, errors: [], before: null, after: null }
   let p = null
   try {
-    p = ctx.openFn ? await ctx.openFn(R) : await open(R, { query: B.query || '', prefs: B.prefs || null, fixtures: { routes: ctx.routes || [] }, iaCatalog: B.iaCatalog || null })
+    p = ctx.openFn ? await ctx.openFn(R) : await open(R, { query: B.query || '', prefs: B.prefs || null, fixtures: { routes: ctx.routes || [] }, iaCatalog: B.iaCatalog || null, profile: ctx.profile || null })
     await p.settle()
     await p.openPanel()
     const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ${q(req.board)} === 'MC' && x.id === 'g3') })()`, { timeout: 30000 })
@@ -141,7 +141,7 @@ export async function runRequest(ctx, req) {
     ev.crash = String(e?.stack || e?.message || e).slice(0, 800)
     if (shotPath && p) await p.shot(shotPath).catch(() => {})
   }
-  try { p?.close() } catch { /* */ }
+  try { await p?.close() } catch { /* */ }
   R.queue.length = 0
   if (ev.crash || !ev.after) return { evidence: ev, result: { pass: false, graded: 0, na: 0, checks: [{ name: 'the run reached the end', pass: false, detail: ev.crash, tag: 'crash' }] } }
   return { evidence: ev, result: grade(req, ev) }

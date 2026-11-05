@@ -142,7 +142,7 @@ export async function runProduction({ authorization, list, dir, known }) {
     finish(dir, MODE, rows, { target: 'production', restored, protectedChanged: diff, violation })
     say(MODE, `restore: ${restored}; protected state changed: ${diff.length ? diff.join(', ') : 'none'}`)
     if (diff.length) gate(['stop', '--why', `production protected state changed: ${diff.join(',')}`])
-    b.close()
+    await b.close()
   }
   return 0
 }

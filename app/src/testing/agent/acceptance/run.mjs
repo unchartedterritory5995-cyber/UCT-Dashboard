@@ -8,6 +8,7 @@
 // evidence, it is one of the things under test.
 import { writeFileSync } from 'node:fs'
 import { startRelay, open, sleep } from './lib.mjs'
+import { runProfile } from '../../../econHarness/cdp.mjs'
 
 const OUT = process.env.BA_OUT || 'browser-acceptance.json'
 const SHOTS = process.env.BA_SHOTS || null
@@ -779,6 +780,7 @@ scn('mc cell ticker and indicator', [], MC, async (p, t) => {
 
 // ── runner ─────────────────────────────────────────────────────────────────────────────────────────────
 const R = await startRelay({ groupOfAction })
+const profile = runProfile()
 const results = []
 for (const s of S) {
   if (filter && !filter.test(s.id)) continue
@@ -788,7 +790,7 @@ for (const s of S) {
   let p = null
   const t0 = Date.now()
   try {
-    p = await open(R, { query: s.opts.query || '', prefs: s.opts.prefs, fixtures: s.opts.fixtures, iaCatalog: s.opts.iaCatalog, ls: s.opts.ls })
+    p = await open(R, { query: s.opts.query || '', prefs: s.opts.prefs, fixtures: s.opts.fixtures, iaCatalog: s.opts.iaCatalog, ls: s.opts.ls, profile })
     await p.settle()
     await p.openPanel()
     // the workspace mounts panels in batches: a board is ready when every chart on it has painted
@@ -803,7 +805,7 @@ for (const s of S) {
     t.ok('scenario ran to the end', false, e.stack || e.message)
     try { if (SHOTS && p) await p.shot(`${SHOTS}/${s.id.replace(/\W+/g, '-')}-crash.png`) } catch { /* */ }
   }
-  try { p?.close() } catch { /* */ }
+  try { await p?.close() } catch { /* */ }
   R.queue.length = 0
   await sleep(300)
   const pass = t.checks.every(c => c.pass)
