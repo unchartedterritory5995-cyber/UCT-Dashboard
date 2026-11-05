@@ -38,6 +38,8 @@ import { sameDrawings } from './warmupDrawings.js'
 import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
+// W5-T1: the identity constants the server bundle's entry re-exports (it must not import the front end itself: pineRuntimeFrontendGate).
+export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION }
 import { declaredCalcBarsOf } from './objectStore.js'
 import { calcBarsWindowOf, widenToChart, readsBarIndex, barIndexDependenceOf, CALC_BARS_INDEX_GUARD,
   CALC_BARS_INDEX_PROBE, placesByBarIndex, probeVerdictKey } from './calcBarsWindow.js'
