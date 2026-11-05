@@ -533,6 +533,7 @@ def _start(message, context, history, capabilities, pending, reference, repair, 
                and (c["risk"] == "confirm" or c.get("reversible") is False)}
     return {
         "token": turn_token or new_turn_token(), "model": t1.model(), "system": system, "tools": tools, "tools_mode": mode,
+        "turn_request_id": getattr(meter, "turn_request_id", None),      # a resume's dollars count against the same turn
         "messages": messages, "caps": {a["name"]: a for a in caps}, "guarded": guarded,
         "valid_refs": t1._context_refs(context), "aliases": set(), "round": 0, "spent": 0.0, "steps": [],
         "results": [], "pending_uses": [], "researched": False, "started": time.monotonic(),
@@ -564,10 +565,17 @@ def _rounds(state: dict, caller, meter, on_event, wait_step) -> dict:
         if round(state["spent"] + worst, 6) > round(cap_usd, 6):
             return _final(state, TURN_CAP, "turn_cap")
         t0 = time.perf_counter()
-        resp = t1._paid(meter, "v2_round", caller, **kwargs)
+        metered = getattr(meter, "spent_usd", 0.0)
+        try:
+            resp = t1._paid(meter, "v2_round", caller, **kwargs)
+        except budget.BudgetRefused as e:
+            if e.reason != "turn_cap":
+                raise
+            return _final(state, TURN_CAP, "turn_cap")   # the ledger's sum includes what this loop did not spend itself
         state["round"] += 1
         cost = _call_cost(model_id, resp)
-        state["spent"] += cost
+        # what the ledger charged, not only what the reply reported: a round with no usage costs its worst case here too
+        state["spent"] += max(cost, getattr(meter, "spent_usd", 0.0) - metered)
         _usage_add(state["usage"], resp, cost)
         state["usage"]["stages"]["model"].append(t1._ms(t0))
         t1._record_cost(resp)
@@ -758,6 +766,7 @@ def _research_step(state: dict, inp: Any, uid: str, meter) -> dict:
         return _tool_result(uid, "research needs a query", True)
     if meter.calls_left() < 1:
         return _tool_result(uid, "research is not available in this turn (its step limit)", True)
+    metered = getattr(meter, "spent_usd", 0.0)
     try:
         r = meter.research(lambda: t1._research(q, rec))
     except Exception as e:  # noqa: BLE001 -- a budget refusal is told as unavailable; anything else is re-raised
@@ -765,6 +774,7 @@ def _research_step(state: dict, inp: Any, uid: str, meter) -> dict:
             raise
         return _tool_result(uid, "research is not available right now", True)
     state["researched"] = True
+    state["spent"] += getattr(meter, "spent_usd", 0.0) - metered    # the lookup counts against this turn's cap like a round
     state["usage"]["research_calls"] += 1
     state["usage"]["citations"].extend(list(r.get("citations") or [])[:6])
     body = {"answer": str(r.get("answer") or "")[:2400], "citations": list(r.get("citations") or [])[:6]}

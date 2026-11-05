@@ -279,6 +279,15 @@ def open_request(user_id: Any, conversation_id: str | None, message: str, rerout
             raise
 
 
+def latest_request(user_id: Any, within_s: int = REROUTE_WINDOW_S) -> int | None:
+    """The member's newest request still open for follow-up work (REROUTE_WINDOW_S), or None. The server's own
+    answer to "which turn is this for": a browser-supplied turn id names no request and can always be a new one."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT id FROM agent_requests WHERE user_id = ? AND created_at >= ? ORDER BY id DESC LIMIT 1",
+                        (str(user_id), int(time.time()) - int(within_s))).fetchone()
+    return int(row[0]) if row else None
+
+
 def attach_conversation(request_id: int, conversation_id: str) -> None:
     """A new chat's id is known only after the request opened; record it so a reroute finds it."""
     with contextlib.closing(_connect()) as c:
@@ -349,10 +358,14 @@ def site_spend_usd() -> tuple[float, float]:
 
 # ── reserve / settle ────────────────────────────────────────────────────────────────────────────
 def reserve(*, user_id: Any, request_id: int | None, category: str, model: str, worst_usd: float,
-            site_reader: Callable[[], tuple[float, float]] | None = None, counts_as_call: bool = True) -> int:
+            site_reader: Callable[[], tuple[float, float]] | None = None, counts_as_call: bool = True,
+            turn_request_id: int | None = None) -> int:
     """Admit one paid call or raise BudgetRefused. Returns the reservation id. `counts_as_call`:
     a MODEL call uses one of the request's calls; a research lookup (the search itself) does not --
-    the model call that reads its results does."""
+    the model call that reads its results does. `turn_request_id`: the member request this call's dollars count
+    against when it has no `request_id` (planner v2, a data-gateway lookup): the per-turn cap applies, the
+    2-call ceiling does not."""
+    turn_id = request_id if request_id is not None else turn_request_id
     try:
         site_spent, site_cap = (site_reader or site_spend_usd)()
     except Exception:  # noqa: BLE001 -- fail closed: no paid call without a readable site ledger
@@ -378,10 +391,10 @@ def reserve(*, user_id: Any, request_id: int | None, category: str, model: str, 
                 if round(committed + worst_usd, 6) > round(cap, 6):     # cents-exact, no float drift
                     c.execute("ROLLBACK")
                     raise BudgetRefused("agent_cap", AGENT_EXHAUSTED)
-                if request_id is not None:
+                if turn_id is not None:
                     # THE PER-TURN CAP: this request's settled actuals + open reservations (on any day: a
                     # request that straddles midnight is still one turn) + this call's worst case
-                    n_rows, turn_committed = _turn_sum(c, request_id)
+                    n_rows, turn_committed = _turn_sum(c, turn_id)
                     if round(turn_committed + worst_usd, 6) > round(turn_cap_usd(), 6):
                         c.execute("ROLLBACK")
                         raise BudgetRefused("turn_cap", TURN_CAP_LATER if n_rows else TURN_CAP_FIRST)
@@ -389,7 +402,7 @@ def reserve(*, user_id: Any, request_id: int | None, category: str, model: str, 
                     "INSERT INTO agent_spend (et_day, user_id, request_id, turn_request_id, category, model, status,"
                     " reserved_usd, created_at) VALUES (?,?,?,?,?,?,'reserved',?,?)",
                     (day, None if user_id is None else str(user_id), request_id if counts_as_call else None,
-                     request_id, category, model, round(float(worst_usd), 6), now))
+                     turn_id, category, model, round(float(worst_usd), 6), now))
                 c.execute("COMMIT")
                 return int(cur.lastrowid)
             except BudgetRefused:
@@ -472,12 +485,17 @@ def _is_provider_error_response(e: BaseException) -> bool:
 
 class Meter:
     """The paid-call gate for one member request: every Messages call and research lookup goes
-    through `call` / `research`. `None` user/request (scripts, tests) still meters dollars."""
+    through `call` / `research`. `None` user/request (scripts, tests) still meters dollars.
+    `turn_request_id`: see reserve(). `heartbeat`: called before each paid call, so a slow request keeps its
+    in-flight lease (limits.renew)."""
 
-    def __init__(self, *, user_id: Any, request_id: int | None, site_reader=None):
+    def __init__(self, *, user_id: Any, request_id: int | None, site_reader=None, turn_request_id: int | None = None,
+                 heartbeat: Callable[[], None] | None = None):
         self.user_id = user_id
         self.request_id = request_id
+        self.turn_request_id = request_id if request_id is not None else turn_request_id
         self.site_reader = site_reader
+        self.heartbeat = heartbeat
         self.spent_usd = 0.0
 
     def calls_left(self) -> int:
@@ -487,10 +505,10 @@ class Meter:
 
     def turn_room_usd(self) -> float | None:
         """Dollars this member request may still commit under the per-turn cap (None: no request,
-        no per-turn cap -- scripts, and planner v2, which caps its own turn)."""
-        if self.request_id is None:
+        no per-turn cap -- scripts)."""
+        if self.turn_request_id is None:
             return None
-        return turn_cap_usd() - turn_committed_usd(self.request_id)
+        return turn_cap_usd() - turn_committed_usd(self.turn_request_id)
 
     def affords(self, *worst_usd: float) -> bool:
         """Would calls with these worst cases, made one after another, fit this request's per-turn cap?
@@ -507,7 +525,10 @@ class Meter:
         model = str(kwargs.get("model") or "")
         worst = worst_case_usd(kwargs)
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category=category, model=model,
-                      worst_usd=worst, site_reader=self.site_reader, counts_as_call=counts_as_call)
+                      worst_usd=worst, site_reader=self.site_reader, counts_as_call=counts_as_call,
+                      turn_request_id=self.turn_request_id)
+        if self.heartbeat is not None:
+            self.heartbeat()
         try:
             resp = fn(**kwargs)
         except Exception as e:
@@ -535,7 +556,10 @@ class Meter:
 
     def research(self, fn: Callable[[], dict]) -> dict:
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category="research", model="perplexity",
-                      worst_usd=research_worst_case_usd(), site_reader=self.site_reader, counts_as_call=False)
+                      worst_usd=research_worst_case_usd(), site_reader=self.site_reader, counts_as_call=False,
+                      turn_request_id=self.turn_request_id)
+        if self.heartbeat is not None:
+            self.heartbeat()
         try:
             res = fn()
         except Exception:

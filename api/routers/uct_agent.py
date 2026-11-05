@@ -269,10 +269,11 @@ class ResumeIn(BaseModel):
     voice: bool = False
 
 
-def _v2_waiter(q: "queue.Queue"):
-    from api.services.uct_agent import turn_v2
+def _v2_waiter(q: "queue.Queue", uid):
+    from api.services.uct_agent import limits, turn_v2
 
     def wait_step(step_id: str):
+        limits.renew(uid)                             # a step may wait longer than the in-flight lease
         deadline = time.monotonic() + turn_v2.STEP_TIMEOUT_S
         while True:
             left = deadline - time.monotonic()
@@ -292,7 +293,7 @@ def _v2_register(uid) -> tuple[str, dict]:
     token, q = turn_v2.new_turn_token(), queue.Queue()
     with _V2_LOCK:
         _V2_STEPS[token] = (q, str(uid))
-    return token, {"wait_step": _v2_waiter(q), "turn_token": token}
+    return token, {"wait_step": _v2_waiter(q, uid), "turn_token": token}
 
 
 def _v2_unregister(token: str) -> None:
@@ -403,8 +404,9 @@ def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -
         _V2_STEPS[token] = (q, str(uid))
     try:
         out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=None),
-                             v2={"wait_step": _v2_waiter(q), "turn_token": token, "resume": p["state"],
+                             meter=budget.Meter(user_id=uid, request_id=None, heartbeat=lambda: limits.renew(uid),
+                                                turn_request_id=p["state"].get("turn_request_id")),
+                             v2={"wait_step": _v2_waiter(q, uid), "turn_token": token, "resume": p["state"],
                                  "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
                                                    "added": body.added}})
     except budget.BudgetRefused as e:
@@ -592,7 +594,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         nameable = None                   # a headline's chat keeps its "News: …" name (the member may rename it)
     pre_ms = _ms(t0)
     # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
-    # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
+    # its rounds are metered per call with the request's dollars (turn_request_id; the 2-call ceiling is v1's), never by routing
     v2 = None
     # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
     from api.services.uct_agent import coach as agent_coach
@@ -613,7 +615,9 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id), reroute=body.reroute,
+                             meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id,
+                                                turn_request_id=request_id, heartbeat=lambda: limits.renew(uid)),
+                             reroute=body.reroute,
                              interpreter=body.interpreter, repair=body.repair, reference=body.reference,
                              headline=headline, answer_only=answer_only, v2=v2)
     except budget.BudgetRefused as e:
@@ -878,7 +882,8 @@ class DataReadIn(BaseModel):
 @router.post("/api/agent/data")
 def agent_data(body: DataReadIn, user: dict = Depends(require_admin_dark)):
     """One MD-1 market-data read (services/uct_agent/marketdata/gateway.py) -> a DataEnvelope. Read-only, no
-    model call. Dark twice: admin-dark like every route here, and refused unless UCT_AGENT_DATA=1."""
+    model call; research.company may run one metered web lookup. Dark twice: admin-dark like every route here, and
+    refused unless UCT_AGENT_DATA=1."""
     from api.services.uct_agent.marketdata import gateway
     return gateway.read(body.kind, body.params, user_id=user.get("id"), turn_id=body.turn_id, purpose=body.purpose)
 
