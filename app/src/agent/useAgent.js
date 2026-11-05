@@ -1683,6 +1683,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return r
   }
   const stepUnread = (r) => !!r && !r.noop && (!!r.say || !r.ops?.length || r.ops.length > MAX_STEP_OPS)
+  // the up-front check can judge only a step that stands on its own: one that refers back ("make it orange" after "…, add
+  // the 21 ema") reads only once the step before it has run — the run itself (`whole`) is all or nothing for those
+  const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new one|the new chart|the same)\b/i.test(String(t || ""))
+  const preUnread = (step) => step.kind !== "undo" && !refersBack(step.text) && stepUnread(readStepRef.current(step, null))
 
   // `whole` (NLM-1 multi-step REWRITES only): the steps are NLM-1's reading of ONE message the member typed, so they run all
   // or not at all — a step that is not read, or does not go through, never ends in "stopped at …": nothing run yet → the
@@ -1845,7 +1849,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           // ⛔ ALL OR NOTHING (AUDIT, #806): a reading made of STEPS is taken only when EVERY step reads on this board now —
           // otherwise NLM-1 declines and the member's message goes on exactly as typed (to the planner, as v1 sends it).
           // NLM-1 never stops a request v1 would have handed to the planner.
-          const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => stepUnread(readStepRef.current({ kind: 'fast', text: x }, null))) : -1
+          const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => preUnread({ kind: 'fast', text: x })) : -1
           if (unreadStep >= 0) { mark('nlm1:rewrite-declined', `${rw.rule}:${unreadStep}`); rw = null }
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
           // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
@@ -2231,7 +2235,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // member's ORIGINAL message goes on to the model, exactly as v1 sends it — never "stopped at …" where v1 would ask
         const typed = String(raw || '').trim()
         const reworded = text !== typed
-        const unread = reworded && compound.steps.some(st => st.kind !== 'undo' && stepUnread(readStepRef.current(st, null)))
+        const unread = reworded && compound.steps.some(preUnread)
         if (!unread) {
           const ran = await runCompound(compound.steps, { member: text, voice, whole: reworded })
           if (!ran?.fallback) return ran
