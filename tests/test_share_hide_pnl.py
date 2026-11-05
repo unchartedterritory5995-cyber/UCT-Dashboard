@@ -1,0 +1,183 @@
+"""Audit 2026-11-05, S19 -- "Hide my P&L and position size" on a share link really hides them, server-side, and
+the preview is the stranger's read of the member's own note.
+
+The account kinds (`myPnlStats`, `myPositionsRisk`, ...) are "member-optin": a stranger sees their figures only when
+the member switched the widget's `share` on. A link minted with `hidePnl: true` shows the private line for every one
+of them, `share` or not. A link minted without the field (an older client) serves exactly as before.
+"""
+from __future__ import annotations
+
+import importlib
+import json
+import os
+import sqlite3
+import tempfile
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from api.middleware import auth_middleware as authmw
+
+A, B = "user-alpha-s19", "user-bravo-s19"
+PNL = {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "myPnlStats", "mode": "snapshot",
+                                         "params": {"share": True, "netPnl": 4321.5, "winRate": 0.61,
+                                                    "tradeCount": 12, "asOf": "2026-11-04"}}}
+RISK = {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "myPositionsRisk", "mode": "snapshot",
+                                          "params": {"share": True, "accountSize": 250000,
+                                                     "rows": [{"symbol": "NVDA", "sizePct": 12.5, "openPnl": 900}]}}}
+BODY = {"type": "doc", "content": [
+    {"type": "paragraph", "content": [{"type": "text", "text": "My plan for NVDA."}]}, PNL, RISK]}
+
+
+@pytest.fixture
+def db_path(monkeypatch):
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
+    monkeypatch.setenv("J2_SHARE_LINKS_ENABLED", "1")
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    yield tmp.name
+    for suffix in ("", "-wal", "-shm"):
+        try:
+            os.unlink(tmp.name + suffix)
+        except OSError:
+            pass
+
+
+@pytest.fixture(autouse=True)
+def _fresh_limiter():
+    from api.limiter import limiter
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
+@pytest.fixture
+def client(db_path):
+    from api.routers import notebook_shares
+    fa = FastAPI()
+    fa.include_router(notebook_shares.router)
+    c = TestClient(fa)
+    c.app_ref = fa
+    yield c
+    fa.dependency_overrides.clear()
+
+
+def as_member(client, uid):
+    user = {"id": uid, "role": "member", "plan": "pro"}
+    client.app_ref.dependency_overrides[authmw.get_current_user] = lambda: dict(user)
+    client.app_ref.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
+
+
+def signed_out(client):
+    client.app_ref.dependency_overrides.clear()
+
+
+def _note(uid=A):
+    from api.services.journal_two import notes
+    return notes.create_note(uid, {"title": "NVDA flag into earnings", "bodyJson": BODY})["id"]
+
+
+def _text(payload) -> str:
+    return json.dumps(payload)
+
+
+def _widget_ids(payload) -> list:
+    out = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "widgetEmbed":
+                out.append(n.get("attrs", {}).get("widgetId"))
+            for c in n.get("content") or []:
+                walk(c)
+    walk(payload["bodyJson"])
+    return out
+
+
+def test_hide_pnl_true_hides_every_account_figure_even_one_switched_to_share(client):
+    nid = _note()
+    as_member(client, A)
+    r = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7, "hidePnl": True})
+    assert r.status_code == 200 and r.json()["share"]["hidePnl"] is True
+    token = r.json()["share"]["token"]
+    signed_out(client)
+    page = client.get(f"/api/j2/shared/{token}").json()["note"]
+    text = _text(page)
+    assert "My plan for NVDA." in text                      # the member's words still travel
+    assert "4321" not in text and "250000" not in text and "12.5" not in text
+    assert _widget_ids(page) == []
+    from api.services.journal_two.public_note_payload import ACCOUNT_NEUTRAL_LINE
+    assert ACCOUNT_NEUTRAL_LINE in text
+
+
+def test_CONTROL_without_hide_pnl_a_switched_widget_still_shows_as_before(client):
+    nid = _note()
+    as_member(client, A)
+    token = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7}).json()["share"]["token"]
+    signed_out(client)
+    page = client.get(f"/api/j2/shared/{token}").json()["note"]
+    assert "myPnlStats" in _widget_ids(page) and "4321" in _text(page)
+
+
+def test_hide_pnl_must_be_a_boolean(client):
+    nid = _note()
+    as_member(client, A)
+    from api.services.journal_two import note_shares
+    for bad in ("true", 1, None, [True]):
+        r = client.post(f"/api/j2/notes/{nid}/share", json={"expiresInDays": 7, "hidePnl": bad})
+        assert r.status_code == 422, (bad, r.text)
+        assert note_shares.get_share(A, nid) is None, bad
+
+
+def test_the_preview_is_the_strangers_read_and_writes_nothing(client):
+    nid = _note()
+    as_member(client, A)
+    from api.services.auth_db import get_connection
+    before = get_connection().execute("SELECT COUNT(*) FROM j2_note_shares").fetchone()[0]
+    hidden = client.get(f"/api/j2/notes/{nid}/share/preview?hidePnl=true")
+    shown = client.get(f"/api/j2/notes/{nid}/share/preview?hidePnl=false")
+    assert hidden.status_code == 200 and shown.status_code == 200
+    assert "4321" not in _text(hidden.json()) and "4321" in _text(shown.json())
+    assert hidden.headers.get("cache-control") == "no-store, private"
+    assert get_connection().execute("SELECT COUNT(*) FROM j2_note_shares").fetchone()[0] == before
+    # The default (no query) is the safe one: hidden.
+    assert "4321" not in _text(client.get(f"/api/j2/notes/{nid}/share/preview").json())
+
+
+def test_the_preview_is_owner_only_and_a_foreign_note_is_the_missing_answer(client):
+    nid = _note(A)
+    as_member(client, B)
+    on_a = client.get(f"/api/j2/notes/{nid}/share/preview")
+    on_missing = client.get("/api/j2/notes/no-such-note/share/preview")
+    assert on_a.status_code == 404 and on_a.content == on_missing.content
+    signed_out(client)
+    assert client.get(f"/api/j2/notes/{nid}/share/preview").status_code == 401
+
+
+def test_the_column_is_added_to_an_older_table_and_old_rows_read_as_not_hidden(db_path):
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import note_shares
+    conn = get_connection()
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_shares)").fetchall()}
+    assert cols, "the j2 schema made the share table"
+    if "hide_pnl" in cols:
+        # Simulate a table from before S19: rebuild it without the column.
+        conn.execute("ALTER TABLE j2_note_shares RENAME TO j2_note_shares_new")
+        keep = [c for c in cols if c != "hide_pnl"]
+        conn.execute(f"CREATE TABLE j2_note_shares AS SELECT {', '.join(keep)} FROM j2_note_shares_new WHERE 0")
+        conn.execute("DROP TABLE j2_note_shares_new")
+        conn.commit()
+    nid = _note()
+    conn.execute("INSERT INTO j2_note_shares (token, note_id, user_id, created_at)"
+                 " VALUES ('old-token-s19', ?, ?, '2026-11-01T00:00:00Z')", (nid, A))
+    conn.commit()
+    note_shares._SCHEMA_READY.clear()
+    share = note_shares.get_share(A, nid, conn=conn)
+    assert share["token"] == "old-token-s19" and share["hidePnl"] is False
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_shares)").fetchall()}
+    assert {"expires_at", "hide_pnl"} <= cols
+    conn.close()

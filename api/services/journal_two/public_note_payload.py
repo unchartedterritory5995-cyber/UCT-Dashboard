@@ -1305,8 +1305,12 @@ class _Ctx:
                  note_links: Mapping[str, tuple[str, str]], attachment_base: str = "", *,
                  images_on: frozenset = frozenset(), brokers: tuple[str, ...] = (),
                  image_src_for: Callable[[str], str] | None = None, report: list | None = None,
-                 owner_id: str = "", note_id: str = "", offered: list | None = None):
+                 owner_id: str = "", note_id: str = "", offered: list | None = None,
+                 hide_account: bool = False):
         self.mode = mode
+        #: Audit 2026-11-05, S19: a share link minted with "Hide my P&L and position size". Every account kind is
+        #: the private line, whatever its own `share` switch says.
+        self.hide_account = hide_account is True
         self.facts = facts
         self.note_links = note_links
         self.attachment_base = attachment_base
@@ -1563,7 +1567,7 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
         if _is_account_kind(widget_id):
             # The member's switch, read BEFORE the vendor verdict (which is NEUTRAL for this vendor).
             # Only a real boolean True shows: "true", 1 and everything else are the neutral line.
-            if params.get("share") is not True:
+            if ctx.hide_account or params.get("share") is not True:
                 return [_neutral_for_embed(widget_id)]
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
@@ -1835,6 +1839,7 @@ def reduce(
     image_src_for: Callable[[str], str] | None = None,
     report: list | None = None,
     offered: list | None = None,
+    hide_account: bool = False,
 ) -> dict:
     """The public copy of one note's body.
 
@@ -1864,7 +1869,7 @@ def reduce(
         raw = raw.replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
     ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base, images_on=images_on, brokers=brokers,
                image_src_for=image_src_for, report=report, owner_id=owner_id, note_id=note_id,
-               offered=offered)
+               offered=offered, hide_account=hide_account)
     token = _PLACED.set(set())
     try:
         reduced = _reduce_node(json.loads(raw), ctx)
@@ -1889,14 +1894,15 @@ def public_hero(hero: Any, *, owner_id: str, note_id: str, attachment_base: str)
 
 def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: str,
                 attachment_base: str, facts: Mapping[str, Mapping[str, Any]] | None = None,
-                note_links: Mapping[str, tuple[str, str]] | None = None) -> dict:
-    """The public payload of one note: EXACTLY `PUBLIC_NOTE_KEYS`."""
+                note_links: Mapping[str, tuple[str, str]] | None = None, hide_account: bool = False) -> dict:
+    """The public payload of one note: EXACTLY `PUBLIC_NOTE_KEYS`. `hide_account` (S19): every account figure is
+    the private line, whatever its own `share` switch says."""
     return {
         "title": note.get("title") or "",
         "subtitle": note.get("subtitle"),
         "bodyJson": reduce(note.get("bodyJson") or {}, mode=mode, owner_id=owner_id,
                            note_id=note_id, attachment_base=attachment_base, facts=facts,
-                           note_links=note_links),
+                           note_links=note_links, hide_account=hide_account),
         "heroImageUrl": public_hero(note.get("heroImageUrl"), owner_id=owner_id,
                                     note_id=note_id, attachment_base=attachment_base),
         "updatedAt": note.get("updatedAt"),

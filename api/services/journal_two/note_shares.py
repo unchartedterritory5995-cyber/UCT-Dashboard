@@ -92,6 +92,14 @@ def _db_key(conn: sqlite3.Connection) -> str:
     return ""
 
 
+#: The columns this module adds to `j2_note_shares`, additively, in order. Audit 2026-11-05 (S19): `hide_pnl` --
+#: "Hide my P&L and position size". DEFAULT 0, so a link minted before it existed serves exactly as it did.
+_ADDED_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("expires_at", "expires_at TEXT"),
+    ("hide_pnl", "hide_pnl INTEGER NOT NULL DEFAULT 0"),
+)
+
+
 def ensure_share_schema(conn: sqlite3.Connection) -> None:
     """Add `expires_at` if it is missing -- WITHOUT ever committing a transaction the
     caller has open on `conn` (wave-8 final review M-8).
@@ -107,17 +115,18 @@ def ensure_share_schema(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_shares)").fetchall()}
     if not cols:
         return  # the j2 schema has not run here: nothing to alter (and nothing to read)
-    if "expires_at" not in cols:
-        callers_txn = conn.in_transaction
+    callers_txn = conn.in_transaction
+    missing = [(c, ddl) for c, ddl in _ADDED_COLUMNS if c not in cols]
+    for _col, ddl in missing:
         try:
-            conn.execute("ALTER TABLE j2_note_shares ADD COLUMN expires_at TEXT")
+            conn.execute(f"ALTER TABLE j2_note_shares ADD COLUMN {ddl}")
             if not callers_txn:
                 conn.commit()
         except sqlite3.OperationalError as e:  # a concurrent ensure won the race
             if "duplicate column" not in str(e).lower():
                 raise
-        if callers_txn:
-            return
+    if missing and callers_txn:
+        return
     if key:
         _SCHEMA_READY.add(key)
 
@@ -154,7 +163,8 @@ def _owned(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:
 
 
 def _public_row(row: sqlite3.Row) -> dict[str, Any]:
-    return {"token": row["token"], "createdAt": row["created_at"], "expiresAt": row["expires_at"]}
+    return {"token": row["token"], "createdAt": row["created_at"], "expiresAt": row["expires_at"],
+            "hidePnl": bool(row["hide_pnl"])}
 
 
 def get_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
@@ -164,7 +174,7 @@ def get_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None
     try:
         ensure_share_schema(conn)
         row = conn.execute(
-            "SELECT token, created_at, expires_at FROM j2_note_shares"
+            "SELECT token, created_at, expires_at, hide_pnl FROM j2_note_shares"
             f" WHERE note_id = ? AND user_id = ? AND {_active_sql()}",
             (note_id, user_id, _now_iso()),
         ).fetchone()
@@ -175,11 +185,15 @@ def get_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None
 
 
 def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
-                 expires_in_days: int | None = None) -> dict | None:
+                 expires_in_days: int | None = None, hide_pnl: bool = False) -> dict | None:
     """Mint (or return the existing active) share token. None = not the
     caller's note, or one in Trash or archived (M-3). An existing active
-    link keeps its own expiry: to change it,
-    revoke and create again (the old URL must die, not quietly live longer)."""
+    link keeps its own expiry and its own `hide_pnl`: to change either,
+    revoke and create again (the old URL must die, not quietly live longer).
+
+    `hide_pnl` (audit 2026-11-05, S19, "Hide my P&L and position size"): the public read then shows every
+    account figure (P&L, open positions and their size: the member-opt-in kinds) as the private line, even one
+    the member switched `share` on for in the editor."""
     days = validate_expiry(expires_in_days)
     owned = conn is None
     conn = conn or get_connection()
@@ -194,12 +208,12 @@ def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = N
         now = _now()
         expires = _iso(now + timedelta(days=days)) if days else None
         conn.execute(
-            "INSERT INTO j2_note_shares (token, note_id, user_id, created_at, expires_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (token, note_id, user_id, _iso(now), expires),
+            "INSERT INTO j2_note_shares (token, note_id, user_id, created_at, expires_at, hide_pnl)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (token, note_id, user_id, _iso(now), expires, 1 if hide_pnl is True else 0),
         )
         conn.commit()
-        return {"token": token, "createdAt": _iso(now), "expiresAt": expires}
+        return {"token": token, "createdAt": _iso(now), "expiresAt": expires, "hidePnl": hide_pnl is True}
     finally:
         if owned:
             conn.close()
@@ -228,7 +242,7 @@ def _live_share_row(conn: sqlite3.Connection, token: str) -> sqlite3.Row | None:
     neither trashed nor archived. One predicate for the page and its images."""
     ensure_share_schema(conn)
     row = conn.execute(
-        "SELECT s.note_id, s.user_id FROM j2_note_shares s"
+        "SELECT s.note_id, s.user_id, s.hide_pnl FROM j2_note_shares s"
         " JOIN j2_notes n ON n.id = s.note_id AND n.user_id = s.user_id"
         f" WHERE s.token = ? AND {_active_sql('s')}"
         " AND n.deleted_at IS NULL AND n.archived_at IS NULL",
@@ -261,7 +275,34 @@ def _share_payload(conn: sqlite3.Connection, token: str, row: sqlite3.Row) -> di
         note, mode="share", owner_id=row["user_id"], note_id=row["note_id"],
         attachment_base=SHARED_ATTACHMENT_BASE.format(token=token),
         facts=public.public_facts(conn, row["user_id"], row["note_id"]),
+        hide_account=bool(row["hide_pnl"]),
     )
+
+
+def preview_share(user_id: str, note_id: str, *, hide_pnl: bool,
+                  conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """Audit 2026-11-05, S19: the preview of what a link's reader will see. The SAME reducer and the same share
+    mode a stranger's read runs, over the caller's OWN live note, before any link exists. None = not the caller's
+    live note (the route's one 404). Images point at the owner's own attachment route, which only the owner can
+    load, so no token is minted for a preview. Nothing is written."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ensure_share_schema(conn)
+        if not _owned(conn, user_id, note_id):
+            return None
+        note = public.read_public_note(conn, user_id, note_id)
+        if not note:
+            return None
+        return public.public_note(
+            note, mode="share", owner_id=user_id, note_id=note_id,
+            attachment_base=f"/api/j2/notes/attachments/{user_id}/{note_id}/",
+            facts=public.public_facts(conn, user_id, note_id),
+            hide_account=hide_pnl is True,
+        )
+    finally:
+        if owned:
+            conn.close()
 
 
 def _note_revision(conn: sqlite3.Connection, owner_id: str, note_id: str) -> Any:

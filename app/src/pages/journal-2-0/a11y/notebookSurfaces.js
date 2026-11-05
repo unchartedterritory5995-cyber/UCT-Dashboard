@@ -343,6 +343,8 @@ export const SURFACES = Object.freeze({
     // added, so 8A wrote the rail in its own directory (no 8B file edited).
     OTHER_LANES: { lane: '8B', railFile: 'a11y/sharing.a11y.test.jsx' },
   },
+  // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.
+  'components/notebook/NoteSharePanel.jsx': { coveredBy: 'share-popover' },
   // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
   // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },

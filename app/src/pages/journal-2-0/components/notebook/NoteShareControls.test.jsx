@@ -42,10 +42,13 @@ beforeEach(() => {
       if (method === 'POST') {
         if (S.shareStatus !== 200) return json(S.shareStatus, { detail: 'Share links require a paid plan' })
         S.share = { token: 'tokABC', createdAt: '2026-09-25T00:00:00Z',
-          expiresAt: body?.expiresInDays ? '2026-10-25T12:00:00Z' : null }
+          expiresAt: body?.expiresInDays ? '2026-10-25T12:00:00Z' : null, hidePnl: body?.hidePnl === true }
         return json(200, { share: S.share })
       }
       if (method === 'DELETE') { S.share = null; return json(200, { revoked: true }) }
+    }
+    if (u.startsWith(`/api/j2/notes/${NOTE}/share/preview`)) {
+      return json(200, { note: { title: 'NVDA plan', bodyJson: { type: 'doc', content: [{ type: 'paragraph' }] } } })
     }
     if (u === `/api/j2/publish?note_id=${NOTE}`) {
       return json(200, { publications: S.pubs, shares: [],
@@ -78,7 +81,8 @@ function mount(flags, onMessage = vi.fn()) {
 
 async function openDoor() {
   fireEvent.click(screen.getByRole('button', { name: /share/i }))
-  const dialog = await screen.findByRole('dialog', { name: 'Share this note' })
+  // S19 (M5): the sheet names the note it shares.
+  const dialog = await screen.findByRole('dialog', { name: 'Share "NVDA plan"' })
   await waitFor(() => expect(within(dialog).queryByText('Loading…')).toBeNull())
   return dialog
 }
@@ -118,25 +122,63 @@ describe('who sees the door', () => {
 })
 
 describe('share links', () => {
-  it('the closed state says what a link does and offers the four expiries', async () => {
+  it("S19 (M5): the closed state says what a link does, 7 days first and chosen, P&L hidden by default", async () => {
     mount({ j2_share_links_enabled: true, notebook_publish_enabled: false })
     const dialog = await openDoor()
-    expect(within(dialog).getByRole('heading', { name: 'Share link' })).toBeInTheDocument()
-    expect(dialog).toHaveTextContent(
-      'Anyone with the link can read this note without signing in. Price charts are not shown.')
-    const select = within(dialog).getByLabelText('Link stops working')
-    expect([...select.options].map((o) => o.textContent)).toEqual(
-      ['Never', 'After 7 days', 'After 30 days', 'After 90 days'])
-    expect(within(dialog).queryByRole('heading', { name: 'Publish to the web' })).toBeNull()
+    expect(within(dialog).getByRole('region', { name: 'Private link' })).toBeInTheDocument()
+    expect(dialog).toHaveTextContent("Anyone with the link can read this note. They don't need an account.")
+    const group = within(dialog).getByRole('group', { name: 'Expires in' })
+    expect(within(group).getAllByRole('radio').map((r) => r.closest('label').textContent)).toEqual(['7 days', '30 days', 'Never'])
+    expect(within(group).getByRole('radio', { name: '7 days' })).toBeChecked()
+    expect(within(dialog).getByRole('switch', { name: 'Hide my P&L and position size' })).toBeChecked()
+    // No "Show live charts": the server cannot honour it (charts are the neutral line), so it is never offered.
+    expect(within(dialog).queryByText(/live charts/i)).toBeNull()
+    expect(within(dialog).getByRole('button', { name: "Preview: see exactly what they'll see →" })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('tab')).toBeNull()                       // one capability, no tabs
+    expect(within(dialog).queryByRole('region', { name: 'Publish to the web' })).toBeNull()
   })
 
-  it('Create link sends the chosen expiry, copies the address and says so', async () => {
+  it('S19: with both on, "Private link" is the first tab and the default; "Publish to the web" is the second', async () => {
+    mount({ j2_share_links_enabled: true, notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    const tabs = within(dialog).getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Private link', 'Publish to the web'])
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+    expect(within(dialog).getByRole('tabpanel', { name: 'Private link' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Publish this note' })).toBeNull()
+    fireEvent.keyDown(tabs[0], { key: 'ArrowRight' })
+    expect(within(dialog).getByRole('tab', { name: 'Publish to the web' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(dialog).getByRole('button', { name: 'Publish this note' })).toBeInTheDocument()
+  })
+
+  it("S19: the preview is the server's read for exactly this switch, and follows it", async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: "Preview: see exactly what they'll see →" }))
+    await waitFor(() => expect(S.calls.some((c) => c.url === `/api/j2/notes/${NOTE}/share/preview?hidePnl=true`)).toBe(true))
+    expect(within(dialog).getByRole('region', { name: 'Preview of the shared page' })).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Hide my P&L and position size' }))
+    await waitFor(() => expect(S.calls.some((c) => c.url === `/api/j2/notes/${NOTE}/share/preview?hidePnl=false`)).toBe(true))
+    expect(S.calls.filter((c) => c.method !== 'GET')).toEqual([])            // a preview writes nothing
+  })
+
+  it('S19: Cancel closes the sheet and makes nothing', async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(S.calls.filter((c) => c.method === 'POST')).toEqual([])
+  })
+
+  it('Create link and copy sends the chosen expiry and the P&L switch, copies the address and says so', async () => {
     const { onMessage } = mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
-    fireEvent.change(within(dialog).getByLabelText('Link stops working'), { target: { value: '30' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: '30 days' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
     await within(dialog).findByText('Share link created and copied.')
-    expect(S.calls.find((c) => c.method === 'POST').body).toEqual({ expiresInDays: 30 })
+    expect(S.calls.find((c) => c.method === 'POST').body).toEqual({ expiresInDays: 30, hidePnl: true })
+    expect(dialog).toHaveTextContent('P&L and position size are hidden on this link.')
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(sharedNoteUrl('tokABC'))
     expect(onMessage).toHaveBeenCalledWith('Share link created and copied.')
     expect(within(dialog).getByLabelText('Share link address')).toHaveValue(sharedNoteUrl('tokABC'))
@@ -164,14 +206,14 @@ describe('share links', () => {
     await within(dialog).findByText('Link revoked. It no longer works.')
     expect(S.calls.some((c) => c.method === 'DELETE' && c.url === `/api/j2/notes/${NOTE}/share`)).toBe(true)
     expect(onMessage).toHaveBeenCalledWith('Link revoked. It no longer works.')
-    expect(within(dialog).getByRole('button', { name: 'Create link' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Create link and copy' })).toBeInTheDocument()
   })
 
   it("a refusal shows the server's own sentence", async () => {
     S.shareStatus = 402
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
     await waitFor(() => expect(statusText(dialog)).toContain('Share links require a paid plan'))
   })
 })
@@ -180,14 +222,14 @@ describe('publish to the web', () => {
   it('offers this note and its folder by name, and states the folder cap', async () => {
     mount({ j2_share_links_enabled: false, notebook_publish_enabled: true })
     const dialog = await openDoor()
-    expect(within(dialog).getByRole('heading', { name: 'Publish to the web' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('region', { name: 'Publish to the web' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent(
       'A published page can be read by anyone with its address, without signing in. Search engines are asked not to index it.')
     expect(within(dialog).getByRole('button', { name: 'Publish this note' })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Publish folder "Weekly plans"' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent(
       'Publishes up to 500 notes in this folder and the folders inside it. A note added later appears when you update the page in Settings.')
-    expect(within(dialog).queryByRole('heading', { name: 'Share link' })).toBeNull()
+    expect(within(dialog).queryByRole('region', { name: 'Private link' })).toBeNull()
   })
 
   it('Publish this note publishes, copies the page link and says so; Unpublish takes it down', async () => {
@@ -264,12 +306,12 @@ describe('focus follows the swap (M-1)', () => {
   it('Create link -> Copy link; Revoke link -> Create link', async () => {
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
-    press(dialog, 'Create link')
+    press(dialog, 'Create link and copy')
     await within(dialog).findByText('Share link created and copied.')
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy link' })))
     press(dialog, 'Revoke link')
     await within(dialog).findByText('Link revoked. It no longer works.')
-    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Create link' })))
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Create link and copy' })))
   })
 
   it('Publish this note -> Copy page link; Unpublish -> Publish this note', async () => {
@@ -300,9 +342,9 @@ describe('focus follows the swap (M-1)', () => {
     S.shareStatus = 402
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
-    press(dialog, 'Create link')
+    press(dialog, 'Create link and copy')
     await waitFor(() => expect(statusText(dialog)).toContain('Share links require a paid plan'))
-    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Create link' }))
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Create link and copy' }))
   })
 })
 
@@ -317,9 +359,10 @@ describe('ids are per instance (M-3)', () => {
     S.share = null
     const dialog = await openDoor()
     // labelled and described through the generated ids
-    expect(within(dialog).getByLabelText('Link stops working').tagName).toBe('SELECT')
-    expect(within(dialog).getByRole('region', { name: 'Share link' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('region', { name: 'Publish to the web' })).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Hide my P&L and position size').getAttribute('role')).toBe('switch')
+    expect(within(dialog).getByRole('tabpanel', { name: 'Private link' })).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Publish to the web' }))
+    expect(within(dialog).getByRole('tabpanel', { name: 'Publish to the web' })).toBeInTheDocument()
   })
 
   it('two popovers open at once share no id', async () => {
@@ -352,7 +395,8 @@ describe('the 44px touch floor', () => {
   })
 
   it('VIS-3: Create link is the one solid primary; Publish is an outline; no bespoke .action class', () => {
-    const jsx = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteShareControls.jsx'), 'utf8')
+    // S19: the sheet's content is the lazy NoteSharePanel.jsx.
+    const jsx = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteSharePanel.jsx'), 'utf8')
     expect(jsx).toMatch(/className="btn btn-primary btn-sm" onClick=\{createLink\}/)
     expect(jsx).toMatch(/className="btn btn-outline btn-sm" onClick=\{\(\) => askPublish\('note'\)\}/)
     expect(jsx).not.toMatch(/styles\.action/)
@@ -369,7 +413,7 @@ describe('share_used and publish_used — the editor door counts actions, and no
   it('create, copy and revoke each send ONE share_used with the action word', async () => {
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
     await within(dialog).findByText('Share link created and copied.')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Copy link' }))
     await within(dialog).findByText('Share link copied.')
@@ -402,7 +446,7 @@ describe('share_used and publish_used — the editor door counts actions, and no
     S.shareStatus = 402
     mount({ j2_share_links_enabled: true })
     const dialog = await openDoor()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link and copy' }))
     await waitFor(() => expect(statusText(dialog)).toContain('Share links require a paid plan'))
     expect(telemetry()).toEqual([])
   })
@@ -443,7 +487,7 @@ describe('S1: publishing asks first', () => {
     await waitFor(() => expect(document.activeElement).toBe(within(confirmDialog).getByRole('button', { name: 'Cancel' })))
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Publish to the web?' })).toBeNull())
-    expect(screen.getByRole('dialog', { name: 'Share this note' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Share "NVDA plan"' })).toBeInTheDocument()
     expect(publishCalls()).toEqual([])
   })
 
@@ -454,7 +498,7 @@ describe('S1: publishing asks first', () => {
     await screen.findByRole('dialog', { name: 'Publish to the web?' })
     fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Publish to the web?' })).toBeNull())
-    expect(screen.getByRole('dialog', { name: 'Share this note' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Share "NVDA plan"' })).toBeInTheDocument()
     expect(publishCalls()).toEqual([])
   })
 
