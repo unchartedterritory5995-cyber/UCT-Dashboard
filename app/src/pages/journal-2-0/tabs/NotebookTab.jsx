@@ -84,6 +84,7 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 // the first open. `OTHER_TOURS` is one frozen module-level array (tourRegistry.js), so the
 // gate's own effects see a stable list.
 import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
+import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
@@ -590,6 +591,16 @@ export default function NotebookTab() {
     try { localStorage.setItem('uct.j2.nb.sidebarOpen', next ? '1' : '0') } catch { /* private mode */ }
     return next
   })
+  // S12 (audit 2026-11-05, B13): on a phone, inside a note, Folders opens the folders panel as a BOTTOM SHEET. ⚰️ It
+  // flipped `sidebarOpen` while the note-open rule kept the panel hidden, so the button vanished and nothing showed.
+  // The sheet is the same panel (one FolderSidebar), drawn over the note by CSS while `data-folder-sheet` is set;
+  // the scrim, the panel's own Hide button or opening anything closes it.
+  const [folderSheet, setFolderSheet] = useState(false)
+  useEffect(() => { setFolderSheet(false) }, [noteId])
+  const openFolders = () => {
+    if (noteId) setFolderSheet(true)
+    if (!sidebarOpen) toggleSidebar()
+  }
 
   // Lane KEYS: the command palette's "Search Notebook" arrives with `#search`
   // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
@@ -2233,6 +2244,7 @@ export default function NotebookTab() {
       // phone rule in NotebookTab.module.css hides the panel; the note is the
       // page, and the phone back control below returns to the list.
       data-note-open={noteId ? 'true' : undefined}
+      data-folder-sheet={noteId && folderSheet && sidebarOpen ? '' : undefined}
     >
       {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
           folder tree, straight to the note or the list. Visually hidden until
@@ -2355,11 +2367,24 @@ export default function NotebookTab() {
       )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
+      {/* B13: inside a note on a phone the panel is hidden by the note-open rule even while "open", so this door
+          is drawn there too (phone only, CSS) and opens the folders sheet. */}
+      {noteId && sidebarOpen && !folderSheet && (
+        <button type="button" className={`${styles.sidebarToggle} ${styles.noteFoldersBtn}`} onClick={openFolders}
+          aria-label="Show folders" title="Show folders">
+          <SidebarToggleIcon />
+          <span className={styles.sidebarToggleLabel} aria-hidden="true">Folders</span>
+        </button>
+      )}
+      {noteId && folderSheet && sidebarOpen && (
+        <button type="button" className={styles.folderSheetScrim} onClick={() => setFolderSheet(false)}
+          aria-label="Close folders" />
+      )}
       {!sidebarOpen && (
         <button
           type="button"
           className={styles.sidebarToggle}
-          onClick={toggleSidebar}
+          onClick={openFolders}
           aria-label="Show folders panel"
           title="Show folders"
         >
@@ -3109,6 +3134,9 @@ export default function NotebookTab() {
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
+      {/* S12 (M9): the phone Notebook's one floating "+" (phone only, CSS). Its rows are this tab's own doors. */}
+      <NotebookPlusFab onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
+        askAi={auth?.isPaid === true} busy={creating} />
     </div>
     </SplitViewContext.Provider>
   )

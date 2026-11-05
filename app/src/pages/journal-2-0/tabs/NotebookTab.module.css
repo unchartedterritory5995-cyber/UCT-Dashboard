@@ -343,6 +343,10 @@
   .toolBtn { min-width: var(--tap-min, 44px); }
 }
 
+/* S12 (B13): the in-note Folders door and the sheet's scrim exist on a phone only. */
+.noteFoldersBtn { display: none; }
+.folderSheetScrim { display: none; }
+
 /* The toggle's word is phone-only: on a wider screen the icon sits beside the panel it opens. */
 .sidebarToggleLabel { display: none; }
 
@@ -384,7 +388,9 @@
      24 px side gutter, and the editor column adds its own for the block handles. This pane's 20 px
      on top of both left the note body 270 px wide on a 390 px screen. ⛔ ONE `.main` rule in this
      block: NotebookTab.fabOrbClearance.test.js reads the LAST one for the bottom clearance. */
-  .main { overflow: visible; padding-bottom: 150px; padding-left: 0; padding-right: 0; }
+  /* S12 (V4, issue 14): 96 px clears the ONE floating "+" (56 px at bottom 16 px); the Log-Trade FAB never rendered
+     on the Notebook and the orb gives way to the "+" here, so the old 150 px only cost the list a screen's end. */
+  .main { overflow: visible; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); padding-left: 0; padding-right: 0; }
   /* Phones stack the panel above the notes when it IS shown — the slide/resize
    * affordances stay desktop-only either way. D-7 fix: it is no longer forced
    * open regardless of `collapsed` — List's own landing still shows it (its
@@ -628,6 +634,35 @@
 @media (max-width: 640px) {
   .wrap[data-note-open] .sidebarSlot {
     display: none;
+  }
+  /* S12 (audit 2026-11-05, B13): inside a note, Folders opens the panel as a BOTTOM SHEET over the note (it used
+     to flip the panel "open" behind this very rule, so the button vanished and nothing showed). */
+  .noteFoldersBtn { display: inline-flex; }
+  .wrap[data-note-open][data-folder-sheet] .sidebarSlot {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-modal);
+    max-height: 75vh;
+    height: auto !important;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-popover);
+  }
+  .folderSheetScrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-modal) - 1);
+    border: 0;
+    padding: 0;
+    background: var(--hub-scrim);
+    cursor: pointer;
   }
   /* Finish pass (2026-10-10): the way back shares the editor's action row instead of taking a
      row of its own above it: a 44 px chevron at the row's left, with the editor header padded

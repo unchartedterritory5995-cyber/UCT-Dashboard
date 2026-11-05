@@ -497,3 +497,40 @@ describe('D-7 -- the phone rule (structural)', () => {
     expect(declaresProp(old, '.wrap.collapsed .sidebarSlot', 'width', /^0/)).toBe(false)
   })
 })
+
+// S12 (audit 2026-11-05, B13): "Phone: open a note, tap Folders -- the Folders button disappears; nothing else
+// changes." Folders inside a note opens the folders panel as a bottom SHEET over the note; the scrim closes it.
+// jsdom applies no CSS: the rendered half proves the state (`data-folder-sheet` on the wrap, the scrim), the
+// structural half proves the phone rule draws the panel while that attribute is set.
+describe('B13 -- Folders inside a note opens a sheet (phone)', () => {
+  afterEach(() => setWidth(realWidth))
+  const door = () => screen.queryByRole('button', { name: 'Show folders' }) || showFoldersBtn()
+  const wrap = () => document.querySelector('[data-note-open]')
+
+  it('the door is there inside a note, and a tap opens the sheet instead of vanishing into nothing', () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    expect(door()).not.toBeNull()
+    fireEvent.click(door())
+    expect(wrap()).toHaveAttribute('data-folder-sheet')
+    expect(screen.getByTestId('folder-sidebar')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close folders' })).toBeInTheDocument()
+  })
+
+  it('the scrim closes the sheet and the door comes back', () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(door())
+    fireEvent.click(screen.getByRole('button', { name: 'Close folders' }))
+    expect(wrap()).not.toHaveAttribute('data-folder-sheet')
+    expect(door()).not.toBeNull()
+  })
+
+  it('the phone rule draws the panel as a fixed bottom sheet only while the attribute is set', () => {
+    const css = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'tabs', 'NotebookTab.module.css'), 'utf8')
+    const phone = mediaBodiesAt(css, 390).join('\n')
+    expect(phone).toMatch(/\.wrap\[data-note-open\]\[data-folder-sheet\] \.sidebarSlot \{\s*display: block;\s*position: fixed;/)
+    expect(phone).toMatch(/\.noteFoldersBtn \{ display: inline-flex; \}/)
+    expect(mediaBodiesAt(css, 820).join('\n')).not.toMatch(/data-folder-sheet/)
+  })
+})

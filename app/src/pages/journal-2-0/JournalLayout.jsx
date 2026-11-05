@@ -266,8 +266,12 @@ export default function JournalLayout() {
         <div className={styles.headerRight}>
           <AgentDockButton />
           {/* Persistent "+ Log Trade" — the primary write affordance, on every
-              surface (A5). Owns its own add-position / add-trade modals. */}
-          <LogTradeButton />
+              surface (A5). Owns its own add-position / add-trade modals.
+              S12 + VIS-4 (audit 2026-11-05, V4 / issue 14): on the Notebook it folds into the
+              "Journal tools" disclosure below (the header's ⋯ there), so a phone's first screen is
+              notes; off the Notebook it stays here. On a wider screen the fold is `display:
+              contents`, so it still sits in the row. */}
+          {!compactHeader && <LogTradeButton />}
           {/* D2 (D-1): shown only on the Notebook route at <=640 px (the
               stylesheet decides the width). A disclosure, not a menu: the
               controls it reveals are the header's own, unchanged. */}
@@ -288,6 +292,7 @@ export default function JournalLayout() {
               controls stay flex items of this row (and the More menu keeps the
               row as its anchor on a phone). */}
           <div id="journal-header-tools" className={styles.headerTools}>
+          {compactHeader && <LogTradeButton />}
           <button
             type="button"
             className={styles.shortcutsBtn}

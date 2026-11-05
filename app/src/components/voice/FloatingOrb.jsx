@@ -354,6 +354,7 @@ export default function FloatingOrb({ context = 'global' }) {
       <div
         ref={clusterRef}
         className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? (tuckSide === 'left' ? styles.tuckedLeft : styles.tuckedRight) : ''}`}
+        data-in-session={inSession ? '' : undefined}
         style={clusterStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
