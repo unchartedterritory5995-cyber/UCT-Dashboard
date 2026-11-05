@@ -3346,6 +3346,311 @@
      "modes": {}
     }
    }
+  },
+  "indicator.create-human-name": {
+   "digest": "070338e7bda602ce",
+   "phrasings": {
+    "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "create an indicator that flags days when price closes above the 21 EMA on volume at least 1.5 times its 50-day average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "build me a custom indicator marking closes above the 21 ema with volume over 1.5x the 50 day average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.draft-only": {
+   "digest": "ed855a0735fc66ce",
+   "phrasings": {
+    "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "help me build an indicator that marks days where close is above the 21 EMA on 1.5x the 50-day average volume, don't save it yet": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "let's work on an indicator: close above the 21 ema and volume above 1.5 times the 50 day average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.preview-draft": {
+   "digest": "07a71cbbe272f5b1",
+   "phrasings": {
+    "show me the preview": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "preview it on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "let me see what it looks like on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me how it looks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.save-draft-as": {
+   "digest": "0f3d8951df5cc345",
+   "phrasings": {
+    "save it as Thrust Days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save the indicator as Thrust Days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this as Thrust Days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ok save it, call it Thrust Days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.apply-saved": {
+   "digest": "5899d205f7aa941c",
+   "phrasings": {
+    "apply it": {
+     "digest": "3d80e192e4e41808",
+     "gaps": [],
+     "modes": {}
+    },
+    "add it to my chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ok, put it on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.discard-draft": {
+   "digest": "33b4c73b182665e8",
+   "phrasings": {
+    "discard the draft": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "never mind, throw that draft away": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scrap the indicator draft": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.followup-thicker": {
+   "digest": "b32d856444a80afb",
+   "phrasings": {
+    "make it thicker": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make it a bit thicker": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make that thicker": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.followup-daily-only": {
+   "digest": "addb48d039a0d0ab",
+   "phrasings": {
+    "only show it on the daily": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show it on daily charts only": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make it daily only": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide it on every timeframe except the daily": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.followup-other-chart": {
+   "digest": "bb958bfec64c2cef",
+   "phrasings": {
+    "apply it to my other chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put it on the other chart too": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "copy it to the SPY chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorStyle.place-own-pane": {
+   "digest": "ff7e2b471de8a412",
+   "phrasings": {
+    "put the 50 sma in its own pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the 50 sma to a separate pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give the SMA 50 its own pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorCopy.duplicate": {
+   "digest": "c6951d43c3be58f7",
+   "phrasings": {
+    "duplicate the 20 ema": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a copy of the 20 ema": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clone the 20 ema": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "grid.add-count.reuses-one": {
+   "digest": "70f2a00e08ea5b00",
+   "phrasings": {
+    "add a 2x2 of SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add SPY, QQQ, IWM and DIA on four charts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add four charts for SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "grid.add-count.reuses-two": {
+   "digest": "ca0b596a2127cd12",
+   "phrasings": {
+    "add a 2x2 of SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add SPY, QQQ, IWM and DIA on four charts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add four charts for SPY QQQ IWM DIA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "grid.add-new.adds": {
+   "digest": "30bc7f44f9389d75",
+   "phrasings": {
+    "add two new charts for SPY and QQQ": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "open two more charts: SPY and QQQ": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add another two charts for SPY and QQQ": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -3513,6 +3818,31 @@
    "digest": "0e87da9de073a809",
    "gap": false,
    "mode": null
+  },
+  "refuse.undo-after-indicator-save": {
+   "digest": "f0c198fd96453a18",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.other-chart-ambiguous": {
+   "digest": "095c7550f735d4c4",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.other-one.ambiguous-four": {
+   "digest": "6f133e79e02712a5",
+   "gap": false,
+   "mode": null
+  },
+  "followup.other-one.two-charts": {
+   "digest": "e9df744e1077fe3c",
+   "gap": false,
+   "mode": null
+  },
+  "followup.other-charts.plural-four": {
+   "digest": "b88f595574307c6f",
+   "gap": false,
+   "mode": null
   }
  },
  "workflows": {
@@ -3643,6 +3973,11 @@
   },
   "GW-26.history-questions": {
    "digest": "59120172a53f60a1",
+   "gap": false,
+   "mode": null
+  },
+  "GW-27.indicator-package-draft-to-delete": {
+   "digest": "3f074f4800737bc9",
    "gap": false,
    "mode": null
   }

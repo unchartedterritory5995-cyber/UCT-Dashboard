@@ -169,10 +169,20 @@ function gridRequest(raw0, lower0, charts, host) {
 // ("four charts for …" on a one-chart board: that chart becomes the first of the four); NEW charts when the member
 // asks for new ones, or when the board already has more charts than tickers (their tickers are never overwritten).
 // ⭐ acceptance 2026-10-29: "open daily charts for AAPL MSFT NVDA" on a one-chart board keeps that chart and adds three
-const ASKS_NEW = /\b(?:new|add|another|more|additional|extra|open)\b/i
+const ASKS_NEW = /\b(?:new|another|more|additional|extra|open)\b/i
+// GRID-REUSE (owner ruling: a COUNT of charts with their tickers is THE grid, never an extra chart — live 11-04: "add a
+// 2x2 of SPY QQQ IWM DIA" on a one-chart board made FIVE charts): the bare verb "add" is not a request for MORE charts
+// when the words give a count ("… on four charts") or a grid shape ("a 2x2", "side by side") — the board's charts are
+// reused, top-left first, and re-tiled. Only words that SAY more ("new", "more", "another", "extra"…) add beside them.
+// A bare "add" with neither ("add charts for AAPL and MSFT") still adds, as before.
+const ADD_WORD = /\badd\b/i
+const asksNew = (text) => {
+  const t = String(text || '')
+  return ASKS_NEW.test(t) || (ADD_WORD.test(t) && !COUNT_RE.test(t) && !GRID_LAYOUT.some(([re]) => re.test(t)))
+}
 // review t4 M1: an explicit intent for the board's charts — new / add / more, or replace — is never asked about
 const REPLACE_INTENT = /\b(?:replace|instead of (?:my|the|these|those)|swap out|get rid of)\b/i
-const explicitGridIntent = (text) => ASKS_NEW.test(String(text || '')) || REPLACE_INTENT.test(String(text || ''))
+const explicitGridIntent = (text) => asksNew(text) || REPLACE_INTENT.test(String(text || ''))
 // review t4 L2: the charts on the GRID — the set Replace acts on (a detached / floating chart or an extra chart tab never counts)
 export function gridChartCount(host, fallback = 0) {
   try {
@@ -203,7 +213,7 @@ export function gridChoiceFor(ops, text, host) {
   if (explicitGridIntent(text) || isWorkspaceRequest(text)) return null
   return gridQuestion((a.symbols || []).map(s => String(s || '').toUpperCase()), a.timeframe || null, a.layout || null, a.watchlist === true, gridChartCount(host, 0))
 }
-const wantsNew = (text, n, onBoard) => ASKS_NEW.test(String(text || '')) || n < onBoard
+const wantsNew = (text, n, onBoard) => asksNew(text) || n < onBoard
 // n new charts land in EMPTY space as the product places them (nothing resized or moved)
 function fitsEmpty(host, n) {
   let s = null

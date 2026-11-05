@@ -5121,8 +5121,8 @@
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",
-   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style or plot style — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
-   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap. value = the member's value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
+   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style, plot style, or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
+   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = \"daily\", \"weekly\", \"daily and weekly\", \"intraday\", \"daily and above\" or \"all\" — \"only show it on the daily\" = showOn daily). value = the member's value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
    "args": {
     "type": "object",
     "properties": {
@@ -5138,7 +5138,8 @@
        "lineWidth",
        "lineStyle",
        "plotStyle",
-       "overlap"
+       "overlap",
+       "showOn"
       ]
      },
      "value": {

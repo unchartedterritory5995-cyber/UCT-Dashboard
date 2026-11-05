@@ -322,7 +322,9 @@ export async function draftTurn(draftRef, message, opts = {}, ctx = {}) {
     out = await modelTurn(before, () => {
       const now = readSession(key)
       return now && now.state ? now.state : before
-    }, words, { snippets, gateCtx, converse: ctx.converse || converseTurn })
+    }, words, { snippets, gateCtx, converse: ctx.converse || converseTurn,
+      // PACKAGE 3 (§17): the caller may keep the model's create-name as a custom name, in the same patch
+      ...(typeof opts.keepCreateName === 'function' ? { keepCreateName: opts.keepCreateName } : {}) })
     // ⛔ the dock may have opened, or the draft moved, while the model answered — nothing written then
     const now = readSession(key)
     if (isHeldInDock(key)) return refuse(R.DRAFT_OPEN_IN_DOCK)

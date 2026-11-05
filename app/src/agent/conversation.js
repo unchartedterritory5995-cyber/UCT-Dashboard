@@ -310,6 +310,8 @@ function askOne(list, text) {
 
 // ── chart sets ────────────────────────────────────────────────────────────────────────────────────────
 const NUMW = '(?:two|three|four|five|six|2|3|4|5|6)'
+// the SINGULAR forms: "the other one", "the other chart", "the other" — one chart, never a set
+const R_OTHER_ONE = /^(?:the |my |our )?other(?: (?:one|chart))?$/
 const R_OTHERS = new RegExp(`^(?:all )?(?:of )?(?:my |the |our )?(?:${NUMW} )?other(?: ${NUMW})?(?: (?:charts?|ones?))?$|^(?:the )?others$|^(?:all )?the rest(?: of (?:them|the charts|my charts|the board))?$|^every other chart$|^everything else$|^all the others$`)
 const R_ALL = new RegExp(`^(?:all(?: of)? (?:my |the |these |those )?charts|all (?:of )?(?:them|those|these)|(?:all )?(?:${NUMW}) (?:of them|charts)|all ${NUMW}(?: of them| charts)?|every chart|each chart|each of them|every one of them|everywhere|everything|every single chart|both(?: charts| of them)?|the whole board|my whole board)$`)
 
@@ -325,11 +327,16 @@ export function chartSet(phrase, { host, sources = [] } = {}) {
   if (R_OTHERS.test(p)) {
     const src = new Set(sources)
     if (!src.size) return null                                   // "the others" — other than what? → the model
-    const refs = charts.filter(c => !src.has(c.ref)).map(c => c.ref)
-    // #806 review: a SINGULAR "other" ("the other one", "the other chart", "the other") names ONE chart — when more than one
-    // remains it is no reading (the model asks which), never all of them ("same for the other one" on four charts did three)
-    if (refs.length > 1 && !/\b(?:others|ones|charts|rest|all|every|everything|two|three|four|five|six|seven|eight|nine|\d)\b/i.test(p)) return null
-    return refs.length ? { refs } : { say: 'There are no other charts on this board.' }
+    const others = charts.filter(c => !src.has(c.ref))
+    if (!others.length) return { say: 'There are no other charts on this board.' }
+    // GRID-REUSE #2 (live, a 4-chart board: "same for the other one" changed ALL THREE other charts): a SINGULAR
+    // referent means exactly ONE chart — the only other one, else a question; never several
+    if (R_OTHER_ONE.test(p)) {
+      if (others.length === 1) return { refs: [others[0].ref] }
+      const names = others.map(c => (c.symbol ? `the ${c.symbol} chart` : c.label || 'a chart'))
+      return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “The other one” could be any of these ${others.length} — say it by name. Nothing has changed.` }
+    }
+    return { refs: others.map(c => c.ref) }
   }
   if (R_ALL.test(p)) {
     if (/^both/.test(p) && charts.length !== 2) return { say: `There are ${charts.length} charts here, not two — say “all charts” or name the ones you mean. Nothing has changed.` }
@@ -575,6 +582,19 @@ function portable(row) {
   if (row.defId === 'movingAverage' && row.len) return `#${row.len}${row.type ? `:${row.type}` : ''}`
   return row.defId
 }
+/** PACKAGE 3: the ONE indicator the last turn put on (or changed on) ONE chart — what "apply it to …" copies. */
+function copySource(last, host) {
+  const found = []
+  for (const o of last?.ops || []) {
+    if (getCapability(o.action)?.target !== 'indicatorEdits') continue
+    const chart = String(o.target || '').replace(/^ixe:/, '')
+    const rows = rowsOnChart(host, chart)
+    const hit = typeof o.args?.instance === 'string' ? rows.find(r => r.instanceId === o.args.instance)
+      : typeof o.args?.defId === 'string' && /^u_/.test(o.args.defId) ? rows.filter(r => r.defId === o.args.defId).at(-1) : null
+    if (hit && !found.some(f => f.src === chart && f.id === hit.instanceId)) found.push({ src: chart, id: hit.instanceId })
+  }
+  return found.length === 1 ? { src: found[0].src, ids: [found[0].id] } : null
+}
 function repeatOps(last, dests, host) {
   const out = []
   for (const o of last.ops) {
@@ -593,6 +613,8 @@ function repeatOps(last, dests, host) {
         const row = rows.find(r => r.instanceId === args[key])
         const p = portable(row)
         if (!p) return null                                            // not re-findable on another chart
+        // PACKAGE 3: one of the member's own indicators is re-found by its definition — only where it IS
+        if (/^u_/.test(p) && dests.some(d => !rowsOnChart(host, d).some(r => r.defId === p))) return null
         args[key] = p
       }
       if (o.action === 'indicatorCopy.copyTo') return null
@@ -665,9 +687,27 @@ function readOnce(t, ctx) {
     const dests = set.refs.filter(r => !srcs.has(r))
     if (!dests.length) return { kind: 'say', text: 'That change is already on that chart.' }
     const ops = repeatOps({ ops: last.ops.map(o => ({ ...o, target: String(o.target).replace(/^ixe:/, '') })) }, dests, host)
-    if (!ops) return null                                           // not plainly repeatable → the model (which may ask)
-    if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
-    return { kind: 'ops', ops }
+    // ⭐ PACKAGE 3: "apply it to my other chart" right after building an indicator (or a change to it) means THE INDICATOR —
+    // when the last turn can't be repeated there (it isn't on that chart), it is read as a copy of it (below)
+    const copyIt = !ops && /^(?:apply|copy) (?:it|this|that)(?: one)? (?:to|onto|on) /.test(t)
+    if (!ops && !copyIt) return null                                // not plainly repeatable → the model (which may ask)
+    if (copyIt) {
+      const it = copySource(last, host)
+      if (it) {
+        const to = dests.filter(r => r !== it.src)
+        // "my other chart" (ONE chart) on a board with several others: ask which — never a guess, never silence
+        if (/\bother (?:chart|one)\b/.test(t) && to.length > 1) {
+          const charts = chartsOf(host)
+          return { kind: 'askTarget', text: 'Which chart should I put it on?', choices: to.map(r => ({ ref: ixe(r), label: charts.find(c => c.ref === r)?.label || r })),
+            ops: [{ action: 'indicatorCopy.copyTo', target: null, args: { from: it.src, instances: it.ids } }] }
+        }
+        if (to.length) return { kind: 'ops', ops: to.map(d => ({ action: 'indicatorCopy.copyTo', target: ixe(d), args: { from: it.src, instances: it.ids } })), pick: it.ids }
+      }
+    }
+    if (!copyIt) {
+      if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
+      return { kind: 'ops', ops }
+    }
   }
   // copy the conversation's indicators onto charts: "now put those on my other charts", "add them to all of them"
   m = COPY_RE.exec(t)

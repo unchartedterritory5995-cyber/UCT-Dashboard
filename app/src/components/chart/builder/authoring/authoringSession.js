@@ -30,7 +30,7 @@ import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
 import { memberError, memberSaveError, memberRefusal } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
-import { soleCueName } from './derivedName'
+import { soleCueName, memberCueNames } from './derivedName'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { saveReceipt } from '../studio/saveOutcomeReceipt'
@@ -178,6 +178,18 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
       lines: [`Renamed to “${out.readback.name || name}”.`] }] }
 }
 
+/** PACKAGE 3: `envelope` with its `create` name kept as a custom name (see modelTurn), else the SAME envelope. */
+function withCreateName(envelope, words, accept) {
+  if (!envelope || !Array.isArray(envelope.ops)) return envelope
+  if (soleCueName(words) || memberCueNames(words).length) return envelope
+  if (envelope.ops.some((o) => o && o.op === 'rename_definition')) return envelope
+  const created = envelope.ops.find((o) => o && o.op === 'create')
+  const name = created && typeof created.name === 'string' ? created.name.replace(/\s+/g, ' ').trim() : ''
+  let ok = false
+  try { ok = !!name && accept(name) === true } catch { ok = false }
+  return ok ? { ...envelope, ops: [...envelope.ops, { op: 'rename_definition', name }] } : envelope
+}
+
 /**
  * THE MODEL HALF OF A TURN — one `/converse` call; the server declares what the turn is
  * (`classifyTurn`). ANSWER / UNSUPPORTED / REFUSED are the assistant's words and nothing
@@ -188,7 +200,7 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn } = {}) {
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null } = {}) {
   const res = await converse({ message: words, state: before, gateCtx, snippets })
   const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
   const gaps = [...unclear, ...unavailableLines(res)]
@@ -208,7 +220,13 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
       lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
   }
   // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
-  const envelope = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  const named = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — AGENT-M3-CONTRACT §17): a caller that asks for it (`keepCreateName`, a
+  // predicate — only UCT Agent passes one) keeps the model's `create` name as the definition's CUSTOM name, in the SAME
+  // patch (an appended `rename_definition`: one revision, one Undo step). Only for the turn that CREATES the definition,
+  // only when the member named nothing, and only for a name the predicate accepts. The dock never passes it: there,
+  // `create` still takes the derived name (derivedName.js).
+  const envelope = typeof keepCreateName === 'function' && !before.working ? withCreateName(named, words, keepCreateName) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
