@@ -26,6 +26,9 @@ const TOKEN = /aria-|role=/
 /** Files that render nothing an assistive technology needs named. One reason
  *  each — the reason is the audit record. */
 export const EXEMPT = Object.freeze({
+  // Tier 1b fix round 1: Sheet wrappers -- the repo's Sheet carries the dialog role and its name ("Add", "Folders").
+  'components/notebook/NotebookPlusSheet.jsx': 'renders the repo Sheet, which is the named dialog (title "Add")',
+  'components/notebook/FolderSheet.jsx': 'renders the repo Sheet, which is the named dialog (title "Folders")',
   'components/notebook/NotebookFlagGate.jsx':
     'renders its children or null; no markup or control of its own',
   'components/notebook/GettingStartedChecklist.jsx':
