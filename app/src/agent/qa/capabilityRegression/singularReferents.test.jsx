@@ -15,8 +15,9 @@ vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ defau
 await registerCatalog()
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
-// the follow-up names ONE chart, the board has several candidates: nothing changes without the model (which asks)
-const NO_WRITE = { unchanged: true, modelTurns: 1 }
+// the follow-up names ONE chart, the board has several candidates: NOTHING changes — the panel asks which chart (v1's own
+// question since #807) or the model is asked; never a write to several charts
+const NO_WRITE = { unchanged: true }
 const CASES = [
   // the reviewer's probes (wrong-target writes before the fix)
   ['S1.four.other-one-after-one', 'FOUR', ['make the top right chart weekly', 'and the other one']],
