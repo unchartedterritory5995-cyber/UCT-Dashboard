@@ -156,3 +156,9 @@ Tip `8fef069f8a` (code identical to the final tip; later commits are tests and d
   tip vs base when re-run alone), `market-structure-with-inducements-sweeps-luxalgo` (identical alone), plus the
   `heatmap-volume-xdecow` shadow field above. Re-runs alone: `runs/w4t8r1/run-*` (heavy-mp2.lock, label w4t8r1-mini).
   Object door stays gated (`atObjectDoor`, mutation R6).
+
+### final-tip r1 (heavy-final2.lock, labels w4t8r1-final and w4t8r1-final2; logs `runs/dsk-w4t8r1-final2/`)
+Run on the final code and test tree `522af974f1` (the first run on `8fef069f8a` found two more v5-pinned controls,
+`constantLengthRefusal` and `pureWindowInFunction`, restated in that commit). Gate pytest 46 passed; engine-version
+gate 6 passed; hygiene clean (34672 files); chart+hooks vitest Test Files 1336 passed / 27 skipped / 1 failed, Tests
+22452 passed / 118 skipped / 1 failed - the failure is the baseline `pollingSites.rail`. Engine bump: YES.
