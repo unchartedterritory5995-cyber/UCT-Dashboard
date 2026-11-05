@@ -734,6 +734,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // persists), renders read-only on later opens, and never touches the
   // global /charts drawing store — frozen evidence stays frozen.
   const [annotate, setAnnotate] = useState(false)
+  // A search asked for while drawing is dropped, never opened later behind Done (fix round 1).
+  useEffect(() => { if (annotate && pendingSearch != null) setPendingSearch(null) }, [annotate, pendingSearch])
   // Marks changed this draw session → the stored archive PNG no longer shows
   // what the reader sees. Cleared when the exit re-freeze fires.
   const annotationsDirtyRef = useRef(false)
@@ -1086,6 +1088,10 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       )}
       {/* Fix round 1 (review finding 4): the spec's hint line while the chart is selected -- the
           keys a selected chart answers. Polite, so it is said once when the chart is selected. */}
+      {/* Fix round 1 (review minor 12): a frozen chart has no toolbar, so its message is said here. */}
+      {frozen && toolbarMsg && (
+        <p className={styles.selectedHint} role="status">{toolbarMsg}</p>
+      )}
       {attrs.widgetId === 'chart' && selected && editor?.isEditable !== false && !shareView && (
         <p className={styles.selectedHint} aria-live="polite">
           {canRetarget

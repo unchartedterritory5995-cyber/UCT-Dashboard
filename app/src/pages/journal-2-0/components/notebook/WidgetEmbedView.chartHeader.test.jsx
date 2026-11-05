@@ -103,3 +103,14 @@ function cleanupAndRemountUnselected() {
   render(<WidgetEmbedView node={{ attrs: chartAttrs() }} selected={false} editor={editor()} updateAttributes={vi.fn()} />)
   expect(screen.queryByText(/Esc back to writing/)).toBeNull()
 }
+
+// Fix round 1 (review minor 12): a frozen chart has no toolbar, so its "this chart is fixed"
+// message was written where nothing shows it, and the typed key just vanished.
+describe('typing over a frozen chart says why nothing happened (fix round 1)', () => {
+  it('shows the message on the chart itself', async () => {
+    const { root } = await mount(chartAttrs({ frozen: true }))
+    act(() => { root.dispatchEvent(new CustomEvent(CHART_EMBED_TYPE_EVENT, { bubbles: true, detail: { text: 'A' } })) })
+    expect(await screen.findByText('This chart is fixed. Insert a new chart for another ticker.')).toBeInTheDocument()
+    expect(opened.with).toEqual([])
+  })
+})
