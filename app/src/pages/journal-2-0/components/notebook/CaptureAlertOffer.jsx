@@ -6,12 +6,13 @@
 // so it is never offered. A lazy chunk: the parser and the sheet never ride the app's first open.
 import { Component, Suspense, useEffect, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import lazyChunk from '../../lib/lazyChunk'
+import { lazyLeaf } from '../../lib/lazyChunk'
 import { describeAlert, parseAlertPhrase } from '../../lib/alertPhrase'
 import { confirmsSymbol, tickersIn } from '../../lib/smartChipsApi'
 import styles from './CaptureDialog.module.css'
 
-const TextAlertSheet = lazyChunk(() => import('./TextAlertSheet'))
+// A LEAF (D-I2): inside its own boundary (Quiet below), a chunk that cannot load costs the offer, never a page reload.
+const TextAlertSheet = lazyLeaf(() => import('./TextAlertSheet'))
 export const CHECK_DELAY_MS = 600
 
 // The sheet is its own chunk; one that cannot load or throws costs the offer, never the capture dialog around it.

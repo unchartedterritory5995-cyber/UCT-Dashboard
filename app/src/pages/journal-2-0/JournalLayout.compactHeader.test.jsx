@@ -48,7 +48,7 @@ vi.mock('./components/AddTradeModal', () => ({ default: () => null }))
 
 import JournalLayout from './JournalLayout'
 import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
-import { openJournalTools, registerJournalToolsDoor } from './lib/journalToolsDoor'
+import { isNotebookListAddress, openJournalTools, registerJournalToolsDoor } from './lib/journalToolsDoor'
 import { NOTEBOOK_PATH, NOTEBOOK_SEGMENT, NOTEBOOK_RESEARCH_SEGMENT } from './lib/journalRoutes'
 
 function renderAt(route) {
@@ -389,5 +389,34 @@ describe('the phone Notebook header takes no row of its own, and nothing covers 
     const compact = [...phone.matchAll(/\.(?:mobileNav\.)?compact[^{]*\{([^}]*)\}/g)].map((m) => m[1]).join(';')
     expect(compact, 'a compact rule overrides D2').not.toMatch(/padding-(left|right)|padding:|margin:|margin-(left|right)/)
     expect(nav).toMatch(/\.item \{[^}]*min-height: var\(--tap-min\);/)
+  })
+})
+
+// Tier 2 fix round 1, measured (the debug layout-shift logger, lib/clsDebug.js, at 390 px): the header painted, then
+// folded when the list registered its door, moving the strip and the notes up 57 px (0.05). On the list's own address
+// it is folded from the FIRST paint; elsewhere it waits for a door.
+describe('the header folds from the first paint on the list address', () => {
+  it('?view=all folds with no door registered yet; a note, Home and another page do not', () => {
+    const { container, unmount } = renderAt('/journal/notebook?view=all')
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    unmount()
+    const second = renderAt('/journal/notebook?view=all&note=n1')
+    expect(root(second.container)).not.toHaveAttribute('data-tools-door')
+    second.unmount()
+    const home = renderAt('/journal/notebook')
+    expect(root(home.container)).not.toHaveAttribute('data-tools-door')
+  })
+
+  it('the address rule', () => {
+    const ids = ['list', 'board', 'calendar']
+    const f = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids)
+    expect(f('/journal/notebook', '?view=all')).toBe(true)
+    expect(f('/journal/notebook', '?view=board')).toBe(true)
+    expect(f('/journal/notebook', '?folder=f1')).toBe(true)
+    expect(f('/journal/notebook', '?tag=swing')).toBe(true)
+    expect(f('/journal/notebook', '')).toBe(false)                  // Home
+    expect(f('/journal/notebook', '?view=nope')).toBe(false)        // an unknown view opens Home
+    expect(f('/journal/notebook', '?view=all&note=n1')).toBe(false) // a note
+    expect(f('/journal/notebook/research/NVDA', '?view=all')).toBe(false)
   })
 })

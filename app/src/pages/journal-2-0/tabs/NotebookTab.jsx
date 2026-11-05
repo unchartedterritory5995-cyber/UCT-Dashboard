@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -876,7 +876,8 @@ export default function NotebookTab() {
   const listToolbarShown = !noteId && !isHome
   // the compact sort words, on a phone only (review minor 12)
   const phoneSortWords = useIsPhone()
-  useEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
+  // a LAYOUT effect: registered in the list's first commit, before the browser paints it (no fold after a paint)
+  useLayoutEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'

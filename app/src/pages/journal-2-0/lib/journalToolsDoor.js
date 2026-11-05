@@ -34,3 +34,15 @@ export function registerJournalToolsDoor() {
 export function openJournalTools() {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_JOURNAL_TOOLS_EVENT))
 }
+
+/** The Notebook LIST's own address (the page that offers the door): the Notebook route itself, no note open, and a
+ *  list asked for -- `?view=all` or a view mode, or a folder, tag or ticker filter. JournalLayout folds the header on
+ *  it from the FIRST paint, before the list has mounted and registered (a header painted and then folded moved the
+ *  strip and the notes up 57 px: a 0.05 layout shift, measured with lib/clsDebug.js). */
+export function isNotebookListAddress(pathname, search, notebookPath, viewModeIds) {
+  if (String(pathname || '').replace(/\/+$/, '').toLowerCase() !== notebookPath.toLowerCase()) return false
+  const sp = new URLSearchParams(search || '')
+  if (sp.get('note')) return false
+  const view = sp.get('view')
+  return view === 'all' || viewModeIds.includes(view) || Boolean(sp.get('folder') || sp.get('tag') || sp.get('ticker'))
+}

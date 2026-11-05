@@ -31,8 +31,9 @@ import {
 } from '../../components/feedbackDoor'
 import { SUPPORT_PATH } from '../../components/helpAnchors'
 import {
-  OPEN_JOURNAL_TOOLS_EVENT, journalToolsDoorMounted, subscribeJournalToolsDoor,
+  OPEN_JOURNAL_TOOLS_EVENT, isNotebookListAddress, journalToolsDoorMounted, subscribeJournalToolsDoor,
 } from './lib/journalToolsDoor'
+import { VIEW_MODES } from './lib/savedViewModes'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
 import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
@@ -107,6 +108,8 @@ export const HOTKEY_ROUTES = {
 // (mirrors the disabled Compass nav teaser — never routes to a blank surface).
 export const PAID_HOTKEY_CHORDS = new Set(['g>k'])
 
+const VIEW_MODE_IDS = VIEW_MODES.map((m) => m.id)
+
 export default function JournalLayout() {
   const isPaid = useIsPaid()
   // Best-effort refresh of broker-synced trades when the journal opens
@@ -150,6 +153,8 @@ export default function JournalLayout() {
   // folded phone header takes no row (lib/journalToolsDoor.js); that row opens the tools here, focus on the toggle.
   const toolsDoor = useSyncExternalStore(subscribeJournalToolsDoor, journalToolsDoorMounted, () => false)
   const toolsToggleRef = useRef(null)
+  // ...and from the FIRST paint on the list's own address, before the list has mounted (no fold after a paint).
+  const onListAddress = isNotebookListAddress(pathname, location.search, NOTEBOOK_PATH, VIEW_MODE_IDS)
   useEffect(() => {
     const onOpen = () => {
       setToolsOpen(true)
@@ -250,7 +255,7 @@ export default function JournalLayout() {
       className={styles.root}
       data-compact-header={compactHeader ? 'true' : undefined}
       data-tools-open={toolsOpen ? 'true' : undefined}
-      data-tools-door={compactHeader && toolsDoor ? 'true' : undefined}
+      data-tools-door={compactHeader && (toolsDoor || onListAddress) ? 'true' : undefined}
     >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
