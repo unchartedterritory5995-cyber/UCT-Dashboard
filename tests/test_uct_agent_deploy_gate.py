@@ -38,6 +38,38 @@ def _step(fragment: str) -> dict:   # an EXACT step name
     return hits[0]
 
 
+# DUP-RECEIPT (11-05, owner): the browser step runs `npx vitest run $AGENT_VITEST_PATHS` — ONE list (the workflow's
+# top-level env, the same as agent-ci.yml's) shared by the shard run, the `vitest list` equivalence rail and the repro
+# hints: src/agent, the builder's agentMutations, and the page tests that drive the Agent outside src/agent
+AGENT_PAGE_TESTS = [
+    "src/components/chart/builder/studio/agentRoute.test.jsx",
+    "src/pages/breadth/breadthTabHookOrder.test.jsx",
+    "src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx",
+    "src/pages/charts/ChartsWorkspace.previousLayout.test.jsx",
+    "src/pages/charts/ChartsWorkspace.thisChart.test.jsx",
+    "src/pages/charts/widgets/ChartWidget.agent.test.jsx",
+    "src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx",
+]
+
+
+def _agent_vitest_paths(workflow: pathlib.Path = WORKFLOW) -> list[str]:
+    """The workflow's top-level `AGENT_VITEST_PATHS` (its `env:` block, before `jobs:`), split into paths."""
+    head = workflow.read_text(encoding="utf-8").split("\njobs:")[0]
+    m = re.search(r"(?m)^  AGENT_VITEST_PATHS: (.+)$", head)
+    assert m, f"{workflow.name} has no top-level AGENT_VITEST_PATHS"
+    return m.group(1).split()
+
+
+def test_the_agent_vitest_paths_hold_the_agent_suite_and_every_agent_driving_page_test():
+    for wf in (WORKFLOW, REPO / ".github" / "workflows" / "agent-ci.yml"):
+        paths = _agent_vitest_paths(wf)
+        assert paths[:2] == ["src/agent", "src/components/chart/builder/agentMutations"], (wf.name, paths)
+        assert sorted(paths[2:]) == sorted(AGENT_PAGE_TESTS), (wf.name, paths)
+    assert _agent_vitest_paths(WORKFLOW) == _agent_vitest_paths(REPO / ".github" / "workflows" / "agent-ci.yml")   # ONE list
+    for p in AGENT_PAGE_TESTS:
+        assert (REPO / "app" / p).is_file(), f"{p} is listed but does not exist — renamed? (an absent path runs nothing)"
+
+
 @pytest.mark.parametrize("fragment", [SERVER_STEP, INSTALL_STEP, BROWSER_STEP])
 def test_the_agent_steps_exist_and_are_never_conditional_or_optional(fragment):
     body = _step(fragment)["body"]
@@ -62,8 +94,10 @@ def test_the_server_step_covers_EVERY_agent_server_test_file():
 
 def test_the_browser_step_runs_the_agent_suite_and_refuses_an_empty_one():
     body = _step(BROWSER_STEP)["body"]
-    assert "npx vitest run src/agent" in body
-    assert "agentMutations" in body                           # the Indicators interface the Agent writes through
+    assert "npx vitest run $AGENT_VITEST_PATHS" in body       # the one list (env), never a narrower literal
+    paths = _agent_vitest_paths()
+    assert "src/agent" in paths
+    assert "src/components/chart/builder/agentMutations" in paths   # the Indicators interface the Agent writes through
     assert "--passWithNoTests" not in body and "passWithNoTests" not in body
     floor = int(re.search(r'-lt (\d+) \]', body).group(1))
     have = len(glob.glob(str(REPO / "app" / "src" / "agent" / "*.test.js"))) + len(glob.glob(str(REPO / "app" / "src" / "agent" / "*.test.jsx")))
@@ -146,4 +180,5 @@ def test_the_gate_still_runs_the_agent_suites_itself():
     """The amendment above must never be read as 'the Agent suites moved to agent-ci'. The gate's
     own server and browser steps are the mandatory coverage; this pins them next to the exemption."""
     assert "pytest tests/test_uct_agent*.py" in _step(SERVER_STEP)["body"]
-    assert "npx vitest run src/agent" in _step(BROWSER_STEP)["body"]
+    assert "npx vitest run $AGENT_VITEST_PATHS" in _step(BROWSER_STEP)["body"]
+    assert "src/agent" in _agent_vitest_paths()
