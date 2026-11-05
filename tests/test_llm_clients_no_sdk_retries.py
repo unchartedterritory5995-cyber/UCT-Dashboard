@@ -106,8 +106,70 @@ def test_flow_explain_effective_retries_are_the_sdk_default(monkeypatch):
     assert engine._get_anthropic_client().max_retries == 0     # the copy did not change the shared client
 
 
-def test_flow_explain_is_the_only_caller_that_keeps_retries():
+def _overloaded_provider(monkeypatch):
+    """The real SDK client on a transport that answers every request with a 529. Counting
+    requests measures the retries that really happen, whatever the path to the client."""
+    requests = []
+
+    def answer(request):
+        requests.append(request)
+        return httpx.Response(529, json={"type": "error", "error": {"type": "overloaded_error", "message": "x"}})
+
+    client = anthropic.Anthropic(api_key="test-key", timeout=5.0, max_retries=0,
+                                 http_client=anthropic.DefaultHttpxClient(transport=httpx.MockTransport(answer)))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(engine, "_anthropic_client", client)
+    monkeypatch.setattr("anthropic._base_client.time.sleep", lambda _s: None)
+    return requests
+
+
+def test_the_real_flow_explain_path_makes_every_sdk_attempt(tmp_path, monkeypatch):
+    """Route -> _call_llm -> _anthropic -> shared client -> SDK, nothing faked above the
+    transport. A wrapper added between flow_explain and the engine changes the frame the
+    exemption reads, the client comes back with 0 retries, and this count goes to 1."""
+    from api import flow_explain
+    monkeypatch.setenv("FLOW_EXPLAIN_DB_PATH", str(tmp_path / "flow_explain.db"))
+    monkeypatch.setattr(engine, "get_earnings", lambda: {"bmo": [], "amc": [], "amc_tonight": []})
+    monkeypatch.setattr(flow_explain, "get_cached_gex", lambda _t: None)
+    requests = _overloaded_provider(monkeypatch)
+    body = flow_explain.FlowPrint(ticker="NVDA", cp="C", strike=190.0, exp="2026-08-21", dte=46,
+                                  premium=525_000.0, volume=3200, oi=1100, side="ASK", spot=178.40)
+    out = flow_explain.explain_print(body, user={"id": "retry-pin"})
+    assert out.model == flow_explain._FALLBACK_MODEL_NAME
+    assert len(requests) == anthropic.DEFAULT_MAX_RETRIES + 1
+
+
+def test_every_other_caller_makes_one_attempt(monkeypatch):
+    requests = _overloaded_provider(monkeypatch)
+    with pytest.raises(anthropic.APIStatusError):
+        engine._get_anthropic_client().messages.create(
+            model="claude-haiku-4-5", max_tokens=1, messages=[{"role": "user", "content": "x"}])
+    assert len(requests) == 1
+
+
+def _client_called_from(module_name, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(engine, "_anthropic_client", None)
+    scope = {"__name__": module_name, "get": engine._get_anthropic_client}
+    exec("client = get()", scope)
+    return scope["client"]
+
+
+def test_the_exemption_is_keyed_on_exactly_the_module_name(monkeypatch):
     assert engine._KEEPS_SDK_RETRIES == {"api.flow_explain"}
+    assert _client_called_from("api.flow_explain", monkeypatch).max_retries == anthropic.DEFAULT_MAX_RETRIES
+    for other in ("flow_explain", "api.flow_explain_helper", "api.services.flow_explain"):
+        assert _client_called_from(other, monkeypatch).max_retries == 0
+
+
+def test_the_exemption_logs_once_when_it_fires(monkeypatch, caplog):
+    monkeypatch.setattr(engine, "_keeps_sdk_retries_logged", False)
+    with caplog.at_level("INFO", logger=engine._logger.name):
+        _client_called_from("api.services.something_else", monkeypatch)
+        assert "keeps the SDK default" not in caplog.text    # it has not fired yet
+        for _ in range(3):
+            _client_called_from("api.flow_explain", monkeypatch)
+    assert caplog.text.count("api.flow_explain keeps the SDK default of 2 retries") == 1
 
 
 def test_schwab_router_builds_its_client_with_the_sdk_default():

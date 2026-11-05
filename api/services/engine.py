@@ -75,11 +75,12 @@ _anthropic_client = None  # anthropic.Anthropic | None (lazy-init)
 #: is read here (the `alert_routing._producer_of` idiom). Any other caller, including a
 #: lane added tomorrow, gets 0 retries. `tests/test_llm_clients_no_sdk_retries.py` pins it.
 _KEEPS_SDK_RETRIES = frozenset({"api.flow_explain"})
+_keeps_sdk_retries_logged = False
 
 
 def _get_anthropic_client():
     """Return the module-level Anthropic client, initializing it once (thread-safe)."""
-    global _anthropic_client
+    global _anthropic_client, _keeps_sdk_retries_logged
     if _anthropic_client is None:
         with _anthropic_lock:
             if _anthropic_client is None:
@@ -93,8 +94,14 @@ def _get_anthropic_client():
                 # billed attempt no ledger or daily count can see, and every lane on
                 # this client inherits it unless it overrides it.
                 _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0, max_retries=0)
-    if sys._getframe(1).f_globals.get("__name__") in _KEEPS_SDK_RETRIES:
+    caller = sys._getframe(1).f_globals.get("__name__")
+    if caller in _KEEPS_SDK_RETRIES:
         import anthropic
+        with _anthropic_lock:
+            first, _keeps_sdk_retries_logged = not _keeps_sdk_retries_logged, True
+        if first:
+            _logger.info("shared Anthropic client: %s keeps the SDK default of %d retries",
+                         caller, anthropic.DEFAULT_MAX_RETRIES)
         return _anthropic_client.with_options(max_retries=anthropic.DEFAULT_MAX_RETRIES)
     return _anthropic_client
 
