@@ -146,3 +146,13 @@ until those lanes are on master, this branch carries them in (it is stacked on t
 - Mutation re-run (`runs/w5t19r1/mut2.out`, lock `heavy-mut`): **34 of 34 real mutations killed, control survived** (new rows: job conditional, job missing from `verdict.needs`, verdict not testing the result,
   composition dropped from step 6, non-production dependency set, a second setup-node, another job's Node pin moved, install step ordering).
 - Node 20 and the earlier tested-on-master numbers above predate the restructure; the new-master final-tip is below.
+
+### r1 final-tip (code tip `b32a212234`, includes master `ceee4597a0` and T4 r2 `da8da64717`)
+Command: `bash $S/final-tip.sh pine-dsk-w5t19 dsk-w5t19r1-final tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_dockerfile.py tests/test_pine_runtime_engine_identity.py tests/test_promotion_control.py tests/test_uct_agent_deploy_gate.py`,
+lock `dsk/heavy-final3.lock`, log `_resume-2026-11-01/runs/w5t19r1/final.out`, tested on master `ceee4597a0`.
+- gate pytest: 46 passed. Hygiene: clean (35,190 files). Rails pytest: 66 passed.
+- full chart+hooks vitest: Test Files 2 failed | 1336 passed | 27 skipped; the two failures are the declared baselines `pollingSites.rail` and `settingsScope.rail`.
+- Vitest under Node 20.18: the app's vitest toolchain cannot start on Node v20.18.0 (`require() of ES Module .../@exodus/bytes` from jsdom's dependency), so the vitest rails were not run under Node 20.
+  What was run under Node 20.18 (V8 11.3) is the CLI the gate runs: see "Results" (earlier run) for steps 1, 2, 5; the rail's own end-to-end test runs `--check` on whatever Node runs vitest (Node 24 here).
+  CI uses `setup-node '20'` (a current 20.x), where this does not arise; the gate job runs the CLI, not vitest.
+- T4 r3 (stale vitest rail fix) was not pushed when this ran; if it lands, merge it and re-run (open item).
