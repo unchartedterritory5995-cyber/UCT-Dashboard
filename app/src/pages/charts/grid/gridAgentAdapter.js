@@ -36,7 +36,8 @@ export function cellPatch(cell, patch) {
     else {
       const { [UNFORKED]: unforked, ...blob } = raw
       next.settings = unforked ? null : blob
-      if (cell?.chartType && typeof raw.chartType === 'string' && raw.chartType !== cell.chartType) next.chartType = raw.chartType
+      // `unforked` only ever comes from a pick, so it restores one even if the member has since cleared it
+      if ((cell?.chartType || unforked) && typeof raw.chartType === 'string' && raw.chartType !== cell?.chartType) next.chartType = raw.chartType
     }
   }
   return next

@@ -189,10 +189,12 @@ export default function MultiChartGrid({ mc }) {
         // TF / chart-Style / own-settings change: merge the changed fields onto
         // the REAL target cell — never overwrite its (possibly still-loading) sym
         // with loadSym.
-        // ⭐ `settings` is the cell's OWN chart settings (policy A). It is merged by
-        // PRESENCE, not by `??`: "Reset to my chart" sends `settings: null`, and a
-        // nullish-coalesce would keep the fork it was asked to drop.
-        const merged = { ...cur, tf: next?.tf ?? cur?.tf, chartType: next?.chartType ?? cur?.chartType }
+        // ⭐ `settings` and `chartType` are merged by PRESENCE, not by `??`. `settings`
+        // is the cell's OWN chart settings (policy A): "Reset to my chart" sends
+        // `settings: null`, and a nullish-coalesce would keep the fork it was asked to
+        // drop. The Style picker's inherit option sends `chartType: null` the same way.
+        const merged = { ...cur, tf: next?.tf ?? cur?.tf }
+        if (next && 'chartType' in next) merged.chartType = next.chartType ?? null
         if (next && 'settings' in next) {
           if (next.settings) merged.settings = next.settings
           else delete merged.settings

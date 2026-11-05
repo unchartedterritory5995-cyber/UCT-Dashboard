@@ -417,8 +417,103 @@ describe('Multi Chart: what does not carry over', () => {
     const on = { charts: { grid: () => ({ groupsMode: () => false, syncTimeRange: () => true }) } }
     const off = { charts: { grid: () => ({ groupsMode: () => false, syncTimeRange: () => false }) } }
     const op = [{ action: 'chart.goToDate', target: 'c0', args: { date: '2024-03-01' } }]
-    expect(screenGridOps(op, on).note).toMatch(/other charts in this grid may follow/)
+    expect(screenGridOps(op, on).note).toMatch(/other charts in this grid follow that view/)
     expect(screenGridOps(op, off)).toBe(null)
+  })
+})
+
+describe('Multi Chart: the Style picker', () => {
+  const picker = (id) => document.querySelector(`[data-grid-cell-id="${id}"] select[aria-label^="Chart style"]`)
+  const withPick = () => { H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'NVDA', { chartType: 'hollow' }), cell('c1', 'AMD'), cell('c2', 'TSLA'), cell('c3', null)] })) } }
+  it('"Style" (inherit) clears a per-cell pick, and the cell draws the inherited type again', async () => {
+    withPick()
+    mount()
+    await waitFor(() => expect(H.chartProps.c0.settingsOverride?.chartType).toBe('hollow'))
+    fireEvent.change(picker('c0'), { target: { value: '' } })
+    await waitFor(() => expect(at('c0').chartType ?? null).toBe(null))
+    expect(picker('c0').value).toBe('')
+    expect(H.chartProps.c0.settingsOverride?.chartType).not.toBe('hollow')
+  })
+  it('a timeframe change keeps the pick: only a write that carries chartType moves it', async () => {
+    withPick()
+    mount()
+    fireEvent.change(picker('c0'), { target: { value: 'bars' } })
+    await waitFor(() => expect(at('c0').chartType).toBe('bars'))
+    act(() => H.chartProps.c0.onTfChange('W'))
+    await waitFor(() => expect(at('c0').tf).toBe('W'))
+    expect(at('c0').chartType).toBe('bars')
+  })
+  it('Undo of an Agent change still restores the pick', async () => {
+    withPick()
+    const { say, undo } = mount()
+    envelopes.push(plan('chart.setType', { type: 'bars' }, 0))
+    await say('turn the top-left chart into plain bars for me please')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    await undo()
+    await waitFor(() => expect(at('c0').chartType).toBe('hollow'))
+    expect(picker('c0').value).toBe('hollow')
+  }, 30000)
+  it('the member clears the pick after an Agent change: Undo still puts the chart back as it was before that change', async () => {
+    withPick()
+    const { say, undo } = mount()
+    envelopes.push(plan('chart.setType', { type: 'bars' }, 0))
+    await say('turn the top-left chart into plain bars for me please')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    fireEvent.change(picker('c0'), { target: { value: '' } })
+    await waitFor(() => expect(at('c0').chartType ?? null).toBe(null))
+    await undo()
+    await waitFor(() => expect(at('c0').chartType).toBe('hollow'))
+    expect(at('c0').settings ?? null).toBe(null)
+    expect(picker('c0').value).toBe('hollow')
+  }, 30000)
+  it('an Undo that restores a pick on an unforked cell brings the pick back even with the pick now cleared', () => {
+    const was = cellStored({ id: 'a', chartType: 'hollow' })
+    const next = cellPatch({ id: 'a', sym: 'X', tf: 'D', chartType: null }, { settings: was })
+    expect(next.chartType).toBe('hollow')
+    expect(next.settings).toBe(null)
+  })
+})
+
+describe('Multi Chart: time-range sync', () => {
+  const synced = (on = true) => { H.prefs = { multichart_state: JSON.stringify(GRID({ syncTimeRange: on })) } }
+  const R = { from: '2025-01-02', to: '2025-06-02' }
+  const follow = () => {
+    const seen = { c0: [], c1: [], c2: [] }
+    const offs = Object.keys(seen).map(id => H.chartProps[id].subscribeTimeRange((r) => seen[id].push(r)))
+    return { seen, off: () => offs.forEach(f => f()) }
+  }
+  it('a member\'s move reaches every other cell, and not its own', () => {
+    synced()
+    mount()
+    const { seen } = follow()
+    H.chartProps.c0.onTimeRangeChange(R, { memberMoved: true })
+    expect(seen.c1).toEqual([R])
+    expect(seen.c2).toEqual([R])
+    expect(seen.c0).toEqual([])
+  })
+  it('a chart framing its own load or timeframe moves nobody', () => {
+    synced()
+    mount()
+    const { seen } = follow()
+    H.chartProps.c0.onTimeRangeChange(R, { memberMoved: false })
+    H.chartProps.c0.onTimeRangeChange(R)
+    expect(seen.c1).toEqual([])
+  })
+  it('turning sync on after load wires the cells; turning it off unwires them', async () => {
+    synced(false)
+    mount()
+    expect(H.chartProps.c0.onTimeRangeChange).toBe(null)
+    act(() => H.mc.setSyncTimeRange(true))
+    await waitFor(() => expect(H.chartProps.c0.onTimeRangeChange).toBeTypeOf('function'))
+    const { seen, off } = follow()
+    H.chartProps.c1.onTimeRangeChange(R, { memberMoved: true })
+    expect(seen.c0).toEqual([R])
+    off()
+    act(() => H.mc.setSyncTimeRange(false))
+    await waitFor(() => expect(H.chartProps.c0.onTimeRangeChange).toBe(null))
+    const later = []
+    H.chartProps.c0.subscribeTimeRange((r) => later.push(r))
+    expect(later).toEqual([])
   })
 })
 
