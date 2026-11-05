@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 20:02 CT
+updated: 2026-11-04 21:41 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -411,7 +411,10 @@ BAR-TIME RULE (answers the T14/T15 conflict): t = unix seconds of the 09:30 Amer
 follow-ups opened: W5-T11 r1 (its closed _RESULT_KEYS lacks `warmup`, so unmodified T11 refuses the ok answer; its lane adapter must attach .warmup for T16) and W5-T15 r1 (switch to the 09:30 ET rule). Coordinator: merge T7b into T9 (server.mjs conflict) and T8 (its cache must keep `warmup`); T10 needs only a re-run; T19 not yet pushed.
 
 ## W4-T13 plotcandle / plotbar build (ruling R7; spike READY at a561fc12ba)
-state: BUILDING   round: r0   updated: 2026-11-04 18:31 CT
-branch: feat/pine-w4-t13-candle   base: W4-T12 f8ddebfa76 (STACK: merge T12 first)   worktree: pine-dsk-w4t13b   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · mp _resume-2026-11-01/dsk/heavy-mp3.lock (pine-dsk-mpbase3 set in-job to f8ddebfa76) · final _resume-2026-11-01/dsk/heavy-final3.lock
-note: runtime pane only; the object door keeps master's presentation-only refusal unless proven; acceptance capture W4-P1 stays open (no captures from the desktop).
+state: READY            round: r0            updated: 2026-11-04 21:41 CT
+branch: feat/pine-w4-t13-candle   tip: 7e05c067bf (docs-only over code tip 545a284ed1, the final-tip tree)   base: W4-T12 f8ddebfa76 (STACK: merge T12 first)   worktree: pine-dsk-w4t13b   model: Sonnet
+engine bump needed: YES (SCRIPT_ENGINE_VERSION NOT edited)
+evidence: docs/pine/evidence/2026-11-04-w4-t13/EVIDENCE.md
+built: renderer: defSchema styles candles/ohlcBars with plots[].ohlc{open,high,low} (the row's own column is the close) and ohlcColors{body,wick,border}, validateOhlc, Python mirror presentation_schema.py + shared fixture cases; binder.js builds the OHLC payload from four columns with per-point color/wickColor/borderColor; non-finite o/h/l/c -> whitespace; na colour -> transparent entry. W4 side: pineRuntimeFrontend emits 4 price outputs + colour outputs only under plotColours, so the OBJECT DOOR keeps runtime:presentation (master's answer); memberPaneDefinition builds one row per candle; withheld by name: show_last, non-pane display, force_overlay on a non-overlay script, v<5, any colour the call did not write. Scripts the host lane already accepts still draw four lines (master behaviour); only the runtime fallback draws candles.
+checks: 16 new tests + 7 shared fixture cases (base 14 failed / 2 controls pass; tip all green). Mutations 21/21 killed incl. the spec's high/low swap (pane and binder) and the Python mirror. measure-pair on heavy-mp3 (DESKTOP-VERIFIED: pine-dsk-mpbase3 reflog at f8ddebfa76 from 18:54:43 with no later switch; TIP and TIP-AFTER eab79680d9; sides rt0 18:54:43 / 19:13:47, rt1 19:31:32 / 19:51:42; eab79680d9 -> 545a284ed1 changes only pool.test.js): C18 audit 0, probes 0, harness unchanged on both lanes; rt0 census 5 rows (uptrick-volatility-adjusted-trail ATTACHES, intended; 4 host time-budget/drop-count noise, none use plotcandle); rt1 16 rows, all plotcandle/plotbar scripts except one noise row (multi-timeframe-trend-indicator); uptrick is the only attach flip; spec movers heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor and volatility-trend-score-backquant moved their first walls; 0 unintended; OBJECT DOOR: no change. final-tip r2 on 545a284ed1 (r1 exposed pool.test.js enumerating schema styles, fixed): gate 46, extra pytest 90, hygiene clean, vitest Tests 1 failed | 22417 passed | 118 skipped = pollingSites.rail (DESKTOP-VERIFIED).
+open: acceptance capture W4-P1 not done (row in docs/pine/capture-queue-2026-11-04-w4-t13.md; the desktop runs no captures); until then colours a call omits stay withheld.
