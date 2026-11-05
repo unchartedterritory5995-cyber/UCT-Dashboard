@@ -343,6 +343,9 @@ export const SURFACES = Object.freeze({
     // added, so 8A wrote the rail in its own directory (no 8B file edited).
     OTHER_LANES: { lane: '8B', railFile: 'a11y/sharing.a11y.test.jsx' },
   },
+  // S16 (audit 2026-11-05, M2): the 60-second first run -- the gate (closed: nothing) and the sheet it opens.
+  'components/notebook/FirstRunGate.jsx': { coveredBy: 'first-run-sheet' },
+  'components/notebook/FirstRunSheet.jsx': { recipe: 'first-run-sheet' },
   // S17 (audit 2026-11-05, M7): an empty widget's ask (sentence, input, three suggestions).
   'components/notebook/EmptyNamesAsk.jsx': { recipe: 'empty-names-ask' },
   // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.

@@ -74,6 +74,7 @@ import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
 import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
+import FirstRunGate from '../components/notebook/FirstRunGate'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
@@ -3177,6 +3178,9 @@ export default function NotebookTab() {
       {notebookFlag('notebook_onboarding_enabled') === true && (
         <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}
+      {/* S16 (audit 2026-11-05): the 60-second first run, on a member's first visit (no notes yet) and from Settings.
+          The gate is small; the sheet is a lazy leaf fetched only when it shows. */}
+      <FirstRunGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} onOpenNote={openNote} />
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />

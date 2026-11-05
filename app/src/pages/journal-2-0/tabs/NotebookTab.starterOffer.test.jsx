@@ -45,7 +45,10 @@ beforeEach(() => {
     if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
     if (u === '/api/j2/note-templates') return ok({ templates: [] })
     if (u.includes('mapping-offer')) return ok({ offer: null })
-    return ok({})                                                   // preferences: nothing answered yet
+    // S16 (audit 2026-11-05): the 60-second first run has been seen, so these walks read the offer itself (the first
+    // run's own one-ask rule is railed in components/notebook/FirstRunSheet.test.jsx).
+    if (u === '/api/auth/preferences') return ok({ notebook_tips: JSON.stringify({ v: 1, seen: ['first_run'] }) })
+    return ok({})                                                   // anything else: nothing answered yet
   })
   latchNotebookFlags({ notebook_journal_styles_enabled: true, notebook_starter_packs_enabled: true })
 })

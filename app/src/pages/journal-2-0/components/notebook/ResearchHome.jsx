@@ -32,6 +32,7 @@ import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
+import { FirstRunInlineSlot } from './FirstRunGate'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
 import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
@@ -730,6 +731,8 @@ export default function ResearchHome({
         <div className={welcomeExtras ? styles.welcomeActions : styles.firstRunActions} data-tour="first-run">
           {actions}
         </div>
+        {/* S16 -> S17 (audit 2026-11-05): after a Skip, the first run's two questions, asked here. */}
+        <FirstRunInlineSlot onOpenNote={onOpenNote} />
         {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
         {welcomeExtras && (
           <div className={styles.previewDisclosure}>
@@ -752,6 +755,10 @@ export default function ResearchHome({
       </div>
     )
   }
+
+  // S16 -> S17 (audit 2026-11-05): after a Skip, the first run's two questions, asked here. The SECOND child of every
+  // Home layout (quiet, failed and full alike), so a home that flips between them never remounts what follows it.
+  const firstRunInline = <FirstRunInlineSlot onOpenNote={onOpenNote} />
 
   const nothingToShow = [
     home.continueWorking, home.favorites, home.activeTheses, home.openPositionResearch, home.needsReview,
@@ -879,6 +886,7 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
+        {firstRunInline}
         {noticesBox}
         {setupsBox}
         {askSection}
@@ -899,6 +907,7 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
+        {firstRunInline}
         {noticesBox}
         {setupsBox}
         {askSection}
@@ -919,6 +928,7 @@ export default function ResearchHome({
   return (
     <>
     {homeTop}
+    {firstRunInline}
     {noticesBox}
     {setupsBox}
     {askSection}

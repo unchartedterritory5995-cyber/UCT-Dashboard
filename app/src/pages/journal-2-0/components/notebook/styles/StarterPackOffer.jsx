@@ -23,6 +23,7 @@ import { STYLES_URL } from '../../../lib/journalStyles'
 import { starterPacksEnabled } from '../../../lib/starterPacksFlag'
 import { PACKS, STARTER_PACK_PREF, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
 import { logIfUnexpected } from './styleErrors'
+import { useFirstRunShowing } from '../../../lib/firstRun'
 import styles from './StarterPackOffer.module.css'
 
 export const OFFER_TITLE = 'How do you trade?'
@@ -70,7 +71,10 @@ export function useStarterPackOffer(data, active = true) {
   const member = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser)
   const owed = useSyncExternalStore(subscribe, () => owesAnswer(member), () => owesAnswer(member))
   const ready = Boolean(data) && !loading
-  const eligible = on && ready && !readFailed && !owed
+  // Audit 2026-11-05, S16: the 60-second first run asks "How do you trade?" itself; while it is on screen no card
+  // asks it again (one ask per page). A Skip closes it, and the card may then ask here, inline (S17).
+  const firstRunShowing = useFirstRunShowing()
+  const eligible = on && ready && !readFailed && !owed && !firstRunShowing
     && readStarterPackState(prefs) === null
     && !(data.styles || []).some((s) => !s.builtin)
   // The answer an install made for THIS member could not write (see unwrittenAnswers), written now that they are
