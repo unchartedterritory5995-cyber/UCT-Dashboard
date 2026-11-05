@@ -153,7 +153,8 @@
    "undo": "none",
    "query": true,
    "surfaces": [
-    "calendar"
+    "calendar",
+    "charts"
    ],
    "fast": true
   },
@@ -2163,6 +2164,19 @@
    ],
    "fast": false
   },
+  "widget.readOptions": {
+   "domain": "widget",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "widget.remove": {
    "domain": "widget",
    "group": "workspace",
@@ -2209,6 +2223,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "widget.sendToJournal": {
+   "domain": "widget",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"

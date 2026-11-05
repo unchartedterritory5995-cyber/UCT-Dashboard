@@ -86,6 +86,8 @@
   "widget.setLink": "workspace",
   "widget.showList": "workspace",
   "widget.setOption": "boardEdit",
+  "widget.readOptions": "boardEdit",
+  "widget.sendToJournal": "boardEdit",
   "watchlist.open": "lists",
   "widget.showScan": "workspace",
   "chart.applyThemeAll": "charts",
@@ -160,7 +162,8 @@
   "agent.capabilities": "agent",
   "agent.undo": "undo",
   "guide.explain": "guide",
-  "guide.show": "guide"
+  "guide.show": "guide",
+  "calendar.day": "calendar"
  },
  "groups": [
   {
@@ -177,7 +180,7 @@
   },
   {
    "id": "boardEdit",
-   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)"
+   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
   },
   {
    "id": "workspace",
@@ -234,6 +237,10 @@
   {
    "id": "settings",
    "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+  },
+  {
+   "id": "calendar",
+   "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
   },
   {
    "id": "agent",
@@ -312,7 +319,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
      {
       "id": "workspace",
@@ -369,6 +376,10 @@
      {
       "id": "settings",
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
      },
      {
       "id": "agent",
@@ -465,7 +476,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
      {
       "id": "workspace",
@@ -522,6 +533,10 @@
      {
       "id": "settings",
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
      },
      {
       "id": "agent",
@@ -632,7 +647,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
      {
       "id": "workspace",
@@ -689,6 +704,10 @@
      {
       "id": "settings",
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
      },
      {
       "id": "agent",
@@ -809,7 +828,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
      {
       "id": "workspace",
@@ -866,6 +885,10 @@
      {
       "id": "settings",
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+     },
+     {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
      },
      {
       "id": "agent",
@@ -958,7 +981,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar’s star filter, Volume Scan logos…)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
      {
       "id": "workspace",
@@ -1017,6 +1040,10 @@
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
      },
      {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+     },
+     {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
      },
@@ -1059,6 +1086,7 @@
     "data",
     "breadth",
     "settings",
+    "calendar",
     "agent",
     "undo",
     "guide"
@@ -1143,6 +1171,8 @@
     "widget.setLink",
     "widget.showList",
     "widget.setOption",
+    "widget.readOptions",
+    "widget.sendToJournal",
     "watchlist.open",
     "widget.showScan",
     "chart.applyThemeAll",
@@ -1217,7 +1247,8 @@
     "agent.capabilities",
     "agent.undo",
     "guide.explain",
-    "guide.show"
+    "guide.show",
+    "calendar.day"
    ],
    "routing": null
   }
