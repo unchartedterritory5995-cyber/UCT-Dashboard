@@ -101,6 +101,7 @@ const GRID_COLS = 24
 const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = _FIXED_ROWS   // viewport-locked row count (see ./rowHeight.js)
+const BOARD_NO_ROOM = 'There is no room left on this board for that widget. Close or shrink one first.'
 // A12 CP2 (2026-09-25): the watchKey forms a Watchlist widget accepts (registry.js
 // paramsSchema: 'flagged' | user:<id> | community:<id> | tag:<color>). The ?openWatchlist=
 // door validates against this before touching the board; anything else degrades to a no-op.
@@ -883,7 +884,7 @@ function ChartsWorkspaceBoard() {
   const boardHasRoom = boardCanGrow(boardCount)
   const boardOverBound = boardOverBoundSentence(boardCount)
   // A refusal describes a full board; once a widget is closed it is no longer true.
-  useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom])
+  useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom, boardCount])
 
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
@@ -1704,10 +1705,13 @@ function ChartsWorkspaceBoard() {
     // space, fall through and place it immediately — no confirm step. (Float-on-create
     // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
     // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
-    if (!float && !instant && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)) {
+    if (!float && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)) {
       const base = layoutRef.current?.widgets || []
       const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
-      if (plan.mutations && plan.mutations.length > 0) {
+      // No widget can give up room: refused, the board stays as it is (a widget placed on top
+      // of it would shove one off the bottom, out of reach).
+      if (!plan.place) { setBoardRefusal(BOARD_NO_ROOM); return }
+      if (!instant && plan.mutations && plan.mutations.length > 0) {
         setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
         return
       }
@@ -1736,6 +1740,7 @@ function ChartsWorkspaceBoard() {
         // shrinks to its top half so the new chart takes the bottom) — apply them
         // before adding the newcomer at `place`.
         const plan = planPlacement(prev.widgets, type, COLS.lg, FIXED_ROWS)
+        if (!plan.place) return prev              // the board filled since the check above
         place = plan.place
         if (plan.mutations.length) {
           const byId = Object.fromEntries(plan.mutations.map(m => [m.id, m]))

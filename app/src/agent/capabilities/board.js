@@ -1262,7 +1262,7 @@ export function registerBoardCapabilities() {
     },
     apply(st, { widget, tab }) {
       const { t } = chartWidget(st, widget)
-      return setOpts(st, t, setActiveChartTab(t.opts || {}, tabsOf(t).indexOf(tabsOf(t).find(x => x.key === findTab(t, tab).key))))
+      return setOpts(st, t, setActiveChartTab(t.opts || {}, tabsOf(t).findIndex(x => x.key === findTab(t, tab).key)))
     },
     describe(b, a, { widget, tab }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
