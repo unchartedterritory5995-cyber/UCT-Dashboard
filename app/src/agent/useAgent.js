@@ -892,12 +892,22 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
       mixedDeferred = creates.size > 0 && deferred.some(d => !creates.has(String(d.target)))
       for (const d of deferred) {
-        const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-        const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
-        const dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
+        // this check runs on an unprepared plan: one that throws is that step refused, never the whole request lost
+        let dp
+        try {
+          const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+          dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
+        } catch { dp = { ok: false, refusals: [{ reason: 'I could not check that step.' }] } }
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
-        else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
-        else { okd.push(d); deferredLines.push(...dp.lines) }
+        else if (!dp.ok) {
+          // said AND recorded, before anything runs: a reload, or a failure later in this request, still shows what was dropped.
+          // Awaited, so this row lands first (and a new chat's id is known); the member's words ride on the first row only.
+          const text = `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}`
+          push({ role: 'agent', text })
+          try { await record({ member, outcome: text, outcomeData: { kind: 'partial', actions: [d?.action] }, telemetry: { path, refused: true, actions: [d?.action], voice } }) } catch { /* the words above still say it */ }
+          member = null
+        } else { okd.push(d); deferredLines.push(...dp.lines) }
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
       }
       deferred = okd
