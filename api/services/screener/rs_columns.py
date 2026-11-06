@@ -159,6 +159,41 @@ def _clip(bars: Sequence[dict], session) -> list:
     return out
 
 
+def _trim_to(bench: list, times) -> list:
+    """The benchmark bars whose ``t`` is one of ``times`` (the ticker window's
+    bar times), in their own order — review finding #5, 2026-11-07.
+
+    The build hands every row the SAME 5,000-bar SPY / RSP lists; each RS join
+    (`rs_line`, `benchmark_closes_aligned`) maps the whole benchmark by time
+    and then reads only the window's ~400 times. Trimming once per ticker hands
+    every join just the bars it can match, so the answer is identical: the time
+    join reads the same close for every window bar (duplicates keep their
+    order, so the last one still wins), and a bar the window does not hold was
+    never read. ``times`` is ``None`` when a window time cannot be hashed — the
+    join itself refuses that, so the benchmark goes through untouched and the
+    join answers exactly as before; a benchmark bar whose own time cannot be
+    hashed is kept for the same reason.
+    """
+    if times is None:
+        return bench
+    out = []
+    for b in bench:
+        try:
+            keep = b.get("t") in times
+        except TypeError:
+            keep = True
+        if keep:
+            out.append(b)
+    return out
+
+
+def _times_of(win: Sequence[dict]):
+    try:
+        return {b.get("t") for b in win}
+    except TypeError:
+        return None
+
+
 def _flag(v) -> Optional[int]:
     """{0.0, 1.0, None} → {0, 1, None}."""
     if v is None:
@@ -220,6 +255,8 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     if not spy:
         _count(stats, OUTCOME_NO_BENCH)
         return values
+    times = _times_of(win)
+    spy = _trim_to(spy, times)
 
     p1 = rs.compute_phase1_columns(win, spy)      # defaults: 252 / EMA 21 / 2 % / −0.5 %
     rs_spy = p1["rsLine"]
@@ -228,21 +265,27 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
         _count(stats, OUTCOME_NO_BENCH)
         return values
 
-    mans = rs.compute_mansfield_columns(win, spy, MANSFIELD_LENGTH)
+    # ONE RS join per benchmark (review finding #5): Mansfield reads the line
+    # phase 1 already drew — the same `rs_line` over the same inputs.
+    mans = rs.compute_mansfield_columns(win, spy, MANSFIELD_LENGTH, rs_values=rs_spy)
     nh_age = rs.bars_ago_column(p1["rsNH"])
     cross_age = rs.bars_ago_column(p1["crossUp"])
-    gor_20 = rs.rolling_count(p1["gor"], GREEN_ON_RED_WINDOW)
+    gor_20 = rs.rolling_count(p1["gor"][-GREEN_ON_RED_WINDOW:], GREEN_ON_RED_WINDOW)
 
     agree = None
     rsp = _as_bars(rsp_bars, like=win)
     if rsp:
-        rs_rsp = rs.rs_line(win, rsp)
+        rs_rsp = rs.rs_line(win, _trim_to(rsp, times))
         # `benchmark_agree` is the plan's THREE-leg sensitivity (SPY, RSP, sector
         # ETF); the screener build holds no sector-ETF series (engineering map
         # §2.5 reads RSP only), so the third leg repeats RSP. The agreement is a
         # SET of slope signs, so a repeated leg changes nothing: this is exactly
         # "the 20-bar RS slope has one sign against SPY and against RSP".
-        agree = rs.benchmark_agree(rs_spy, rs_rsp, rs_rsp, AGREE_WINDOW)[-1]
+        # Only the newest bar's answer is stored, and it reads exactly the last
+        # AGREE_WINDOW bars of each line, so it is asked of those bars alone
+        # rather than of every window in the history (review finding #5).
+        tail = -AGREE_WINDOW
+        agree = rs.benchmark_agree(rs_spy[tail:], rs_rsp[tail:], rs_rsp[tail:], AGREE_WINDOW)[-1]
 
     values["rs_new_high"] = _flag(p1["rsNH"][-1])
     values["rs_nh_before_price"] = _flag(p1["rsNHbeforePx"][-1])

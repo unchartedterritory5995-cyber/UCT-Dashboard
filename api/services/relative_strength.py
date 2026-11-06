@@ -34,6 +34,8 @@ line. The 0/1 event columns stay beside them for scans and alerts.
 from __future__ import annotations
 
 import math
+import operator
+from collections import deque
 from typing import Dict, List, Optional, Sequence
 
 from api.services.indicator_compute import (
@@ -153,26 +155,48 @@ def rolling_extreme_event(series: Column, lookback: int, *, high: bool,
       ``C[t] ≥ max × (1 − tol)`` (plan §7.4, default 2 %). Zero for the RS line.
     * A gap anywhere in the window makes the bar ``None``, never a guess: a
       window with a hole has no honest maximum.
+
+    ⭐ O(n), NOT O(n × lookback) (review finding #10, 2026-11-07). The window's
+    extreme is the head of a monotonic deque of indices, and "is the window
+    whole" is "the last gap sits before the window's first bar" — one pass, no
+    per-bar rescan of 252 values. The answer is unchanged, bar for bar: the
+    deque head is the window's ``max``/``min`` by exact comparison, a tie is
+    still a new extreme, and the tolerance product is the same float
+    expression (`tests/test_rs_fix_u2_kernel_parity.py` holds the previous
+    implementation as its oracle).
     """
     n = len(series)
     out: Column = [None] * n
     if lookback <= 0:
         return out
     tol = max(0.0, float(tolerance_pct)) / 100.0
-    for t in range(lookback, n):
-        v = series[t]
-        if not _is_num(v):
-            continue
-        window = series[t - lookback:t]
-        if any(not _is_num(w) for w in window):
+    lookback = operator.index(lookback)     # the old `range(lookback, n)` refused a float too
+    scale = (1.0 - tol) if high else (1.0 + tol)
+    window: deque = deque()     # indices of the run since the last gap; values monotone from the head
+    last_gap = -1               # index of the newest non-number seen so far
+    for t in range(n):
+        start = t - lookback
+        if start >= 0 and last_gap < start:
+            # The prior `lookback` values are all numbers; drop what fell out.
+            while window[0] < start:
+                window.popleft()
+            v = series[t]
+            if _is_num(v):
+                ext = series[window[0]]
+                hit = (v >= ext * scale) if high else (v <= ext * scale)
+                out[t] = 1.0 if hit else 0.0
+        w = series[t]
+        if not _is_num(w):
+            last_gap = t
+            window.clear()
             continue
         if high:
-            ext = max(window)
-            hit = v >= ext * (1.0 - tol)
+            while window and series[window[-1]] < w:
+                window.pop()
         else:
-            ext = min(window)
-            hit = v <= ext * (1.0 + tol)
-        out[t] = 1.0 if hit else 0.0
+            while window and series[window[-1]] > w:
+                window.pop()
+        window.append(t)
     return out
 
 
@@ -595,7 +619,8 @@ PHASE2A_COLUMNS = (
 
 
 def compute_mansfield_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
-                              length: int = DEFAULT_MANSFIELD_LENGTH) -> Dict[str, Column]:
+                              length: int = DEFAULT_MANSFIELD_LENGTH, *,
+                              rs_values: Optional[Column] = None) -> Dict[str, Column]:
     """The Phase 2a Mansfield column set, aligned to ``bars`` — what the Trend
     preset plots (plan §6.7 "Mansfield zero cross"), the screener stores as
     `mansfield` / `mansfield_cross_bars_ago` and the alert lane addresses as
@@ -604,11 +629,20 @@ def compute_mansfield_columns(bars: Sequence[dict], benchmark_bars: Sequence[dic
     ``length`` is clamped to ``MANSFIELD_LENGTH_RANGE`` the way Phase 1 clamps
     ``maLength``. Every column is ``None`` on a gap bar, the age included (a
     bar with no benchmark close has no Mansfield reading to be the age OF).
+
+    ``rs_values`` — the caller's ``rs_line(bars, benchmark_bars)`` when it has
+    already joined them (the screener reads `compute_phase1_columns(...)
+    ["rsLine"]`, the same function over the same inputs), so one ticker pays for
+    one join, not two (review finding #5, 2026-11-07). It is used only when it
+    is aligned to ``bars``; anything else is ignored and the line recomputed.
     """
     n_len = int(_clamp(length, *MANSFIELD_LENGTH_RANGE, default=DEFAULT_MANSFIELD_LENGTH))
     if len(bars) == 0:
         return {k: [] for k in PHASE2A_COLUMNS}
-    rs = rs_line(bars, benchmark_bars)
+    if rs_values is not None and len(rs_values) == len(bars):
+        rs = list(rs_values)
+    else:
+        rs = rs_line(bars, benchmark_bars)
     mrs = mansfield_column(rs, n_len)
     crosses = mansfield_cross_column(mrs)
     age = bars_ago_column(either(crosses["crossUp"], crosses["crossDown"]))
