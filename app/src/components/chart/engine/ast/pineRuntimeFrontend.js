@@ -83,6 +83,13 @@ import { methodFormCall, splitMethodName } from './ufcs.js'
 // ⭐⭐ W6-T3a — a slot's static type is ONE descriptor, `slots[s].ty` (`typeDescriptor.js`).
 import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, elemUdtOf, drawingOf,
   isTextTy, isColourTy, methodNsOf } from './typeDescriptor.js'
+// ⭐⭐ W6-T6 — the `for … in` walk rule (live list vs snapshot, the witnessed mutations): ONE
+// table, read by this lane and the host object lane (`pineObjects.js`) alike.
+import {
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
+  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal,
+} from './forInRule.js'
+import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
@@ -10292,6 +10299,249 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return hit
   }
 
+  // ── ⭐⭐ W6-T6 — `for x in <collection>` / `for [i, x] in <collection>` ─────────────────
+  //
+  // Lowered onto the plain `for` (`lowerIr.js` STMT.FOR, `live`), with no new op:
+  //
+  //   <list>  = the collection, read ONCE        (a user array: the array itself, a
+  //                                               reference; `<family>.all`: a SNAPSHOT)
+  //   <pass>  = 0
+  //   while <pass> < array.size(<list>)          (the length RE-READ before every pass)
+  //       i = <pass>;  x = array.get(<list>, <pass>)   (the slot read when the pass reaches it)
+  //       body
+  //       <pass> += 1                            (`continue` lands here, as in `for`)
+  //
+  // ⭐ THE WALK RULE IS `forInRule.js`, the table the host object lane reads too: a body may
+  // change the list it walks by push / shift / set (C48, F03-F05, witnessed live); `<family>.all`
+  // is a snapshot (A02-A06). `<list>` and `<pass>` live in slots no Pine name can reach.
+  // `x` is typed by T3b's `exprType` (`array.get` over the list's descriptor), so `x.top` reads a
+  // record field and `line.set_x2(x, …)` a drawing; a list whose element type is not written
+  // types `x` exactly as the member's own `x = array.get(list, i)` binding is typed.
+  // ⛔ REFUSED BY NAME (`runtime:loop`), each with its capture row (W6-F1 / the G-row grading):
+  // any other change of the walked list (and one that MAY reach it through another name); a
+  // write to the loop variable or through it; a `for … in` inside a function body or whose
+  // value is read; `polyline.all`, a matrix, a map; a list this lane cannot type.
+  // ⛔ AT THE OBJECT DOOR the host object lane serves `for … in`; the door keeps refusing it
+  // (`objectDoorRefuses`) until measure-pair proves its output identical.
+  let forInFnDefs = null
+  const lowerForIn = (st, toks, first, scope, out) => {
+    const refuse = (why) => {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', why ? `\`for … in\`: ${why}` : '`for … in`', locate(first))
+    }
+    if (atObjectDoor) objectDoorRefuses('a `for … in` loop', locate(first))
+    // ⛔ the host object pass's lane (`objectLane.js`) reads per-row values off counted loops
+    // only; it keeps master's answer.
+    if (Array.isArray(opts.objectIterTrees)) refuse(null)
+    if (takeLoopSink()) refuse('the value of a `for … in` loop is not yet captured (W6-F1)')
+    if (owner !== null) refuse('inside a function body, where each call site walks its own list, is not yet captured (W6-F1)')
+    // `for x in SRC` | `for [i, x] in SRC`
+    let idxTok = null
+    let elemTok = null
+    let inAt = -1
+    if (isPunct(toks[1], '[')) {
+      if (toks[2] && toks[2].kind === 'ident' && isPunct(toks[3], ',') && toks[4] && toks[4].kind === 'ident'
+          && isPunct(toks[5], ']')) { idxTok = toks[2]; elemTok = toks[4]; inAt = 6 }
+    } else if (toks[1] && toks[1].kind === 'ident') { elemTok = toks[1]; inAt = 2 }
+    if (!elemTok || !toks[inAt] || toks[inAt].kind !== 'ident' || toks[inAt].value !== 'in') {
+      refuse('a loop header this lane does not read')
+    }
+    const srcToks = toks.slice(inAt + 1)
+    if (srcToks.length !== 1 || srcToks[0].kind !== 'ident') refuse('the walked collection is not a name or `<family>.all`')
+    const src = String(srcToks[0].value)
+    const elem = String(elemTok.value)
+    const idx = idxTok ? String(idxTok.value) : null
+    if (elem.includes('.') || (idx !== null && idx.includes('.'))) refuse('a loop variable is not a plain name')
+    if (src === 'polyline.all') refuse('`polyline.all` is not yet captured (W6-F1)')
+    const family = scope.lookup(src) === null && Object.prototype.hasOwnProperty.call(FOR_IN_SNAPSHOT_SOURCES, src)
+      ? FOR_IN_SNAPSHOT_SOURCES[src] : null
+    const srcNode = { type: 'name', name: src, tok: srcToks[0] }
+    const srcTy = family ? makeTy('array', { elem: makeTy('drawing', { name: family }) }) : exprType(srcNode, scope)
+    if (!srcTy) refuse(`the type of \`${src}\` cannot be told`)
+    if (srcTy.kind === 'matrix' || srcTy.kind === 'map') refuse(`a walk over a ${srcTy.kind} is not yet captured (W6-F1)`)
+    if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
+    if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
+    const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
+    // ⭐ C48 — a body that changes its own list walks it LIVE, by push / shift / set only.
+    if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
+    // ⛔ (review N1) …a list the element holds, changed in the body (`array.push(x.arr, v)`).
+    if (forInChangesHeldList(st.sub, elem, rule)) refuse(forInHeldListRefusal(elem))
+    // ⛔ …and a change by anything else to a list that MAY be the walked one under another name
+    // (an alias holds the same array): another list of the same type, one this lane cannot
+    // type, or any list a called function changes. A list of another type cannot be it, and
+    // neither can one the body itself binds to a NEW array and never reassigns
+    // (`var line[] tmp = array.new_line(n)` inside the loop).
+    if (!family) {
+      const fresh = forInFreshLocals(st.sub)
+      for (const t of forInUnwitnessedTargets(st.sub, rule)) {
+        if (t === src || (t !== null && fresh.has(t) && !forInWrites(st.sub, t))) continue
+        const ty = t === null ? null : exprType({ type: 'name', name: t, tok: first }, scope)
+        if (!ty || tyKey(ty) === tyKey(srcTy)) {
+          refuse(`the body changes \`${t === null ? 'a list a called function is handed' : t}\`, which may be \`${src}\`, `
+            + `by more than ${[...FOR_IN_LIVE_WITNESSED].join(' / ')}`)
+        }
+      }
+    }
+    // ⛔ W6-F1 — a write to the loop variable, or through it (a field of the element).
+    for (const v of [elem, idx]) {
+      if (v !== null && forInWrites(st.sub, v)) refuse(`the body writes the loop variable \`${v}\` or through it, not yet captured (W6-F1)`)
+    }
+    // …and handing the element to a function that writes a field or changes a list held in one
+    // (at any depth of its calls):
+    // the element is a reference, so that is a write through `x` too.
+    if (forInHandsOn(st.sub, elem, rule)) {
+      refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
+    }
+
+    const at = `for … in@${first.line}:${first.column}`
+    const outer = new Scope(scope)
+    const listName = `${at} list`
+    const passName = `${at} pass`
+    const listSlot = outer.declare(listName, newSlot(listName, false))
+    setSlotTy(listSlot, srcTy)
+    out.push(declare(listSlot, lowerExpr(srcNode, scope)))
+    const passSlot = outer.declare(passName, newSlot(passName, false))
+    setSlotTy(passSlot, makeTy('num'))
+    const listRead = () => ({ type: 'name', name: listName, tok: first })
+    const inner = new Scope(outer)
+    const pre = []
+    if (idx !== null) {
+      const idxSlot = inner.declare(idx, newSlot(idx, false))
+      setSlotTy(idxSlot, makeTy('num'))
+      pre.push(declare(idxSlot, read(passSlot)))
+    }
+    const getNode = { type: 'call', name: 'array.get', tok: first,
+      args: [{ name: null, value: listRead(), tok: first }, { name: null, value: { type: 'name', name: passName, tok: first }, tok: first }] }
+    const elemSlot = inner.declare(elem, newSlot(elem, false))
+    setSlotTy(elemSlot, initialiserTy(getNode, outer))
+    pre.push(declare(elemSlot, lowerExpr(getNode, outer)))
+    loopDepth += 1
+    let body
+    try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1 }
+    const sizeNode = { type: 'call', name: 'array.size', tok: first, args: [{ name: null, value: listRead(), tok: first }] }
+    out.push(forStmt({
+      slot: passSlot, toSlot: newSlot(`${at} length`, false), stepSlot: newSlot(`${at} step`, false),
+      from: num(0), to: lowerExpr(sizeNode, outer), step: num(1), body: [...pre, ...body], live: true,
+    }))
+  }
+  /** Every list the statements (and, transitively, every user function they call) change by
+   *  a member no capture witnesses: its name, or `null` for a change inside a called function
+   *  (whose list this lane cannot name). */
+  const forInUnwitnessedTargets = (list, rule) => {
+    const out = new Set()
+    const seen = new Set()
+    const scanList = (items, inFn) => {
+      for (const s2 of items || []) {
+        const ts = s2.header || []
+        for (let i = 0; i < ts.length; i += 1) {
+          const tk = ts[i]
+          if (!tk || tk.kind !== 'ident') continue
+          const v = String(tk.value)
+          if (!isPunct(ts[i + 1], '(')) continue
+          const m = splitMethodName(v)
+          let target
+          if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && !FOR_IN_LIVE_WITNESSED.has(v.slice(6))) {
+            target = ts[i + 2] && ts[i + 2].kind === 'ident' ? String(ts[i + 2].value) : null
+          } else if (m && COLLECTION_MUTATORS.has(m.method) && !FOR_IN_LIVE_WITNESSED.has(m.method) && !rule.isDefined(m.method)) {
+            target = m.recv
+          }
+          if (target !== undefined) out.add(inFn ? null : target)
+          const fn = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+          if (fn && !seen.has(fn)) { seen.add(fn); scanList(rule.fnDefs.get(fn).body, true) }
+        }
+        scanList(s2.sub, inFn)
+      }
+    }
+    scanList(list, false)
+    return out
+  }
+  /** The names the statements bind (`[var] [type] name = …`, at any depth) to a NEW array: the
+   *  right-hand side is one `array.new*` / `array.from` / `array.copy` call. */
+  const forInFreshLocals = (list, out = new Set()) => {
+    for (const s2 of list || []) {
+      const ts = s2.header || []
+      const eq = findTop(ts, (x) => isPunct(x, '='))
+      const nt = eq > 0 ? ts[eq - 1] : null
+      const head = ts[eq + 1]
+      if (nt && nt.kind === 'ident' && head && head.kind === 'ident' && isPunct(ts[eq + 2], '(')
+          && (/^array\.new(_[a-z]+)?$/.test(String(head.value)) || head.value === 'array.from' || head.value === 'array.copy')
+          && closeOfToks(ts, eq + 2) === ts.length - 1) {
+        out.add(String(nt.value))
+      }
+      forInFreshLocals(s2.sub, out)
+    }
+    return out
+  }
+  /** The index closing the bracket opened at `open`, or -1. */
+  const closeOfToks = (ts, open) => {
+    let depth = 0
+    for (let k = open; k < ts.length; k += 1) {
+      if (isPunct(ts[k], '(') || isPunct(ts[k], '[')) depth += 1
+      else if (isPunct(ts[k], ')') || isPunct(ts[k], ']')) { depth -= 1; if (depth === 0) return k }
+    }
+    return -1
+  }
+  /** Does a statement write `name` (`name := …`, `name += …`, `[…, name] := …`) or a field
+   *  through it (`name.f := …`)? */
+  const forInWrites = (list, name) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    const hit = ts.some((tk, i) => tk && tk.kind === 'ident'
+      && (String(tk.value) === name || String(tk.value).startsWith(`${name}.`))
+      && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value))
+    const tuple = isPunct(ts[0], '[') && findTop(ts, (x) => isPunct(x, ':=')) > 0
+      && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
+    return hit || tuple || forInWrites(s2.sub, name)
+  })
+  /** ⛔ (review N1) Does a statement change a list held by `name` (`array.push(name.arr, v)`,
+   *  `name.arr.push(v)`, at any depth)? The call shape is `forInRule.js::heldListMutation`. */
+  const forInChangesHeldList = (list, name, rule) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    return ts.some((_, i) => {
+      const t = heldListMutation(ts, i, rule)
+      return t !== null && (t === name || t.startsWith(`${name}.`))
+    }) || forInChangesHeldList(s2.sub, name, rule)
+  })
+  /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
+   *  change a list held in one (`array.push(p.arr, v)`)? */
+  const forInFnWritesField = (fn, rule, seen = new Set()) => {
+    if (seen.has(fn) || !rule.fnDefs.has(fn)) return false
+    seen.add(fn)
+    const scan = (items) => (items || []).some((s2) => {
+      const ts = s2.header || []
+      return ts.some((tk, i) => {
+        if (!tk || tk.kind !== 'ident') return false
+        const v = String(tk.value)
+        if (v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value)) return true
+        if (heldListMutation(ts, i, rule) !== null) return true
+        if (!isPunct(ts[i + 1], '(')) return false
+        const m = splitMethodName(v)
+        const callee = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+        return !!callee && forInFnWritesField(callee, rule, seen)
+      }) || scan(s2.sub)
+    })
+    return scan(rule.fnDefs.get(fn).body)
+  }
+  /** Is `name` handed to a user function that writes a field (an argument, or the receiver of
+   *  a script's method)? */
+  const forInHandsOn = (list, name, rule) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    const here = ts.some((tk, i) => {
+      if (!tk || tk.kind !== 'ident' || !isPunct(ts[i + 1], '(')) return false
+      const v = String(tk.value)
+      const m = splitMethodName(v)
+      const fn = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+      if (!fn || !forInFnWritesField(fn, rule)) return false
+      if (m && m.recv === name) return true
+      let depth = 0
+      for (let k = i + 1; k < ts.length; k += 1) {
+        if (isPunct(ts[k], '(') || isPunct(ts[k], '[')) depth += 1
+        else if (isPunct(ts[k], ')') || isPunct(ts[k], ']')) { depth -= 1; if (depth === 0) return false }
+        else if (ts[k].kind === 'ident' && String(ts[k].value).split('.')[0] === name) return true
+      }
+      return false
+    })
+    return here || forInHandsOn(s2.sub, name, rule)
+  })
   const lowerStmts = (list0, scope, rootHoist = false, fnHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
@@ -10515,8 +10765,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // rather than falling to "a `for` needs `name = from to to`", which reads as
       // a typo in a script that is perfectly good Pine.
       if (word === 'for' && findTop(toks, (x) => x.kind === 'ident' && x.value === 'in') > 0) {
-        note('runtime:loop')
-        throw new RuntimeRefusal('runtime:loop', '`for … in`', locate(first))
+        lowerForIn(st, toks, first, scope, out)
+        continue
       }
       if (word === 'for') {
         const loopSink = takeLoopSink()

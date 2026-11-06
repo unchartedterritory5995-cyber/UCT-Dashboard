@@ -82,6 +82,14 @@ const SHAPES = {
   // W4-T9 a frame local derived from a parameter bounds a loop's offset (a widened fold,
   // so the door keeps master's refusal).
   t9_local: ['', false, 'f(src, length) =>\n    periods = length - 1\n    s = 0.0\n    for j = 0 to periods\n        s += src[j]\n    s / length\n', 'v = f(close + k * 0, 3)\n'],
+  // ⭐ W6-T6 — `for … in` (a new lowering on the runtime lane; the host object lane serves it
+  // for drawing scripts): the door refuses it BY NAME until measure-pair proves the door's
+  // output identical. Over a number list, a list its body pushes onto (the LIVE walk), and a
+  // record list read through `x.f`.
+  forin_sum: ['a = array.from(close, open)\ns = 0.0\nfor x in a\n    s += x\nv = s + k * 0\n', true],
+  forin_live: ['a = array.from(close)\nn = 0\nfor [i, x] in a\n    if i < 3\n        array.push(a, x)\n    n += 1\nv = n + k * 0\n', true],
+  forin_udt: ['', true, 'type P\n    float p\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(2))\n',
+    's = 0.0\nfor q in ps\n    s += q.p\nv = s + close * 0 + k * 0\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
