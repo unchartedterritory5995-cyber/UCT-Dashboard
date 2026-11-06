@@ -1,0 +1,734 @@
+{
+ "first_budget_stop": "2026-11-06T01:08:29Z",
+ "spend_to_stop": {
+  "usd": 321.7964241187719,
+  "minutes": 53632.73735312865
+ },
+ "nov": {
+  "days": {
+   "2026-11-01": {
+    "runs:rails": 709.0,
+    "runs:gate": 22.0,
+    "runs:other_heavy": 1.0,
+    "runs:promote": 22.0,
+    "min:rails": 2112.2917880228147,
+    "min:gate": 482.0,
+    "min:promote": 43.0,
+    "min:other_heavy": 352.0
+   },
+   "2026-11-02": {
+    "runs:rails": 1246.0,
+    "runs:gate": 40.0,
+    "runs:promote": 46.0,
+    "runs:other_heavy": 1.0,
+    "min:rails": 3149.482531096426,
+    "min:gate": 836.0,
+    "min:promote": 109.0,
+    "min:other_heavy": 401.0
+   },
+   "2026-11-03": {
+    "runs:rails": 1310.0,
+    "runs:agent": 262.0,
+    "runs:promote": 30.0,
+    "runs:gate": 26.0,
+    "runs:other_heavy": 2.0,
+    "min:rails": 5312.666277794766,
+    "min:gate": 575.0,
+    "min:promote": 132.0,
+    "min:other_heavy": 450.0,
+    "min:agent": 5969.0
+   },
+   "2026-11-04": {
+    "runs:promote": 41.0,
+    "runs:rails": 1157.0,
+    "runs:gate": 29.0,
+    "runs:agent": 309.0,
+    "runs:other_heavy": 1.0,
+    "min:rails": 2764.9714774536214,
+    "min:gate": 1125.0,
+    "min:promote": 90.0,
+    "min:other_heavy": 376.0,
+    "min:agent": 9319.0
+   },
+   "2026-11-05": {
+    "runs:rails": 1121.0,
+    "runs:gate": 54.0,
+    "runs:promote": 57.0,
+    "runs:agent": 204.0,
+    "runs:other_heavy": 1.0,
+    "min:rails": 2923.005779841368,
+    "min:gate": 3628.0,
+    "min:promote": 130.0,
+    "min:other_heavy": 391.0,
+    "min:agent": 11956.0
+   },
+   "2026-11-06": {
+    "runs:rails": 239.0,
+    "runs:agent": 40.0,
+    "runs:promote": 11.0,
+    "runs:gate": 8.0,
+    "min:rails": 508.06662390678594,
+    "min:gate": 511.0,
+    "min:promote": 24.0,
+    "min:agent": 2278.0
+   }
+  },
+  "total_usd": 335.6849068687
+ },
+ "oct": {
+  "days": {
+   "2026-10-01": {
+    "runs:rails": 816.0,
+    "runs:promote": 14.0,
+    "runs:gate": 14.0,
+    "runs:other_heavy": 18.0
+   },
+   "2026-10-02": {
+    "runs:other_heavy": 22.0,
+    "runs:rails": 1483.0,
+    "runs:promote": 16.0,
+    "runs:gate": 16.0
+   },
+   "2026-10-03": {
+    "runs:rails": 1487.0,
+    "runs:promote": 11.0,
+    "runs:other_heavy": 18.0,
+    "runs:gate": 11.0
+   },
+   "2026-10-04": {
+    "runs:rails": 849.0,
+    "runs:promote": 11.0,
+    "runs:gate": 11.0,
+    "runs:other_heavy": 20.0
+   },
+   "2026-10-05": {
+    "runs:rails": 568.0,
+    "runs:gate": 24.0,
+    "runs:other_heavy": 24.0,
+    "runs:promote": 25.0
+   },
+   "2026-10-06": {
+    "runs:promote": 24.0,
+    "runs:other_heavy": 25.0,
+    "runs:rails": 253.0,
+    "runs:gate": 24.0
+   },
+   "2026-10-07": {
+    "runs:rails": 1572.0,
+    "runs:promote": 41.0,
+    "runs:other_heavy": 41.0,
+    "runs:gate": 40.0
+   },
+   "2026-10-08": {
+    "runs:promote": 47.0,
+    "runs:gate": 47.0,
+    "runs:rails": 498.0,
+    "runs:other_heavy": 60.0
+   },
+   "2026-10-09": {
+    "runs:promote": 76.0,
+    "runs:other_heavy": 98.0,
+    "runs:gate": 76.0,
+    "runs:rails": 619.0
+   },
+   "2026-10-10": {
+    "runs:promote": 49.0,
+    "runs:gate": 50.0,
+    "runs:rails": 437.0,
+    "runs:other_heavy": 60.0
+   },
+   "2026-10-11": {
+    "runs:promote": 34.0,
+    "runs:other_heavy": 41.0,
+    "runs:rails": 318.0,
+    "runs:gate": 33.0
+   },
+   "2026-10-12": {
+    "runs:promote": 25.0,
+    "runs:rails": 232.0,
+    "runs:gate": 25.0,
+    "runs:other_heavy": 27.0
+   },
+   "2026-10-13": {
+    "runs:rails": 485.0,
+    "runs:promote": 21.0,
+    "runs:gate": 20.0,
+    "runs:other_heavy": 33.0
+   },
+   "2026-10-14": {
+    "runs:promote": 18.0,
+    "runs:gate": 16.0,
+    "runs:rails": 271.0,
+    "runs:other_heavy": 28.0
+   },
+   "2026-10-15": {
+    "runs:rails": 423.0,
+    "runs:promote": 16.0,
+    "runs:other_heavy": 28.0,
+    "runs:gate": 18.0
+   },
+   "2026-10-16": {
+    "runs:rails": 657.0,
+    "runs:promote": 32.0,
+    "runs:gate": 26.0,
+    "runs:other_heavy": 56.0
+   },
+   "2026-10-17": {
+    "runs:rails": 924.0,
+    "runs:other_heavy": 76.0,
+    "runs:promote": 42.0,
+    "runs:gate": 42.0
+   },
+   "2026-10-18": {
+    "runs:promote": 38.0,
+    "runs:rails": 924.0,
+    "runs:other_heavy": 61.0,
+    "runs:gate": 38.0
+   },
+   "2026-10-19": {
+    "runs:promote": 40.0,
+    "runs:rails": 678.0,
+    "runs:gate": 37.0,
+    "runs:other_heavy": 70.0
+   },
+   "2026-10-20": {
+    "runs:promote": 23.0,
+    "runs:rails": 197.0,
+    "runs:gate": 20.0,
+    "runs:other_heavy": 3.0
+   },
+   "2026-10-21": {
+    "runs:promote": 28.0,
+    "runs:rails": 178.0,
+    "runs:gate": 21.0,
+    "runs:other_heavy": 1.0
+   },
+   "2026-10-22": {
+    "runs:promote": 6.0,
+    "runs:rails": 8.0,
+    "runs:gate": 1.0,
+    "runs:other_heavy": 1.0
+   },
+   "2026-10-23": {
+    "runs:promote": 29.0,
+    "runs:gate": 24.0,
+    "runs:rails": 137.0,
+    "runs:other_heavy": 1.0
+   },
+   "2026-10-24": {
+    "runs:promote": 58.0,
+    "runs:rails": 231.0,
+    "runs:gate": 57.0,
+    "runs:other_heavy": 1.0
+   },
+   "2026-10-25": {
+    "runs:rails": 90.0,
+    "runs:other_heavy": 3.0,
+    "runs:promote": 6.0,
+    "runs:gate": 6.0
+   },
+   "2026-10-26": {
+    "runs:rails": 75.0,
+    "runs:promote": 6.0,
+    "runs:other_heavy": 1.0,
+    "runs:gate": 3.0
+   },
+   "2026-10-27": {
+    "runs:rails": 123.0,
+    "runs:promote": 12.0,
+    "runs:gate": 8.0,
+    "runs:other_heavy": 3.0
+   },
+   "2026-10-28": {
+    "runs:promote": 21.0,
+    "runs:rails": 221.0,
+    "runs:gate": 16.0,
+    "runs:other_heavy": 2.0
+   },
+   "2026-10-29": {
+    "runs:promote": 35.0,
+    "runs:gate": 30.0,
+    "runs:rails": 415.0,
+    "runs:other_heavy": 1.0
+   },
+   "2026-10-30": {
+    "runs:rails": 536.0,
+    "runs:promote": 25.0,
+    "runs:gate": 22.0,
+    "runs:other_heavy": 1.0
+   },
+   "2026-10-31": {
+    "runs:rails": 400.0,
+    "runs:promote": 24.0,
+    "runs:gate": 22.0,
+    "runs:other_heavy": 1.0
+   }
+  },
+  "total_usd": 0.0
+ },
+ "per_run_nov": {
+  "Clock parity fixture|pull_request|success": {
+   "n": 1,
+   "mean": 1.0
+  },
+  "Clock parity fixture|push|success": {
+   "n": 3,
+   "mean": 1.0
+  },
+  "Joystick device suite|schedule|success": {
+   "n": 2,
+   "mean": 3.0
+  },
+  "Notebook accessibility|pull_request|cancelled": {
+   "n": 1,
+   "mean": 3.0
+  },
+  "Notebook accessibility|pull_request|failure": {
+   "n": 1,
+   "mean": 8.0
+  },
+  "Notebook accessibility|pull_request|success": {
+   "n": 21,
+   "mean": 8.0
+  },
+  "Notebook accessibility|push|failure": {
+   "n": 1,
+   "mean": 10.0
+  },
+  "Notebook accessibility|push|success": {
+   "n": 12,
+   "mean": 7.25
+  },
+  "Options Flow guard|push|success": {
+   "n": 1,
+   "mean": 2.0
+  },
+  "agent ci benchmark|push|success": {
+   "n": 1,
+   "mean": 43.0
+  },
+  "agent ci|pull_request|cancelled": {
+   "n": 14,
+   "mean": 15.857142857142858
+  },
+  "agent ci|pull_request|failure": {
+   "n": 7,
+   "mean": 29.857142857142858
+  },
+  "agent ci|pull_request|skipped": {
+   "n": 223,
+   "mean": 0.0
+  },
+  "agent ci|pull_request|success": {
+   "n": 7,
+   "mean": 30.428571428571427
+  },
+  "agent ci|push|cancelled": {
+   "n": 202,
+   "mean": 24.925742574257427
+  },
+  "agent ci|push|failure": {
+   "n": 92,
+   "mean": 56.96739130434783
+  },
+  "agent ci|push|success": {
+   "n": 265,
+   "mean": 68.4679245283019
+  },
+  "flow-worker deploy coverage|pull_request|cancelled": {
+   "n": 2,
+   "mean": 0.0
+  },
+  "flow-worker deploy coverage|pull_request|failure": {
+   "n": 1,
+   "mean": 0.0
+  },
+  "flow-worker deploy coverage|pull_request|success": {
+   "n": 159,
+   "mean": 2.8553459119496853
+  },
+  "flow-worker deploy coverage|push|success": {
+   "n": 43,
+   "mean": 2.3255813953488373
+  },
+  "full suite (report-only)|schedule|cancelled": {
+   "n": 5,
+   "mean": 385.4
+  },
+  "indicators security suite|pull_request|cancelled": {
+   "n": 1,
+   "mean": 3.0
+  },
+  "indicators security suite|pull_request|failure": {
+   "n": 9,
+   "mean": 7.444444444444445
+  },
+  "indicators security suite|pull_request|success": {
+   "n": 9,
+   "mean": 14.88888888888889
+  },
+  "indicators security suite|push|failure": {
+   "n": 3,
+   "mean": 7.0
+  },
+  "indicators security suite|push|success": {
+   "n": 6,
+   "mean": 17.5
+  },
+  "indicators security suite|workflow_dispatch|success": {
+   "n": 1,
+   "mean": 9.0
+  },
+  "master deploy gate|push|cancelled": {
+   "n": 17,
+   "mean": 3.0588235294117645
+  },
+  "master deploy gate|push|failure": {
+   "n": 11,
+   "mean": 58.0
+  },
+  "master deploy gate|push|success": {
+   "n": 150,
+   "mean": 42.82666666666667
+  },
+  "notebook budgets|pull_request|cancelled": {
+   "n": 2,
+   "mean": 0.0
+  },
+  "notebook budgets|pull_request|failure": {
+   "n": 3,
+   "mean": 0.0
+  },
+  "notebook budgets|pull_request|success": {
+   "n": 193,
+   "mean": 2.5958549222797926
+  },
+  "notebook budgets|push|failure": {
+   "n": 1,
+   "mean": 4.0
+  },
+  "notebook budgets|push|success": {
+   "n": 48,
+   "mean": 2.1458333333333335
+  },
+  "notebook bytes|pull_request|cancelled": {
+   "n": 2,
+   "mean": 0.0
+  },
+  "notebook bytes|pull_request|failure": {
+   "n": 3,
+   "mean": 1.0
+  },
+  "notebook bytes|pull_request|success": {
+   "n": 189,
+   "mean": 3.105820105820106
+  },
+  "notebook bytes|push|failure": {
+   "n": 6,
+   "mean": 3.6666666666666665
+  },
+  "notebook bytes|push|success": {
+   "n": 40,
+   "mean": 3.0
+  },
+  "notebook latency|pull_request|cancelled": {
+   "n": 1,
+   "mean": 5.0
+  },
+  "notebook latency|pull_request|success": {
+   "n": 17,
+   "mean": 5.0
+  },
+  "notebook latency|push|success": {
+   "n": 11,
+   "mean": 5.545454545454546
+  },
+  "preference allow-list|pull_request|cancelled": {
+   "n": 2,
+   "mean": 1.0
+  },
+  "preference allow-list|pull_request|failure": {
+   "n": 3,
+   "mean": 0.6666666666666666
+  },
+  "preference allow-list|pull_request|success": {
+   "n": 189,
+   "mean": 2.3968253968253967
+  },
+  "preference allow-list|push|success": {
+   "n": 40,
+   "mean": 2.175
+  },
+  "promote to production|schedule|failure": {
+   "n": 4,
+   "mean": 10.75
+  },
+  "promote to production|schedule|success": {
+   "n": 14,
+   "mean": 6.071428571428571
+  },
+  "promote to production|workflow_dispatch|cancelled": {
+   "n": 1,
+   "mean": 2.0
+  },
+  "promote to production|workflow_dispatch|failure": {
+   "n": 1,
+   "mean": 2.0
+  },
+  "promote to production|workflow_dispatch|success": {
+   "n": 5,
+   "mean": 4.2
+  },
+  "promote to production|workflow_run|cancelled": {
+   "n": 1,
+   "mean": 0.0
+  },
+  "promote to production|workflow_run|failure": {
+   "n": 33,
+   "mean": 1.303030303030303
+  },
+  "promote to production|workflow_run|success": {
+   "n": 148,
+   "mean": 2.2432432432432434
+  },
+  "term018 guards|pull_request|cancelled": {
+   "n": 9,
+   "mean": 7.666666666666667
+  },
+  "term018 guards|pull_request|failure": {
+   "n": 2,
+   "mean": 0.0
+  },
+  "term018 guards|pull_request|success": {
+   "n": 245,
+   "mean": 3.257142857142857
+  },
+  "term018 guards|push|failure": {
+   "n": 1,
+   "mean": 3.0
+  },
+  "term018 guards|push|success": {
+   "n": 68,
+   "mean": 2.9558823529411766
+  },
+  "vite build args|pull_request|cancelled": {
+   "n": 3,
+   "mean": 0.3333333333333333
+  },
+  "vite build args|pull_request|failure": {
+   "n": 3,
+   "mean": 0.0
+  },
+  "vite build args|pull_request|success": {
+   "n": 189,
+   "mean": 1.4814814814814814
+  },
+  "vite build args|push|failure": {
+   "n": 1,
+   "mean": 1.0
+  },
+  "vite build args|push|success": {
+   "n": 50,
+   "mean": 1.16
+  },
+  "wisdom rails|pull_request|cancelled": {
+   "n": 2,
+   "mean": 0.0
+  },
+  "wisdom rails|pull_request|failure": {
+   "n": 2,
+   "mean": 0.0
+  },
+  "wisdom rails|pull_request|success": {
+   "n": 253,
+   "mean": 3.047430830039526
+  },
+  "wisdom rails|push|success": {
+   "n": 74,
+   "mean": 2.7432432432432434
+  }
+ },
+ "gate_shape": {
+  "runs": 52,
+  "total_mean": 68.63461538461539,
+  "total_p50": 72.0,
+  "jobs": {
+   "deploy-correctness checks + Agent server tests": {
+    "mean": 8.923076923076923,
+    "n": 52
+   },
+   "UCT Agent browser tests (shard N/N)": {
+    "mean": 14.091346153846153,
+    "n": 208
+   },
+   "Agent shards cover every Agent test file (equivalence rail)": {
+    "mean": 1.4615384615384615,
+    "n": 52
+   },
+   "master deploy gate verdict": {
+    "mean": 1.0,
+    "n": 52
+   },
+   "Pine runtime service rails (section N)": {
+    "mean": 3.8333333333333335,
+    "n": 12
+   }
+  }
+ },
+ "filter_replay": {
+  "ran": 438,
+  "skipped": 114,
+  "unknown": 0,
+  "skip_rate_upper_bound": 0.20652173913043478
+ },
+ "post_877": {
+  "hours": 1.1125,
+  "by_workflow": {
+   "flow-worker deploy coverage": {
+    "runs": 13,
+    "minutes": 8,
+    "with_jobs": 5
+   },
+   "vite build args": {
+    "runs": 14,
+    "minutes": 5,
+    "with_jobs": 6
+   },
+   "agent ci": {
+    "runs": 24,
+    "minutes": 1103,
+    "with_jobs": 24
+   },
+   "notebook bytes": {
+    "runs": 14,
+    "minutes": 12,
+    "with_jobs": 5
+   },
+   "term018 guards": {
+    "runs": 19,
+    "minutes": 14,
+    "with_jobs": 6
+   },
+   "notebook budgets": {
+    "runs": 14,
+    "minutes": 10,
+    "with_jobs": 5
+   },
+   "preference allow-list": {
+    "runs": 14,
+    "minutes": 10,
+    "with_jobs": 6
+   },
+   "wisdom rails": {
+    "runs": 19,
+    "minutes": 11,
+    "with_jobs": 6
+   },
+   "promote to production": {
+    "runs": 2,
+    "minutes": 4,
+    "with_jobs": 2
+   },
+   "master deploy gate": {
+    "runs": 1,
+    "minutes": 43,
+    "with_jobs": 1
+   },
+   "Notebook accessibility": {
+    "runs": 2,
+    "minutes": 8,
+    "with_jobs": 1
+   }
+  }
+ },
+ "superseded": {
+  "overtaken": 309,
+  "total": 4443,
+  "share": 0.06954760297096556
+ },
+ "rails_nov5": {
+  "by_event": {
+   "push": 802.9368929394504,
+   "pull_request": 2112.568886901916,
+   "schedule": 7.5
+  },
+  "by_workflow": {
+   "term018 guards": 567.5591836734693,
+   "wisdom rails": 526.1315030445464,
+   "notebook bytes": 394.44351851851866,
+   "notebook budgets": 300.92508635578565,
+   "preference allow-list": 279.30608465608486,
+   "flow-worker deploy coverage": 234.4186046511628,
+   "Notebook accessibility": 216.52380952380955,
+   "vite build args": 153.4757671957671,
+   "indicators security suite": 125.72222222222223,
+   "notebook latency": 117.0,
+   "Joystick device suite": 7.5
+  },
+  "must_stay_min": 102.28
+ },
+ "post_leg": {
+  "legs": 223,
+  "mean_min": 13.72645739910314,
+  "share_removed": 0.08102432084547118
+ },
+ "gate_arrivals_nov5": [
+  0.042222222222222223,
+  0.1436111111111111,
+  0.6422222222222221,
+  0.6455555555555555,
+  1.5355555555555553,
+  2.2472222222222222,
+  2.824722222222222,
+  3.0155555555555558,
+  3.2969444444444442,
+  3.8305555555555553,
+  4.1688888888888895,
+  4.670277777777778,
+  5.180555555555556,
+  5.232222222222222,
+  5.691666666666667,
+  5.966666666666667,
+  6.569166666666667,
+  7.101666666666667,
+  8.16388888888889,
+  8.629166666666666,
+  9.438611111111111,
+  10.008333333333333,
+  10.548055555555555,
+  11.001388888888888,
+  11.362777777777778,
+  11.812777777777779,
+  12.266944444444444,
+  12.825,
+  13.161388888888888,
+  13.6775,
+  13.885555555555555,
+  14.365277777777777,
+  14.746388888888887,
+  15.223333333333333,
+  15.7525,
+  16.712777777777777,
+  16.72694444444444,
+  17.046666666666667,
+  17.679166666666667,
+  17.695833333333333,
+  18.35888888888889,
+  18.484722222222224,
+  19.024166666666666,
+  19.51861111111111,
+  19.545555555555556,
+  20.243055555555557,
+  21.296944444444446,
+  21.5825,
+  21.583333333333332,
+  21.735555555555557,
+  22.45583333333333,
+  23.07472222222222,
+  23.18111111111111,
+  23.590277777777775
+ ],
+ "storage": {
+  "cache_bytes": 10800087367
+ }
+}
