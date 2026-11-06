@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import ci_cost_gates as gates  # noqa: E402
 import ci_cost_report as ccr  # noqa: E402
 
 CHANGE_877 = ccr.parse_day("2026-11-06T03:30:00Z")
@@ -217,6 +218,7 @@ def rails_split(snapshot: dict, day: str) -> dict:
     minutes: dict[str, float] = collections.defaultdict(float)
     workflows: dict[str, float] = collections.defaultdict(float)
     must_stay = 0.0
+    master: dict[str, float] = collections.defaultdict(float)
     for run_id, jobs in snapshot["jobs_by_run"].items():
         run = runs.get(run_id)
         if not run or bucket_of(run["name"]) != "rails" or not (run.get("created_at") or "").startswith(day):
@@ -224,10 +226,27 @@ def rails_split(snapshot: dict, day: str) -> dict:
         spent = sum(ccr.billed_minutes(job) for job in jobs) * factors.get(ccr.stratum(run), 1.0)
         minutes[run["event"]] += spent
         workflows[run["name"]] += spent
+        if run["event"] == "push":
+            master[run["name"]] += spent
         if run["event"] != "pull_request" and run["name"] in MUST_STAY_HOSTED:
             must_stay += spent
     return {"by_event": dict(minutes), "by_workflow": dict(sorted(workflows.items(), key=lambda kv: -kv[1])),
-            "must_stay_min": must_stay}
+            "must_stay_min": must_stay, "master_by_workflow": dict(master)}
+
+
+def gate_kinds(snapshot: dict, root: pathlib.Path) -> dict:
+    """Gate runs by day and kind, the Nov 5 arrivals with their kinds, and Agent pushes per Agent merge."""
+    rows = gates.gate_runs(snapshot, str(root))
+    by_day: dict[str, dict] = collections.defaultdict(lambda: collections.defaultdict(int))
+    for row in rows:
+        by_day[row["created_at"][:10]][row["kind"]] += 1
+    arrivals = []
+    for row in rows:
+        if row["created_at"].startswith("2026-11-05"):
+            at = ccr.parse_ts(row["created_at"])
+            assert at is not None
+            arrivals.append([at.hour + at.minute / 60 + at.second / 3600, row["kind"]])
+    return {"by_day": {day: dict(val) for day, val in sorted(by_day.items())}, "nov5_arrivals": arrivals}
 
 
 def post_change(snapshot: dict) -> dict:
@@ -258,6 +277,7 @@ def main() -> int:
     parser.add_argument("--repo-root", default=str(pathlib.Path(__file__).resolve().parents[1]))
     parser.add_argument("--stop", help="first budget stop instant; default the earliest stopped job")
     parser.add_argument("--post", help="census snapshot from the #877 cutoff, with artifact totals")
+    parser.add_argument("--steps", help="output of tools/ci_cost_steps.py")
     args = parser.parse_args()
     with open(args.nov, encoding="utf-8") as handle:
         nov = json.load(handle)
@@ -280,11 +300,15 @@ def main() -> int:
         "post_877": post_change(post),
         "superseded": superseded_share(nov),
         "rails_nov5": rails_split(nov, "2026-11-05"),
+        "gate_kinds": gate_kinds(nov, pathlib.Path(args.repo_root)),
         "post_leg": post_leg_share(nov),
         "gate_arrivals_nov5": gate_arrivals(nov, "2026-11-05"),
         "storage": post.get("storage"),
         "artifact_month_usd": ccr.artifact_month_usd(post.get("storage") or {}),
     }
+    if args.steps:
+        with open(args.steps, encoding="utf-8") as handle:
+            out["steps"] = json.load(handle)
     with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
         json.dump(out, handle, indent=1)
         handle.write("\n")

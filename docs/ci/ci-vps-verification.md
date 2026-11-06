@@ -26,7 +26,13 @@ Prices come from provider pages read through a text fetcher on 2026-11-06. Confi
 
 ## Recommended
 
-**netcup RS 2000 G12.5, Manassas, 1-month term first: €52.00/month (€46.81 + €5.19), about $60 at an assumed 1.15 USD/EUR.** Benchmark it, then move to 24 months (€39.79) only if it holds. The 30-day satisfaction guarantee is for first-time orders.
+**netcup RS 2000 G12.5, Manassas, 1-month term first: €52.00/month (€46.81 + €5.19), about $60 at an assumed 1.15 USD/EUR.** Benchmark it, then move to a longer term only if it holds. The 30-day satisfaction guarantee is for first-time orders.
+
+| Term | EUR/month incl. VAT, Manassas | USD/month at 1.15 | Commitment |
+|---|---|---|---|
+| 1 month | 52.00 | 59.80 | None |
+| 12 months | 45.89 | 52.77 | About €551 |
+| 24 months | 39.79 | 45.76 | About €955 |
 
 Source: <https://www.netcup.com/en/server/root-server/rs-2000-g12-ip-iv-12m> and <https://www.netcup.com/en/server/root-server>
 

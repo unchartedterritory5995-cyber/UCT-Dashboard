@@ -670,7 +670,271 @@
    "notebook latency": 117.0,
    "Joystick device suite": 7.5
   },
-  "must_stay_min": 102.28
+  "must_stay_min": 102.28,
+  "master_by_workflow": {
+   "preference allow-list": 78.64999999999998,
+   "term018 guards": 156.0,
+   "notebook budgets": 78.54166666666667,
+   "notebook bytes": 111.92500000000001,
+   "wisdom rails": 138.62162162162167,
+   "vite build args": 42.28,
+   "indicators security suite": 52.5,
+   "flow-worker deploy coverage": 54.418604651162795,
+   "notebook latency": 27.0,
+   "Notebook accessibility": 63.0
+  }
+ },
+ "gate_kinds": {
+  "by_day": {
+   "2026-11-01": {
+    "non-agent-pr": 19,
+    "non-agent-direct": 1,
+    "agent-batchable": 2
+   },
+   "2026-11-02": {
+    "agent-batchable": 5,
+    "non-agent-pr": 17,
+    "non-agent-direct": 18
+   },
+   "2026-11-03": {
+    "non-agent-pr": 21,
+    "non-agent-direct": 5
+   },
+   "2026-11-04": {
+    "non-agent-pr": 18,
+    "non-agent-direct": 3,
+    "agent-batchable": 7,
+    "agent-solo": 1
+   },
+   "2026-11-05": {
+    "agent-batchable": 23,
+    "non-agent-pr": 24,
+    "non-agent-direct": 1,
+    "agent-solo": 6
+   },
+   "2026-11-06": {
+    "non-agent-pr": 7,
+    "agent-batchable": 1
+   }
+  },
+  "nov5_arrivals": [
+   [
+    0.042222222222222223,
+    "agent-batchable"
+   ],
+   [
+    0.1436111111111111,
+    "non-agent-pr"
+   ],
+   [
+    0.6422222222222221,
+    "agent-batchable"
+   ],
+   [
+    0.6455555555555555,
+    "agent-batchable"
+   ],
+   [
+    1.5355555555555553,
+    "agent-batchable"
+   ],
+   [
+    2.2472222222222222,
+    "non-agent-pr"
+   ],
+   [
+    2.824722222222222,
+    "agent-batchable"
+   ],
+   [
+    3.0155555555555558,
+    "non-agent-pr"
+   ],
+   [
+    3.2969444444444442,
+    "non-agent-pr"
+   ],
+   [
+    3.8305555555555553,
+    "non-agent-direct"
+   ],
+   [
+    4.1688888888888895,
+    "agent-batchable"
+   ],
+   [
+    4.670277777777778,
+    "agent-batchable"
+   ],
+   [
+    5.180555555555556,
+    "non-agent-pr"
+   ],
+   [
+    5.232222222222222,
+    "non-agent-pr"
+   ],
+   [
+    5.691666666666667,
+    "non-agent-pr"
+   ],
+   [
+    5.966666666666667,
+    "non-agent-pr"
+   ],
+   [
+    6.569166666666667,
+    "agent-batchable"
+   ],
+   [
+    7.101666666666667,
+    "agent-solo"
+   ],
+   [
+    8.16388888888889,
+    "agent-batchable"
+   ],
+   [
+    8.629166666666666,
+    "agent-solo"
+   ],
+   [
+    9.438611111111111,
+    "agent-solo"
+   ],
+   [
+    10.008333333333333,
+    "agent-batchable"
+   ],
+   [
+    10.548055555555555,
+    "agent-batchable"
+   ],
+   [
+    11.001388888888888,
+    "agent-batchable"
+   ],
+   [
+    11.362777777777778,
+    "non-agent-pr"
+   ],
+   [
+    11.812777777777779,
+    "agent-solo"
+   ],
+   [
+    12.266944444444444,
+    "agent-batchable"
+   ],
+   [
+    12.825,
+    "agent-batchable"
+   ],
+   [
+    13.161388888888888,
+    "agent-batchable"
+   ],
+   [
+    13.6775,
+    "agent-batchable"
+   ],
+   [
+    13.885555555555555,
+    "non-agent-pr"
+   ],
+   [
+    14.365277777777777,
+    "non-agent-pr"
+   ],
+   [
+    14.746388888888887,
+    "agent-batchable"
+   ],
+   [
+    15.223333333333333,
+    "agent-batchable"
+   ],
+   [
+    15.7525,
+    "non-agent-pr"
+   ],
+   [
+    16.712777777777777,
+    "non-agent-pr"
+   ],
+   [
+    16.72694444444444,
+    "non-agent-pr"
+   ],
+   [
+    17.046666666666667,
+    "non-agent-pr"
+   ],
+   [
+    17.679166666666667,
+    "agent-solo"
+   ],
+   [
+    17.695833333333333,
+    "non-agent-pr"
+   ],
+   [
+    18.35888888888889,
+    "agent-batchable"
+   ],
+   [
+    18.484722222222224,
+    "non-agent-pr"
+   ],
+   [
+    19.024166666666666,
+    "agent-batchable"
+   ],
+   [
+    19.51861111111111,
+    "agent-batchable"
+   ],
+   [
+    19.545555555555556,
+    "non-agent-pr"
+   ],
+   [
+    20.243055555555557,
+    "non-agent-pr"
+   ],
+   [
+    21.296944444444446,
+    "agent-batchable"
+   ],
+   [
+    21.5825,
+    "non-agent-pr"
+   ],
+   [
+    21.583333333333332,
+    "non-agent-pr"
+   ],
+   [
+    21.735555555555557,
+    "non-agent-pr"
+   ],
+   [
+    22.45583333333333,
+    "agent-solo"
+   ],
+   [
+    23.07472222222222,
+    "agent-batchable"
+   ],
+   [
+    23.18111111111111,
+    "non-agent-pr"
+   ],
+   [
+    23.590277777777775,
+    "non-agent-pr"
+   ]
+  ]
  },
  "post_leg": {
   "legs": 223,
@@ -739,5 +1003,47 @@
   "artifact_count": 29937,
   "artifact_partial": false
  },
- "artifact_month_usd": 0.32672215225
+ "artifact_month_usd": 0.32672215225,
+ "steps": {
+  "gate_runs": 40,
+  "gate_before_min": 8.75,
+  "gate_after_min": 6.175,
+  "server_step_min": 2.545,
+  "rails": {
+   "notebook budgets": {
+    "n": 15,
+    "billed": 2.0,
+    "total_s": 104.4,
+    "setup_s": 73.2
+   },
+   "preference allow-list": {
+    "n": 15,
+    "billed": 2.1333333333333333,
+    "total_s": 107.13333333333334,
+    "setup_s": 85.0
+   },
+   "flow-worker deploy coverage": {
+    "n": 15,
+    "billed": 2.0,
+    "total_s": 90.66666666666667,
+    "setup_s": 81.26666666666667
+   }
+  },
+  "triggers": {
+   "groups": [
+    [
+     "notebook-budgets.yml"
+    ],
+    [
+     "preference-allowlist.yml"
+    ],
+    [
+     "flow-worker-deploy-coverage.yml"
+    ]
+   ],
+   "any_identical": false
+  },
+  "hypothetical_one_job_min": 3,
+  "hypothetical_saving_min_if_all_fired_together": 3.133333333333333
+ }
 }
