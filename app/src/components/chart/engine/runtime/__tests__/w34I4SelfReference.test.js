@@ -180,6 +180,12 @@ describe('W34-I4: scope of the rewrite', () => {
       expect((refusalOf(s) || {}).guard).toBe('pine:state')
     }
   })
+  it('a read at offset 0, a member access or a self-referencing fill is untouched', () => {
+    for (const body of [['x = 0.5*close + 0.5*nz(x[0])', 'plot(x)'], ['x = 0.5*close + 0.5*nz(x[1], x[2])', 'plot(x)']]) {
+      const { st, version } = stmtsOf(src(body))
+      expect(v2SelfReferenceStatements(st, version)).toBe(st)
+    }
+  })
   it('a name declared twice or reassigned is untouched', () => {
     for (const body of [['x = 1', 'x = 0.5*close + 0.5*nz(x[1])', 'plot(x)'], ['x = 0.5*close + 0.5*nz(x[1])', 'x := 2', 'plot(x)']]) {
       const { st, version } = stmtsOf(src(body))
