@@ -754,10 +754,13 @@ def test_intraday_blanks_the_mansfield_crosses_and_dot_but_keeps_the_line(v2_row
     assert any(v is not None for v in env["columns"]["mansfield"]), "the Mansfield line draws intraday"
     for k in ("mansfieldCrossUp", "mansfieldCrossDown", "dotMansfieldCross"):
         assert all(v is None for v in env["columns"][k]), k
-    assert env["payload"]["regime"]["label"] is None and env["payload"]["regime"]["reason"] == "daily bars only"
-    assert env["payload"]["checks"]["summary"] is None and env["payload"]["checks"]["ma"]["reason"] == "daily bars only"
+    # Pins moved 2026-11-07 (RS review #24): the reason IS the regime label and
+    # the checks summary, so the readout never prints "needs more history" for a
+    # known reason; the words are "daily charts only".
+    assert env["payload"]["regime"]["label"] == "daily charts only" and env["payload"]["regime"]["reason"] is None
+    assert env["payload"]["checks"]["summary"] == "daily charts only" and env["payload"]["checks"]["ma"]["reason"] == "daily charts only"
     assert env["payload"]["sensitivity"]["summary"] is None
-    assert env["payload"]["sensitivity"]["reasons"] == {"spy": "daily bars only", "rsp": "daily bars only", "sector": "daily bars only"}
+    assert env["payload"]["sensitivity"]["reasons"] == {"spy": "daily charts only", "rsp": "daily charts only", "sector": "daily charts only"}
 
 
 def test_mansfield_length_is_clamped_like_every_other_number(v2_row):
@@ -814,14 +817,20 @@ def test_payload_blocks_answer_on_a_long_daily_series_and_reuse_the_benchmark_ba
     r = p["regime"]
     assert r["label"] in ("persistence", "rebound-risk", "mixed") and r["reason"] is None
     assert isinstance(r["above200"], bool) and r["trend2y"] in (-1, 0, 1) and r["volTercile"] in ("low", "mid", "high")
-    assert r["bars"] == 900 and r["volSamples"] == 756
+    # Pin moved 2026-11-07 (RS review #19): the regime reads its benchmark at
+    # the fixed 883-bar depth, whatever the lookback.
+    assert r["bars"] == sig._RS_REGIME_BARS == 883 and r["volSamples"] == 756
     # sensitivity: three legs, SPY's from the benchmark bars already in hand (fetched ONCE)
     s = p["sensitivity"]
     assert s["window"] == 20 and s["reasons"] == {}
     for leg, ticker in (("spy", "SPY"), ("rsp", "RSP"), ("sector", "XLK")):
         assert s[leg]["ticker"] == ticker and s[leg]["sign"] in (-1, 0, 1) and s[leg]["word"] in ("rising", "falling", "flat")
     assert isinstance(s["agree"], bool) and isinstance(s["summary"], str) and "SPY" in s["summary"]
-    assert [c for c in fetch.calls if c[0] == "SPY"] == [("SPY", "D", 852)], "the benchmark is read once"
+    # Pin moved 2026-11-07 (RS review #19): at the default lookback (count 852 <
+    # 883) the regime's own fixed-depth read is the one extra benchmark read;
+    # the sensitivity legs still reuse the chart's bars.
+    assert [c for c in fetch.calls if c[0] == "SPY"] == [("SPY", "D", 852), ("SPY", "D", 883)], \
+        "the chart's benchmark read once, plus the regime's fixed-depth read"
     assert ("RSP", "D", 852) in fetch.calls and ("XLK", "D", 852) in fetch.calls
     # checks: four booleans with reasons that carry the numbers, a summary, the pullback
     c = p["checks"]
@@ -897,7 +906,10 @@ def test_same_symbol_and_no_benchmark_bars_blank_the_v3_blocks_with_the_state_as
     env = sig._rs_line_provider("SPY", "D", {"benchmark": "SPY", "lookback": 20, "showMansfield": True})
     assert env["payload"]["state"] == "same-symbol"
     assert all(v is None for v in env["columns"]["mansfield"]) and all(v is None for v in env["columns"]["dotMansfieldCross"])
-    assert env["payload"]["regime"]["reason"] == "benchmark is the symbol"
+    # Pin moved 2026-11-07 (RS review #24): the state is the regime LABEL and the
+    # checks summary, not a reason behind a "needs more history" fallback.
+    assert env["payload"]["regime"]["label"] == "benchmark is the symbol"
+    assert env["payload"]["checks"]["summary"] == "benchmark is the symbol"
     assert env["payload"]["checks"]["ma"]["reason"] == "benchmark is the symbol"
     assert env["payload"]["mansfield"]["value"] is None
     env = sig._rs_line_provider("NVDA", "D", {"benchmark": "RSP", "lookback": 20})
@@ -955,7 +967,11 @@ def test_checks_rules_on_hand_built_bars():
     # too short for the averages: null with the bar counts in the reason
     out = sig._rs_checks(stock[:100], bench[:100], "SPY", -0.5)
     assert out["ma"]["pass"] is None and "have 100 and 100" in out["ma"]["reason"]
-    assert out["of"] == 3
+    # Pin moved 2026-11-07 (RS review #13): bar 99 is a benchmark red day and its
+    # 20-session low, so the anchor is undecided ("low is today") and leaves the
+    # count; it used to score a FAIL at +0.0% vs +0.0%.
+    assert out["anchor"]["pass"] is None and out["anchor"]["barsAgo"] == 0
+    assert out["of"] == 2
 
 
 def test_sensitivity_legs_reuse_the_resolved_benchmark_and_agree_on_three_rising_slopes():
@@ -1151,8 +1167,15 @@ def test_a_bound_rs_alert_address_reads_rev_3_not_the_default():
 from tests.test_rs_evidence_pull import fixture_artifact, write_artifact  # noqa: E402
 
 EVIDENCE_KEYS = ("rsHigh", "beforePrice", "redDay", "phase", "mansfield")
-BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher "
-                         "than SPY 63 bars later (median +2.1%). Universe as held, survivorship not yet corrected.")
+# Pins moved 2026-11-07 (RS review #6, #7, #22): the measured sentence names its
+# sessions, daily bars and the all-bars baseline; a signal the artifact carries
+# under the floor says what was measured instead of "has not measured one yet".
+BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: "
+                         "58.3% closed higher than SPY 63 sessions later (about 3 months; median +2.1%), against "
+                         "50.2% for all bars. Universe as held, survivorship not yet corrected.")
+RED_DAY_BELOW_FLOOR = "UCT measured 40 events on 12 sessions, too few to print a hit rate (floor 100)."
+MANSFIELD_PENDING = ("UCT has recorded 300 events on 100 sessions, none with a complete 63-session window yet, "
+                     "so no hit rate is printed.")
 
 
 def test_the_evidence_block_reads_the_local_artifact_into_every_card_key(v2_row, monkeypatch, tmp_path):
@@ -1171,11 +1194,11 @@ def test_the_evidence_block_reads_the_local_artifact_into_every_card_key(v2_row,
     # its numbers are carried, its sentence is the honest one
     rd = ev["signals"]["redDay"]
     assert rd["n"] == 40 and rd["displayable"] is False
-    assert ev["sentence"]["redDay"] == ep.HONESTY_SENTENCE
+    assert ev["sentence"]["redDay"] == RED_DAY_BELOW_FLOOR
     # the Mansfield cross has no complete 63-bar window yet: null, not invented
     mc = ev["signals"]["mansfield"]
     assert mc["hit_rate_pct"] is None and mc["displayable"] is False
-    assert ev["sentence"]["mansfield"] == ep.HONESTY_SENTENCE
+    assert ev["sentence"]["mansfield"] == MANSFIELD_PENDING
     assert ev["baseline"] == {"n": 590000, "hit_rate_pct": 50.2, "median_excess_pct": 0.05, "horizon_bars": 63}
     # every card key maps to a signal the artifact carries
     assert set(ep.CARD_SIGNALS.values()) <= set(fixture_artifact()["per_signal"])
@@ -1228,8 +1251,8 @@ def test_the_evidence_card_sources_resolve_with_and_without_the_artifact(v2_row,
         assert ok, f"scalar:{path} is MISSING with the artifact"
     assert _resolve_path(present, "evidence.signals.beforePrice.hit_rate_pct") == (True, 58.3)
     assert _resolve_path(present, card_sources["beforePrice"].split(":", 1)[1]) == (True, BEFORE_PRICE_SENTENCE)
-    assert _resolve_path(present, card_sources["redDay"].split(":", 1)[1]) == (True, ep.HONESTY_SENTENCE)      # under the floor
-    assert _resolve_path(present, card_sources["mansfield"].split(":", 1)[1]) == (True, ep.HONESTY_SENTENCE)   # null statistic
+    assert _resolve_path(present, card_sources["redDay"].split(":", 1)[1]) == (True, RED_DAY_BELOW_FLOOR)      # under the floor
+    assert _resolve_path(present, card_sources["mansfield"].split(":", 1)[1]) == (True, MANSFIELD_PENDING)    # null statistic
     # the card keys ARE readout row keys the registry carries: 2b-09 added a
     # source to an existing row, never a new row
     row_keys = {key for key, _, _ in _js_rs_readout_sources()}

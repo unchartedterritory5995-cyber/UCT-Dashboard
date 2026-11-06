@@ -33,8 +33,12 @@ from tests.test_screener_schedule import _FakeSched, _cron_field, _register
 JOB = "rs_evidence_pull"
 SIGNALS = ("rs_new_high", "rs_new_high_before_price", "rs_new_high_red_day", "rs_cross_up_21ema",
            "mansfield_cross_up")
-BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher "
-                         "than SPY 63 bars later (median +2.1%). Universe as held, survivorship not yet corrected.")
+# Pin moved 2026-11-07 (RS review #6, #7): the sentence names the sessions the
+# events fell on, says "sessions" and "daily bars" (true on a weekly chart too)
+# and reads the hit rate against the all-bars baseline.
+BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: "
+                         "58.3% closed higher than SPY 63 sessions later (about 3 months; median +2.1%), against "
+                         "50.2% for all bars. Universe as held, survivorship not yet corrected.")
 
 
 # ── the fixture ─────────────────────────────────────────────────────────────
@@ -259,9 +263,12 @@ def test_load_local_caches_on_the_file_mtime(tmp_path):
 
 def test_evidence_for_reads_one_signal_at_one_horizon_and_judges_displayability():
     art = fixture_artifact()
+    # Pin moved 2026-11-07 (RS review #6): the dict carries the sessions, the
+    # effective n the floor is checked on, the incomplete count and the baseline.
     assert ep.evidence_for("rs_new_high_before_price", 63, art) == {
         "signal": "rs_new_high_before_price", "label": "RS new highs before price", "n": 1284,
-        "hit_rate_pct": 58.3, "median_excess_pct": 2.1, "horizon_bars": 63,
+        "sessions": 240, "effective_n": 240, "incomplete": 0,
+        "hit_rate_pct": 58.3, "median_excess_pct": 2.1, "baseline_hit_rate_pct": 50.2, "horizon_bars": 63,
         "start": "2025-11-05", "end": "2026-11-04", "benchmark": "SPY", "asof": "2026-11-04",
         "survivorship": "universe as held, survivorship not yet corrected", "survivorship_corrected": False,
         "display_floor_n": 100, "displayable": True}
@@ -275,8 +282,12 @@ def test_evidence_for_reads_one_signal_at_one_horizon_and_judges_displayability(
     assert mc["displayable"] is False
     assert ep.evidence_for("mansfield_cross_up", 21, art)["displayable"] is True
     # exactly the floor clears it; one under does not
+    # Pin moved 2026-11-07 (RS review #6): the floor is on EFFECTIVE n, so the
+    # red-day signal also needs 100 sessions (the fixture carries 12).
     art2 = fixture_artifact()
     art2["per_signal"]["rs_new_high_red_day"]["horizons"]["63"]["n"] = 100
+    assert ep.evidence_for("rs_new_high_red_day", 63, art2)["displayable"] is False, "100 events on 12 sessions"
+    art2["per_signal"]["rs_new_high_red_day"]["dates"] = 100
     assert ep.evidence_for("rs_new_high_red_day", 63, art2)["displayable"] is True
     art2["per_signal"]["rs_new_high_red_day"]["horizons"]["63"]["n"] = 99
     assert ep.evidence_for("rs_new_high_red_day", 63, art2)["displayable"] is False
@@ -308,28 +319,36 @@ def test_baseline_for_is_the_all_bars_hit_rate_at_the_horizon():
 
 def test_summary_line_prints_the_measured_sentence_or_the_honesty_sentence():
     art = fixture_artifact()
+    # Pins moved 2026-11-07 (RS review #6, #7, #22): sessions, daily bars, the
+    # baseline, and the below-floor / pending sentences in place of the honesty
+    # line wherever the artifact carries the signal.
     assert ep.summary_line("rs_new_high_before_price", 63, art) == BEFORE_PRICE_SENTENCE
     assert ep.summary_line("rs_new_high", 63, art) == (
-        "4,700 RS new highs from 2025-11-05 to 2026-11-04; 55.2% closed higher than SPY 63 bars later "
-        "(median +1.4%). Universe as held, survivorship not yet corrected.")
-    assert ep.summary_line("rs_cross_up_21ema", 63, art).startswith("8,500 RS line crosses above its 21-bar average from")
-    assert ep.summary_line("mansfield_cross_up", 21, art).startswith("290 Mansfield crosses above zero from")
-    assert ep.summary_line("rs_new_high_red_day", 63, art) == ep.HONESTY_SENTENCE      # under the floor
-    assert ep.summary_line("mansfield_cross_up", 63, art) == ep.HONESTY_SENTENCE       # null statistic
+        "4,700 RS new highs on 250 sessions, 2025-11-05 to 2026-11-04, daily bars: 55.2% closed higher than "
+        "SPY 63 sessions later (about 3 months; median +1.4%), against 50.2% for all bars. "
+        "Universe as held, survivorship not yet corrected.")
+    assert ep.summary_line("rs_cross_up_21ema", 63, art).startswith(
+        "8,500 RS line crosses above its 21-day average on 250 sessions, ")
+    assert ep.summary_line("mansfield_cross_up", 21, art).startswith("290 Mansfield crosses above zero on 100 sessions, ")
+    assert ep.summary_line("rs_new_high_red_day", 63, art) == (                       # under the floor
+        "UCT measured 40 events on 12 sessions, too few to print a hit rate (floor 100).")
+    assert ep.summary_line("mansfield_cross_up", 63, art) == (                        # no complete window yet
+        "UCT has recorded 300 events on 100 sessions, none with a complete 63-session window yet, "
+        "so no hit rate is printed.")
     assert ep.summary_line("nope", 63, art) == ep.HONESTY_SENTENCE                     # no such signal
     assert ep.sentence_for(None) == ep.HONESTY_SENTENCE
     assert ep.HONESTY_SENTENCE == "No published hit rate exists for this signal and UCT has not measured one yet."
-    # a negative median prints its sign; a null median drops the parenthetical, nothing is invented
+    # a negative median prints its sign; a null median drops it, nothing is invented
     h = art["per_signal"]["rs_new_high_before_price"]["horizons"]["63"]
     h["median_excess"] = -1.2
-    assert "63 bars later (median -1.2%). Universe" in ep.summary_line("rs_new_high_before_price", 63, art)
+    assert "63 sessions later (about 3 months; median -1.2%), against" in ep.summary_line("rs_new_high_before_price", 63, art)
     h["median_excess"] = None
     line = ep.summary_line("rs_new_high_before_price", 63, art)
-    assert line.endswith("63 bars later. Universe as held, survivorship not yet corrected.") and "median" not in line
+    assert "63 sessions later (about 3 months), against 50.2% for all bars. Universe" in line and "median" not in line
     # the survivorship clause is the artifact's own note, sentence-cased
     art["survivorship"] = "survivorship corrected against the delisted registry"
     assert ep.summary_line("rs_new_high", 63, art).endswith(
-        "(median +1.4%). Survivorship corrected against the delisted registry.")
+        "for all bars. Survivorship corrected against the delisted registry.")
 
 
 def test_the_card_sentence_shares_its_clause_with_the_discord_honesty_line():
