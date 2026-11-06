@@ -3927,11 +3927,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (name === 'array.copy' || name === 'array.slice' || name === 'array.concat') return plainTy(of('array'))
     if (name === 'map.keys') { const m = of('map'); return m ? makeTy('array', { elem: m.key || null }) : null }
     if (name === 'map.values') { const m = of('map'); return m ? makeTy('array', { elem: m.elem || null }) : null }
-    if (name === 'matrix.row' || name === 'matrix.col' || name === 'matrix.remove_row' || name === 'matrix.remove_col') {
+    if (name === 'matrix.row' || name === 'matrix.col') {
       const m = of('matrix'); return m ? makeTy('array', { elem: m.elem || null }) : null
     }
-    // ⭐ W6-T7 — a new matrix of the receiver's own type
-    if (name === 'matrix.copy' || name === 'matrix.submatrix') return plainTy(of('matrix'))
     // built from nothing: the element type is the call's `<T>`, or its suffix
     const word = (w) => (w ? tyOfTypeWord(w, null, { udtTypes }) : null)
     const one = typeArgs && typeArgs.length === 1 ? typeArgs[0] : null

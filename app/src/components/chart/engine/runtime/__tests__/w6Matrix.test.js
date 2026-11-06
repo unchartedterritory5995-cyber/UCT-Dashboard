@@ -312,6 +312,15 @@ describe('⭐ the one table: every matrix member is a collection member, classif
     for (const n of ['matrix.add_row', 'matrix.add_col', 'matrix.remove_row', 'matrix.remove_col']) expect(ARRAY_FNS[n].writes).toBe('size')
     expect(ARRAY_FNS['matrix.set'].writes).toBe('elements')
   })
+  it('a v6 `for` whose bound reads `matrix.rows` and whose body adds a row is refused (the bound can move); in v5 it runs', () => {
+    const src = 'm = matrix.new<float>(1, 1, close)\nfor i = 0 to matrix.rows(m) - 1\n    matrix.add_row(m)\n    if matrix.rows(m) > 3\n        break\nplot(matrix.rows(m))'
+    const b = build(src)
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:loop')
+    expect(b.refusal.message).toContain('matrix.add_row')
+    // v5 reads the bound once: one pass over a 1-row matrix adds one row
+    expect(runPine(src, 5)[0]).toEqual(per(() => 2))
+  })
   it('each is gated at the C18 object door (master held none)', () => {
     for (const n of names) expect(DOOR_GATED_ARRAY.has(n)).toBe(true)
   })
@@ -343,5 +352,30 @@ describe('⭐ a matrix in a run\'s state: encoded by shape and cells, checkpoint
     expect(c1.cells[0][0]).toBe(1.5)
     expect(c1.rows).toBe(1)
     expect(c1.cols).toBe(2)
+  })
+})
+
+// ⭐ The C7 collector (`objectStore.js::collect`) WITHHOLDS a family when it would reach an
+// object held only in a collection (unmeasured), and reaps freely otherwise. A drawing held in
+// a matrix cell is held in a collection: `vm.js::heldNow` walks matrix cells for it.
+describe('⭐ a drawing held in a matrix cell counts as held in a collection (the C7 collector withholds)', () => {
+  const NB = 300
+  const BB = Array.from({ length: NB }, (_, i) => { const c = 100 + i * 0.05; return { t: 1700000000 + i * 86400, o: c - 0.5, h: c + 1, l: c - 1, c, v: 1000 } })
+  const SB = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BB.map((b) => b[k])))
+  const finOf = (hold) => {
+    const src = '//@version=6\nindicator("t", overlay = true, max_labels_count = 5)\n' + hold
+      + 'if bar_index % 10 == 0 and bar_index > 0\n    label.new(bar_index, close, str.tostring(bar_index))\n'
+    const b = buildRuntimeIr(src, { bars: BB, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+    if (!b.ok) throw new Error(`refused: ${b.refusal.guard} — ${b.refusal.message}`)
+    const p = lowerIrProgram(b.ir)
+    return execute(p, { bars: NB, series: SB, columns: p.columns, confirmed: true, barTimes: BB.map((x) => x.t) }).objects.finish()
+  }
+  it('held in a matrix: the label family is withheld by name', () => {
+    const fin = finOf('var m = matrix.new<label>(1, 1, na)\nif bar_index == 0\n    matrix.set(m, 0, 0, label.new(bar_index, close, "held"))\n')
+    expect(fin.withheld.label).toMatch(/held in an array or a user type/)
+  })
+  it('CONTROL: the same matrix holding no label leaves the collector free', () => {
+    const fin = finOf('var m = matrix.new<label>(1, 1, na)\nif bar_index == 0\n    label.new(bar_index, close, "free")\n')
+    expect(fin.withheld.label).toBeUndefined()
   })
 })

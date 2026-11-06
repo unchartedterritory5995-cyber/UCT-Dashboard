@@ -49,3 +49,19 @@ Note for the reviewer: `array.mode`'s reference entry does state a tie rule ("it
 breakdown keeps it refused until W6-A1 (review B3), so M01 confirms the sentence before it is served.
 `array.sort_indices` on text, and its `na` ordering, are served on master (a pre-W6 choice: JavaScript string order,
 `na` sinks); T01-T08 and S03-S04 measure them, and W6-T5 does not change them (it would move the live C18 door).
+
+## W6-M1: the `matrix.*` conventions the v6 reference does not state (W6-T7)
+
+Branch `feat/pine-w6-t7-matrix`. Authority: the Pine v6 reference entries `matrix.new<type>` and siblings, read 2026-11-06
+through `tools/pine_survey/pine_reference_extract.js`; each served member's rail in
+`app/src/components/chart/engine/runtime/__tests__/w6Matrix.test.js` quotes the sentence it rests on.
+What W6-T7 serves (`runtime/matrices.js`, in `collections.js`'s one table): `new` (defaults 0 rows, 0 columns, `na` for
+float/int), `get`, `set`, `rows`, `columns`, `elements_count`, `row` / `col` (new arrays), `add_row` / `add_col` (index 0 to
+size, array of the stated size, default `na` line), `remove_row` / `remove_col` (an explicit index), `fill` / `submatrix`
+(ends exclusive, stated defaults), `copy`, `min` / `max` / `avg` (real cells; `avg` of a possibly-int matrix only when the
+mean is whole), `sum` (a matrix plus a scalar or a same-size matrix). The linear-algebra members and the rest of the family
+stay refused at build (`runtime:array`). Runtime pane only: the C18 object door refuses the whole family as master did.
+
+| id | probe | chart | question | engine today |
+|---|---|---|---|---|
+| W6-M1 | `tools/visual_conformance/probes/vw-w6-matrix-members.pine` rows V01-V04, S01-S02, A01-A04, R01-R04, B01, then E01-E08 one at a time | AMEX:SPY 1D | `min` / `max` / `avg` over an `na` cell; `avg` of `matrix<int>` (1, 2) (the `series int` form); `matrix<int>` 2 + 0.5; `na` + 1 in `sum`; `add_row` of 5 into a 0x3 matrix (is it "empty"?); the default `add_row` on 0x0; rows / columns after removing the last row or column; `matrix.new<bool>(1, 1)`'s fill; and the error text (or value) for `matrix.new` with `na` rows, `get` at `rows` and at -1, `add_row` of the wrong length, `remove_row` with no index (its stated default is `matrix.rows()`), `min` of an empty matrix, `sum` of two sizes, `fill` with an `na` end | each stops the run by name (`… (W6-M1)`, guard `runtime:CollectionError`). Unblocks `candlestick-patterns-on-backtest` (`matrix.new<float>(na, n, na)`) |
