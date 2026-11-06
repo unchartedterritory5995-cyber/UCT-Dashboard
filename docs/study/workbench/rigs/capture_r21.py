@@ -130,6 +130,49 @@ def run(b, vp_name, vp, dsf, touch, index):
     ctx.close()
 
 
+def run_none(b, vp_name, vp, dsf, touch, index, runs=4):
+    """Only the two nothing-fired parts: say "Nothing fired" on every chart until a chart where nothing fired comes up
+    (starting a fresh run when one ends), shoot the coach card and the run-on there, and stop."""
+    ctx = b.new_context(viewport=vp, device_scale_factor=dsf, is_mobile=touch, has_touch=touch)
+    ctx.add_init_script("window.__uctLogoPhase = 0.55")
+    ctx.request.post("http://127.0.0.1:8077/api/auth/login", data={"email": R.ENV["EMAIL"], "password": R.ENV["UCT_SANDBOX_PASSWORD"]})
+    page = ctx.new_page()
+    act = (lambda loc: loc.tap()) if touch else (lambda loc: loc.click())
+    page.goto(R.LAB + "65", wait_until="load")
+    start = page.get_by_test_id("hard-start")
+    cards = page.locator("[data-testid=hard-cards] button")
+    nxt = page.get_by_test_id("hard-next")
+    done = page.get_by_test_id("hard-done")
+    for r in range(runs):
+        until(lambda: start.count() > 0 and start.inner_text().strip().lower().startswith("start"), 120); time.sleep(1.5)
+        act(start)
+        for i in range(8):
+            until(lambda: cards.count() >= 4 and page.get_by_test_id("hard-check").count() > 0, 60); time.sleep(1.2)
+            texts = [cards.nth(k).inner_text() for k in range(cards.count())]
+            act(cards.nth(next((k for k, t in enumerate(texts) if "Nothing fired" in t), 0))); time.sleep(0.5)
+            act(page.get_by_test_id("hard-check"))
+            if not until(lambda: nxt.count() > 0, 150):
+                print("   stalled"); break
+            until(lambda: page.locator("[data-testid=hard-question][data-run=done]").count() > 0, 40); time.sleep(1.6)
+            lesson = page.locator("[data-testid=hard-lesson]")
+            if lesson.count() > 0 and "nothing fired" in lesson.locator("h3").first.inner_text().lower():
+                page.mouse.move(2, 300)
+                ok1 = shoot_one(page, vp_name, "lessonNone", "[data-testid=hard-lesson]", index)
+                ok2 = shoot_one(page, vp_name, "runonNone", CHART, index)
+                print(f"   nothing-fired parts on run {r + 1} chart {i + 1}: {ok1} {ok2}")
+                ctx.close()
+                return True
+            page.evaluate("window.scrollTo(0, 0)")
+            act(nxt)
+            until(lambda: done.count() > 0 or cards.count() >= 4, 45)
+            if done.count() > 0:
+                break
+        if done.count() > 0:
+            act(page.get_by_test_id("hard-again"))
+    ctx.close()
+    return False
+
+
 if __name__ == "__main__":
     idx_path = os.path.join(R.WT, "parts", "index.json")
     index = json.load(open(idx_path, encoding="utf-8"))
@@ -137,9 +180,12 @@ if __name__ == "__main__":
     with sync_playwright() as p:
         b = p.chromium.launch(args=R.A)
         for vp_name, vp, dsf, touch in (("desk", {"width": 1366, "height": 960}, 2, False), ("phone", {"width": 390, "height": 844}, 2, True)):
-            if ONLY and ONLY != vp_name:
+            if ONLY and ONLY.split("-")[0] != vp_name:
                 continue
-            run(b, vp_name, vp, dsf, touch, index)
+            if ONLY and ONLY.endswith("-none"):
+                run_none(b, vp_name, vp, dsf, touch, index)
+            else:
+                run(b, vp_name, vp, dsf, touch, index)
         b.close()
     # re-read before writing: the other viewport may have written in between
     fresh = json.load(open(idx_path, encoding="utf-8"))
@@ -154,5 +200,5 @@ if __name__ == "__main__":
             "verdictLine", "runon", "ticker", "cardcolors", "lesson", "next", "lessonFired", "lessonNone", "runonNone",
             "end", "score", "stats", "runlog"]
     have = fresh.get(PID, {})
-    missing = [f"{k}:{v}" for k in want for v in ("desk", "phone") if not (have.get(k) or {}).get(v) and (not ONLY or v == ONLY)]
+    missing = [f"{k}:{v}" for k in want for v in ("desk", "phone") if not (have.get(k) or {}).get(v) and (not ONLY or v == ONLY.split("-")[0])]
     print("missing:", missing or "none")
