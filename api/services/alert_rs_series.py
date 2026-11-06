@@ -20,7 +20,9 @@ module is that lane (engineering map §2.6, unit 2b-04):
 * `rs_pass` — the evaluation-pass memo. Inside it a benchmark is read ONCE per
   ``(ticker, tf)`` however many alerts name it, `resolve_benchmark` runs once per
   ``(symbol, requested, tf, want)``, and each column family computes once per
-  ``(bars, benchmark bars, inputs)``. The bar fetcher is injected here (a test,
+  ``(symbol, tf, bars, benchmark bars, inputs)`` (2026-11-07, RS fix U1: the
+  symbol is in the key, and a default pass also shares a bounded cross-cycle
+  column cache — see `_COLUMN_CACHE`). The bar fetcher is injected here (a test,
   the service's probe); the default is `alert_user_series._symbol_bars`, the
   scan's own local store read with its 20 s TTL.
 * `RsTimeframeRefused` — the typed refusal for a timeframe this lane is not
@@ -71,10 +73,13 @@ them in a fixture and unregister after).
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import contextvars
+import hashlib
 import json
 import math
+import threading
 from typing import Any, Callable, Mapping, NamedTuple, Optional, Sequence
 
 from api.services import relative_strength as rsm
@@ -185,8 +190,8 @@ def timeframe_refusal(tf: Any, address: Optional[str] = None) -> Optional[str]:
         return None
     if offered == RS_RATING_TFS:
         what = "IBD-style RS rating alerts"
-        why = ("the rating is computed nightly from daily closes, one row per "
-               "session (`rs_rating_history`), so")
+        # 2026-11-07 (RS fix U1, review #36): a member sentence names no table.
+        why = "the rating is computed nightly from daily closes, one per session, so"
         if code == "W":
             return (f"{what} are judged on closed daily bars only — {why} a weekly "
                     f"bar has no rating of its own. Arm it on D.")
@@ -202,8 +207,8 @@ def timeframe_refusal(tf: Any, address: Optional[str] = None) -> Optional[str]:
     if code in _INTRADAY_TFS:
         return (f"{what} are judged on closed daily or weekly bars only — a "
                 f"{code}-minute bar is not offered. An RS new high or cross is a "
-                f"daily or weekly fact (plan §6.5: the chart blanks RS events on "
-                f"intraday timeframes); arm it on D or W.")
+                f"daily or weekly fact, and the chart blanks RS events intraday; "
+                f"arm it on D or W.")
     if code == "M":
         return (f"{what} are judged on closed daily or weekly bars only — monthly "
                 f"is not offered (a 252-bar lookback on monthly bars is twenty-one "
@@ -395,12 +400,104 @@ def describe_rs(address: str, params: Optional[Mapping]) -> str:
 # ─── the pass: one benchmark read, one compute, per evaluation pass ─────────
 
 def _fingerprint(bars: Sequence[Mapping]) -> tuple:
-    """A stable identity for a bar window: length and its two ends. Not ``id()``
-    — a list freed between two groups can hand its address to the next one."""
+    """A stable identity for a bar window: its length, its two ends AND a digest
+    of every ``(t, c)`` pair in it. Not ``id()`` — a list freed between two
+    groups can hand its address to the next one.
+
+    2026-11-07 (RS fix U1, review #1): the ends alone were not an identity. Two
+    tickers whose windows share their dates and their last close to the cent
+    fingerprinted equal, and inside one cycle-wide pass the second read the
+    first one's RS columns (a false or missed new high, the other stock's ratio
+    in the notification). The memo keys now carry the symbol and timeframe too;
+    the digest is the second guard, over exactly what the compute reads (the
+    bar's time and close — `relative_strength` reads nothing else of a bar)."""
     if not bars:
         return (0,)
     first, last = bars[0], bars[-1]
-    return (len(bars), first.get("t"), last.get("t"), last.get("c"))
+    digest = hashlib.blake2b(
+        repr([(b.get("t"), b.get("c")) for b in bars]).encode("utf-8"),
+        digest_size=16).hexdigest()
+    return (len(bars), first.get("t"), last.get("t"), last.get("c"), digest)
+
+
+# ─── 2026-11-07 (RS fix U1, review #10): the CROSS-CYCLE column cache ────────
+#
+# The pass memo lives for one evaluation cycle, so every RS-alerted symbol paid
+# the full compute (~70-85 ms of pure Python, GIL held, on the web pod) every
+# 60 s — although the closed lane judges `closed_bar_index`, whose answer does
+# not move during the session. The evaluator now hands an RS column the CLOSED
+# window (`bars[:i + 1]`), so the key below is stable from one cycle to the
+# next, and this cache serves it. Keyed on (address, SYMBOL, tf, window
+# fingerprint, benchmark fingerprint, inputs) — the #1 rule — where both
+# fingerprints carry the full (t, c) digest, so an entry can only ever be served
+# for the exact numbers it was computed from. Only a DEFAULT pass (no injected
+# reader: the cycle, `diagnose`, the prefill) uses it; a pass with an injected
+# fetcher (a test, the service's probes) computes for itself.
+#
+# Bounded LRU: one entry is one aligned column (~650 floats, ~20 KB); 1,024
+# entries is ~20 MB at worst, and an entry exists per live alert instance.
+RS_COLUMN_CACHE_MAX = 1024
+_COLUMN_CACHE: "collections.OrderedDict[tuple, list]" = collections.OrderedDict()
+_COLUMN_CACHE_LOCK = threading.Lock()
+_COLUMN_CACHE_STATS = {"hits": 0, "misses": 0}
+
+
+def _column_cache_get(key: tuple) -> Optional[list]:
+    with _COLUMN_CACHE_LOCK:
+        hit = _COLUMN_CACHE.get(key)
+        if hit is None:
+            _COLUMN_CACHE_STATS["misses"] += 1
+            return None
+        _COLUMN_CACHE.move_to_end(key)
+        _COLUMN_CACHE_STATS["hits"] += 1
+        return list(hit)
+
+
+def _column_cache_put(key: tuple, column: list) -> None:
+    with _COLUMN_CACHE_LOCK:
+        _COLUMN_CACHE[key] = list(column)
+        _COLUMN_CACHE.move_to_end(key)
+        while len(_COLUMN_CACHE) > RS_COLUMN_CACHE_MAX:
+            _COLUMN_CACHE.popitem(last=False)
+
+
+def clear_column_cache() -> None:
+    """Empty the cross-cycle cache (a test's isolation; an operator's reset)."""
+    with _COLUMN_CACHE_LOCK:
+        _COLUMN_CACHE.clear()
+        _COLUMN_CACHE_STATS["hits"] = 0
+        _COLUMN_CACHE_STATS["misses"] = 0
+
+
+def column_cache_stats() -> dict:
+    with _COLUMN_CACHE_LOCK:
+        return {"entries": len(_COLUMN_CACHE), **_COLUMN_CACHE_STATS}
+
+
+def _bars_after(benchmark_bars: Sequence[Mapping], last_t: Any) -> int:
+    """How many benchmark bars (oldest first) lie AFTER ``last_t`` — the
+    benchmark's forming bar when the symbol's window is the closed one. ``0``
+    when the times cannot be ordered (never a guess)."""
+    count = 0
+    try:
+        for b in reversed(benchmark_bars or ()):
+            if b.get("t") is not None and b.get("t") > last_t:
+                count += 1
+            else:
+                break
+    except TypeError:
+        return 0
+    return count
+
+
+def _benchmark_on_window(bars: Sequence[Mapping], benchmark_bars: Sequence[Mapping]) -> list:
+    """The benchmark bars whose time IS one of the window's bar times — exactly
+    the bars `relative_strength` reads (every join is by time, on the symbol's
+    own calendar), so a compute on these equals a compute on the whole read,
+    and the fingerprint names what the column actually depends on (a benchmark
+    forming bar past the window's end never moves the key)."""
+    times = {b.get("t") for b in bars}
+    return [b for b in benchmark_bars or () if b.get("t") in times]
 
 
 def default_fetch_bars(ticker: str, tf: str, want: int) -> list:
@@ -425,11 +522,16 @@ class RsPass:
     """The memo of one evaluation pass (see `rs_pass`)."""
 
     __slots__ = ("fetch_bars", "read_ratings", "_bench", "_resolved", "_columns", "_ratings",
-                 "fetch_calls", "compute_calls", "rating_calls")
+                 "fetch_calls", "compute_calls", "rating_calls", "shared")
 
-    def __init__(self, fetch_bars: FetchBars, read_ratings: Optional[ReadRatings] = None) -> None:
+    def __init__(self, fetch_bars: FetchBars, read_ratings: Optional[ReadRatings] = None,
+                 *, shared: bool = False) -> None:
         self.fetch_bars = fetch_bars
         self.read_ratings = read_ratings or default_read_ratings
+        #: 2026-11-07 (RS fix U1, review #10): True ⇒ this pass reads and fills
+        #: the cross-cycle column cache (`_COLUMN_CACHE`). Only `rs_pass()`
+        #: with NO injected reader sets it — the production reads.
+        self.shared = bool(shared)
         self._bench: dict[tuple, tuple[int, list]] = {}
         self._resolved: dict[tuple, dict] = {}
         self._columns: dict[tuple, dict] = {}
@@ -488,8 +590,17 @@ class RsPass:
         return hit
 
     def columns(self, family: str, bars: Sequence[Mapping], benchmark_bars: Sequence[Mapping],
-                inputs_key: str, compute: Callable[[], dict]) -> dict:
-        key = (family, _fingerprint(bars), _fingerprint(benchmark_bars), inputs_key)
+                inputs_key: str, compute: Callable[[], dict], *,
+                sym: Optional[str] = None, tf: Optional[str] = None) -> dict:
+        """One compute per column family and window in this pass.
+
+        2026-11-07 (RS fix U1, review #1 — critical): the key names the SYMBOL
+        and the timeframe. It used to be ``(family, fp(bars), fp(bench),
+        inputs)`` with a fingerprint of the window's ends only, so two tickers
+        on the same dates with the same last close shared one column set inside
+        the cycle-wide pass."""
+        key = (family, str(sym or "").upper(), normalize_tf(tf),
+               _fingerprint(bars), _fingerprint(benchmark_bars), inputs_key)
         hit = self._columns.get(key)
         if hit is None:
             hit = compute()
@@ -526,7 +637,10 @@ def rs_pass(fetch_bars: Optional[FetchBars] = None, read_ratings: Optional[ReadR
     if outer is not None and fetch_bars is None and read_ratings is None:
         yield outer
         return
-    p = RsPass(fetch_bars or default_fetch_bars, read_ratings)
+    # 2026-11-07 (RS fix U1, review #10): a pass with no injected reader is a
+    # production read, and only it shares the cross-cycle column cache.
+    p = RsPass(fetch_bars or default_fetch_bars, read_ratings,
+               shared=fetch_bars is None and read_ratings is None)
     token = _PASS.set(p)
     try:
         yield p
@@ -544,14 +658,20 @@ def benchmark_want(bars: Sequence) -> int:
 # ─── the builder ─────────────────────────────────────────────────────────────
 
 def build_rs_series(address: str, bars: Sequence[Mapping], benchmark_bars: Sequence[Mapping],
-                    params: Optional[Mapping]) -> Series:
+                    params: Optional[Mapping], *, sym: Optional[str] = None,
+                    tf: Optional[str] = None) -> Series:
     """One RS address → its FULL column, aligned to ``len(bars)``, ``None`` in warm-up.
 
     Pure apart from the pass memo: `compute_phase1_columns` /
-    `compute_mansfield_columns` run once per ``(family, bars, benchmark bars,
-    inputs)`` inside a pass, and the named column is picked. Line columns are
-    rounded to `LINE_DECIMALS` like the provider's; event columns are the
-    compute's own ``0.0 / 1.0 / None``.
+    `compute_mansfield_columns` run once per ``(family, symbol, tf, bars,
+    benchmark bars, inputs)`` inside a pass, and the named column is picked.
+    Line columns are rounded to `LINE_DECIMALS` like the provider's; event
+    columns are the compute's own ``0.0 / 1.0 / None``.
+
+    2026-11-07 (RS fix U1): ``sym`` and ``tf`` key the pass memo and the
+    cross-cycle cache (review #1, #10). The benchmark is narrowed to the
+    window's own bar times first (`_benchmark_on_window`) — the same numbers
+    the compute would read from the whole series, so the column is unchanged.
 
     ``short_history`` is left at the compute's default (off): the partial-lookback
     dots are a chart affordance for a whole-history window and have no address.
@@ -560,6 +680,7 @@ def build_rs_series(address: str, bars: Sequence[Mapping], benchmark_bars: Seque
     n = len(bars)
     if n == 0:
         return []
+    benchmark_bars = _benchmark_on_window(bars, benchmark_bars)
     if spec.family == "phase1":
         inputs = phase1_inputs(params)
         inputs_key = json.dumps(inputs, sort_keys=True)
@@ -574,11 +695,21 @@ def build_rs_series(address: str, bars: Sequence[Mapping], benchmark_bars: Seque
             return rsm.compute_mansfield_columns(bars, benchmark_bars, n_len)
 
     p = current_pass()
-    cols = p.columns(spec.family, bars, benchmark_bars, inputs_key, compute) if p else compute()
+    shared_key = None
+    if p is not None and p.shared:
+        shared_key = (address, str(sym or "").upper(), normalize_tf(tf),
+                      _fingerprint(bars), _fingerprint(benchmark_bars), inputs_key)
+        cached = _column_cache_get(shared_key)
+        if cached is not None:
+            return cached
+    cols = (p.columns(spec.family, bars, benchmark_bars, inputs_key, compute, sym=sym, tf=tf)
+            if p else compute())
     column = list(cols[spec.column])
     if spec.rounded:
         from api.services.indicator_compute import _round_series
         column = _round_series(column, LINE_DECIMALS)
+    if shared_key is not None:
+        _column_cache_put(shared_key, column)
     return column
 
 
@@ -600,13 +731,24 @@ def _rs_column(address: str) -> Callable[..., Series]:
         if n == 0:
             return []
         p = current_pass() or RsPass(default_fetch_bars)
-        bench = p.resolve(sym, rs_benchmark_of(params), code, benchmark_want(bars))
+        requested = rs_benchmark_of(params)
+        want = benchmark_want(bars)
+        bench = p.resolve(sym, requested, code, want)
+        # 2026-11-07 (RS fix U1, review #10): the closed lane hands this column
+        # the CLOSED window, which ends one bar before the benchmark's newest
+        # (its forming bar). A read of the latest `len(bars)` benchmark bars
+        # would then start one bar late and leave the window's first bar with
+        # no ratio; read that many more so the overlap is the full window, as
+        # it is when both series end on the same bar (then this is 0, no read).
+        extra = _bars_after(bench.get("bars") or (), bars[-1].get("t"))
+        if extra:
+            bench = p.resolve(sym, requested, code, want + extra)
         # The provider's two blanking states (plan §6.10): a symbol against
         # itself is a flat 1.0 that would "make a new high" on every bar, and a
         # benchmark with no bars has no ratio at all.
         if not bench.get("bars") or str(bench.get("resolved") or "").upper() == str(sym).upper():
             return [None] * n
-        return build_rs_series(address, bars, bench["bars"], params)
+        return build_rs_series(address, bars, bench["bars"], params, sym=sym, tf=code)
 
     fn.__name__ = f"_series_rs_{spec.column}"
     fn.inputs = _defaults_for(spec)                                      # type: ignore[attr-defined]
@@ -626,6 +768,77 @@ def _rs_column(address: str) -> Callable[..., Series]:
     fn.rs_column = spec.column                                          # type: ignore[attr-defined]
     fn.rs_kind = spec.kind                                              # type: ignore[attr-defined]
     return fn
+
+
+# ─── 2026-11-07 (RS fix U1, review #17): a benchmark that can never value ────
+#
+# A symbol measured against itself (SPY on the default benchmark, QQQ vs QQQ,
+# an ETF on SECTOR, which resolves to SPY) and a benchmark with no stored bars
+# both blank the column on every bar (`_rs_column` above, the provider's rule).
+# Such an alert used to be accepted at the door and then read as "warming up"
+# forever. The door refuses the first (`self_benchmark_refusal`); `diagnose`
+# names both as faults (`benchmark_fault`).
+
+def resolved_benchmark_name(sym: Optional[str], params: Optional[Mapping]) -> Optional[str]:
+    """The ticker this alert's benchmark resolves to for ``sym``, with no bar
+    read: a literal benchmark is itself; SECTOR goes through the chart's own
+    `rs_benchmarks.resolve_benchmark` with an empty reader (the name is decided
+    from the symbol's group, never from bars). ``None`` for INDUSTRY (not
+    offered for alerts) or when the resolution itself fails."""
+    requested = rs_benchmark_of(params)
+    if requested in rs_benchmarks.LITERAL_BENCHMARKS:
+        return requested
+    if requested != "SECTOR":
+        return None
+    try:
+        res = rs_benchmarks.resolve_benchmark(sym, requested, "D", 1,
+                                              fetch_bars=lambda *_a: [])
+    except Exception:  # noqa: BLE001 - a door check never raises for a lookup
+        return None
+    name = str(res.get("resolved") or "").upper()
+    return name or None
+
+
+def self_benchmark_refusal(address: Optional[str], sym: Optional[str],
+                           params: Optional[Mapping]) -> Optional[str]:
+    """The member sentence when this RS alert would measure ``sym`` against
+    itself, else ``None``. Only the benchmark-reading addresses ask (the rating
+    reads no benchmark)."""
+    if address not in RS_ADDRESS_SPECS or not sym:
+        return None
+    symbol = str(sym).strip().upper()
+    name = resolved_benchmark_name(symbol, params)
+    if name is None or name != symbol:
+        return None
+    requested = rs_benchmark_of(params)
+    how = f"the {requested} benchmark resolves to {symbol}" if requested != symbol else f"the benchmark is {symbol}"
+    return (f"This alert would measure the symbol against itself: {how}. A symbol "
+            f"over itself is a flat 1.0 with no new high and no cross, and the chart "
+            f"blanks that line, so the alert could never fire. Pick a different benchmark.")
+
+
+def benchmark_fault(address: Optional[str], sym: Optional[str], tf: Any,
+                    params: Optional[Mapping], bars: Sequence[Mapping]) -> Optional[str]:
+    """Why this RS alert's benchmark blanks its column for good, or ``None``:
+    it resolves to the symbol itself, or it has no stored bars. Read through the
+    current pass (one read per pass) or a default one. Never raises."""
+    if address not in RS_ADDRESS_SPECS or not sym or not bars:
+        return None
+    try:
+        code = normalize_tf(tf)
+        p = current_pass() or RsPass(default_fetch_bars)
+        bench = p.resolve(sym, rs_benchmark_of(params), code, benchmark_want(bars))
+    except Exception:  # noqa: BLE001 - a diagnosis never raises
+        return None
+    resolved = str(bench.get("resolved") or rs_benchmark_of(params)).upper()
+    symbol = str(sym).upper()
+    if resolved == symbol:
+        return (f"the benchmark {resolved} resolves to the symbol itself, so the RS "
+                f"line is blank on every bar and this alert can never fire")
+    if not bench.get("bars"):
+        return (f"no stored bars for the benchmark {resolved} on this timeframe, so "
+                f"the RS line is blank on every bar and this alert cannot fire")
+    return None
 
 
 # ─── 2026-11-07 (RS 2b-06): the rating — read from the side table, not computed ──

@@ -24,6 +24,18 @@ _FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 
 # ─── pure condition tests (plan Task 3 Step 1) ───────────────────────────────
 
+# 2026-11-07 (RS fix U1, review #2) -- PIN MOVED. The RS alert catalog and the
+# create door now follow `registry_defs.RS_V2_ENABLED` (and, for `rs_line.rating`,
+# `api.main.rs_history_enabled()`), dark by default; registration is unchanged.
+# The pins in this file describe the LIT shape, so both flags are lit here,
+# deterministically. The dark shape is railed in tests/test_rs_fix_u1_alert_lane.py.
+@pytest.fixture(autouse=True)
+def _rs_alert_flags_lit(monkeypatch):
+    from api.services.signature import registry_defs as _rs_flag_defs
+    monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
+
+
 def test_rsi_above():
     assert check_condition("above", current=72, prev=65, threshold=70) is True
     assert check_condition("above", current=68, prev=65, threshold=70) is False

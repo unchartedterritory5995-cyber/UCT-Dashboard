@@ -53,6 +53,18 @@ _AST_SMA5 = {"type": "call", "name": "sma", "args": [
 ]}
 
 
+# 2026-11-07 (RS fix U1, review #2) -- PIN MOVED. The RS alert catalog and the
+# create door now follow `registry_defs.RS_V2_ENABLED` (and, for `rs_line.rating`,
+# `api.main.rs_history_enabled()`), dark by default; registration is unchanged.
+# The pins in this file describe the LIT shape, so both flags are lit here,
+# deterministically. The dark shape is railed in tests/test_rs_fix_u1_alert_lane.py.
+@pytest.fixture(autouse=True)
+def _rs_alert_flags_lit(monkeypatch):
+    from api.services.signature import registry_defs as _rs_flag_defs
+    monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
+
+
 def defn(*, def_id: str = DEF_ID, tree=None, budget=None,
          name: str = "My Average", plots=None) -> dict:
     compute: dict = {"kind": "ast", "ast": tree if tree is not None else _AST_SMA5}
