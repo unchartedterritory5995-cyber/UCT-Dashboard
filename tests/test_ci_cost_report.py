@@ -134,6 +134,18 @@ def test_threshold_is_75_percent_of_100_by_default():
     assert any("spend" in line for line in alerts_for(0, 75.0))
 
 
+@pytest.mark.parametrize("spent,share", [(110.0, "50%"), (175.99, "50%"), (176.0, "80%")])
+def test_ceiling_alerts_at_50_and_80_percent_of_220(spent, share):
+    lines = [line for line in alerts_for(0, spent) if "ceiling" in line]
+    assert len(lines) == 1
+    assert f"{share} of the $220 ceiling" in lines[0]
+    assert "fast zero-step" in lines[0]
+
+
+def test_no_ceiling_alert_below_50_percent():
+    assert not [line for line in alerts_for(0, 109.99) if "ceiling" in line]
+
+
 def test_self_hosted_queue_alert_uses_the_limit():
     assert alerts_for(0, 0, [{"workflow": "w", "job": "j", "minutes": 30.0}]) == []
     lines = alerts_for(0, 0, [{"workflow": "w", "job": "j", "minutes": 31.0}])
@@ -145,7 +157,7 @@ def test_fixture_flags_a_queued_self_hosted_job_and_a_budget_stop(snap, capsys):
     out = capsys.readouterr().out
     assert code == 1
     assert "self-hosted job queued 600 min" in out
-    assert "never got a runner" in out
+    assert "fast zero-step failure" in out
     assert "Not the invoice" in out
 
 

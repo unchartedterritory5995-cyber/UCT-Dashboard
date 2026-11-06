@@ -53,8 +53,9 @@ DAYS = 30.0
 BATCH_HOLD_MIN = 60.0        # E  the longest AUDIT's queue holds an Agent PR to fill a batch
 QUEUE_CANCEL_MIN = 45.0      # AUDIT ruling 6
 
-#: AUDIT ruling 2. Anything not named stays hosted: an unruled rail is not free to move.
-MOVABLE_RAILS = {"wisdom rails", "term018 guards", "Options Flow guard", "notebook bytes", "Notebook accessibility"}
+#: AUDIT rulings. Anything not named stays hosted: vite build args, notebook latency, clock parity, indicators security.
+MOVABLE_RAILS = {"wisdom rails", "term018 guards", "Options Flow guard", "notebook bytes", "Notebook accessibility",
+                 "preference allow-list", "flow-worker deploy coverage", "notebook budgets"}
 CLOCK_PARITY = "Clock parity fixture"
 
 

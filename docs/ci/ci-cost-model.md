@@ -5,26 +5,26 @@ These are forecasts. No month's actual cost is claimed. All rulings are applied 
 
 ## Verdict
 
-**$100/month is not met at the current pace, and batching Agent merges cannot fix that.**
+**$100/month is not met at the current pace.**
 
-- **Cheapest compliant architecture:** one netcup VPS on a 24-month term, PC advisory, merge-candidate runs, Agent batches of 3, the `gate` split. **$168/month** at the Nov 1-5 pace, cash, before maintenance.
-- **Exact limit:** it stays at or under $100 at **11.4 gates a day**. That is 7.7 gates on a 1-month VPS and 9.6 on 12 months.
-- **The Nov 1-5 pace is 25.4 non-Agent gates a day, which cannot be batched.** Those alone cost $150 with no Agent merges at all. Agent batching changes the bill by about $20 at that pace.
-- **So $100 depends on non-Agent master pushes falling by more than half**, to about 11 gates a day across everyone, batches included.
+- **Cheapest compliant architecture:** one netcup VPS on a 24-month term, PC advisory, merge-candidate runs, Agent batches of 3, the `gate` split. **$131/month** at the Nov 1-5 pace, cash, before maintenance.
+- **Exact limit:** it stays at or under $100 at **17.1 gates a day**. That is 11.5 gates on a 1-month VPS and 14.3 on 12 months.
+- **The Nov 1-5 pace is 34.2 merges a day**, of which 25.4 are non-Agent gates that cannot be batched. Those alone cost about $120 with no Agent merges at all. Other teams adopting batching is not modelled as a saving.
+- **So $100 depends on master pushes falling by about 40% or more**, to about 17 gates a day across everyone, batches included.
 - **With maintenance, $100 is not reachable at any volume:** the $61 floor plus 3 h at the placeholder $25/h is $136.
-- **At Nov-5 pace every day:** $215 with perfect batches, $240 at the replay's real batch size of 1.64.
+- **At Nov-5 pace every day:** $161 with perfect batches, $177 at the replay's real batch size of 1.64.
 
 ## USD per month, cash, every ruling applied
 
 | Month | A today | C no VPS | D AWS spot | 1 VPS, no batching, 1-mo | 1 VPS, batch 3, 1-mo | 12-mo | **24-mo** | 2 VPS, batch 3, 24-mo |
 |---|---|---|---|---|---|---|---|---|
-| Normal (Nov 1-5 mean, 34.2 merges/day) | 2,039 | 588 | 294 | 202 | 182 | 175 | **168** | 214 |
-| October pace, no Agent merges (25.7/day) | 652 | 467 | 238 | 157 | 157 | 150 | **143** | 189 |
-| Mixed (6 Nov-5 days) | 2,206 | 648 | 320 | 220 | 192 | 185 | **178** | 223 |
-| Sustained busy (22 Nov-5 days) | 2,649 | 810 | 391 | 267 | 216 | 209 | **202** | 248 |
-| Every day Nov 5 (54/day) | 2,871 | 890 | 427 | 290 | 229 | 222 | **215** | 260 |
+| Normal (Nov 1-5 mean, 34.2 merges/day) | 2,039 | 588 | 294 | 158 | 145 | 138 | **131** | 177 |
+| October pace, no Agent merges (25.7/day) | 652 | 467 | 238 | 125 | 125 | 118 | **111** | 157 |
+| Mixed (6 Nov-5 days) | 2,206 | 648 | 320 | 169 | 151 | 144 | **137** | 183 |
+| Sustained busy (22 Nov-5 days) | 2,649 | 810 | 391 | 200 | 167 | 160 | **153** | 199 |
+| Every day Nov 5 (54/day) | 2,871 | 890 | 427 | 215 | 175 | 168 | **161** | 207 |
 
-A is today's setup, shown as the baseline; it does not follow the rulings. C and D use batches of 3. The included allowance is **$12, inferred GitHub Free**. B(b) from the earlier model is gone: ruling 3 requires a merge-candidate run.
+A is today's setup, shown as the baseline; it does not follow the rulings. C and D use batches of 3 and keep the movable rails hosted, because the rulings name the VPS. The included allowance is **$12, inferred GitHub Free**.
 
 ## What $100 depends on
 
@@ -32,51 +32,48 @@ A is today's setup, shown as the baseline; it does not follow the rulings. C and
 
 | Non-Agent gates/day | 0 Agent PRs | 9 Agent | 18 Agent | 29 Agent |
 |---|---|---|---|---|
-| 0 | 61 | 73 | 89 | 108 |
-| 5 | 76 | 92 | 107 | 127 |
-| 10 | 95 | 110 | 126 | 146 |
-| 15 | 113 | 129 | 145 | 165 |
-| 20 | 132 | 148 | 164 | 184 |
-| 25 | 151 | 167 | 183 | 202 |
-| 30 | 170 | 186 | 202 | 221 |
+| 0 | 61 | 67 | 77 | 90 |
+| 5 | 69 | 80 | 90 | 103 |
+| 10 | 82 | 92 | 103 | 115 |
+| 15 | 95 | 105 | 115 | 128 |
+| 20 | 107 | 118 | 128 | 141 |
+| 25 | 120 | 130 | 141 | 153 |
+| 30 | 132 | 143 | 153 | 166 |
 
 - **Real Nov 1-5 split:** 25.4 non-Agent gates a day (19.8 through a PR, 5.6 direct) and 8.8 Agent PRs (7.4 batchable, 1.4 never batched). Nov 5: 25 non-Agent, 29 Agent (23 batchable, 6 never batched).
-- **Non-Agent teams mostly use PRs:** 78% of their gates, so most get a merge-candidate run too. Ruling 5 describes them as pushing directly.
-- **Each extra gate a day** costs $2.81/month hosted; each extra merge-candidate run a day costs $1.11.
+- **Each extra gate a day** costs $2.10/month hosted; each extra merge-candidate run a day costs $0.41.
 
 Gates a day at or under $100, cash:
 
 | VPS term | All non-Agent | Nov mix, after batch 3 | Nov mix, merges | Share of Nov 1-5 volume |
 |---|---|---|---|---|
-| 1-month ($59.80) | 7.7 | 7.7 | 9.0 | 26% |
-| 12-month ($52.77) | 9.6 | 9.5 | 11.1 | 33% |
-| 24-month ($45.76) | 11.4 | 11.4 | 13.3 | 39% |
+| 1-month ($59.80) | 11.6 | 11.5 | 13.5 | 39% |
+| 12-month ($52.77) | 14.4 | 14.3 | 16.7 | 49% |
+| 24-month ($45.76) | 17.1 | 17.1 | 19.9 | 58% |
 
-## Where the $168 goes
+## Where the $131 goes
 
 | Item | $/month |
 |---|---|
-| Hosted rails, at merge candidate and on master | 59 |
 | Gate job, verdict, promote | 50 |
+| VPS, 24-month | 46 |
+| Hosted rails | 21 |
+| PC power | 18 |
 | Fixed hosted: watcher, catch-up promotes, nightly plan, scheduled rails | 8 |
 | Allowance | -12 |
-| VPS, 24-month | 46 |
-| PC power | 18 |
 | Artifact storage | 0.33 |
-
-**Hosted alone is $104 net, over $100 before the VPS is paid for.** $47 of the rail line is `notebook budgets`, `preference allow-list`, `flow-worker deploy coverage` and `indicators security suite`. AUDIT did not rule on them, so they stay hosted here. Even if all four moved, the total would be about $121.
 
 ## Rulings as measured
 
 | Ruling | Result |
 |---|---|
-| 1 `gate` split | 8.75 to 6.18 hosted min per gate. M: 40 runs, each re-rounded. The step averages 2.5 min |
-| 2 Rails to VPS | 8.7 min per run leave hosted; 6.17 min stay. **Clock-parity upside: about $0**, no master runs on Nov 5 |
-| 3 Merge-candidate run | Agent: heavy, on the VPS. Non-Agent PR: rails only. Direct push: none |
-| 4 Consolidation | **$0.** No two eligible rails have the same `on:` block, so none qualify. Not allowed, for scale: 3.1 min saved if all three eligible rails fired together |
-| 5 Batching | Up to 3 PRs per gate. Real replay on Nov 5: 1.64 at a 60-min hold |
-| 6 Watcher | $3.52/month at 15 min, $1.82 at 30 min. Model uses 15 min. The one-shot step adds seconds; modelled as nothing |
-| 7 Secret-scan fix | Ignored, as instructed |
+| `gate` split | 8.75 to 6.18 hosted min per gate. M: 40 runs, each re-rounded |
+| Rails to VPS | Wisdom, term018, optionsflow, notebook bytes, a11y, preference allow-list, flow-worker coverage, notebook budgets: 12.6 min per run leave hosted |
+| Rails hosted | Vite build args, notebook latency, clock parity, indicators security: 2.26 min per run stay. **Clock-parity upside: about $0** |
+| Merge-candidate run | Agent: heavy, on the VPS. Non-Agent PR: rails only, preference allow-list included. Direct push: none |
+| Consolidation | **$0.** No eligible rails share an identical `on:` block |
+| Batching | Agent only, up to 3 PRs per gate. Real replay on Nov 5: 1.64 at a 60-min hold |
+| Watcher | $3.52/month at 15 min, $1.82 at 30 min. Model uses 15 min |
 
 ## Nov 5 capacity on one VPS, merge-candidate runs included
 
@@ -91,24 +88,29 @@ Replay of the 54 real arrivals. Merge-candidate runs are heavy for Agent PRs onl
 | 2 VPS, 20 min, no hold | 53 + 28 | 27.0 | 3 / 17 | 0 | 40 |
 | 2 VPS, 20 min, 60-min hold | 45 + 20 | 21.7 | 0 / 16 | 0 | 100 |
 
-**One VPS carries a Nov-5 day at 15 min a job. At 20 min it is marginal:** 90-101% busy, the queue runs past midnight, and 2-3 gates would hit the 45-min cancel. Two VPS carry it cleanly for $46 more. The VPS gate time is not measured yet, so this decides whether one is enough. The movable rails add about 13 h of light work a day on a second runner slot, not counted above.
+**One VPS carries a Nov-5 day at 15 min a job. At 20 min it is marginal:** 90-101% busy, the queue runs past midnight, and 2-3 gates would hit the 45-min cancel. Two VPS carry it cleanly for $46 more. The VPS job time is not measured yet.
+
+The moved rails add about 19 h of light work on a second runner slot on a Nov-5 day, not counted above. `notebook budgets` readings are advisory, but they will read noisier on that shared slot.
 
 ## Risks to the number
 
 | Case, 1 VPS, batch 3, 24-mo | Normal | Every day Nov 5 |
 |---|---|---|
-| $0.002/min on VPS minutes only | $236 | $317 |
-| $0.002/min on VPS and PC, if PC checks run as Actions jobs | $387 | $510 |
-| High power (225 W, $0.35/kWh) | $210 | $267 |
-| Maintenance, 3 h at $25/h | $243 | $290 |
+| $0.002/min on VPS minutes only | $211 | $281 |
+| $0.002/min on VPS and PC, if PC checks run as Actions jobs | $362 | $474 |
+| High power (225 W, $0.35/kWh) | $173 | $213 |
+| Maintenance, 3 h at $25/h | $206 | $236 |
 
-A 3-day VPS outage at Nov-5 pace, switched by hand, adds $72.
+A 3-day VPS outage at Nov-5 pace, switched by hand, adds $78.
 
 ## Budget ceiling
 
-A stop fails gate, verdict and promote in seconds (run 42145747733). `web` deploys from `production` and five other services from `master`, so the back end can run ahead of `web`. Promote and verdict stay hosted, so a VPS does not avoid it.
+**The hard ceiling is $220 net.** `tools/ci_cost_report.py` alerts at **50% ($110)** and **80% ($176)** of it, and separately at $75 against the $100 target.
 
-**Set the hard ceiling at $220 net after migration:** an all-Nov-5 month's hosted $146 plus the $72 outage. The current limit should stay above today's run rate until cutover. A $100 ceiling would stop deploys around day 29 at the normal pace, and about day 21 at Nov-5 pace. Alert at $75, which the tool already does. Hold the $100 target by alerts and by cutting pushes, not by the ceiling.
+- **What a hit looks like: fast zero-step failures.** Jobs fail in seconds, with no runner and no steps, and the annotation says the spending limit needs to be increased. It is the budget, not the code. Do not re-push to retry.
+- **What it blocks:** gate, verdict and promote (run 42145747733). `web` deploys from `production` and five other services from `master`, so the back end can run ahead of `web`. Promote and verdict stay hosted, so a VPS does not avoid it.
+- **Headroom:** an all-Nov-5 month is $92 net hosted, plus $78 for an outage: $170, under the 80% alert.
+- **Until migration:** today's estimated rate is about $46/day, so $220 would last about 5 days.
 
 ## Measured evidence
 
@@ -143,4 +145,4 @@ M = measured, P = published, E = estimate.
 - **PC capacity:** Nov 4 would be about 245 advisory suites, about 21 h of wall time on 2 slots at 10.4 min. That leaves almost no room, so superseded runs should be dropped.
 - **PRs into `agent/int`:** 92 on Nov 1-3, none after. If that flow returns, those PRs need merge-candidate runs too.
 - **Non-Agent PRs touching Agent paths** would need a heavy candidate run.
-- **VPS gate time on real hardware.**
+- **VPS job time on real hardware.**

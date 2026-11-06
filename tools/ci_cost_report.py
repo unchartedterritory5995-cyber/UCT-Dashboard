@@ -17,7 +17,7 @@ WHY NOT /actions/runs/{id}/timing. Its `billable` block returns total_ms 0 for e
 2026-11-06), so it is unusable, and a report that summed it would say the bill is zero.
 
 NOT BILLED, and excluded here: skipped jobs, and jobs that never got a runner (empty runner_name, zero
-steps). The second group is what a budget hard stop looks like: the job fails in seconds with the
+steps). The second group is what a budget ceiling hit looks like: fast zero-step failures, with the
 annotation "The job was not started because recent account payments have failed or your spending
 limit needs to be increased". Measured on run 42145747733, 2026-11-06.
 
@@ -51,6 +51,8 @@ DEFAULT_REPO = "unchartedterritory5995-cyber/UCT-Dashboard"
 DEFAULT_BUDGET = 100.0
 DEFAULT_ALERT_FRACTION = 0.75
 DEFAULT_QUEUE_ALERT_MIN = 30.0
+DEFAULT_CEILING = 220.0      # the GitHub budget hard ceiling AUDIT set; a hit blocks gate, verdict and promote
+CEILING_ALERTS = (0.50, 0.80)
 DEFAULT_INCLUDED_USD = 0.0  # Free is $12 (2,000 min), Pro is $18 (3,000 min): pass --included-usd
 MIN_CONFIDENT_DAYS = 3.0
 SCHEMA = 1
@@ -442,9 +444,15 @@ def forecast(result: dict, now: dt.datetime, rate_from: dt.datetime | None,
     }
 
 
-def alerts(result: dict, cast: dict, budget: float, fraction: float, queue_limit: float) -> list[str]:
+def alerts(result: dict, cast: dict, budget: float, fraction: float, queue_limit: float,
+           ceiling: float = DEFAULT_CEILING) -> list[str]:
     limit = budget * fraction
     lines = []
+    for share in sorted(CEILING_ALERTS, reverse=True):
+        if cast["spent_net"] >= ceiling * share:
+            lines.append(f"ALERT: spend ${cast['spent_net']:.2f} >= {share:.0%} of the ${ceiling:.0f} ceiling "
+                         f"(${ceiling * share:.2f}). A ceiling hit reads as fast zero-step job failures.")
+            break
     if cast["net"] >= limit:
         note = " (LOW CONFIDENCE: short window)" if cast["low_confidence"] else ""
         lines.append(f"ALERT: forecast ${cast['net']:.2f} >= ${limit:.2f} "
@@ -457,8 +465,8 @@ def alerts(result: dict, cast: dict, budget: float, fraction: float, queue_limit
             lines.append(f"ALERT: self-hosted job queued {row['minutes']:.0f} min > {queue_limit:.0f}: "
                          f"{row['workflow']} / {row['job']}")
     if result["stopped_jobs"]:
-        lines.append(f"ALERT: {result['stopped_jobs']} failed job(s) in the last {STOP_LOOKBACK_DAYS} days "
-                     "never got a runner (budget stop or capacity, read the run annotation)")
+        lines.append(f"ALERT: {result['stopped_jobs']} fast zero-step failure(s) in the last {STOP_LOOKBACK_DAYS} days: "
+                     "jobs that never got a runner (budget ceiling or capacity, read the run annotation)")
     return lines
 
 
@@ -546,6 +554,7 @@ def build_parser() -> argparse.ArgumentParser:
     report_cmd.add_argument("--billing", help="owner's billing usage JSON, to compare")
     report_cmd.add_argument("--budget", type=float, default=DEFAULT_BUDGET)
     report_cmd.add_argument("--alert-fraction", type=float, default=DEFAULT_ALERT_FRACTION)
+    report_cmd.add_argument("--ceiling", type=float, default=DEFAULT_CEILING, help="alerts at 50%% and 80%% of this")
     report_cmd.add_argument("--queue-alert-min", type=float, default=DEFAULT_QUEUE_ALERT_MIN)
     report_cmd.add_argument("--included-usd", type=float, default=DEFAULT_INCLUDED_USD)
     report_cmd.add_argument("--self-hosted-rate", type=float, default=0.0,
@@ -600,7 +609,7 @@ def main(argv: list[str] | None = None, gh: Gh = gh_api) -> int:
     month_start = dt.datetime(year, month, 1, tzinfo=dt.timezone.utc)
     rate_from = parse_day(args.rate_from) if args.rate_from else None
     cast = forecast(result, now, rate_from, month_start, args.included_usd)
-    lines = alerts(result, cast, args.budget, args.alert_fraction, args.queue_alert_min)
+    lines = alerts(result, cast, args.budget, args.alert_fraction, args.queue_alert_min, args.ceiling)
     print(render(snapshot, result, cast, lines))
     if args.billing:
         with open(args.billing, encoding="utf-8") as handle:
