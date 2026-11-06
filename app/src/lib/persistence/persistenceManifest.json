@@ -2934,6 +2934,29 @@
       "files": [
         "app/src/pages/terminal/TerminalShell.jsx"
       ]
+    },
+    {
+      "key": "notebook_tips",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "One-time Notebook tips already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx"
+      ]
+    },
+    {
+      "key": "uct.debug.layoutShift",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Debug only: log layout shifts to the console (off unless set by hand)",
+      "files": [
+        "app/src/lib/clsDebug.js"
+      ]
     }
   ]
 }

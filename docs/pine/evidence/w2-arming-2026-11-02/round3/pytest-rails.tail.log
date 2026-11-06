@@ -1,0 +1,60 @@
+tests/test_rollout.py::test_the_prefix_is_declared_once PASSED           [ 94%]
+tests/test_rollout.py::test_role_user_ids_is_read_by_tests_only PASSED   [ 94%]
+tests/test_rollout.py::test_neither_projection_holds_its_own_cohort_SQL_any_more PASSED [ 95%]
+tests/test_rollout.py::test_the_CP4_flag_and_the_role_constants_are_GONE PASSED [ 95%]
+tests/test_rollout.py::test_widening_to_all_members_is_a_TAG_ASSIGNMENT PASSED [ 96%]
+tests/test_rollout.py::test_a_cohort_can_now_SHRINK_which_a_role_check_never_could PASSED [ 96%]
+tests/test_rollout.py::test_remove_from_cohort_REFUSES_an_empty_set PASSED [ 97%]
+tests/test_rollout.py::test_assign_cohort_adds_named_accounts_and_ignores_ids_that_are_not_accounts PASSED [ 97%]
+tests/test_rollout.py::test_the_tool_is_READ_ONLY_without_apply PASSED   [ 98%]
+tests/test_rollout.py::test_the_tool_writes_when_told_to PASSED          [ 98%]
+tests/test_rollout.py::test_the_tool_prints_IDS_ONLY_and_never_another_users_column PASSED [ 99%]
+tests/test_rollout.py::test_the_tool_says_EMPTY_rather_than_printing_nothing PASSED [ 99%]
+tests/test_rollout.py::test_the_tool_refuses_a_write_it_cannot_name PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: 22 warnings
+tests/test_pine_runtime_shared_stamp.py: 100 warnings
+tests/test_pine_runtime_stop_telemetry.py: 3947 warnings
+tests/test_pine_runtime_switch_on.py: 160 warnings
+tests/test_runtime_definitions.py: 40 warnings
+tests/test_runtime_document_round_trip.py: 20 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: 22 warnings
+tests/test_pine_runtime_shared_stamp.py: 130 warnings
+tests/test_pine_runtime_stop_telemetry.py: 4127 warnings
+tests/test_pine_runtime_switch_on.py: 209 warnings
+tests/test_runtime_definitions.py: 52 warnings
+tests/test_runtime_document_round_trip.py: 26 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 8665 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 202 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_pine_runtime_shared_stamp.py::test_S4_a_graded_live_script_previews_UNSTAMPED_and_whole
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_pine_runtime_stop_telemetry.py: 41 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+tests/test_pine_runtime_stop_telemetry.py::test_the_routes_are_mounted_on_api_main_exactly_once[POST-/api/pine-runtime-telemetry/stop]
+  C:\Users\Patrick\uct-worktrees\pine-dsk-w2-mrg\api\baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_pine_runtime_switch_on.py::test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour
+tests/test_rollout.py::test_the_prefix_is_declared_once
+tests/test_rollout.py::test_role_user_ids_is_read_by_tests_only
+  <unknown>:964: SyntaxWarning: "\`" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\`"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 202 passed, 17768 warnings in 98.91s (0:01:38) ================

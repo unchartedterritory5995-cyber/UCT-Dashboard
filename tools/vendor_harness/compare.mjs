@@ -1116,3 +1116,130 @@ export function renderSummary(results) {
   }
   return lines.join('\n')
 }
+
+// ═══ W9-T2: THE STRATEGY GRADE (design 5.2 E) ═══════════════════════════════════
+//
+// Pure. Applied IN ORDER; the first step that decides, decides.
+//
+//   0. THE REFERENCE FLOOR, decided from the TradingView capture alone BEFORE our run
+//      is read. Fewer than STRATEGY_FLOOR closed trades in the graded span is
+//      UNGRADABLE on that symbol, and OUR RUN IS NEVER CONSULTED: our trade count is
+//      not read, compared or logged here (a spy on `ours.trades` proves it).
+//      ⛔ The floor is NEVER applied to our count: a broker that under- or over-trades
+//      against a reference at or above the floor is a DIVERGE, never a hidden script.
+//   1. EXPECTED-REFUSAL: our run refused by rule 11 or another wave wall. Tallied
+//      apart from the W9 DIVERGE count. Any other refusal against a TradingView value
+//      is a DIVERGE.
+//   2. BAR IDENTITY (and the data settings): OHLCV identical to the tick over the span,
+//      else INCONCLUSIVE "bars differ". ⭐ A script with NO literal settings reads
+//      INCONCLUSIVE on the settings agreement ('strategy-settings:nothing-compared'):
+//      that is the absence of a comparison, not a disagreement, and it never blocks.
+//      Only a real disagreement, or no strategy() declaration at all, blocks.
+//   3. SIGNAL IDENTITY, method (b) only: the script own plots identical inside
+//      [X, Y), else INCONCLUSIVE "the warm-up has not converged".
+//   4. TRADES AND VALUES. Counts differ: DIVERGE, naming the first unmatched fill by
+//      time and its `rule`. Equal counts: JOINED ON BAR TIME, NEVER BAR INDEX (on
+//      method (b) the indexes differ by a constant). Prices to the tick, quantities
+//      exactly, currency to REL_TOL. All equal: MATCH; else DIVERGE naming the rule.
+
+export const STRATEGY_FLOOR = 5
+export const STRATEGY_VERDICTS = Object.freeze(['MATCH', 'DIVERGE', 'INCONCLUSIVE', 'UNGRADABLE', 'EXPECTED-REFUSAL'])
+
+const inSpan = (t, span) => !span || ((span.from === undefined || t >= span.from) && (span.to === undefined || t < span.to))
+const sameTick = (a, b, tick) => Math.abs(a - b) < tick / 2
+const sameCurrency = (a, b) => Math.abs(a - b) <= REL_TOL * Math.abs(b) || Math.abs(a - b) <= ABS_FLOOR_UNKNOWN_SCALE
+
+function barsDiffer(refBars, ourBars, span, tick) {
+  if (!Array.isArray(refBars) || !Array.isArray(ourBars)) return 'bars are missing on a side'
+  const a = refBars.filter((b) => inSpan(b.time, span))
+  const b = ourBars.filter((x) => inSpan(x.time, span))
+  if (a.length === 0) return 'no reference bars in the span'
+  if (a.length !== b.length) return `bar counts differ (${a.length} against ${b.length})`
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].time !== b[i].time) return `bar times differ at ${a[i].time}`
+    for (const k of ['open', 'high', 'low', 'close']) if (!sameTick(a[i][k], b[i][k], tick)) return `${k} differs at ${a[i].time}`
+    if (a[i].volume !== b[i].volume) return `volume differs at ${a[i].time}`
+  }
+  return null
+}
+
+function signalsDiffer(ref, our, graded, tol) {
+  const names = Object.keys(ref || {})
+  if (names.length === 0 || !our) return 'no plots to compare'
+  for (const name of names) {
+    const a = (ref[name] || []).filter((p) => inSpan(p.time, graded))
+    const m = new Map((our[name] || []).filter((p) => inSpan(p.time, graded)).map((p) => [p.time, p.value]))
+    if (m.size !== a.length) return `plot ${name} has a different bar count inside the graded span`
+    for (const p of a) if (!m.has(p.time) || !valuesAgree(m.get(p.time), p.value, tol)) return `plot ${name} differs at ${p.time}`
+  }
+  return null
+}
+
+const ruleOf = (t) => (t && t.rule) || 'unattributed'
+
+function compareTrades(refTrades, ourTrades, tick) {
+  const byEntry = new Map(ourTrades.map((t) => [t.entryTime, t]))
+  const refEntries = new Set(refTrades.map((t) => t.entryTime))
+  if (refTrades.length !== ourTrades.length) {
+    const ref = [...refTrades].sort((x, y) => x.entryTime - y.entryTime)
+    const first = ref.find((t) => !byEntry.has(t.entryTime))
+      || [...ourTrades].sort((x, y) => x.entryTime - y.entryTime).find((t) => !refEntries.has(t.entryTime))
+    return { verdict: 'DIVERGE', reason: `trade counts differ (reference ${refTrades.length}, ours ${ourTrades.length})`, first: first ? { time: first.entryTime, rule: ruleOf(first) } : null }
+  }
+  for (const r of [...refTrades].sort((x, y) => x.entryTime - y.entryTime)) {
+    const o = byEntry.get(r.entryTime)
+    if (!o) return { verdict: 'DIVERGE', reason: `no fill of ours at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+    const bad = [
+      o.direction !== r.direction && 'direction',
+      o.exitTime !== r.exitTime && 'exitTime',
+      !sameTick(o.entryPrice, r.entryPrice, tick) && 'entryPrice',
+      !sameTick(o.exitPrice, r.exitPrice, tick) && 'exitPrice',
+      o.qty !== r.qty && 'qty',
+      !sameCurrency(o.profit, r.profit) && 'profit',
+    ].find(Boolean)
+    if (bad) return { verdict: 'DIVERGE', reason: `${bad} differs at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+  }
+  return { verdict: 'MATCH', reason: 'every trade and value equal', first: null }
+}
+
+/**
+ * @param {{reference:{trades:object[]}, ours:object, method?:'a'|'b', span?:{from?:number,to?:number},
+ *          graded?:{from?:number,to?:number}, tick?:number, settings?:object, refBars?:object[], ourBars?:object[],
+ *          refSignals?:object, ourSignals?:object}} g
+ */
+export function gradeStrategy(g) {
+  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals } = g
+  // 0. the reference floor: the TradingView capture alone.
+  const refTrades = (reference && reference.trades) || null
+  if (!Array.isArray(refTrades)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
+  const inGraded = (t) => inSpan(t.exitTime !== undefined ? t.exitTime : t.entryTime, graded || span)
+  const refCount = refTrades.filter(inGraded).length
+  if (refCount < STRATEGY_FLOOR) {
+    return { verdict: 'UNGRADABLE', step: 0, reason: `the reference has too few trades (${refCount}, floor ${STRATEGY_FLOOR})` }
+  }
+  // 1. expected refusals.
+  const refusal = ours && ours.refusal
+  if (refusal) {
+    return refusal.expected
+      ? { verdict: 'EXPECTED-REFUSAL', step: 1, reason: `refused by ${refusal.rule}`, rule: refusal.rule }
+      : { verdict: 'DIVERGE', step: 1, reason: `our run refused (${refusal.rule}) against a TradingView value`, rule: refusal.rule }
+  }
+  // 2. settings and bar identity.
+  if (settings) {
+    const hasDisagreement = Array.isArray(settings.disagreements) && settings.disagreements.length > 0
+    const noDeclaration = typeof settings.reason === 'string' && settings.reason.startsWith('strategy-settings:no-declaration')
+    if (hasDisagreement || noDeclaration) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: hasDisagreement ? 'the data settings differ' : 'no strategy() declaration to read the settings from' }
+    }
+  }
+  const bd = barsDiffer(refBars, ourBars, span, tick)
+  if (bd) return { verdict: 'INCONCLUSIVE', step: 2, reason: `bars differ: ${bd}` }
+  // 3. signal identity, method (b) only.
+  if (method === 'b') {
+    const sd = signalsDiffer(refSignals, ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+    if (sd) return { verdict: 'INCONCLUSIVE', step: 3, reason: `the warm-up has not converged: ${sd}` }
+  }
+  // 4. trades and values (our trade list is read for the first time here).
+  const r = compareTrades(refTrades.filter(inGraded), (ours.trades || []).filter(inGraded), tick)
+  return { ...r, step: 4 }
+}

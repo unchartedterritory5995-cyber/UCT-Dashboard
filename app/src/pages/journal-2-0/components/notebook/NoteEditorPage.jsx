@@ -39,6 +39,8 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
+import { openJournalTools, registerJournalToolsDoor } from '../../lib/journalToolsDoor'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
 import usePreferences from '../../../../hooks/usePreferences'
@@ -151,6 +153,7 @@ import { noteDayOf } from '../../lib/blocks/toolDays'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import TickerCardSlot from './widgets/TickerCardSlot'
+import NotebookTipSlot from './NotebookTipSlot'
 // Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
 // also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
 // imports below, and the chip itself is lazy.
@@ -839,6 +842,30 @@ export function NoteLinkedTradeChips({ noteId }) {
  * (`lesson: a control that can be dismissed [here: refused] needs the member
  * to know it, not just a developer reading the registry`).
  */
+/** Final polish (WebKit at 390 px): an open note offers "Journal tools" in its ⋯ (phone items), so the phone Journal
+ *  header may fold away on a note address (lib/journalToolsDoor.js). Registered in a LAYOUT effect, before paint, by
+ *  the loading skeleton and the note page; the missing-note and failure pages have no ⋯ and do not register. */
+function JournalToolsDoorMark() {
+  useLayoutEffect(() => registerJournalToolsDoor(), [])
+  return null
+}
+
+/** Final polish: a textarea as tall as its text (the title wraps instead of clipping). Re-measured when the value
+ *  changes and when the window resizes (a narrower column wraps more). */
+export function useAutoGrow(ref, value) {
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || el.tagName !== 'TEXTAREA') return undefined
+    const fit = () => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [ref, value])
+}
+
+/** The note body's accessible shape: a named, multi-line text field (fix round 2). */
+export const NOTE_BODY_ARIA = Object.freeze({ role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note body' })
+
 function ToolButton({ active, onClick, label, title, disabled }) {
   const ranOnPressRef = useRef(false)
   return (
@@ -1056,9 +1083,10 @@ export default function NoteEditorPage({
   // The visible Find door (the header button, and on a phone the More panel's item).
   const openFind = () => setFindOpen(true)
   // S10 (M4): the save indicator is mounted empty, then filled (a live region that arrives holding words is often
-  // not read).
-  const [indicatorOn, setIndicatorOn] = useState(false)
-  useEffect(() => { setIndicatorOn(true) }, [])
+  // not read). Finish review 1: keyed on WHERE the region lives (`indicatorHome`, below), not on this component's
+  // first mount -- the region first mounts when the note ARRIVES (the loading skeleton has none), and again when a
+  // phone crosses 640 px, and each of those inserts must be empty. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const [indicatorOnFor, setIndicatorOnFor] = useState(null)
   // The More panel's "Move to folder" select on a phone (its label's target).
   const moveFolderId = useId()
   const onPageKeyDown = (e) => {
@@ -1443,6 +1471,8 @@ export default function NoteEditorPage({
 
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
+  // Final polish: the title textarea is as tall as its wrapped text.
+  useAutoGrow(titleInputRef, title)
   // S5 (B11): "{title} · Notebook · UCT Intelligence" while this note is open, following the title
   // as it is typed (the tab read "Journal" on every note). Only once the note has loaded.
   useEffect(() => {
@@ -3107,7 +3137,10 @@ export default function NoteEditorPage({
       // this file's own test harness and `focusableWithin`'s `[tabindex]`
       // selector both need to recognise the body as focusable at all --
       // without it `openFocus="body"` (Q1's fix) silently focused nothing.
-      attributes: { class: styles.proseEditor, 'aria-label': 'Note body', tabindex: '0' },
+      // Tier 4 fix round 2 (live scorecard, axe serious `aria-prohibited-attr` at every profile): the editor no longer
+      // stamps a role, and `aria-label` is prohibited on a role-less div. The body IS a multi-line text field, so it
+      // says so: NOTE_BODY_ARIA (role textbox, aria-multiline). Rail: a11y/noteBodyRole.a11y.test.jsx.
+      attributes: { class: styles.proseEditor, ...NOTE_BODY_ARIA, tabindex: '0' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         const terminalLink = !Array.from(items || []).some((i) => i.kind === 'file')
@@ -3529,6 +3562,22 @@ export default function NoteEditorPage({
   // Above 640 px the coach card is unchanged; the mic's hint, since the 2026-10-10 UX pass,
   // waits at EVERY width (see the mic below). Rails: NoteEditorPage.firstRunDefer.test.jsx.
   const deferFirstRun = useIsPhone()
+  // Finish batch (2026-11-05, iPhone at 360-390 px): the header row has room for back, Folders and the four controls,
+  // not for the indicator's words too, so a phone says them at the end of the line under the title (NoteDetailsLine
+  // `trail`). ONE indicator is mounted at a time, so there is one polite region. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const savedOnTitleLine = deferFirstRun
+  const indicatorHome = !note ? null : (savedOnTitleLine ? 'title-line' : 'header')
+  // The commit that inserts the region renders it empty; this effect runs after that commit and fills it.
+  useEffect(() => { setIndicatorOnFor(indicatorHome) }, [indicatorHome])
+  const indicatorOn = indicatorHome !== null && indicatorOnFor === indicatorHome
+  const saveIndicator = (className) => (
+    <span className={className} role="status" aria-live="polite" data-save-indicator="">
+      {indicatorOn ? saveIndicatorWords({
+        status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
+        offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
+      }) : ''}
+    </span>
+  )
   useEffect(() => (deferFirstRun ? claimFirstRunStage() : undefined), [deferFirstRun])
 
   // The lock IS `editable`: every surface that edits the note asks
@@ -4902,6 +4951,7 @@ export default function NoteEditorPage({
     // treatment in this wave.
     return (
       <div className={styles.loading} role="status" aria-label="Loading…">
+        <JournalToolsDoorMark />
         <SkeletonLine width="45%" height={26} />
         <div style={{ height: 20 }} />
         <SkeletonLine width="92%" height={14} />
@@ -5009,6 +5059,20 @@ export default function NoteEditorPage({
   // back to the item); Find puts the member back on the note, so it closes the panel.
   // S10 (M4): Ask stays a phone-only item (the header's AI group holds it elsewhere); Find and Outline are lead items on
   // every width (`moreLead`), and the folder sits under the title.
+  // Final polish (WebKit at 390 px): the Journal header's tools fold away on a phone note, and this is their door (Log
+  // Trade, Help, the account, report, settings, More), as the list's ⋯ row is on the list. A phone item (NoteMoreMenu
+  // `phoneTail`, after Find and Outline); JournalLayout opens the tools and moves focus to them.
+  const journalToolsItem = ({ close }) => (
+    <button
+      type="button"
+      className={styles.chromeBtn}
+      onClick={() => { close?.(); openJournalTools() }}
+      data-journal-tools-door=""
+    >
+      <UIcon name="sliders" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+      Journal tools
+    </button>
+  )
   const phoneTools = () => (
     <div className={styles.phoneTools}>
       <button
@@ -5017,7 +5081,7 @@ export default function NoteEditorPage({
         onClick={(e) => openAskFrom(e.currentTarget)}
         aria-label="Ask about this note"
       >
-        <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+        <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
         Ask about this note
       </button>
     </div>
@@ -5032,7 +5096,7 @@ export default function NoteEditorPage({
           aria-label="Find in note"
           title="Find in this note"
         >
-          <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          <UIcon name="search" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Find in note
         </button>
       )}
@@ -5046,7 +5110,7 @@ export default function NoteEditorPage({
           aria-label="Outline"
           title="Outline — every heading in this note"
         >
-          <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          <UIcon name="rows" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Outline
         </button>
       )}
@@ -5055,24 +5119,31 @@ export default function NoteEditorPage({
   // S10 (M4): the folder, a small select on the line under the title (it was a header control).
   const folderLead = (
     <>
-      <select
-        className={styles.folderInline}
-        value={note.folderId || ''}
-        onChange={(e) => onFolderChange(e.target.value)}
-        aria-label="Folder"
-        data-note-folder=""
-      >
-        <option value="">Unfiled</option>
-        {folders.map((f) => (
-          <option key={f.id} value={f.id}>{f.name}</option>
-        ))}
-      </select>
+      {/* Final polish (WebKit at 390 px): with a border set, Safari drew its native LIGHT select -- a white box with
+          grey "Unfiled". The select is unstyled native chrome now (appearance: none, the field edge, our ink), and its
+          chevron is drawn beside it, because appearance: none takes the native one away. Rail: fieldEdges.test.js. */}
+      <span className={styles.folderInlineWrap}>
+        <select
+          className={styles.folderInline}
+          value={note.folderId || ''}
+          onChange={(e) => onFolderChange(e.target.value)}
+          aria-label="Folder"
+          data-note-folder=""
+        >
+          <option value="">Unfiled</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>{f.name}</option>
+          ))}
+        </select>
+        <UIcon name="chevronDown" {...TOOLBAR_ICON} className={styles.folderInlineChev} aria-hidden="true" />
+      </span>
       <NoteLinkedTradeChips noteId={noteId} />
     </>
   )
 
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      <JournalToolsDoorMark />
       {/* Final-review fix I-1: where an existing note's open puts focus. A
           heading, not a field, named by the note's title; visually hidden (the
           title input below shows the same words), and the pane's ring shows
@@ -5213,12 +5284,9 @@ export default function NoteEditorPage({
             read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
             one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
             announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}
-        <span className={styles.savedIndicator} role="status" aria-live="polite" data-save-indicator="">
-          {indicatorOn ? saveIndicatorWords({
-            status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-            offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
-          }) : ''}
-        </span>
+        {/* Finish batch (2026-11-05, iPhone): on a phone the indicator sits on the line under the title
+            (`savedOnTitleLine`), so the header is ONE row: back · Folders · ★ · AI · Share · ⋯. */}
+        {!savedOnTitleLine && saveIndicator(styles.savedIndicator)}
         {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to
             Trash are in ⋯; the folder and the linked trades are on the line under the title. */}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
@@ -5232,7 +5300,7 @@ export default function NoteEditorPage({
             aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
             title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
           >
-            <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
+            <UIcon name={isFavorite ? 'star-fill' : 'star'} {...TOOLBAR_ICON} gold={isFavorite} />
           </button>
           {/* S10 (M4): the AI control -- Ask and Writing help, one group. */}
           <div className={styles.aiGroup} role="group" aria-label="AI" data-header-control="ai">
@@ -5266,7 +5334,7 @@ export default function NoteEditorPage({
               data-tour="writing-help"
               title="Writing help — summarize, rewrite, continue or translate"
             >
-              <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               <span className={styles.phoneIconLabel}>Writing help</span>
             </button>
           )}
@@ -5290,10 +5358,12 @@ export default function NoteEditorPage({
               note's details, beside the properties it derives (Sector, Industry, Theme). It
               was also mirrored there as a read-only "Ticker" property, so the ticker showed
               twice; now there is ONE control, the same input on the same door. */}
-          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
-          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
-          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
-          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Finish review 3: `.headerMsg` -- on a phone a header message takes a line of its own, so the one-row
+              header never wraps while it shows. */}
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} className={styles.headerMsg} />
+          {chromeMsg && <span className={`${styles.chromeMsg} ${styles.headerMsg}`} role="status">{chromeMsg}</span>}
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
@@ -5309,7 +5379,7 @@ export default function NoteEditorPage({
               (NoteMoreMenu.jsx; rails: NoteEditorPage.moreMenu.test.jsx). */}
           {/* The tour's Export step points here now: the file doors are inside. */}
           <span className={styles.tourWrap} data-tour="note-export" data-header-control="more">
-          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools} leadItems={moreLead}>
+          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools} leadItems={moreLead} phoneTail={journalToolsItem}>
             <button
               type="button"
               className={styles.chromeBtn}
@@ -5317,7 +5387,7 @@ export default function NoteEditorPage({
               title="See earlier versions of this note and restore one"
               aria-label="Version history"
             >
-              <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="clock" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               History
             </button>
             <button
@@ -5328,7 +5398,7 @@ export default function NoteEditorPage({
               title="Create a copy of this note"
               aria-label="Duplicate note"
             >
-              <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="copy" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               {duplicating ? 'Duplicating…' : 'Duplicate'}
             </button>
             {/* Audit 2026-11-05, spec S2: thesis controls appear only for a real thesis, so a member
@@ -5344,7 +5414,7 @@ export default function NoteEditorPage({
                 disabled={makingThesis}
                 title="Add evidence, a changelog and reviews to this note"
               >
-                <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                <UIcon name="book" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
                 Make this a thesis
               </button>
             )}
@@ -5560,7 +5630,7 @@ export default function NoteEditorPage({
               title="Insert an image, a file, a camera scan or a chart"
               onClick={toggleInsertPhone}
             >
-              <UIcon name="plus" size={16} gold={false} />
+              <UIcon name="plus" {...TOOLBAR_ICON} />
             </button>
             <span className={styles.formatRun} id={`${formatRunId}-a`} data-format-run="">
             <select
@@ -5659,9 +5729,10 @@ export default function NoteEditorPage({
             <ToolButton
               active={editor.isActive('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              label="❝"
+              // VIS-6 fix round 1 (review 8): the UIcon quote glyph, not a text glyph; its name is "Quote".
+              label={<UIcon name="quote" {...TOOLBAR_ICON} />}
               disabled={!canRunHistory(editor, 'toggleBlockquote')}
-              title={canRunHistory(editor, 'toggleBlockquote') ? undefined : "Quote isn't available inside a list -- exit the list first"}
+              title={canRunHistory(editor, 'toggleBlockquote') ? 'Quote' : "Quote isn't available inside a list -- exit the list first"}
             />
             <ToolButton
               active={editor.isActive('codeBlock')}
@@ -5673,12 +5744,12 @@ export default function NoteEditorPage({
                 const url = prompt('Link URL (https only):')
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
-              label={<UIcon name="link" size={14} />}
+              label={<UIcon name="link" {...TOOLBAR_ICON} />}
               title="Insert link"
             />
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
-              label={<UIcon name="document" size={14} />}
+              label={<UIcon name="document" {...TOOLBAR_ICON} />}
               title="Insert image"
             />
             {/* Wave 7 (lane G's G5, built by H): photograph a page on a phone or
@@ -5694,12 +5765,12 @@ export default function NoteEditorPage({
               title="Scan a document with the camera"
               data-tour="note-scan"
             >
-              <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="camera" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               Scan
             </button>
             <ToolButton
               onClick={() => attachFileInputRef.current?.click()}
-              label={<UIcon name="paperclip" size={14} />}
+              label={<UIcon name="paperclip" {...TOOLBAR_ICON} />}
               title="Attach a file"
             />
             </span>
@@ -5839,13 +5910,18 @@ export default function NoteEditorPage({
             each input, and the later prop won: an unreadable, unlocked note took
             typing that `commitSave` then dropped. Rails: lib/jsxDuplicateProps.test.js,
             NoteEditorPage.unreadable.test.jsx. */}
-        <input
+        {/* Final polish (WebKit at 390 px): a long title was clipped ("UXCHART phone che…") in a one-line input. It
+            is a textarea that grows with its text (useAutoGrow), so a title WRAPS. It stays one line of text: Enter
+            goes to the body (onTitleKeyDown, unchanged), Shift+Enter to the subtitle, and a pasted line break is a
+            space. Same name, same `data-note-title` hook, same ref. Rail: NoteEditorPage.titleWrap.test.jsx. */}
+        <textarea
           ref={titleInputRef}
+          rows={1}
           className={styles.titleInput}
           readOnly={locked || unreadable}
           value={title}
           onChange={(e) => {
-            const v = e.target.value
+            const v = e.target.value.replace(/[\r\n]+/g, ' ')
             setTitle(v)
             titleRef.current = v
             scheduleAutosave()
@@ -5882,7 +5958,8 @@ export default function NoteEditorPage({
           aria-label="Subtitle"
         />
         <NoteDetailsLine items={detailItems} open={detailsOpen} onToggle={toggleDetails}
-          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead} />
+          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead}
+          trail={savedOnTitleLine ? saveIndicator(styles.savedLine) : null} />
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
@@ -6001,6 +6078,8 @@ export default function NoteEditorPage({
         )}
         {/* Notebook widgets W1: the $TICKER chip's card, a lazy chunk (widgets/TickerCardSlot.jsx). */}
         {widgetsWaveOn(1) && <TickerCardSlot editor={editor} />}
+        {/* S13 (audit 2026-11-05): the one-time tips at the moment of need -- the first $TICKER, the first chart. */}
+        <NotebookTipSlot editor={editor} />
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
             <ScreenshotTagOffer editor={editor} offer={screenshotOffer}

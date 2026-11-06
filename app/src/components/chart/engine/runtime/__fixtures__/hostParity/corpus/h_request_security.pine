@@ -1,0 +1,4 @@
+//@version=5
+indicator("hp hostile request", overlay=false)
+x = request.security("NASDAQ:MSFT", "D", close)
+plot(x, "x")

@@ -1,0 +1,121 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-8.3.4, pluggy-1.6.0 -- C:\Users\pgosz\uct-venv\Scripts\python.exe
+rootdir: C:\Users\pgosz\uct-worktrees\pine-w2
+configfile: pytest.ini
+plugins: anyio-4.15.1, platformdirs-4.12.3, asyncio-0.24.0, timeout-2.4.0
+asyncio: mode=Mode.AUTO, default_loop_scope=None
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 78 items
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo PASSED [  1%]
+tests/test_no_shadowed_definitions.py::test_the_sweep_detects_a_planted_shadow PASSED [  2%]
+tests/test_no_shadowed_definitions.py::test_the_sweep_detects_a_planted_CONSTANT_shadow PASSED [  3%]
+tests/test_no_shadowed_definitions.py::test_ordinary_lowercase_rebinding_is_not_flagged PASSED [  5%]
+tests/test_no_shadowed_definitions.py::test_a_method_on_two_classes_is_not_flagged PASSED [  6%]
+tests/test_no_shadowed_definitions.py::test_a_conditional_import_fallback_is_not_flagged PASSED [  7%]
+tests/test_no_shadowed_definitions.py::test_an_overload_stack_is_not_flagged PASSED [  8%]
+tests/test_no_shadowed_definitions.py::test_a_singledispatch_register_stack_is_not_flagged PASSED [ 10%]
+tests/test_no_shadowed_definitions.py::test_no_allow_list_entry_has_gone_stale PASSED [ 11%]
+tests/test_no_shadowed_definitions.py::test_the_allow_list_is_not_a_silent_blanket PASSED [ 12%]
+tests/test_no_shadowed_definitions.py::test_no_module_shadows_its_own_definitions PASSED [ 14%]
+tests/test_dockerfile_vite_build_args.py::test_the_scan_actually_reads_the_frontend PASSED [ 15%]
+tests/test_dockerfile_vite_build_args.py::test_every_vite_flag_the_frontend_reads_is_declared_as_a_build_arg PASSED [ 16%]
+tests/test_dockerfile_vite_build_args.py::test_each_declared_arg_is_also_exported_to_the_build PASSED [ 17%]
+tests/test_dockerfile_vite_build_args.py::test_the_env_block_is_physically_well_formed PASSED [ 19%]
+tests/test_dockerfile_vite_build_args.py::test_the_index_sees_a_LATE_BOUND_read_not_only_a_direct_one PASSED [ 20%]
+tests/test_dockerfile_vite_build_args.py::test_the_real_objects_only_gate_is_visible_to_the_index PASSED [ 21%]
+tests/test_vite_flag_ledger.py::test_the_index_actually_reads_the_frontend PASSED [ 23%]
+tests/test_vite_flag_ledger.py::test_every_vite_flag_the_frontend_reads_has_a_ledger_row PASSED [ 24%]
+tests/test_vite_flag_ledger.py::test_no_stale_build_flag_rows PASSED     [ 25%]
+tests/test_vite_flag_ledger.py::test_every_row_is_complete_and_a_dark_row_says_why PASSED [ 26%]
+tests/test_vite_flag_ledger.py::test_the_two_ledger_sections_do_not_overlap PASSED [ 28%]
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for PASSED [ 29%]
+tests/test_visibility_flag_ledger.py::test_the_predicate_still_excludes_destinations_credentials_and_locations PASSED [ 30%]
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared PASSED [ 32%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[DESK_PUBLIC_SHOWS] PASSED [ 33%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[DESK_TSDR_ANNOUNCE_ENABLED] PASSED [ 34%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[DESK_TSDR_ANNOUNCE_SHOWS] PASSED [ 35%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[ECON_PUBLISH_R2] PASSED [ 37%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[FUNDAMENTALS_PIT_PUBLISH_R2] PASSED [ 38%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[FUNDAMENTALS_PIT_PUBLISH_SOURCES] PASSED [ 39%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[NOTEBOOK_PUBLISH_ENABLED] PASSED [ 41%]
+tests/test_visibility_flag_ledger.py::test_a_visibility_flag_declares_its_exposure_default_and_allowed_values[WISDOM_BRAINKB_PUBLISH_ENABLED] PASSED [ 42%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[DESK_PUBLIC_SHOWS] PASSED [ 43%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[DESK_TSDR_ANNOUNCE_ENABLED] PASSED [ 44%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[DESK_TSDR_ANNOUNCE_SHOWS] PASSED [ 46%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[ECON_PUBLISH_R2] PASSED [ 47%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[FUNDAMENTALS_PIT_PUBLISH_R2] PASSED [ 48%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[FUNDAMENTALS_PIT_PUBLISH_SOURCES] PASSED [ 50%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[NOTEBOOK_PUBLISH_ENABLED] PASSED [ 51%]
+tests/test_visibility_flag_ledger.py::test_a_wildcard_is_refused_unless_the_ledger_carries_a_dated_owner_decision[WISDOM_BRAINKB_PUBLISH_ENABLED] PASSED [ 52%]
+tests/test_visibility_flag_ledger.py::test_the_authorisation_rule_is_driven_in_its_FAILING_direction_too PASSED [ 53%]
+tests/test_visibility_flag_ledger.py::test_declared_show_values_name_real_router_sections PASSED [ 55%]
+tests/test_visibility_flag_ledger.py::test_the_declared_default_matches_the_code_default PASSED [ 56%]
+tests/test_visibility_flag_ledger.py::test_the_CODE_default_still_fails_conservative_when_nothing_is_set PASSED [ 57%]
+tests/test_visibility_flag_ledger.py::test_the_live_audit_flags_an_UNAUTHORISED_wildcard_and_passes_an_authorised_one PASSED [ 58%]
+tests/test_script_engine_version_gate.py::test_the_shipped_declaration_parses_to_one_positive_integer PASSED [ 60%]
+tests/test_script_engine_version_gate.py::test_ordinary_ways_to_write_the_bump_all_parse[export const SCRIPT_ENGINE_VERSION = 2\n-2] PASSED [ 61%]
+tests/test_script_engine_version_gate.py::test_ordinary_ways_to_write_the_bump_all_parse[export const SCRIPT_ENGINE_VERSION = 2;\n-2] PASSED [ 62%]
+tests/test_script_engine_version_gate.py::test_ordinary_ways_to_write_the_bump_all_parse[export const  SCRIPT_ENGINE_VERSION  =  3 ;\n-3] PASSED [ 64%]
+tests/test_script_engine_version_gate.py::test_ordinary_ways_to_write_the_bump_all_parse[export const SCRIPT_ENGINE_VERSION = 4 // bumped for C48\n-4] PASSED [ 65%]
+tests/test_script_engine_version_gate.py::test_ordinary_ways_to_write_the_bump_all_parse[export const SCRIPT_ENGINE_VERSION = 5;  // note\n-5] PASSED [ 66%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[after a blank line in the block] PASSED [ 67%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[else arm] PASSED [ 69%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[else if] PASSED [ 70%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[for body] PASSED [ 71%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[if block] PASSED [ 73%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[method body] PASSED [ 74%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[multi-line UDF body] PASSED [ 75%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[nested deeper] PASSED [ 76%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[single-line UDF] PASSED [ 78%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[switch arm] PASSED [ 79%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[tabs] PASSED [ 80%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[v4 bare name in a block] PASSED [ 82%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[value if] PASSED [ 83%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_found[while body] PASSED [ 84%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[a continuation line at top level] PASSED [ 85%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[a method on a value (array.sum)] PASSED [ 87%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[a namespaced non-ta call] PASSED [ 88%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[a ta VARIABLE (no call)] PASSED [ 89%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[commented out] PASSED [ 91%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[for bound only] PASSED [ 92%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[in a string] PASSED [ 93%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[in the if CONDITION only] PASSED [ 94%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[top level after a block] PASSED [ 96%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[top level only] PASSED [ 97%]
+tests/test_pine_coverage_conditional_ta.py::test_it_is_a_census_capability_through_usage_of PASSED [ 98%]
+tests/test_pine_coverage_conditional_ta.py::test_the_scan_stays_linear_on_a_long_block PASSED [100%]
+
+============================== warnings summary ===============================
+<unknown>:7
+<unknown>:7
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:186: SyntaxWarning: invalid escape sequence '\['
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:3: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:1347: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 78 passed, 12 warnings in 355.49s (0:05:55) =================

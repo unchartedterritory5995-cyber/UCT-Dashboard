@@ -1,0 +1,2017 @@
+{
+"about": "Charts inventory row ids (scratch charts-inventory at 179d57570d), for the autotest lint: ids and names only.",
+"rows": {
+"C1-001": {
+"area": "Symbol",
+"action": "Change ticker by search pick"
+},
+"C1-002": {
+"area": "Symbol",
+"action": "Type-to-search on focused chart"
+},
+"C1-003": {
+"area": "Symbol",
+"action": "Filter search by category chip"
+},
+"C1-004": {
+"area": "Symbol",
+"action": "Open a free-typed symbol with no result row"
+},
+"C1-005": {
+"area": "Symbol",
+"action": "Flag current ticker (Shift+F)"
+},
+"C1-006": {
+"area": "Timeframe",
+"action": "Pick preset timeframe on bar"
+},
+"C1-007": {
+"area": "Timeframe",
+"action": "Pick from full timeframe menu"
+},
+"C1-008": {
+"area": "Timeframe",
+"action": "Add custom interval"
+},
+"C1-009": {
+"area": "Timeframe",
+"action": "Delete custom interval"
+},
+"C1-010": {
+"area": "Timeframe",
+"action": "Star a favourite timeframe"
+},
+"C1-011": {
+"area": "Timeframe",
+"action": "Timeframe keys with repeat-press cycle"
+},
+"C1-012": {
+"area": "Timeframe",
+"action": "Change timeframe from right-click"
+},
+"C1-013": {
+"area": "Chart type",
+"action": "Choose chart type in settings"
+},
+"C1-014": {
+"area": "Chart type",
+"action": "Choose chart type from right-click"
+},
+"C1-015": {
+"area": "Chart type",
+"action": "Breadth Line/Candles quick toggle"
+},
+"C1-016": {
+"area": "Chart type",
+"action": "Heikin Ashi candles"
+},
+"C1-017": {
+"area": "Chart type",
+"action": "Candle colour mode"
+},
+"C1-018": {
+"area": "Chart type",
+"action": "Thin bars"
+},
+"C1-019": {
+"area": "Session",
+"action": "Regular/extended on intraday"
+},
+"C1-020": {
+"area": "Session",
+"action": "Regular/extended on D/W/M"
+},
+"C1-021": {
+"area": "Session",
+"action": "Extended hours from price-axis menu"
+},
+"C1-022": {
+"area": "Scale",
+"action": "Arithmetic/log/percent from menu"
+},
+"C1-023": {
+"area": "Scale",
+"action": "Toggle log (Shift+L)"
+},
+"C1-024": {
+"area": "Scale",
+"action": "Invert scale (Alt+I)"
+},
+"C1-025": {
+"area": "Scale",
+"action": "Auto-scale"
+},
+"C1-026": {
+"area": "Scale",
+"action": "Drag price axis to compress"
+},
+"C1-027": {
+"area": "View",
+"action": "Reset view"
+},
+"C1-028": {
+"area": "View",
+"action": "Zoom in/out (+/-)"
+},
+"C1-029": {
+"area": "View",
+"action": "Range buttons (3M/6M/YTD/1Y/5Y)"
+},
+"C1-030": {
+"area": "Go to date",
+"action": "Type a date in Time Navigator"
+},
+"C1-031": {
+"area": "Go to date",
+"action": "Pick date or year in calendar"
+},
+"C1-032": {
+"area": "Go to date",
+"action": "Step one bar back/forward"
+},
+"C1-033": {
+"area": "Go to date",
+"action": "Open date box (Alt+G)"
+},
+"C1-034": {
+"area": "Compare",
+"action": "Add a symbol"
+},
+"C1-035": {
+"area": "Compare",
+"action": "Add a whole group"
+},
+"C1-036": {
+"area": "Compare",
+"action": "Remove one symbol"
+},
+"C1-037": {
+"area": "Compare",
+"action": "Remove a group"
+},
+"C1-038": {
+"area": "Compare",
+"action": "Clear all comparisons"
+},
+"C1-039": {
+"area": "Compare",
+"action": "Same/new scale per symbol"
+},
+"C1-040": {
+"area": "Compare",
+"action": "Same/new scale for a group"
+},
+"C1-041": {
+"area": "Compare",
+"action": "Group only (hide base)"
+},
+"C1-042": {
+"area": "Replay",
+"action": "Start from a date"
+},
+"C1-043": {
+"area": "Replay",
+"action": "Choose replay timeframe"
+},
+"C1-044": {
+"area": "Replay",
+"action": "Pick the cutoff on the chart"
+},
+"C1-045": {
+"area": "Replay",
+"action": "Exit replay"
+},
+"C1-046": {
+"area": "Replay",
+"action": "Legacy bar replay play/step/speed/scrub"
+},
+"C1-047": {
+"area": "Settings",
+"action": "Toggle grid"
+},
+"C1-048": {
+"area": "Settings",
+"action": "Solid/gradient background"
+},
+"C1-049": {
+"area": "Settings",
+"action": "Solid background colour"
+},
+"C1-050": {
+"area": "Settings",
+"action": "Gradient colours"
+},
+"C1-051": {
+"area": "Settings",
+"action": "Crosshair mode"
+},
+"C1-052": {
+"area": "Settings",
+"action": "Crosshair colour/width/style"
+},
+"C1-053": {
+"area": "Settings",
+"action": "Magnet crosshair"
+},
+"C1-054": {
+"area": "Settings",
+"action": "Price labels / MA labels"
+},
+"C1-055": {
+"area": "Settings",
+"action": "Scale text size and colour"
+},
+"C1-056": {
+"area": "Settings",
+"action": "Watermark on/off (Alt+Shift+W)"
+},
+"C1-057": {
+"area": "Settings",
+"action": "Watermark lines"
+},
+"C1-058": {
+"area": "Settings",
+"action": "Watermark alignment"
+},
+"C1-059": {
+"area": "Settings",
+"action": "Watermark size/weight/colour/opacity"
+},
+"C1-060": {
+"area": "Settings",
+"action": "Move watermark"
+},
+"C1-061": {
+"area": "Settings",
+"action": "Reset watermark to centre"
+},
+"C1-062": {
+"area": "Settings",
+"action": "Title shows ticker/company/both"
+},
+"C1-063": {
+"area": "Settings",
+"action": "Day change beside title"
+},
+"C1-064": {
+"area": "Settings",
+"action": "Legend mode"
+},
+"C1-065": {
+"area": "Settings",
+"action": "Legend bar-info fields"
+},
+"C1-066": {
+"area": "Settings",
+"action": "Info-row fields"
+},
+"C1-067": {
+"area": "Settings",
+"action": "Header colours"
+},
+"C1-068": {
+"area": "Settings",
+"action": "Swing labels on/off and sensitivity"
+},
+"C1-069": {
+"area": "Settings",
+"action": "Swing label background, tint, colours"
+},
+"C1-070": {
+"area": "Settings",
+"action": "Event markers"
+},
+"C1-071": {
+"area": "Settings",
+"action": "Earnings beat/miss and IPO colours"
+},
+"C1-072": {
+"area": "Settings",
+"action": "Prev-day lines on/off"
+},
+"C1-073": {
+"area": "Settings",
+"action": "Prev-day line style/width/colour"
+},
+"C1-074": {
+"area": "Settings",
+"action": "Dark-pool levels"
+},
+"C1-075": {
+"area": "Settings",
+"action": "Bar-close countdown (Shift+C)"
+},
+"C1-076": {
+"area": "Settings",
+"action": "Restore defaults"
+},
+"C1-077": {
+"area": "Settings",
+"action": "Save / delete a custom colour"
+},
+"C1-078": {
+"area": "Settings",
+"action": "Light/dark palette (Shift+T)"
+},
+"C1-079": {
+"area": "Themes",
+"action": "Apply a theme to one chart"
+},
+"C1-080": {
+"area": "Themes",
+"action": "Apply a theme to all charts"
+},
+"C1-081": {
+"area": "Themes",
+"action": "Apply a theme to all widgets"
+},
+"C1-082": {
+"area": "Templates",
+"action": "Apply a template"
+},
+"C1-083": {
+"area": "Templates",
+"action": "Save a template"
+},
+"C1-084": {
+"area": "Templates",
+"action": "Delete a template"
+},
+"C1-085": {
+"area": "Templates",
+"action": "Copy another chart's look"
+},
+"C1-086": {
+"area": "Volume",
+"action": "Show/hide volume (Ctrl+V, menu)"
+},
+"C1-087": {
+"area": "Volume",
+"action": "Remove volume"
+},
+"C1-088": {
+"area": "Volume",
+"action": "Separate pane toggle"
+},
+"C1-089": {
+"area": "Volume",
+"action": "Resize volume pane by drag"
+},
+"C1-090": {
+"area": "Volume",
+"action": "HVC highlight"
+},
+"C1-091": {
+"area": "Volume",
+"action": "Volume colours, MA, label, bar style"
+},
+"C1-092": {
+"area": "Volume",
+"action": "Overlay indicator on volume"
+},
+"C1-093": {
+"area": "Panes",
+"action": "Move a pane"
+},
+"C1-094": {
+"area": "Panes",
+"action": "Resize a pane"
+},
+"C1-095": {
+"area": "Panes",
+"action": "Collapse a pane"
+},
+"C1-096": {
+"area": "Crosshair",
+"action": "Copy price at the cursor"
+},
+"C1-097": {
+"area": "Legend",
+"action": "Hide/show an indicator from chip"
+},
+"C1-098": {
+"area": "Legend",
+"action": "Display in another pane from chip"
+},
+"C1-099": {
+"area": "Legend",
+"action": "Duplicate on chart"
+},
+"C1-100": {
+"area": "Legend",
+"action": "Show latest value in header"
+},
+"C1-101": {
+"area": "Legend",
+"action": "Add alert from chip"
+},
+"C1-102": {
+"area": "Legend",
+"action": "Delete indicator from chip"
+},
+"C1-103": {
+"area": "Legend",
+"action": "Hide all indicators (Alt+Shift+I)"
+},
+"C1-104": {
+"area": "Legend",
+"action": "Toggle RSI/MACD/BB/VWAP chord"
+},
+"C1-105": {
+"area": "Legend",
+"action": "Toggle moving averages (Ctrl+M)"
+},
+"C1-106": {
+"area": "Measure",
+"action": "Measure on the chart"
+},
+"C1-107": {
+"area": "Measure",
+"action": "Bars & Time"
+},
+"C1-108": {
+"area": "Measure",
+"action": "Price range"
+},
+"C1-109": {
+"area": "Measure",
+"action": "Price Move"
+},
+"C1-110": {
+"area": "Share",
+"action": "Open share popover (Alt+S)"
+},
+"C1-111": {
+"area": "Share",
+"action": "Download PNG"
+},
+"C1-112": {
+"area": "Share",
+"action": "Copy image"
+},
+"C1-113": {
+"area": "Share",
+"action": "Copy share link"
+},
+"C1-114": {
+"area": "Alerts",
+"action": "Price alert at the cursor (Alt+N)"
+},
+"C1-115": {
+"area": "Alerts",
+"action": "Alert on a line, following it"
+},
+"C1-116": {
+"area": "Alerts",
+"action": "Alert at a line's fixed level"
+},
+"C1-117": {
+"area": "Alerts",
+"action": "Alert on a fib level"
+},
+"C1-118": {
+"area": "Alerts",
+"action": "Position alerts (three lines)"
+},
+"C1-119": {
+"area": "Alerts",
+"action": "Pause/resume indicator alert"
+},
+"C1-120": {
+"area": "Alerts",
+"action": "Delete indicator alert"
+},
+"C1-121": {
+"area": "Alerts",
+"action": "Move a level line"
+},
+"C1-122": {
+"area": "Right-click",
+"action": "Draw line at clicked price"
+},
+"C1-123": {
+"area": "Right-click",
+"action": "Add indicator from menu"
+},
+"C1-124": {
+"area": "Right-click",
+"action": "Open indicator settings"
+},
+"C1-125": {
+"area": "Right-click",
+"action": "Clear all drawings"
+},
+"C1-126": {
+"area": "Right-click",
+"action": "Hide all drawings"
+},
+"C1-127": {
+"area": "Settings door",
+"action": "Open chart settings (Alt+,, gear)"
+},
+"C1-128": {
+"area": "Drawing",
+"action": "Trendline"
+},
+"C1-129": {
+"area": "Drawing",
+"action": "Ray"
+},
+"C1-130": {
+"area": "Drawing",
+"action": "Extended line"
+},
+"C1-131": {
+"area": "Drawing",
+"action": "Horizontal line"
+},
+"C1-132": {
+"area": "Drawing",
+"action": "Horizontal ray"
+},
+"C1-133": {
+"area": "Drawing",
+"action": "Vertical line"
+},
+"C1-134": {
+"area": "Drawing",
+"action": "Rectangle"
+},
+"C1-135": {
+"area": "Drawing",
+"action": "Circle"
+},
+"C1-136": {
+"area": "Drawing",
+"action": "Arrow"
+},
+"C1-137": {
+"area": "Drawing",
+"action": "Fib retracement"
+},
+"C1-138": {
+"area": "Drawing",
+"action": "Fib extension"
+},
+"C1-139": {
+"area": "Drawing",
+"action": "Pitchfork"
+},
+"C1-140": {
+"area": "Drawing",
+"action": "Parallel channel"
+},
+"C1-141": {
+"area": "Drawing",
+"action": "Cup curve"
+},
+"C1-142": {
+"area": "Drawing",
+"action": "Anchored VWAP"
+},
+"C1-143": {
+"area": "Drawing",
+"action": "Text note"
+},
+"C1-144": {
+"area": "Drawing",
+"action": "Position calculator"
+},
+"C1-145": {
+"area": "Drawing",
+"action": "Eraser"
+},
+"C1-146": {
+"area": "Drawing",
+"action": "Delete selected (Del, button)"
+},
+"C1-147": {
+"area": "Drawing",
+"action": "Recolour"
+},
+"C1-148": {
+"area": "Drawing",
+"action": "Width and line style"
+},
+"C1-149": {
+"area": "Drawing",
+"action": "Fill and border"
+},
+"C1-150": {
+"area": "Drawing",
+"action": "Text font, size, bold, italic, background"
+},
+"C1-151": {
+"area": "Drawing",
+"action": "Fib levels and fills"
+},
+"C1-152": {
+"area": "Drawing",
+"action": "Reset fib"
+},
+"C1-153": {
+"area": "Drawing",
+"action": "Measure-label options"
+},
+"C1-154": {
+"area": "Drawing",
+"action": "Price label on a line"
+},
+"C1-155": {
+"area": "Drawing",
+"action": "Edit anchors"
+},
+"C1-156": {
+"area": "Drawing",
+"action": "Make horizontal"
+},
+"C1-157": {
+"area": "Drawing",
+"action": "Duplicate"
+},
+"C1-158": {
+"area": "Drawing",
+"action": "Lock/unlock"
+},
+"C1-159": {
+"area": "Drawing",
+"action": "Hide/show one"
+},
+"C1-160": {
+"area": "Drawing",
+"action": "Save as default"
+},
+"C1-161": {
+"area": "Drawing",
+"action": "Reorder (front/back)"
+},
+"C1-162": {
+"area": "Drawing",
+"action": "Undo/redo a drawing"
+},
+"C1-163": {
+"area": "Drawing",
+"action": "Magnet for drawing"
+},
+"C1-164": {
+"area": "Drawing",
+"action": "Repeat drawing mode"
+},
+"C1-165": {
+"area": "Drawing",
+"action": "Customise tool favourites"
+},
+"C1-166": {
+"area": "Drawing",
+"action": "Nudge selected with arrows"
+},
+"C1-167": {
+"area": "Boards",
+"action": "Switch drawing board"
+},
+"C1-168": {
+"area": "Boards",
+"action": "Create a board"
+},
+"C1-169": {
+"area": "Boards",
+"action": "Rename a board"
+},
+"C1-170": {
+"area": "Boards",
+"action": "Delete a board"
+},
+"C1-171": {
+"area": "Keyboard",
+"action": "Add ticker to watchlist (Alt+Q)"
+},
+"C1-172": {
+"area": "Keyboard",
+"action": "Add indicator dialog (Alt+Shift+A)"
+},
+"C1-173": {
+"area": "Keyboard",
+"action": "Cycle grid layout (Alt+\\\\)"
+},
+"C1-174": {
+"area": "Keyboard",
+"action": "Keyboard help (?)"
+},
+"C1-175": {
+"area": "Keyboard",
+"action": "Escape to cursor / cancel"
+},
+"C1-176": {
+"area": "Right-click",
+"action": "Send chart to Journal"
+},
+"C1-177": {
+"area": "Right-click",
+"action": "Send chart to Journal, choose where"
+},
+"C1-178": {
+"area": "Right-click",
+"action": "Ask AI about the symbol on a bar"
+},
+"C1-179": {
+"area": "Right-click",
+"action": "Add widget, floating at the click"
+},
+"C2-001": {
+"area": "Picker",
+"action": "Open indicator library"
+},
+"C2-002": {
+"area": "Picker",
+"action": "Search indicators by name or purpose"
+},
+"C2-003": {
+"area": "Picker",
+"action": "Browse by category"
+},
+"C2-004": {
+"area": "Add",
+"action": "Add built-in indicator"
+},
+"C2-005": {
+"area": "Add",
+"action": "Add with chosen settings"
+},
+"C2-006": {
+"area": "Add",
+"action": "Add another copy with defaults"
+},
+"C2-007": {
+"area": "Add",
+"action": "Add own saved indicator"
+},
+"C2-008": {
+"area": "Add",
+"action": "Add a symbol as a data series from search"
+},
+"C2-009": {
+"area": "Add",
+"action": "Add economic series"
+},
+"C2-010": {
+"area": "Add",
+"action": "Keyboard chord toggles RSI, MACD, BB, VWAP"
+},
+"C2-011": {
+"area": "Add",
+"action": "Enable classic overlay average"
+},
+"C2-012": {
+"area": "Add",
+"action": "Add Volume Profile"
+},
+"C2-013": {
+"area": "Add",
+"action": "Toggle Chart IQ pattern recognition"
+},
+"C2-014": {
+"area": "Remove",
+"action": "Delete indicator from legend"
+},
+"C2-015": {
+"area": "Remove",
+"action": "Delete from Chart Settings"
+},
+"C2-016": {
+"area": "Remove",
+"action": "Delete classic average row"
+},
+"C2-017": {
+"area": "Remove",
+"action": "Remove an unavailable indicator"
+},
+"C2-018": {
+"area": "Visibility",
+"action": "Hide indicator"
+},
+"C2-019": {
+"area": "Visibility",
+"action": "Show indicator"
+},
+"C2-020": {
+"area": "Visibility",
+"action": "Hide or show volume"
+},
+"C2-021": {
+"area": "Visibility",
+"action": "Limit to chosen timeframes"
+},
+"C2-022": {
+"area": "Read",
+"action": "See what is on a chart"
+},
+"C2-023": {
+"area": "Read",
+"action": "Read About text"
+},
+"C2-024": {
+"area": "Inputs",
+"action": "Change numeric setting"
+},
+"C2-025": {
+"area": "Inputs",
+"action": "Change select setting (MA type, source)"
+},
+"C2-026": {
+"area": "Inputs",
+"action": "Flip a toggle setting"
+},
+"C2-027": {
+"area": "Inputs",
+"action": "Edit session input"
+},
+"C2-028": {
+"area": "Inputs",
+"action": "Cancel settings, roll back all edits"
+},
+"C2-029": {
+"area": "Inputs",
+"action": "Set calculation timeframe"
+},
+"C2-030": {
+"area": "Style",
+"action": "Change line colour"
+},
+"C2-031": {
+"area": "Style",
+"action": "Change histogram up / down colours"
+},
+"C2-032": {
+"area": "Style",
+"action": "Change line width"
+},
+"C2-033": {
+"area": "Style",
+"action": "Change line style"
+},
+"C2-034": {
+"area": "Style",
+"action": "Change plot style"
+},
+"C2-035": {
+"area": "Style",
+"action": "Toggle overlap candles"
+},
+"C2-036": {
+"area": "Placement",
+"action": "Move to price, volume or own pane"
+},
+"C2-037": {
+"area": "Placement",
+"action": "Move into another indicator's pane"
+},
+"C2-038": {
+"area": "Panes",
+"action": "Reorder pane"
+},
+"C2-039": {
+"area": "Panes",
+"action": "Resize pane by divider"
+},
+"C2-040": {
+"area": "Panes",
+"action": "Reorder series within a pane"
+},
+"C2-041": {
+"area": "Legend",
+"action": "Show latest value in header"
+},
+"C2-042": {
+"area": "Legend",
+"action": "Duplicate on chart"
+},
+"C2-043": {
+"area": "Legend",
+"action": "Create custom copy"
+},
+"C2-044": {
+"area": "Legend",
+"action": "Open Modify with UCT Intelligence"
+},
+"C2-045": {
+"area": "Legend",
+"action": "Open Edit formula"
+},
+"C2-046": {
+"area": "Legend",
+"action": "Apply script accuracy upgrade"
+},
+"C2-047": {
+"area": "Legend",
+"action": "Report mismatch with TradingView"
+},
+"C2-048": {
+"area": "Undo",
+"action": "Indicator undo and redo buttons"
+},
+"C2-049": {
+"area": "Copy",
+"action": "Copy indicators to another chart"
+},
+"C2-050": {
+"area": "Copy",
+"action": "Accept or refuse a shared chart's indicators"
+},
+"C2-051": {
+"area": "Templates",
+"action": "Save indicator template"
+},
+"C2-052": {
+"area": "Templates",
+"action": "Apply indicator template"
+},
+"C2-053": {
+"area": "Templates",
+"action": "Delete indicator template"
+},
+"C2-054": {
+"area": "Templates",
+"action": "List indicator templates"
+},
+"C2-055": {
+"area": "Create",
+"action": "Open Create Indicator"
+},
+"C2-056": {
+"area": "Create",
+"action": "Describe an indicator, get a draft"
+},
+"C2-057": {
+"area": "Create",
+"action": "Refine draft by conversation"
+},
+"C2-058": {
+"area": "Create",
+"action": "Answer the builder's choice question"
+},
+"C2-059": {
+"area": "Create",
+"action": "Undo a draft step"
+},
+"C2-060": {
+"area": "Create",
+"action": "Preview draft on chart"
+},
+"C2-061": {
+"area": "Create",
+"action": "Save draft, acknowledge warnings"
+},
+"C2-062": {
+"area": "Create",
+"action": "Discard draft"
+},
+"C2-063": {
+"area": "Create",
+"action": "Keep draft and close"
+},
+"C2-064": {
+"area": "Builder",
+"action": "Build by conditions"
+},
+"C2-065": {
+"area": "Builder",
+"action": "Group conditions, any or all"
+},
+"C2-066": {
+"area": "Builder",
+"action": "Enter a formula"
+},
+"C2-067": {
+"area": "Builder",
+"action": "Add or remove member input"
+},
+"C2-068": {
+"area": "Builder",
+"action": "Add, remove or restyle output plot"
+},
+"C2-069": {
+"area": "Builder",
+"action": "Set placement and levels"
+},
+"C2-070": {
+"area": "Builder",
+"action": "Set signal markers"
+},
+"C2-071": {
+"area": "Builder",
+"action": "Colour candles or background on a signal"
+},
+"C2-072": {
+"area": "Builder",
+"action": "Name the draft"
+},
+"C2-073": {
+"area": "Builder",
+"action": "Ask for an alert from the builder"
+},
+"C2-074": {
+"area": "Builder",
+"action": "Run Evidence tab"
+},
+"C2-075": {
+"area": "Builder",
+"action": "Use a starter"
+},
+"C2-076": {
+"area": "Import",
+"action": "Paste Pine or thinkScript"
+},
+"C2-077": {
+"area": "Import",
+"action": "Apply import suggestion"
+},
+"C2-078": {
+"area": "Import",
+"action": "Change script settings"
+},
+"C2-079": {
+"area": "Import",
+"action": "Turn script output into a screen"
+},
+"C2-080": {
+"area": "Image",
+"action": "Read an indicator from a screenshot"
+},
+"C2-081": {
+"area": "Image",
+"action": "Accept image candidate"
+},
+"C2-082": {
+"area": "Saved",
+"action": "Open saved definition to edit"
+},
+"C2-083": {
+"area": "Saved",
+"action": "Delete saved definition"
+},
+"C2-084": {
+"area": "Saved",
+"action": "Share a definition by link"
+},
+"C2-085": {
+"area": "Saved",
+"action": "Publish to or withdraw from library"
+},
+"C2-086": {
+"area": "Saved",
+"action": "Install from a share link"
+},
+"C2-087": {
+"area": "Saved",
+"action": "Restore an older version"
+},
+"C2-088": {
+"area": "Alerts",
+"action": "Open indicator alerts popover"
+},
+"C2-089": {
+"area": "Alerts",
+"action": "Create threshold alert"
+},
+"C2-090": {
+"area": "Alerts",
+"action": "Create MA cross alert"
+},
+"C2-091": {
+"area": "Alerts",
+"action": "Choose plot on a multi-line indicator"
+},
+"C2-092": {
+"area": "Alerts",
+"action": "Alert on a yes/no signal with trigger policy"
+},
+"C2-093": {
+"area": "Alerts",
+"action": "Alert on another timeframe"
+},
+"C2-094": {
+"area": "Alerts",
+"action": "Limit alert to this chart"
+},
+"C2-095": {
+"area": "Alerts",
+"action": "Override alert inputs"
+},
+"C2-096": {
+"area": "Alerts",
+"action": "Choose which instance"
+},
+"C2-097": {
+"area": "Alerts",
+"action": "List indicator alerts"
+},
+"C2-098": {
+"area": "Alerts",
+"action": "Pause or resume alert"
+},
+"C2-099": {
+"area": "Alerts",
+"action": "Delete alert"
+},
+"C2-100": {
+"area": "Alerts",
+"action": "See why an alert cannot fire"
+},
+"C2-101": {
+"area": "Mobile",
+"action": "Edit an average or study on phone"
+},
+"C3-001": {
+"area": "Board",
+"action": "Add a widget from Widgets ▾"
+},
+"C3-002": {
+"area": "Board",
+"action": "Drag a widget to move it, or nudge it"
+},
+"C3-003": {
+"area": "Board",
+"action": "Drag a widget edge or merged seam to resize"
+},
+"C3-004": {
+"area": "Board",
+"action": "Close a widget"
+},
+"C3-005": {
+"area": "Board",
+"action": "Merge or unmerge widgets (lock board, drop borders)"
+},
+"C3-006": {
+"area": "Link",
+"action": "Cycle a widget's link colour"
+},
+"C3-007": {
+"area": "Link",
+"action": "Change a tool panel's colour group"
+},
+"C3-008": {
+"area": "Float",
+"action": "Float a widget over another"
+},
+"C3-009": {
+"area": "Float",
+"action": "Drag or resize a floating widget"
+},
+"C3-010": {
+"area": "Float",
+"action": "Dock a floating widget back into the grid"
+},
+"C3-011": {
+"area": "Float",
+"action": "Move a floating widget into another widget's tabs"
+},
+"C3-012": {
+"area": "Popout",
+"action": "Pop a widget into its own window"
+},
+"C3-013": {
+"area": "Popout",
+"action": "Pop out the whole layout"
+},
+"C3-014": {
+"area": "Popout",
+"action": "Dock a popped widget or layout back"
+},
+"C3-015": {
+"area": "Popout",
+"action": "Close a popped widget"
+},
+"C3-016": {
+"area": "Widget tabs",
+"action": "Add a widget as a tab"
+},
+"C3-017": {
+"area": "Widget tabs",
+"action": "Switch a widget tab"
+},
+"C3-018": {
+"area": "Widget tabs",
+"action": "Rename a widget tab"
+},
+"C3-019": {
+"area": "Widget tabs",
+"action": "Close a widget tab"
+},
+"C3-020": {
+"area": "Chart tabs",
+"action": "Add a chart tab"
+},
+"C3-021": {
+"area": "Chart tabs",
+"action": "Switch a chart tab"
+},
+"C3-022": {
+"area": "Chart tabs",
+"action": "Rename a chart tab"
+},
+"C3-023": {
+"area": "Chart tabs",
+"action": "Change a chart tab's link colour"
+},
+"C3-024": {
+"area": "Chart tabs",
+"action": "Close a chart tab"
+},
+"C3-025": {
+"area": "Layout Dock",
+"action": "Open a saved layout"
+},
+"C3-026": {
+"area": "Layout Dock",
+"action": "See which layout is open"
+},
+"C3-027": {
+"area": "Layout Dock",
+"action": "Undo a layout switch from the toast"
+},
+"C3-028": {
+"area": "Layout Dock",
+"action": "Create a new layout from the dock"
+},
+"C3-029": {
+"area": "Layout Dock",
+"action": "Start a new blank board from the Layouts menu"
+},
+"C3-030": {
+"area": "Layout Dock",
+"action": "Save the open layout"
+},
+"C3-031": {
+"area": "Layout Dock",
+"action": "Save as a new layout"
+},
+"C3-032": {
+"area": "Layout Dock",
+"action": "Save a layout as a global template (admin)"
+},
+"C3-033": {
+"area": "Layout Dock",
+"action": "Rename a layout"
+},
+"C3-034": {
+"area": "Layout Dock",
+"action": "Duplicate a layout"
+},
+"C3-035": {
+"area": "Layout Dock",
+"action": "Delete a layout"
+},
+"C3-036": {
+"area": "Layout Dock",
+"action": "Delete a prebuilt template (admin)"
+},
+"C3-037": {
+"area": "Layout Dock",
+"action": "Pin a layout to the bar"
+},
+"C3-038": {
+"area": "Layout Dock",
+"action": "Reorder layouts on the bar"
+},
+"C3-039": {
+"area": "Layout Dock",
+"action": "Remove a layout from the bar"
+},
+"C3-040": {
+"area": "Layout Dock",
+"action": "View a layout's version history"
+},
+"C3-041": {
+"area": "Layout Dock",
+"action": "Restore a layout version"
+},
+"C3-042": {
+"area": "Multi Chart",
+"action": "Enter a preset grid"
+},
+"C3-043": {
+"area": "Multi Chart",
+"action": "Apply a custom rows × columns grid"
+},
+"C3-044": {
+"area": "Multi Chart",
+"action": "Exit Multi Chart"
+},
+"C3-045": {
+"area": "Multi Chart",
+"action": "Toggle crosshair sync"
+},
+"C3-046": {
+"area": "Multi Chart",
+"action": "Toggle time-range sync"
+},
+"C3-047": {
+"area": "Multi Chart",
+"action": "Turn on Groups mode"
+},
+"C3-048": {
+"area": "Multi Chart",
+"action": "Pick a group for the grid"
+},
+"C3-049": {
+"area": "Multi Chart",
+"action": "Step or switch group"
+},
+"C3-050": {
+"area": "Multi Chart",
+"action": "Refresh the group"
+},
+"C3-051": {
+"area": "Multi Chart",
+"action": "Exit Groups"
+},
+"C3-052": {
+"area": "Multi Chart",
+"action": "Apply a saved grid"
+},
+"C3-053": {
+"area": "Multi Chart",
+"action": "Save a grid"
+},
+"C3-054": {
+"area": "Multi Chart",
+"action": "Save a grid as global (admin)"
+},
+"C3-055": {
+"area": "Multi Chart",
+"action": "Delete a saved grid"
+},
+"C3-056": {
+"area": "Multi Chart",
+"action": "Set a cell's timeframe"
+},
+"C3-057": {
+"area": "Multi Chart",
+"action": "Set a cell's chart style"
+},
+"C3-058": {
+"area": "Multi Chart",
+"action": "Toggle a cell's session"
+},
+"C3-059": {
+"area": "Multi Chart",
+"action": "Reset a cell to my chart"
+},
+"C3-060": {
+"area": "Multi Chart",
+"action": "Maximize or restore a cell"
+},
+"C3-061": {
+"area": "Multi Chart",
+"action": "Open shared grid settings"
+},
+"C3-062": {
+"area": "Multi Chart",
+"action": "Set an alert from a cell"
+},
+"C3-063": {
+"area": "Watchlist",
+"action": "Open a list in a widget (own)"
+},
+"C3-064": {
+"area": "Watchlist",
+"action": "Open a prebuilt or community list"
+},
+"C3-065": {
+"area": "Watchlist",
+"action": "Open the Flagged list"
+},
+"C3-066": {
+"area": "Watchlist",
+"action": "Open a colour-tag list"
+},
+"C3-067": {
+"area": "Watchlist",
+"action": "Go back to the list picker"
+},
+"C3-068": {
+"area": "Watchlist",
+"action": "Click a row to load the symbol"
+},
+"C3-069": {
+"area": "Watchlist",
+"action": "Walk the list with arrow keys or space"
+},
+"C3-070": {
+"area": "Watchlist",
+"action": "Create a list"
+},
+"C3-071": {
+"area": "Watchlist",
+"action": "Create a list from a template"
+},
+"C3-072": {
+"area": "Watchlist",
+"action": "Save a community list to My Lists"
+},
+"C3-073": {
+"area": "Watchlist",
+"action": "Rename a list"
+},
+"C3-074": {
+"area": "Watchlist",
+"action": "Rename the Flagged list"
+},
+"C3-075": {
+"area": "Watchlist",
+"action": "Delete a list"
+},
+"C3-076": {
+"area": "Watchlist",
+"action": "Add a symbol"
+},
+"C3-077": {
+"area": "Watchlist",
+"action": "Add to Flagged"
+},
+"C3-078": {
+"area": "Watchlist",
+"action": "Flag or unflag a row (star)"
+},
+"C3-079": {
+"area": "Watchlist",
+"action": "Remove a symbol"
+},
+"C3-080": {
+"area": "Watchlist",
+"action": "Remove all starred symbols from a list"
+},
+"C3-081": {
+"area": "Watchlist",
+"action": "Reorder symbols by hand"
+},
+"C3-082": {
+"area": "Watchlist",
+"action": "Sort by a column"
+},
+"C3-083": {
+"area": "Watchlist",
+"action": "Show or hide a column"
+},
+"C3-084": {
+"area": "Watchlist",
+"action": "Apply a column preset"
+},
+"C3-085": {
+"area": "Watchlist",
+"action": "Reorder columns by drag"
+},
+"C3-086": {
+"area": "Watchlist",
+"action": "Resize a column"
+},
+"C3-087": {
+"area": "Watchlist",
+"action": "Reset columns"
+},
+"C3-088": {
+"area": "Watchlist",
+"action": "Write or edit a ticker note"
+},
+"C3-089": {
+"area": "Watchlist",
+"action": "Expand or collapse a list"
+},
+"C3-090": {
+"area": "Watchlist",
+"action": "Tag a symbol with a colour"
+},
+"C3-091": {
+"area": "Watchlist",
+"action": "Share a tag colour or Flagged"
+},
+"C3-092": {
+"area": "Watchlist",
+"action": "Make a list public"
+},
+"C3-093": {
+"area": "Watchlist",
+"action": "Mark a list prebuilt (admin)"
+},
+"C3-094": {
+"area": "Watchlist",
+"action": "Copy a list to the clipboard"
+},
+"C3-095": {
+"area": "Watchlist",
+"action": "Export a list as CSV or Excel"
+},
+"C3-096": {
+"area": "Watchlist",
+"action": "Import tickers"
+},
+"C3-097": {
+"area": "Watchlist",
+"action": "View or restore list version history"
+},
+"C3-098": {
+"area": "Watchlist",
+"action": "Set a price alert from a row"
+},
+"C3-099": {
+"area": "Watchlist",
+"action": "Delete an alert from the row popover"
+},
+"C3-100": {
+"area": "Watchlist",
+"action": "Open Full Research or AI from a row"
+},
+"C3-101": {
+"area": "Watchlist",
+"action": "Compare from a row"
+},
+"C3-102": {
+"area": "Watchlist",
+"action": "Open a row's attention facts"
+},
+"C3-103": {
+"area": "Watchlist",
+"action": "Change list appearance (canvas, text, tint)"
+},
+"C3-104": {
+"area": "Watchlist",
+"action": "Save or load a watchlist look"
+},
+"C3-105": {
+"area": "Watchlist",
+"action": "Track or freeze a linked scan or theme"
+},
+"C3-106": {
+"area": "Watchlist",
+"action": "Use a saved screen as a list"
+},
+"C3-107": {
+"area": "Scanner",
+"action": "Pick a preset scan"
+},
+"C3-108": {
+"area": "Scanner",
+"action": "Leave a scan, back to the picker"
+},
+"C3-109": {
+"area": "Scanner",
+"action": "Search the preset list"
+},
+"C3-110": {
+"area": "Scanner",
+"action": "Read a scan's conditions"
+},
+"C3-111": {
+"area": "Scanner",
+"action": "Read a scan's results"
+},
+"C3-112": {
+"area": "Scanner",
+"action": "Refresh a scan"
+},
+"C3-113": {
+"area": "Scanner",
+"action": "Sort a scan"
+},
+"C3-114": {
+"area": "Scanner",
+"action": "Change scan columns"
+},
+"C3-115": {
+"area": "Scanner",
+"action": "Create a scanner in the workspace"
+},
+"C3-116": {
+"area": "Scanner",
+"action": "Modify a preset scan's conditions"
+},
+"C3-117": {
+"area": "Scanner",
+"action": "Open an AI Search scan in the builder and edit conditions"
+},
+"C3-118": {
+"area": "Scanner",
+"action": "Run or refine a screen from the workspace chat"
+},
+"C3-119": {
+"area": "Scanner",
+"action": "Save a screen run from the workspace"
+},
+"C3-120": {
+"area": "Scanner",
+"action": "Send a scan to Journal"
+},
+"C3-121": {
+"area": "Volume Surge",
+"action": "Choose what the scanner watches"
+},
+"C3-122": {
+"area": "Volume Surge",
+"action": "Create, rename or delete a scope list"
+},
+"C3-123": {
+"area": "Volume Surge",
+"action": "Add a ticker to a scope list"
+},
+"C3-124": {
+"area": "Volume Surge",
+"action": "Set thresholds (RVOL, burst, move, $ floor)"
+},
+"C3-125": {
+"area": "Volume Surge",
+"action": "Toggle logos"
+},
+"C3-126": {
+"area": "Volume Surge",
+"action": "Click a row or remove it from the list"
+},
+"C3-127": {
+"area": "Alerts",
+"action": "See my alerts"
+},
+"C3-128": {
+"area": "Alerts",
+"action": "Create a price alert"
+},
+"C3-129": {
+"area": "Alerts",
+"action": "Delete an alert"
+},
+"C3-130": {
+"area": "Alerts",
+"action": "Click an alert to load the symbol"
+},
+"C3-131": {
+"area": "Alerts",
+"action": "Change Alerts widget appearance"
+},
+"C3-132": {
+"area": "Alerts",
+"action": "Send alerts to Journal"
+},
+"C3-133": {
+"area": "News",
+"action": "Filter catalysts up, down or all"
+},
+"C3-134": {
+"area": "News",
+"action": "Read stored headlines for a symbol"
+},
+"C3-135": {
+"area": "News",
+"action": "Place a headline on the chart"
+},
+"C3-136": {
+"area": "News",
+"action": "Change News widget appearance"
+},
+"C3-137": {
+"area": "News",
+"action": "Send the feed to Journal"
+},
+"C3-138": {
+"area": "TE News",
+"action": "Search headlines"
+},
+"C3-139": {
+"area": "TE News",
+"action": "Filter by category, linked symbol or watchlist"
+},
+"C3-140": {
+"area": "TE News",
+"action": "Apply, rename or delete a filter preset"
+},
+"C3-141": {
+"area": "TE News",
+"action": "Save or unsave a headline"
+},
+"C3-142": {
+"area": "TE News",
+"action": "Add or edit a headline note"
+},
+"C3-143": {
+"area": "TE News",
+"action": "Manage collections"
+},
+"C3-144": {
+"area": "TE News",
+"action": "Add a headline's ticker to a watchlist"
+},
+"C3-145": {
+"area": "TE News",
+"action": "Explain a headline or ask about it"
+},
+"C3-146": {
+"area": "TE News",
+"action": "Jump to live or browse a past day"
+},
+"C3-147": {
+"area": "TE News",
+"action": "Send a headline to Notebook"
+},
+"C3-148": {
+"area": "Calendar",
+"action": "Step days in the widget"
+},
+"C3-149": {
+"area": "Calendar",
+"action": "Ask who reports on a day from Charts"
+},
+"C3-150": {
+"area": "Calendar",
+"action": "Ask when a stock reports from Charts"
+},
+"C3-151": {
+"area": "Calendar",
+"action": "Filter economic events by stars"
+},
+"C3-152": {
+"area": "Calendar",
+"action": "Toggle the TBD section"
+},
+"C3-153": {
+"area": "Calendar",
+"action": "Sort earnings columns"
+},
+"C3-154": {
+"area": "Calendar",
+"action": "Show all earnings in a section"
+},
+"C3-155": {
+"area": "Calendar",
+"action": "Click an earnings row"
+},
+"C3-156": {
+"area": "Calendar",
+"action": "Send a day to Journal"
+},
+"C3-157": {
+"area": "Breadth",
+"action": "Read breadth tiles"
+},
+"C3-158": {
+"area": "Breadth",
+"action": "Add or remove a reading"
+},
+"C3-159": {
+"area": "Breadth",
+"action": "Switch heatmap and ratio view"
+},
+"C3-160": {
+"area": "Breadth",
+"action": "Change tile style"
+},
+"C3-161": {
+"area": "Breadth",
+"action": "Change palette, intensity or background"
+},
+"C3-162": {
+"area": "Breadth",
+"action": "Drill into a reading"
+},
+"C3-163": {
+"area": "Breadth",
+"action": "Send a snapshot to Journal"
+},
+"C3-164": {
+"area": "Options Flow",
+"action": "Switch market or symbol scope"
+},
+"C3-165": {
+"area": "Options Flow",
+"action": "Switch the lead view"
+},
+"C3-166": {
+"area": "Options Flow",
+"action": "Set filters (premium, call/put, type, direction)"
+},
+"C3-167": {
+"area": "Options Flow",
+"action": "Read the flow"
+},
+"C3-168": {
+"area": "Options Flow",
+"action": "Click a flow row"
+},
+"C3-169": {
+"area": "Themes",
+"action": "Pick a period or ranking"
+},
+"C3-170": {
+"area": "Themes",
+"action": "Flip sort direction"
+},
+"C3-171": {
+"area": "Themes",
+"action": "Switch today basis"
+},
+"C3-172": {
+"area": "Themes",
+"action": "Open a theme or pick a holding"
+},
+"C3-173": {
+"area": "Themes",
+"action": "Search themes or tickers"
+},
+"C3-174": {
+"area": "Themes",
+"action": "Pick, rename or delete a theme set"
+},
+"C3-175": {
+"area": "Themes",
+"action": "Edit a set (add, hide, reset, custom theme)"
+},
+"C3-176": {
+"area": "Themes",
+"action": "Add or remove a stock in a theme"
+},
+"C3-177": {
+"area": "Themes",
+"action": "Send the ranking to Journal"
+},
+"C3-178": {
+"area": "Fundamentals",
+"action": "Switch view"
+},
+"C3-179": {
+"area": "Fundamentals",
+"action": "Read the numbers"
+},
+"C3-180": {
+"area": "Fundamentals",
+"action": "Change appearance or send to Journal"
+},
+"C3-181": {
+"area": "Profile",
+"action": "Read profile and earnings table"
+},
+"C3-182": {
+"area": "Profile",
+"action": "Click a peer ticker"
+},
+"C3-183": {
+"area": "Indexes",
+"action": "Hide or restore an index"
+},
+"C3-184": {
+"area": "Indexes",
+"action": "Send levels to Journal"
+},
+"C3-185": {
+"area": "Market Context",
+"action": "Read market context"
+},
+"C3-186": {
+"area": "Market Context",
+"action": "Send to Journal"
+},
+"C3-187": {
+"area": "NH/NL",
+"action": "Add or remove a universe"
+},
+"C3-188": {
+"area": "NH/NL",
+"action": "Switch universe tab"
+},
+"C3-189": {
+"area": "NH/NL",
+"action": "Expand a row or pick a symbol"
+},
+"C3-190": {
+"area": "NH/NL",
+"action": "Toggle logos, font, background"
+},
+"C3-191": {
+"area": "H/L Pulse",
+"action": "Change Pulse settings"
+},
+"C3-192": {
+"area": "Market Map",
+"action": "Pick or remove a universe"
+},
+"C3-193": {
+"area": "Market Map",
+"action": "Pick X, Y or size axis"
+},
+"C3-194": {
+"area": "Market Map",
+"action": "Follow the linked list"
+},
+"C3-195": {
+"area": "Market Map",
+"action": "Cycle labels or zoom"
+},
+"C3-196": {
+"area": "AI Search",
+"action": "Ask a question or follow one up"
+},
+"C3-197": {
+"area": "AI Search",
+"action": "Change ask mode, stop or retry"
+},
+"C3-198": {
+"area": "AI Search",
+"action": "Save, reopen or remove an answer"
+},
+"C3-199": {
+"area": "AI Search",
+"action": "Copy or speak an answer"
+},
+"C3-200": {
+"area": "AI Search",
+"action": "Send the conversation to Journal"
+},
+"C3-201": {
+"area": "Notebook",
+"action": "Open or search a note"
+},
+"C3-202": {
+"area": "Notebook",
+"action": "Create a note"
+},
+"C3-203": {
+"area": "Notebook",
+"action": "Edit a note's title or body"
+},
+"C3-204": {
+"area": "Notebook",
+"action": "Browse folders"
+},
+"C3-205": {
+"area": "Period Sort",
+"action": "Start a custom-period sort"
+},
+"C3-206": {
+"area": "Period Sort",
+"action": "Choose grouping, replay and start mark"
+},
+"C3-207": {
+"area": "Period Sort",
+"action": "Dock the panel or add it as a tab"
+},
+"C3-208": {
+"area": "Period Sort",
+"action": "Refresh results"
+},
+"C3-209": {
+"area": "Replay",
+"action": "Start replay at a date"
+},
+"C3-210": {
+"area": "Replay",
+"action": "Exit replay"
+},
+"C3-211": {
+"area": "Replay",
+"action": "Pick the cutoff by clicking the chart"
+},
+"C3-212": {
+"area": "Replay",
+"action": "Set replay timeframe"
+},
+"C3-213": {
+"area": "Review",
+"action": "Start Review Charts from a results list"
+},
+"C3-214": {
+"area": "Review",
+"action": "Step next or previous in a review (mobile only at this commit)"
+},
+"C3-215": {
+"area": "Review",
+"action": "Open the review feed card (mobile only)"
+},
+"C3-216": {
+"area": "Company dock",
+"action": "Switch dock tab"
+},
+"C3-217": {
+"area": "Company dock",
+"action": "Open or collapse the dock"
+},
+"C3-218": {
+"area": "Company dock",
+"action": "Search company info"
+},
+"C3-219": {
+"area": "Company dock",
+"action": "Open ETF holdings"
+},
+"C3-220": {
+"area": "Company dock",
+"action": "Pick a leveraged or inverse ETF"
+},
+"C3-221": {
+"area": "Workspace",
+"action": "Open the Agent"
+},
+"C3-222": {
+"area": "Workspace",
+"action": "Change a widget's UCT theme section"
+},
+"C3-223": {
+"area": "Workspace",
+"action": "Toggle the journal shortcut (Ctrl+Alt+J)"
+}
+}
+}

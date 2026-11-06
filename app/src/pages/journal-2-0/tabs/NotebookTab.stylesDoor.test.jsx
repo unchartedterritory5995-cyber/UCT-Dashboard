@@ -68,7 +68,7 @@ describe('the Styles door on the Notebook tab', () => {
     render(<Providers route={href}><NotebookTab /></Providers>)
     await settle()
     expect(toolbarOffers('Import')).toBe(false)     // control: the list header is NOT here
-    expect(screen.getByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
+    expect(await screen.findByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
     expect(await screen.findByRole('heading', { name: 'Manage templates' })).toBeInTheDocument()
   })
 
@@ -78,7 +78,7 @@ describe('the Styles door on the Notebook tab', () => {
     render(<Providers route="/journal/notebook?styles=1"><NotebookTab /></Providers>)
     await settle()
     expect(toolbarOffers('Import')).toBe(false)     // control: the list header is NOT here
-    expect(screen.getByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
+    expect(await screen.findByRole('button', { name: 'More ways to start a note' })).toBeInTheDocument()   // Home is
     await settle()
     expect(screen.queryByRole('heading', { name: 'Manage templates' })).toBeNull()
     expect(globalThis.fetch.mock.calls.some(([u]) => String(u).includes('journal-styles'))).toBe(false)

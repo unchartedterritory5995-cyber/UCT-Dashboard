@@ -522,6 +522,14 @@ def validate(definition: dict) -> None:
     if language is not None and language != "pine":
         raise ValueError(f"meta.runtimeLanguage: {language!r} is not a language this store reads "
                          "a bar-by-bar script in — only 'pine' is")
+    # ⭐ W5-T17 (design 5.2 step 5) — `meta.blockRuns` is the HOST translation's stamp for
+    # an `ast` document's per-plot block gates. A runtime document decides its own
+    # conditional calls INSIDE the run (a guard at step 6), so one carrying the stamp is
+    # malformed and is refused at the door rather than read by the wrong lane.
+    if "blockRuns" in meta:
+        raise ValueError("meta.blockRuns: only an \"ast\" document carries the per-plot "
+                         "block-run gates — a runtime document decides its conditional calls "
+                         "inside its own run, so one carrying them is malformed and is not accepted")
     compute = definition.get("compute")
     if not isinstance(compute, dict) or compute.get("kind") != RUNTIME_KIND:
         raise ValueError("definition: not a runtime document")
@@ -576,6 +584,26 @@ def validate(definition: dict) -> None:
         if isinstance(p, dict) and p.get("key") in outputs and "forward" in p                 and p["forward"] != repaint["forward"]:
             raise ValueError(f"plots.{p['key']}.forward — declared {p['forward']!r} but this script "
                              f"reads {repaint['forward']!r} bars ahead")
+
+
+def request_reads(definition: Any) -> list[str]:
+    """W5-T17 — the runtime document's REQUIREMENTS READ: the names of the ``request.*``
+    calls in its source that read another symbol or timeframe (the identity request, the
+    chart's own symbol at the chart's own timeframe, is not one). ``[]`` when it reads none.
+
+    ONE AUTHORITY: the repaint classifier's own reads (`runtime_repaint_of`), never a
+    second scan of the source. A source the classifier cannot read fails CLOSED, as
+    ``["<unreadable source>"]``. Never raises."""
+    try:
+        source = definition["compute"]["source"]
+        repaint = runtime_repaint.runtime_repaint_of(source)
+    except Exception:  # noqa: BLE001 - fail closed, never raise out of a stamp
+        return ["<unreadable source>"]
+    if not repaint.get("ok"):
+        return ["<unreadable source>"]
+    req = runtime_repaint.RULES["requests"]
+    return sorted(r["name"] for r in repaint.get("reads") or ()
+                  if r["name"] in req["calls"] or r["name"].startswith(req["prefix"]))
 
 
 def handle(definition: dict) -> str:

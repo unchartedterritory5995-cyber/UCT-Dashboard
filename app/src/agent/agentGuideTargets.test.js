@@ -42,7 +42,8 @@ function expand(steps, f) {
   let out = steps
   for (const name of f.slots || []) {
     const rows = SLOTS[name].rows
-    if (rows) out = rows.flatMap(row => out.map(s => filled(s, row, name)))
+    // { each: 'slot' } takes the row's own steps (guide/actions.js)
+    if (rows) out = rows.flatMap(row => out.flatMap(s => (s.each === name ? row.steps : [s])).map(s => filled(s, row, name)))
   }
   return out
 }
@@ -58,14 +59,18 @@ describe('every walkthrough points at a real control', () => {
         if (typeof t === 'object' && t.widgetType) {
           expect(source).toContain('data-widget-type={w.type}')
           if (t.guide) expect(source, t.guide).toContain(`data-guide="${t.guide}"`)
-          if (t.aria) expect(source, t.aria).toContain(`aria-label="${t.aria}"`)
+          // a column title is named from its label: aria-label={`Sort by ${label}`}
+          if (t.aria) expect(source.includes(`aria-label="${t.aria}"`) || (/^Sort by /.test(t.aria) && source.includes('aria-label={`Sort by ${label}`}')), t.aria).toBe(true)
           continue
         }
         if (typeof t === 'object' && t.inWidget) { expect(source, t.inWidget).toContain(`data-guide="${t.inWidget}"`); continue }
         if (typeof t === 'object' && t.within) {
-          expect(source, t.within).toContain(`data-guide="${t.within}"`)
+          expect(source.includes(`data-guide="${t.within}"`) || source.includes(`guide="${t.within}"`), t.within).toBe(true)
           if (t.guide) { expect(source, t.guide).toContain(`data-guide="${t.guide}"`); continue }
           if (t.label) continue   // an on-screen label: proved row by row in the browser (teach-status.md), not by grep
+          if (t.cursor) continue  // the chart library's own pane divider: proved in the browser, it is not in our source
+          // a menu row: a literal id, or chipMenu.js's own key, or the location row's template
+          if (t.attr === 'data-menu-id') { expect(source.includes(`data-menu-id="${t.value}"`) || source.includes(`key: '${t.value}'`) || String(t.value).startsWith('settings-'), t.value).toBe(true); continue }
           if (t.attr) { expect(source, t.attr).toMatch(new RegExp(`${t.attr}[={ ]|${t.attr}$|${t.attr}\\s`, 'm')); continue }
           // PickerHeader names its ＋ New button from the picker's `newTitle` (aria-label={newTitle})
           expect(source.includes(`aria-label="${t.aria}"`) || source.includes(`aria-label={\`${t.aria}`) || source.includes(`newTitle="${t.aria}"`), t.aria).toBe(true)
@@ -78,7 +83,7 @@ describe('every walkthrough points at a real control', () => {
           expect(tpl.ids(), t).toContain(t.slice(tpl.prefix.length))
           continue
         }
-        expect(source, t).toContain(`data-guide="${t}"`)
+        expect(source.includes(`data-guide="${t}"`) || source.includes(`'data-guide': '${t}'`) || source.includes(`guide="${t}"`), t).toBe(true)
       }
     })
   }

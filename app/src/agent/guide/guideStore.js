@@ -90,7 +90,12 @@ export function endGuide(reason = 'exit') {
 const doers = new Set()
 /** The panel listens; the guide has no writer of its own. */
 export function onGuideDoIt(fn) { doers.add(fn); return () => doers.delete(fn) }
-export function requestGuideDoIt() { for (const fn of [...doers]) { try { fn() } catch { /* a listener's own problem */ } } }
+/** → false when a listener could not take it (the Agent is busy), so the card can say so. */
+export function requestGuideDoIt() {
+  let taken = true
+  for (const fn of [...doers]) { try { if (fn() === false) taken = false } catch { /* a listener's own problem */ } }
+  return taken
+}
 
 /** What the member was last shown, while it is recent — or null. */
 export function lastShownGuide(now = Date.now()) {

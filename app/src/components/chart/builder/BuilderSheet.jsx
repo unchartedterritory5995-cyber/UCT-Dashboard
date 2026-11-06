@@ -137,6 +137,7 @@ import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
+import RunsOnLine from './RunsOnLine'
 import {
   INTENTS, INTENT_LABELS, intentReadback, defaultIntentFor, signalPaintsFor, signalPaintsOf,
   presentationVerdict, SIGNAL_MARKER_DEFAULT, SIGNAL_PAINT_DEFAULTS, NO_PAINT,
@@ -2566,7 +2567,7 @@ export default function BuilderSheet({
               — a starter that was special-cased would be a second class of
               object, and `BuilderSheet.starters.test.jsx` asserts the saved
               blob carries no trace of where it came from. */}
-          <div className={styles.modeRow} role="tablist" aria-label="How to build this">
+          <div className={styles.modeRow} role="tablist" aria-label="How to build this" data-guide="builder.modes">
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'library' ? styles.modeTabActive : ''}`}
@@ -2663,6 +2664,13 @@ export default function BuilderSheet({
             ) : null
           })()}
 
+          {/* W5-T18 - the server's per-lane answer for the open definition (runtime rows
+              only; an ast row carries no `server_lanes`, so nothing renders). */}
+          {editing && (() => {
+            const openRow = (Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId)
+            return openRow ? <RunsOnLine serverLanes={openRow.server_lanes} /> : null
+          })()}
+
           {buildMode === 'library' && (
             <StarterLibrary
               activeSource={source}
@@ -2713,6 +2721,16 @@ export default function BuilderSheet({
               // ⭐ SUPPORT LOOP A3 — what the member is viewing rides an opt-in report.
               sym={sym}
               tf={tf}
+              // ⭐ EDITOR STATUS PANEL: the served row being edited. Its own facts, held by
+              // the script engine (`editorStatus.js::isHeld`, the twin of
+              // `engine_withheld_reason`: `upgradeKindOf` says `refused`, or an older
+              // engine's refusal waits for today's re-translation, `retranslate` with
+              // `engine_status.status === 'refused'`) or its served `scan_refusal`, are the
+              // saved version's own line beside the live rows (`savedVersion`), shown only
+              // while the editor holds that version's own script; they never change a row.
+              // ⛔ NOT `scan_refusal.gate === 'withheld'`: the sweep's C45 check refuses under
+              // that same gate. Read only while VITE_PINE_EDITOR_STATUS is on.
+              savedRow={editing ? ((Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId) || null) : null}
               onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built
@@ -3520,6 +3538,7 @@ export default function BuilderSheet({
                 className={styles.plotStyle}
                 value={target}
                 aria-label="Placement"
+                data-guide="builder.placement"
                 onChange={(e) => setTarget(e.target.value)}
               >
                 <option value="pane">Own pane</option>
@@ -3537,6 +3556,7 @@ export default function BuilderSheet({
                 value={levelsText}
                 placeholder="70, 30"
                 aria-label="Levels"
+                data-guide="builder.levels"
                 aria-invalid={levelsProblem ? 'true' : undefined}
                 onChange={(e) => setLevelsText(e.target.value)}
               />
@@ -3616,7 +3636,7 @@ export default function BuilderSheet({
               <p className={styles.inputProblem} role="alert" data-testid="intent-refusal">{intentBlock}</p>
             )}
             {intent === INTENTS.SIGNAL && signalSelected && isTruthType(signalSelected.type) && (
-              <div className={styles.placementRow} data-testid="signal-look">
+              <div className={styles.placementRow} data-testid="signal-look" data-guide="builder.signalLook">
                 <label className={styles.plotToggle}>
                   <input
                     type="checkbox"
@@ -3770,6 +3790,7 @@ export default function BuilderSheet({
             <label className={styles.label} htmlFor="uct-formula-name">Name</label>
             <input
               id="uct-formula-name"
+              data-guide="builder.name"
               className={styles.nameField}
               type="text"
               maxLength={48}
@@ -3900,7 +3921,7 @@ export default function BuilderSheet({
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
-            <button type="button" className="btn btn-ghost" onClick={requestClose}>Cancel</button>
+            <button type="button" className="btn btn-ghost" data-guide="builder.cancel" onClick={requestClose}>Cancel</button>
             {/* ⛔ UIE PHASE 5 (M1) — while a stored SCRIPT is open for edit, the formula
                 save is not offered: it would PUT the formula draft over the script. The
                 script's own save is the member pane's ("Save changes"). */}
@@ -3908,6 +3929,7 @@ export default function BuilderSheet({
               type="button"
               className="btn btn-primary"
               data-testid="sheet-save"
+              data-guide="builder.save"
               onClick={converseActive ? () => converseCommitRef.current?.save() : save}
               disabled={converseActive ? !converseCommit.canSave : !canSave}
             >{converseActive
@@ -3930,6 +3952,7 @@ export default function BuilderSheet({
                       type="button"
                       className="btn btn-ghost"
                       aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
+                      data-guide="builder.edit"
                       onClick={() => openForEdit(row)}
                     ><UIcon name="edit" size={14} /></button>
                     {pendingDelete === row.def_id ? (

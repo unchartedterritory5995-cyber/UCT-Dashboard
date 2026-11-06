@@ -868,12 +868,12 @@ export function snapshotWidgetItems(query) {
     if (singleToken ? !cmd.startsWith(first) : first !== cmd) continue
     const rest = singleToken ? '' : raw.slice(first.length).trim()
     if (!rest) {
-      out.push({ ...item, cmd, description: `Type a symbol — e.g. /${cmd} NVDA`,
+      out.push({ ...item, cmd, description: kind.ask || `Type a symbol — e.g. /${cmd} NVDA`,
         command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).insertContent(`/${cmd} `).run() } })
       continue
     }
     const sym = rest.replace(/^\$/, '')
-    if (!FACT_SYMBOL_RE.test(sym)) continue
+    if (!(kind.symbolRe || FACT_SYMBOL_RE).test(sym)) continue
     const symbol = sym.toUpperCase()
     out.push({ ...item, cmd, title: `${kind.title} — ${symbol}`, command: snapshotCommand(kind, { symbol }) })
   }

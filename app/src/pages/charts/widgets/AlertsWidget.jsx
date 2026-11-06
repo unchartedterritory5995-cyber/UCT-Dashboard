@@ -20,6 +20,7 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import useLivePrices from '../../../hooks/useLivePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
@@ -127,6 +128,7 @@ export default function AlertsWidget({
     () => buildAlertsCapture(allAlerts, { priceOf: liveFor, settings }),
     [allAlerts, liveFor, settings],
   )
+  useWidgetDoor(() => ({ capture: () => (journalDoor && !readOnly && allAlerts.length > 0 ? { kind: 'alerts', capture: doorCapture(), label: `${active.length} alerts` } : null) }))
 
   // ── Quick-add — any ticker, a level, above/below ──
   const [ticker, setTicker] = useState('')
@@ -164,6 +166,7 @@ export default function AlertsWidget({
     return (
       <div
         key={a.id}
+        data-guide="alerts.row"
         className={`${styles.row}${isTriggered ? ' ' + styles.rowTriggered : ''}`}
         onClick={readOnly ? undefined : () => goToSym(a.sym)}
         title={readOnly ? undefined : `Show ${a.sym} on the linked chart`}
@@ -196,7 +199,7 @@ export default function AlertsWidget({
           </span>
         )}
         {!readOnly && (
-        <button type="button" className={styles.delBtn} onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
+        <button type="button" className={styles.delBtn} data-guide="alerts.delete" onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
           <UIcon name="x" size={13} strokeWidth={2.4} gold={false} />
         </button>
         )}

@@ -48,11 +48,13 @@ import { TABLE, parseFormula } from './parse'
 import { translatePine } from './pine'
 import { functionReachability } from './doorCoverage'
 import { probeRuntimeProgram } from '../runtime/runtimeColumns'
+import { valueBuildDefersToDrawing } from '../../builder/memberPane/runtimeObjectsDoor'
 import { runtimePaneEnabled, __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
 import {
   CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured, isGateDecline,
 } from '../../../../../../tools/pine_coverage/runtime_lane.mjs'
+import { peelStatement } from '../../../../../../tools/pine_coverage/census_peel.mjs'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
@@ -84,10 +86,21 @@ const short = (s, n = 220) => (s == null ? null : String(s).slice(0, n))
 /** The runtime lane's own refusal behind a decline: the probe the door ran
  *  (`memberPaneDefinition::runtimeLaneDefinition`), asked again for its POSITION,
  *  which the door's `runtimeDeclined` ({code, why}) does not carry. `agrees` says
- *  whether the probe's guard is the code the door declined with. */
+ *  whether the probe's guard is the code the door declined with.
+ *
+ *  ⭐ THE DOOR'S SECOND BUILD (W4 T0). A value build that refuses at `runtime:object-op`
+ *  (a drawing the host object program did not take) is explained by the DRAWING build,
+ *  `probeRuntimeProgram(source, {objectsInRun: true})`, and the door declines with THAT
+ *  build's guard (`runtimeObjectsDoor.js::runtimeOwnObjectsOf`). Asking only the value
+ *  build named `runtime:object-op` for 79 steps of the 2026-11-02 map where the door's
+ *  own decline was something else (2 of 79 agreed); the line it names is then the
+ *  value build's, not the wall's. Same rule, same constant: one authority. */
 function runtimeProbeOf(source, declined) {
   try {
-    const p = probeRuntimeProgram(source)
+    let p = probeRuntimeProgram(source)
+    if (!p.ok && valueBuildDefersToDrawing((p.refusal || {}).guard)) {
+      p = probeRuntimeProgram(source, { objectsInRun: true })
+    }
     if (p.ok) return null
     const r = p.refusal || {}
     return {
@@ -106,6 +119,27 @@ function runtimeProbeOf(source, declined) {
  *  ⛔ A decline by the allowlist / kill list is the GATE answering, never the lane. */
 const gatedRuntime = (r) => !!r && !!r.runtimeDeclined && isGateDecline(r.runtimeDeclined.code)
 const reachedRuntime = (r) => !!r && (r.lane === 'runtime' || (!!r.runtimeDeclined && !gatedRuntime(r)))
+
+/** ⭐ W3W4-T0 — THE GUARD BEHIND EACH DROPPED OBJECT OP, IDENTIFIERS ONLY. `dropReasons` counts
+ *  ops by KIND (`guard:create`, `create:line`, `cell:text`); the translation also holds the
+ *  sentence behind them (`guardRefusals`, `createDropWhy`, `cellTextWhy`). Each is cut to
+ *  `<op>@<line>: <guard>[ <subject>]` (the message text, which can quote a script, is dropped),
+ *  so the census row can say WHICH host guard dropped an op without carrying prose.
+ *  `op` is `create:<family>` for a create, `cell:text` for a cell text, the op kind otherwise. */
+export function dropHeads(diag) {
+  const d = diag || {}
+  const out = []
+  for (const e of d.guardRefusals || []) out.push(short(String(e), 120))
+  for (const e of d.createDropWhy || []) {
+    const m = /^create (\w+)@([\d?]+) [^:]*: (\S+)/.exec(String(e))
+    if (m) out.push(`create:${m[1]}@${m[2]}: ${m[3] === 'no' ? 'unrecorded' : m[3]}`)
+  }
+  for (const e of d.cellTextWhy || []) {
+    const m = /^cell@([\d?]+): (\S+)/.exec(String(e))
+    if (m) out.push(`cell:text@${m[1]}: ${m[2] === 'no' ? 'unrecorded' : m[2]}`)
+  }
+  return [...new Set(out)].slice(0, 60)
+}
 
 function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
   let d
@@ -155,6 +189,7 @@ function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
     droppedOps: diag.droppedOps || 0,
     attemptedOps: diag.attemptedOps || 0,
     dropReasons: diag.dropReasons || {},
+    dropHeads: dropHeads(diag),
     unsupported: diag.unsupported || [],
     outOfScope: diag.outOfScope || [],
     loopBlockedCalls: diag.loopBlockedCalls || [],
@@ -177,12 +212,12 @@ function isClean(r) {
     && !r.withheldObjects && !(r.withheldPaints > 0)
 }
 
-function census(source, cap) {
+function census(source, cap, { rtOn = RT_ON } = {}) {
   const work = source.split(/\r?\n/)
   const steps = []
   let stuck = null
   for (let step = 0; step < cap; step += 1) {
-    const r = oneDoor(work.join(LF))
+    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn })
     // the line text each refusal names, read off the CURRENT program
     for (const ref of r.refusals || []) {
       ref.text = ref.line && work[ref.line - 1] != null ? short(work[ref.line - 1].trim(), 200) : null
@@ -195,15 +230,18 @@ function census(source, cap) {
     if (r.attached) break
     // ⭐ RUNTIME-ON: peel the line the RUNTIME lane refused; a decline with no line
     // (a budget, a request, an output-map disagreement) cannot be peeled.
-    if (RT_ON && r.runtimeDeclined && !(r.rtProbe && r.rtProbe.line)) { stuck = r.runtimeDeclined.code; break }
-    const lines = RT_ON && r.rtProbe && r.rtProbe.line && r.rtProbe.line <= work.length ? [r.rtProbe.line]
+    if (rtOn && r.runtimeDeclined && !(r.rtProbe && r.rtProbe.line)) { stuck = r.runtimeDeclined.code; break }
+    const lines = rtOn && r.rtProbe && r.rtProbe.line && r.rtProbe.line <= work.length ? [r.rtProbe.line]
       : [...new Set((r.refusals || []).map((x) => x.line).filter((n) => n && n <= work.length))]
     if (!lines.length) { stuck = (r.refusals[0] && r.refusals[0].guard) || r.guard || 'no-line'; break }
+    // ⭐ THE UNIT IS THE LOGICAL STATEMENT (W4 T0, `census_peel.mjs`): the refused line,
+    // its continuation lines and, under a header, its body. Overwriting ONE physical
+    // line left the rest of a multi-line call behind for the door to refuse as
+    // `pine:statement`; that wall was counted 76 times and is real on 6 scripts.
     let changed = false
+    const snapshot = work.join(LF)   // every span is read off the program the door REFUSED
     for (const n of lines) {
-      const b = bindingNameOf(work[n - 1])
-      const next = b ? `${b.indent}${b.name} = 0.0` : ''
-      if (work[n - 1] !== next) { work[n - 1] = next; changed = true }
+      if (peelStatement(work, n, bindingNameOf, snapshot)) changed = true
     }
     if (!changed) { stuck = 'no-progress'; break }
   }
@@ -395,6 +433,136 @@ describe('⛔ runtime-on lane rail: it can fail', () => {
   })
 })
 
+// ─── ⛔ W4 T0 — THE INSTRUMENT'S TWO ARTEFACTS, EACH WITH A FIXTURE THAT SHOWS IT ─────
+// W4-BREAKDOWN section 0: the top runtime-lane wall (`pine:statement`, 76 touches) was
+// real on 6 scripts, and `runtime:object-op` (35) was the wrong probe's answer. Each
+// fixture is a SYNTHETIC script (never a licence-held one) whose census row, with the
+// old behaviour, carried the artefact. Ordinary suite, a few door calls each.
+const FIXTURE_HEAD = ['//@version=5', "indicator('t0 fixture', overlay=true)"]
+
+function underLane(rtOn, fn) {
+  vi.stubEnv(flagOf(GATE('src/components/chart/engine/objectsOnlyPaneGate.js')), '1')
+  vi.stubEnv(flagOf(GATE('src/components/chart/engine/runtimePaneGate.js')), rtOn ? '1' : '')
+  if (rtOn) {
+    __permitRuntimePaneForTests()
+    __allowEveryRuntimeScriptForTests()
+  }
+  return fn()
+}
+
+/** What a step names as its wall, the way `coverage_map.py::runtime_walls_of` reads it
+ *  (runtime-on: the decline's code when the probe disagrees with it). */
+function wallOfStep(st, rtOn) {
+  if (st.attached) return null
+  if (!rtOn) return (st.refusals[0] && st.refusals[0].guard) || st.guard
+  const pr = st.rtProbe || {}
+  const rd = st.runtimeDeclined || {}
+  return (pr.agrees ? pr.guard : rd.code || pr.guard) || (st.refusals[0] && st.refusals[0].guard) || st.guard
+}
+
+describe('W4 T0: the census peel removes a LOGICAL statement, not one physical line', () => {
+  // A call wrapped over lines: the refusal names the call's first line, the old peel
+  // blanked that line only, and the continuation (`     close)`) was refused next as
+  // `pine:statement` -- a wall the member never wrote.
+  const MULTI_LINE_CALL = [...FIXTURE_HEAD,
+    'arr = array.new_float(0)',
+    'array.push(arr,',
+    '     close)',
+    'v = array.get(arr,',
+    '     0)',
+    'plot(close + v)',
+  ].join(LF)
+
+  it('a multi-line call: the old wall (pine:statement) is gone and the next REAL wall appears', () => {
+    const row = underLane(false, () => census(MULTI_LINE_CALL, 8, { rtOn: false }))
+    const walls = row.steps.map((st) => wallOfStep(st, false))
+    expect(walls, JSON.stringify(walls)).not.toContain('pine:statement')
+    // the two real collection walls, one per statement, then the script attaches
+    expect(walls.filter(Boolean)).toEqual(['pine:collection', 'pine:collection'])
+    expect(row.reachedAfterPeel).toBe(true)
+  })
+
+  it('a block with a body: the header and its body go together (no orphaned body)', () => {
+    // runtime-on: `for … in` is the lane's own wall; the body line under it must not
+    // survive to be refused as a statement of its own
+    const src = [...FIXTURE_HEAD,
+      'x = 0.0',
+      'for [i, v] in array.from(1.0, 2.0)',
+      '    x += v',
+      '    x += 1',
+      'plot(close + x)',
+    ].join(LF)
+    const row = underLane(true, () => census(src, 8, { rtOn: true }))
+    const walls = row.steps.map((st) => wallOfStep(st, true))
+    expect(walls[0], JSON.stringify(walls)).toBe('runtime:loop')
+    expect(walls.filter(Boolean).slice(1), JSON.stringify(walls)).not.toContain('pine:statement')
+    expect(walls.filter(Boolean).slice(1), JSON.stringify(walls)).not.toContain('runtime:statement')
+    expect(row.reachedAfterPeel).toBe(true)
+  })
+
+  it('a function whose only statement is refused: the emptied function goes (no empty body)', () => {
+    // (train, W4-T0 x W4-T15: `log.*` is SERVED on the runtime lane since W4-T15, so the refused
+    // statement here is now `ticker.new(…)`, a builtin the runtime lane still refuses as `pine:builtin`)
+    // that statement is the runtime lane's wall; blanking it alone left `note(a) =>` with a
+    // body of no statements, which the next door call refused as `runtime:function`
+    const src = [...FIXTURE_HEAD,
+      'arr = array.new_float(0)',   // the host lane refuses a collection; the runtime lane takes it
+      'array.push(arr, close)',
+      'note(a) =>',
+      '    ticker.new("NASDAQ", "AAPL")',
+      'note(close)',
+      'v = array.get(arr, 0)',
+      'plot(close + v)',
+    ].join(LF)
+    const row = underLane(true, () => census(src, 8, { rtOn: true }))
+    const walls = row.steps.map((st) => wallOfStep(st, true))
+    expect(walls[0], JSON.stringify(walls)).toBe('pine:builtin')
+    const rest = walls.filter(Boolean).slice(1)
+    for (const w of ['pine:statement', 'runtime:statement', 'runtime:function']) expect(rest, JSON.stringify(walls)).not.toContain(w)
+    expect(row.reachedAfterPeel).toBe(true)
+  })
+
+  it('an if whose branch is refused takes its else with it (no else without an if)', () => {
+    const src = [...FIXTURE_HEAD,
+      'arr = array.new_float(0)',   // the host lane refuses a collection; the runtime lane takes it
+      'array.push(arr, close)',
+      'if close > open',
+      '    ticker.new("NASDAQ", "AAPL")',
+      'else',
+      '    ticker.new("NYSE", "IBM")',
+      'v = array.get(arr, 0)',
+      'plot(close + v)',
+    ].join(LF)
+    const row = underLane(true, () => census(src, 8, { rtOn: true }))
+    const walls = row.steps.map((st) => wallOfStep(st, true))
+    expect(row.reachedAfterPeel, JSON.stringify(walls)).toBe(true)
+    // ONE peel removes the whole if/else: the else's own refused call is never a second wall
+    expect(row.peelSteps, JSON.stringify(walls)).toBe(1)
+  })
+})
+
+describe('W4 T0: the runtime probe asks the build the door asked (objects in the run)', () => {
+  // The door's value build refuses a drawing at `runtime:object-op`; the DRAWING build
+  // explains it. Here the drawing build's own refusal is `runtime:conditional-history`
+  // (a `ta.*` assigned in an `if`, read by `line.new`), and the host lane refused the
+  // unknown function first so the runtime lane was consulted.
+  const OBJECT_OP = [...FIXTURE_HEAD,
+    'var float lo = na',
+    'if close > open',
+    '    lo := ta.sma(close, 3)',
+    'ln = line.new(bar_index, lo, bar_index + 1, lo)',
+    'plot(math.nosuch(close))',
+  ].join(LF)
+
+  it('the probe agrees with the door and does not call a drawing wall runtime:object-op', () => {
+    const row = underLane(true, () => census(OBJECT_OP, 1, { rtOn: true }))
+    const st = row.steps[0]
+    expect(st.runtimeDeclined && st.runtimeDeclined.code, JSON.stringify(st.runtimeDeclined)).toBe('runtime:conditional-history')
+    expect(st.rtProbe.guard).toBe('runtime:conditional-history')
+    expect(st.rtProbe.agrees).toBe(true)
+  })
+})
+
 // ─── THE ENGINE'S OWN DECLARED FUNCTIONS, ASKED THROUGH THE PINE DOOR ──────
 // `doorCoverage.js`'s probe, unchanged (its header says why it asks rather than
 // greps). Written out so the coverage map can say which ENGINE functions the
@@ -412,5 +580,32 @@ describe.skipIf(!DOOR_OUT)('engine table through the Pine door (doorCoverage pro
       pine: r.pine && r.pine.status, guard: (r.pine && r.pine.guard) || null,
     })), null, 1)}${LF}`)
     expect(rows.length).toBe(Object.keys(TABLE.functions).length)
+  })
+})
+
+// ─── ⭐ W3W4-T0 — THE GUARD BEHIND A DROPPED OBJECT OP REACHES THE CENSUS ROW ──────────
+describe('W3W4-T0: dropHeads', () => {
+  it('cuts each why sentence to <op>@<line>: <guard>, with no message text', () => {
+    const heads = dropHeads({
+      guardRefusals: ['create@9: pine:state `acc`'],
+      createDropWhy: ['create line@12 slot x: pine:collection array never created', 'create label@3 t: no refusal recorded'],
+      cellTextWhy: ['cell@5: pine:text-value the text is a computed value'],
+    })
+    expect(heads).toEqual([
+      'create@9: pine:state `acc`', 'create:line@12: pine:collection', 'create:label@3: unrecorded', 'cell:text@5: pine:text-value',
+    ])
+    expect(heads.join(' ')).not.toMatch(/array never created|computed value/)
+    expect(dropHeads(undefined)).toEqual([])
+  })
+
+  it('a refused step with dropped ops carries counters and heads on its census row', () => {
+    const src = [...FIXTURE_HEAD, 'f() =>', '    var int n = 0', '    n += 1', '    n',
+      'if barstate.islast', '    label.new(bar_index, high, str.tostring(f()))'].join(LF)
+    const r = oneDoor(src, { runtimeDetail: false })
+    expect(typeof r.attemptedOps).toBe('number')
+    expect(Array.isArray(r.dropHeads)).toBe(true)
+    // consistent: every head names a guard, and a drop with reasons has the counter behind it
+    for (const h of r.dropHeads) expect(h).toMatch(/^[\w:.-]+@[\d?]+: \S+/)
+    if (Object.keys(r.dropReasons).length) expect(r.droppedOps).toBeGreaterThan(0)
   })
 })

@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import {
   STARTER_FORMULAS, checkFormula, evaluateFormula, formatComputedNumber,
 } from '../../lib/formula/computed'
@@ -18,12 +18,20 @@ import styles from './FormulaEditor.module.css'
  * `defs` is the member's property definitions (with `config` on formulas),
  * `previewProps` the open note's values by property id (null outside a note),
  * `selfId` the formula being edited (null while creating).
+ *
+ * S13 (audit 2026-11-05): it LEADS with "Start from a trader formula" -- R-multiple, Risk per share, Position size
+ * (and the rest of STARTER_FORMULAS), each a button that says in plain words what it works out and which fields it
+ * uses. The raw syntax (the braces box, its help and the insert buttons) sits behind "Write your own", open from the
+ * start only when the formula already is one of the member's own. The one status line stays in view either way.
  */
 export default function FormulaEditor({
   value, onChange, defs, previewProps = null, selfId = null, onStarter = null, onCreateMissing = null,
 }) {
   const id = useId()
   const textRef = useRef(null)
+  const starterNow = STARTER_FORMULAS.find((x) => x.expression === value.trim()) || null
+  // Open from the start for a formula of the member's own (anything already typed that is not a starter).
+  const [ownOpen, setOwnOpen] = useState(() => Boolean(value.trim()) && !starterNow)
   const usable = useMemo(
     () => (defs || []).filter((d) => (d.type === 'number' || d.type === 'formula') && d.id !== selfId
       && d.source !== 'financial_derived'),
@@ -66,7 +74,7 @@ export default function FormulaEditor({
 
   let status
   if (!value.trim()) {
-    status = <span>Type a formula, or start from a trader formula above.</span>
+    status = <span>Start from a trader formula above, or write your own.</span>
   } else if (!check.ok) {
     status = <span className={styles.error} data-formula-error={check.code}>{check.message}</span>
   } else if (preview) {
@@ -80,41 +88,52 @@ export default function FormulaEditor({
 
   return (
     <div className={styles.wrap}>
-      <label className={styles.label} htmlFor={`${id}-starter`}>Start from a trader formula</label>
-      <select id={`${id}-starter`} className={styles.select} value="" onChange={(e) => pickStarter(e.target.value)}>
-        <option value="">Choose…</option>
+      <fieldset className={styles.starters}>
+        <legend className={styles.label}>Start from a trader formula</legend>
         {STARTER_FORMULAS.map((s) => (
-          <option key={s.id} value={s.id}>{s.name}</option>
+          <button key={s.id} type="button" className={styles.starter} aria-pressed={starterNow?.id === s.id}
+            aria-describedby={`${id}-st-${s.id}`} data-formula-starter={s.id} onClick={() => pickStarter(s.id)}>
+            <span className={styles.starterName}>{s.name}</span>
+            <span id={`${id}-st-${s.id}`} className={styles.starterHint} aria-hidden="true">
+              {s.hint} Uses {s.needs.join(', ')}.
+            </span>
+          </button>
         ))}
-      </select>
+      </fieldset>
 
-      <label className={styles.label} htmlFor={`${id}-text`}>Formula</label>
-      <textarea
-        id={`${id}-text`}
-        ref={textRef}
-        className={styles.text}
-        value={value}
-        rows={3}
-        spellCheck={false}
-        onChange={(e) => onChange(e.target.value)}
-        aria-describedby={`${id}-help ${id}-status`}
-        placeholder="({Exit} - {Entry}) / ({Entry} - {Stop})"
-      />
-      <p id={`${id}-help`} className={styles.help}>
-        Put a number property in braces, like {'{Entry}'}. Use + - * / and ( ), and round(x, 2), abs, min, max,
-        and if(test, then, else) with &lt; &lt;= &gt; &gt;= = !=.
-      </p>
+      <button type="button" className={styles.ownToggle} aria-expanded={ownOpen} aria-controls={`${id}-own`}
+        onClick={() => setOwnOpen((o) => !o)}>
+        {ownOpen ? 'Hide the formula' : 'Write your own'}
+      </button>
+      <div id={`${id}-own`} className={styles.own} hidden={!ownOpen}>
+        <label className={styles.label} htmlFor={`${id}-text`}>Formula</label>
+        <textarea
+          id={`${id}-text`}
+          ref={textRef}
+          className={styles.text}
+          value={value}
+          rows={3}
+          spellCheck={false}
+          onChange={(e) => onChange(e.target.value)}
+          aria-describedby={`${id}-help ${id}-status`}
+          placeholder="({Exit} - {Entry}) / ({Entry} - {Stop})"
+        />
+        <p id={`${id}-help`} className={styles.help}>
+          Put a number property in braces, like {'{Entry}'}. Use + - * / and ( ), and round(x, 2), abs, min, max,
+          and if(test, then, else) with &lt; &lt;= &gt; &gt;= = !=.
+        </p>
 
-      {usable.length > 0 && (
-        <div className={styles.insertRow} role="group" aria-label="Insert a property">
-          {usable.map((d) => (
-            <button key={d.id} type="button" className={styles.insertBtn} onClick={() => insert(d.name)}
-              aria-label={`Insert ${d.name}`}>
-              {d.name}
-            </button>
-          ))}
-        </div>
-      )}
+        {usable.length > 0 && (
+          <div className={styles.insertRow} role="group" aria-label="Insert a property">
+            {usable.map((d) => (
+              <button key={d.id} type="button" className={styles.insertBtn} onClick={() => insert(d.name)}
+                aria-label={`Insert ${d.name}`}>
+                {d.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div id={`${id}-status`} className={styles.status} role="status" aria-live="polite">
         {status}

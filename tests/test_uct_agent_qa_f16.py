@@ -107,7 +107,13 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 #: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
 #: then report that very change.
 #: move this pin when a reviewed PR intentionally changes api/services/screener
-SCREENER_PIN = "ab52621501fa7261a8d8583a03dba15cd5568890"
+#: MOVED 2026-11-05 to be5fd05ea2, PR #857 (the Pine landing train): its reviewed W5-T14 (scans) and W5-T15 (backtest)
+#: lanes change backtest.py, scan_evaluator.py, scan_run.py and scan_runtime.py on purpose (reviews W5-T14 ab034f0d28,
+#: W5-T15 8550ef036b, train review 1eb3ba53e5). The pin is the merge commit that brought that reviewed change to master, and it also holds #834's ab52621501.
+#: MOVED 2026-11-06 to 3ca4b0d358, PR #869 (Pine W9 landing): its reviewed W9-T14a lane (review GO-WITH-NOTES, dsk/reviews/W9-T2.md)
+#: changes scan_evaluator.py and snapshot_builder.py on purpose (b6115e9b4d: one history window, bars_window.HISTORY_WINDOW_BARS;
+#: value still 5000, behaviour identical). The pin is the merge commit that brought it to master; it also holds be5fd05ea2.
+SCREENER_PIN = "3ca4b0d358232aaa8afc7f7b084361372740a3ca"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -156,7 +162,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/filters.py" in r.stdout.split()
+    assert "api/services/screener/scan_evaluator.py" in r.stdout.split()  # the file the pinned commit changed (W5-T14)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
