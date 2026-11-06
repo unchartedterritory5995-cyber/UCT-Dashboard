@@ -1,5 +1,9 @@
 NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
 
+FINAL-TIP r2 (full, tip d4edf778b6, shared heavy-final3.lock, runs/w34-d1/final5.log): gate=0 hyg=0 js=1 totals=ok errors=0 integrity=ok.
+READY-CHECK PASS (baseline-only jsfail). lookback_agreement.json was NOT rewritten this time (the earlier tree-changed run is unreproduced;
+the single test leaves it unchanged on this branch and on master 768816c654). Engine bump: NO (gate off = master's output).
+
 FIX r2 (re-review GO-WITH-NOTES):
 - Whole drawing history path is now behind the one gate (drawingHistoryServed in condHistory, from DRAWING_HISTORY_CAPTURED=false or the
   test-only opts.w3nD1ServeDrawingHistory). Gate off = the drawing build is master's, including a block local's [1]: master draws the
