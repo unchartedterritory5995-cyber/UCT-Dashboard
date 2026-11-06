@@ -1,0 +1,7 @@
+[
+ ["control-noop", "src/components/chart/engine/strategyBrokerGate.js", "export function strategyBrokerEnabled() {", "export function  strategyBrokerEnabled() {"],
+ ["drop-gate-reader-true", "src/components/chart/engine/strategyBrokerGate.js", "return import.meta.env.VITE_PINE_STRATEGY_BROKER_ENABLED === '1'", "return true"],
+ ["loosen-to-truthy", "src/components/chart/engine/strategyBrokerGate.js", "return import.meta.env.VITE_PINE_STRATEGY_BROKER_ENABLED === '1'", "return !!import.meta.env.VITE_PINE_STRATEGY_BROKER_ENABLED"],
+ ["register-true", "src/components/chart/builder/memberPane/memberPaneDefinition.js", "registerStrategyBrokerGate(strategyBrokerEnabled)", "registerStrategyBrokerGate(() => true)"],
+ ["registry-default-true", "src/components/chart/engine/strategyBrokerGateRegistry.js", "let reader = () => false", "let reader = () => true"]
+]

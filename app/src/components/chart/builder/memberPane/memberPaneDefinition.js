@@ -27,6 +27,10 @@ import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
+import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
+import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegistry'
+// W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
+registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
