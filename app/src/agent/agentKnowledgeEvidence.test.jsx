@@ -57,7 +57,7 @@ async function open() {
   const send = (v) => { fireEvent.change(box, { target: { value: v } }); fireEvent.keyDown(box, { key: 'Enter' }) }
   return { board, send }
 }
-const idle = () => waitFor(() => expect(document.body.textContent).not.toMatch(/is typing/), { timeout: 8000 })
+const idle = () => waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull(), { timeout: 8000 })
 
 describe('E-1: the browser half', () => {
   it('a deterministic fast-path chart command never sends a turn (no classifier on its path)', async () => {

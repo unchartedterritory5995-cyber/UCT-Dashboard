@@ -139,9 +139,13 @@ const TEXT_KIND_OF_CALL = Object.freeze({
   'input.string': 'string', 'input.text_area': 'text_area', 'input.session': 'session',
   'input.timeframe': 'timeframe', 'input.symbol': 'symbol',
 })
+// W4 T3: v1-v3 spelled the type with a bare word (`input("0930-1600", "S", type = session)`,
+// `type = resolution`, `type = string`); v4 renamed them `input.session` / `input.resolution` /
+// `input.string`. Same inputs, same values, so one table reads both spellings.
 const TEXT_KIND_OF_LEGACY_TYPE = Object.freeze({
   'input.string': 'string', 'input.resolution': 'timeframe', 'input.timeframe': 'timeframe',
   'input.session': 'session', 'input.symbol': 'symbol',
+  string: 'string', resolution: 'timeframe', session: 'session',
 })
 
 /** Which TEXT input this call is (`string`, `text_area`, `session`, `timeframe`, `symbol`),
@@ -293,6 +297,22 @@ function constTimeOf(v, lookup, depth) {
 
 const isLiteralNode = (v) => !!v && (v.type === 'string' || v.type === 'colour' || literalNumber(v) !== null)
 
+/** W4 T3: the names a TUPLE statement binds (`[a, b] = f()`), and the operator that follows the
+ *  closing bracket; `null` when the statement is not a tuple. (`[a, b] := f()` is refused by name
+ *  by the front end, `runtime:tuple`, so nothing reads it as a write here.) Every identifier between the brackets counts (a type word too: over-counting only makes
+ *  a `var` less likely to be called constant, never more). */
+function tupleTargetsOf(toks) {
+  if (!toks || !toks[0] || !isPunct(toks[0], '[')) return null
+  const names = []
+  let close = -1
+  for (let k = 1; k < toks.length; k += 1) {
+    if (isPunct(toks[k], ']')) { close = k; break }
+    if (toks[k].kind === 'ident') names.push(toks[k].value)
+  }
+  if (close < 0 || !toks[close + 1] || toks[close + 1].kind !== 'punct') return null
+  return { names, op: toks[close + 1].value }
+}
+
 /** Every name a `:=` or a compound assignment (`+=` …) writes, anywhere in the script. */
 function scanReassigned(stmts) {
   const out = new Set()
@@ -328,6 +348,10 @@ export function constantVarsOf(stmts) {
       const toks = st.header || []
       const eq = findTop(toks, (t) => isPunct(t, '='))
       const nameTok = eq > 0 ? boundName(toks, eq) : null
+      // W4 T3: `[a, b] = f()` binds `a` and `b` (a second binding of a name, in any block, means
+      // the name is not one constant): count each, exactly as a plain `a = …` is counted
+      const tup = tupleTargetsOf(toks)
+      if (tup && tup.op === '=') for (const n of tup.names) count.set(n, (count.get(n) || 0) + 1)
       if (nameTok) {
         count.set(nameTok.value, (count.get(nameTok.value) || 0) + 1)
         if (top && toks[0] && toks[0].kind === 'ident' && toks[0].value === 'var') {

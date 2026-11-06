@@ -1,0 +1,1885 @@
+{
+ "capabilityMatrix": {
+  "compound-assign": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "renko-candles-overlay-rddt-1d-2026-10-03"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "deadband-hysteresis-filter-backquant",
+    "r1-strategy-draws-indicator",
+    "renko-candles-overlay"
+   ]
+  },
+  "conditional-ta": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "divergent",
+   "runtimeMatchCaptures": [
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "renko-candles-overlay-rddt-1d-2026-10-03"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "deadband-hysteresis-filter-backquant",
+    "fibonacci-dolphintradebot",
+    "renko-candles-overlay"
+   ]
+  },
+  "fn-multi": {
+   "alsoInADivergingScript": [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+   ],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "h3-alma-v4-rddt-1d-2026-10-02",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "deadband-hysteresis-filter-backquant",
+    "delta-rsi-oscillator-strategy",
+    "fibonacci-dolphintradebot",
+    "h3-alma-v4",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+    "kalman-price-filter-backquant",
+    "renko-candles-overlay",
+    "vw-h4-loops",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "fn-single": {
+   "alsoInADivergingScript": [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+   ],
+   "isolating": [
+    "vw-clock-close-tfchange"
+   ],
+   "isolatingCaptures": [
+    "vw-clock-close-tfchange-spy-1d-2026-09-28"
+   ],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "h3-alma-v4-rddt-1d-2026-10-02",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-clock-close-tfchange-spy-1d-2026-09-28",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "deadband-hysteresis-filter-backquant",
+    "delta-rsi-oscillator-strategy",
+    "fibonacci-dolphintradebot",
+    "h3-alma-v4",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+    "kalman-price-filter-backquant",
+    "renko-candles-overlay",
+    "vw-clock-close-tfchange",
+    "vw-h4-loops",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "for": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "h3-alma-v4-rddt-1d-2026-10-02",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "delta-rsi-oscillator-strategy",
+    "h3-alma-v4",
+    "kalman-price-filter-backquant",
+    "renko-candles-overlay",
+    "vw-h4-loops",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "history-expr": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "delta-rsi-oscillator-strategy",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "if-block": {
+   "alsoInADivergingScript": [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+   ],
+   "isolating": [
+    "parabolic-sar"
+   ],
+   "isolatingCaptures": [
+    "parabolic-sar-rddt-1d-2026-10-03"
+   ],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "parabolic-sar-rddt-1d-2026-10-03",
+    "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "deadband-hysteresis-filter-backquant",
+    "delta-rsi-oscillator-strategy",
+    "fibonacci-dolphintradebot",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+    "kalman-price-filter-backquant",
+    "parabolic-sar",
+    "r1-strategy-draws-indicator",
+    "renko-candles-overlay",
+    "vw-h4-loops",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "max_bars_back": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "renko-candles-overlay-rddt-1d-2026-10-03"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "fibonacci-dolphintradebot",
+    "renko-candles-overlay"
+   ]
+  },
+  "reassign": {
+   "alsoInADivergingScript": [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+   ],
+   "isolating": [
+    "adx-and-di-for-v4"
+   ],
+   "isolatingCaptures": [
+    "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "adx-and-di-for-v4-spy-1d-2026-10-03"
+   ],
+   "registry": "conformant",
+   "runtimeMatchCaptures": [
+    "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "h3-alma-v4-rddt-1d-2026-10-02",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "parabolic-sar-rddt-1d-2026-10-03",
+    "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "vw-var-seed-spy-1d-2026-09-28",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "adx-and-di-for-v4",
+    "deadband-hysteresis-filter-backquant",
+    "delta-rsi-oscillator-strategy",
+    "fibonacci-dolphintradebot",
+    "h3-alma-v4",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+    "kalman-price-filter-backquant",
+    "parabolic-sar",
+    "r1-strategy-draws-indicator",
+    "renko-candles-overlay",
+    "vw-h4-loops",
+    "vw-var-seed",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "switch": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "fibonacci-dolphintradebot"
+   ]
+  },
+  "ternary": {
+   "alsoInADivergingScript": [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+   ],
+   "isolating": [
+    "adx-and-di-for-v4"
+   ],
+   "isolatingCaptures": [
+    "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "adx-and-di-for-v4-spy-1d-2026-10-03"
+   ],
+   "registry": "conformant",
+   "runtimeMatchCaptures": [
+    "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "h3-alma-v4-rddt-1d-2026-10-02",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "parabolic-sar-rddt-1d-2026-10-03",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-clock-close-tfchange-spy-1d-2026-09-28",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "vw-var-seed-spy-1d-2026-09-28",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "adx-and-di-for-v4",
+    "deadband-hysteresis-filter-backquant",
+    "delta-rsi-oscillator-strategy",
+    "fibonacci-dolphintradebot",
+    "h3-alma-v4",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+    "kalman-price-filter-backquant",
+    "parabolic-sar",
+    "renko-candles-overlay",
+    "vw-clock-close-tfchange",
+    "vw-h4-loops",
+    "vw-var-seed",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "tuple-destructure": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "delta-rsi-oscillator-strategy"
+   ]
+  },
+  "typed-array": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "kalman-price-filter-backquant",
+    "vw-h4-loops"
+   ]
+  },
+  "var": {
+   "alsoInADivergingScript": [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+   ],
+   "isolating": [
+    "vw-var-seed"
+   ],
+   "isolatingCaptures": [
+    "vw-var-seed-spy-1d-2026-09-28"
+   ],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "vw-h4-loops-rddt-1d-2026-10-03",
+    "vw-h4-loops-spy-1d-2026-10-03",
+    "vw-var-seed-spy-1d-2026-09-28",
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "deadband-hysteresis-filter-backquant",
+    "delta-rsi-oscillator-strategy",
+    "fibonacci-dolphintradebot",
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+    "kalman-price-filter-backquant",
+    "r1-strategy-draws-indicator",
+    "renko-candles-overlay",
+    "vw-h4-loops",
+    "vw-var-seed",
+    "wyckoff-accumulation-distribution"
+   ]
+  },
+  "while": {
+   "alsoInADivergingScript": [],
+   "isolating": [],
+   "isolatingCaptures": [],
+   "registry": "no row",
+   "runtimeMatchCaptures": [
+    "renko-candles-overlay-rddt-1d-2026-10-03"
+   ],
+   "usedByRuntimeMatchScripts": [
+    "renko-candles-overlay"
+   ]
+  }
+ },
+ "generatedBy": "docs/pine/evidence/w2-arming-2026-11-02/candidates.py",
+ "inputs": {
+  "admission": "api/services/rollout_gate.py::pine_runtime_admission (lifted by AST)",
+  "census": "tools/pine_coverage/coverage_map.py::FEATURES",
+  "laneDiff": "docs/pine/evidence/w2-arming-2026-11-02/harness-lane-diff.json",
+  "registry": "api/data/pine_runtime_allowlist.json (capabilities{})"
+ },
+ "measurementInputs": {
+  "probe": "probe-x4.json",
+  "probeX4": "probe-x4.json",
+  "readiness": "readiness.json"
+ },
+ "probeRuns": {
+  "desktop": {
+   "file": "probe-x4.json",
+   "instrumentControl": {
+    "frames": 14,
+    "longTasks": 0,
+    "longestTaskMs": 0,
+    "maxFrameGapMs": 399.90000000000003
+   },
+   "options": {
+    "checkpoint": 20,
+    "cpuThrottle": 4.0,
+    "lengths": [
+     "D 5000"
+    ],
+    "runs": 11,
+    "slugs": [],
+    "symbol": "AAPL:NASDAQ"
+   },
+   "verdict": "OFF-MAIN-THREAD",
+   "workerBytes": 1142621,
+   "worstMainFrameGapMs": 16.800000000017462
+  },
+  "x4": {
+   "file": "probe-x4.json",
+   "instrumentControl": {
+    "busyMs": 256.4,
+    "ratio": 6.88,
+    "throttledBusyMs": 1763
+   },
+   "options": {
+    "checkpoint": 20,
+    "cpuThrottle": 4.0,
+    "lengths": [
+     "D 5000"
+    ],
+    "runs": 11,
+    "slugs": [],
+    "symbol": "AAPL:NASDAQ"
+   },
+   "verdict": "MEASURED",
+   "workerBytes": 1142621,
+   "worstMainFrameGapMs": null
+  }
+ },
+ "registry": {
+  "conditional-ta": "divergent",
+  "reassign": "conformant",
+  "ternary": "conformant"
+ },
+ "runtimeLaneDivergeOnlyScripts": [
+  {
+   "capabilities": [
+    "compound-assign",
+    "conditional-ta",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "compound-assign",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "tuple-destructure",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+     "reason": "1 of 7 compared items diverge",
+     "runtimeOn": "DIVERGE"
+    }
+   ],
+   "divergentCapabilities": [
+    "conditional-ta"
+   ],
+   "sha256": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
+   "slug": "trend-targets-algoalpha",
+   "source": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine"
+  },
+  {
+   "capabilities": [
+    "compound-assign",
+    "if-block",
+    "reassign",
+    "strategy-decl",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "compound-assign",
+    "if-block",
+    "strategy-decl",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "r1-strategy-draws-rddt-1d-2026-10-02",
+     "reason": "4 of 6 compared items diverge",
+     "runtimeOn": "DIVERGE"
+    }
+   ],
+   "divergentCapabilities": [],
+   "sha256": "a3c39dcfa9213b6819b9321c7ba2d714fc3fc5f625d7a70369625e94e302d96f",
+   "slug": "r1-strategy-draws",
+   "source": "tools/visual_conformance/probes/r1-strategy-draws.pine"
+  },
+  {
+   "capabilities": [
+    "compound-assign",
+    "conditional-ta",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "compound-assign",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "vw-deadband-ticks-brk-a-1d-2026-09-28",
+     "reason": "1 of 7 compared items diverge",
+     "runtimeOn": "DIVERGE"
+    }
+   ],
+   "divergentCapabilities": [
+    "conditional-ta"
+   ],
+   "sha256": "e915aecdda6a0fd7ca59871ef367dc22f3ae29baa3bed35d2373f4c7173c5461",
+   "slug": "vw-deadband-ticks",
+   "source": "tools/visual_conformance/probes/vw-deadband-ticks.pine"
+  }
+ ],
+ "runtimeLaneMatchScripts": [
+  {
+   "capabilities": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "tuple-destructure",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "delta-rsi-oscillator-strategy-spy-1d-2026-10-02",
+     "lane": "other",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "INCONCLUSIVE"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "coldMs": 1030.1,
+      "n": 10,
+      "p50Ms": 1018.9,
+      "p95Ms": 1038.4,
+      "withinBudget": false
+     },
+     "b5Tick": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "fullAnswer": "runtime:time-budget",
+      "fullMs": 1024,
+      "tickMaxMs": 1034.2,
+      "tickP50Ms": 1020.5,
+      "tickP95Ms": 1034,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "coldMs": 1253,
+      "n": 10,
+      "p50Ms": 1169.7,
+      "p95Ms": 1262.6,
+      "withinBudget": false
+     },
+     "b5Tick": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "fullAnswer": "runtime:time-budget",
+      "fullMs": 1079.8,
+      "tickMaxMs": 1161.5,
+      "tickP50Ms": 1087.4,
+      "tickP95Ms": 1156.5,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `for` is not in the conformance registry (R1)",
+    "capability `history-expr` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `tuple-destructure` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [
+     {
+      "length": "D 5000",
+      "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1054 of 5000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it.",
+      "stopped": "runtime:time-budget"
+     },
+     {
+      "length": "D 11534",
+      "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1039 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it.",
+      "stopped": "runtime:time-budget"
+     },
+     {
+      "length": "5m 20208",
+      "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 887 of 20208), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it.",
+      "stopped": "runtime:time-budget"
+     },
+     {
+      "length": "5m 32000",
+      "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 629 of 32000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it.",
+      "stopped": "runtime:time-budget"
+     }
+    ],
+    "doorWarmMedianMs": 64.9,
+    "runs": [
+     {
+      "error": "runtime:limit",
+      "length": "D 5000",
+      "maxMs": 3547.1,
+      "medianMs": 3484.9
+     },
+     {
+      "error": "runtime:limit",
+      "length": "D 11534",
+      "maxMs": 3671.2,
+      "medianMs": 3012.8
+     },
+     {
+      "error": "runtime:limit",
+      "length": "5m 20208",
+      "maxMs": 4733,
+      "medianMs": 2890.7
+     },
+     {
+      "error": "runtime:limit",
+      "length": "5m 32000",
+      "maxMs": 3041.3,
+      "medianMs": 3016.7
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c",
+   "slug": "delta-rsi-oscillator-strategy",
+   "source": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine"
+  },
+  {
+   "capabilities": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 198.9,
+      "n": 10,
+      "p50Ms": 7.4,
+      "p95Ms": 12.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 182.9,
+      "tickMaxMs": 19.7,
+      "tickP50Ms": 13.4,
+      "tickP95Ms": 19.1,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 543.6,
+      "n": 10,
+      "p50Ms": 15,
+      "p95Ms": 28.6,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 746,
+      "tickMaxMs": 19.9,
+      "tickP50Ms": 13.7,
+      "tickP95Ms": 19.1,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `for` is not in the conformance registry (R1)",
+    "capability `history-expr` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 206.5,
+    "runs": [
+     {
+      "error": null,
+      "length": "D 5000",
+      "maxMs": 402.6,
+      "medianMs": 8.2
+     },
+     {
+      "error": null,
+      "length": "D 11534",
+      "maxMs": 9,
+      "medianMs": 7.2
+     },
+     {
+      "error": null,
+      "length": "5m 20208",
+      "maxMs": 363.9,
+      "medianMs": 8.3
+     },
+     {
+      "error": null,
+      "length": "5m 32000",
+      "maxMs": 7.6,
+      "medianMs": 7.3
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 2,
+   "sha256": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
+   "slug": "wyckoff-accumulation-distribution",
+   "source": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine"
+  },
+  {
+   "capabilities": [
+    "compound-assign",
+    "conditional-ta",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "compound-assign",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [
+    "conditional-ta"
+   ],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 47.7,
+      "n": 10,
+      "p50Ms": 6,
+      "p95Ms": 9.8,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 37.7,
+      "tickMaxMs": 10,
+      "tickP50Ms": 6.4,
+      "tickP95Ms": 9.4,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 622,
+      "n": 10,
+      "p50Ms": 19.5,
+      "p95Ms": 37,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 163.7,
+      "tickMaxMs": 23.7,
+      "tickP50Ms": 10,
+      "tickP95Ms": 18.5,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `compound-assign` is not in the conformance registry (R1)",
+    "capability `conditional-ta` is divergent, not conformant (R1)",
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 46.5,
+    "runs": [
+     {
+      "error": "interpret:bind-time-text",
+      "length": "D 5000",
+      "maxMs": 13.9,
+      "medianMs": 11.6
+     },
+     {
+      "error": "interpret:bind-time-text",
+      "length": "D 11534",
+      "maxMs": 29.2,
+      "medianMs": 18.7
+     },
+     {
+      "error": "interpret:bind-time-text",
+      "length": "5m 20208",
+      "maxMs": 31.3,
+      "medianMs": 30.6
+     },
+     {
+      "error": "interpret:bind-time-text",
+      "length": "5m 32000",
+      "maxMs": 41.1,
+      "medianMs": 39.2
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "3facc3fa0e36027e8eb35cd7995f68f2c65dd79a6b2bca4dbd1cdc5498aa7d88",
+   "slug": "deadband-hysteresis-filter-backquant",
+   "source": "corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine"
+  },
+  {
+   "capabilities": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "reassign",
+    "ternary"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "for"
+   ],
+   "captures": [
+    {
+     "id": "h3-alma-v4-rddt-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "h3-alma-v4-spy-1d-2026-10-02",
+     "lane": "other",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "INCONCLUSIVE"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "probe",
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `for` is not in the conformance registry (R1)"
+   ],
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "45d5e3bf190268627dfa382892eb606c826cf08d80042f78a2168f14ea1be932",
+   "slug": "h3-alma-v4",
+   "source": "tools/visual_conformance/probes/h3-alma-v4.pine"
+  },
+  {
+   "capabilities": [
+    "reassign",
+    "ternary",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "vw-var-seed-spy-1d-2026-09-28",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "probe",
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "49d049853e7b42bcdcd0ca07849ecab70dc020906b03490155ed1e67f96c9c5b",
+   "slug": "vw-var-seed",
+   "source": "tools/visual_conformance/probes/vw-var-seed.pine"
+  },
+  {
+   "capabilities": [
+    "compound-assign",
+    "if-block",
+    "reassign",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "compound-assign",
+    "if-block",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "probe",
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `compound-assign` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "95d821c406522d8c3b281d9ed74014990a05451e2dd3b210d7b86c000e146455",
+   "slug": "r1-strategy-draws-indicator",
+   "source": "tools/visual_conformance/probes/r1-strategy-draws-indicator.pine"
+  },
+  {
+   "capabilities": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "typed-array",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "vw-h4-loops-rddt-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "vw-h4-loops-spy-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "probe",
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `for` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `typed-array` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 2,
+   "sha256": "a71ce64d299dac7b39c1a3119c028178dba24b53ebdc142edfa010689afe103c",
+   "slug": "vw-h4-loops",
+   "source": "tools/visual_conformance/probes/vw-h4-loops.pine"
+  },
+  {
+   "capabilities": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "typed-array",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 92.9,
+      "n": 10,
+      "p50Ms": 5.2,
+      "p95Ms": 16.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 230.2,
+      "tickMaxMs": 11.2,
+      "tickP50Ms": 6.7,
+      "tickP95Ms": 10.9,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 617.2,
+      "n": 10,
+      "p50Ms": 13.3,
+      "p95Ms": 28.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 547.2,
+      "tickMaxMs": 11.4,
+      "tickP50Ms": 8.4,
+      "tickP95Ms": 9.9,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `for` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `typed-array` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 14.4,
+    "runs": [
+     {
+      "error": null,
+      "length": "D 5000",
+      "maxMs": 79.1,
+      "medianMs": 1.3
+     },
+     {
+      "error": null,
+      "length": "D 11534",
+      "maxMs": 162.2,
+      "medianMs": 3.4
+     },
+     {
+      "error": null,
+      "length": "5m 20208",
+      "maxMs": 323.1,
+      "medianMs": 4.8
+     },
+     {
+      "error": null,
+      "length": "5m 32000",
+      "maxMs": 698.3,
+      "medianMs": 15.1
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "a876da5957144370c4ae53783d8f3598bca07da60967717ea5b9241f63d5aacc",
+   "slug": "kalman-price-filter-backquant",
+   "source": "corpus/committed/kalman-price-filter-backquant__47a601e4bc.pine"
+  },
+  {
+   "capabilities": [
+    "fn-single",
+    "ternary"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-single"
+   ],
+   "captures": [
+    {
+     "id": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "vw-clock-close-tfchange-spy-1w-2026-09-28",
+     "lane": "other",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "INCONCLUSIVE"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "probe",
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-single` is not in the conformance registry (R1)"
+   ],
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "acd5b581dbee4734ddb940d19a749b7021d091b11e07791ac48bf1713fc44ff7",
+   "slug": "vw-clock-close-tfchange",
+   "source": "tools/visual_conformance/probes/vw-clock-close-tfchange.pine"
+  },
+  {
+   "capabilities": [
+    "compound-assign",
+    "conditional-ta",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "reassign",
+    "ternary",
+    "var",
+    "while"
+   ],
+   "capabilitiesWithoutARow": [
+    "compound-assign",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "var",
+    "while"
+   ],
+   "captures": [
+    {
+     "id": "renko-candles-overlay-rddt-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "renko-candles-overlay-spy-1d-2026-10-03",
+     "lane": "other",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "INCONCLUSIVE"
+    }
+   ],
+   "divergentCapabilities": [
+    "conditional-ta"
+   ],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 160.3,
+      "n": 10,
+      "p50Ms": 12.1,
+      "p95Ms": 20.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 410.4,
+      "tickMaxMs": 114.5,
+      "tickP50Ms": 38.8,
+      "tickP95Ms": 54.6,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 556.8,
+      "n": 10,
+      "p50Ms": 26.8,
+      "p95Ms": 32.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 654.7,
+      "tickMaxMs": 77.2,
+      "tickP50Ms": 39.7,
+      "tickP95Ms": 69.4,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `compound-assign` is not in the conformance registry (R1)",
+    "capability `conditional-ta` is divergent, not conformant (R1)",
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `for` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `max_bars_back` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)",
+    "capability `while` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 272.1,
+    "runs": [
+     {
+      "error": "interpret:bind-time-text",
+      "length": "D 5000",
+      "maxMs": 20.3,
+      "medianMs": 19.5
+     },
+     {
+      "error": "interpret:bind-time-text",
+      "length": "D 11534",
+      "maxMs": 27.5,
+      "medianMs": 27.5
+     },
+     {
+      "error": "interpret:bind-time-text",
+      "length": "5m 20208",
+      "maxMs": 37.6,
+      "medianMs": 32.6
+     },
+     {
+      "error": "interpret:bind-time-text",
+      "length": "5m 32000",
+      "maxMs": 45.3,
+      "medianMs": 39.1
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "b41903eaef3cdd27e29411a6d1a102ab8927e22b474e459b3086b4dab3b1da40",
+   "slug": "renko-candles-overlay",
+   "source": "corpus/committed/renko-candles-overlay__d76a18d49e.pine"
+  },
+  {
+   "capabilities": [
+    "conditional-ta",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "reassign",
+    "switch",
+    "ternary",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "switch",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [
+    "conditional-ta"
+   ],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 274.7,
+      "n": 10,
+      "p50Ms": 12.2,
+      "p95Ms": 17.4,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 123.3,
+      "tickMaxMs": 19.5,
+      "tickP50Ms": 11.4,
+      "tickP95Ms": 15.5,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok",
+       "runtime:time-budget"
+      ],
+      "coldMs": 2199.7,
+      "n": 10,
+      "p50Ms": 81.8,
+      "p95Ms": 1856.3,
+      "withinBudget": false
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "runtime:time-budget",
+      "fullMs": 1617.5,
+      "tickMaxMs": 679.3,
+      "tickP50Ms": 42.2,
+      "tickP95Ms": 68.1,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `conditional-ta` is divergent, not conformant (R1)",
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `max_bars_back` is not in the conformance registry (R1)",
+    "capability `switch` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [
+     {
+      "length": "D 5000",
+      "stopped": null
+     },
+     {
+      "length": "D 11534",
+      "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 4656 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it.",
+      "stopped": "runtime:time-budget"
+     },
+     {
+      "length": "5m 20208",
+      "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 3103 of 20208), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it.",
+      "stopped": "runtime:time-budget"
+     },
+     {
+      "length": "5m 32000",
+      "stopped": null
+     }
+    ],
+    "doorWarmMedianMs": 839.7,
+    "runs": [
+     {
+      "error": null,
+      "length": "D 5000",
+      "maxMs": 1183.8,
+      "medianMs": 77.6
+     },
+     {
+      "error": null,
+      "length": "D 11534",
+      "maxMs": 2290.4,
+      "medianMs": 128.8
+     },
+     {
+      "error": null,
+      "length": "5m 20208",
+      "maxMs": 3172.1,
+      "medianMs": 149.4
+     },
+     {
+      "error": null,
+      "length": "5m 32000",
+      "maxMs": 4987.5,
+      "medianMs": 301.6
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 2,
+   "sha256": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
+   "slug": "fibonacci-dolphintradebot",
+   "source": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine"
+  },
+  {
+   "capabilities": [
+    "reassign",
+    "ternary"
+   ],
+   "capabilitiesWithoutARow": [],
+   "captures": [
+    {
+     "id": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "adx-and-di-for-v4-spy-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 154.7,
+      "n": 10,
+      "p50Ms": 10.8,
+      "p95Ms": 33.1,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 43.5,
+      "tickMaxMs": 36.3,
+      "tickP50Ms": 11.7,
+      "tickP95Ms": 19.4,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 361.8,
+      "n": 10,
+      "p50Ms": 40.2,
+      "p95Ms": 48.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 166.4,
+      "tickMaxMs": 57.8,
+      "tickP50Ms": 24.3,
+      "tickP95Ms": 52.3,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": true,
+   "r1Reasons": [],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 22.5,
+    "runs": [
+     {
+      "error": null,
+      "length": "D 5000",
+      "maxMs": 114,
+      "medianMs": 21.1
+     },
+     {
+      "error": null,
+      "length": "D 11534",
+      "maxMs": 129.4,
+      "medianMs": 35.1
+     },
+     {
+      "error": null,
+      "length": "5m 20208",
+      "maxMs": 130.6,
+      "medianMs": 48.6
+     },
+     {
+      "error": null,
+      "length": "5m 32000",
+      "maxMs": 228.2,
+      "medianMs": 62.2
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 2,
+   "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+   "slug": "adx-and-di-for-v4",
+   "source": "corpus/committed/adx-and-di-for-v4__932.pine"
+  },
+  {
+   "capabilities": [
+    "if-block",
+    "reassign",
+    "ternary"
+   ],
+   "capabilitiesWithoutARow": [
+    "if-block"
+   ],
+   "captures": [
+    {
+     "id": "parabolic-sar-rddt-1d-2026-10-03",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 41.9,
+      "n": 10,
+      "p50Ms": 9.9,
+      "p95Ms": 19.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 77.8,
+      "tickMaxMs": 71,
+      "tickP50Ms": 25.7,
+      "tickP95Ms": 63.5,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 149.6,
+      "n": 10,
+      "p50Ms": 40.7,
+      "p95Ms": 67.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 140.8,
+      "tickMaxMs": 79,
+      "tickP50Ms": 40.9,
+      "tickP95Ms": 77.3,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `if-block` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 109,
+    "runs": [
+     {
+      "error": null,
+      "length": "D 5000",
+      "maxMs": 74.4,
+      "medianMs": 59.9
+     },
+     {
+      "error": null,
+      "length": "D 11534",
+      "maxMs": 144.3,
+      "medianMs": 82.3
+     },
+     {
+      "error": null,
+      "length": "5m 20208",
+      "maxMs": 268.3,
+      "medianMs": 134.8
+     },
+     {
+      "error": null,
+      "length": "5m 32000",
+      "maxMs": 369.6,
+      "medianMs": 284.3
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 0,
+   "runtimeMatchCaptures": 1,
+   "sha256": "d9f41d606251ebc06a80fad1ffa7aa048245e065fcc65e2f1d04142217d3287b",
+   "slug": "parabolic-sar",
+   "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine"
+  },
+  {
+   "capabilities": [
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ],
+   "capabilitiesWithoutARow": [
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "var"
+   ],
+   "captures": [
+    {
+     "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+     "lane": "runtime-MATCH",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "MATCH"
+    },
+    {
+     "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+     "lane": "runtime-DIVERGE",
+     "production": "INCONCLUSIVE",
+     "runtimeOn": "DIVERGE"
+    }
+   ],
+   "divergentCapabilities": [],
+   "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 38.8,
+      "n": 10,
+      "p50Ms": 7.5,
+      "p95Ms": 10.7,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 48,
+      "tickMaxMs": 15.9,
+      "tickP50Ms": 9.5,
+      "tickP95Ms": 13.7,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 230.1,
+      "n": 10,
+      "p50Ms": 31.9,
+      "p95Ms": 78.1,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 111.2,
+      "tickMaxMs": 49.3,
+      "tickP50Ms": 21.3,
+      "tickP95Ms": 34.4,
+      "ticks": 20
+     }
+    }
+   },
+   "r1Clean": false,
+   "r1Reasons": [
+    "capability `fn-multi` is not in the conformance registry (R1)",
+    "capability `fn-single` is not in the conformance registry (R1)",
+    "capability `if-block` is not in the conformance registry (R1)",
+    "capability `var` is not in the conformance registry (R1)"
+   ],
+   "readiness": {
+    "budget": [],
+    "doorWarmMedianMs": 11.1,
+    "runs": [
+     {
+      "error": null,
+      "length": "D 5000",
+      "maxMs": 31.9,
+      "medianMs": 5.4
+     },
+     {
+      "error": null,
+      "length": "D 11534",
+      "maxMs": 49.4,
+      "medianMs": 10.4
+     },
+     {
+      "error": null,
+      "length": "5m 20208",
+      "maxMs": 105.6,
+      "medianMs": 18.8
+     },
+     {
+      "error": null,
+      "length": "5m 32000",
+      "maxMs": 103.8,
+      "medianMs": 29.6
+     }
+    ]
+   },
+   "runtimeDivergeCaptures": 1,
+   "runtimeMatchCaptures": 1,
+   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+   "slug": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+   "source": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine"
+  }
+ ]
+}

@@ -27,7 +27,7 @@ export default function IndicatorHistoryButtons({ surfaceKey, userId = null, cs,
     setNote(r.ok ? null : r.reason === 'changed-since' ? "Can't undo: the indicator changed since." : null)
   }
   return (
-    <span className={styles.group} data-testid="indicator-history-buttons">
+    <span className={styles.group} data-testid="indicator-history-buttons" data-guide="indicators.history">
       <button type="button" className={styles.btn} disabled={!last}
         aria-label={last ? `Undo: ${last.label}` : 'Nothing to undo'} title={last ? `Undo: ${last.label}` : 'Nothing to undo'}
         onClick={() => run(undoIndicatorChange)}>↶</button>

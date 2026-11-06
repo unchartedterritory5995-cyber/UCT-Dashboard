@@ -100,6 +100,28 @@ describe('ImportWizard — the report of what was kept, not copied, or not conne
     expect(screen.getByText(/Imported 1 note\./)).toBeInTheDocument()
   })
 
+  // ⛔ Audit 2026-11-05, spec S5 (B9): the breakdown said "Unfiled" for notes imported into a folder
+  // the member CHOSE -- it labelled each note by its own source folder, ignoring the destination.
+  it('a chosen destination folder is named in the breakdown, never "Unfiled"', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [{ id: 'f9', name: 'Swing ideas', parentId: null }] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify({ candidates: [], scanned: 0 }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    runImport.mockResolvedValue(RESULT())
+    await toPreview()
+    const select = await screen.findByRole('combobox', { name: /folder/i })
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'Swing ideas' })).toBeInTheDocument())
+    fireEvent.change(select, { target: { value: 'f9' } })
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+    expect(runImport).toHaveBeenCalledWith(expect.objectContaining({ destFolderId: 'f9' }))
+    expect(screen.getByRole('row', { name: /^Swing ideas/ })).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /^Unfiled/i })).toBeNull()
+  })
+
   it('a note that arrived with a file that did not come over counts under Needs attention', async () => {
     // Live audit 2026-11-03, F3: an Obsidian note whose `![[ov-gone.png]]` is not in the zip
     // arrives with a not-found notice. The folder table said Needs attention "—" while the

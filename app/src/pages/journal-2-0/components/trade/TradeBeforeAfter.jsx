@@ -23,13 +23,13 @@ import lazyChunk from '../../lib/lazyChunk'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { buildTradeMarkers } from './tradePageModel'
 import styles from './TradeBeforeAfter.module.css'
+import { planRoleColor } from '../../lib/planColors'
 
 const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/ChartPane'))
 
 export const VISUAL_PLAYBOOK_FLAG = 'notebook_visual_playbook_enabled'
 export const beforeAfterEnabled = () => notebookFlag(VISUAL_PLAYBOOK_FLAG) === true
 
-const PLAN_COLORS = { entry: '#dcbb5e', stop: '#ef4444', target: '#22c55e' }
 const PLAN_TITLES = { entry: 'Plan entry', stop: 'Plan stop', target: 'Plan target' }
 
 async function getJson(url) {
@@ -48,7 +48,7 @@ export function planPriceLines(plan) {
   for (const role of ['entry', 'stop', 'target']) {
     const v = Number(plan?.[role])
     if (Number.isFinite(v) && v > 0) {
-      out.push({ price: v, color: PLAN_COLORS[role], lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: PLAN_TITLES[role] })
+      out.push({ price: v, color: planRoleColor(role), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: PLAN_TITLES[role] })
     }
   }
   return out

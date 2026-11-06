@@ -7,11 +7,14 @@
 // SITE: only the bars on which the call ran) reached past it:
 //
 //   1. A `ta.*` in ONE ARM OF `?:` (or on the right of v6's `and` / `or`). Pine
-//      runs only the arm it takes; this lane evaluates both on every bar. The
+//      runs only the arm it takes; this lane evaluated both on every bar. The
 //      witness is `vw-arm-history-rddt-1d-2026-10-02`: T03 `up ? ta.sma(close,
 //      5) : close` and K03 `even ? ta.change(close) : na` count RUNS. Refused by
 //      name, unless the test reads nothing per-bar (an input, a literal, the
-//      chart's own timeframe or symbol text).
+//      chart's own timeframe or symbol text). ⭐ W4 T4: the witnessed Pine v6 half
+//      is now SERVED (`w4ArmHistory.test.js`, `vendorHarness.w4ArmHistory`); the
+//      same rows in Pine v5, whose lazy `?:` is documented but not captured
+//      (Q-PT1), keep the refusal and are what section 1 pins below.
 //   2. A `ta.*` whose HEAD rewrites to offsets over a chart series (`ta.mom`,
 //      `ta.roc`, `ta.swma`) in a block. `statefulTree` called them pure, so they
 //      were every-bar columns; Pine's `ta.change` there is the previous RUN's
@@ -73,7 +76,8 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
     expect(diffT).toBeGreaterThan(150)
     expect(diffK).toBeGreaterThan(250)
   })
-  it('the probe\'s own rows are refused by name, on the column route and the slot route', () => {
+  it('the probe\'s own rows in Pine v5 (not captured, Q-PT1) are refused by name, on the column route and the slot route', () => {
+    const v5 = (body) => `//@version=5\nindicator("t")\n${body}`
     for (const body of [
       'plot(close > open ? ta.sma(close, 5) : close)\n',                       // T03, a column
       'y = close > open ? ta.sma(close, 5) : close\nplot(y)\n',                // through a binding
@@ -81,7 +85,7 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
       'var float s = 0.0\ns := s + 1\nplot(s > 3 ? ta.sma(close, 5) : close)\n', // the test reads a slot
       'var float s = 0.0\ns := close > open ? ta.ema(close, 5) : s\nplot(s)\n',  // the arm reads a slot
     ]) {
-      const r = refusalOf(v6(body))
+      const r = refusalOf(v5(body))
       expect(r && r.guard, body).toBe(R4)
       expect(r.message).toMatch(/one arm of `\?:`/)
     }

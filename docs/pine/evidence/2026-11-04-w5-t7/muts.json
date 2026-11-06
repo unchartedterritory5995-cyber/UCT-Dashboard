@@ -1,0 +1,440 @@
+[
+[
+"control:noop-comment",
+"services/pine_runtime/pool.mjs",
+"// design 3.4 names alert, on-demand",
+"// (control) design 3.4 names alert, on-demand"
+],
+[
+"job:incremental-on",
+"services/pine_runtime/job.mjs",
+"incremental: false })",
+"incremental: true })"
+],
+[
+"job:no-session-reset",
+"services/pine_runtime/job.mjs",
+"    rt.resetRuntimeSessions()\n    rt.resetRuntimeLedgers()\n  }",
+"    rt.resetRuntimeLedgers()\n  }"
+],
+[
+"job:no-ledger-reset",
+"services/pine_runtime/job.mjs",
+"    rt.resetRuntimeSessions()\n    rt.resetRuntimeLedgers()\n  }",
+"    rt.resetRuntimeSessions()\n  }"
+],
+[
+"job:reset-only-on-success",
+"services/pine_runtime/job.mjs",
+"    out = encodeResult(rt, job, cols)\n  } catch (err) {\n    const r = refusalOf(rt, err)\n    out = runWide(job.job, r.guard, r.sentence, r.bar)\n  } finally {\n    rt.resetRuntimeSessions()\n    rt.resetRuntimeLedgers()\n  }",
+"    out = encodeResult(rt, job, cols)\n    rt.resetRuntimeSessions()\n    rt.resetRuntimeLedgers()\n  } catch (err) {\n    const r = refusalOf(rt, err)\n    out = runWide(job.job, r.guard, r.sentence, r.bar)\n  }"
+],
+[
+"job:budget-dropped",
+"services/pine_runtime/job.mjs",
+"{ budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false }",
+"{ incremental: false }"
+],
+[
+"job:resumed-ok",
+"services/pine_runtime/job.mjs",
+"if (info && info.resumedFrom !== null && info.resumedFrom !== undefined) {",
+"if (false) {"
+],
+[
+"job:resumed-zero-ok",
+"services/pine_runtime/job.mjs",
+"if (info && info.resumedFrom !== null && info.resumedFrom !== undefined) {",
+"if (info && info.resumedFrom) {"
+],
+[
+"job:nan-payload-kept",
+"services/pine_runtime/job.mjs",
+"if (x === null || x === undefined || (typeof x === 'number' && Number.isNaN(x))) {",
+"if (x === null || x === undefined) {"
+],
+[
+"job:length-unchecked",
+"services/pine_runtime/job.mjs",
+"if (!col || typeof col.length !== 'number' || col.length !== n) return null",
+"if (!col || typeof col.length !== 'number') return null"
+],
+[
+"job:nonnumber-ok",
+"services/pine_runtime/job.mjs",
+"    } else {\n      return null\n    }",
+"    } else {\n      b.writeDoubleLE(Number(x), i * 8)\n    }"
+],
+[
+"job:partial-ok",
+"services/pine_runtime/job.mjs",
+"    if (b64 === null) {\n      return runWide(",
+"    if (b64 === null) {\n      continue; return runWide("
+],
+[
+"job:absent-silent",
+"services/pine_runtime/job.mjs",
+"refusals.push({ key, guard: OUTPUT_ABSENT_GUARD,",
+"void ({ key, guard: OUTPUT_ABSENT_GUARD,"
+],
+[
+"job:enumerable-check-off",
+"services/pine_runtime/job.mjs",
+"if (!Object.prototype.propertyIsEnumerable.call(cols, key)) {",
+"if (!(key in cols)) {"
+],
+[
+"job:drawings-silent",
+"services/pine_runtime/job.mjs",
+"if (cols[rt.RUNTIME_OBJECTS_KEY]) {",
+"if (false) {"
+],
+[
+"job:want-ignored",
+"services/pine_runtime/job.mjs",
+"const keys = job.want.length ? job.want : Object.keys(cols)",
+"const keys = Object.keys(cols)"
+],
+[
+"job:guard-unnamed",
+"services/pine_runtime/job.mjs",
+"const guard = (err && typeof err.guard === 'string' && err.guard)",
+"const guard = (null)"
+],
+[
+"job:script-error-unnamed",
+"services/pine_runtime/job.mjs",
+"(err && err.name === SCRIPT_ERROR_GUARD ? SCRIPT_ERROR_GUARD : rt.RUNTIME_FAILED_GUARD)",
+"(rt.RUNTIME_FAILED_GUARD)"
+],
+[
+"job:bar-dropped",
+"services/pine_runtime/job.mjs",
+"bar: err && Number.isInteger(err.bar) ? err.bar : null }",
+"bar: null }"
+],
+[
+"job:meta-projected",
+"services/pine_runtime/job.mjs",
+"meta: doc.meta }",
+"meta: {} }"
+],
+[
+"job:inputs-shared",
+"services/pine_runtime/job.mjs",
+"runtimeInputs: { ...job.ctx.runtimeInputs },",
+"runtimeInputs: job.ctx.runtimeInputs,"
+],
+[
+"job:symbol-dropped",
+"services/pine_runtime/job.mjs",
+"    symbol: { ticker: job.symbol.ticker, exchange: job.symbol.exchange },\n",
+""
+],
+[
+"job:listing-forced",
+"services/pine_runtime/job.mjs",
+"historyFromListing: job.ctx.historyFromListing === true,",
+"historyFromListing: true,"
+],
+[
+"job:forming-forced",
+"services/pine_runtime/job.mjs",
+"newestBarIsForming: job.ctx.newestBarIsForming,",
+"newestBarIsForming: false,"
+],
+[
+"sb:preamble-off",
+"services/pine_runtime/sandbox.mjs",
+"  const removed = applyPreamble()\n  let rt",
+"  const removed = []\n  let rt"
+],
+[
+"sb:preamble-after-bundle",
+"services/pine_runtime/sandbox.mjs",
+"  const removed = applyPreamble()\n  let rt\n  try {\n    rt = await import(bundle)\n",
+"  let rt\n  try {\n    rt = await import(bundle)\n    var removed = applyPreamble()\n"
+],
+[
+"sb:no-freeze",
+"services/pine_runtime/sandbox.mjs",
+"  Object.freeze(g)\n  return removed",
+"  return removed"
+],
+[
+"sb:keep-fetch",
+"services/pine_runtime/sandbox.mjs",
+"  'fetch', 'Request',",
+"  'Request',"
+],
+[
+"sb:keep-timers",
+"services/pine_runtime/sandbox.mjs",
+"  'setTimeout', 'setInterval',",
+"  'setInterval',"
+],
+[
+"sb:keep-binding",
+"services/pine_runtime/sandbox.mjs",
+"['binding', '_linkedBinding'",
+"['_linkedBinding'"
+],
+[
+"sb:l1-eval-dropped",
+"services/pine_runtime/sandbox.mjs",
+"  ['eval', /\\beval\\s*\\(/],\n",
+""
+],
+[
+"sb:l1-network-dropped",
+"services/pine_runtime/sandbox.mjs",
+"  ['network', /\\b(?:fetch|WebSocket|XMLHttpRequest|EventSource|importScripts)\\s*\\(/],\n",
+""
+],
+[
+"sb:l1-process-dot-only",
+"services/pine_runtime/sandbox.mjs",
+"/\\bprocess\\s*(?:\\.|\\[)/",
+"/\\bprocess\\s*\\./"
+],
+[
+"sb:l1-allow-substring",
+"services/pine_runtime/sandbox.mjs",
+"a.token === token && a.line === t",
+"a.token === token && t.includes(a.line)"
+],
+[
+"sb:l1-allow-any-token",
+"services/pine_runtime/sandbox.mjs",
+"a.token === token && a.line === t",
+"a.line === t"
+],
+[
+"sb:l1-stale-off",
+"services/pine_runtime/sandbox.mjs",
+"return { hits, stale: allowlist.filter((_, i) => !used.has(i)) }",
+"return { hits, stale: [] }"
+],
+[
+"sb:l4-codegen-untested",
+"services/pine_runtime/sandbox.mjs",
+"try { (0, Object.getPrototypeOf(function f() {}).constructor)('return 1')(); results.codegen = 'ALLOWED' } catch { results.codegen = 'threw' }",
+"results.codegen = 'threw'"
+],
+[
+"sb:l4-ok-some",
+"services/pine_runtime/sandbox.mjs",
+"ok: Object.values(results).every((r) => r === 'threw')",
+"ok: Object.values(results).some((r) => r === 'threw')"
+],
+[
+"sb:l4-target-unchecked",
+"services/pine_runtime/sandbox.mjs",
+"if (typeof target !== 'string' || target === '') throw",
+"if (false) throw"
+],
+[
+"sb:l4-worker-env-inherited",
+"services/pine_runtime/sandbox.mjs",
+"workerData: { role: ROLE_L4, target, execPath }, env: {} })",
+"workerData: { role: ROLE_L4, target, execPath } })"
+],
+[
+"pool:l1-scan-off",
+"services/pine_runtime/pool.mjs",
+"  if (hits.length) {",
+"  if (false) {"
+],
+[
+"pool:l4-ignored",
+"services/pine_runtime/pool.mjs",
+"    if (!r.ok) {",
+"    if (false) {"
+],
+[
+"pool:time-guard-retyped",
+"services/pine_runtime/pool.mjs",
+"(await import(href)).RUNTIME_TIME_BUDGET_GUARD",
+"'runtime:hard-kill'"
+],
+[
+"pool:priority-reversed",
+"services/pine_runtime/pool.mjs",
+"PRIORITY = Object.freeze(['alert', 'on-demand', 'backtest', 'record', 'sweep'])",
+"PRIORITY = Object.freeze(['sweep', 'record', 'backtest', 'on-demand', 'alert'])"
+],
+[
+"pool:fifo-off",
+"services/pine_runtime/pool.mjs",
+"return q.splice(i, 1)[0]",
+"return q.splice(q.length - 1, 1)[0]"
+],
+[
+"pool:cap-off",
+"services/pine_runtime/pool.mjs",
+"if ((inflight.get(ownerKey(q[i])) || 0) >= cap) continue",
+"if (false) continue"
+],
+[
+"pool:cap-all-profiles",
+"services/pine_runtime/pool.mjs",
+"const cap = Object.hasOwn(ownerCaps, p) ? ownerCaps[p] : Infinity",
+"const cap = ownerCaps['on-demand']"
+],
+[
+"pool:cap-not-per-owner",
+"services/pine_runtime/pool.mjs",
+"const ownerKey = (e) => `${e.profile}|${e.owner}`",
+"const ownerKey = (e) => `${e.profile}`"
+],
+[
+"pool:inflight-no-decrement",
+"services/pine_runtime/pool.mjs",
+"if (e.dispatched) inflight.set(ownerKey(e), inflight.get(ownerKey(e)) - 1)",
+"if (false) inflight.set(ownerKey(e), 0)"
+],
+[
+"pool:depth-off",
+"services/pine_runtime/pool.mjs",
+"if (queued() + request.jobs.length > queueDepth) {",
+"if (false) {"
+],
+[
+"pool:depth-partial",
+"services/pine_runtime/pool.mjs",
+"if (queued() + request.jobs.length > queueDepth) {",
+"if (queued() >= queueDepth) {"
+],
+[
+"pool:deadline-off",
+"services/pine_runtime/pool.mjs",
+"      }, deadlinesMs[profile])",
+"      }, 1e9)"
+],
+[
+"pool:deadline-hits-running",
+"services/pine_runtime/pool.mjs",
+"        if (i < 0) return\n",
+""
+],
+[
+"pool:kill-off",
+"services/pine_runtime/pool.mjs",
+"e.killTimer = setTimeout(() => hardKill(s), killMs)",
+"e.killTimer = null"
+],
+[
+"pool:killed-reused",
+"services/pine_runtime/pool.mjs",
+"    stats.kills += 1\n    retire(s)\n",
+"    stats.kills += 1\n"
+],
+[
+"pool:killed-not-replaced",
+"services/pine_runtime/pool.mjs",
+"      + 'so it was stopped and has no value.'))\n    replace()",
+"      + 'so it was stopped and has no value.'))"
+],
+[
+"pool:oom-unnamed",
+"services/pine_runtime/pool.mjs",
+"if (s.error && s.error.code === 'ERR_WORKER_OUT_OF_MEMORY') {",
+"if (false) {"
+],
+[
+"pool:crash-not-replaced",
+"services/pine_runtime/pool.mjs",
+"    if (!wasGone) replace()",
+"    if (false) replace()"
+],
+[
+"pool:recycle-jobs-off",
+"services/pine_runtime/pool.mjs",
+"if (s.jobs >= recycleJobs || now() - s.born >= recycleMs) {",
+"if (now() - s.born >= recycleMs) {"
+],
+[
+"pool:recycle-age-off",
+"services/pine_runtime/pool.mjs",
+"if (s.jobs >= recycleJobs || now() - s.born >= recycleMs) {",
+"if (s.jobs >= recycleJobs) {"
+],
+[
+"pool:recycle-not-replaced",
+"services/pine_runtime/pool.mjs",
+"      stats.recycles += 1\n      retire(s)\n      replace()",
+"      stats.recycles += 1\n      retire(s)"
+],
+[
+"pool:limits-dropped",
+"services/pine_runtime/pool.mjs",
+"env: {}, resourceLimits })",
+"env: {} })"
+],
+[
+"pool:env-inherited",
+"services/pine_runtime/pool.mjs",
+"env: {}, resourceLimits })",
+"resourceLimits })"
+],
+[
+"pool:close-no-drain",
+"services/pine_runtime/pool.mjs",
+"    drain(WORKER_FAILED_GUARD, 'the runtime pool stopped, so this job has no value.')\n",
+""
+],
+[
+"pool:boot-error-ignored",
+"services/pine_runtime/pool.mjs",
+"if (m.type === 'boot-error') {",
+"if (false) {"
+],
+[
+"pool:boot-not-awaited",
+"services/pine_runtime/pool.mjs",
+"    await Promise.all([...live].map((s) => s.booted))",
+"    void 0"
+],
+[
+"pool:default-limits",
+"services/pine_runtime/pool.mjs",
+"resourceLimits: Object.freeze({ maxOldGenerationSizeMb: 256,",
+"resourceLimits: Object.freeze({ maxOldGenerationSizeMb: 512,"
+],
+[
+"srv:busy-not-429",
+"services/pine_runtime/server.mjs",
+"if (e && e.guard === BUSY_GUARD) return refuse(res, 429,",
+"if (false) return refuse(res, 429,"
+],
+[
+"srv:pool-not-closed",
+"services/pine_runtime/server.mjs",
+"server.once('close', () => { pool.close().then(() => log('[pine-runtime] pool stopped')) })",
+"server.once('close', () => {})"
+],
+[
+"srv:pool-ignored",
+"services/pine_runtime/server.mjs",
+"const pool = !runner && poolOpts ? await createPool({ ...poolOpts, bundle }) : null",
+"const pool = null"
+],
+[
+"srv:pool-other-bundle",
+"services/pine_runtime/server.mjs",
+"await createPool({ ...poolOpts, bundle })",
+"await createPool({ ...poolOpts, bundle: DEFAULT_BUNDLE })"
+],
+[
+"srv:service-l4-off",
+"services/pine_runtime/server.mjs",
+"SERVICE_POOL_OPTIONS = Object.freeze({ requireL4: true })",
+"SERVICE_POOL_OPTIONS = Object.freeze({ requireL4: false })"
+],
+[
+"srv:isMain-no-pool",
+"services/pine_runtime/server.mjs",
+"  main({ pool: SERVICE_POOL_OPTIONS }).catch((e) => {",
+"  main().catch((e) => {"
+]
+]

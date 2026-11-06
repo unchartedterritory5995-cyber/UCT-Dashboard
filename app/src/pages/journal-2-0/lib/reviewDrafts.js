@@ -33,6 +33,7 @@ import { settleNoteWrite } from './offline/settleNoteWrite'
 import { noteHasUnsentWork, STILL_SYNCING_MESSAGE } from './offline/noteHasUnsentWork'
 import { openNotebookDb } from './offline/notebookDb'
 import { notebookSchemaHeaders } from './notebookSchema'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 // The flag's one authority is `reviewDraftsFlag.js` (wave 14 perf lane): Research Home reads it
 // without loading this file. Re-exported so every existing import is unchanged.
@@ -484,7 +485,8 @@ export async function draftDailyReview({ accountId, day } = {}) {
   // note door as its day, so the numbers and the note they are written into cannot be two
   // different days. ⚰️ This opened TODAY's note whatever `day` was: an older recap card on
   // the Compass tab wrote a past day's numbers into today's note under "Today's recap".
-  const { note: daily } = await openDailyNote({ today: () => d })
+  // S2 (B12): `created` rides back to the caller, which says where a new note went.
+  const { note: daily, created = false } = await openDailyNote({ today: () => d })
   const verdict = await noteHasUnsentWork(daily.id, { connect: openNotebookDb })
   if (verdict.unsent) {
     const err = new Error(STILL_SYNCING_MESSAGE)
@@ -494,7 +496,7 @@ export async function draftDailyReview({ accountId, day } = {}) {
   }
   const existing = (daily.bodyJson && Array.isArray(daily.bodyJson.content)) ? daily.bodyJson.content : []
   // One recap per day in the note (fin-data M2): a second click answers the note as it is.
-  if (hasRecapFor(existing, d)) return { note: daily, payload: null, existing: true }
+  if (hasRecapFor(existing, d)) return { note: daily, payload: null, existing: true, created }
   const payload = await fetchDailyDraft({ day: d, accountId })
   const appended = [...existing, hr(), h(2, recapHeading(d)), ...buildDraftBlocks(payload)]
   const res = await fetch(`/api/j2/notes/${encodeURIComponent(daily.id)}`, {
@@ -514,5 +516,7 @@ export async function draftDailyReview({ accountId, day } = {}) {
   }
   const updated = (await res.json()).note
   await settleNoteWrite(updated?.id ?? daily.id, updated)
-  return { note: updated || daily, payload }
+  // S20 (audit 2026-11-05): the recap rate counts a recap that LANDED (never the second click that found one).
+  trackNotebookEvent(NOTEBOOK_EVENTS.RECAP_WRITTEN, { created: created === true })
+  return { note: updated || daily, payload, created }
 }

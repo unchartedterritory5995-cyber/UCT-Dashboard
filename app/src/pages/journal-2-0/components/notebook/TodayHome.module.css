@@ -1,0 +1,216 @@
+/* Audit 2026-11-05, S15 (M1): the Today home. Every card reserves its height (the skeleton is the same box), so the
+   answer fills boxes that are already on screen and nothing below them moves. */
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 960px;
+  padding: 4px 2px 40px;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.headText { min-width: 0; }
+.hello {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  min-height: 1.4em;
+}
+.headActions { display: flex; gap: 8px; align-items: center; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+}
+.wide { grid-column: 1 / -1; }
+/* Tier 3b fix round 2 (R1-A): only a SKELETON reserves height, at a card's TYPICAL filled height; a filled card takes
+   its own height. A skeleton and the card that replaces it are different nodes, and the Layout Instability API scores
+   only nodes that existed before and moved, so the cards themselves cannot shift. Every half-width skeleton reserves
+   the same height, so the session's order fills the same space. (Fix round 1 put the CAPPED height on the filled
+   cards and left large blank areas; S17: never reserve blank space.) Rail: TodayHome.layout.test.js. */
+.today {
+  --today-row-h: 44px;
+  --today-plan-h: 220px;
+  --today-half-h: 240px;
+  --today-recap-h: 130px;
+}
+.card_plan,
+.card_recap { border-color: rgba(220, 187, 94, 0.45); }
+.skeleton.card_plan { min-height: var(--today-plan-h); }
+.skeleton.card_recap { min-height: var(--today-recap-h); }
+.skeleton.card_setups,
+.skeleton.card_names,
+.skeleton.card_yesterday,
+.skeleton.card_onThisDay { min-height: var(--today-half-h); }
+.unavailable { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+/* The inline first-run ask's slot, below the cards, holding its height while its chunk loads. */
+.firstRunSlot { min-height: 420px; }
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.cardTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cardAside { font-size: 12px; color: var(--text-muted); }
+.cardFoot { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.quiet { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+.quietInline { color: var(--text-muted); }
+.notice { margin: 0; font-size: 12px; color: var(--success-ink); }
+.error { margin: 0; font-size: 13px; color: var(--danger-ink); }
+.snippet { margin: 0; font-size: 14px; line-height: 1.45; }
+
+.checks, .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.check { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.4; padding: 3px 0; }
+.box {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1px solid var(--text-muted);
+  border-radius: 3px;
+}
+.boxDone { background: var(--ut-gold); border-color: var(--ut-gold); }
+.doneText { color: var(--text-muted); text-decoration: line-through; }
+
+.row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--today-row-h);
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+button.row { cursor: pointer; }
+button.row:hover { background: var(--bg-hover); border-color: rgba(220, 187, 94, 0.3); }
+.list .box { margin-top: 0; }
+.list button.row:has(.box) { grid-template-columns: 14px minmax(0, 1fr) auto; }
+.tk { font-weight: 600; color: var(--ut-gold); }
+.rowMain { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowNum { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rowEnd { color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.up { color: var(--success-ink); }
+.dn { color: var(--danger-ink); }
+
+.memory {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-height: var(--today-row-h);
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.memory:hover { background: var(--bg-hover); }
+.quote { font-size: 14px; line-height: 1.45; }
+.from { font-size: 12px; color: var(--text-muted); }
+
+.action,
+.link {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm, 4px);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.action { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-bright); }
+.action:hover { border-color: rgba(220, 187, 94, 0.5); }
+.link { background: transparent; border: none; color: var(--text-muted); padding-left: 0; }
+.link:hover { color: var(--ut-gold); }
+@media (max-width: 1024px) {
+  .action, .link { min-height: var(--tap-min); }
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.landing { display: flex; align-items: center; gap: 8px; }
+.select {
+  min-height: 36px;
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-bright);
+  font: inherit;
+}
+@media (max-width: 1024px) {
+  .select { min-height: var(--tap-min); }
+}
+
+.skeleton { gap: 10px; }
+.skelTitle, .skelLine {
+  display: block;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+}
+.skelTitle { width: 30%; }
+.skelLine { width: 80%; }
+.skelLine + .skelLine { width: 60%; }
+@media (prefers-reduced-motion: no-preference) {
+  .skelTitle, .skelLine { animation: todayPulse 1.4s ease-in-out infinite; }
+}
+@keyframes todayPulse {
+  50% { opacity: 0.5; }
+}

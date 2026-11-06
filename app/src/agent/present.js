@@ -62,13 +62,27 @@ function named(item, message) {
 }
 
 const LEAD_CHARS = 220
-/** Concise text: the lead (first line/paragraph) shown; the rest in details — unless depth was asked. */
+// A reply of several blocks answers several things ("Your price alerts (3):" + rows, then "You have no indicator alerts."). The
+// lead states every one: a block left under Details reads as not said, and it is often the truthful negative. Only for blocks that
+// open with a short line of their own; paragraphs of prose keep the single lead.
+const BLOCK_LINE_CHARS = 160
+const MAX_BLOCKS = 4
+function blockHeads(t) {
+  const blocks = t.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean)
+  if (blocks.length < 2 || blocks.length > MAX_BLOCKS) return null
+  const heads = blocks.map(b => b.split('\n')[0].trim())
+  return heads.every(h => h.length <= BLOCK_LINE_CHARS) ? heads.map(h => h.replace(/:$/, '')) : null
+}
+/** Concise text: the lead (first line/paragraph, or every block's first line) shown; the rest in details — unless depth was asked. */
 function conciseText(text, detail) {
   const t = String(text || '').trim()
   if (!t) return { lead: '', rest: '' }
   if (detail) return { lead: t, rest: '' }
   const lines = t.split('\n')
   if (t.length <= LEAD_CHARS && lines.length <= 2) return { lead: t, rest: '' }
+  const heads = blockHeads(t)
+  // (blocks that are nothing but their first line: all of it is in the lead, so there is nothing left to tuck away)
+  if (heads) return { lead: heads.join('\n'), rest: lines.filter(l => l.trim()).length > heads.length ? t : '' }
   return { lead: lines[0].length <= LEAD_CHARS * 1.6 ? lines[0] : `${lines[0].slice(0, LEAD_CHARS)}…`, rest: t }
 }
 

@@ -283,3 +283,48 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* S17 (audit 2026-11-05, M7): the empty board's "Draw your first plan". It reserves no space beyond its own lines. */
+.firstPlan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.firstPlanTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.firstPlanSteps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.firstPlanForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.firstPlanInput {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-md);
+  padding: 5px 8px;
+  width: 9em;
+  text-transform: uppercase;
+}
+.firstPlanInput::placeholder { text-transform: none; }
+
+@media (max-width: 1024px) {
+  .firstPlanInput { min-height: var(--tap-min); }
+}

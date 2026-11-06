@@ -77,6 +77,11 @@ deployments API for this; read commit statuses and check-run annotations.
 - Discord's composer ignores text inserted by script; type it as keystrokes, keep it under 2,000 characters, send from
   a fresh tab.
 - The mark's own throb animation owns its transform: centre it with a wrapper, never on the mark.
+- A pod-side `study_store.review(..., "fix")` parks the item in DRAFT for a second look, by design: a script that
+  rewrites text on approved items must re-approve them in the same run, or they fall off the member path unnoticed
+  (the 2026-10-25 definition refresh did this to 114 lessons; found and repaired 2026-11-05).
+- Predict an import's `kept` count from EVERY apply script's fix calls (each fix bumps the pod version), not from one
+  script, and read the pod back (a read-only readback script, the owner's `!` command) before saying what changed.
 
 ## The owner's own words (calibrate on these)
 - 2026-11-04, on the live site before round 16: "it looks nothing like the work we did in the local host the charts
@@ -95,10 +100,21 @@ deployments API for this; read commit statuses and check-run annotations.
 1. The owner's batch-17 ranks + his team's notes → round 18 on a new branch off `origin/master`
    (`feat/study-drill-round-18`), same loop, bigger moves where he says Weak.
 2. If he asks: the Study landing / start card in the same look; the end card to Great.
-3. Backlog: Hard mode and Draw-it need `levels` / `plan` bank items per setup (server scoring exists; draft from the
-   Kicker spot items for his review, import on the pod); the bank must grow (unseen-only pools drain); the
-   "(owner ruling pending ...)" drafting notes in the bear_gaps / setups lessons; one spot item says "Capitulation"
-   while its chip reads VOLUME CLIMAX (his wording call).
+3. Backlog as it stands 2026-11-05 evening (every line waits on him; nothing runs on the pod without his `!`):
+   - Hard mode and Draw-it: the 16 Kicker `levels` drafts (levels.kicker, PR #819) wait on the pod for his approval
+     and his tolerance call (study_scoring.level_tolerance = max(0.75 ATR14, 1%) is looser than a 1-3% Kicker
+     stop). On the review screen filter Skill = "Mark the levels": the detection job's own `levels` drafts share
+     the type and come first in the oldest-first queue. The other setups' levels wait on his ruling whether the
+     detectors' levels (entry = the signal close, stop = the day low, targets 2R / 3R) are how he teaches Oops,
+     Launchpad, HVE, Slingshot and Gap Support; `plan` items wait on his sell rules ("work on those later").
+   - The bank grows only through his sittings: 43 setup drafts (PR #856) wait on the pod. A skill session is a
+     fresh draw from the whole approved pool each time (compose_today keeps no per-member seen list), so a
+     challenge pool never "drains": it is thin (Kicker: 17 approved, 12 per play) or empty (Bear gap: 0).
+   - Bear gaps wait on his one or two example charts (sitting paused 2026-10-31: 1 good, MPWR; 7 cut). The 39
+     drafts carry no drafting note since 2026-11-05: `_common.DRAFTING_MARKERS` refuses "(owner ruling pending
+     ...)" and its kin in any member-facing field; the owner's words live in owner_verdicts.jsonl instead.
+   - One fixture item (spot.fixtures, skill scan.volume_climax, GOOGL 2026-07-23) says "Capitulation" while its
+     chip reads VOLUME CLIMAX: his wording call.
 
 Start by reading the four files above, then tell the owner in plain words what is live, what is waiting on him, and
 what you will build next. Send screens of anything you discuss.

@@ -14,6 +14,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
+import ErrorBoundary from '../../../components/ErrorBoundary'
+import { noteChartFault } from '../chartFaults'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ChartDayGain from '../widgets/ChartDayGain'
 import ChartMarketClock from '../widgets/ChartMarketClock'
@@ -27,6 +29,7 @@ import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurf
 import { getExtSessionCached } from '../../../utils/extSession'
 import { CHART_TYPE_OPTIONS, mergeChartSettings, mergeSettingsOverride } from '../../../components/chart/chartDefaults'
 import { sanitizeCellSettings } from './gridLayouts'
+import { cellPatch, cellStored, gridCellKey } from './gridAgentAdapter'
 import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -71,6 +74,9 @@ function GridChartCell({
   onBarsReady,        // () => void — releases this cell's mount-queue slot
   isMaximized,        // this cell is expanded to fill the whole grid body
   onToggleMaximize,   // () => void — expand/restore this cell
+  chartApiById,       // the workspace's chart registry (ref) — this cell's UCT Agent adapter lives in it (gridAgentAdapter.js)
+  onAgentChange,      // (write) => void — runs the Agent's write to this cell, so it counts as the Agent's ("the one you just changed")
+  groupsActive,       // () => boolean — Groups mode: a new ticker here refills the whole grid
   deepWarm,           // bool — this cell is MAXIMIZED; pre-load full history for instant scroll-back (StockChart deepWarm). Gated on maxId (not hover) so the React.memo "hover sweep re-renders zero charts" contract holds.
 }) {
   const sym = cell.sym
@@ -136,18 +142,17 @@ function GridChartCell({
   }, [crosshairBus, sym])
 
   // ── Time-range sync (mirrors the crosshair ref-bus; echo-guarded in StockChart) ──
-  const [externalTimeRange, setExternalTimeRange] = useState(null)
-  const reportRange = useCallback((payload) => {
-    rangeBus?.emit(cellIdRef.current, payload)
+  // Only a move the member made is sent. A chart framing its own new ticker or
+  // timeframe must not pull every other cell out of the place they were left.
+  const reportRange = useCallback((payload, { memberMoved } = {}) => {
+    if (memberMoved) rangeBus?.emit(cellIdRef.current, payload)
   }, [rangeBus])
-  useEffect(() => {
-    if (!rangeBus || !sym) return undefined
+  const subscribeTimeRange = useCallback((cb) => {
+    if (!rangeBus || !sym) return () => {}
     return rangeBus.subscribe(({ sourceId, payload }) => {
-      if (sourceId !== cellIdRef.current) setExternalTimeRange(payload)
+      if (sourceId !== cellIdRef.current) cb(payload)
     })
   }, [rangeBus, sym])
-  useEffect(() => { setExternalTimeRange(null) }, [sym])
-  useEffect(() => { if (!rangeBus) setExternalTimeRange(null) }, [rangeBus])
 
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
@@ -241,6 +246,50 @@ function GridChartCell({
     onChange({ ...cell, chartType: val || null })
   }, [cell, onChange])
 
+  // ⭐ UCT AGENT ADAPTER (agent/host.js, gridAgentAdapter.js). The same read + commit a ChartWidget registers, over this
+  // cell's OWN writer: `onChange`, the call its timeframe bar, Style picker and ticker search make. `cs` is what this
+  // cell draws with (its own blob once forked, else `effectiveCs`; plus the D/W/M session, which a cell keeps in local
+  // state rather than its settings). A forked cell reads its blob verbatim, so an exact Undo recognises what it wrote.
+  const dateNavRef = useRef(null)
+  const handleDateNavApi = useCallback((api) => { dateNavRef.current = api }, [])
+  const agentCs = useMemo(() => {
+    const cs = forked ? settingsOverride : effectiveCs
+    return isDWMtf && sessionView === 'extended' ? { ...cs, sessionView } : cs
+  }, [forked, settingsOverride, effectiveCs, isDWMtf, sessionView])
+  const agentRef = useRef(null)
+  agentRef.current = { cell, onChange, onAgentChange, groupsActive, cs: agentCs, isDWMtf, sessionView }
+  useEffect(() => {
+    if (!chartApiById) return undefined
+    const key = gridCellKey(cell.id)
+    const map = chartApiById.current
+    map.set(key, {
+      agent: {
+        read: () => {
+          const r = agentRef.current
+          return { chartId: r.cell.id, tabId: null, groupKey: null, symbol: r.cell.sym || null, tf: r.cell.tf, cs: r.cs, stored: cellStored(r.cell) }
+        },
+        drawSym: () => agentRef.current.cell.sym || null,
+        view: () => dateNavRef.current?.getDateMeta?.() || null,
+        goToDate: (ms) => dateNavRef.current?.goToDate?.(ms),
+        canManageIndicators: () => !!agentRef.current.cell.sym,
+        commit: (patch) => {
+          const r = agentRef.current
+          // Groups mode: a new ticker refills every cell with its group (MultiChartGrid's peer fill), not this one
+          if (patch.symbol && r.groupsActive?.()) return false
+          if ('settings' in patch && r.isDWMtf) {
+            const want = patch.settings?.sessionView === 'extended' ? 'extended' : 'regular'
+            if (want !== r.sessionView) setSessionView(want)
+          }
+          const write = () => r.onChange(cellPatch(r.cell, patch))
+          if (r.onAgentChange) r.onAgentChange(write)
+          else write()
+          return true
+        },
+      },
+    })
+    return () => { map.delete(key) }
+  }, [chartApiById, cell.id])
+
   const handleChartClick = useCallback(() => {
     const ae = document.activeElement
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return
@@ -311,11 +360,11 @@ function GridChartCell({
   }, [ctxMenu, sym, createAlert, closeCtx])
 
   return (
-    <div className={styles.cell} data-grid-cell-id={cell.id}>
+    <div className={styles.cell} data-grid-cell-id={cell.id} data-widget-id={cell.id}>
       {/* Top row — logo + company name + day gain + per-cell Style + gear.
           Same classes/markup as ChartWidget's .chartHeaderTop for pixel parity. */}
       <div className={wsStyles.chartHeaderTop}>
-        <span className={wsStyles.symbolSlot}>
+        <span className={wsStyles.symbolSlot} data-guide="chart.symbol">
           <SymbolSearch
             ref={searchRef}
             sym={sym || ''}
@@ -333,6 +382,7 @@ function GridChartCell({
           value={cell.chartType || ''}
           onChange={(e) => handleTypeChange(e.target.value)}
           aria-label="Chart style (this cell)"
+          data-guide="chart.cellStyle"
           title="Chart style for this cell — 'Style' inherits your global chart settings"
         >
           {CELL_CHART_TYPES.map(([code, label]) => (
@@ -343,6 +393,7 @@ function GridChartCell({
           <button
             type="button"
             className={styles.cellResetBtn}
+            data-guide="chart.cellReset"
             onClick={resetToMyChart}
             title="This chart has its own settings. Reset it to match your main chart."
           >
@@ -357,12 +408,14 @@ function GridChartCell({
             onClick={() => onOpenSettings?.()}
             title="Shared chart settings (all charts)"
             aria-label="Shared chart settings"
+            data-guide="chart.cellSettings"
           >
             <UIcon name="gear" size={15} />
           </button>
           <button
             type="button"
             className={styles.cellIconBtn}
+            data-guide="chart.cellMaximize"
             onClick={() => onToggleMaximize?.()}
             title={isMaximized ? 'Restore grid' : 'Maximize this chart'}
             aria-label={isMaximized ? 'Restore grid' : 'Maximize this chart'}
@@ -373,7 +426,7 @@ function GridChartCell({
       </div>
       {/* Second row — 8-button timeframe bar + meta + session toggle + clock.
           The meta + session blocks collapse in narrow cells (container query). */}
-      <div className={wsStyles.tfBar}>
+      <div className={wsStyles.tfBar} data-guide="chart.timeframe">
         {TFS.map(([code, label]) => (
           <button
             key={code}
@@ -416,7 +469,7 @@ function GridChartCell({
         {sym && (
           <div className={`${wsStyles.tfBarRight} ${styles.gridSession}`}>
             {isDWMtf ? (
-              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart session view">
+              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart session view" data-guide="chart.session">
                 <button
                   type="button"
                   className={`${wsStyles.sessionBtn} ${sessionView === 'regular' ? wsStyles.sessionBtnActive : ''}`}
@@ -432,7 +485,7 @@ function GridChartCell({
                 >{extLabel}</button>
               </div>
             ) : (
-              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart extended hours">
+              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart extended hours" data-guide="chart.session">
                 <button
                   type="button"
                   className={`${wsStyles.sessionBtn} ${!extHoursOn ? wsStyles.sessionBtnActive : ''}`}
@@ -459,6 +512,7 @@ function GridChartCell({
         onKeyDown={handleCellKeyDown}
       >
         {sym ? (
+          <ErrorBoundary key={cell.id} resetKey={`${sym}|${cell.tf}`} onError={() => noteChartFault(cell.id)} fallback={<div className={styles.cellError} role="alert">This chart hit an error. Change its ticker or timeframe to try again.</div>}>
           <StockChart
             sym={sym}
             tf={cell.tf}
@@ -478,11 +532,12 @@ function GridChartCell({
             onSymbolChange={handleSymbolChange}
             onTfChange={handleTfChange}
             onOpenSettings={onOpenSettings}
+            onDateNavApi={handleDateNavApi}
             onBarContextMenu={handleBarContextMenu}
             onCrosshairMove={crosshairBus ? reportCrosshair : null}
             subscribeCrosshair={subscribeCrosshair}
             onTimeRangeChange={rangeBus ? reportRange : null}
-            externalTimeRange={externalTimeRange}
+            subscribeTimeRange={subscribeTimeRange}
             /* Grid lite profile — the workspace chart look without the
                speculative warms, patterns, or per-instance hotkey ownership.
                hideReplay/hidePatterns/hideCompare are inert today (the toolbar
@@ -531,6 +586,7 @@ function GridChartCell({
             sessionView={sessionView}
             hideExtHoursToolbarToggle
           />
+          </ErrorBoundary>
         ) : (
           <button
             type="button"
@@ -556,9 +612,9 @@ function GridChartCell({
             onClick={closeCtx}
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
-          <div className={wsStyles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y }} role="menu">
+          <div className={wsStyles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y }} role="menu" data-guide="chart.contextMenu">
             {Number.isFinite(ctxMenu.price) && (
-              <button type="button" className={wsStyles.chartCtxItem} onClick={handleSetAlert}>
+              <button type="button" className={wsStyles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                 <UIcon name="bell" size={14} className={wsStyles.chartCtxIcon} />
                 Set alert @ ${ctxMenu.price.toFixed(2)}
               </button>

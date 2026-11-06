@@ -44,7 +44,13 @@ vi.mock('../../hooks/useJ2Notes', () => ({
   setNoteFavorite: vi.fn(),
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
-vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+// S6: the editor tells the note views when a title has landed (and when a note moved).
+const invalidateSpy = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/offline/invalidateNoteViews', async (importOriginal) => ({
+  ...(await importOriginal()),
+  invalidateNoteViews: (...args) => invalidateSpy(...args),
+}))
+vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [{ id: 'f9', name: 'Swing ideas', parentId: null }] }) }))
 
 const derived = (id, name, value) => ({ id, name, type: 'text', source: 'financial_derived', value })
 const NVDA_PROPERTIES = [
@@ -250,7 +256,9 @@ describe('ONE ticker control', () => {
 describe('keyboard order: title, then the details toggle, then the body', () => {
   const TABBABLE = 'input, button, select, textarea, [contenteditable="true"], a[href], [tabindex]'
   const reachable = (el) => !el.closest('[hidden]') && !el.disabled && el.getAttribute('tabindex') !== '-1'
-  it('collapsed, the only stop between the title and the body is the toggle', async () => {
+  // S10 (audit 2026-11-05, M4): the folder moved from the header to the start of this line ("Semis · #swing · Add
+  // details"), so it is the one other stop: title, folder, the toggle, the body.
+  it('collapsed, the only stops between the title and the body are the folder and the toggle', async () => {
     NOTE = thesisNote()
     PROPERTIES = NVDA_PROPERTIES
     const { container } = await renderEditor()
@@ -260,7 +268,7 @@ describe('keyboard order: title, then the details toggle, then the body', () => 
     const between = stops.slice(stops.indexOf(title) + 1, stops.indexOf(body))
     expect(stops.indexOf(title)).toBeGreaterThanOrEqual(0)
     expect(stops.indexOf(body)).toBeGreaterThan(stops.indexOf(title))
-    expect(between).toEqual([toggle()])
+    expect(between).toEqual([screen.getByRole('combobox', { name: 'Folder' }), toggle()])
   })
 })
 
@@ -282,5 +290,158 @@ describe('a running tour opens the details (any start path)', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(region().hidden).toBe(false)          // like a review link: revealed for this visit
     expect(localStorage.getItem(NOTE_DETAILS_PREF_KEY)).toBeNull()
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S2: a ticker on a plain note grew the thesis controls, because a Compass
+// verdict for that ticker sat in the note's computed changelog. Only a real thesis shows them, and a
+// member asks for them from the note menu.
+describe('S2: thesis controls only on request', () => {
+  const VERDICT = { type: 'compass_verdict', at: '2026-11-04T00:00:00Z', verdictId: 'v1', label: 'GO', symbol: 'NVDA' }
+  const withSummary = (changelog) => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => (String(url) === '/api/j2/notes/n1/thesis-summary'
+      ? { ok: true, json: async () => ({ evidence: [], changelog }) }
+      : base(url, init)))
+  }
+
+  it('a plain note with a ticker and a verdict on file shows no thesis controls', async () => {
+    NOTE = { ...bareNote(), ticker: 'NVDA' }
+    PROPERTIES = [derived('builtin:ticker', 'Ticker', 'NVDA')]
+    withSummary([VERDICT])
+    const { container } = await renderEditor()
+    await waitFor(() => expect(summary(container)?.textContent).toContain('NVDA'))
+    expect(summary(container).textContent).not.toMatch(/review/i)
+    expect(screen.queryByText('Add evidence')).toBeNull()
+  })
+
+  it('"Make this a thesis" in the note menu writes kind Thesis through the property door', async () => {
+    NOTE = { ...bareNote(), ticker: 'NVDA' }
+    withSummary([VERDICT])
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    const item = await screen.findByRole('button', { name: /Make this a thesis/ })
+    fireEvent.click(item)
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith({ properties: { 'builtin:note_kind': 'thesis' } }))
+  })
+
+  it('a thesis is never offered "Make this a thesis"', async () => {
+    NOTE = thesisNote()
+    await renderEditor()
+    await waitFor(() => expect(global.fetch.mock.calls.map(([u]) => String(u))).toContain('/api/j2/notes/n1/thesis-summary'))
+    await new Promise((r) => setTimeout(r, 20))
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    await screen.findByRole('button', { name: 'Duplicate note' })
+    expect(screen.queryByRole('button', { name: /Make this a thesis/ })).toBeNull()
+  })
+})
+
+// ⛔ Audit 2026-11-05, S6 (found on production after #816): a title typed into a new note stayed
+// "Untitled" in Recents and the list cards. Once the title save LANDS, the editor revalidates the
+// views that show a title -- and only then, and never for a body-only save.
+describe('S6: a landed title reaches every view', () => {
+  it('a title save that lands asks the title views again (titleOnly)', async () => {
+    invalidateSpy.mockClear()
+    NOTE = { ...bareNote(), title: '' }
+    await renderEditor()
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'NVDA swing plan' } })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'NVDA swing plan' }), expect.anything()), { timeout: 5000 })
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ titleOnly: true }))
+  })
+
+  it('a save that changes no title asks no view', async () => {
+    invalidateSpy.mockClear()
+    NOTE = bareNote()
+    await renderEditor()
+    fireEvent.change(screen.getByPlaceholderText('Subtitle (optional)'), { target: { value: 'deck line' } })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subtitle: 'deck line' }), expect.anything()), { timeout: 5000 })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ titleOnly: true })
+  })
+})
+
+// ⛔ Audit 2026-11-05, S5 (B11): the tab read "Journal" on every open note.
+describe('S5: the browser tab names the open note', () => {
+  it('the main pane names it "{title} · Notebook · UCT Intelligence", and follows typing', async () => {
+    NOTE = { ...bareNote(), title: 'NVDA swing plan' }
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} ownsDocumentTitle /></MemoryRouter>
+      </SWRConfig>,
+    )
+    await waitFor(() => expect(document.title).toBe('NVDA swing plan · Notebook · UCT Intelligence'))
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'NVDA plan v2' } })
+    await waitFor(() => expect(document.title).toBe('NVDA plan v2 · Notebook · UCT Intelligence'))
+  })
+
+  it('a pane that does not own the tab (the split view side) leaves it alone', async () => {
+    document.title = 'unchanged'
+    NOTE = { ...bareNote(), title: 'Side note' }
+    await renderEditor()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(document.title).toBe('unchanged')
+  })
+})
+
+// ⛔ Audit 2026-11-05, S5 (B4): a widget's archived snapshot is an image document; OCR read the
+// chart, and the note said "Image — Text read from a scanned page" once per widget.
+describe('S5 (B4): the editor speaks of an image only when its body holds it', () => {
+  const docs = (list) => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => (String(url) === '/api/j2/notes/n1/documents'
+      ? { ok: true, json: async () => ({ documents: list }) }
+      : base(url, init)))
+  }
+  const snap = (file, extra = {}) => ({
+    id: file, name: 'Image', attachmentUrl: `/api/j2/notes/attachments/u1/n1/inline/${file}`, status: 'no_text',
+    pagesTotal: 1, pagesWithText: 0, pagesFromOcr: 0, pagesAwaitingOcr: 0, textComplete: false, ...extra,
+  })
+
+  it('snapshot images the body does not hold: no line at all', async () => {
+    docs([snap('a.png'), snap('b.png', { status: 'ready', pagesWithText: 1, pagesFromOcr: 1, textComplete: true })])
+    await renderEditor()
+    await waitFor(() => expect(global.fetch.mock.calls.map(([u]) => String(u))).toContain('/api/j2/notes/n1/documents'))
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.queryByRole('status', { name: 'Attachment text status' })).toBeNull()
+  })
+
+  it('an image the body holds, with no text: one line, and it is not called a scan', async () => {
+    NOTE = { ...bareNote(), bodyJson: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Body words' }] },
+      { type: 'image', attrs: { src: '/api/j2/notes/attachments/u1/n1/inline/a.png' } }] } }
+    docs([snap('a.png')])
+    await renderEditor()
+    const region = await screen.findByRole('status', { name: 'Attachment text status' })
+    expect(region).toHaveTextContent('Image has no readable text, so Search and Ask cannot use it.')
+  })
+})
+
+// Fix round 1 (review minor 13): the folder select (B2's door) reaches the note-views helper.
+describe('S6: a move from the editor revalidates the note views', () => {
+  it('changing the folder calls invalidateNoteViews once the move is settled', async () => {
+    invalidateSpy.mockClear()
+    await renderEditor()
+    fireEvent.change(screen.getAllByRole('combobox', { name: 'Folder' })[0], { target: { value: 'f9' } })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith({ folderId: 'f9' }))
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith())
+  })
+})
+
+// Fix round 2 (re-review N1): Duplicate kept its own `/api/j2/notes*` predicate -- a second authority
+// that revalidated the open note under its editor and missed the folder tree. It uses the helper.
+describe('S6: Duplicate revalidates through the one helper', () => {
+  it('a duplicate calls invalidateNoteViews({ tags: true })', async () => {
+    invalidateSpy.mockClear()
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init = {}) => (String(url) === '/api/j2/notes' && init.method === 'POST'
+      ? { ok: true, status: 200, json: async () => ({ note: { id: 'n2', title: 'Copy of A plain note' } }) }
+      : base(url, init)))
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Duplicate note' }))
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ tags: true }))
   })
 })

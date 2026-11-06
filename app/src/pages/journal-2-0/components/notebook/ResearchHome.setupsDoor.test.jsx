@@ -1,3 +1,5 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Finish program, lane NAV, item A: the active setups board's one door.
 //
 // docs/notebook/BETA-HANDOFF.md 1b said of NOTEBOOK_SETUPS_BOARD_ENABLED: "No menu link to it
@@ -6,7 +8,7 @@
 // or a typed URL.
 //
 // What this holds:
-//   * switch ON: Research Home carries ONE box ("Active setups", with the link to the board), in
+//   * switch ON: Research Home carries ONE box ("Setups", with the link to the board), in
 //     every state a member who has notes can land on (quiet, quiet with a failed load, the full
 //     home). P0.5 moved it from the bottom of the page to just under the Notices box;
 //   * switch OFF: the page is the page it was. The proof is a DOM comparison, not an absence
@@ -43,7 +45,7 @@ function renderHome(props = {}) {
     </MemoryRouter>,
   )
 }
-// P0.5: the door is now the "Open the setups board" link inside the Active setups box
+// P0.5: the door is now the "Open the setups board" link inside the Setups box
 // (ResearchHome.setupsBox.test.jsx holds the box's own copy and position).
 // I4: the box is a lazy chunk (spec section 6), so a switch-ON render finds it a tick later.
 const DOOR_NAME = 'Open the setups board'
@@ -55,7 +57,7 @@ const normalise = (html) => html.replace(/uig\d+/g, 'uig').replace(/:r[0-9a-z]+:
 beforeEach(() => {
   hookResult = { home: EMPTY, isLoading: false, error: null, refresh: vi.fn() }
   __resetNotebookFlags()
-  // The Active setups box reads the board for its count. These cases are about the DOM, not the
+  // The Setups box reads the board for its count. These cases are about the DOM, not the
   // count (ResearchHome.setupsBox.test.jsx holds that), so the read just never answers.
   globalThis.fetch = vi.fn(() => new Promise(() => {}))
 })
@@ -155,7 +157,7 @@ describe('Research Home, setups board switch OFF', () => {
       const on = renderHome()
       await waitFor(() => expect(on.container.querySelector('[data-tour="home-setups"]')).toBeTruthy())
       const box = on.container.querySelector('[data-tour="home-setups"]')
-      expect(box, 'control: switch ON renders the Active setups box').toBeTruthy()
+      expect(box, 'control: switch ON renders the Setups box').toBeTruthy()
       expect(box.querySelector(`a[href="${SETUPS_BOARD_PATH}"]`), 'control: the box holds the link').toBeTruthy()
       expect(normalise(on.container.innerHTML)).not.toBe(offHtml)
       // The box is a top-level child of React's container, so it is taken out of a CLONE: removing a
@@ -183,15 +185,16 @@ describe('first-open bytes', () => {
     expect(imports).toEqual(['./offline/notebookFlags'])
   })
 
-  // I4 (final review, spec section 6: every new surface lazy). The Active setups box is on the
+  // I4 (final review, spec section 6: every new surface lazy). The Setups box is on the
   // first-open path, so it loads on demand and only while its flag is on.
-  it('the Active setups box is a lazy chunk, never a static import, and mounts only while its flag is on', () => {
+  it('the Setups box is a lazy chunk, never a static import, and mounts only while its flag is on', () => {
     const home = readFileSync(resolve(here, 'ResearchHome.jsx'), 'utf8')
     expect(home).not.toMatch(/import\s+SetupsBox\s+from/)
     // N4 (polish round): the loader is named so the idle preload can share it.
     expect(home).toMatch(/const loadSetupsBox = \(\) => import\('\.\/SetupsBox'\)/)
     expect(home).toMatch(/const SetupsBox = lazyChunk\(loadSetupsBox\)/)
-    expect(home).toMatch(/setupsBoardEnabled\(\) \? <Suspense fallback=\{null\}><SetupsBox \/><\/Suspense> : null/)
+    // Tier 4 fix round 2: the fallback holds the box's height (ResearchHome.cls.test.jsx); still lazy, still flag-gated.
+    expect(home).toMatch(/setupsBoardEnabled\(\)\s*\?\s*<Suspense fallback=\{<div className=\{styles\.setupsReserve\}[^>]*\/>\}><SetupsBox \/><\/Suspense>\s*:\s*null/)
   })
 
   it('switch OFF never asks for the board (the box is not even mounted)', () => {

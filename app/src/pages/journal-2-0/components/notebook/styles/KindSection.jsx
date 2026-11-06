@@ -3,7 +3,7 @@
 // A lazy chunk (NotebookTab lazyView). It creates nothing itself: onKind/onStyle go to createNote.
 // ⛔ The switch is read in ONE place per layer: NotebookTab mounts this only while journalStylesEnabled(),
 // and the hook refuses to fetch with it off. This file restates neither (a guard repeated is a guard unproved).
-// P3a Task 10: "Browse community styles" opens the community library at Styles (LibraryDoor), only while the
+// P3a Task 10: "Browse the Template library" opens the community library at Styles (LibraryDoor), only while the
 // library switch (styleLibraryEnabled) is on. The gallery's import lives in this lazy chunk, never in the picker.
 // P5 Task 5: "How do you trade?" (StarterPackOffer) sits at the top while R-P5-5 holds: the starter-packs switch
 // is on, the member has no styles of their own and has not answered it. The rule is useStarterPackOffer's alone,
@@ -13,7 +13,7 @@ import { useId, useRef, useState } from 'react'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { defaultStyleFor, stylesOfKind, previewJournalStyle } from '../../../lib/journalStyles'
-import { kindIcon } from '../../../lib/noteKinds'
+import { BUILTIN_NOTE_KINDS, kindIcon } from '../../../lib/noteKinds'
 import { BLOCK_KINDS, blockLabel, tfWord } from '../../../lib/journalBlocks'
 import { familyLabel, slotFamily, slotLabel, slotNamesOf } from '../../../lib/templateSlots'
 import { WIDGET_REGISTRY } from '../../../../../widgets/registry'
@@ -56,6 +56,36 @@ const labelled = (n, names = {}) => {
   return Array.isArray(n?.content) ? { ...n, content: n.content.map((c) => labelled(c, names)) } : n
 }
 
+/** The loading state, at the settled section's shape (see KindSection). Inert: nothing to press until it loads. */
+function KindSectionLoading({ headingId }) {
+  return (
+    <section className={styles.wrap} aria-labelledby={headingId} aria-busy="true" data-kind-section-loading="">
+      <p className="sr-only" role="status">Loading kinds of note…</p>
+      <h3 id={headingId} className={styles.h}>Start from a template</h3>
+      {styleLibraryEnabled() && (
+        <button type="button" className={styles.libraryDoor} disabled tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}>
+          <UIcon name="community" size={14} gold={false} /><span>Browse the Template library</span>
+        </button>
+      )}
+      <div className={styles.grid} aria-hidden="true">
+        {BUILTIN_NOTE_KINDS.map((k) => (
+          <div key={k.id} className={styles.kind}>
+            {/* Real (disabled, unfocusable) buttons, so each card's box is the settled card's box. */}
+            <button type="button" className={styles.kindBtn} disabled tabIndex={-1} data-kind-placeholder="">
+              <UIcon name={iconOf(k)} size={16} gold={false} />
+              <span className={styles.kindName}>{k.name}</span>
+              <span className={styles.kindStyle}>…</span>
+            </button>
+            <button type="button" className={styles.another} disabled tabIndex={-1} style={{ visibility: 'hidden' }}>
+              Choose another template
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function KindSection({ onCreate, busy = false, autoFocusFirst = false }) {
   const headingId = useId()
   const focusedRef = useRef(false)
@@ -64,8 +94,13 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   const [preview, setPreview] = useState(null)   // { style, loading, body, ticker, error }
   const offer = useStarterPackOffer(data)
 
-  if (isLoading) return <p className={styles.status} role="status">Loading kinds of note…</p>
-  if (error || !data) return <p className={styles.status} role="alert">Couldn't load your journal styles.</p>
+  // Tier 2 fix round 1 (review Important 4, measured 0.2257 CLS on a phone's empty notebook): the loading line was
+  // 21 px and the section that replaced it 1,055 px, pushing the gallery below it down. While loading, the section
+  // is drawn at its SETTLED shape -- its heading, the library door, and one card per BUILT-IN kind (a code constant,
+  // lib/noteKinds.js, the same list the server starts every member's kinds with), inert -- so arriving moves nothing.
+  // Only a member's own extra kinds can still add rows. Rail: KindSection.loadingShape.test.jsx.
+  if (isLoading) return <KindSectionLoading headingId={headingId} />
+  if (error || !data) return <p className={styles.status} role="alert">Couldn't load your templates.</p>
 
   const showPreview = async (style) => {
     setPreview({ style, loading: true })
@@ -84,10 +119,10 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
   return (
     <section className={styles.wrap} aria-labelledby={headingId} data-starter-offer={offer.settled ? 'settled' : 'deciding'}>
       {offer.show && <StarterPackOffer onClose={offer.close} offline={offline} />}
-      <h3 id={headingId} className={styles.h}>Start from a kind of note</h3>
-      {styleLibraryEnabled() && <LibraryDoor label="Browse community styles" className={styles.libraryDoor} />}
-      {offline && <p className={styles.status} role="status">You're offline. These are your saved styles; a new note needs a connection.</p>}
-      <div role="group" aria-label="Start from a kind of note" className={styles.grid}>
+      <h3 id={headingId} className={styles.h}>Start from a template</h3>
+      {styleLibraryEnabled() && <LibraryDoor label="Browse the Template library" className={styles.libraryDoor} />}
+      {offline && <p className={styles.status} role="status">You're offline. These are your saved templates; a new note needs a connection.</p>}
+      <div role="group" aria-label="Start from a template" className={styles.grid}>
         {data.kinds.map((k, i) => {
           const def = defaultStyleFor(data, k.id)
           return (
@@ -97,18 +132,18 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
                 onClick={() => onCreate({ kindId: k.id })}>
                 <UIcon name={iconOf(k)} size={16} gold={false} />
                 <span className={styles.kindName}>{k.name}</span>
-                <span className={styles.kindStyle}>{def ? def.name : 'No style yet'}</span>
+                <span className={styles.kindStyle}>{def ? def.name : 'No template yet'}</span>
               </button>
               <button type="button" className={styles.another} aria-expanded={openKind === k.id}
-                aria-label={`Choose another style for ${k.name}`}
+                aria-label={`Choose another template for ${k.name}`}
                 onClick={() => setOpenKind(openKind === k.id ? null : k.id)}>
-                Choose another style
+                Choose another template
               </button>
               {openKind === k.id && (
                 stylesOfKind(data, k.id).length === 0 ? (
-                  <p className={styles.status}>No styles for this kind yet.</p>
+                  <p className={styles.status}>No templates for this note type yet.</p>
                 ) : (
-                <ul className={styles.list} aria-label={`Styles for ${k.name}`}>
+                <ul className={styles.list} aria-label={`Templates for ${k.name}`}>
                   {stylesOfKind(data, k.id).map((s) => (
                     <li key={s.id} className={styles.row}>
                       <span className={styles.rowName}>{s.name}{s.builtin ? ' · Built-in' : ''}{s.isDefault ? ' · Default' : ''}</span>
@@ -127,7 +162,7 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
         <TemplatePreview open onClose={() => setPreview(null)} title={preview.style.name}
           subtitle={preview.ticker ? `Shown with ${preview.ticker}, from your notes.` : 'Add a ticker to see the chart block.'}
           body={preview.body} loading={preview.loading} loadError={preview.error}
-          busy={busy || offline} useLabel="Use this style"
+          busy={busy || offline} useLabel="Use"
           onUse={() => { const id = preview.style.id; setPreview(null); onCreate({ styleId: id }) }} />
       )}
     </section>

@@ -38,7 +38,7 @@ import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { checklistEnabled } from './gettingStartedPref'
-import { focusFirstRunHeadingIfLost } from './keyboardDoors'
+import { focusFirstRunHeadingIfLost, focusPageIfLost } from './keyboardDoors'
 import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY, TOUR_UI } from './tourCopy'
 import { TOUR_OPEN_EVENT, takePendingTourOpen } from './tourControl'
@@ -220,6 +220,8 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false, 
     // while focus is still nowhere (focusFirstRunHeadingIfLost never moves focus a member
     // put somewhere). With the switch off this is the wave-8 behaviour, unchanged.
     if (wasOpenRef.current && checklistEnabled(notebookFlag)) focusFirstRunHeadingIfLost()
+    // VIS-5 (issue 25): with nothing to hand back to, focus is never left on <body>.
+    if (wasOpenRef.current) focusPageIfLost()
     wasOpenRef.current = false
   }, [steps])
 

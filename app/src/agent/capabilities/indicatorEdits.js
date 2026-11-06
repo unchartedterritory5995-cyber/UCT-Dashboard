@@ -404,7 +404,8 @@ export const indicatorEditsKind = {
       mentioned = [...mentioned, ...r.instanceIds.map(id => ({ chartRef, instanceId: id }))].slice(-48)
     }
     if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
-    return { lines: [receiptLine(done.receipt, label)], undoData: done.undo || null }
+    // (`note`: what a capability adds to the receipt that the mutation cannot know, e.g. which saved template it came from)
+    return { lines: [receiptLine(done.receipt, label), ...(patch.change?.note ? [patch.change.note] : [])], undoData: done.undo || null }
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
   landed: () => true,

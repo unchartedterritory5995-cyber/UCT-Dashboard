@@ -970,6 +970,7 @@ export default function ChartSettingsModal({
           <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
             <button
               type="button"
+              data-guide="chartSettings.reset"
               className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
               onClick={handleReset}
               title="Resets chart appearance. Your indicators stay."
@@ -985,6 +986,7 @@ export default function ChartSettingsModal({
         <div className={styles.tplBar} onPointerDown={e => e.stopPropagation()}>
           <div className={styles.tplMenuWrap}>
             <button
+              data-guide="chartSettings.templates"
               type="button"
               className={styles.tplBtn}
               onClick={() => setTplMenuOpen(o => !o)}
@@ -1036,6 +1038,7 @@ export default function ChartSettingsModal({
             </div>
           ) : (
             <button
+              data-guide="chartSettings.saveTemplate"
               type="button"
               className={styles.tplBtn}
               onClick={() => { setSavingTpl(true); setTplMenuOpen(false) }}
@@ -1048,6 +1051,7 @@ export default function ChartSettingsModal({
             type="button"
             className={`${styles.tplBtn} ${styles.themesBarBtn}`}
             onClick={() => setThemesOpen(true)}
+            data-guide="chartSettings.themes"
             title="Browse UCT chart themes — one-click looks for this chart"
           ><UIcon name="sun" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 5 }} />UCT Chart Themes</button>
         </div>
@@ -1763,6 +1767,7 @@ export default function ChartSettingsModal({
       {activeTarget && panelPos && createPortal(
         <div
           data-color-panel
+          data-guide="chartSettings.colorPanel"
           style={{ position: 'fixed', left: panelPos.left, bottom: panelPos.bottom, zIndex: 9100 }}
           onMouseDown={(e) => e.stopPropagation()}
         >

@@ -30,6 +30,9 @@ _HARD_CAP_TRIPPED = False
 # number 2026-08-30 and this table was never brought in line. Sonnet 5 is
 # $2.00/$10.00, not $3.00/$15.00 — the two guards had drifted apart.
 _PRICING = {
+    # The dearest models: an unknown model prices at the priciest entry here (see below).
+    "claude-fable-5-1":  {"input": 10.0, "output": 50.0},
+    "claude-fable-5":    {"input": 10.0, "output": 50.0},
     # Opus 5 ships at Opus 4.8's list price — $5 in / $25 out per 1M (Anthropic
     # model table, cached 2026-06-24; the same figures flow_explain._PRICING
     # already carries for claude-opus-4-8). W0.4, 2026-08-25.
@@ -316,6 +319,25 @@ def release_member_call(rowid: int, ticker: str) -> None:
         store.settle_cost(rowid, ticker=ticker, input_tokens=0, output_tokens=0, cost_usd=0.0)
     except Exception:                               # noqa: BLE001
         logger.exception("[cost_guard] release failed; the row keeps its worst case")
+
+
+def charge_unreported_call(market_date: str, ticker: str, model: str, request: dict,
+                           exc: BaseException) -> float:
+    """⛔ A CALL THAT RAISED MAY STILL BE A BILLED CALL. A timeout or a dropped connection
+    reports no usage, so these lanes used to record nothing, and the caps never saw it.
+    The worst case for `request` is charged instead, the rule the concierge doors and the
+    call recap already follow. An HTTP error response generated nothing and is free, and
+    with no API key nothing was sent. Returns the cost. Never raises."""
+    try:
+        from api.services.uct_agent import budget
+        if budget._is_provider_error_response(exc) or not os.environ.get("ANTHROPIC_API_KEY"):
+            return 0.0
+        return record(market_date, ticker, model,
+                      budget.request_bytes(request) + budget.FRAMING_TOKENS,
+                      int(request.get("max_tokens") or 0))
+    except Exception:                               # noqa: BLE001
+        logger.exception("[cost_guard] could not charge a failed call for %s", ticker)
+        return 0.0
 
 
 def record(market_date: str, ticker: str, model: str,

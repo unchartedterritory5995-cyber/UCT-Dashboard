@@ -1,0 +1,26 @@
+[
+[
+"control:noop-comment",
+"services/pine_runtime/pool.mjs",
+"// design 3.4 names alert, on-demand",
+"// (control) design 3.4 names alert, on-demand"
+],
+[
+"sb:l1-allow-any-token",
+"services/pine_runtime/sandbox.mjs",
+"a.token === token && a.line === t",
+"a.line === t"
+],
+[
+"sb:l4-worker-env-inherited",
+"services/pine_runtime/sandbox.mjs",
+"workerData: { role: ROLE_L4, target, execPath }, env: {} })",
+"workerData: { role: ROLE_L4, target, execPath } })"
+],
+[
+"pool:recycle-not-replaced",
+"services/pine_runtime/pool.mjs",
+"      stats.recycles += 1\n      retire(s)\n      replace()",
+"      stats.recycles += 1\n      retire(s)"
+]
+]

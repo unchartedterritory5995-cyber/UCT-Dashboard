@@ -1,0 +1,8 @@
+//@version=5
+indicator("hp rsi stoch", overlay=false)
+r = ta.rsi(close, 14)
+k = ta.sma(ta.stoch(r, r, r, 14), 3)
+d = ta.sma(k, 3)
+plot(r, "rsi")
+plot(k, "k")
+plot(d, "d")

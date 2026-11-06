@@ -22,6 +22,7 @@ import { registerCapability, registerTargetKind, registerContextProvider, regist
 import { unknownSymbols } from '../agentClient'
 import { mutate as globalMutate } from 'swr'
 import { kindServed, readQuoteMap } from './marketDataFacts'
+import { indicatorAlertBook } from './indicatorAlerts'
 
 const ROUTE = '/api/watchlist-alerts'
 const TTL_MS = 20_000
@@ -128,7 +129,8 @@ export const alertLibraryKind = {
     // proposal is refused, never doubled.
     const cur = await loadAlerts({ force: true })
     for (const c of patch.create) {
-      const dup = cur.find(a => a.active && a.sym === c.sym && a.direction === c.direction && a.price === c.price)
+      // an alert bound to a drawing is that drawing's: its price moves with the line, so the binding is what repeats
+      const dup = cur.find(a => a.active && a.sym === c.sym && a.direction === c.direction && (c.body?.drawing_id ? a.drawingId === c.body.drawing_id : a.price === c.price))
       if (dup) throw new Error(`you already have an active alert for ${alertPhrase(dup)}`)
     }
     const created = {}
@@ -136,7 +138,7 @@ export const alertLibraryKind = {
       try {
         const row = await json(await req(ROUTE, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sym: c.sym, target_price: c.price, direction: c.direction, alert_type: 'price' }),
+          body: JSON.stringify(c.body || { sym: c.sym, target_price: c.price, direction: c.direction, alert_type: 'price' }),
         }), 'Creating the alert')
         created[`#${i}`] = String(row.id)
       } catch (e) {
@@ -264,7 +266,9 @@ export function registerAlertCapabilities() {
     },
     fastWhole: true,
     fast: ({ lower }) => (/^((show|list)( me)?( all)?( of)? my( price)? alerts|what alerts do i have|my alerts)[?.!]?$/.test(lower) ? { symbol: null, status: null, triggered_today: null } : null),
-    async answer(_snap, { symbol, status, triggered_today: today }) {
+    // ⭐ "what alerts do I have" is about the member's WHOLE book: each half is named, and a half that wasn't read is said to
+    // be missing — never "you have no alerts" from the price half alone. "Went off" is a price-alert reading only.
+    async answer(_snap, { symbol, status, triggered_today: today }, host) {
       let all
       try { all = await loadAlerts({ force: true }) } catch (e) { return `I couldn't read your alerts right now (${e?.message || 'error'}).` }
       const sym = symbol ? upper(symbol) : null
@@ -274,11 +278,18 @@ export function registerAlertCapabilities() {
       if (st === 'active') xs = xs.filter(a => a.active)
       if (st === 'triggered') xs = xs.filter(a => !a.active && a.triggeredAt)
       if (today) xs = xs.filter(a => etDay(a.triggeredAt) === todayET)
-      const what = `${today ? 'alerts that went off today' : st === 'active' ? 'active alerts' : st === 'triggered' ? 'alerts that went off' : 'alerts'}${sym ? ` on ${sym}` : ''}`
-      if (!xs.length) return `You have no ${what}.`
+      const what = (kind) => `${today ? `${kind}alerts that went off today` : st === 'active' ? `active ${kind}alerts` : st === 'triggered' ? `${kind}alerts that went off` : `${kind}alerts`}${sym ? ` on ${sym}` : ''}`
       const line = (a) => `${alertPhrase(a)} — ${statusOf(a)}${a.type !== 'price' ? ` (${kindWord(a)})` : ''}`
-      const head = `Your ${what} (${xs.length}):`
-      return [head, ...xs.slice(0, 30).map(a => `• ${line(a)}`), ...(xs.length > 30 ? [`…and ${xs.length - 30} more.`] : [])].join('\n')
+      const block = (kind, lines) => (lines.length
+        ? [`Your ${what(kind)} (${lines.length}):`, ...lines.slice(0, 30).map(l => `• ${l}`), ...(lines.length > 30 ? [`…and ${lines.length - 30} more.`] : [])].join('\n')
+        : `You have no ${what(kind)}.`)
+      const price = block('price ', xs.map(line))
+      if (st === 'triggered') return `${price}\n\nThat covers price alerts only: indicator alerts re-arm by themselves and aren't listed by when they went off.`
+      const book = await indicatorAlertBook(host, { symbol: sym, activeOnly: st === 'active' })
+      if (!book) return `${price}\n\nThat covers price alerts only: indicator alerts aren't included here.`
+      if (book.unread) return `${price}\n\nI couldn't read your indicator alerts right now, so they aren't included.`
+      if (!xs.length && !book.rows.length) return `You have no ${what('')}.`
+      return `${price}\n\n${block('indicator ', book.rows)}`
     },
   })
 
@@ -296,7 +307,7 @@ export function registerAlertCapabilities() {
       + 'If they give a level WITHOUT saying above or below (e.g. "an alert on NVDA at 200", "when it hits 200"), clarify with choices above / below — never guess. '
       + 'One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. '
       + 'Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question ("why is TSLA moving? and set an alert above 300": propose the alert AND ask research for the question). '
-      + 'For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.',
+      + 'An alert on an indicator (RSI, MACD, a moving-average cross…) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.',
     args: {
       type: 'object',
       properties: { symbol: { type: 'string' }, price: { type: 'number' }, direction: { type: 'string', enum: ['above', 'below'] } },

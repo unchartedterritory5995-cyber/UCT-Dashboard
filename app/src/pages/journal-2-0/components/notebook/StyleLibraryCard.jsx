@@ -47,7 +47,15 @@ export function refusalSentence(err, fallback) {
 }
 
 
-export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, onChanged, isAdmin = false, busy = false }) {
+// Audit 2026-11-05, S7/S9 fix round 1 (review finding 3) and fix round 2 (R1-3): ONE WORD, ONE OUTCOME. "Use" makes a
+// note in one press and "Customize first" opens the choices and then makes a note, as everywhere else
+// (library/libraryUse.js, the one door). What this button did before (the add-a-copy confirm, or the adoption sheet in
+// copy mode) is its own button, "Add to my templates" -- the only one where no note can be made (wave 11 off).
+export const ADD_TO_MINE = 'Add to my templates'
+export const addedWords = (name) => `Added "${name}" to your templates.`
+export const notAddedWords = (title) => `Couldn't add "${title}" to your templates. Nothing was changed.`
+
+export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAuthor, onMessage, onChanged, isAdmin = false, busy = false, landNote = null }) {
   const uid = useId()
   const [confirming, setConfirming] = useState(false)
   const [notify, setNotify] = useState(false)
@@ -59,7 +67,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   const adoptBtnRef = useRef(null)
   const reportBtnRef = useRef(null)
   const ts = tradingStyleLabel(item.tradingStyle)
-  // Wave 11 (Task 11.16): the facts block replaces "Adopted by N" (a 0 read "Adopted by 0"; now "New"), the helpful
+  // Wave 11 (Task 11.16): the facts block replaces "Used by N" (a 0 read "Used by 0"; now "New"), the helpful
   // line (shown from 1 up) and the description. Wave 11 off: exactly as before.
   const w11 = widgetsWaveOn(11)
   // Ruling W11-R25: under wave 11, Adopt on a style that holds a family slot opens the adoption sheet (its choices and
@@ -86,6 +94,34 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
   }
 
   const closeConfirm = () => { setConfirming(false); setNotify(false); adoptBtnRef.current?.focus() }
+  // Fix round 2 (R1-3): "Customize first" opens the choices and ends in a NOTE, as everywhere else.
+  const customize = async () => {
+    try {
+      const mod = await import('./library/libraryUse')
+      const said = await mod.openCustomize(item, typeof landNote === 'function' ? { landNote } : {})
+      if (said) onMessage?.({ tone: 'error', text: said })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    }
+  }
+  // S9: Use, in one press (wave 11 only: the route it needs).
+  const [using, setUsing] = useState(false)
+  const usingRef = useRef(false)
+  const useNow = async () => {
+    if (usingRef.current || busy) return
+    usingRef.current = true
+    setUsing(true)
+    try {
+      const mod = await import('./library/libraryUse')
+      const said = await mod.useLibraryTemplate(item, typeof landNote === 'function' ? { landNote } : {})
+      if (said) onMessage?.({ tone: 'error', text: said })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    } finally {
+      usingRef.current = false
+      setUsing(false)
+    }
+  }
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
 
   const adopt = async () => {
@@ -97,13 +133,13 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       trackNotebookEvent(NOTEBOOK_EVENTS.STYLE_ADOPTED, { notify })
       const name = out?.style?.name || item.title
       const credit = typeof out?.credit === 'string' && out.credit.trim() ? ` ${withStop(out.credit.trim())}` : ''
-      onMessage?.({ tone: 'ok', text: `Added "${name}" to your styles.${credit}` })
+      onMessage?.({ tone: 'ok', text: `${addedWords(name)}${credit}` })
       // The confirm (and the Adopt button that had focus) goes away: focus returns to the card's own
       // Adopt button, as Cancel does, never to the page (review M-1).
       closeConfirm()
       onAdopted?.(out?.style)
     } catch (err) {
-      onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't add "${item.title}" to your styles. Nothing was changed.`) })
+      onMessage?.({ tone: 'error', text: refusalSentence(err, notAddedWords(item.title)) })
     } finally {
       setAdopting(false)
     }
@@ -116,7 +152,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         <span className={styles.meta}>
           {item.firm ? <span className={styles.firmBadge}>UCT</span> : item.authorHandle && onOpenAuthor ? (
             <button type="button" className={styles.authorBtn} data-author-door={item.authorHandle}
-              onClick={() => onOpenAuthor(item.authorHandle)} aria-label={`See styles by ${item.author}`}>
+              onClick={() => onOpenAuthor(item.authorHandle)} aria-label={`See templates by ${item.author}`}>
               {item.author}
             </button>
           ) : <>by {item.author}</>}
@@ -124,7 +160,7 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
         </span>
         {!w11 && (
           <span className={styles.meta}>
-            Adopted by {Number(item.usedBy) || 0}{' · '}
+            Used by {Number(item.usedBy) || 0}{' · '}
             <span data-helpful-count="">{helpfulCount} found this helpful</span>
           </span>
         )}
@@ -137,11 +173,26 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
           aria-label={`Preview ${item.title}`}>
           <UIcon name="eye" size={13} gold={false} /> Preview
         </button>
+        {!item.mine && w11 && (
+          <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={useNow}
+            disabled={busy || using} aria-label={`Use ${item.title}`} data-tour="library-adopt" data-library-use="">
+            Use
+          </button>
+        )}
+        {/* Fix round 2 (re-review R1-3): "Customize first" means ONE thing everywhere -- the choices, then a NOTE
+            (libraryUse.openCustomize, the adoption sheet in 'use' mode). Keeping a copy is its own button. */}
+        {!item.mine && w11 && (
+          <button type="button" className={styles.btn} onClick={customize} disabled={busy || using}
+            aria-label={`Customize first: ${item.title}`} data-library-customize="">
+            Customize first
+          </button>
+        )}
         {!item.mine && (
-          <button type="button" ref={adoptBtnRef} className={`${styles.btn} ${styles.primary}`}
-            onClick={startAdopt} disabled={busy || checking}
-            aria-expanded={confirming} aria-label={`Adopt ${item.title}`} data-tour="library-adopt">
-            Adopt
+          <button type="button" ref={adoptBtnRef} className={w11 ? styles.btn : `${styles.btn} ${styles.primary}`}
+            onClick={startAdopt} disabled={busy || checking || using} aria-expanded={confirming}
+            aria-label={`${ADD_TO_MINE}: ${item.title}`}
+            {...(w11 ? {} : { 'data-tour': 'library-adopt' })}>
+            {ADD_TO_MINE}
           </button>
         )}
         {!item.mine && (
@@ -162,14 +213,14 @@ export default function StyleLibraryCard({ item, onPreview, onAdopted, onOpenAut
       {/* The 3-day sentence's live region exists before its text (fix round 1, M-3), so the change is announced. */}
       <p className={daysNote ? styles.note : styles.liveIdle} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>
       {confirming && (
-        <div className={styles.confirm} role="group" aria-label={`Adopt ${item.title}?`}>
+        <div className={styles.confirm} role="group" aria-label={`Add ${item.title} to your templates?`}>
           <label className={styles.check} htmlFor={`${uid}-notify`}>
             <input id={`${uid}-notify`} type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             <span>Notify me when the author updates</span>
           </label>
           <div className={styles.actions}>
             <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={adopt} disabled={adopting || busy}>
-              Adopt
+              {ADD_TO_MINE}
             </button>
             <button type="button" className={styles.btn} onClick={closeConfirm}>Cancel</button>
           </div>

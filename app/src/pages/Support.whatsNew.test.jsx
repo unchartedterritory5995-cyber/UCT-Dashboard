@@ -187,3 +187,29 @@ describe('first paint', () => {
     await waitFor(() => expect(rows(screen.getByRole('region', { name: WHATS_NEW_COPY.heading }))).toEqual(['Chart fingerprint']))
   })
 })
+
+// S14 (audit 2026-11-05, detail #68): Help > Walkthroughs said "Replay" on tours the member never took. The verb reads
+// the existing tour-seen state: Start for a tour never taken, Replay for one taken.
+describe('Help > Walkthroughs: Start or Replay from the seen-state (S14)', () => {
+  const walkList = async () => (await screen.findByRole('heading', { level: 2, name: 'Walkthroughs' }, { timeout: 3000 }))
+    .parentElement.querySelector('ul')
+  const verbOf = (list, title) => within(list).getByText(title).closest('li').querySelector('a').textContent
+
+  it('no record: Start, named for its tour', async () => {
+    renderSupport()
+    const list = await walkList()
+    expect(verbOf(list, 'Template gallery')).toBe('Start')
+    expect(within(list).getByRole('link', { name: 'Start the Template gallery tour' })).toBeInTheDocument()
+  })
+
+  it('done or walked part way: Replay; declined from the offer before a step: still Start', async () => {
+    server.prefs = { notebook_tours: JSON.stringify({
+      'c2-a': { v: 1, state: 'done', step: 'x' },
+      'c2-b': { v: 1, state: 'dismissed', step: null },
+    }) }
+    renderSupport()
+    const list = await walkList()
+    await waitFor(() => expect(verbOf(list, 'Template gallery')).toBe('Replay'))
+    expect(verbOf(list, 'Chart fingerprint')).toBe('Start')
+  })
+})

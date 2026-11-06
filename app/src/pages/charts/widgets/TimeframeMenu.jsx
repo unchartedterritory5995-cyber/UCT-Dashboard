@@ -20,13 +20,13 @@ const UNITS = [
 function Row({ code, active, fav, onSelect, onToggleFav, onRemove }) {
   return (
     <div className={`${styles.row} ${active ? styles.rowActive : ''}`}>
-      <button type="button" className={styles.star} aria-pressed={fav}
+      <button type="button" className={styles.star} data-guide="timeframe.star" aria-pressed={fav}
         title={fav ? 'Remove from favorites' : 'Add to favorites'}
         onClick={(e) => { e.stopPropagation(); onToggleFav(code) }}
       >{fav ? '★' : '☆'}</button>
       <button type="button" className={styles.rowLabel} onClick={() => onSelect(code)}>{tfLabel(code)}</button>
       {onRemove && (
-        <button type="button" className={styles.remove} title="Delete custom interval"
+        <button type="button" className={styles.remove} data-guide="timeframe.remove" title="Delete custom interval"
           onClick={(e) => { e.stopPropagation(); onRemove(code) }}>✕</button>
       )}
     </div>

@@ -41,6 +41,7 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react'
 import { selectedRect } from '@tiptap/pm/tables'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import {
   COLUMN_MAX_PX, COLUMN_MIN_PX, COLUMN_STEP_PX, canSortTable, currentColumnWidth,
@@ -306,7 +307,7 @@ export default function TableToolbar({ editor }) {
             aria-label={name}
             title={name}
           >
-            <UIcon name={icon} size={12} gold={false} />
+            <UIcon name={icon} {...TOOLBAR_ICON} />
             <span className={styles.label}>{label}</span>
           </button>
         </span>
@@ -378,7 +379,7 @@ export default function TableToolbar({ editor }) {
         aria-label="Delete table"
         title="Delete this table"
       >
-        <UIcon name="trash" size={12} gold={false} />
+        <UIcon name="trash" {...TOOLBAR_ICON} />
         <span className={styles.label}>Delete table</span>
       </button>
     </div>

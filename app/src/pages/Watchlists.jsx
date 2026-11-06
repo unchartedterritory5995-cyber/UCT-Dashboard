@@ -101,6 +101,9 @@ import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { exportQuota, downloadExport } from '../lib/dataExport'
 import SymbolSearch from '../components/chart/SymbolSearch'
+import { OPTIONAL_COLS, EXTRA_COLS, DEFAULT_COL_ORDER, COL_LABELS, TEXT_COLS, withColumn, firstSortDir } from './watchlist/watchlistColumns'
+import { publishListView } from './watchlist/watchlistViews'
+import { useWidgetDoor } from './charts/widgetDoors'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
@@ -113,14 +116,13 @@ import { chordById, matchesChord } from './command/chords.js'
 // skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
 import fetcher from '../utils/jsonFetcher'
 import { readSuccessBody } from '../lib/responseBody'
-import { ASC, DESC, nextSort } from '../lib/presentation/dataGrid'
+import { nextSort } from '../lib/presentation/dataGrid'
 
 // TERM-065: a column-header click asks the DataGrid seed which way the sort turns
 // (same column flips; a new column starts Symbol A→Z, numbers high→low). The frozen
 // snapshot comparator (applyColSort) stays here. Parity with the hand-rolled updater:
 // lib/presentation/dataGrid/pageGrids2.seedParity.test.js
-const watchColFirstDir = (key) => (key === 'sym' ? ASC : DESC)
-export const nextWatchColSort = (prev, key) => nextSort(prev, key, watchColFirstDir)
+export const nextWatchColSort = (prev, key) => nextSort(prev, key, firstSortDir)
 
 // S2 CP4 — resolved ONCE at module scope: a lookup inside the handler would
 // re-scan the table on every keystroke, and a miss would silently disable
@@ -141,11 +143,7 @@ const PERF_KEYS = new Set(PERF_COLS.map(([k]) => k))
 const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 // Configurable columns (right-click a header to hide/show, drag a gridline to resize).
 // Flag + Sym are fixed (star + identity). Persisted per-user in localStorage.
-const OPTIONAL_COLS = [  // hideable via right-click
-  { key: 'price', label: 'Price', def: 62, min: 44 },
-  { key: 'vol', label: 'Vol', def: 56, min: 40 },
-  { key: 'chg', label: '% Chg', def: 68, min: 50 },
-]
+// The column CATALOG lives in ./watchlist/watchlistColumns (the Agent reads it too).
 // Every real column is a FIXED px width (incl. Sym) so its gridlines sit at the same
 // x in the header and every row (a flexible column would drift with scrollbar/subpixel
 // rounding and misalign). A trailing minmax(0,1fr) filler absorbs any leftover width.
@@ -174,23 +172,7 @@ const COL_META = {
   // Watchlist Intelligence V1: deterministic "why is this active" badge.
   attention: { def: 84, min: 60 },
 }
-const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
-// [full label, abbreviation] + the min column width to still show the full word.
-const COL_LABELS = {
-  flag: ['', ''], sym: ['Symbol', 'Sym'], name: ['Company Name', 'Name'],
-  price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
-  rvol: ['RVOL', 'RVOL'], ipoDate: ['IPO Date', 'IPO'],
-  mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
-  dchg: ['$ Change', '$ Chg'], fromopen: ['% from Open', '% Open'], fromhigh: ['% from High', '% High'],
-  fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'], dolvol: ['Dollar Volume', '$ Vol'],
-  sector: ['Sector', 'Sector'], industry: ['Industry', 'Industry'], theme: ['Theme', 'Theme'],
-  perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
-  periodchg: ['% Change', '% Chg'],
-  grpcount: ['Stocks', 'Stocks'],
-  weight: ['Weight %', 'Wt %'],
-  atr: ['ATR %', 'ATR%'], a50: ['ATR from 50SMA', '50SMA'],
-  attention: ['Attention', 'Attn'],
-}
+// The min column width to still show the full word of a COL_LABELS pair.
 const COL_FULL_MINW = {
   sym: 62, name: 140, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
@@ -198,38 +180,11 @@ const COL_FULL_MINW = {
   atr: 44, a50: 96,
   attention: 60,
 }
-// Extra data columns the user can ADD via the + button (not shown by default).
-const EXTRA_COLS = [
-  { key: 'name', label: 'Company Name' },
-  { key: 'rvol', label: 'RVOL' },
-  { key: 'ipoDate', label: 'IPO Date' },
-  { key: 'mcap', label: 'Market Cap' },
-  { key: 'earn', label: 'Next Earnings' },
-  { key: 'rating', label: 'UCT Rating' },
-  { key: 'dchg', label: '$ Change' },
-  { key: 'fromopen', label: '% from Open' },
-  { key: 'fromhigh', label: '% from High' },
-  { key: 'fromlow', label: '% from Low' },
-  { key: 'dcr', label: 'Daily Closing Range' },
-  { key: 'dolvol', label: 'Dollar Volume' },
-  { key: 'sector', label: 'Sector' },
-  { key: 'industry', label: 'Industry' },
-  { key: 'theme', label: 'Theme' },
-  { key: 'perf5d', label: '5-Day Change' },
-  { key: 'perf30d', label: '30-Day Change' },
-  { key: 'perf60d', label: '60-Day Change' },
-  { key: 'perf90d', label: '90-Day Change' },
-  { key: 'attention', label: 'Attention' },
-  { key: 'atr', label: 'ATR %' },
-  { key: 'a50', label: 'ATR from 50SMA' },
-]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
 // meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
 // quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
 const META_KEYS = new Set(['name', 'rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector', 'industry'])
-// Text columns — sorted alphabetically, not numerically.
-const TEXT_COLS = new Set(['name', 'sector', 'industry', 'theme'])
 // N-day performance columns → their key in perfData (from /api/watchlist-performance).
 const PERF_KEY_MAP = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d', periodchg: 'period' }
 const PERF_COL_KEYS = new Set(Object.keys(PERF_KEY_MAP))
@@ -766,7 +721,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -2108,13 +2063,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // (the grid below shrinks the others to fit); unchecking removes it.
   const toggleExtraCol = useCallback((key) => {
     const curOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
-    if (curOrder.includes(key)) {
-      saveColCfg({ ...colCfg, order: curOrder.filter(k => k !== key) })
-    } else {
-      const nextHidden = { ...(colCfg.hidden || {}) }
-      delete nextHidden[key]
-      saveColCfg({ ...colCfg, order: [...curOrder, key], hidden: nextHidden })
-    }
+    if (curOrder.includes(key)) saveColCfg({ ...colCfg, order: curOrder.filter(k => k !== key) })
+    else saveColCfg(withColumn({ ...colCfg, order: curOrder }, key))
   }, [colCfg, saveColCfg])
 
   // Drag a header column onto another to reorder the columns.
@@ -2319,6 +2269,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     navOrderRef.current = { syms: orderedSymsFlat, virtualized: anyListVirtualized }
   }, [orderedSymsFlat, anyListVirtualized])
 
+  // ⭐ THE SAME WIDGET, OFFERED TO THE AGENT (watchlistViews.js): what a member sees here, read from what is drawn, and the
+  // two writers a member's own controls use (saveColCfg; the arrow keys' setSelectedSym + setHubSym). Written every render
+  // and read only from outside it, so the published object never goes stale and nothing re-renders for it.
+  const listViewRef = useRef(null)
+  useEffect(() => {
+    if (!listView) return undefined
+    return publishListView(listView, () => listViewRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- identity is the widget's own (type, colour, list)
+  }, [listView?.type, listView?.color, listView?.key])
+
   // Scan mode: the sorted row list, MEMOIZED so a huge (~5,000-row) scan re-sorts only
   // when the data/sort actually changes — NOT on every scroll frame (which updates
   // scanVisibleSyms → re-renders). Keyed on the sort callbacks (they already change
@@ -2354,6 +2314,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return flat
   }, [scanMode, scanWl, colSort, sortAndFilterItems, applyColSort, groupMode, expandedGroups, scanGroups, perfData])
+
+  listViewRef.current = !listView ? null : {
+    name: pickName,
+    // the row order on screen: a scan's sorted rows; a saved list's sorted items; Flagged sorts as it draws
+    rows: () => {
+      if (scanMode) return scanSortedItems.map(i => i.sym)
+      if (pickList === 'flagged') return applyColSort(flagged)
+      return orderedSymsFlat
+    },
+    cfg: colCfg, sort: colSort, columns: orderedKeys, fixedColumns: !!isAllIdxList, persisted: !ephemeralCols,
+    selected: selectedSym, active: !!(activeRef && widgetKey && activeRef.current === widgetKey),
+    saveCols: saveColCfg,
+    select: (sym) => { setSelectedSym(sym); setHubSym(sym) },
+  }
+
+  // A Watchlist widget's Journal door (a Scanner's is its results view's)
+  useWidgetDoor(() => (listView?.type !== 'watchlist' ? {} : {
+    capture: () => {
+      const rows = listViewRef.current?.rows() || []
+      return rows.length ? { kind: 'watchlist', capture: buildListCapture(pickList, pickName, rows), label: pickName } : null
+    },
+  }))
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
@@ -2945,13 +2927,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.pickHeader}>
             {/* Back-to-list-picker button only when there IS a picker to return to
                 (onExitPick set). Custom-Period Sort has none, so it shows no dead button. */}
-            {onExitPick && <button className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
+            {onExitPick && <button data-guide="watchlist.lists" className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               {/* Add a symbol — only on lists you own (community lists aren't yours).
                   Opens the same predictive inline add row used everywhere else. */}
               {pickOwnedId && (
                 <button
+                  data-guide="watchlist.addSymbol"
                   className={`${styles.wlActionBtn}${addingToList === pickOwnedId ? ' ' + styles.wlActionBtnActive : ''}`}
                   onClick={() => {
                     setExpandedLists(prev => new Set(prev).add(pickOwnedId))
@@ -2975,6 +2958,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     onClick={() => setFilterOpen(o => !o)}
                     title="Scan criteria"
                     aria-label="Scan criteria"
+                    data-guide="watchlist.scanCriteria"
                   ><UIcon name="sliders" size={14} /></button>
                   {filterOpen && (
                     <div className={styles.criteriaPop} role="dialog" aria-label="Scan criteria">
@@ -2992,6 +2976,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               <button
                 ref={settingsBtnRef}
                 className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
+                data-guide="widget.settings"
                 onClick={() => setSettingsOpen(o => !o)}
                 title="Watchlist settings"
               ><UIcon name="gear" size={14} /></button>
@@ -3350,7 +3335,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       {colMenu && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 2999 }} onClick={() => setColMenu(null)} onContextMenu={e => { e.preventDefault(); setColMenu(null) }} />
-          <div className={styles.colMenu} style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
+          <div className={styles.colMenu} data-guide="watchlist.colMenu" style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
             <div style={{ padding: '4px 10px 6px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>Columns</div>
             {OPTIONAL_COLS.map(c => (
               <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleColHidden(c.key)}>
@@ -3380,7 +3365,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <option value="above">Above</option>
                 <option value="below">Below</option>
               </select>
-              <input aria-label="Alert price"
+              <input aria-label="Alert price" data-guide="watchlist.alertPrice"
                 className={styles.alertInput}
                 type="number"
                 step="0.01"
@@ -3403,7 +3388,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 {getAlertsForSym(alertPopover.sym).map(a => (
                   <div key={a.id} className={styles.alertItem}>
                     <span>{a.direction} ${a.target_price.toFixed(2)}</span>
-                    <button className={styles.alertDeleteBtn} onClick={() => deleteAlert(a.id)}>×</button>
+                    <button className={styles.alertDeleteBtn} data-guide="watchlist.alertDelete" onClick={() => deleteAlert(a.id)}>×</button>
                   </div>
                 ))}
               </div>
@@ -3466,14 +3451,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <>
             <button
               className={styles.ctxItem}
+              data-menu-id="research"
               onClick={() => { navigate(`/research/${ctxMenu.sym}`); setCtxMenu(null) }}
             ><UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research</button>
             <button
               className={styles.ctxItem}
+              data-menu-id="ai"
               onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
             ><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {ctxMenu.sym}</button>
             <button
               className={styles.ctxItem}
+              data-menu-id="compare"
               onClick={() => {
                 setComparePopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
                 setCtxMenu(null)
@@ -3482,11 +3470,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {ctxMenu.id !== 'flagged' && (
               <button
                 className={styles.ctxItem}
+                data-menu-id="notes"
                 onClick={() => { toggleNoteSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
               >Notes</button>
             )}
             <button
               className={styles.ctxItem}
+              data-menu-id="alert"
               onClick={() => {
                 setAlertPopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
                 setAlertPrice('')
@@ -3496,6 +3486,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             >Set price alert</button>
             <button
               className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
+              data-menu-id="remove"
               onClick={() => { handleRemoveSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
             >Remove from watchlist</button>
           </>
@@ -3563,7 +3554,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         }
         return (
           <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
-            <div className={styles.ctxMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
+            <div className={styles.ctxMenu} data-guide="watchlist.rowMenu" style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
               {ctxBody}
             </div>
           </div>

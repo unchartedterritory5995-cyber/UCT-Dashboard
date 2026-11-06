@@ -197,6 +197,22 @@ describe('writing help — the preview, then Accept or Discard', () => {
     expect(document.getElementById(dialog.getAttribute('aria-labelledby'))?.textContent).toBe('Writing help')
   })
 
+  // ⛔ Audit 2026-11-05, spec S5 (B16): the panel said "Written by claude-sonnet-5." -- a raw model
+  // id a member has no use for. It says "Drafted by AI." now, and the one way out is "Discard"
+  // before a draft as well as after it (it said "Cancel" before).
+  it('S5: "Drafted by AI." never the model id; "Discard" before and after a draft', async () => {
+    await mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Writing help' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Discard' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Write it' }))
+    await within(dialog).findByText('Fear sold my NVDA early.')
+    expect(dialog).toHaveTextContent('Drafted by AI.')
+    expect(dialog.textContent).not.toContain('claude-sonnet-5')
+    expect(within(dialog).getByRole('button', { name: 'Discard' })).toBeInTheDocument()
+  })
+
   it('Discard removes NOTHING, because nothing was ever added', async () => {
     const editor = await mount()
     const before = JSON.stringify(editor.getJSON())
@@ -208,6 +224,18 @@ describe('writing help — the preview, then Accept or Discard', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(JSON.stringify(editor.getJSON())).toBe(before)
+  })
+
+  // VIS-5 (audit 2026-11-05, issue 25): closing Writing help sent focus to "Share". The header button keeps
+  // the editor's selection on a press (mousedown is prevented), so the Sheet restored to the wrong opener.
+  it('Discard hands focus back to the Writing help button that opened it', async () => {
+    await mount()
+    const trigger = screen.getByRole('button', { name: 'Writing help' })
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', { name: 'Writing help' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
   })
 
   it('the daily limit is SAID in the panel, in the server\'s words — never a silent no-op', async () => {

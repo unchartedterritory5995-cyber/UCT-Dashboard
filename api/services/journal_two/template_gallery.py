@@ -3517,6 +3517,11 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
                 continue                             # filtered, as above
             pick = picks.get(b["block"]) if isinstance(picks.get(b["block"]), Mapping) else {}
             use = pick.get("use")
+            if use is None and _sf_skip(pick):
+                # Spec S9 (audit 2026-11-05): "Also start this every weekday" was not ticked. Nothing is made; the
+                # copy keeps the inline slot, so the note's create leaves it as plain content and a later Use asks.
+                out.append(b)
+                continue
             if use is not None:
                 if not isinstance(use, str) or not _owned_value(conn, user_id, family, use):
                     raise _not_yours(b["block"])
@@ -3552,6 +3557,36 @@ def _materialize(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, paylo
         out.append({**b, "settings": js.slot_settings_of(family, {"ref": ref, "bind": st["bind"],
                                                                    "display": st["display"]})})
     return out, created, reused
+
+
+def listing_tool_pools(conn: sqlite3.Connection, gallery_id: Any) -> tuple[dict, dict]:
+    """Spec S9 fix round 1 (review finding 1): the routine and tracker definitions of a LISTED template, by inline key
+    (`{key: entry}`, `{key: entry}`), for a member's copy that still holds an `inline` slot -- one a Use answered "not
+    now" (`{"skip": True}`), which `_materialize` leaves inline. The copy's slot settings cannot carry the definition
+    (`slot_settings_of` keeps only the family's keys), so a note composed from the copy reads it from the listing, as
+    the preview does (`template_preview._questions`). Empty when the item is not a listed style any more, or is hidden
+    by the library: the slot then says its own honest line."""
+    if not isinstance(gallery_id, str) or not gallery_id:
+        return {}, {}
+    row = _listed_style_row(conn, gallery_id)
+    if row is None or _library_hides(row):
+        return {}, {}
+    raw = _listed_payload(row)
+    if raw is None:
+        return {}, {}
+    payload = _safe_listed(raw)
+
+    def by_key(name: str) -> dict:
+        pool = payload.get(name)
+        return {e["key"]: e for e in (pool if isinstance(pool, list) else [])
+                if isinstance(e, Mapping) and isinstance(e.get("key"), str)}
+    return by_key("routines"), by_key("trackers")
+
+
+def _sf_skip(pick: Any) -> bool:
+    """The one reader of a "not now" answer (`slot_fill.is_skip_choice`)."""
+    from api.services.journal_two import slot_fill
+    return slot_fill.is_skip_choice(dict(pick) if isinstance(pick, Mapping) else pick)
 
 
 class _ListingMoved(Exception):

@@ -453,6 +453,17 @@ export function retimeChartParams(attrs, newTf) {
   return { params: next, searchText: paramsPlainText('chart', next) }
 }
 
+/** Audit 2026-11-05, spec S3: the same chart window for another ticker. `{params, searchText}`, or
+ *  null for no change (an empty or identical symbol). The window (from/to/tf) is kept: the member is
+ *  asking "this moment, on AMD". The caller clears the archive (it shows the old ticker). */
+export function resymbolChartParams(attrs, newSymbol) {
+  const params = attrs?.params || {}
+  const symbol = String(newSymbol ?? '').trim().replace(/^\$+/, '').toUpperCase()
+  if (!symbol || symbol === String(params.symbol || '').toUpperCase()) return null
+  const next = normalizeParams('chart', { ...params, symbol })
+  return { params: next, searchText: paramsPlainText('chart', next) }
+}
+
 // Exported twin of the registry-private converter (same dual encoding).
 export function tsToEpochSecondsPublic(v) {
   if (typeof v === 'number' && Number.isFinite(v)) return v > 10_000_000_000 ? v / 1000 : v

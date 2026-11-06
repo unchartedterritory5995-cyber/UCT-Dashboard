@@ -246,6 +246,13 @@
   --text-xl: 16px;
   --text-2xl: 20px;
   --text-3xl: 24px;
+  /* VIS-6 (audit 2026-11-05, V1): the two type steps the Notebook's scale names that had no token.
+     The Notebook's whole scale is 11 / 12 / 13 / 14 / 17 / 20 / 24 / 36 (labels, dense, controls,
+     body, reading, section, touch title, desktop title); notebookTokens.lint.test.js holds new
+     font-size literals in the Notebook to it. */
+  --text-read: 17px;
+  --lh-read: 1.7;
+  --text-title: 36px;
 
   /* Line-height scale (was improvised per-component) */
   --lh-tight: 1.2;
@@ -279,6 +286,15 @@
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 400ms;
+  /* VIS-6: the name the V1 plan uses for the menus-and-sheets step; the SAME value, derived, never restated. */
+  --duration-base: var(--duration-normal);
+
+  /* VIS-6 (audit 2026-11-05, issue 24): two icon sizes and one stroke. 16 in toolbars, 20 in nav.
+     UIcon takes numbers, so components read lib/notebookIcons.js, which states these same values;
+     notebookTokens.lint.test.js holds the two equal. */
+  --icon-size-toolbar: 16px;
+  --icon-size-nav: 20px;
+  --icon-stroke: 1.75;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
@@ -914,8 +930,11 @@
    :global([data-flash="true"]) in TranscriptSearch.module.css.
    ⛔ Corrected at the Phase 1 gate: an earlier draft of this rule used
    `[data-hub-selected]`, an attribute name nothing in the codebase ever
-   writes — dead CSS that would never have matched a real DOM node. */
-[data-hub-cursor="active"] {
+   writes — dead CSS that would never have matched a real DOM node.
+   VIS-4 (audit 2026-11-05, issue 9): painted only while the hub is ENGAGED (HubRoot writes
+   `data-hub-engaged` on <html> while it is eligible and on screen). The attribute is set on rows on
+   every page, so unscoped it drew a second, wrong "selected" outline on a desktop with no hub. */
+:root[data-hub-engaged] [data-hub-cursor="active"] {
   outline: var(--hub-cursor-outline-width) solid var(--hub-cursor-outline);
   outline-offset: var(--hub-cursor-outline-offset);
   background: var(--hub-cursor-fill);

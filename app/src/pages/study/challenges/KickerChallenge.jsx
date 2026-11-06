@@ -133,7 +133,7 @@ export default function KickerChallenge({ profile = null, fetcher = studyFetch, 
     return (
       <StartCard eyebrow="Challenge" title="Spot the Kicker" art={<StudyMark mood="think" size={116} />}
         lead="Gold candles that each gapped up after a red day. Only one is the real Kicker: a real red day before it, a gap over that day's close, a strong close above its high. Tap the one you believe, then read the rule cards."
-        button={<StartButton icon="eye" label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No unseen charts left'} sub={pool == null ? 'a second or two' : total ? `${total} charts · three rules` : 'come back after a new import'} onClick={() => total && setPhase('play')} />} />
+        button={<StartButton icon="eye" label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'} sub={pool == null ? 'a second or two' : total ? `${total} charts · three rules` : 'come back after a new import'} onClick={() => total && setPhase('play')} />} />
     )
   }
   if (phase === 'done') {
@@ -145,6 +145,6 @@ export default function KickerChallenge({ profile = null, fetcher = studyFetch, 
     )
   }
   const item = pool?.[i]
-  if (!item) return <p className={d5.startLead}>No unseen charts left for now.</p>
+  if (!item) return <p className={d5.startLead}>No charts in the bank yet.</p>
   return <Round key={item.id} idx={i} item={item} total={total} prefs={prefs} fetcher={fetcher} onDone={(ok) => { if (ok) setRight((v) => v + 1); if (i + 1 >= total) { setPhase('done'); endFeedback(prefs) } else setI(i + 1) }} />
 }

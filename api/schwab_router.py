@@ -258,6 +258,12 @@ async def market_summary():
     """Fetch current prices for SPY, QQQ, DIA, IWM, VIX."""
     results = await schwab.get_market_summary()
     return {"indices": results}
+# What a failed narrative call is charged per SDK attempt. `web_search` has no max_uses here, so these
+# are a stated allowance, not a true bound: 3 searches of about 10K result tokens plus the prompt's 4K.
+_NARRATIVE_SDK_ATTEMPTS = 3         # this client keeps the SDK default of 2 retries
+_NARRATIVE_MAX_TOKENS = 250
+_NARRATIVE_WORST_SEARCHES = 3
+_NARRATIVE_WORST_INPUT_TOKENS = 34_000
 @router.get("/market-narrative")
 @market_narrative_swr.serve_last_good
 def market_narrative(_auth: dict = Depends(require_flow_user)):
@@ -281,6 +287,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
         return JSONResponse(status_code=500, content={"error": "ANTHROPIC_API_KEY not set"})
     if narrative_cost_guard.over_budget("schwab_market_narrative"):
         return JSONResponse(status_code=429, content={"error": "Daily narrative budget reached."})
+    response = None
     try:
         today_str = today.strftime("%A, %B %d, %Y")
         weekday = today.weekday()
@@ -297,7 +304,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
             # ever need to pin to a specific version, use a dated string from
             # https://docs.anthropic.com/en/docs/about-claude/models
             model="claude-sonnet-4-6",
-            max_tokens=250,
+            max_tokens=_NARRATIVE_MAX_TOKENS,
             metadata={"user_id": "market_narrative:global"},
             system="You are a financial news writer. Respond with ONLY 2-3 concise sentences. No preamble. No search commentary. No disclaimers. No 'based on my search' or 'I found'. Just the market summary as if writing a Bloomberg terminal flash.",
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
@@ -319,6 +326,14 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
             cache.set(cache_key, text, ttl=1800)
         return {"narrative": text if text else "Market summary unavailable."}
     except Exception as e:
+        if response is None:
+            from api.services.uct_agent import budget
+            if not budget._is_provider_error_response(e):
+                # No usage came back and each SDK attempt may have been billed: worst case x (retries + 1).
+                narrative_cost_guard.record("schwab_market_narrative", "claude-sonnet-4-6",
+                                            _NARRATIVE_WORST_INPUT_TOKENS * _NARRATIVE_SDK_ATTEMPTS,
+                                            _NARRATIVE_MAX_TOKENS * _NARRATIVE_SDK_ATTEMPTS,
+                                            _NARRATIVE_WORST_SEARCHES * _NARRATIVE_SDK_ATTEMPTS)
         return JSONResponse(status_code=500, content={"error": str(e)})
 # ─── Daily Tracker Endpoints ──────────────────────────────────────────────────
 @router.post("/track-contracts")

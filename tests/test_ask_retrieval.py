@@ -323,6 +323,101 @@ class TestCoverage:
         )
 
 
+    def test_documents_on_trashed_notes_are_not_counted(self, corpus):
+        """Audit 2026-11-05, spec S4 (B17): "7 documents couldn't be searched" for ONE image --
+        the count read every document row the member owned, trashed notes included. A trashed
+        note is not searched, so its documents are not "could not be searched" either."""
+        corpus.execute("INSERT INTO j2_notes VALUES ('n_gone',?,'Trashed',NULL,'{}','',"
+                       "'{}','2026-11-01','2026-11-01')", (U,))
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_live',?,'n_thesis','Image','no_text','/api/j2/notes/inline/a.png')", (U,))
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_t1',?,'n_gone','Image','no_text','/api/j2/notes/inline/b.png')", (U,))
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_t2',?,'n_gone','scan.pdf','no_text','/z.pdf')", (U,))
+        corpus.commit()
+        c = ar.retrieve(U, "margins", conn=corpus)["coverage"]
+        assert c["documents_not_searchable"] == 1
+        # and it says WHAT the one is: an image, with no readable text
+        assert c["documents_not_searchable_detail"] == {"image": {"no_text": 1}}
+
+    def test_a_pdf_with_no_text_is_a_document_not_an_image(self, corpus):
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d2',?,'n_thesis','scan.pdf','pending','/y.pdf')", (U,))
+        corpus.commit()
+        c = ar.retrieve(U, "margins", conn=corpus)["coverage"]
+        assert c["documents_not_searchable_detail"] == {"document": {"pending": 1}}
+
+
+class TestTrashedNotesLeaveEveryCount:
+    """Fix round 1 (review minor 14): "SEARCHED: n document pages" and the excerpt count still
+    counted pages and excerpts on trashed notes -- the B17 honesty problem in the other numbers."""
+
+    def test_pages_and_excerpts_on_a_trashed_note_are_not_counted(self, corpus):
+        before = ar.retrieve(U, "margins", conn=corpus)["coverage"]
+        corpus.execute("INSERT INTO j2_notes VALUES ('n_gone',?,'Trashed',NULL,'{}','',"
+                       "'{}','2026-11-01','2026-11-01')", (U,))
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_gone',?,'n_gone','old.pdf','ready','/old.pdf')", (U,))
+        corpus.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                       " VALUES ('d_gone',?,1,'words on a trashed page')", (U,))
+        corpus.execute("INSERT INTO j2_note_excerpts VALUES "
+                       "('e_gone',?,'n_gone','d_gone',1,'words','','','')", (U,))
+        corpus.commit()
+        after = ar.retrieve(U, "margins", conn=corpus)["coverage"]
+        assert after["document_pages_searchable"] == before["document_pages_searchable"]
+        assert after["excerpts_searchable"] == before["excerpts_searchable"]
+
+
+class TestChartPlanLevelsAreRetrievable:
+    """Audit 2026-11-05, spec S4 (B17): "What is my stop on NVDA?" missed a stop the member had
+    DRAWN on a chart in a note. A chart plan lives in the embed's annotations, never in
+    `body_plain`, so the text search could not see it. Ask now reads the plan through the one
+    plan reader (plan_extract.read_note_plan) and hands it over as a fact line on that note."""
+
+    @staticmethod
+    def _plan_note(corpus, nid="n_plan", sym="NVDA", deleted=None):
+        from api.services.journal_two.plan_extract import plan_annotation
+        body = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Swing idea."}]},
+            {"type": "widgetEmbed", "attrs": {"widgetId": "chart", "params": {"symbol": sym},
+             "annotations": [plan_annotation("entry", 206), plan_annotation("stop", 196),
+                             plan_annotation("target", 225)]}}]}
+        corpus.execute("INSERT INTO j2_notes VALUES (?,?,?,?,?,?,'{}',?,'2026-11-04')",
+                       (nid, U, f"{sym} swing", sym, json.dumps(body), "Swing idea.", deleted))
+        corpus.commit()
+
+    def test_the_drawn_stop_answers_the_question(self, corpus):
+        self._plan_note(corpus)
+        r = ar.retrieve(U, "What is my stop on NVDA?", conn=corpus)
+        plans = [e for e in r["evidence"] if "Plan on NVDA" in (e.get("text") or "")]
+        assert plans, [e.get("text") for e in r["evidence"]]
+        assert "Plan on NVDA: entry 206, stop 196, target 225" in plans[0]["text"]
+        assert plans[0]["source_id"] == "n_plan"
+        assert r["no_answer"] is False
+        # Fix round 1 (review minor 14): marked as a drawn plan, never passable as quoted text.
+        assert ar.PLAN_FACT_MARK in plans[0]["text"]
+
+    def test_a_plan_added_to_a_matched_passage_is_marked_as_not_its_text(self, corpus):
+        from api.services.journal_two import ask_evidence as ev
+        self._plan_note(corpus)
+        item = ev.from_note({"id": "n_plan", "user_id": U, "title": "NVDA swing", "ticker": "NVDA"},
+                            snippet="Swing idea.", location={"from": 1, "to": 6}, citation_validity=ev.CITE_EXACT)
+        ar._chart_plans(corpus, U, {"symbol": "NVDA"}, ["n_plan"], [item])
+        assert item["text"].startswith("Swing idea.")
+        assert f"{ar.PLAN_FACT_MARK} Plan on NVDA" in item["text"]
+
+    def test_a_trashed_note_s_plan_is_not_read(self, corpus):
+        self._plan_note(corpus, deleted="2026-11-01")
+        r = ar.retrieve(U, "What is my stop on NVDA?", conn=corpus)
+        assert not [e for e in r["evidence"] if "Plan on" in (e.get("text") or "")]
+
+    def test_another_member_s_plan_is_never_read(self, corpus):
+        self._plan_note(corpus)
+        r = ar.retrieve(OTHER, "What is my stop on NVDA?", conn=corpus)
+        assert not [e for e in r["evidence"] if "Plan on" in (e.get("text") or "")]
+
+
 class TestTheBm25FloorWasUnsound:
     """⛔ WHY THE ABSOLUTE RELEVANCE FLOOR WAS REMOVED IN SLICE 8.
 
