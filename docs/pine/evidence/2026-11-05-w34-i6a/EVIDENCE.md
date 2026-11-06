@@ -1,4 +1,4 @@
-NEXT STEP: measure-pair (0 C18 verdict diffs; adx-and-di-for-v4 byte-identical), WAITING for the coordinator's go. Then the mutate.py batch, then final-tip FULL + ready-check. Engine bump: YES (a refusal becomes a served value on the runtime pane; `SCRIPT_ENGINE_VERSION` NOT edited here).
+NEXT STEP: measure-pair (0 C18 verdict diffs; adx-and-di-for-v4 byte-identical), WAITING for the coordinator's go. Mutation batch DONE (7/7 as expected). Then re-merge master, final-tip FULL + ready-check. Engine bump: YES (a refusal becomes a served value on the runtime pane; `SCRIPT_ENGINE_VERSION` NOT edited here).
 
 # W34-I6a: a `switch` arm that wraps onto a continuation line
 
@@ -81,9 +81,31 @@ Over w34I6SwitchArmWrap + objectDoorGate:
 - this branch: `{ok: true}` for both. The runtime-on wall set goes from `{runtime:block-value}` to empty.
   The script then joins track A (its own capture grades the drawings before arming).
 
+## Review N1 (fixed)
+
+The review (GO-WITH-NOTES) found `0 => switch k` with a wrapped INNER arm refused as `wrapMixed`
+(misleading): the outer arm's raw body holds the inner arms (indent 8) and the inner wrap (indent 9).
+`wrappedArmOf` now leaves an arm alone when its inline value opens a block (`if`/`switch`/`for`/`while`,
+`ARM_VALUE_OPENERS`); the inner switch's arms are joined on their own level, so the nested switch now
+serves and equals its one-line form. Rail: `review N1` in `w34I6SwitchArmWrap.test.js` (9 tests).
+
+## Mutation batch (`mutate.py`, coordinator GO; heavy-mut.lock, ram_gate, --maxWorkers=1)
+
+Tests: w34I6SwitchArmWrap + objectDoorGate + p3WsaReviewFixes. One mutant per call, free RAM checked
+before each (10.7-11.9 GB, never under 4 GB). Log: `_resume-2026-11-01/runs/w34-i6a/mut-batch.log`.
+
+| mutant | result |
+|---|---|
+| M0 no-op (trailing whitespace) | SURVIVED |
+| M1 no join | KILLED |
+| M2 join on any deeper indent | KILLED |
+| M3 mixed arms join | KILLED |
+| M4 ignore the bracket rule | KILLED |
+| M5 join at the object door | KILLED |
+| M6 N1 opener skip off | KILLED |
+
 ## Pending (heavy, each waits for the coordinator's go)
 
 1. measure-pair: expect 0 C18 verdict diffs (the door path is unchanged by construction) and
    `adx-and-di-for-v4` byte-identical.
-2. `mutate.py` batch (M1-M5 + no-op control).
-3. Merge origin/master again, final-tip FULL + baselines, ready-check.
+2. Merge origin/master again, final-tip FULL + baselines, ready-check.

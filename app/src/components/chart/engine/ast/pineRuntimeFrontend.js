@@ -1193,11 +1193,15 @@ export function buildRuntimeIr(source, opts = {}) {
  *  ⛔ Not at the object door (`atObjectDoor`): the door keeps master's reading until
  *  measure-pair proves its output identical (the caller does not call this there). */
 const SWITCH_WORD = (t) => t && t.kind === 'ident' && t.value === 'switch'
+const ARM_VALUE_OPENERS = new Set(['if', 'switch', 'for', 'while'])
 function wrappedArmOf(arm, indents) {
   const h = arm.header || []
   const body = arm.body || []
   const at = findTop(h, (x) => isPunct(x, '=>'))
   if (at < 0 || at === h.length - 1 || !body.length) return arm
+  // review N1: an inline value that opens a block (`0 => switch x`) owns the lines beneath as its
+  // block; they are not this arm's wrap (an inner switch's own arms are joined on their level).
+  if (findTop(h.slice(at + 1), (x) => x.kind === 'ident' && ARM_VALUE_OPENERS.has(x.value)) >= 0) return arm
   let depth = 0
   let wraps = 0
   let blocks = 0

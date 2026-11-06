@@ -162,6 +162,14 @@ describe('⭐⭐ W34-I6a a wrapped `switch` arm is one expression', () => {
     expect(r.message).toMatch(/wraps onto a continuation line and also has a line at a block indent/)
   })
 
+  it('⭐ review N1: a switch nested in an arm (`0 => switch k`) is not read as a mixed wrap', () => {
+    // The outer arm's raw body holds the inner arms (indent 8) AND the inner wrap (indent 9);
+    // it is the inner switch's block, not the outer arm's wrap. The inner arm's wrap is joined on
+    // its own level, so the nested switch serves and equals its one-line form.
+    const nested = (wrap) => `${HEAD}m = bar_index % 2\nk = bar_index % 3\nv = switch m\n    0 => switch k\n        0 => close${wrap ? '\n         + open' : ' + open'}\n        => low\n    => high\nplot(v)\n`
+    same(run(nested(false)), run(nested(true)))
+  })
+
   it('⛔ at the object door the wrapped arm keeps master\'s reading (refused, not joined)', () => {
     // The door does not join (`atObjectDoor`), so master's arm check still sees a block under the
     // arm and answers as master did. Joined, the arm would be one expression and pass that check.
