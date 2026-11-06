@@ -922,6 +922,13 @@ def main():
     _start_wick_backfill()
     _start_combined_pass()
     _start_memwatch()
+    # OBSERVE ONLY (2026-11-06): one [memobs] line per 10 min -- RSS vs page cache and the suspect structures'
+    # sizes, so a memory limit is chosen from a measured trading day. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    try:
+        from api.services import mem_observe
+        mem_observe.start("worker", mem_observe.WORKER_TARGETS)
+    except Exception as e:  # noqa: BLE001 -- observation must never stop the worker booting
+        log.warning(f"[memobs] not started: {type(e).__name__}")
     # Historical PIT fundamentals V5: SEC ingestion -> derive -> validate -> immutable versioned publication.
     # The WORKER is the ONE owner (it holds the stores); dark unless FUNDAMENTALS_PIT_V5_PIPELINE=1 and the V5
     # live store exists; single-instance by locks on the volume. Never writes V4.

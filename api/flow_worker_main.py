@@ -1130,6 +1130,12 @@ def main():
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
+    # OBSERVE ONLY (2026-11-06): see api/services/mem_observe.py. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    try:
+        from api.services import mem_observe
+        mem_observe.start("flow-worker", mem_observe.FLOW_WORKER_TARGETS)
+    except Exception as e:  # noqa: BLE001 -- observation must never stop the flow-worker booting
+        log.warning("[memobs] not started: %s", type(e).__name__)
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
     # timeout_graceful_shutdown=5 mirrors web/worker: reach lifespan.shutdown ->
