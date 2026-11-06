@@ -1,4 +1,4 @@
-NEXT STEP: wait for the coordinator's go, then FULL final-tip into runs/w6-t5-final3 (restore tools/lookback_agreement.json only if distinct_trees_walked alone differs), then ready-check. measure-pair re-run after B1 is the coordinator's call.
+NEXT STEP: landing by the coordinator (engine 21 bump + W5 host-parity digest regeneration; hostParity.rail/.v8 red only for that). Nothing left for the lane.
 
 # W6-T5 `array.*` completion (lane w6-t5)
 
@@ -182,3 +182,22 @@ for low system memory (`mpB-rt1-stopped*`), not failures.
   `cobra039s-crypto-market-visualizer`, `liquidity-pools-pro-willyalgotrader`, `logistic-rsi-stoch-roc-ao-by-dgt`,
   `luxy-super-duper-supertrend-predictor-engine` (the sources that call median/stdev/variance). C18 door unaffected
   (MASTER_AT_DOOR).
+
+## r1 checks on the final tree (coordinator GO)
+measure-pair `runs/w6-t5/mpC.sh` (lock dsk/heavy-mp2.lock; logs `runs/w6-t5/mpC-all.log`, `mpC0/`, `mpC1/`):
+`== side tip 21d72f793e` / `== side base 3e8dc3fae5`.
+- C18 audit 395 / probes 69: **0 diffs on both runtimes**. Harness: identical on both (rt0 93/103/140, rt1 111/107/118).
+- Census rt1: the same 22 rows as rounds A/B, same classification (spec movers incl. `range-filter-dw` attach; 7 examples;
+  luxy-super-duper; binary_search example line; multi-timeframe-trend timeout noise). None of the B1 candidates
+  (median/stdev/variance examples, auto-fibonacci, cobra039s, liquidity-pools-pro, logistic-rsi) moved: their walls are
+  elsewhere or their arrays are fractional. Census rt0: 12 rows = range-filter-dw + 7 examples (`runtime.attached`) +
+  4 `pine:timeout` noise rows (ai-supertrend flipped the opposite way from round A, volatility-coil, halftrend, mirage).
+  0 unintended.
+Then origin/master bde38b0d69 (W6-T6 engine 20, deterministic lookback oracle #891) merged as 6750309fef (clean;
+objectDoorGate + w6ArrayMembers + w19r2 216/216).
+
+final-tip `runs/w6-t5/ftC.sh` -> `runs/w6-t5-final3/` (lock heavy-final2-w6-t5.lock, FULL, 2 parallel shards, Node 20.20.2):
+`TIP 6750309fef done`, `scope=full`, `rc gate=0 hyg=0 py=0 js=1`, `totals=ok`, `errors=0`, **`integrity=ok`**; pytest
+247 passed; vitest `Test Files 9 failed | 1372 passed`, `Tests 10 failed | 23608 passed | 122 skipped`. Failing: the
+named baselines plus hostParity.rail / hostParity.v8.rail (`arrays_basic`, `arrays_sort` withheld -> ok: the engine bump
+the coordinator applies at landing regenerates the digests).
