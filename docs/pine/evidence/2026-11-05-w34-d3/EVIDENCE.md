@@ -26,3 +26,9 @@ Defined-name guard (`definedNames.has(name) || isUserFn(name)` at the top of run
 4. Engine bump: yes if correlation-matrix or heat-map-seasons outcome moves on the runtime lane (the runtime lane's output changes); recommend yes.
 
 UPDATE: reachability mutation over runtime/__tests__ finished: drop-shared-defined-guard KILLED (failures in the corpus census-style tests 'prints the ceiling and the per-guard drawer count' and 'prints where the DRAWING dies', both 22 s runs, so possibly timing-sensitive; not a clean unit proof). Decision: KEEP the shared guard (reachable in at least one suite, not mine, outside this lane). Still NEXT: measure-pair, final-tip, ready-check.
+
+## measure-pair (runs/w34-d3/mp; code tip 5176692ec1, base c855e8cadf; later commits touch only this test and docs)
+The script printed MEASURE_FAILED "base head moved" only because I committed docs/test to the tip worktree mid-run (the app diff 5176692..HEAD is the rail file alone). Data are valid for the code.
+- C18 corpus audit (out-*.json): identical on the 967-row corpus once the wall-clock `ms` keys are ignored. C18 probes identical. Vendor harness: identical totals (MATCH 111, DIVERGE 107, INCONCLUSIVE 118).
+- runtime-on census: 2 rows differ. `committed:correlation-matrix__dzN3DMCFJL` reachedAfterPeel False -> True, peelSteps 7 -> 1 (the only script that moves). `multi-timeframe-trend-indicator` differs only in the line/token attached to a `pine:timeout` (wall-clock noise).
+- Engine bump: YES recommended (a runtime-lane outcome moves: correlation-matrix).
