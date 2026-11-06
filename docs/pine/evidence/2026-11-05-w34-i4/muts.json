@@ -60,9 +60,9 @@
   "  return reads >= 0\n"
  ],
  [
-  "M9-second-nz-arg-unchecked",
+  "M9-fill-form-readmitted",
   "src/components/chart/engine/ast/pineRuntimeFrontend.js",
-  "(isPunct(rhs[i + 4], ')') || isPunct(rhs[i + 4], ','))",
-  "true"
+  "isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')",
+  "isPunct(rhs[i + 3], ']') && (isPunct(rhs[i + 4], ')') || isPunct(rhs[i + 4], ','))"
  ]
 ]

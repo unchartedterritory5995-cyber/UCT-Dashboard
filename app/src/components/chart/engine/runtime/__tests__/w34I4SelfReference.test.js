@@ -124,11 +124,12 @@ describe('W34-I4: a recurrence driven by another recurrence (v1/v2 self-referenc
   })
 })
 
-describe('W34-I4: the seed is the history operator na, never 0', () => {
-  // `nz(x[1], close)`: on bar 0 `x[1]` is `na`, so the fill is taken and bar 0 is
-  // `close`. Seeded 0, `nz(0, close)` is 0 and bar 0 would be `0.5 * close`.
-  it('nz(x[1], fill) takes the fill on bar 0', () => {
-    const [x] = run(src(['x = 0.5*close + 0.5*nz(x[1], close)', 'plot(x)']))
+describe('W34-I4: the slot seed is the history operator na, never 0 (v4 spelling, where it is stated)', () => {
+  // The rewritten v1/v2 definition runs as this v4 slot. In v4, `x[1]` on bar 0 is
+  // `na` (stated reference behaviour), so the fill is taken and bar 0 is `close`.
+  // Seeded 0, `nz(0, close)` is 0 and bar 0 would be `0.5 * close`.
+  it('v4 slot: nz(x[1], fill) takes the fill on bar 0', () => {
+    const [x] = run(['//@version=4', 'study("i4")', 'float x = na', 'x := 0.5*close + 0.5*nz(x[1], close)', 'plot(x)'].join(NL))
     const want = []
     let prev = NaN
     for (let i = 0; i < N; i += 1) {
@@ -152,6 +153,17 @@ describe('W34-I4: a self read whose bar-0 value the reference does not state kee
     const r = refusalOf(src(['x = 0.25*close + 0.75*x[1]', 'plot(x)']))
     expect(r && r.guard).toBe('pine:state')
     expect(r.token).toBe('x')
+  })
+  // ⛔ B1 (review): `nz(x[k], fill)` in v1/v2 reads `fill` or 0 on bar 0 by the
+  // unstated seed rule (row W34-I4-S1), so it is NOT rewritten.
+  it('the fill form nz(x[1], fill) is not rewritten; a never-forgetting one refuses pine:state by name', () => {
+    const r = refusalOf(src(['x = nz(x[1], close) + volume', 'plot(x)']))
+    expect(r && r.guard).toBe('pine:state')
+    expect(r.token).toBe('x')
+  })
+  it('the fill form never serves a guessed bar 0 (master answer: the window withholds it)', () => {
+    const [x] = run(src(['x = 0.5*close + 0.5*nz(x[1], close)', 'plot(x)']))
+    expect(Number.isNaN(x[0])).toBe(true)
   })
   it('one guarded and one bare read: not rewritten, refused', () => {
     const r = refusalOf(src(['x = 0.25*close + 0.5*nz(x[1]) + 0.25*x[2]', 'plot(x)']))
@@ -180,8 +192,9 @@ describe('W34-I4: scope of the rewrite', () => {
       expect((refusalOf(s) || {}).guard).toBe('pine:state')
     }
   })
-  it('a read at offset 0, a member access or a self-referencing fill is untouched', () => {
-    for (const body of [['x = 0.5*close + 0.5*nz(x[0])', 'plot(x)'], ['x = 0.5*close + 0.5*nz(x[1], x[2])', 'plot(x)']]) {
+  it('a read at offset 0, a self-referencing fill or any fill form is untouched', () => {
+    for (const body of [['x = 0.5*close + 0.5*nz(x[0])', 'plot(x)'], ['x = 0.5*close + 0.5*nz(x[1], x[2])', 'plot(x)'],
+      ['x = 0.5*close + 0.5*nz(x[1], close)', 'plot(x)']]) {
       const { st, version } = stmtsOf(src(body))
       expect(v2SelfReferenceStatements(st, version)).toBe(st)
     }

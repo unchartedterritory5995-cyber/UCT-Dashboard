@@ -14,7 +14,7 @@ study("UCTPROBE_VW_W34_I4_V2_SELFREF_SEED", overlay = false)
 //   R04  d = na(d[1]) ? 1 : 2                          na seed: 1 on bar 0 then 2; 0 seed: 2 everywhere
 //   R05  e = 0.5 * close + 0.5 * e[1]                  na seed: na everywhere; 0 seed: a smoother from 0.5 * close
 //   R06  f = e[1] == e[1] ? 1 : 0                      is `na == na` true or false below v4 (on R05's bars)
-//   R07  g = 0.5 * close + 0.5 * nz(g[1], close)       control: the served shape (bar 0 == close)
+//   R07  g = 0.5 * close + 0.5 * nz(g[1], close)       NOT a control: na seed: bar 0 == close; 0 seed: 0.5 * close
 r00 = n
 a = a[1] + 1
 b = close > open ? 1 : b[1]

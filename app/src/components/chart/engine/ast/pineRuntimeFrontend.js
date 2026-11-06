@@ -809,9 +809,13 @@ export function scanMutability(stmts, out) {
  *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
  *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
  *
- *  ⛔⛔ ONLY WHEN EVERY SELF READ IS `nz(name[k])` (or `nz(name[k], fill)` with a
- *  self-free fill), `k` a whole literal >= 1. There the reference states the
- *  bar-0 value: `nz` replaces the history operator's `na`. A bare self read
+ *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])`, `k` a whole
+ *  literal >= 1. Its bar-0 value is 0 under EITHER v1/v2 seed rule (`nz(na)` and
+ *  `nz(0)` are both 0), so no unstated rule reaches an output. ⛔ NOT
+ *  `nz(name[k], fill)`: that reads `fill` if the series starts at `na` and 0 if it
+ *  starts at 0, the question row W34-I4-S1 leaves open, so it is not rewritten and
+ *  keeps master's answer (the host `accum`, which withholds the seed's window, or
+ *  its `pine:state` refusal by name when the update never forgets). A bare self read
  *  (`col[1] == 1`, `a*close + b*x[1]`) leaves bar 0 to a rule the reference does
  *  not state for v1/v2 (does `na` propagate, or does the series start at 0?), so
  *  it is NOT rewritten: it keeps the host lane's `pine:state` refusal by name, and
@@ -840,7 +844,7 @@ export function v2SelfReferenceStatements(stmts, version) {
       const k = rhs[i + 2]
       const guarded = isPunct(rhs[i - 1], '(') && isIdent(rhs[i - 2], 'nz') && !isPunct(rhs[i - 3], '.')
         && isPunct(rhs[i + 1], '[') && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
-        && isPunct(rhs[i + 3], ']') && (isPunct(rhs[i + 4], ')') || isPunct(rhs[i + 4], ','))
+        && isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')
       if (!guarded) return false
       reads += 1
     }

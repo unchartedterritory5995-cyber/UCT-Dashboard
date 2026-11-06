@@ -3,7 +3,20 @@
 **NEXT STEP: WAITING FOR THE COORDINATOR'S GO for the heavy jobs, in this order: (1) mutation batch
 (`muts.json`, lock `heavy-mut-w34-i4.lock`), (2) measure-pair runtime 0 and 1 (shared base lock
 `heavy-mp2.lock`/`heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL, ready-check.**
-Light work is done (code, rail, red-on-master, Python parity pytest).
+Light work is done (code, rail, red-on-master, Python parity pytest). Review NO-GO @862ee67295 (B1) FIXED, see below;
+needs the small re-review before the heavy steps.
+
+## B1 fix (review `dsk/reviews/W34-I4.md`)
+- `guardedSelfRef` accepts ONLY the one-argument `nz(x[k])` (closing `)`). Its bar 0 is 0 under either seed rule.
+  The fill form `nz(x[k], fill)` (bar 0 = `fill` if the seed is `na`, 0 if it is 0: unstated, row W34-I4-S1) is no
+  longer rewritten and keeps MASTER's answer: a never-forgetting fill form refuses `pine:state` by name (new rail,
+  `x = nz(x[1], close) + volume`); a contracting one is master's host `accum`, whose bar 0 stays withheld (`na`) and
+  never serves the guessed fill (new rail). Not turned into a new refusal: that would take a served-on-master shape away.
+- Seed rail moved to the v4 spelling (`float x = na` / `x := 0.5*close + 0.5*nz(x[1], close)`), where bar-0 `na` is
+  stated. Probe R07 relabelled "NOT a control"; row W34-I4-S1 now names the fill form under "unblocks".
+- Rail: **16 passed** (`tip-rail-b1.log`). Hand M9 (re-admit the `,` branch): **3 failed | 13 passed**, killed by the
+  two fill-form rails and the identity rail (`hand-m9.log`). Hand M1 (slot seed 0) re-run: **1 failed | 15 passed**,
+  killed by the v4 seed rail (`hand-m1-b1.log`). Both files restored byte-exact (`cmp` OK).
 
 Branch `feat/pine-w34-i4-state`. Tested-on-master `bde38b0d69` (engine 20). Engine bump needed: **yes**
 (served values change on the runtime lane, see "What changed").
@@ -52,7 +65,7 @@ the four scope rails (export absent). Green on both (controls): bare read in a c
 
 ## Hand self-check (light, coordinator request, before the batch)
 M1 applied by hand (`vm.js` READ_HIST_SLOT before bar 0 answers 0 instead of `na`), rail file run, `vm.js` restored
-byte-exact (`cmp` OK, tree clean): **1 failed | 13 passed**, killed by `nz(x[1], fill) takes the fill on bar 0`
+byte-exact (`cmp` OK, tree clean): **1 failed | 13 passed**, killed by `nz(x[1], fill) takes the fill on bar 0` (pre-B1 wording; see the B1 fix for the v4 rail)
 (`hand-m1.log`). The Laguerre refusal is reached by a rail: `a bare self read in a comparison refuses pine:state
 naming the variable` (the synthetic `col`-shaped read) passes on the tip and on master.
 
@@ -62,13 +75,14 @@ src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
 | mutation | expected killer |
 |---|---|
 | M0 no-op control (comment whitespace) | must SURVIVE |
-| M1 seed 0 instead of `na` at the history authority (`vm.js` READ_HIST_SLOT before bar 0) | seed rail |
+| M1 seed 0 instead of `na` at the history authority (`vm.js` READ_HIST_SLOT before bar 0) | v4 seed rail (hand-run: killed) |
 | M1b seed 0 in the rewrite's initialiser (`x = 0` for `x = na`) | expected EQUIVALENT: `x[1]` reads history, never the initialiser (to confirm) |
 | M2 bare read admitted (no `nz(` check) | bare-read refusal rails |
 | M3 version gate off | v3/v4 rail |
 | M4 rewrite at the object door | object-door rail |
 | M5 declared-twice admitted / M6 reassigned admitted | scope rail |
-| M7 offset 0 admitted / M9 second nz argument unchecked | offset-0 / self-fill rail |
+| M7 offset 0 admitted | offset-0 rail |
+| M9 fill form re-admitted (`,` branch) | fill-form rails + identity rail (hand-run: killed, 3 red) |
 | M8 no self read required | identity rail |
 
 ## measure-pair / final-tip: NOT YET RUN (heavy; waiting for the go)
