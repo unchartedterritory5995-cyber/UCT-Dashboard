@@ -2434,8 +2434,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
+  // ⛔⛔ W3W4-D1 capture gate (queue row W3N-D1, capture-queue-2026-11-05-w3w4-d1.md): the C48 witnesses
+  // pin sma/ema as PLOT values and nothing pins rma at all, so no capture shows a DRAWING reading the
+  // per-call-site set. Until W3N-D1 MATCHes, the drawing build keeps the named refusal
+  // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
+  // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
+  const DRAWING_HISTORY_CAPTURED = false
+  // ONE gate: only the drawing build's `condHistory` (below, at the lowering of a pure subtree) reads it;
+  // `servedCondCall` is reached from there alone, so it needs no second copy.
+  const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
-    if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
+    if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
@@ -6376,13 +6385,34 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // form is reached operator by operator (`splitForArms`), never as one column
       const splitForArms = armHistoryGuard(node, scope, true)
       lexForeign = false
-      const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
+      // ⭐ W3W4-D1 — THE DRAWING BUILD ASKS THE SAME QUESTION AS THE PLOT LANE, in a block
+      // of the main body only (a function body keeps its refusal): history WRITTEN in a block that
+      // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
+      // other shape is refused BY NAME below (never read from the every-bar column, which for a
+      // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
+      // ⛔ GATED (DRAWING_HISTORY_CAPTURED): with the gate off the drawing build is exactly master's, so
+      // every output, including a block local's `[1]`, is unchanged until W3N-D1 MATCHes.
+      const drawingHistory = objectsInRun && owner === null && r4Level() > 0
+        && drawingHistoryServed
+      const condHistory = (!objectsInRun || drawingHistory)
+        && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
       if (condHistory && r4Level() > 0) {
-        if (lexForeign) r4Guard('a series with history bound in another branch', locate(node.tok))
+        // the drawing build's refusal, by name (`r4Guard` itself stays the plot lane's)
+        const drawRefuse = (what) => {
+          note('runtime:conditional-history')
+          throw new RuntimeRefusal('runtime:conditional-history',
+            `${what} inside a block that does not run on every bar — `
+            + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', locate(node.tok))
+        }
+        if (lexForeign) {
+          if (objectsInRun) drawRefuse('a series with history bound in another branch')
+          r4Guard('a series with history bound in another branch', locate(node.tok))
+        }
         const served = servedCondCall(node, scope)
         if (served) return served
         if (!condTransparent(node)) {
+          if (objectsInRun) drawRefuse(node.type === 'call' ? `\`${node.name}\`` : 'a series with history')
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
         }
       } else if (!splitForArms && !mbbDynamicColumn(node, scope)) try {
