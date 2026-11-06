@@ -341,7 +341,9 @@ def test_the_reason_rail_can_fail(t):
         "NOTEBOOK_WIDGETS_W3_ENABLED":
             "armed on web: tests/test_notebook_widgets_e2e.py (test_wave2_routes_are_dark_without_their_flag)",
         "NOTEBOOK_WIDGETS_W2_ENABLED":
-            f"armed on web: {sm} ('bare_slash_groups_in_order: the menu shows the five moment labels in order')",
+            # S8 (4586c2e467) renamed the cited test when M3's five sections replaced the five moment labels; the
+            # citation follows it, so this replant still fails for its OWN reason (the test only turns W2 on).
+            f"armed on web: {sm} ('bare_slash_sections_in_order: the menu shows the five section labels in order')",
     }
     got = reason_problems(replant, ledger)
     assert any(g.startswith("NOTEBOOK_WIDGETS_W6_ENABLED:") and "never names" in g for g in got), got

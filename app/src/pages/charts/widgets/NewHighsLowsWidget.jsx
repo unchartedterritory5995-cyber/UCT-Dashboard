@@ -19,6 +19,7 @@
  * this widget's color group so a paired chart follows. Filters (min price / min
  * count) are debounced local state (snappy typing) that persists through opts.
  */
+import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { useWorkspace } from '../WorkspaceContext'
@@ -26,7 +27,7 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
-import NhnlUniverseMenu from './NhnlUniverseMenu'
+import NhnlUniverseMenu, { NHNL_UNIVERSE_PICKS } from './NhnlUniverseMenu'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
@@ -190,6 +191,20 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     const next = universes.filter((_, j) => j !== i)
     patch({ universes: next, activeUniverse: Math.min(activeIdx, next.length - 1) })
   }, [universes, activeIdx, patch])
+
+  useWidgetDoor(() => {
+    const items = [...universes.map(u => ({ label: u.label, sel: null })), ...NHNL_UNIVERSE_PICKS.filter(p => !universes.some(u => u.key === descFromPick(p).key)).map(p => ({ label: p.label, sel: p }))]
+    return {
+      read: () => ({ universes: universes.map(u => u.label) }),
+      options: () => ({ universe: universes.map((u, i) => ({ value: i, label: u.label })), universes: items.map(x => ({ value: x.label, label: x.label })) }),
+      write: (key, labels) => {
+        if (key !== 'universes') return
+        const gone = universes.findIndex(u => !labels.includes(u.label))
+        if (gone >= 0) removeUniverse(gone)
+        else { const add = items.find(x => labels.includes(x.label) && x.sel); if (add) addUniverse(add.sel) }
+      },
+    }
+  })
 
   // ── Appearance settings (per-widget opts.settings — same model as News /
   // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──

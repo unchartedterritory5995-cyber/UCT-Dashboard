@@ -32,7 +32,7 @@ function useMark(setPrefMerged) {
   return useCallback((id) => setPrefMerged(TIPS_PREF, (current) => withTipSeen(current, id)), [setPrefMerged])
 }
 
-export default function FirstRunGate({ hasAnyNotes = false, notesKnown = false, onOpenNote }) {
+export default function FirstRunGate({ hasAnyNotes = false, notesKnown = false, onOpenNote, onOpenToday }) {
   const enabled = starterPacksEnabled()
   const { prefs, loading, readFailed, setPrefMerged } = usePreferences(enabled)
   const mark = useMark(setPrefMerged)
@@ -62,14 +62,14 @@ export default function FirstRunGate({ hasAnyNotes = false, notesKnown = false, 
   return (
     <Quiet onFail={() => setOpen(false)}>
       <Suspense fallback={null}>
-        <FirstRunSheet open onClose={() => setOpen(false)} onOpenNote={onOpenNote} mark={mark} />
+        <FirstRunSheet open onClose={() => setOpen(false)} onOpenNote={onOpenNote} onOpenToday={onOpenToday} mark={mark} />
       </Suspense>
     </Quiet>
   )
 }
 
 /** Research Home's inline first-run ask, after a Skip. Renders nothing until it is due. */
-export function FirstRunInlineSlot({ onOpenNote }) {
+export function FirstRunInlineSlot({ onOpenNote, onOpenToday }) {
   const enabled = starterPacksEnabled()
   const { prefs, loading, readFailed, setPrefMerged } = usePreferences(enabled)
   const mark = useMark(setPrefMerged)
@@ -82,7 +82,7 @@ export function FirstRunInlineSlot({ onOpenNote }) {
   return (
     <Quiet>
       <Suspense fallback={null}>
-        <FirstRunInline mark={mark} onOpenNote={onOpenNote} onClose={() => setClosed(true)} />
+        <FirstRunInline mark={mark} onOpenNote={onOpenNote} onOpenToday={onOpenToday} onClose={() => setClosed(true)} />
       </Suspense>
     </Quiet>
   )

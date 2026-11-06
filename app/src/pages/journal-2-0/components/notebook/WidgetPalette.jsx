@@ -23,7 +23,16 @@ import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes, etTodayIso,
 } from '../../lib/widgetEmbedCore'
 import { snapshotWidgetItems, SLASH_GROUPS } from './SlashMenu'
+import { CAPTURE_KINDS } from '../../lib/notebookWidgets'
+import { COT_SYMBOLS_URL, cotMarkets } from '../../lib/cotMarkets'
 import styles from './WidgetPalette.module.css'
+
+// S13.6 remainder: a capture kind that asks for something other than a ticker says so (COT asks for a CFTC
+// market). `picker: 'cot'` lists the COT tab's own markets (GET /api/cot/symbols) under the field.
+const kindByCmd = (cmd) => CAPTURE_KINDS.find((k) => k.cmd === cmd) || null
+const askFor = (kind) => (kind?.picker === 'cot'
+  ? { label: 'Market', placeholder: 'e.g. ES, CL, GC', hint: 'Choose a market, then insert a snapshot' }
+  : { label: 'Ticker', placeholder: 'e.g. AMD', hint: 'Choose a ticker, then insert a snapshot' })
 
 // The tf pills speak slash TOKENS ('15m', '1h', 'M' — case decides
 // month-vs-minute), so the parser below is the one validator.
@@ -160,6 +169,20 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
 
   // A snapshot kind that reads a symbol opens the form as `snap:<cmd>`; the slash grammar decides validity.
   const snapCmd = kind?.startsWith('snap:') ? kind.slice(5) : null
+  const snapKind = snapCmd ? kindByCmd(snapCmd) : null
+  const ask = askFor(snapKind)
+  // The COT tab's markets, read once when the COT form opens. A failed read leaves a plain field.
+  const [markets, setMarkets] = useState(null)
+  const wantsMarkets = snapKind?.picker === 'cot' && markets === null
+  useEffect(() => {
+    if (!wantsMarkets) return undefined
+    let alive = true
+    fetch(COT_SYMBOLS_URL, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => { if (alive) setMarkets(body ? cotMarkets(body) : []) })
+      .catch(() => { if (alive) setMarkets([]) })
+    return () => { alive = false }
+  }, [wantsMarkets])
   const snapItem = snapCmd && sym ? snapshotWidgetItems(`${snapCmd} ${sym}`).find((it) => it.cmd === snapCmd) || null : null
   const { args, reason: blockReason } = kind && !snapCmd ? parseSelection(kind, sym, tfTok, day) : { args: null, reason: null }
   const multi = kind === 'mtf' || kind === 'compare'
@@ -256,7 +279,7 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
                   <button key={it.title} type="button" className={styles.typeBtn}
                     onClick={() => (it.cmd ? setKind(`snap:${it.cmd}`) : runSnapshot(it))}>
                     <span className={styles.typeLabel}>{it.title}</span>
-                    <span className={styles.typeHint}>{it.cmd ? 'Choose a ticker, then insert a snapshot' : it.description}</span>
+                    <span className={styles.typeHint}>{it.cmd ? askFor(kindByCmd(it.cmd)).hint : it.description}</span>
                   </button>
                 ))}
               </div>
@@ -267,7 +290,7 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
               above, so the footnote names only what still comes in from its own page. */}
           <div className={styles.footNote}>
             {snapshots.some((it) => it.group === 'more')
-              ? "Most widgets fill in from your own data when you insert them. A few (Screener, COT, Model Book) still come in from their own page, with the journal button beside the widget's gear."
+              ? "Most widgets fill in from your own data when you insert them. A Screener result still comes in from the Screener page, with its Save to Notebook button."
               : "Widgets with live data (news, breadth, calendar…) come in from their own page — use the journal button beside each widget's gear."}
           </div>
         </div>
@@ -275,16 +298,22 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
 
       {kind && (
         <div className={styles.form}>
-          <label className={styles.fieldLabel} htmlFor="uct-palette-sym">Ticker</label>
+          <label className={styles.fieldLabel} htmlFor="uct-palette-sym">{ask.label}</label>
           <input
             id="uct-palette-sym"
             ref={symRef}
             className={styles.symInput}
             value={sym}
-            placeholder="e.g. AMD"
+            placeholder={ask.placeholder}
+            list={markets?.length ? 'uct-palette-markets' : undefined}
             onChange={(e) => setSym(e.target.value.toUpperCase().replace(/\s+/g, ''))}
             onKeyDown={(e) => { if (e.key === 'Enter') { if (snapCmd) runSnapshot(snapItem); else insert() } }}
           />
+          {snapKind?.picker === 'cot' && markets?.length > 0 && (
+            <datalist id="uct-palette-markets">
+              {markets.map((m) => <option key={m.symbol} value={m.symbol}>{m.name}</option>)}
+            </datalist>
+          )}
           {!snapCmd && kind !== 'mtf' && (
             <>
               <span className={styles.fieldLabel}>Timeframe</span>

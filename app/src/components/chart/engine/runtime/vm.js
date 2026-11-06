@@ -26,7 +26,7 @@ import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, C
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
-import { ARRAY_FNS, kindOf, argKind } from './collections.js'
+import { ARRAY_FNS, kindOf, argKind, CollectionError } from './collections.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
 // scope in other arms, and a record accessor silently shadowed by one of them
 // would read the wrong thing with nothing red.
@@ -982,6 +982,16 @@ export function execute(program, ctx, limits, opts) {
             // ⭐ 'any' IS A REAL KIND HERE, not a missing check: `array.push`
             // takes whatever the array holds, and a typed array's element type
             // is the FRONT END's to police, not the VM's.
+            // ⭐⭐ W6-T3a (review N1) — AN `na` COLLECTION IS A NAMED STOP. A slot typed by
+            // its written type alone (`var array<float> a = na`) holds `na` here until a
+            // collection is assigned. Pine raises a runtime error on an `na` array id;
+            // this stops BY NAME (`runtime:CollectionError`), never with the VM's
+            // internal kind-mismatch sentence.
+            if (want === 'array' && typeof stack[sp + i] === 'number' && Number.isNaN(stack[sp + i])) {
+              throw new CollectionError(
+                `\`${op.fn}\`: the array is \`na\` (no array was assigned to it before this call); `
+                + 'Pine stops the script here with a runtime error')
+            }
             if (want !== 'any' && kindOf(stack[sp + i]) !== want) {
               throw new VmError(
                 `pc ${pc - 1}: \`${op.fn}\` argument ${i + 1} takes ${want === 'array' ? 'an' : 'a'} `

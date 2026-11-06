@@ -212,7 +212,8 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
     }
     try {
       const tid = typeof prefs?.[DAILY_TEMPLATE_PREF] === 'string' && prefs[DAILY_TEMPLATE_PREF] ? prefs[DAILY_TEMPLATE_PREF] : undefined
-      const { note, created = false } = await openDailyNote({ templateId: tid })
+      // Tier 3b fix round 1 (I9): the day's note starts with the Today home's plan, names included.
+      const { note, created = false } = await openDailyNote({ templateId: tid, seedToday: true })
       invalidateNoteViews()
       out.plan = { ok: Boolean(note?.id), note, created }
     } catch {
@@ -257,10 +258,12 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
   }
 
   if (result) {
-    // Done (and "Open it") closes the first run on today's plan; a link that goes elsewhere only closes it.
+    // Done closes the first run on the Today home when the Notebook has one (S15), else on today's plan; "Open it"
+    // opens today's plan; a link that goes elsewhere only closes it.
+    const planNote = result.plan?.ok ? result.plan.note : null
     return <BuildList result={result} undone={undone} undoing={undoing} status={status} onUndo={undoPack} names={names}
-      onDone={() => onDone?.(result.plan?.ok ? result.plan.note : null)} onLeave={() => onDone?.(null)}
-      canOpen={Boolean(onOpenNote)} />
+      onDone={() => onDone?.(planNote, 'done')} onOpen={() => onDone?.(planNote, 'open')}
+      onLeave={() => onDone?.(null, 'leave')} canOpen={Boolean(onOpenNote)} />
   }
 
   const titles = pack ? preview[pack] : null
@@ -305,8 +308,16 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
   )
 }
 
+/** Where the first run closes (S15): Done lands on the Today home when the Notebook has one, else on today's plan;
+ *  "Open it" always opens today's plan; a link that went elsewhere only closes. */
+function closeOnto({ note, how, onOpenNote, onOpenToday }) {
+  if (how === 'leave') return
+  if (how !== 'open' && onOpenToday) { onOpenToday(); return }
+  if (note && onOpenNote) onOpenNote(note)
+}
+
 /** Step 2: M2's build list, one row at a time (<= 1.5 s), then Done. */
-function BuildList({ result, undone, undoing, status, onUndo, onDone, onLeave, canOpen, names }) {
+function BuildList({ result, undone, undoing, status, onUndo, onDone, onOpen, onLeave, canOpen, names }) {
   const headRef = useRef(null)
   const rows = []
   const n = result.names
@@ -365,7 +376,7 @@ function BuildList({ result, undone, undoing, status, onUndo, onDone, onLeave, c
               {row.plan && plan.note && canOpen && (
                 <span className={styles.rowActions}>
                   {' '}
-                  <button type="button" className={styles.textBtn} onClick={onDone}>Open it</button>
+                  <button type="button" className={styles.textBtn} onClick={onOpen}>Open it</button>
                 </span>
               )}
             </li>
@@ -382,7 +393,7 @@ function BuildList({ result, undone, undoing, status, onUndo, onDone, onLeave, c
 
 /** The first-run sheet (first visit, or Settings). It holds the first-run stage while open, so the Compass card and a
  *  tour offer wait for it. */
-export default function FirstRunSheet({ open = true, onClose, onOpenNote, mark }) {
+export default function FirstRunSheet({ open = true, onClose, onOpenNote, onOpenToday, mark }) {
   const startedAt = useRef(Date.now())
   useEffect(() => (open ? claimFirstRunStage() : undefined), [open])
   // Closing by Escape or the ✕ is a Skip: it is recorded as one, so Home asks inline.
@@ -403,20 +414,20 @@ export default function FirstRunSheet({ open = true, onClose, onOpenNote, mark }
     <Sheet open={open} onClose={building ? NOOP : built ? onClose : closeAsSkip} title={FIRST_RUN_COPY.title} ariaLabel={FIRST_RUN_COPY.title} maxWidth={520}>
       {open && (
         <FirstRunFlow variant="sheet" mark={markWrap} startedAt={startedAt.current} onOpenNote={onOpenNote} onBusyChange={setBuilding}
-          onSkip={onClose} onDone={(note) => { onClose?.(); if (note && onOpenNote) onOpenNote(note) }} />
+          onSkip={onClose} onDone={(note, how) => { onClose?.(); closeOnto({ note, how, onOpenNote, onOpenToday }) }} />
       )}
     </Sheet>
   )
 }
 
 /** Home's inline ask after a Skip (S16 -> S17): the same two questions, in the page, with a way to close it. */
-export function FirstRunInline({ mark, onOpenNote, onClose }) {
+export function FirstRunInline({ mark, onOpenNote, onOpenToday, onClose }) {
   const uid = useId()
   return (
     <section className={styles.inline} aria-labelledby={`${uid}-title`} data-first-run-inline="">
       <h2 id={`${uid}-title`} className={styles.inlineTitle}>{FIRST_RUN_COPY.title}</h2>
       <FirstRunFlow variant="inline" mark={mark} onOpenNote={onOpenNote} onSkip={onClose}
-        onDone={(note) => { onClose?.(); if (note && onOpenNote) onOpenNote(note) }} />
+        onDone={(note, how) => { onClose?.(); closeOnto({ note, how, onOpenNote, onOpenToday }) }} />
     </section>
   )
 }

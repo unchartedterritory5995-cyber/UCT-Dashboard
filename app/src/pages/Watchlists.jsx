@@ -103,6 +103,7 @@ import { exportQuota, downloadExport } from '../lib/dataExport'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { OPTIONAL_COLS, EXTRA_COLS, DEFAULT_COL_ORDER, COL_LABELS, TEXT_COLS, withColumn, firstSortDir } from './watchlist/watchlistColumns'
 import { publishListView } from './watchlist/watchlistViews'
+import { useWidgetDoor } from './charts/widgetDoors'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
@@ -2327,6 +2328,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     saveCols: saveColCfg,
     select: (sym) => { setSelectedSym(sym); setHubSym(sym) },
   }
+
+  // A Watchlist widget's Journal door (a Scanner's is its results view's)
+  useWidgetDoor(() => (listView?.type !== 'watchlist' ? {} : {
+    capture: () => {
+      const rows = listViewRef.current?.rows() || []
+      return rows.length ? { kind: 'watchlist', capture: buildListCapture(pickList, pickName, rows), label: pickName } : null
+    },
+  }))
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column

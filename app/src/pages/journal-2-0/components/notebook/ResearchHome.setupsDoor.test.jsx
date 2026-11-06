@@ -193,7 +193,8 @@ describe('first-open bytes', () => {
     // N4 (polish round): the loader is named so the idle preload can share it.
     expect(home).toMatch(/const loadSetupsBox = \(\) => import\('\.\/SetupsBox'\)/)
     expect(home).toMatch(/const SetupsBox = lazyChunk\(loadSetupsBox\)/)
-    expect(home).toMatch(/setupsBoardEnabled\(\) \? <Suspense fallback=\{null\}><SetupsBox \/><\/Suspense> : null/)
+    // Tier 4 fix round 2: the fallback holds the box's height (ResearchHome.cls.test.jsx); still lazy, still flag-gated.
+    expect(home).toMatch(/setupsBoardEnabled\(\)\s*\?\s*<Suspense fallback=\{<div className=\{styles\.setupsReserve\}[^>]*\/>\}><SetupsBox \/><\/Suspense>\s*:\s*null/)
   })
 
   it('switch OFF never asks for the board (the box is not even mounted)', () => {

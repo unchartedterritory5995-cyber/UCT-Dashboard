@@ -20,6 +20,7 @@ import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { buildNewsCapture, newsCaptureSettings } from './captures/newsCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
@@ -219,6 +220,10 @@ export default function NewsWidget({
     return () => document.removeEventListener('mousedown', onDown, true)
   }, [expandedKey])
 
+  // ONE builder with the Notebook's /news insert (captures/newsCapture.js).
+  const newsCapture = () => buildNewsCapture({ symbol: sym, events, company }, { filter, settings })
+  useWidgetDoor(() => ({ capture: () => (journalDoor && !readOnly && sym && events?.length > 0 ? { kind: 'news', capture: newsCapture(), label: `${sym} news` } : null) }))
+
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
@@ -274,8 +279,6 @@ export default function NewsWidget({
             door keeps the auto, the gear drops to a 2px gap when the door
             renders. */}
         {journalDoor && !readOnly && sym && events?.length > 0 && (() => {
-          // ONE builder with the Notebook's /news insert (captures/newsCapture.js).
-          const newsCapture = () => buildNewsCapture({ symbol: sym, events, company }, { filter, settings })
           return (
             <>
               <button
