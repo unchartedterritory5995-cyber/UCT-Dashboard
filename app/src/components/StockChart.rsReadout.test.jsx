@@ -280,11 +280,12 @@ describe('the About card', () => {
     expect(popover.querySelector('[role="menuitem"]')).toBeNull()
     expect(popover.querySelector('[data-readout-rows]')).toBeNull()
     expect(document.querySelectorAll('[data-guide="chart.chipMenu"]')).toHaveLength(1)
-    // the back row at the top carries the row's label and value
+    // the back row at the top carries the row's LABEL only (visual round A1: the
+    // composed values are too long for one line beside a title)
     const back = card.querySelector('[data-legend-back]')
     expect(back.tagName).toBe('BUTTON')
-    expect(back.textContent).toContain('Benchmark')
-    expect(back.textContent).toContain('XLK')
+    expect(back.textContent).toBe('Benchmark')
+    expect(back.textContent).not.toContain('XLK')
     expect(card.firstElementChild).toBe(back)
     // the three lines
     expect(card.querySelector('[data-card-line="what"]').textContent).toContain(CARD.what)
@@ -520,7 +521,10 @@ describe('the wires, read from the source and the stylesheet', () => {
     const rule = (name) => { const m = new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css); expect(m, name).toBeTruthy(); return m[1] }
     expect(rule('legCardBack')).toMatch(/min-height:\s*var\(--tap-min\)/)
     expect(rule('legCardLearn')).toMatch(/min-height:\s*var\(--tap-min\)/)
-    expect(rule('legCardLesson')).toMatch(/min-height:\s*var\(--tap-min\)/)
+    // visual round A1: lesson rows are 28 px on desktop and the 44 px floor on touch
+    expect(rule('legCardLesson')).toMatch(/min-height:\s*28px/)
+    const touch = css.slice(css.indexOf('@media (max-width: 1024px)', css.indexOf('.legPresetPage')))
+    expect(touch).toMatch(/\.legCardLesson\s*\{\s*min-height:\s*var\(--tap-min\)/)
     expect(rule('legCardLearn')).toMatch(/color:\s*var\(--ut-gold/)
     const block = css.slice(css.indexOf('.legMenuRows'))
     const fonts = block.match(/font(?:-family)?:[^;]*;/g) || []

@@ -76,6 +76,58 @@ export function displaySubmenu(options, current, onMove, instanceId) {
   })
 }
 
+/** The member's word for "no preset matches". Not a preset id, never written. */
+export const CUSTOM_PRESET_LABEL = 'Custom'
+
+/** The current preset's label, or `Custom` when `currentId` names none of them. */
+export function presetLabelOf(presets, currentId) {
+  const list = Array.isArray(presets) ? presets : NO_OPTIONS
+  const hit = typeof currentId === 'string' ? list.find((p) => p && p.id === currentId) : null
+  return hit && typeof hit.label === 'string' ? hit.label : CUSTOM_PRESET_LABEL
+}
+
+/**
+ * ⭐ PHASE 2a (A6) — the **Preset** page: one row per declared preset, in
+ * declaration order, then `Custom`.
+ *
+ * ⛔ THE CURRENT PRESET IS CHECKED AND STILL PRESSABLE. Choosing it re-applies
+ * its values, which is how a member who tweaked one input gets the preset back
+ * (the dialog's "Reset to preset", one tap away). `applyPresetInputs` refuses a
+ * write that changes nothing by identity, so a press on an untouched preset
+ * persists nothing.
+ *
+ * ⛔ CUSTOM IS A STATE, NEVER A CHOICE: it has no `onClick`, it is checked when
+ * nothing matches, and choosing it would mean nothing (the dialog's
+ * `CUSTOM_PRESET` option is a no-op for the same reason).
+ *
+ * @param {{id:string,label:string,origin?:string}[]} presets `presetsOf(def)`
+ * @param {string|null} currentId the `detectPreset` match's id, or null
+ * @param {Function} onPreset `(instanceId, presetId) => void`
+ * @param {string} instanceId
+ */
+export function presetSubmenu(presets, currentId, onPreset, instanceId) {
+  const list = (Array.isArray(presets) ? presets : NO_OPTIONS)
+    .filter((p) => p && typeof p.id === 'string' && typeof p.label === 'string')
+  const matched = list.some((p) => p.id === currentId)
+  const rows = list.map((p) => ({
+    key: `preset-${p.id}`,
+    presetId: p.id,
+    label: p.label,
+    origin: typeof p.origin === 'string' ? p.origin : '',
+    checked: p.id === currentId,
+    onClick: () => onPreset(instanceId, p.id),
+  }))
+  rows.push({
+    key: 'preset-custom',
+    presetId: null,
+    label: CUSTOM_PRESET_LABEL,
+    origin: '',
+    checked: !matched,
+    custom: true,
+  })
+  return rows
+}
+
 /**
  * Track B V1's rows, in the declared order, from ONE source.
  *
@@ -153,6 +205,24 @@ export function chipMenuItems(chip, def, h, caps = {}) {
         : 'this indicator draws on the candles’ scale and has nowhere else it can be placed'),
       submenu,
     },
+  ]
+  // ⭐ PHASE 2a (A6) — PRESET ▸, right after Display in, for a definition that
+  // declares `meta.presets`. Offered only when the caller wires `h.onPreset` and
+  // hands the presets in (`caps.presets`, the `presetsOf(def)` list) — this file
+  // stays pure and reads no definition field itself. The row's trailing label is
+  // the CURRENT preset (`caps.presetCurrent`, what `detectPreset` answered), or
+  // `Custom` when none matches.
+  const presets = Array.isArray(caps.presets) ? caps.presets : NO_OPTIONS
+  if (presets.length && typeof h.onPreset === 'function') {
+    rows.push({
+      key: 'preset',
+      label: 'Preset',
+      icon: 'library',
+      trailing: presetLabelOf(presets, caps.presetCurrent),
+      submenu: presetSubmenu(presets, caps.presetCurrent, h.onPreset, chip.instanceId),
+    })
+  }
+  rows.push(
     { separator: true },
     {
       // ⭐ THE FULL EDITOR. One channel — see `StockChart.handleChipSettings`.
@@ -161,7 +231,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       icon: 'sliders',
       onClick: () => h.onSettings(chip.instanceId),
     },
-  ]
+  )
   // ⭐ P1 — VALUE: "show this output's latest value in the header". It writes a
   // REFERENCE `{instanceId, plotKey}` (`engine/infoValues.js`) and nothing else:
   // the output keeps its type and its compute. Offered only when the caller wires

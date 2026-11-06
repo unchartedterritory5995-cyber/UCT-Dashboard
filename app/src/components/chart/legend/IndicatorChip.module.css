@@ -369,6 +369,52 @@
   .chipRepaint { display: none; }
 }
 
+/* ── PHASE 2a (A5a) · THE TEXT CHIP ────────────────────────────────────────
+ *
+ * A definition that declares a readout (UCT RS) keeps its chip as TEXT on the
+ * phone — `UCT RS · SPY 0.4187` — because the phone hides pane labels and this
+ * chip is the only thing that names the bottom pane; its dot is the same blue
+ * family as an SMA's, and two blue dots name nothing. Opt-in through the
+ * component's `textChip` prop, so every other chip still collapses to a dot.
+ *
+ * ⛔ ON ITS OWN LINE, UNDER THE DOT ROW: `.chipBreak` (rendered by the legend
+ * only when a text chip exists) is a zero-height full-width flex item ordered
+ * between the dots and the text chips, so the wrap happens there and nowhere
+ * else. Never folded into `+N` — the legend keeps it out of the fold count.
+ *
+ * ⛔ THE NAME TRUNCATES IN THE MIDDLE, NEVER THE VALUE: the stem ellipsizes, the
+ * ` · SPY` tail and the number keep their width. Max width 168 px. The 44 px
+ * tap target stays (the `.chip` phone rule's height and min-width). */
+.chipValStale { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
+.chipBreak { display: none; }
+@media (max-width: 640px) {
+  .chip.chipText {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    max-width: 168px;
+    text-indent: 0;
+    padding: 0 4px;
+    order: 2;
+    font: 600 11px 'Instrument Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip.chipText::before {
+    position: static;
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin: 0;
+  }
+  .chipTextName { display: inline-flex; min-width: 0; overflow: hidden; }
+  .chipTextHead { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chipTextTail { flex: none; white-space: nowrap; }
+  .chip.chipText .chipVal { flex: none; white-space: nowrap; }
+  .chip.chipText.chipHidden { opacity: 1; color: var(--legend-ink-muted, var(--text-muted)); }
+  .chipBreak { display: block; order: 1; flex: 0 0 100%; height: 0; }
+}
+
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------
    These selectors are declared finger targets by the PHONE block(s)
    in this file and nowhere else, so the TABLET tier (641-1024) -- which

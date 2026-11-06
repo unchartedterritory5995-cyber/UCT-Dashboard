@@ -1177,3 +1177,122 @@ export function paneReadoutLabel(chip, def, sourceName) {
   const full = def.meta && def.meta.name
   return (typeof full === 'string' && full) ? `${full}${suffix}` : chip.label
 }
+
+// ─── PHASE 2a VISUAL ROUND (unit VA3) · THE READOUT DEFINITION'S SURFACES ───
+//
+// ⭐ A DEFINITION THAT DECLARES `readout[]` IS THE OPT-IN, and it is the only one.
+// Today that is `rsLine` alone. The helpers below are the client half of spec
+// items A5a (the phone text chip), A8 (the pane label never goes blank) and A9
+// (one name grammar: `UCT RS · SPY`). Every other definition answers `null` from
+// each of them, so its chip, its menu and its pane label are byte-identical to
+// before — `readout.va3.test.js` pins that on RSI and MACD.
+
+/** Whether a definition declares a readout block (`readout[]`, non-empty). */
+export function declaresReadout(def) {
+  return !!(def && Array.isArray(def.readout) && def.readout.length)
+}
+
+/**
+ * ⭐ A9 — THE SHORT NAME, IN THE ONE GRAMMAR: `UCT RS · SPY`.
+ *
+ * The stem is `meta.shortName`; what follows is the chip's pane suffix — the
+ * identity parts and the chip-flagged readout rows `stampReadout` composed
+ * (` · XLK · 94` once the envelope has landed, ` · SPY` before it while the
+ * benchmark is a `legendParams` entry), then the calculation frame. So it reads
+ * the same whether `legendParams` names the benchmark (`UCT RS(SPY)` on
+ * `chip.label`) or is empty (the engineering map's design, `legendParams: []`
+ * with the benchmark row as the chip suffix). The sibling suffix a second copy
+ * earned (` (maLength 50)`) is already inside `chip.suffix`.
+ *
+ * ⛔ `chip.label` AND `chip.text` ARE NOT TOUCHED. Three byte-exact rails pin
+ * that grammar; the surfaces that print the short name ask for it here.
+ *
+ * @returns {string|null} null for every definition without a readout
+ */
+export function readoutChipName(chip, def) {
+  if (!chip || !declaresReadout(def)) return null
+  const meta = def.meta || {}
+  if (meta.labelFrom === 'source') return null
+  const stem = (typeof meta.shortName === 'string' && meta.shortName)
+    || (typeof meta.name === 'string' && meta.name) || def.id
+  const suffix = typeof chip.suffix === 'string' ? chip.suffix : ''
+  const frame = typeof chip.frameSuffix === 'string' ? chip.frameSuffix : ''
+  return `${stem}${suffix}${frame}`
+}
+
+const MONTHS = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
+
+/** `20261104` / `'20261104'` / `'2026-11-04'` → `Nov 4`; anything else → ''. */
+export function readoutDateText(asOf) {
+  const s = typeof asOf === 'number' && Number.isInteger(asOf) ? String(asOf)
+    : (typeof asOf === 'string' ? asOf.replace(/-/g, '') : '')
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(s)
+  if (!m) return ''
+  const mo = Number(m[2]); const d = Number(m[3])
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return ''
+  return `${MONTHS[mo - 1]} ${d}`
+}
+
+/**
+ * ⭐ A8 — WHAT THE PANE LABEL PRINTS WHEN THE LIVE VALUE IS MISSING.
+ *
+ * The newest bar can carry no RS value (the benchmark is missing that bar), and
+ * then the chip has no number. The label never goes blank and never passes a
+ * stale number off as current: it prints the server's `payload.legend.lastValue`
+ * (the last finite RS value) at the plot's decimals, MUTED, with its date
+ * (`payload.legend.asOf`): `0.4700 · Nov 4`. No finite value at all, or no
+ * envelope yet → a muted `—`.
+ *
+ * @param {object|null} def
+ * @param {object|null} scalars the envelope payload (`scalarsFor`), or null
+ * @param {number} [decimals] the plot's legend decimals (the chip's)
+ * @returns {{text: string, muted: true}|null} null for a definition without a readout
+ */
+export function readoutFallbackValue(def, scalars, decimals) {
+  if (!declaresReadout(def)) return null
+  const legend = scalars && typeof scalars === 'object' && scalars.legend && typeof scalars.legend === 'object'
+    ? scalars.legend : null
+  const v = legend ? legend.lastValue : null
+  if (typeof v !== 'number' || !Number.isFinite(v)) return { text: '—', muted: true }
+  const dp = Number.isInteger(decimals) ? decimals : 4
+  const date = readoutDateText(legend.asOf)
+  return { text: date ? `${v.toFixed(dp)} · ${date}` : v.toFixed(dp), muted: true }
+}
+
+/**
+ * ⭐ A1 — SPLIT A CHIP'S RESOLVED READOUT ROWS INTO THE GLANCE LIST AND THE
+ * CARDS' NUMBERS BLOCKS (shared contract: `detailOf: '<glanceKey>'`).
+ *
+ * A row's `detailOf` is read from the resolved row (VA2 stamps it there) and,
+ * failing that, from the definition's own entry by key, so the grouping holds
+ * whichever half lands first. A row whose `detailOf` names no glance row that
+ * is absent (Mansfield view off, so no Mansfield row) renders nowhere: the
+ * contract says a detail row lives only in its glance row's card.
+ *
+ * ⛔ BACKWARD COMPATIBLE BY CONSTRUCTION: with no `detailOf` anywhere every row
+ * is a glance row, in the order given — exactly today's menu.
+ *
+ * @param {object[]} rows the chip's resolved rows (`chip.readout`)
+ * @param {object|null} def
+ * @returns {{glance: object[], details: Map<string, object[]>}}
+ */
+export function splitReadoutRows(rows, def) {
+  const list = Array.isArray(rows) ? rows.filter((r) => r && typeof r.key === 'string') : []
+  const entries = def && Array.isArray(def.readout) ? def.readout : []
+  const declared = new Map(entries.filter((e) => e && typeof e.key === 'string').map((e) => [e.key, e]))
+  const parentOf = (r) => {
+    if (typeof r.detailOf === 'string' && r.detailOf) return r.detailOf
+    const e = declared.get(r.key)
+    return e && typeof e.detailOf === 'string' && e.detailOf ? e.detailOf : null
+  }
+  const glance = []
+  const details = new Map()
+  for (const r of list) {
+    const p = parentOf(r)
+    if (p) {
+      if (!details.has(p)) details.set(p, [])
+      details.get(p).push(r)
+    } else glance.push(r)
+  }
+  return { glance, details }
+}
