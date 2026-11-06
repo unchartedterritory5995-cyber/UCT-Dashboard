@@ -117,7 +117,7 @@ jobs:
       # left it? If somebody pushed to `production` directly, this refuses BEFORE any
       # scan runs and names the SHA and its author.
       #
-      # ⛔ THREE STATES, NOT TWO — the same reason the range scan below has six.
+      # ⛔ THREE STATES, NOT TWO — the same reason the range scan below names every state it can reach.
       # "The records disagree" and "there is no record yet" are different facts and
       # only one of them is a failure. A two-state version would either fail every run
       # before the first promotion or, far worse, read a permanently missing record as
@@ -235,46 +235,30 @@ jobs:
       # so a third push cancels the second's gate; the per-commit scan above then never sees
       # that commit, yet the next green tip promotes its content. The base is `production` —
       # the last promotion — so every commit about to reach production is in this diff.
-      # It FAILS on a finding AND on every state that could not compare (NO RANGE,
-      # INCONCLUSIVE): a scan that cannot compare must never read as a pass. NOTHING AHEAD
-      # and NOTHING-TO-SCAN still pass, because the range resolved.
+      # It FAILS on a finding AND on every state that did not prove the range clean (NO
+      # RANGE, INCONCLUSIVE, DIFF FAILED, SCANNER ERROR). NOTHING AHEAD and NOTHING-TO-SCAN
+      # pass, because the range resolved.
+      #
+      # ⚠️ IT COMPARES SNAPSHOTS. A secret added in one commit and deleted by a later one in
+      # the same range is not in `production..HEAD` and is not flagged here. Such a secret is
+      # already public; that case belongs to the pre-push hook and to rotation, not to this gate.
       - name: Secret scan over the whole range (since production)
         run: |
           set +e
-          # ⛔⛔ THE CHECKOUT ABOVE IS `fetch-depth: 2`. Neither `origin/production` nor the
-          # push's `before` commit is present in that clone, so EVERY git command here
-          # would fail quietly and the step would report "nothing to scan" — meeting the
-          # 20-run promotion criterion having compared nothing. Fetch first, and treat an
-          # unreachable base as INCONCLUSIVE, never as clean.
-          git fetch --no-tags --quiet --depth=200 origin production 2>/dev/null
-          git fetch --no-tags --quiet --depth=200 origin master 2>/dev/null
+          # ⛔⛔ THE CHECKOUT ABOVE IS `fetch-depth: 2`, so `origin/production` is not in the
+          # clone until fetched. `git diff BASE HEAD` compares two snapshots and needs no
+          # shared history, so depth 200 is enough however far production lags.
+          git fetch --no-tags --quiet --depth=200 origin production master 2>&1 | sed 's/^/range-scan fetch: /'
 
-          BASE=""
-          if git rev-parse --verify --quiet refs/remotes/origin/production >/dev/null 2>&1; then
-            BASE=origin/production
-          elif [ -n "$(git ls-remote origin refs/heads/production 2>/dev/null)" ]; then
-            # production EXISTS but did not arrive: comparing against the push's own range
-            # here would silently narrow back to the gap this step exists to close.
-            echo "range-scan: INCONCLUSIVE — origin/production exists but could not be fetched. Refusing to fall back to the push range."
+          # ⛔ production is the ONLY base. It has existed since the 2026-09-20 cutover. The
+          # old "the push's own range" fallback is gone: falling back to it is the gap itself.
+          if ! BASE_SHA=$(git rev-parse --verify --quiet refs/remotes/origin/production); then
+            echo "range-scan: NO RANGE — origin/production is not in this clone (fetch failed or the ref is gone). FAILING: nothing proved this push clean."
             exit 1
-          else
-            # Pre-cutover fallback: the push's own range.
-            CAND="${{ github.event.before }}"
-            case "$CAND" in
-              ''|0000000*) echo "range-scan: NO RANGE (github.event.before is empty or a new ref) — nothing compared. FAILING: nothing proved this push clean."; exit 1 ;;
-              *) BASE="$CAND" ;;
-            esac
           fi
-
-          # ⛔ THREE STATES, NOT TWO. "We could not compare" and "there was nothing to
-          # compare" are different facts, and only one of them counts toward promotion.
+          BASE=origin/production
           if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            # One deeper fetch before giving up: production can lag master by more than the
-            # first 200 commits after a long deploy freeze.
-            git fetch --no-tags --quiet --deepen=2000 origin master production 2>/dev/null
-          fi
-          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            echo "range-scan: INCONCLUSIVE — base $BASE is not reachable in this clone even after deepening. FAILING: an unreadable range is not a clean one."
+            echo "range-scan: INCONCLUSIVE — base $BASE ($BASE_SHA) is not readable in this clone. FAILING: an unreadable range is not a clean one."
             exit 1
           fi
           if git merge-base --is-ancestor HEAD "$BASE" 2>/dev/null; then
@@ -284,20 +268,53 @@ jobs:
 
           echo "range-scan: base=$BASE head=$GITHUB_SHA"
           COMMITS=$(git rev-list --first-parent "$BASE..HEAD" 2>/dev/null | wc -l | tr -d ' ')
-          FILES=$(git diff --name-only --diff-filter=d "$BASE" HEAD 2>/dev/null | tr '\n' ' ')
-          if [ -z "$FILES" ]; then
+          # -z with quotePath off: paths with spaces or non-ASCII names reach the scanner intact.
+          # git diff's OWN exit status decides, never the emptiness of its output.
+          LIST=$(mktemp)
+          if ! git -c core.quotePath=false diff -z --name-only --diff-filter=d "$BASE" HEAD > "$LIST"; then
+            echo "range-scan: DIFF FAILED — git diff $BASE HEAD exited non-zero. FAILING: a range that could not be listed is not a clean one."
+            exit 1
+          fi
+          mapfile -d '' PATHS < "$LIST"
+          N=${#PATHS[@]}
+          if [ "$N" = "0" ]; then
             echo "range-scan: EXECUTED  commits=$COMMITS  files=0  verdict=NOTHING-TO-SCAN"
             exit 0
           fi
-          echo "range-scan: EXECUTED  commits=$COMMITS  files=$(echo $FILES | wc -w | tr -d ' ')"
-          python tools/secret_scrub.py --scan $FILES
-          RC=$?
-          if [ "$RC" = "0" ]; then
+          echo "range-scan: EXECUTED  commits=$COMMITS  files=$N"
+          # The scanner silently skips a path that does not exist, so prove they all do.
+          for P in "${PATHS[@]}"; do
+            if [ ! -e "$P" ] && [ ! -L "$P" ]; then
+              echo "range-scan: SCANNER ERROR — listed path is missing from the checkout: $P. FAILING: it would have been skipped, not scanned."
+              exit 1
+            fi
+          done
+          # Chunks keep every call under the kernel's argument limit. The scanner exits 1 on a
+          # finding AND on a crash, so its summary line decides: it must report exactly the
+          # paths it was given, and only a non-zero finding count is a FINDING.
+          FOUND=0
+          for ((i = 0; i < N; i += 400)); do
+            CHUNK=("${PATHS[@]:i:400}")
+            OUT=$(python tools/secret_scrub.py --scan "${CHUNK[@]}" 2>&1); RC=$?
+            printf '%s\n' "$OUT" | grep -E '^LEAK ' || true
+            SUMMARY=$(printf '%s\n' "$OUT" | grep -E '^scanned [0-9]+ path\(s\).* [0-9]+ finding\(s\)$' | tail -1)
+            SCANNED=$(printf '%s' "$SUMMARY" | sed -E 's/^scanned ([0-9]+) path.*/\1/')
+            HITS=$(printf '%s' "$SUMMARY" | sed -E 's/.* ([0-9]+) finding\(s\)$/\1/')
+            if [ -z "$SUMMARY" ] || [ "$SCANNED" != "${#CHUNK[@]}" ] \
+               || { [ "$RC" = 0 ] && [ "$HITS" != 0 ]; } || { [ "$RC" = 1 ] && [ "$HITS" = 0 ]; } \
+               || { [ "$RC" != 0 ] && [ "$RC" != 1 ]; }; then
+              echo "range-scan: SCANNER ERROR — rc=$RC paths=${#CHUNK[@]} summary='$SUMMARY'. FAILING: the scan did not provably run."
+              printf '%s\n' "$OUT" | tail -5
+              exit 1
+            fi
+            [ "$RC" = 1 ] && FOUND=1
+          done
+          if [ "$FOUND" = 0 ]; then
             echo "range-scan: verdict=CLEAN"
             exit 0
           fi
-          echo "::error title=range-scan finding::The whole-range secret scan (production..HEAD) found something. Nothing is promoted. A pushed secret is public even if deleted: rotate it, then remove it from master."
-          echo "range-scan: verdict=FINDING rc=$RC"
+          echo "::error title=range-scan finding::The whole-range secret scan (production..HEAD) found something. Nothing is promoted. A pushed secret is public even if deleted: rotate it, then remove it from master. Every later push stays red until master is clean."
+          echo "range-scan: verdict=FINDING"
           exit 1
 
       # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
@@ -406,6 +423,7 @@ jobs:
           echo ""
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
@@ -636,6 +654,7 @@ jobs:
           echo ""
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
