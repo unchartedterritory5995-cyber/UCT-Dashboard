@@ -207,6 +207,57 @@ export const PANE_BAND = Object.freeze({ top: 0.16, bottom: 0.1 })
  */
 export const MAIN_PRICE_SCALE_ID = 'right'
 
+// ─── A HIDDEN PANE AXIS (`placement.axis: 'hidden'`, Phase 2a A4 / owner D6) ──
+//
+// A definition may declare that its own pane carries NO price axis: no tick
+// labels, no last-value tag, no crosshair price label in the gutter beside it.
+// The value is read in the pane label instead. `rsLine` is the first to ask
+// (the ratio's level means nothing on its own; an 87 px pane fits three ticks).
+//
+// ⛔⛔ THE OBVIOUS MECHANISM WEDGES THE CHART. `visible: false` on the pane's
+// `'right'` scale is what the option is called, and on lightweight-charts 5.2.0
+// it is unusable for any pane but the first. MEASURED on a real chart
+// (`__tests__/axisHiddenRealChart.test.js`):
+//   1. `PaneWidget._recreatePriceAxisWidgets` destroys that pane's right axis
+//      widget, while `ChartWidget._isRightAxisVisible()` reads PANE 0's scale and
+//      still says "visible" — so `_adjustSizeImpl` hits
+//      `ensureNotNull(paneWidget._internal_rightPriceAxisWidget())` and throws
+//      `Value is null` on every resize and every draw. The canvas freezes on its
+//      last good frame: the same wedge `VOLUME_HOST_AXIS_OPTIONS` documents for
+//      the left axis.
+//   2. `ChartModel._internal_applyPriceScaleOptions('right', …)` MERGES the
+//      options into the chart-level `rightPriceScale` too, and every pane created
+//      afterwards is BORN from that bag (`new Pane` → `options.rightPriceScale`).
+//      So one hidden pane would hide the axis of the next RSI or volume pane.
+//
+// ⭐ THE MECHANISM THAT HOLDS: an OVERLAY scale in the indicator's own pane. A
+// price scale whose id is neither `'left'` nor `'right'` has no axis widget at
+// all (no ticks, no crosshair label — the crosshair label is drawn only on a
+// left/right scale that has data, and the pane's `'right'` scale now has none),
+// it AUTOSCALES from its own series exactly as `'right'` did (the margins and the
+// provider are unchanged), and `applyOptions` on it touches that one scale and
+// never the chart-level bag. That is the geometry `'bands'` mode has always used
+// for every oscillator. The value tag is the series half: `lastValue: false`,
+// because an overlay series' label is otherwise appended to the pane's visible
+// default scale.
+//
+// One id for every hidden pane is enough: overlay scales are PER PANE in 5.2.0
+// (`Pane._priceScaleById`), so two hidden panes never share a scale.
+export const HIDDEN_AXIS_SCALE_ID = 'uct-axis-hidden'
+
+/**
+ * Does this definition ask for its pane's axis to be hidden?
+ *
+ * ⛔ DEFENSIVE BY DESIGN: the field is validated by `defSchema` (another unit's
+ * file), but a definition that bypassed validation, or predates the field, must
+ * read as VISIBLE. Only the exact string `'hidden'` hides; absent, `'visible'`,
+ * `null` and anything else keep the axis, so no existing definition can change.
+ */
+export function axisHiddenOf(def) {
+  const p = def && typeof def === 'object' ? def.placement : null
+  return !!(p && typeof p === 'object' && p.axis === 'hidden')
+}
+
 // ─── colour ──────────────────────────────────────────────────────────────────
 
 const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i
@@ -498,6 +549,11 @@ export function resolvePlacement(instance, def, ctx) {
       scaleOptions: null,
       autoscale: 'default',
       lastValue: false,
+      // ⭐ A GUEST STATES ITS AXIS ASK AND DOES NOT ACT ON IT. Its `scaleId` stays
+      // the host's `'right'`; whether the pane's axis hides is a question about
+      // EVERY tenant of the pane, answered by `applyAxisTenancy`, which moves the
+      // guest onto the host's hidden overlay only when the whole pane agrees.
+      ...(axisHiddenOf(def) ? { axis: 'hidden' } : {}),
     }
   }
 
@@ -654,6 +710,28 @@ export function resolvePlacement(instance, def, ctx) {
     const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
     const pane = panes ? panes.find((p) => p && p.key === paneKey) : null
     if (!pane || !Number.isInteger(pane.index)) return null
+    // ⭐ A4: `placement.axis: 'hidden'` — see `HIDDEN_AXIS_SCALE_ID`. Only THIS
+    // branch honours it: it is the only one where the indicator owns the pane.
+    // The candles' axis (price branch) and the volume pane's ladders (overlay
+    // branch) belong to somebody else and never hide; in `'bands'` mode the scale
+    // is already an overlay named after the definition, with no axis to hide.
+    const hidden = axisHiddenOf(def)
+    if (hidden) {
+      return {
+        paneIndex: pane.index,
+        scaleId: HIDDEN_AXIS_SCALE_ID,
+        // Byte-identical to the visible answer: same margins, same autoscale,
+        // same declared range. Hiding the axis changes where the numbers are
+        // PRINTED, never how the line is framed.
+        scaleOptions: { borderVisible: false, scaleMargins: { ...PANE_BAND }, ...range },
+        autoscale: 'default',
+        ...(fixed ? { autoscaleRange: fixed } : {}),
+        // No tag: there is no axis to hang it on, and an overlay series' tag
+        // would otherwise land in the pane's empty right gutter.
+        lastValue: false,
+        axis: 'hidden',
+      }
+    }
     return {
       paneIndex: pane.index,
       scaleId: 'right',
@@ -706,4 +784,67 @@ export function resolvePlacement(instance, def, ctx) {
     // passing none, and that is what Flip A has to reproduce.
     autoscale: 'default',
   }
+}
+
+/**
+ * ⭐ A4 — WHO DECIDES A SHARED PANE'S AXIS: EVERY TENANT, OR NOBODY.
+ *
+ * `resolvePlacement` answers one instance at a time, and a pane can hold more
+ * than one: the host that owns it plus any guest that followed it there
+ * (`'@<hostInstanceId>'`, e.g. an MA of the RS line, or a member moving RSI into
+ * the RS pane). This pass looks at the whole set of answers and settles each
+ * pane once:
+ *
+ *   - the pane's axis HIDES only when EVERY tenant on it asks (`axis: 'hidden'`).
+ *     All of them then share the host's hidden overlay, so a guest still reads
+ *     against the host's ladder (that is what joining a pane means);
+ *   - one tenant that does not ask brings the axis BACK for all of them: every
+ *     tenant goes to the pane's `'right'` scale. A guest that never asked for a
+ *     hidden axis would otherwise be drawn with numbers the member has no way to
+ *     read.
+ *
+ * The value TAG is not re-decided here. It is a per-series answer that follows
+ * the series' own definition: a hidden-axis host keeps `lastValue: false` when a
+ * guest brings the axis back, because its author asked for no tag.
+ *
+ * ⛔ THE CANDLES' PANE AND THE VOLUME PANE ARE NEVER TOUCHED. Their axis is
+ * owned by series the engine does not bind (the candles, the volume bars), so no
+ * set of engine answers can speak for every tenant there.
+ *
+ * ⛔ IDENTITY WHEN NOTHING ASKS. An answer that needs no change is returned as
+ * the SAME object, so a chart with no hidden-axis definition is byte-identical
+ * to the engine before this field existed (`placement.axisHidden.test.js` pins
+ * it for RSI and MACD, with and without a hidden pane beside them).
+ *
+ * @param {Array<object|null>} answers `resolvePlacement` results, in bind order
+ * @param {object} [ctx] the same placement ctx (`paneLayout.priceIndex`,
+ *        `volSeparatePane`, `VOL_PANE_INDEX`)
+ * @returns {Array<object|null>} same length, same order
+ */
+export function applyAxisTenancy(answers, ctx) {
+  if (!Array.isArray(answers)) return answers
+  const c = ctx || {}
+  const reserved = new Set([priceIndexOf(c)])
+  if (c.volSeparatePane) reserved.add(Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1)
+  const onPaneAxis = (a) => !!a && typeof a === 'object' && Number.isInteger(a.paneIndex)
+    && !reserved.has(a.paneIndex)
+    && (a.scaleId === 'right' || a.scaleId === HIDDEN_AXIS_SCALE_ID)
+
+  // paneIndex → { asks: some tenant asked, every: every tenant asked }
+  const panes = new Map()
+  for (const a of answers) {
+    if (!onPaneAxis(a)) continue
+    const g = panes.get(a.paneIndex) || { asks: false, every: true }
+    if (a.axis === 'hidden') g.asks = true
+    else g.every = false
+    panes.set(a.paneIndex, g)
+  }
+
+  return answers.map((a) => {
+    if (!onPaneAxis(a)) return a
+    const g = panes.get(a.paneIndex)
+    if (!g || !g.asks) return a
+    const want = g.every ? HIDDEN_AXIS_SCALE_ID : 'right'
+    return a.scaleId === want ? a : { ...a, scaleId: want }
+  })
 }
