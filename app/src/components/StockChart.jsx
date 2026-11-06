@@ -145,6 +145,18 @@ import {
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+// ⭐ Phase 2a (unit 2a-10) — THE READOUT SURFACES. `scalarsFor` reads the scalars
+// a server-lane envelope carried beside its columns (read-only; never a fetch);
+// `legendChips` turns them into `chip.readout` rows through the `scalarsOf`
+// reader below (`readout.stampReadout`). The rows ride the chip's popover
+// header, a row's `card` opens a three-line About page in the same popover,
+// and Learn links resolve through the app's one Desk-video builder.
+import { scalarsFor } from './chart/engine/serverCompute'
+import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
+// ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
+// mounted without one on several surfaces (popups, the Model Book, its own
+// suites), and `<Link>` calls `useHref`, which throws there.
+import { Link, useInRouterContext } from 'react-router-dom'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/cotFollow'
 // ⭐ P2 Track B — Create Indicator's ephemeral live-chart preview (a READ VIEW).
@@ -487,7 +499,27 @@ function chipMenuRowToPopoverRow(it) {
  * what identifies it, and the line it is about is the one the hover lift raised
  * on the way in.
  */
-function LegendMenuHeader({ label, value, hidden, sub }) {
+const EMPTY_READOUT_ROWS = Object.freeze([])
+
+/**
+ * ⭐ Phase 2a (unit 2a-10) — `rows`: the chip's READOUT ROWS, what the legend
+ * says in words about a server-lane indicator (`chip.readout`, built by
+ * `readout.legendChips` from the envelope's scalars through `readoutSchema`).
+ * They render under the subtitle and above the verbs, in BOTH branches of the
+ * popover. A chip with no rows renders this header exactly as before.
+ *
+ * ⛔ A MUTED ROW IS DIMMED, NEVER HIDDEN. `muted` is a declared `fallback`
+ * standing in for a value the server has not sent ("not yet rated") — the
+ * honest state, and the member should see it.
+ *
+ * ⭐ A ROW WITH A `card` IS A BUTTON — the one exception to "the header is not
+ * a row": it is a real control that opens the row's three-line About page in
+ * place of the menu body (`onCard`), so it is a tab stop that does something.
+ */
+function LegendMenuHeader({ label, value, hidden, sub, rows, onCard }) {
+  const list = Array.isArray(rows)
+    ? rows.filter((r) => r && typeof r.key === 'string' && typeof r.text === 'string' && r.text)
+    : EMPTY_READOUT_ROWS
   return (
     <div className={styles.legMenuHead}>
       <div className={styles.legMenuTop}>
@@ -499,6 +531,141 @@ function LegendMenuHeader({ label, value, hidden, sub }) {
         {!hidden && value ? <span className={styles.legMenuVal}>{value}</span> : null}
       </div>
       {sub ? <div className={styles.legMenuSub}>{sub}</div> : null}
+      {list.length ? (
+        <div className={styles.legMenuRows} data-readout-rows="">
+          {list.map((r) => {
+            const muted = r.muted === true
+            const cls = `${styles.legMenuRow}${muted ? ' ' + styles.legMenuRowMuted : ''}`
+            const body = (
+              <>
+                <span className={styles.legMenuRowLabel}>{r.label}</span>
+                <span className={styles.legMenuRowVal}>{r.text}</span>
+              </>
+            )
+            if (r.card && typeof onCard === 'function') {
+              return (
+                <button
+                  key={r.key}
+                  type="button"
+                  className={`${cls} ${styles.legMenuRowBtn}`}
+                  data-readout-row={r.key}
+                  data-muted={muted ? 'true' : 'false'}
+                  data-readout-card=""
+                  onClick={() => onCard(r)}
+                >
+                  {body}
+                  <span className={styles.legMenuRowChev} aria-hidden="true"><UIcon name="chevronRight" size={11} gold={false} /></span>
+                </button>
+              )
+            }
+            return (
+              <div key={r.key} className={cls} data-readout-row={r.key} data-muted={muted ? 'true' : 'false'}>
+                {body}
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * ⭐ A LEARN LINK — a Desk video deep link (`lib/deskVideoHref.learnHref`,
+ * `/desk?section=videos&v=<id>[&t=<s>]`), rendered as a react-router `<Link>`
+ * where there IS a router and as a plain `<a>` where there is not.
+ *
+ * ⛔ StockChart has NO router context on several mounts — popups, the Model
+ * Book, its own suites (see the Desk-marker click handler: `useNavigate()`
+ * would throw there). `<Link>` calls `useHref`, which throws outside a
+ * `<Router>`, so this asks `useInRouterContext()` first. The plain anchor is
+ * the same in-app route in the same tab, with a page load instead of a
+ * client-side transition. Neither opens a new tab: the Desk is in-app.
+ */
+function LearnLink({ href, className, children, ...rest }) {
+  const routed = useInRouterContext()
+  if (routed) return <Link to={href} className={className} {...rest}>{children}</Link>
+  return <a href={href} className={className} {...rest}>{children}</a>
+}
+
+/** The lessons a definition declares (`meta.learn: [{key, label}]`) that the
+ *  app's Learn map resolves — a key the map does not know renders no link. */
+function learnLessons(def) {
+  const list = def && def.meta && Array.isArray(def.meta.learn) ? def.meta.learn : EMPTY_READOUT_ROWS
+  const out = []
+  for (const l of list) {
+    if (!l || typeof l.key !== 'string' || typeof l.label !== 'string') continue
+    const href = learnHref(l.key)
+    if (href) out.push({ key: l.key, label: l.label, href })
+  }
+  return out
+}
+
+/** The definition's lessons as links — the foot of a card and of the About page. */
+function LegendLessons({ lessons, className }) {
+  if (!lessons || !lessons.length) return null
+  return (
+    <div className={`${styles.legCardLessons}${className ? ' ' + className : ''}`} data-legend-lessons="">
+      <span className={styles.legCardLessonsKey}>Lessons</span>
+      {lessons.map((l) => (
+        <LearnLink key={l.key} href={l.href} className={styles.legCardLesson} data-learn={l.key}>
+          <UIcon name="play" size={11} gold={false} />
+          <span>{l.label}</span>
+        </LearnLink>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * ⭐ THE ABOUT CARD (Phase 2a, unit 2a-10) — one readout row explained in three
+ * lines: what it is, where it comes from, what the evidence says (design spec
+ * 2026-11-05 §6). Rendered through `ContextPopover`'s `children` branch, so it
+ * REPLACES the menu body in the SAME popover; the back row (44 px) returns to
+ * the rows. Operator voice, no emoji, Instrument Sans; the one gold element is
+ * the Learn link — look here.
+ *
+ * The row's own lesson (`card.learn`, a key the app's Learn map resolves)
+ * renders as "Watch the lesson" with the video's label; the definition's
+ * `meta.learn` lessons follow, so every lesson is one tap from any card.
+ */
+function LegendMenuCard({ row, def, onBack }) {
+  const card = row.card || {}
+  const learnKey = typeof card.learn === 'string' ? card.learn : null
+  const lessonHref = learnKey ? learnHref(learnKey) : null
+  const lesson = lessonHref && Object.prototype.hasOwnProperty.call(RS_LEARN_VIDEOS, learnKey)
+    ? RS_LEARN_VIDEOS[learnKey] : null
+  const lessons = learnLessons(def).filter((l) => l.key !== learnKey)
+  return (
+    <div className={styles.legCard} data-legend-card={row.key}>
+      <button type="button" className={styles.legCardBack} data-legend-back="" onClick={onBack}>
+        <span className={styles.legCardBackChev} aria-hidden="true"><UIcon name="chevronLeft" size={12} gold={false} /></span>
+        <span className={styles.legCardTitle}>{row.label}</span>
+        <span className={styles.legCardVal}>{row.text}</span>
+      </button>
+      <div className={styles.legCardBody}>
+        <div className={styles.legCardLine} data-card-line="what">
+          <span className={styles.legCardKey}>What it is</span>
+          <span className={styles.legCardText}>{card.what}</span>
+        </div>
+        <div className={styles.legCardLine} data-card-line="origin">
+          <span className={styles.legCardKey}>Where it comes from</span>
+          <span className={styles.legCardText}>{card.origin}</span>
+        </div>
+        {typeof card.evidence === 'string' && card.evidence ? (
+          <div className={styles.legCardLine} data-card-line="evidence">
+            <span className={styles.legCardKey}>What the evidence says</span>
+            <span className={styles.legCardText}>{card.evidence}</span>
+          </div>
+        ) : null}
+        {lesson ? (
+          <LearnLink href={lessonHref} className={styles.legCardLearn} data-learn={learnKey}>
+            <UIcon name="play" size={12} />
+            <span>Watch the lesson<span className={styles.legCardLearnSub}> · {lesson.label}</span></span>
+          </LearnLink>
+        ) : null}
+        <LegendLessons lessons={lessons} />
+      </div>
     </div>
   )
 }
@@ -4907,11 +5074,29 @@ export default function StockChart({
    * every `useRef` in the component body has run. Do not "fix" it by moving the
    * ref — the declaration order below it is what the rest of the file depends on.
    */
+  /**
+   * ⭐ Phase 2a (unit 2a-10) — THE READOUT READER, for every `legendChips` call
+   * in this file. `legendChips` hands it the definition and the RESOLVED inputs;
+   * it answers the scalars the server sent beside that instance's columns
+   * (`serverCompute.scalarsFor` — read-only, it never asks the server), keyed
+   * exactly as the binder keyed the fetch: `sym` and `resolvedTf` (the binder
+   * sync ctx). Through REFS, because the crosshair handler runs in a closure
+   * that outlives its render — the same reason `symRef` exists; both refs are
+   * written by the mirror effect before anything here can run.
+   *
+   * A chip whose definition declares no `readout[]` gains `readout: []` and
+   * `suffix: ''` and nothing else (`readout.stampReadout`): label, text, value,
+   * colour and the pane label are byte-identical — `StockChart.rsReadout.test`
+   * pins that on RSI.
+   */
+  const readoutChipOpts = {
+    scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current }),
+  }
   const latestChips = () => {
     try {
       const engine = engineRef.current
       if (!engine) return EMPTY_CHIPS
-      const chips = legendChips(engine.binder.bindings(), null, engineRegistry, engineInstancesRef.current)
+      const chips = legendChips(engine.binder.bindings(), null, engineRegistry, engineInstancesRef.current, readoutChipOpts)
       return chips.length ? chips : EMPTY_CHIPS
     } catch { return EMPTY_CHIPS }
   }
@@ -15902,7 +16087,7 @@ export default function StockChart({
       try {
         const engine = engineRef.current
           ? legendChips(engineRef.current.binder.bindings(), seriesData,
-              engineRegistry, engineInstancesRef.current)
+              engineRegistry, engineInstancesRef.current, readoutChipOpts)
           : EMPTY_CHIPS
         if (engine.length) chips = engine
       } catch { /* disposed mid-hover */ }
@@ -16013,8 +16198,14 @@ export default function StockChart({
     // (`binder.test.js` → a recolour reaches `applyOptions`); the chip was.
     // `readoutIsOwned()` above still stands this down under a hover or a synced
     // crosshair, exactly as it does for a data tick.
+    // ⭐ Phase 2a (unit 2a-10) — AND WHEN A SERVER ENVELOPE LANDS. The readout
+    // rows and the pane suffix read the envelope's scalars (`readoutChipOpts`),
+    // and the envelope arrives AFTER the paint that asked for it. `updateChart`
+    // already repaints on `serverColumnsGeneration`; without it here the
+    // off-cursor chips kept printing the requested benchmark until the next
+    // data tick or instance edit. Same stand-down under a hover.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effAlwaysShow, chartReady, ohlcData, overlayData, cs.indicatorInstances])
+  }, [effAlwaysShow, chartReady, ohlcData, overlayData, cs.indicatorInstances, serverColumnsGeneration])
 
   // Live legend ticking. Two pieces, deliberately split so the legend tracks the
   // fast Massive feed (like the theme tracker) WITHOUT re-rendering the whole
@@ -19085,6 +19276,43 @@ export default function StockChart({
           : items.map((it) => (it.key === 'move' && !it.disabled
               ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               : it))
+        // ⭐ Phase 2a (unit 2a-10) — THE READOUT ROWS AND THE ABOUT CARD. A chip
+        // whose definition declares `readout[]` carries `chip.readout` (the rows
+        // the server's scalars resolved); they ride the header above the verbs,
+        // and a row with a `card` opens its three-line page IN PLACE of the menu
+        // body — same popover, a back row on top. `chipPage` is `card:<key>` on
+        // that page; a row that is gone by the time it is asked for (the chips
+        // re-derived) simply falls back to the menu. A chip with no rows renders
+        // the menu exactly as before.
+        // ⛔ THE CARD LIVES ON THE `readout[]` ENTRY, NOT ON THE RESOLVED ROW.
+        // `readoutSchema.resolveRow` answers `{key, label, value, text, muted}` and
+        // nothing else (the rows run on the crosshair path and carry no copy), so
+        // the three lines are joined here by key from the definition's own block.
+        const readoutEntries = def && Array.isArray(def.readout) ? def.readout : EMPTY_READOUT_ROWS
+        const cardOf = (key) => {
+          const e = readoutEntries.find((x) => x && x.key === key)
+          return e && e.card && typeof e.card === 'object' ? e.card : null
+        }
+        const readoutRows = Array.isArray(c.readout) && c.readout.length
+          ? c.readout.map((r) => { const card = r && cardOf(r.key); return card ? { ...r, card } : r })
+          : EMPTY_READOUT_ROWS
+        const cardKey = typeof chipPage === 'string' && chipPage.startsWith('card:') ? chipPage.slice(5) : null
+        const cardRow = cardKey ? readoutRows.find((r) => r && r.key === cardKey && r.card) : null
+        if (cardRow) {
+          return (
+            <ContextPopover
+              guide="chart.chipMenu"
+              open
+              onClose={close}
+              anchor={chipMenu.anchor}
+              width={280}
+              dense
+              sheetClassName={sheetCls}
+            >
+              <LegendMenuCard row={cardRow} def={def} onBack={() => setChipPage(null)} />
+            </ContextPopover>
+          )
+        }
         return (
           <ContextPopover
             guide="chart.chipMenu"
@@ -19108,6 +19336,8 @@ export default function StockChart({
                   ? chipValueText(c)
                   : ''}
                 sub={legendMenuSubtitle(def, displayOptions, displayCurrent)}
+                rows={readoutRows}
+                onCard={(row) => setChipPage(`card:${row.key}`)}
               />
             )}
             items={page.map(chipMenuRowToPopoverRow)}
@@ -19179,6 +19409,10 @@ export default function StockChart({
               {meta.category && (
                 <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>{meta.category}</div>
               )}
+              {/* ⭐ Phase 2a (unit 2a-10) — the lessons the definition declares
+                  (`meta.learn`), as Desk video links. Nothing for a definition
+                  that declares none. */}
+              <LegendLessons lessons={learnLessons(def)} className={styles.legAboutLessons} />
               {notices.map((n) => (
                 <div
                   key={n.plotKey}

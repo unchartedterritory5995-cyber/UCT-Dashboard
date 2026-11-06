@@ -31,7 +31,8 @@
 //     fallback?: 'not yet rated',            // shown, muted, when the source is missing
 //     chip?:    true,                        // feeds the chip/pane suffix (at most MAX_CHIP_ROWS)
 //     words?:   ['above', 'below'],          // `bool` only: the true / false words
-//     card?:    { what, origin, evidence? }  // the three-line explanation (About page)
+//     card?:    { what, origin, evidence?, learn? }  // the three-line explanation (About page);
+//                                            // `learn` is a key into the app's Learn map
 //   }]
 //
 //   `scalar:` and `payload:` are synonyms — both resolve a dotted path over the
@@ -59,8 +60,12 @@ export const READOUT_ENTRY_FIELDS = Object.freeze([
   'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card',
 ])
 
-/** The closed set of fields a row's `card` may carry. */
-export const READOUT_CARD_FIELDS = Object.freeze(['what', 'origin', 'evidence'])
+/** The closed set of fields a row's `card` may carry. `learn` (2a-10) is a
+ *  key into an APP-side lesson map (`lib/deskVideoHref.RS_LEARN_VIDEOS`): the
+ *  schema checks it is a non-empty string and nothing more — the map is app
+ *  code, this is engine code, and a key the map does not know renders no
+ *  link rather than a broken one (`learnHref` answers null). */
+export const READOUT_CARD_FIELDS = Object.freeze(['what', 'origin', 'evidence', 'learn'])
 
 /** `<prefix>:<segment>(.<segment>)*` — a prefix from READOUT_SOURCE_PREFIXES and
  *  a dotted path of identifier segments. */

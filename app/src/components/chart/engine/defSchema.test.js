@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import {
   validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
   SUBSTITUTABLE_PLOT_FIELDS, EVENT_COLUMN_DOMAIN, isEventColumnValue,
-  SUPPORTED_KINDS, COMPUTE_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES,
+  SUPPORTED_KINDS, COMPUTE_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES, META_LEARN_FIELDS,
 } from './defSchema'
 // ⭐ THE ONE PARSER, IMPORTED BY THE TEST FOR THE SAME REASON THE SCHEMA IMPORTS
 // IT: an `ast` fixture built any other way is a second grammar (D-A1).
@@ -14,7 +14,7 @@ import { parseFormula, astHash } from './ast/parse'
 import { treesHash, assertTrees } from './ast/trees'
 // ⭐ THE READOUT VOCABULARY, from the module that resolves it — so the accept
 // case below cannot cover fewer formats than the resolver prints.
-import { READOUT_FORMATS } from './readoutSchema'
+import { READOUT_FORMATS, READOUT_CARD_FIELDS } from './readoutSchema'
 
 const rsiDef = () => ({
   schemaVersion: 1, id: 'rsi', version: 1,
@@ -702,6 +702,54 @@ describe('meta.legendParams', () => {
     for (const bad of ['period', 14, ['period', ''], ['period', null]]) {
       expect(validateDefinition(withParams(bad)).ok, JSON.stringify(bad)).toBe(false)
     }
+  })
+})
+
+// ─── meta.learn — the lessons an indicator's About page links to (Phase 2a, 2a-10) ─
+//
+// `[{key, label}]`: `key` names an entry in the APP's Learn map
+// (`lib/deskVideoHref.RS_LEARN_VIDEOS`), `label` is the link text. Behavioural
+// (it renders links), so it is checked, not preserved — and the key is checked
+// as a key only: the map is app code, the schema is engine code.
+
+describe('meta.learn', () => {
+  const withLearn = (learn) => { const d = rsiDef(); d.meta.learn = learn; return d }
+  const LEARN = [
+    { key: 'rsLine', label: 'Manrav on the RS line' },
+    { key: 'fourChecks', label: 'Chartmaster: the four RS checks' },
+  ]
+
+  it('accepts a non-empty array of {key, label}, verbatim, and its absence', () => {
+    expect(ok(withLearn(LEARN)).meta.learn).toEqual(LEARN)
+    expect(validateDefinition(withLearn([LEARN[0]])).ok).toBe(true)
+    expect(validateDefinition(rsiDef()).ok).toBe(true)
+    expect(validateDefinition(withLearn(undefined)).ok).toBe(true)
+    expect(validateDefinition(withLearn(null)).ok).toBe(true)
+    expect(META_LEARN_FIELDS).toEqual(['key', 'label'])
+    // a key the Learn map does not know is NOT refused here — the map is app code
+    expect(validateDefinition(withLearn([{ key: 'noSuchLesson', label: 'x' }])).ok).toBe(true)
+  })
+
+  it('refuses a non-array and an empty array, by name', () => {
+    expect(errs(withLearn('rsLine')).join('\n')).toMatch(/^meta\.learn: expected an array of lessons \[\{key, label\}\], got "rsLine"/m)
+    expect(errs(withLearn({ key: 'rsLine', label: 'x' })).join('\n')).toMatch(/^meta\.learn: expected an array/m)
+    expect(errs(withLearn([])).join('\n')).toMatch(/^meta\.learn: expected at least one lesson/m)
+  })
+
+  it('refuses an entry that is not an object, a missing or empty key or label, a duplicate key and an unknown field — each by index and field', () => {
+    expect(errs(withLearn([LEARN[0], 'fourChecks'])).join('\n')).toMatch(/^meta\.learn\[1\]: expected an object \{key, label\}/m)
+    expect(errs(withLearn([{ label: 'x' }])).join('\n')).toMatch(/^meta\.learn\[0\]\.key: required non-empty string/m)
+    expect(errs(withLearn([{ key: '', label: 'x' }])).join('\n')).toMatch(/^meta\.learn\[0\]\.key: required non-empty string/m)
+    expect(errs(withLearn([{ key: 'rsLine' }])).join('\n')).toMatch(/^meta\.learn\[0\]\.label: required non-empty string/m)
+    expect(errs(withLearn([{ key: 'rsLine', label: '' }])).join('\n')).toMatch(/^meta\.learn\[0\]\.label/m)
+    expect(errs(withLearn([LEARN[0], { key: 'rsLine', label: 'again' }])).join('\n')).toMatch(/^meta\.learn\[1\]\.key: duplicate lesson key "rsLine"/m)
+    expect(errs(withLearn([{ key: 'rsLine', label: 'x', t: 30 }])).join('\n')).toMatch(/^meta\.learn\[0\]\.t: unknown lesson field — expected one of: key, label/m)
+    // a good entry beside a bad one is not blamed, and every bad entry is reported in one pass
+    const e = errs(withLearn([LEARN[0], { key: '' }, 7]))
+    expect(e.some((m) => m.startsWith('meta.learn[0]'))).toBe(false)
+    expect(e.some((m) => m.startsWith('meta.learn[1].key'))).toBe(true)
+    expect(e.some((m) => m.startsWith('meta.learn[1].label'))).toBe(true)
+    expect(e.some((m) => m.startsWith('meta.learn[2]:'))).toBe(true)
   })
 })
 
@@ -1425,6 +1473,26 @@ describe('readout[] — validated fail-closed, by definition id and entry index'
     ]))
     for (const i of [0, 1, 2]) {
       expect(e.some((m) => m.startsWith(`readout[${i}]`)), `readout[${i}] went unreported`).toBe(true)
+    }
+  })
+
+  // ─ card.learn (2a-10) — a key into the APP's Learn map, checked as a key only ─
+  it('accepts `card.learn` as a non-empty string, verbatim, and never checks it against the lesson map', () => {
+    expect(READOUT_CARD_FIELDS).toEqual(['what', 'origin', 'evidence', 'learn'])
+    const withLearn = { ...GOOD[0], card: { ...GOOD[0].card, learn: 'beforePrice' } }
+    expect(ok(withReadout([withLearn])).readout[0].card.learn).toBe('beforePrice')
+    // the map is app code; the schema is engine code — an unknown key is the
+    // renderer's problem (`learnHref` → null → no link), not a refusal here
+    expect(validateDefinition(withReadout([{ ...GOOD[0], card: { ...GOOD[0].card, learn: 'noSuchLesson' } }])).ok).toBe(true)
+    // and a card with only the two required lines plus learn is fine
+    expect(validateDefinition(withReadout([{ ...GOOD[0], card: { what: 'w', origin: 'o', learn: 'rsLine' } }])).ok).toBe(true)
+  })
+
+  it('refuses `card.learn` that is not a non-empty string, naming the definition, the index and the field', () => {
+    for (const bad of ['', 7, null, true, ['rsLine'], { key: 'rsLine' }]) {
+      const e = errs(withReadout([GOOD[1], { ...GOOD[0], card: { ...GOOD[0].card, learn: bad } }])).join('\n')
+      expect(e, JSON.stringify(bad)).toMatch(/readout\[1\]\.card\.learn: definition "rsi" — expected a non-empty lesson key/)
+      expect(e).not.toMatch(/readout\[0\]/)
     }
   })
 })
