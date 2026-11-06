@@ -399,6 +399,30 @@ describe('Multi Chart: chart commands, on the cell\'s own writer, with Undo', ()
     await waitFor(() => expect(H.nav.goToDate).toHaveBeenCalled())
     await waitFor(() => expect(receipts()).toHaveLength(1))
   }, 30000)
+  // selection run 11-06: a range on a cell was refused as "did not take effect" — the cell's adapter had no view controls
+  it.each([
+    ['chartSetup.setRange', { range: '3M' }, 'applyRange', 'show the top-left chart over three months please', (m, arg) => ({ ...m, activeRange: arg })],
+    ['chartSetup.resetView', {}, 'resetView', 'reset the view on the top-left chart please', (m) => ({ ...m, atDefaultView: true })],
+  ])('%s runs through the cell\'s own date navigator', async (action, args, op, words, after) => {
+    const { say } = mount()
+    let meta = { firstMs: Date.UTC(2020, 0, 1), lastMs: Date.UTC(2026, 0, 1), rightMs: Date.UTC(2026, 0, 1), activeRange: null, atDefaultView: false }
+    H.nav.getDateMeta = () => meta
+    H.nav[op] = vi.fn((arg) => { meta = after(meta, arg) })
+    envelopes.push(plan(action, args, 0))
+    await say(words)
+    await waitFor(() => expect(H.nav[op]).toHaveBeenCalled())
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    expect(transcript()).not.toMatch(/did not take effect/)
+  }, 30000)
+  it('NEGATIVE: a cell whose chart offers no such control is refused, never a false receipt', async () => {
+    const { say } = mount()
+    H.nav.getDateMeta = () => ({ firstMs: Date.UTC(2020, 0, 1), lastMs: Date.UTC(2026, 0, 1), rightMs: Date.UTC(2026, 0, 1), activeRange: null })
+    delete H.nav.applyRange
+    envelopes.push(plan('chartSetup.setRange', { range: '3M' }, 0))
+    await say('show the top-left chart over three months please')
+    await waitFor(() => expect(transcript()).toMatch(/did not take effect|didn.t take effect/))
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
   it('replay does not exist on the grid: refused, not a false receipt', async () => {
     const { say } = mount()
     envelopes.push(plan('chart.replay', { date: '2024-03-01' }, 0))

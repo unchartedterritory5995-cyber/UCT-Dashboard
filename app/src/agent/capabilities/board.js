@@ -218,6 +218,8 @@ function widgetControlSection(s, message, whole) {
 
 export const boardKind = {
   name: 'board',
+  // its commit settles every step on the board's own state (settle, below): the runtime need not wait again
+  waitsInCommit: true,
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
   stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [] }),

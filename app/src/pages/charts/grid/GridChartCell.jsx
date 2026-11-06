@@ -271,6 +271,14 @@ function GridChartCell({
         drawSym: () => agentRef.current.cell.sym || null,
         view: () => dateNavRef.current?.getDateMeta?.() || null,
         goToDate: (ms) => dateNavRef.current?.goToDate?.(ms),
+        // the range bar, Reset view and hide-all-indicators: the same view controls a board chart's pane hands the Agent
+        // (ChartPane viewDo). Without them a range on a cell was refused as "did not take effect".
+        viewDo: (op, arg) => {
+          const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden'].includes(op) ? dateNavRef.current?.[op] : null
+          if (typeof fn !== 'function') return false
+          fn(arg)
+          return true
+        },
         canManageIndicators: () => !!agentRef.current.cell.sym,
         commit: (patch) => {
           const r = agentRef.current

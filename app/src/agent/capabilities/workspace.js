@@ -147,6 +147,8 @@ const createdIds = (item) => {
 
 export const workspaceKind = {
   name: 'workspace',
+  // its commit waits, bounded, for each widget it adds (below): the runtime need not wait again before reading it back
+  waitsInCommit: true,
   list: (host) => (host?.widgets ? [host.widgets.snapshot()] : []),
   read: (host, ref) => (host?.widgets && ref === 'workspace' ? host.widgets.snapshot() : null),
   stateOf: (snap) => ({ creates: [], ids: snap.widgets.map(w => w.id) }),
