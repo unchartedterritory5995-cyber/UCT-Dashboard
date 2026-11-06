@@ -540,3 +540,10 @@ Merging to master is still not authorized in this file; the owner approves it di
 - T0 (51ea1acf04), D2 (768816c654), D3 (ca4f330ac3) are ancestors of origin/production.
 - W6-T2: delta review GO-WITH-NOTES @3dcd4f7c55; ready-check FAILS on the final-tip record (2 load timeouts that pass alone). Not waived: a clean full final-tip re-run into runs/w6-t2/final-r2 is in progress. Lands with an engine bump (19 if first).
 - D1: own full run in progress. W9-T1: measure-pair in progress.
+
+
+## 2026-11-06 later
+- W6-T2 LANDED as ENGINE 19: PR #887 -> master a47e98b905 (bump f1f51064af). Combined T2+T3b rails 150 green; hostParity regenerated on Node 24.13.1 (166 digests + 18->19); smoke re-recorded LOCAL, 4/4. Unidentified 1 failure in first `node --test services/pine_runtime/test`, rerun 128/128 (FOLLOW-UP: identify).
+- W3W4-D1 LANDED: PR #888 (no bump; dark behind DRAWING_HISTORY_CAPTURED=false). Delta review GO-WITH-NOTES @e66d95c015; fix 483fe42df4 queues 8 W3N-D1 probe targets. Combined tree 173/173.
+- FOLLOW-UP (master): a test rewrites lookback_agreement.json on every run.
+- Next engine number: 20. In flight: W9-T1 (final-tip), W6-T5 (building).
