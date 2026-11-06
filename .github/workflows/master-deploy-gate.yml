@@ -223,17 +223,22 @@ jobs:
       # Seven pushes carried more than one commit; one carried **18**, another **13**.
       # A secret in commit 3 of an 18-commit push was reviewed by nothing.
       #
-      # ⭐ ADVISORY FIRST, AND IT HEARTBEATS. It prints a line on EVERY run — including
-      # "nothing to scan" and "clean" — because a check that speaks only when it finds
-      # something cannot be distinguished from a check that never ran, and this repository
-      # has now been bitten by that shape three times in one day (an empty warn log reading
-      # as zero false positives; a pause logged only on change; this).
+      # ⭐ IT HEARTBEATS. It prints a line on EVERY run — including "nothing to scan" and
+      # "clean" — because a check that speaks only when it finds something cannot be
+      # distinguished from a check that never ran, and this repository has now been bitten
+      # by that shape three times in one day (an empty warn log reading as zero false
+      # positives; a pause logged only on change; this).
       #
-      # Promotion to GATING (SD-1.1 A2.5): >= 20 runs showing `range-scan: EXECUTED` with
-      # zero findings on green tips, or the first true finding after review. Until then it
-      # must never fail the job — `|| true` on the scan, and the step is `continue-on-error`.
-      - name: Secret scan over the whole range (ADVISORY — never gates)
-        continue-on-error: true
+      # ⛔ GATING SINCE 2026-11-06 (SD-1.1 A2.5 criterion met: 37 of the last 40 master gate
+      # runs logged `EXECUTED` + `verdict=CLEAN`, 0 findings, 0 INCONCLUSIVE; the other 3 were
+      # cancelled before this step). WHY IT HAD TO GATE: `master-deploy` keeps ONE pending run,
+      # so a third push cancels the second's gate; the per-commit scan above then never sees
+      # that commit, yet the next green tip promotes its content. The base is `production` —
+      # the last promotion — so every commit about to reach production is in this diff.
+      # It FAILS on a finding AND on every state that could not compare (NO RANGE,
+      # INCONCLUSIVE): a scan that cannot compare must never read as a pass. NOTHING AHEAD
+      # and NOTHING-TO-SCAN still pass, because the range resolved.
+      - name: Secret scan over the whole range (since production)
         run: |
           set +e
           # ⛔⛔ THE CHECKOUT ABOVE IS `fetch-depth: 2`. Neither `origin/production` nor the
@@ -247,11 +252,16 @@ jobs:
           BASE=""
           if git rev-parse --verify --quiet refs/remotes/origin/production >/dev/null 2>&1; then
             BASE=origin/production
+          elif [ -n "$(git ls-remote origin refs/heads/production 2>/dev/null)" ]; then
+            # production EXISTS but did not arrive: comparing against the push's own range
+            # here would silently narrow back to the gap this step exists to close.
+            echo "range-scan: INCONCLUSIVE — origin/production exists but could not be fetched. Refusing to fall back to the push range."
+            exit 1
           else
             # Pre-cutover fallback: the push's own range.
             CAND="${{ github.event.before }}"
             case "$CAND" in
-              ''|0000000*) echo "range-scan: NO RANGE (github.event.before is empty or a new ref) — nothing compared"; exit 0 ;;
+              ''|0000000*) echo "range-scan: NO RANGE (github.event.before is empty or a new ref) — nothing compared. FAILING: nothing proved this push clean."; exit 1 ;;
               *) BASE="$CAND" ;;
             esac
           fi
@@ -259,8 +269,13 @@ jobs:
           # ⛔ THREE STATES, NOT TWO. "We could not compare" and "there was nothing to
           # compare" are different facts, and only one of them counts toward promotion.
           if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            echo "range-scan: INCONCLUSIVE — base $BASE is not reachable in this clone (shallow fetch). NOT counted as clean."
-            exit 0
+            # One deeper fetch before giving up: production can lag master by more than the
+            # first 200 commits after a long deploy freeze.
+            git fetch --no-tags --quiet --deepen=2000 origin master production 2>/dev/null
+          fi
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "range-scan: INCONCLUSIVE — base $BASE is not reachable in this clone even after deepening. FAILING: an unreadable range is not a clean one."
+            exit 1
           fi
           if git merge-base --is-ancestor HEAD "$BASE" 2>/dev/null; then
             echo "range-scan: NOTHING AHEAD — HEAD is already contained in $BASE"
@@ -279,11 +294,11 @@ jobs:
           RC=$?
           if [ "$RC" = "0" ]; then
             echo "range-scan: verdict=CLEAN"
-          else
-            echo "::warning title=range-scan finding::The whole-range secret scan reported something the per-commit scan did not. ADVISORY — this did not fail the gate. Review before promoting it to gating."
-            echo "range-scan: verdict=FINDING rc=$RC"
+            exit 0
           fi
-          exit 0
+          echo "::error title=range-scan finding::The whole-range secret scan (production..HEAD) found something. Nothing is promoted. A pushed secret is public even if deleted: rotate it, then remove it from master."
+          echo "range-scan: verdict=FINDING rc=$RC"
+          exit 1
 
       # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
       # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.

@@ -66,6 +66,7 @@ A second step scanning `origin/production..HEAD`, `continue-on-error: true`, end
 | `range-scan: EXECUTED … NOTHING-TO-SCAN` | real base, zero changed files | no |
 | `range-scan: NOTHING AHEAD` | HEAD already contained in the base | no |
 | `range-scan: INCONCLUSIVE` | **base unreachable in this clone** | **no** |
+| `range-scan: INCONCLUSIVE — origin/production exists…` (PRODUCTION UNFETCHED) | production exists on origin but the fetch did not land it | **no** |
 | `range-scan: NO RANGE` | new ref / force push, no `before` | no |
 
 ⛔⛔ **`INCONCLUSIVE` exists because the first version of this step would have been
@@ -91,6 +92,30 @@ Promote when **either**:
 
 Promotion means dropping `continue-on-error` and the trailing `exit 0`. ⚠️ Do not promote
 it in the same change that widens what it scans.
+
+### Promoted 2026-11-06
+
+**Criterion met.** Of the last 40 completed `master deploy gate` runs on master, **37**
+logged `range-scan: EXECUTED` with `verdict=CLEAN`, **0** reported a finding, and **0** were
+`INCONCLUSIVE` or `NO RANGE`. The other 3 were cancelled before the step ran. Read from the
+run logs, 2026-11-06.
+
+**Why it could not wait.** `master-deploy` keeps one pending run, so a third push cancels
+the second push's gate run. The per-commit scan then never sees that commit, and the next
+green tip promotes its content. The range here is `origin/production..HEAD`, and
+`production` is the last promotion, so every commit about to reach production is in it.
+
+**What changed, and nothing else:**
+- `continue-on-error` is gone. A finding fails the gate with `exit 1`.
+- Every state that could not compare now fails: `NO RANGE`, `INCONCLUSIVE`, and the new
+  `PRODUCTION UNFETCHED` (production exists on origin, but the fetch did not land it).
+  Before, that last case fell back to the push's own range, which is the gap itself.
+- Before declaring `INCONCLUSIVE`, the step deepens the fetch once (`--deepen=2000`),
+  because production can lag master by more than 200 commits after a long freeze.
+- A scanner that cannot run (missing file, crash) exits non-zero and so fails as a finding.
+- What it scans is unchanged: the same range, the same files, the same scanner.
+
+`NOTHING AHEAD` and `NOTHING-TO-SCAN` still pass: their range resolved.
 
 ---
 

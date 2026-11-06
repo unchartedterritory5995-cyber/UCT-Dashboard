@@ -190,9 +190,31 @@ def _build_finding(root):
     return {"before": ""}
 
 
+def _build_production_unfetched(root):
+    """production EXISTS on origin, but the fetch cannot land it as a remote-tracking ref.
+
+    With no fetch refspec, `git fetch origin production` writes only FETCH_HEAD, so the
+    step sees no `origin/production` while `ls-remote` shows one: exactly the "the fetch
+    failed" shape. Before 2026-11-06 the step fell back to the push's own range here,
+    which silently narrowed back to the gap the step exists to close.
+    """
+    origin = root.parent / (root.name + "_origin.git")
+    _new_repo(root)
+    base = _commit(root, "base", {"README.md": "base\n"})
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, capture_output=True)
+    _git(root, "remote", "add", "origin", str(origin))
+    _git(root, "push", "-q", "origin", f"{base}:refs/heads/production")
+    _git(root, "config", "--unset-all", "remote.origin.fetch")
+    # the push above already wrote the tracking ref; remove it so only ls-remote sees production
+    _git(root, "update-ref", "-d", "refs/remotes/origin/production")
+    _commit(root, "ahead", {"notes.md": BENIGN_TEXT})
+    return {"before": ""}
+
+
 STATES = {
     "NO RANGE":        (_build_no_range,        "range-scan: NO RANGE"),
-    "INCONCLUSIVE":    (_build_inconclusive,    "range-scan: INCONCLUSIVE"),
+    "INCONCLUSIVE":    (_build_inconclusive,    "range-scan: INCONCLUSIVE — base"),
+    "PRODUCTION UNFETCHED": (_build_production_unfetched, "range-scan: INCONCLUSIVE — origin/production exists"),
     "NOTHING AHEAD":   (_build_nothing_ahead,   "range-scan: NOTHING AHEAD"),
     "NOTHING-TO-SCAN": (_build_nothing_to_scan, "verdict=NOTHING-TO-SCAN"),
     "CLEAN":           (_build_clean,           "range-scan: verdict=CLEAN"),
@@ -202,6 +224,10 @@ STATES = {
 # docs/breadth/range-scan-finding.md, "counts toward promotion?" — the criterion is
 # `EXECUTED` AND `verdict=CLEAN`, and only CLEAN satisfies both.
 COUNTS_TOWARD_PROMOTION = {"CLEAN"}
+
+# Every state that could not prove the range clean. NOTHING AHEAD and NOTHING-TO-SCAN
+# resolved their range (nothing ahead, or only deletions), so they pass.
+FAILS_THE_GATE = {"NO RANGE", "INCONCLUSIVE", "PRODUCTION UNFETCHED", "FINDING"}
 
 
 def _slug(state: str) -> str:
@@ -221,9 +247,10 @@ def test_each_state_is_reached_and_named(tmp_path, state):
     root = tmp_path / _slug(state)
     r = _run(root, **build(root))
     assert expected in r.stdout, f"{state}\nstdout={r.stdout!r}\nstderr={r.stderr!r}"
-    # Advisory today: the step must never gate, whatever it found. Promotion means
-    # deleting `continue-on-error` and the trailing `exit 0` — a later, separate act.
-    assert r.returncode == 0, f"{state} exited {r.returncode}: {r.stderr!r}"
+    # GATING since 2026-11-06: a finding FAILS, and so does every state that could not
+    # compare. Only states whose range resolved may pass.
+    want = 1 if state in FAILS_THE_GATE else 0
+    assert r.returncode == want, f"{state} exited {r.returncode}, wanted {want}: {r.stdout!r} {r.stderr!r}"
 
 
 @pytest.mark.parametrize("state", list(STATES))
@@ -280,15 +307,29 @@ def test_the_planted_credential_is_one_the_scanner_actually_finds(tmp_path):
     assert r2.returncode == 0, f"the CLEAN fixture's file is not clean: {r2.stdout!r}"
 
 
-def test_the_body_under_test_is_the_shipped_advisory_step(tmp_path):
-    """Provenance control: prove we executed the real thing, not a stub."""
+def test_a_scanner_that_cannot_run_fails_the_gate(tmp_path):
+    """A scan that never ran must not read as CLEAN: with the scanner absent the step must fail."""
+    root = tmp_path / "scanner_missing"
+    _build_clean(root)
+    (root / "tools" / "secret_scrub.py").unlink()
+    r = _run(root)
+    assert "verdict=CLEAN" not in r.stdout, r.stdout
+    assert r.returncode == 1, f"exited {r.returncode}: {r.stdout!r}"
+
+
+def test_the_body_under_test_is_the_shipped_gating_step(tmp_path):
+    """Provenance control: prove we executed the real thing, not a stub, and that it gates."""
     step = _step()
     body = step["run"]
-    assert step.get("continue-on-error") is True, "the range scan must not gate yet"
+    # GATING since 2026-11-06 (SD-1.1 A2.5 criterion met). Re-adding continue-on-error, or
+    # an `if:` that can skip it, would turn it back into a scan that cannot stop anything.
+    assert "continue-on-error" not in step, "the range scan gates: it must not be continue-on-error"
+    assert "if" not in step, "the range scan must run on every gate"
+    assert "ADVISORY" not in (step.get("name") or "")
     # The fetch is the fix for the vacuous first draft; without it every base is
     # unreachable and the step reports INCONCLUSIVE forever.
     assert "git fetch --no-tags" in body and "--depth=" in body
-    assert body.rstrip().endswith("exit 0"), "the advisory step must end in exit 0"
+    assert body.rstrip().endswith("exit 1"), "the gating step's last line is the FINDING failure"
     assert len(body) > 800, f"body is {len(body)} chars — too short to be the shipped step"
 
 
