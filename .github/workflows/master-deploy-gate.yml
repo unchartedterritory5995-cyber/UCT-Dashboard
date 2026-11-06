@@ -285,15 +285,20 @@ jobs:
           fi
           exit 0
 
-      # ⛔ Two top-level definitions of one name: Python keeps the last, and every
-      # call site written against the first is silently running the other. Master
-      # was RED on this for a shadowed `_tokens` in wisdom extraction that had been
-      # rescoring similarity since c9d6af653 — found by the sweep, not by review.
       # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
       # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.
       - name: CI cost rails
         run: python -m pytest tests/test_ci_cost_rails.py -q -p no:cacheprovider
 
+      # RAILWAY COST (2026-11-06): the memory observer's per-file page-cache probe (mincore, /proc) only runs
+      # on Linux, so its tests skip on dev PCs; this is where they actually run. Stdlib only, ~1 s.
+      - name: Memory observer file-cache probe (Linux)
+        run: python -m pytest tests/test_mem_observe.py -k "file_cache or with_files" -q -p no:cacheprovider -rs
+
+      # ⛔ Two top-level definitions of one name: Python keeps the last, and every
+      # call site written against the first is silently running the other. Master
+      # was RED on this for a shadowed `_tokens` in wisdom extraction that had been
+      # rescoring similarity since c9d6af653 — found by the sweep, not by review.
       - name: No module shadows its own definitions
         run: python -m pytest tests/test_no_shadowed_definitions.py -q
 
