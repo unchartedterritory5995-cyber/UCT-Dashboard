@@ -41,6 +41,8 @@ export const NOTE_VIEW_WORDS = new Set([
   'attachments', 'backlinks', 'by-folders', 'by-trade-ref', 'documents', 'excerpts', 'export',
   'favorites', 'folder-counts', 'graph', 'import', 'link-targets', 'recents', 'research',
   'sector-theme-facets', 'switcher', 'tag-members', 'tags', 'tasks',
+  // Audit 2026-11-05, S15: the Today home's one read. Not a title view: a title save does not re-ask it.
+  'today',
   'connectors', 'media', 'daily', 'batch', 'search', 'enrichment',
 ])
 /** Fix round 2 (re-review N2): the views that SHOW a note's title -- the only ones a title save asks

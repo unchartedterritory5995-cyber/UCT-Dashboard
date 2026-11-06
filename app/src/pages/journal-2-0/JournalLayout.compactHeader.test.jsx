@@ -13,6 +13,7 @@
 // Log Trade folds inside it (S12, V4), and More still works inside it. The STRUCTURAL half
 // proves the phone-only rules exist where they apply at 390 and not at 820.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useLayoutEffect } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
@@ -51,13 +52,19 @@ import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
 import { isNotebookListAddress, openJournalTools, registerJournalToolsDoor } from './lib/journalToolsDoor'
 import { NOTEBOOK_PATH, NOTEBOOK_SEGMENT, NOTEBOOK_RESEARCH_SEGMENT } from './lib/journalRoutes'
 
-function renderAt(route) {
+/** A Notebook page that offers the list's "Journal tools" door, as the list toolbar does (in a layout effect). */
+function ListWithDoor() {
+  useLayoutEffect(() => registerJournalToolsDoor(), [])
+  return <div data-testid="notebook" />
+}
+
+function renderAt(route, { notebook = <div data-testid="notebook" /> } = {}) {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <Routes>
         <Route path="/journal" element={<JournalLayout />}>
           <Route index element={<div data-testid="today" />} />
-          <Route path="notebook" element={<div data-testid="notebook" />} />
+          <Route path="notebook" element={notebook} />
           <Route path="trades" element={<div data-testid="trades" />} />
         </Route>
       </Routes>
@@ -396,15 +403,55 @@ describe('the phone Notebook header takes no row of its own, and nothing covers 
 // folded when the list registered its door, moving the strip and the notes up 57 px (0.05). On the list's own address
 // it is folded from the FIRST paint; elsewhere it waits for a door.
 describe('the header folds from the first paint on the list address', () => {
-  it('?view=all folds with no door registered yet; a note, Home and another page do not', () => {
-    const { container, unmount } = renderAt('/journal/notebook?view=all')
+  it('?view=all folds with no door registered yet; Home and another page do not', () => {
+    const { container, unmount } = renderAt('/journal/notebook?view=all', { notebook: <ListWithDoor /> })
     expect(root(container)).toHaveAttribute('data-tools-door', 'true')
     unmount()
-    const second = renderAt('/journal/notebook?view=all&note=n1')
-    expect(root(second.container)).not.toHaveAttribute('data-tools-door')
-    second.unmount()
     const home = renderAt('/journal/notebook')
     expect(root(home.container)).not.toHaveAttribute('data-tools-door')
+  })
+
+  // Final polish (WebKit at 390 px, production): on an open note the "Journal tools" row and the Folders row both came
+  // back above the header. A note's ⋯ carries "Journal tools" now (NoteEditorPage's JournalToolsDoorMark), so a note
+  // address folds from the first paint too -- and releases the fold whenever its page offers no door.
+  it('a note address folds from the first paint, and stays folded while the note offers its door', () => {
+    const { container } = renderAt('/journal/notebook?note=n1', { notebook: <ListWithDoor /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+  })
+
+  it('a note address whose page offers no door (the missing-note page) releases the fold', async () => {
+    const { container } = renderAt('/journal/notebook?note=n1', {
+      notebook: <div role="alert" data-testid="notebook">This note is gone.</div> })
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+  })
+
+  it('a note whose door goes away AFTER it was there (its load failed) releases the fold too', async () => {
+    let release
+    function NoteThatFails() {
+      useLayoutEffect(() => { release = registerJournalToolsDoor(); return () => release?.() }, [])
+      return <div data-testid="notebook" />
+    }
+    const { container } = renderAt('/journal/notebook?note=n1', { notebook: <NoteThatFails /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    act(() => release())
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+  })
+
+  // Tier 2 re-review R1-1: the fold is released when the page under it renders with no list toolbar (an error state,
+  // a list that failed to load), so Log Trade, Help, account and settings are never stranded behind a ⋯ that is not
+  // there. The tools' disclosure is in the header again.
+  it('R1-1: a list address whose page offers no door releases the fold once the page has rendered', async () => {
+    const { container } = renderAt('/journal/notebook?view=all', {
+      notebook: <div role="alert" data-testid="notebook">Your notes could not be loaded.</div> })
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+    fireEvent.click(toggle())
+    expect(root(container)).toHaveAttribute('data-tools-open', 'true')
+  })
+
+  it('R1-1 CONTROL: a list that registers its door keeps the fold after it has rendered', async () => {
+    const { container } = renderAt('/journal/notebook?view=all', { notebook: <ListWithDoor /> })
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
   })
 
   it('the address rule', () => {
@@ -418,5 +465,11 @@ describe('the header folds from the first paint on the list address', () => {
     expect(f('/journal/notebook', '?view=nope')).toBe(false)        // an unknown view opens Home
     expect(f('/journal/notebook', '?view=all&note=n1')).toBe(false) // a note
     expect(f('/journal/notebook/research/NVDA', '?view=all')).toBe(false)
+    // Tier 3b M10: the bare address is the list for a member whose chosen landing is All notes -- and only then.
+    const g = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids, { landingAll: true })
+    expect(g('/journal/notebook', '')).toBe(true)
+    expect(g('/journal/notebook', '?view=today')).toBe(false)
+    expect(g('/journal/notebook', '?view=home')).toBe(false)
+    expect(g('/journal/notebook', '?note=n1')).toBe(false)
   })
 })

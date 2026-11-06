@@ -71,6 +71,9 @@ import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collection
 // so a method-form call is admitted or refused by the same table, with the same
 // sentence, as the name form it is.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+// ⭐⭐ W6-T3a — a slot's static type is ONE descriptor, `slots[s].ty` (`typeDescriptor.js`).
+import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, elemUdtOf, drawingOf,
+  isTextTy, isColourTy, methodNsOf } from './typeDescriptor.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
@@ -1014,7 +1017,11 @@ export function paramTypeHeads(toks, arrow) {
     if (!t || t.kind !== 'ident') { last = null; continue }
     const next = toks[i + 1]
     if (next && next.kind === 'ident') {
-      last = { word: String(t.value), typeArg: Array.isArray(t.typeArgs) ? t.typeArgs[0] : null }
+      last = {
+        word: String(t.value),
+        typeArg: Array.isArray(t.typeArgs) ? t.typeArgs[0] : null,
+        typeArgs: Array.isArray(t.typeArgs) ? [...t.typeArgs] : null,
+      }
       continue
     }
     if (last) out.set(String(t.value), last)
@@ -1774,6 +1781,40 @@ function buildRuntimeIrLinked(source, opts, holder) {
     slotDepth.push(condDepth)
     return slots.length - 1
   }
+
+  // ⭐⭐ W6-T3a — ONE STATIC TYPE PER SLOT. `slots[s].ty` (a `typeDescriptor.js`
+  // descriptor) is the ONLY record of what a slot holds: it replaced the
+  // `collection` / `elemText` / `elemColour` / `elemUdt` / `udt` / `colour` /
+  // `text` / drawing-family flags, which four binding sites set independently and
+  // which could disagree about one value with nothing red. `bindSlotTy` (beside
+  // `udtElemOf`) and the parameter walk are its writers, through `setSlotTy`;
+  // every reader asks one of the getters below. ⛔ A reviewer rejects any new
+  // per-slot type flag (W6-BREAKDOWN §3 rule 5).
+  const slotTy = (slot) => (slot !== null && slot !== undefined && slots[slot] && slots[slot].ty) || null
+  const setSlotTy = (slot, ty) => { if (ty && slots[slot]) slots[slot].ty = ty }
+  /** ⛔ C18 — AT THE OBJECT DOOR A COLLECTION WHOSE KIND CAME FROM THE WRITTEN TYPE
+   *  ALONE (`var array<Foo> obs = na`, `declaredOnly`) IS NOT ONE, and its element
+   *  is the user type only: master read the collection kind and the text/colour
+   *  element off the initialiser and the user-type element off the annotation,
+   *  and the door builds exactly what master builds. Off the door the written
+   *  type is the type. */
+  const doorHidesDeclared = (ty) => atObjectDoor && !!ty && ty.declaredOnly === true
+  const slotIsCollection = (slot) => {
+    const ty = slotTy(slot)
+    return isCollectionTy(ty) && !doorHidesDeclared(ty)
+  }
+  /** The element kind of a collection slot (`'text'`, `'colour'`, …), or null.
+   *  ⛔ At the door a declared-only collection's element kind is hidden too
+   *  (master read text / colour elements off the initialiser). */
+  const slotElemKind = (slot) => {
+    const ty = slotTy(slot)
+    const e = elemTy(ty)
+    return e && !doorHidesDeclared(ty) ? e.kind : null
+  }
+  /** The user type of a collection slot's elements, or null. ⭐ NOT hidden at the
+   *  door: master read a record element off the annotation (`array<Foo>`). */
+  const slotElemUdt = (slot) => elemUdtOf(slotTy(slot)) || null
+  const slotUdt = (slot) => udtNameOf(slotTy(slot)) || null
 
   // ⭐⭐ RT5 — CONDITIONAL-CALL HISTORY (C34, capture `vw-fn-series-history`).
   // Inside a block or function body that does not run on every bar, Pine keeps
@@ -2713,7 +2754,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'string') return true
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
-      if (slot !== null) return !!(slots[slot] && slots[slot].text)
+      if (slot !== null) return isTextTy(slotTy(slot))
       const bound = env.get(node.name)
       if (bound) return !!(bound.kind === 'expr' && holdsText(bound.node, scope, depth + 1))
       // ⭐⭐ `timeframe.period` IS TEXT, and this reader is where a BINDING to it
@@ -2746,7 +2787,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const av = a0 && a0.value !== undefined ? a0.value : a0
       if (av && av.type === 'name') {
         const s0 = scope.lookup(av.name)
-        if (s0 !== null) return !!(slots[s0] && slots[s0].elemText)
+        if (s0 !== null) return slotElemKind(s0) === 'text'
         const b0 = env.get(av.name)
         if (b0 && b0.kind === 'expr') return arrayHoldsText(b0.node, scope, depth + 1)
       }
@@ -2810,7 +2851,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (n === 'array.copy' || n === 'array.slice') {
       if (fv && fv.type === 'name') {
         const s0 = scope.lookup(fv.name)
-        if (s0 !== null) return !!(slots[s0] && slots[s0].elemText)
+        if (s0 !== null) return slotElemKind(s0) === 'text'
       }
       return arrayHoldsText(fv, scope, depth + 1)
     }
@@ -2843,7 +2884,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (colourHexByName(node.name, pineVersion) !== null) return true
       const slot = lookupReadable(node.name, scope)
       // ⭐ WS-E — a name TYPED `color` is one, even when it was declared `na`.
-      if (slot !== null) return !!(slots[slot] && (slots[slot].colour || colourTypedNames.has(node.name)))
+      if (slot !== null) return isColourTy(slotTy(slot)) || colourTypedNames.has(node.name)
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
     }
@@ -2919,7 +2960,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const av = a0 && a0.value !== undefined ? a0.value : a0
       if (av && av.type === 'name') {
         const s0 = scope.lookup(av.name)
-        if (s0 !== null) return !!(slots[s0] && slots[s0].elemColour)
+        if (s0 !== null) return slotElemKind(s0) === 'colour'
         const b0 = env.get(av.name)
         if (b0 && b0.kind === 'expr') return arrayHoldsColour(b0.node, scope)
         return false
@@ -3108,7 +3149,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** The family a receiver NAME holds, when this lane can say. */
   const drawingFamilyOfName = (name, scope) => {
     const s = lookupReadable(String(name), scope)
-    if (s !== null && s !== undefined && slots[s] && slots[s].drawing) return slots[s].drawing
+    const fam = drawingOf(slotTy(s))
+    if (fam) return fam
     return drawingHandles.get(String(name)) || null
   }
   /** Is `name` (a dotted call name) a drawing call this lane can run? */
@@ -3194,7 +3236,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ A COLLECTION RECEIVER IS AN ARRAY CALL (`a.copy()`, `a.clear()`), and a
     // record receiver reaches its own field — neither is a drawing.
     const rs = lookupReadable(uf.recv, scope)
-    if (rs !== null && rs !== undefined && slots[rs] && (slots[rs].collection || slots[rs].udt)) return null
+    if (rs !== null && rs !== undefined && (slotIsCollection(rs) || slotUdt(rs))) return null
     if (/^(line|label|box|table|linefill|polyline|array|matrix|map|str|math|ta|request|color|chart)$/.test(uf.recv)) return null
     const fam = drawingFamilyOfName(uf.recv, scope)
     const recv = { type: 'name', name: uf.recv, tok: node.tok }
@@ -3229,17 +3271,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     for (const a of node.args || []) if (holdsRunObject(a && a.value !== undefined ? a.value : a, depth + 1)) return true
     return false
-  }
-  /** Mark a freshly declared slot with the drawing family it holds, from its
-   *  written type (`var line l = na`) or its initialiser (`l = line.new(…)`). */
-  const markDrawingSlot = (slot, value, toks, eq) => {
-    if (!objectsInRun) return
-    const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
-    const fromAnnot = annot && annot.kind === 'ident' && /^(line|label|box|table|linefill)$/.test(annot.value)
-      ? annot.value : null
-    const m = value && value.type === 'call' ? /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || '')) : null
-    const fam = fromAnnot || (m ? m[1] : null)
-    if (fam && slots[slot]) slots[slot].drawing = fam
   }
   /** ⭐⭐ P3 WS-F (review M1) — does a type hold a drawing HANDLE: a drawing family itself, a
    *  collection whose element type does, or a UDT with such a field, transitively (a cycle
@@ -3291,7 +3322,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const hAt = scope && typeof scope.lookup === 'function' ? scope.lookup(head) : null
         const hs = hAt !== null && hAt !== undefined ? slots[hAt] : null
         if (hs) {
-          let type = hs.udt
+          let type = udtNameOf(hs.ty || null)
           for (let k = 0; k < rest.length; k += 1) {
             const fld = udtTypes.has(type) ? (udtTypes.get(type).fields || []).find((f) => f.name === rest[k]) : null
             // (a slot that is not a record has no fields: the same answer)
@@ -3303,8 +3334,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       const at = scope && typeof scope.lookup === 'function' ? scope.lookup(v) : null
       const sl = at !== null && at !== undefined ? slots[at] : null
-      if (sl && (sl.drawing || sl.collection || (sl.udt && typeHoldsHandle(sl.udt)) || (sl.elemUdt && typeHoldsHandle(sl.elemUdt)))) {
-        return `\`varip\` holding \`${v}\`, a ${sl.drawing ? 'drawing' : sl.collection ? 'collection' : 'record'} this lane does not check for drawings`
+      const isDrawing = sl ? !!drawingOf(slotTy(at)) : false
+      const isColl = sl ? slotIsCollection(at) : false
+      const recTy = sl ? slotUdt(at) : null
+      const elemRec = sl ? slotElemUdt(at) : null
+      if (sl && (isDrawing || isColl || (recTy && typeHoldsHandle(recTy)) || (elemRec && typeHoldsHandle(elemRec)))) {
+        return `\`varip\` holding \`${v}\`, a ${isDrawing ? 'drawing' : isColl ? 'collection' : 'record'} this lane does not check for drawings`
       }
     }
     return null
@@ -3347,7 +3382,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
-      if (slot !== null) return !!(slots[slot] && slots[slot].collection)
+      if (slot !== null) return slotIsCollection(slot)
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsArray(bound.node, scope))
     }
@@ -3401,7 +3436,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const fv = first && first.value !== undefined ? first.value : first
         if (fv && fv.type === 'name') {
           const s0 = scope.lookup(fv.name)
-          if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
+          if (s0 !== null) return slotElemUdt(s0)
         }
       }
       // ⭐ THE METHOD FORM OF THE SAME READ — `obs.get(i)`, `obs.last()`.
@@ -3412,14 +3447,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const uf = splitMethodName(String(node.name || ''))
         if (uf && ARRAY_READS_ELEMENT.has(`array.${uf.method}`)) {
           const s0 = scope.lookup(uf.recv)
-          if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
+          if (s0 !== null) return slotElemUdt(s0)
         }
       }
       return null
     }
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
-      if (slot !== null) return (slots[slot] && slots[slot].udt) || null
+      if (slot !== null) return slotUdt(slot)
       const path = fieldPathOf(node, scope)
       if (path) return path.type
       const bound = env.get(node.name)
@@ -3457,7 +3492,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const head = node.name.split('.')[0]
     if (head === node.name) return null
     const slot = scope.lookup(head)
-    if (slot !== null) return (slots[slot] && slots[slot].udt) || null
+    if (slot !== null) return slotUdt(slot)
     const bound = env.get(head)
     if (bound && bound.kind === 'expr') return udtTypeOf(bound.node, scope)
     return null
@@ -3485,7 +3520,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const head = parts[0]
     const slot = scope.lookup(head)
     let type = null
-    if (slot !== null) type = (slots[slot] && slots[slot].udt) || null
+    if (slot !== null) type = slotUdt(slot)
     else {
       const bound = env.get(head)
       if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope)
@@ -3618,11 +3653,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  comes back as an untyped value, so the very next line (`ob.top`) cannot
    *  find a field. ⛔ It is read off the DECLARATION (`stripTypeArguments` put
    *  it on the token in the lexer), never guessed from what was pushed. */
-  const udtElemOf = (node, scope, annot) => {
-    if (annot && annot.kind === 'ident' && Array.isArray(annot.typeArgs)
-        && udtTypes.has(annot.typeArgs[0])) {
-      return annot.typeArgs[0]
-    }
+  const udtElemOf = (node, scope) => {
     if (node && node.type === 'call') {
       const n = String(node.name || '')
       if (n.startsWith('array.new')) {
@@ -3636,35 +3667,94 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const fv = first && first.value !== undefined ? first.value : first
         if (fv && fv.type === 'name') {
           const s0 = scope.lookup(fv.name)
-          if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
+          if (s0 !== null) return slotElemUdt(s0)
         }
       }
     }
     return null
   }
 
-  /**
-   * Mark a freshly declared slot with the user type it holds.
+  /** The family of a collection-valued initialiser: the namespace of the call
+   *  that builds it (`matrix.*` / `map.*`; `array.*` and `str.split` are arrays),
+   *  or the kind of the collection a name already holds. ⚠️ An unserved
+   *  `matrix.*` / `map.*` call is refused when it is lowered, so its slot is never
+   *  read; T7 / T8 replace the namespace with each member's declared result. */
+  const collectionKindOf = (node, scope, depth = 0) => {
+    if (!node || depth > 24) return 'array'
+    if (node.type === 'call') {
+      const ns = String(node.name || '').split('.')[0]
+      return ns === 'matrix' || ns === 'map' ? ns : 'array'
+    }
+    if (node.type === 'name') {
+      const s = lookupReadable(node.name, scope)
+      if (s !== null) return methodNsOf(slotTy(s)) || 'array'
+      const b = env.get(node.name)
+      if (b && b.kind === 'expr') return collectionKindOf(b.node, scope, depth + 1)
+    }
+    return 'array'
+  }
+
+  /** The type an INITIALISER gives a slot, by the readers that already answer
+   *  each kind (`holdsArray` and its element readers, `udtTypeOf`, the drawing
+   *  constructors, `holdsText`, `holdsColour`), or null.
    *
-   * ⛔⛔ THE WRITTEN ANNOTATION WINS OVER THE INITIALISER, and the case that
-   * settles it is the corpus's most common one: `var orderBlockInfo info = na`.
-   * The initialiser is `na` and produces no type at all, so an initialiser-only
-   * rule would leave the slot untyped — and the `info := orderBlockInfo.new(…)`
-   * on the next line is an ASSIGNMENT, which declares nothing. Every later
-   * `info.top` would then refuse as an unbound name.
+   *  ⛔ ONE KIND PER VALUE, in this order: a collection, a record, a drawing,
+   *  text, a colour. Master could mark one slot both text and colour; no Pine
+   *  value is both, and every one of these kinds ADMITS a shape (a slot read
+   *  as the wrong one is refused downstream by its own kind check), so the order
+   *  can cost a refusal, never a value. */
+  const initialiserTy = (value, scope) => {
+    if (holdsArray(value, scope)) {
+      const eu = udtElemOf(value, scope)
+      const elem = eu ? makeTy('udt', { name: eu })
+        : arrayHoldsText(value, scope) ? makeTy('text')
+          : arrayHoldsColour(value, scope) ? makeTy('colour') : null
+      return makeTy(collectionKindOf(value, scope), { elem })
+    }
+    const u = udtTypeOf(value, scope)
+    if (u) return makeTy('udt', { name: u })
+    if (objectsInRun && value && value.type === 'call') {
+      const m = /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || ''))
+      if (m) return makeTy('drawing', { name: m[1] })
+    }
+    if (holdsText(value, scope)) return makeTy('text')
+    if (holdsColour(value, scope)) return makeTy('colour')
+    return null
+  }
+
+  /** The WRITTEN type of a binding (`var array<Foo> obs = na`, `Foo f = …`,
+   *  `var line l = na`, `float x = …`): the type word just before the name.
+   *  ⛔ A drawing family is a type on this lane only when the run draws
+   *  (`objectsInRun`), exactly as master marked it. */
+  const declaredTyAt = (toks, eq) => {
+    const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
+    if (!annot || annot.kind !== 'ident') return null
+    const ty = tyOfTypeWord(annot.value, annot.typeArgs, { udtTypes })
+    return ty && ty.kind === 'drawing' && !objectsInRun ? null : ty
+  }
+
+  /**
+   * ⭐⭐ W6-T3a — TYPE A FRESHLY DECLARED SLOT: the written type first, else the
+   * initialiser (`typeDescriptor.js::bindingTy`).
+   *
+   * ⛔⛔ THE WRITTEN ANNOTATION WINS OVER THE INITIALISER for a reference type, and
+   * the case that settles it is the corpus's most common one: `var orderBlockInfo
+   * info = na`. The initialiser is `na` and produces no type at all, so an
+   * initialiser-only rule would leave the slot untyped — and the `info :=
+   * orderBlockInfo.new(…)` on the next line is an ASSIGNMENT, which declares
+   * nothing. Every later `info.top` would then refuse as an unbound name. The same
+   * holds for `var array<Foo> obs = na` and `var line l = na`.
    *
    * ⚠️ AND A DISAGREEMENT KEEPS THE ANNOTATION. Pine rejects `Point p =
    * Other.new(…)` outright; this lane does not type-check, so it records what
    * the member DECLARED rather than what one expression happened to build.
+   *
+   * ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this name —
+   * and the ASSIGNMENTS (`s := "cd"` routes out of the columnar lane because `s`
+   * is a text slot) — see the type.
    */
-  const markUdtSlot = (slot, value, scope, toks, eq) => {
-    const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
-    const declared = annot && annot.kind === 'ident' && udtTypes.has(annot.value)
-      ? annot.value : null
-    const t = declared || udtTypeOf(value, scope)
-    if (t) slots[slot].udt = t
-    const elem = udtElemOf(value, scope, annot)
-    if (elem) slots[slot].elemUdt = elem
+  const bindSlotTy = (slot, value, scope, toks, eq) => {
+    setSlotTy(slot, bindingTy(declaredTyAt(toks, eq), initialiserTy(value, scope)))
   }
 
   /** Lower an `array.*` call.
@@ -6998,8 +7088,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
             return admitArrayCall(methodFormCall(node, () => 'array', (m) => definedNames.has(m)).node,
               scope, false)
           }
-          if (rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection) {
-            const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
+          if (rslot !== null && rslot !== undefined && slotIsCollection(rslot)) {
+            // ⭐ W6-T3a — THE RECEIVER'S OWN FAMILY (`methodNsOf`): `m.rows()` on a
+            // matrix is `matrix.rows(m)`. Only arrays are served, so only an
+            // `array.*` member is ever admitted here.
+            const ns = methodNsOf(slotTy(rslot))
+            const rew = methodFormCall(node, () => ns, (m) => definedNames.has(m))
             if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
               return admitArrayCall(rew.node, scope, false)
             }
@@ -7008,7 +7102,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // `a.median` names a variable and sends the reader nowhere.
             note('runtime:array')
             throw new RuntimeRefusal('runtime:array',
-              familyDetail('runtime:array', `array.${uf.method}`), locate(node.tok))
+              familyDetail('runtime:array', `${ns}.${uf.method}`), locate(node.tok))
           }
         }
         const fam = callFamily(node.name)
@@ -9252,8 +9346,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!atObjectDoor && subject && subjectCalls(subject)) {
       const tmpName = `switch subject@${atTok && atTok.line}:${atTok && atTok.column}`
       const tslot = scope.declare(tmpName, newSlot(tmpName, false))
-      if (holdsText(subject, scope)) slots[tslot].text = true
-      if (holdsColour(subject, scope)) slots[tslot].colour = true
+      setSlotTy(tslot, initialiserTy(subject, scope))
       pre.push(declare(tslot, lowerExpr(subject, scope)))
       subject = { type: 'name', name: tmpName, tok: subjToks[0] }
     }
@@ -10522,32 +10615,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         if (word === 'varip') slots[slot].varip = true   // ⭐ P3 WS-F — see the `varip` site
-        // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
-        // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
-        // which is what makes `s := "cd"` route out of the columnar lane too.
-        if (holdsText(value, scope)) slots[slot].text = true
-        // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
-        // slot answers `holdsColour` false one statement later, and
-        // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
-        if (holdsColour(value, scope)) slots[slot].colour = true
-        // ⭐ THE `var` BRANCH MARKS THE ELEMENT KIND TOO. It marked text and
-        // colour and not this, so `var syms = array.from("AAPL", "MSFT")` — the
-        // way every watchlist in the corpus is declared — left the slot with no
-        // element kind, and a per-row buffer built from it was allocated numeric
-        // and threw on the first symbol.
-        if (holdsArray(value, scope)) {
-          slots[slot].collection = true
-          slots[slot].elemText = arrayHoldsText(value, scope)
-          slots[slot].elemColour = arrayHoldsColour(value, scope)
-        }
-        // ⭐⭐ MARKED AT THE BINDING, exactly as text, colour and the element
-        // kind are, and for the same reason all three are: without it the NEXT
-        // statement's `p.x` cannot tell a record from a number, and the field
-        // path would fall through to `runtime:unbound` naming a variable called
-        // `p.x` that nobody wrote.
-        // ⛔ FROM THE DECLARED TYPE, never from the name. See `udtTypeOf`.
-        markUdtSlot(slot, value, scope, toks, eq)
-        markDrawingSlot(slot, value, toks, eq)
+        // ⭐ W6-T3a — TYPED AT THE BINDING, BEFORE THE INITIALISER IS LOWERED
+        // (`bindSlotTy`): a later read of this name, and every assignment to it,
+        // sees the type. Without it a MUTABLE colour slot answers `holdsColour`
+        // false one statement later, `var syms = array.from("AAPL", "MSFT")` —
+        // the way every watchlist in the corpus is declared — leaves a per-row
+        // buffer numeric, and the NEXT statement's `p.x` cannot tell a record from
+        // a number. ⛔ A record type comes FROM THE DECLARED TYPE, never from the
+        // name. See `udtTypeOf`.
+        bindSlotTy(slot, value, scope, toks, eq)
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -10682,7 +10758,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         // W4-T12 - `c = switch ... / if ...` WHOSE EVERY LEAF IS A COLOUR OR `na` IS
         // A COLOUR SLOT, marked at its binding exactly as `c = cond ? a : b` is.
-        if (!atObjectDoor && paintIsColour(mkArm.paint)) slots[slot].colour = true
+        if (!atObjectDoor && paintIsColour(mkArm.paint)) setSlotTy(slot, makeTy('colour'))
         if (!once) {
           for (const s of blk) out.push(s)
           continue
@@ -10755,18 +10831,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
-        markDrawingSlot(slot, value, toks, eq)
-        if (holdsText(value, scope)) slots[slot].text = true
-        // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
-        // slot answers `holdsColour` false one statement later, and
-        // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
-        if (holdsColour(value, scope)) slots[slot].colour = true
-        if (isCollection) {
-          slots[slot].collection = true
-          slots[slot].elemText = arrayHoldsText(value, scope)
-          slots[slot].elemColour = arrayHoldsColour(value, scope)
-        }
-        markUdtSlot(slot, value, scope, toks, eq)
+        // ⭐ W6-T3a — typed at the binding, as the `var` branch is (`bindSlotTy`).
+        bindSlotTy(slot, value, scope, toks, eq)
         // ⭐⭐ W4-T9 — a frame local bound once to arithmetic over the frame is
         // what a bound or an offset reads through (`frameSubstitute`)
         if (!mutable) {
@@ -10802,7 +10868,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             if (!argumentHasEffect(v)) continue
             const tmp = `alert argument ${out.length}@${first.line}:${first.column}`
             const slot = scope.declare(tmp, newSlot(tmp, false))
-            if (holdsText(v, scope)) slots[slot].text = true
+            setSlotTy(slot, initialiserTy(v, scope))
             out.push(declare(slot, lowerExpr(v, scope)))
           }
           continue
@@ -10897,16 +10963,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
               () => 'array', (m) => definedNames.has(m)).node, scope))
             continue
           }
-          if (rslot !== null && slots[rslot] && slots[rslot].collection) {
+          if (rslot !== null && slotIsCollection(rslot)) {
+            const ns = methodNsOf(slotTy(rslot))
             const rew = methodFormCall(parseWholeExpression(toks),
-              () => 'array', (m) => definedNames.has(m))
+              () => ns, (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
               out.push(arrayStmt(rew.node, scope))
               continue
             }
             note('runtime:array')
             throw new RuntimeRefusal('runtime:array',
-              familyDetail('runtime:array', `array.${uf.method}`), locate(first))
+              familyDetail('runtime:array', `${ns}.${uf.method}`), locate(first))
           }
         }
         // ⭐⭐ A USER FUNCTION CALLED FOR ITS EFFECT — PINE'S OWN STATEMENT FORM.
@@ -11119,16 +11186,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // guessed at.
       const ty = declaredTypes.get(p)
       if (!ty) untypedParams.add(ps)
-      if (ty && ty.word === 'array') {
-        slots[ps].collection = true
-        slots[ps].elemText = ty.typeArg === 'string'
-        slots[ps].elemColour = ty.typeArg === 'color'
-        if (ty.typeArg && udtTypes.has(ty.typeArg)) slots[ps].elemUdt = ty.typeArg
-      }
-      // ⭐ AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver of
-      // `method bump(Point this, …)` — marked from the DECLARED type, exactly as
-      // `markUdtSlot` marks a binding, so `this.x` reads as a field path.
-      if (ty && udtTypes.has(ty.word)) slots[ps].udt = ty.word
+      // ⭐ W6-T3a — AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver
+      // of `method bump(Point this, …)` — typed from the DECLARED type, exactly as
+      // `bindSlotTy` types a binding, so `this.x` reads as a field path.
+      // ⛔ ONLY THE REFERENCE TYPES (a collection, a record): a parameter written
+      // `string` / `color` / `line` was never marked, and marking it would change
+      // what its body lowers to.
+      const pty = ty ? tyOfTypeWord(ty.word, ty.typeArgs, { udtTypes }) : null
+      if (pty && (isCollectionTy(pty) || pty.kind === 'udt')) setSlotTy(ps, pty)
     })
 
     // ⭐⭐ THE BODY IS ALSO KEPT AS AN AST, for the call sites that must lower it
@@ -11346,7 +11411,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
                 'a body whose last statement binds nothing this front end can return', locate(nameTok))
             } else {
               result = read(slot)
-              resultColour = !!(slots[slot] && slots[slot].colour)
+              resultColour = isColourTy(slotTy(slot))
             }
           } else {
             try {

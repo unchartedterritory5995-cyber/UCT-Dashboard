@@ -12,6 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { buildCalendarCapture, calendarCaptureSettings } from './captures/calendarCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
@@ -152,6 +153,7 @@ const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
     <div
       className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
       data-earn-sym={c.sym}
+      data-guide="calendar.row"
       onClick={() => onSelect(c.sym)}
       title={`Show ${c.sym} on the linked chart`}
     >
@@ -332,6 +334,11 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', buildDayCapture(), { label: `UCT Terminal ${selected}` }))
   }, [buildDayCapture, selected])
+  useWidgetDoor(() => ({
+    read: () => ({ day: selected, tbdOpen }),
+    write: (key, v) => { if (key === 'day') setSelected(v); else if (key === 'tbdOpen') setTbdOpen(v === true) },
+    capture: () => (journalDoor ? { kind: 'calendar', capture: buildDayCapture(), label: `UCT Terminal ${selected}` } : null),
+  }))
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
   // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──

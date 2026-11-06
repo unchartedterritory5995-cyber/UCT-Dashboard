@@ -1,0 +1,80 @@
+[
+ [
+  "CONTROL no-op comment",
+  "../tools/vendor_harness/compare.mjs",
+  "// Pure. Applied IN ORDER; the first step that decides, decides.",
+  "// Pure. Applied IN ORDER; the first step that decides, decides (control)."
+ ],
+ [
+  "G1 remove the reference floor (0/0 would MATCH)",
+  "../tools/vendor_harness/compare.mjs",
+  "if (refCount < STRATEGY_FLOOR) {",
+  "if (refCount < 0) {"
+ ],
+ [
+  "G2 floor applied to our count too",
+  "../tools/vendor_harness/compare.mjs",
+  "if (refCount < STRATEGY_FLOOR) {",
+  "if (refCount < STRATEGY_FLOOR || (ours.trades || []).length < STRATEGY_FLOOR) {"
+ ],
+ [
+  "G3 our count read in step 0",
+  "../tools/vendor_harness/compare.mjs",
+  "if (refCount < STRATEGY_FLOOR) {",
+  "if (refCount < STRATEGY_FLOOR && (ours.trades || []).length >= 0) {"
+ ],
+ [
+  "G4 join on bar index",
+  "../tools/vendor_harness/compare.mjs",
+  "const o = byEntry.get(r.entryTime)",
+  "const o = ourTrades.find((t) => t.barIndex === r.barIndex)"
+ ],
+ [
+  "G5 skip bar identity",
+  "../tools/vendor_harness/compare.mjs",
+  "const bd = barsDiffer(refBars, ourBars, span, tick)",
+  "const bd = null"
+ ],
+ [
+  "G6 INCONCLUSIVE (warm-up) counted as MATCH",
+  "../tools/vendor_harness/compare.mjs",
+  "return { verdict: 'INCONCLUSIVE', step: 3,",
+  "return { verdict: 'MATCH', step: 3,"
+ ],
+ [
+  "G7 INCONCLUSIVE (bars) counted as MATCH",
+  "../tools/vendor_harness/compare.mjs",
+  "if (bd) return { verdict: 'INCONCLUSIVE', step: 2,",
+  "if (bd) return { verdict: 'MATCH', step: 2,"
+ ],
+ [
+  "G8 nothing-compared blocks the grade",
+  "../tools/vendor_harness/compare.mjs",
+  "const noDeclaration = typeof settings.reason === 'string' && settings.reason.startsWith('strategy-settings:no-declaration')",
+  "const noDeclaration = typeof settings.reason === 'string'"
+ ],
+ [
+  "G9 expected refusal tallied as DIVERGE",
+  "../tools/vendor_harness/compare.mjs",
+  "return refusal.expected",
+  "return !refusal"
+ ],
+ [
+  "G10 skip signal identity",
+  "../tools/vendor_harness/compare.mjs",
+  "if (method === 'b') {",
+  "if (false) {"
+ ],
+ [
+  "G11 quantity not compared",
+  "../tools/vendor_harness/compare.mjs",
+  "o.qty !== r.qty && 'qty'",
+  "false && 'qty'"
+ ],
+ [
+  "G12 profit not compared",
+  "../tools/vendor_harness/compare.mjs",
+  "!sameCurrency(o.profit, r.profit) && 'profit'",
+  "false && 'profit'"
+ ]
+]

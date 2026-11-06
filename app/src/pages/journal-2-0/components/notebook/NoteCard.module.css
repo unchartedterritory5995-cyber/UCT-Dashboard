@@ -10,7 +10,7 @@
   padding: 12px 14px;
   color: inherit;
   font: inherit;
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 .card:hover {
   transform: translateY(-2px);
@@ -131,6 +131,7 @@
   height: 32px;
   cursor: pointer;
   opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-out); /* VIS-6 (issue 23) */
 }
 /* Wave 10 lane DR-F (design finding D-8): 16x16 at 1200 -- under WCAG 2.5.8's
    24px floor with no exception to excuse it (this IS the focusable control a

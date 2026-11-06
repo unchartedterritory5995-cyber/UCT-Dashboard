@@ -820,11 +820,18 @@ class Driver:
         sym_slug = slugify(o.symbol.split(":")[-1])
         tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
         capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
-        res = self.ev("vh_capture", VH_CAPTURE_JS, {
+        cap_opts = {
             "study": title, "source": text, "id": capture_id,
             "newestBarIsForming": forming, "startsAtBar0": starts, "startsAtBar0Why": why,
             "chunkSize": o.chunk_size,
-        })
+        }
+        # W9-T3a: a STRATEGY row carries how it is graded (a, b, none), its window for method (b)
+        # and, only once the owner has taken W9-C0, the report path. Absent keys are not sent, so an
+        # indicator's capture call is byte-identical to before.
+        for key in ("gradeMethod", "gradeRange", "reportPath"):
+            if script.get(key) is not None:
+                cap_opts[key] = script[key]
+        res = self.ev("vh_capture", VH_CAPTURE_JS, cap_opts)
         if not res or not res.get("ok"):
             msg = (res or {}).get("error") or str(res)
             if "failed to compile" in msg:

@@ -79,6 +79,10 @@ export function widgetEmbedStopEvent({ event }) {
   // Default's own passthrough: an input-like element always owns its events,
   // except the drag/drop family (a draggable row dragged FROM a button, say).
   if (isInput && event.type !== 'drop' && !isDragEvent) return true
+  // Tier 4 fix round 1 (review 4): the phone chart's full-screen link owns every event inside it. ProseMirror's
+  // click-to-select would otherwise make a NodeSelection and focus the editor (raising the iOS keyboard) on the
+  // way out of the note.
+  if (!isDragEvent && target?.closest?.('[data-phone-chart-open]')) return true
   // The fix: WHILE THE MEMBER IS DRAWING, never let a mousedown on the chart's
   // own surface reach ProseMirror's click-to-select handling (its mouseup
   // refocuses the editor, which the embed reads as "done drawing").

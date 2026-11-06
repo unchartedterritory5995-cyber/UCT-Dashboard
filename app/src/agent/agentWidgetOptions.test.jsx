@@ -6,12 +6,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
-import { buildContext, getCapability, shapeError } from './capabilities'
+import { buildContext, getCapability, refreshContext, shapeError } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { makeBoard } from './__fixtures__/board'
 import { setupPanel, ONE } from './testing/panelHarness'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../widgets/registry'
+import { widgetControls } from '../widgets/widgetControls'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
+import { routingV2Active } from './nlm1/flag'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -40,9 +43,10 @@ describe('widget.setOption — options the widget reads, off the Widgets menu to
   }
   it('News: pause (follow) and the linked filter; a Period Sort: its grouping; each listed for the model, each undone exactly', async () => {
     const { host, state } = makeBoard(BOARD2(), {})
-    const hints = getCapability('widget.setOption').hints
-    expect(hints).toMatch(/tradeExchangeNews: follow \(on\/off\), linked \(on\/off\)/)
-    expect(hints).toMatch(/periodsort: group \(theme\|sector\|industry\)/)
+    await refreshContext(1500, { groups: ['boardEdit'] })
+    const said = buildContext(host, CTX).context.widgetControls[0].controls
+    expect(said.tradeExchangeNews).toMatch(/^follow\(on\/off\), linked\(on\/off\)/)
+    expect(said.periodsort).toBe('group(theme|sector|industry)')
     for (const [widget, key, value, want] of [['tn', 'follow', 'off', false], ['rl', 'linked', 'on', true], ['ps', 'group', 'Sector', 'sector']]) {
       const before = JSON.stringify(state.widgets)
       const res = await apply(host, { widget, key, value })
@@ -97,7 +101,7 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     const before = JSON.stringify(state.widgets)
     expect(await refuse(host, { widget: 'zz', key: 'period', value: '1w' })).toMatch(/no widget “zz”/)
     expect(await refuse(host, { widget: 'fu', key: 'rows', value: '1w' })).toMatch(/has no option “rows” — its options are view/)
-    expect(await refuse(host, { widget: 'th', key: 'openTheme', value: 'x' })).toMatch(/has no options I can change here/)      // a free string is not an option
+    expect(await refuse(host, { widget: 'th', key: 'openTheme', value: 'x' })).toMatch(/isn't showing right now/)      // the widget's own list: no mounted widget, no write (agentWidgetControls)
     expect(await refuse(host, { widget: 'nw', key: 'symbol', value: 'AMD' })).toMatch(/no option “symbol”/)          // identity: chart.setSymbol's business
     expect(await refuse(host, { widget: 'ca', key: 'date', value: '2026-01-01' })).toMatch(/no option “date”/)
     expect(await refuse(host, { widget: 'fu', key: 'view', value: 'daily' })).toMatch(/“view” can be annual, quarterly, analyst, ownership — not “daily”/)
@@ -106,28 +110,36 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     expect(await refuse(host, { widget: 'ca', key: 'econStars', value: 4 })).toMatch(/“econStars” is from 1 to 3/)
     expect(await refuse(host, { widget: 'ca', key: 'econStars', value: 2.5 })).toMatch(/whole number from 1 to 3/)
     // an UNBOUNDED numeric key (no min/max in the registry: nhnl.minPrice, volumescan.minRvol/minMove/minDollarK) is not an option at all
-    expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no options I can change here/)
-    expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos\.$/)
+    expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no option “minPrice” — its options are universe, universes\.$/)
+    expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos, list\.$/)
     expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no options I can change here/)
     // ⛔ declared in the schema, but the mounted widget never reads them back from opts: refused in words, nothing written
-    for (const [id, key, value] of [['th', 'period', '1w'], ['th', 'sortDir', 'asc'], ['br', 'tileStyle', 'spark'], ['ca', 'tbdOpen', true], ['nh', 'minCount', 5]]) {
+    for (const [id, key, value] of [['br', 'tileStyle', 'spark'], ['nh', 'minCount', 5]]) {
       expect(await refuse(host, { widget: id, key, value }), `${id}.${key}`).toMatch(new RegExp(`I can't change “${key}” .*doesn't read a saved value`))
+    }
+    // the widget's own state: only its mounted door can take it (agentWidgetControls), and with no door nothing is stored
+    for (const [id, key, value] of [['th', 'period', '1w'], ['th', 'sortDir', 'asc'], ['ca', 'tbdOpen', true]]) {
+      expect(await refuse(host, { widget: id, key, value }), `${id}.${key}`).toMatch(/isn't showing right now/)
     }
     expect(shapeError('widget.setOption', { widget: 'th', key: 'period' }, CTX)).toBeTruthy()                        // a closed schema
     expect(JSON.stringify(state.widgets)).toBe(before)
   })
-  it('the offered keys are exactly the registry\'s scalar, non-identity params; the capability is local and exactly undoable; the hints name them per widget type', () => {
+  it('the offered keys are exactly the registry\'s controls; the capability is local and exactly undoable; the routed section names them per widget type', async () => {
     const c = getCapability('widget.setOption')
     expect([c.target, c.risk, c.undo]).toEqual(['board', 'local', 'exact'])
+    const { host } = makeBoard(WORKSPACE_MENU_TYPES.map((t, i) => w(`t${i}`, t, 0, 0)), {})
+    await refreshContext(1500, { groups: ['boardEdit'] })
+    const said = buildContext(host, CTX).context.widgetControls[0].controls
     for (const type of WORKSPACE_MENU_TYPES) {
-      const offered = (WIDGET_REGISTRY[type].paramsSchema || []).filter(f => f.live === true)
-      if (offered.length) expect(c.hints, type).toContain(`${type}: `)
-      else expect(c.hints, type).not.toContain(`${type}: `)
+      if (widgetControls(type).length) expect(said[type], type).toBeTruthy()
+      else expect(said[type], type).toBeUndefined()
+      for (const f of WIDGET_REGISTRY[type].paramsSchema || []) {
+        if (f.live === true) expect(said[type], `${type}.${f.key}`).toContain(`${f.key}(`)
+      }
     }
-    expect(c.hints).not.toContain('statYear')                                   // a capture's frozen clock, not a control
-    expect(c.hints).toContain('calendar: econStars (1–3)')
-    expect(c.hints).not.toContain('themes: ')
-    expect(c.hints).not.toContain('minRvol')                                    // unbounded numbers are never offered
+    expect(JSON.stringify(said)).not.toContain('statYear')                      // a capture's frozen clock, not a control
+    expect(said.calendar).toContain('econStars(1–3)')
+    expect(JSON.stringify(said)).not.toContain('minRvol')                       // unbounded numbers are never offered
     expect(c.hints.length).toBeLessThanOrEqual(1000)
   })
 })
@@ -149,11 +161,133 @@ describe('through the REAL panel (panelHarness)', () => {
     expect(JSON.stringify(board.state.widgets)).toBe(before)
     expect(p.turns()).toBe(1)
   }, 40000)
-  it('"show the theme tracker by week" (scripted): the widget would ignore it, so it refuses and nothing is stored', async () => {
+  it('⛔ a reroute to the group brings the control list: not on the first call, on the second, and the write lands', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('nw', 'news', 18, 0, {})], syms)
+    p.st.envelopes.push({ disposition: 'clarify', reply: '', ops: [], unsupported_category: null, question: { text: 'Looking at more of UCT…', choices: [] }, need_groups: ['boardEdit'] })
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'nw', key: 'filter', value: 'up' })]))
+    const out = await say('only the up ones')
+    const turns = p.st.calls.filter(c => c[1] === '/api/agent/turn').map(c => c[2])
+    expect(turns.length).toBe(2)
+    expect(turns[0].context.widgetControls).toBeUndefined()
+    expect(turns[1].reroute).toBe(true)
+    expect(turns[1].context.widgetControls[0].controls.news).toBe('filter(all|up|down)')
+    expect(out).toMatch(/filter is now up/)
+    expect(optsOf(board, 'nw').filter).toBe('up')
+  }, 40000)
+  it('"show the theme tracker by week" (scripted) with no mounted tracker to take it: it refuses and nothing is stored', async () => {
     const [[chart], syms] = ONE('NVDA')
     const { say, board } = p.mount([{ ...chart, w: 18 }, w('th', 'themes', 18, 0, { period: '1d', sortDir: 'desc' })], syms)
     p.st.envelopes.push(p.env('apply', [op({ widget: 'th', key: 'period', value: '1w' })]))
-    expect(await say('show the theme tracker by week')).toMatch(/doesn't read a saved value/)
+    expect(await say('show the theme tracker by week')).toMatch(/isn't showing right now/)
     expect(optsOf(board, 'th')).toEqual({ period: '1d', sortDir: 'desc' })
   }, 40000)
 })
+
+// Routing v2 is the live path for admins (nlm1/flag.js), and its router has its own refresh list.
+describe('through the REAL panel with routing v2 on: a control request carries its list on the FIRST call', () => {
+  let p
+  const config = async (on) => {
+    const base = globalThis.fetch
+    globalThis.fetch = async (url, init) => (url === '/api/agent/config'
+      ? new Response(JSON.stringify({ conversations: [], routing_v2: on }), { status: 200, headers: { 'content-type': 'application/json' } }) : base(url, init))
+    localStorage.setItem('uct.agent.routingV2', on ? '1' : '0')
+    _resetAgentConfig()
+    await loadAgentConfig()
+  }
+  beforeEach(async () => { p = setupPanel(); await config(true) })
+  afterEach(async () => { cleanup(); await config(false); localStorage.clear() })
+  const firstTurn = () => p.st.calls.find(c => c[1] === '/api/agent/turn')[2]
+  it('"show the theme tracker from the open": one model call, the list on it, the option set, Undo exact', async () => {
+    expect(routingV2Active()).toBe(true)
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('th', 'themes', 18, 0, {})], syms)
+    const before = JSON.stringify(board.state.widgets)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'th', key: 'todayBasis', value: 'open' })]))
+    const out = await say('show the theme tracker from the open')
+    expect(p.turns()).toBe(1)
+    const body = firstTurn()
+    expect(body.capabilities.map(c => c.name)).toContain('widget.setOption')
+    expect(body.context.widgetControls[0].controls.themes).toContain('todayBasis(close|open)')
+    expect(out).toMatch(/todayBasis is now open/)
+    expect(optsOf(board, 'th').todayBasis).toBe('open')
+    await say('undo')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it('⛔ the F-16 screen claim is not widened: "only show calls on the options flow" stays its honest refusal, with no model call, even with the widget on the board', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    expect(await say('only show calls on the options flow')).toMatch(/can't screen on options-flow/)
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it('a turn that does not touch widgets carries no list, on the same board', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    await say('what does a pullback mean for momentum names')
+    expect(firstTurn().context.widgetControls).toBeUndefined()
+  }, 40000)
+})
+
+// Real calendar phrasings, routing v2 on, on /charts with no Calendar page (the sealed set has none).
+describe('who reports, through the REAL panel on /charts with routing v2 on', () => {
+  let p
+  const week = (monday) => Object.fromEntries(Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${monday}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + i)
+    return [d.toISOString().slice(0, 10), { bmo: [{ sym: 'AAA' }], amc: [{ sym: 'BBB' }], tbd: [] }]
+  }))
+  const config = async (on) => {
+    const base = globalThis.fetch
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+    globalThis.fetch = async (url, init) => {
+      if (url === '/api/agent/config') return json({ conversations: [], routing_v2: on })
+      const m = /^\/api\/calendar\?week=(\d{4}-\d{2}-\d{2})/.exec(String(url))
+      return m ? json({ days: week(m[1]) }) : base(url, init)
+    }
+    localStorage.setItem('uct.agent.routingV2', on ? '1' : '0')
+    _resetAgentConfig()
+    await loadAgentConfig()
+  }
+  beforeEach(async () => { p = setupPanel(); await config(true) })
+  afterEach(async () => { cleanup(); await config(false); localStorage.clear() })
+  const mount = () => { const [[chart], syms] = ONE('NVDA'); return p.mount([{ ...chart, w: 24 }], syms) }
+  const turnsSent = () => p.st.calls.filter(c => c[1] === '/api/agent/turn').map(c => c[2])
+  const dayOp = (body, date) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops: [{ action: 'calendar.day', target: body.context.calendar[0].ref, args: { date } }] })
+
+  it.each(['who reports today', 'who is reporting tomorrow', 'what reports on friday', 'which stocks report thursday'])('"%s": answered from the calendar, no model call', async (message) => {
+    const { say } = mount()
+    expect(await say(message)).toMatch(/AAA.*BBB/s)
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it.each(['who reports tonight', 'who is reporting after the close', 'any earnings on the calendar tomorrow', 'which names are on the calendar for friday'])('"%s": the model has the read and a ref to aim it at, on the first call', async (message) => {
+    const { say } = mount()
+    p.st.envelopes.push((b) => dayOp(b, 'today'))
+    const out = await say(message)
+    expect(turnsSent().length).toBe(1)
+    expect(turnsSent()[0].capabilities.map(c => c.name)).toContain('calendar.day')
+    expect(out).toMatch(/AAA.*BBB/s)
+  }, 40000)
+  it.each(['how is the market looking', 'anything big after the close', 'what should i watch tomorrow'])('"%s": whenever the read is sent, its ref is sent too, or it could not be used', async (message) => {
+    const { say } = mount()
+    await say(message)
+    const body = turnsSent()[0]
+    if (body.capabilities.some(c => c.name === 'calendar.day')) expect(body.context.calendar?.[0]?.ref).toBeTruthy()
+  }, 40000)
+  it('a reroute to the calendar group brings the ref: not on the first call, on the second, and the read answers', async () => {
+    const { say } = mount()
+    p.st.envelopes.push({ disposition: 'clarify', reply: '', ops: [], unsupported_category: null, question: { text: 'Looking at more of UCT…', choices: [] }, need_groups: ['calendar'] })
+    p.st.envelopes.push((b) => dayOp(b, 'today'))
+    const out = await say('add the 50 day to this chart')
+    const sent = turnsSent()
+    expect(sent.length).toBe(2)
+    expect(sent[0].context.calendar).toBeUndefined()
+    expect(sent[1].reroute).toBe(true)
+    expect(sent[1].context.calendar[0].ref).toBeTruthy()
+    expect(out).toMatch(/AAA.*BBB/s)
+  }, 40000)
+  it('a stock\'s own date stays stock.earnings: calendar.nextReport is not offered here', async () => {
+    const { say } = mount()
+    await say('who reports tonight')
+    expect(turnsSent()[0].capabilities.map(c => c.name)).not.toContain('calendar.nextReport')
+  }, 40000)
+})
+

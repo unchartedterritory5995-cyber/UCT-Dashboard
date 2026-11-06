@@ -30,7 +30,10 @@ import RouteErrorBoundary from '../../../../../components/RouteErrorBoundary'
 const params = (l) => new URLSearchParams(l.search)
 const onNote = (l) => l.pathname === '/journal/notebook' && Boolean(params(l).get('note'))
 const onNotebook = (l) => l.pathname === '/journal/notebook'
-const onHome = (l) => onNotebook(l) && !['note', 'view', 'side', 'resurfaceVersion', 'new'].some((k) => params(l).has(k))
+// Research Home: `?view=home` (Tier 3b: the bare address is the member's landing, the Today home by default; the
+// suites run with that default off, where the bare address is Research Home as before).
+const onHome = (l) => onNotebook(l) && !['note', 'side', 'resurfaceVersion', 'new'].some((k) => params(l).has(k))
+  && (!params(l).has('view') || params(l).get('view') === 'home')
 const ROUTE_OF_FILE = {
   'components/notebook/NoteEditorPage.jsx': onNote,
   'components/notebook/NoteShareControls.jsx': onNote,

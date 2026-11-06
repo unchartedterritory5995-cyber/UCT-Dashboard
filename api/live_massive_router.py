@@ -370,6 +370,20 @@ DEFAULT_THRESHOLDS = {
     "block_dp_window_ms": 3000,        # dark-pool print within +/- this of the block fill
     "block_dp_min_shares": 50000,      # a single dark-pool print this big = a real block
     "block_darkpool_hedge_suppress": False,  # False = neutral Hedge card; True = suppress
+    # ── Aggregate fair-NBBO side gate (2026-11-05) — Alpha LEAPS / Ask Accum ──
+    # The single-print side_confirm is the wrong test for an AGGREGATE build: one
+    # representative fill can read at-ask by luck (a two-sided algo inflated into
+    # "100% ask Conviction A" — META 680C 2026-11-05 @ 51% ask) OR a hair inside
+    # the spread / on a slow-quoting LEAP the 2.5s fill-lookback can't confirm
+    # (PFE 28C 2026-11-05, 100% ask, pre-fill quote 35s stale -> wrongly dropped).
+    # So for these two tiers, classify the CONTRACT's whole session tape vs the
+    # NBBO-at-each-fill and require the dominant premium side >= aggregate_side_min
+    # AND matching the claimed direction; else neutralize. Fail-OPEN on a data gap
+    # (keep the label — never drop a real build over a quotes hiccup). Replaces
+    # side_confirm for alpha_leaps/ask_accum only; single-print tiers keep it.
+    "aggregate_side_enabled": True,
+    "aggregate_side_min": 0.67,                 # dominant premium fraction required
+    "aggregate_side_unclean_suppress": False,   # False = neutral card; True = drop
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
     # red bear fill, amber opposing side) on CONFIRMED directional cards. False
@@ -6231,6 +6245,147 @@ def _side_confirms(a: dict, thr: dict) -> bool:
     return fill >= ask - tol                              # ask-side (A/AA)
 
 
+# ── Aggregate fair-NBBO side gate (2026-11-05) ──────────────────────────────
+# For the AGGREGATE tiers (Alpha LEAPS / Ask Accumulation), the single-print
+# _side_confirms is the wrong test: a build is many prints, and one representative
+# fill can be at-ask by luck (a two-sided algo inflated into "100% ask Conviction
+# A" — META 680C 2026-11-05, truly 51% ask) OR a hair inside the spread / on a
+# slow-quoting LEAP the 2.5s fill-lookback can't confirm (PFE 28C 2026-11-05,
+# 100% ask, pre-fill quote 35s stale — wrongly dropped). Instead classify the
+# CONTRACT's whole session tape against the NBBO-at-each-fill and require the
+# dominant premium side to carry >= aggregate_side_min AND match the claimed
+# direction. Memoized per (occ, session-day); fail-OPEN on a data gap.
+_AGG_SIDE_MEMO: dict = {}   # (occ, day) -> (expiry_epoch, (dom_frac, dom_side, n) | None)
+_AGG_SIDE_TTL = 90.0
+
+
+def _massive_pages(path: str, params: dict, max_pages: int = 4, timeout: float = 6.0):
+    """Paginated Massive REST GET (follows next_url, re-appends apiKey). Returns the
+    concatenated results list; whatever was gathered so far on any failure."""
+    key = os.environ.get("MASSIVE_API_KEY", "")
+    if not key:
+        return []
+    import urllib.request
+    import urllib.parse
+    q = dict(params)
+    q["apiKey"] = key
+    url = f"https://api.massive.com{path}?{urllib.parse.urlencode(q)}"
+    out = []
+    try:
+        for _ in range(max_pages):
+            req = urllib.request.Request(url, headers={"User-Agent": "uct-push-gate"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = json.load(r)
+            out.extend(d.get("results") or [])
+            nxt = d.get("next_url")
+            if not nxt:
+                break
+            url = nxt + (("&" if "?" in nxt else "?") + "apiKey=" + urllib.parse.quote(key))
+    except Exception:
+        return out
+    return out
+
+
+def _session_fair_dominant(occ: str, ts_hint_ns: int, tol: float = 0.01):
+    """Classify every print of `occ` on its session day against the prevailing
+    NBBO-at-fill. Returns (dom_frac, dom_side, n_classified) or None (no data).
+    dom_side in {'ask','bid'}; dom_frac = max(ask,bid)/(ask+bid) on directional
+    premium (mid excluded from the ratio). This is independent of our Q-pool side
+    coverage — it is the same fair-NBBO method the SMR/side-gate audits use."""
+    from bisect import bisect_right
+    try:
+        day = datetime.fromtimestamp(ts_hint_ns / 1e9, tz=timezone.utc).astimezone(ET).date()
+        start = datetime(day.year, day.month, day.day, tzinfo=ET)
+        n0 = int(start.astimezone(timezone.utc).timestamp() * 1e9)
+        n1 = n0 + 24 * 3600 * 1_000_000_000
+    except Exception:
+        return None
+    trades = _massive_pages(f"/v3/trades/{occ}",
+                            {"timestamp.gte": n0, "timestamp.lte": n1, "order": "asc", "limit": 50000}, 3)
+    if not trades:
+        return None
+    quotes = _massive_pages(f"/v3/quotes/{occ}",
+                            {"timestamp.gte": n0, "timestamp.lte": n1, "order": "asc", "limit": 50000}, 6)
+    if not quotes:
+        return None
+    qt = [q.get("sip_timestamp", 0) for q in quotes]
+    ask = bid = mid = 0.0
+    n = 0
+    for t in trades:
+        px = t.get("price") or 0
+        sz = t.get("size") or 0
+        if px <= 0 or sz <= 0:
+            continue
+        i = bisect_right(qt, t.get("sip_timestamp", 0)) - 1
+        if i < 0:
+            continue
+        q = quotes[i]
+        bp = q.get("bid_price")
+        ap = q.get("ask_price")
+        if not bp or not ap or ap < bp:
+            continue
+        m = (bp + ap) / 2.0
+        prem = px * sz * 100
+        n += 1
+        if px > m + tol:
+            ask += prem
+        elif px < m - tol:
+            bid += prem
+        else:
+            mid += prem
+    dirp = ask + bid
+    if dirp <= 0:
+        return None
+    return (max(ask, bid) / dirp, "ask" if ask >= bid else "bid", n)
+
+
+def _aggregate_side_decision(dom_frac: float, dom_side: str, direction: str, cp: str, min_frac: float) -> bool:
+    """True = the aggregate tape CONFIRMS the claimed direction (push it); False =
+    neutralize. Ask-dominant = buyers = Bull for calls / Bear for puts. Pure +
+    deterministic — unit-tested against the 2026-11-05 labeled fixture."""
+    if dom_frac < min_frac:
+        return False
+    is_call = str(cp or "").upper().startswith("C")
+    if dom_side == "ask":
+        implied = "Bull" if is_call else "Bear"
+    else:
+        implied = "Bear" if is_call else "Bull"
+    return implied == direction
+
+
+def _aggregate_side_clean(a: dict, thr: dict) -> bool:
+    """Aggregate fair-NBBO side gate for Alpha LEAPS / Ask Accumulation. True = keep
+    the directional claim (push); False = neutralize. Fail-OPEN (True) on any data
+    gap so a quotes hiccup never drops a real build. Memoized per (occ, session-day)."""
+    direction = a.get("_direction")
+    if direction not in ("Bull", "Bear"):
+        return True
+    occ = _alert_occ(a)
+    if not occ:
+        return True
+    ts = a.get("timestamp") or a.get("last_ts")
+    try:
+        ts_ns = int(float(ts) * 1e9) if ts else int(time.time() * 1e9)
+    except (TypeError, ValueError):
+        ts_ns = int(time.time() * 1e9)
+    daykey = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc).astimezone(ET).strftime("%Y-%m-%d")
+    mkey = (occ, daykey)
+    now = time.time()
+    hit = _AGG_SIDE_MEMO.get(mkey)
+    if hit and now < hit[0]:
+        res = hit[1]
+    else:
+        res = _session_fair_dominant(occ, ts_ns)
+        if len(_AGG_SIDE_MEMO) > 20000:
+            _AGG_SIDE_MEMO.clear()
+        _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
+    if not res:
+        return True   # fail-open: no tape/quotes -> never drop a real build
+    dom_frac, dom_side, _n = res
+    min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
+    return _aggregate_side_decision(dom_frac, dom_side, direction, a.get("cp"), min_frac)
+
+
 def _next_ex_div(sym: str):
     """Next forward ex-dividend {date, amount} for sym (memoized 12h), via the
     owned dividends_calendar wrapper (Massive reference). None if none/unavailable.
@@ -6792,6 +6947,22 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                     continue   # hedge — drop entirely
                 if _dp_hedge:
                     push_alert = _relabel_dp_hedge(a)   # neutral Hedge Block card
+                elif ((a.get("_tierKey") or "") in ("alpha_leaps", "ask_accum")
+                        and _thr.get("aggregate_side_enabled", True)
+                        and a.get("_direction") in ("Bull", "Bear")):
+                    # AGGREGATE tiers use the whole-tape fair-NBBO dominance test,
+                    # NOT the single-print side_confirm: a build's one representative
+                    # fill is unreliable in BOTH directions (false 100%-ask on a two-
+                    # sided algo; false drop on a slow-quoting LEAP). _aggregate_side_
+                    # clean fails OPEN on a data gap. Neutralize (not suppress) by
+                    # default so real size still posts; aggregate_side_unclean_suppress
+                    # flips to a hard drop.
+                    if not _aggregate_side_clean(a, _thr):
+                        if _thr.get("aggregate_side_unclean_suppress", False):
+                            continue
+                        push_alert = _relabel_unverified(a)   # neutral card; feed row untouched
+                    else:
+                        _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
                 elif (_thr.get("side_confirm_enabled", True)
                         and a.get("_direction") in ("Bull", "Bear")
                         and not _side_confirms(a, _thr)):
@@ -7325,6 +7496,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "side_confirm_use_fill_nbbo", "side_confirm_fill_lookback_ms", "side_confirm_ask_tol",
         "block_darkpool_hedge_enabled", "block_dp_window_ms", "block_dp_min_shares",
         "block_darkpool_hedge_suppress",
+        # Aggregate fair-NBBO side gate (2026-11-05): Alpha LEAPS / Ask Accumulation
+        "aggregate_side_enabled", "aggregate_side_min", "aggregate_side_unclean_suppress",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top

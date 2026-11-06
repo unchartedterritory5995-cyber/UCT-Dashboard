@@ -82,7 +82,7 @@ function readIsPhone() {
  *   into this panel on EVERY width (Find, Outline). Rendered first, after any phone items, then a separator. `trigger`
  *   is this panel's own button, the one control that stays on screen, for an action that hands focus back later.
  */
-export default function NoteMoreMenu({ children, buttonClassName = '', phoneItems = null, leadItems = null }) {
+export default function NoteMoreMenu({ children, buttonClassName = '', phoneItems = null, leadItems = null, phoneTail = null }) {
   const [open, setOpen] = useState(false)
   const [onPhone, setOnPhone] = useState(false)
   const panelId = useId()
@@ -177,6 +177,9 @@ export default function NoteMoreMenu({ children, buttonClassName = '', phoneItem
             <div className={styles.sep} role="separator" />
           </>
         )}
+        {/* Final polish: a phone-only item AFTER the lead group (the Journal tools door on a note), so Ask, Find and
+            Outline stay first and Move to Trash stays last. */}
+        {onPhone && phoneTail && phoneTail({ close })}
         <MoreMenuOpenContext.Provider value={openPanel}>{children}</MoreMenuOpenContext.Provider>
       </div>
     </span>
