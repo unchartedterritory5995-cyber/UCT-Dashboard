@@ -708,10 +708,9 @@ def test_provider_mansfield_columns_match_the_shared_fixture_in_the_python_lane(
     for col in ("mansfieldCrossUp", "mansfieldCrossDown"):
         assert env["columns"][col] == exp[col], col
     # Pin moved 2026-11-06 (visual round A2): the dot is a cross UP only, centred
-    # on the zero line (value 0). The fixture's `dotMansfieldCross` still
-    # describes the old either-direction dot at the Mansfield value; the provider
-    # no longer serves that, so the wire is checked against the fixture's own
-    # `mansfieldCrossUp` column instead.
+    # on the zero line (value 0); the fixture's `dotMansfieldCross` was moved
+    # to the same rule on 2026-11-07, and the wire must equal it.
+    assert env["columns"]["dotMansfieldCross"] == exp["dotMansfieldCross"]
     fired = [i for i, v in enumerate(env["columns"]["dotMansfieldCross"]) if v is not None]
     ups = [i for i, v in enumerate(exp["mansfieldCrossUp"]) if v == 1.0 and exp["mansfield"][i] is not None]
     assert fired == ups and len(fired) >= 1
