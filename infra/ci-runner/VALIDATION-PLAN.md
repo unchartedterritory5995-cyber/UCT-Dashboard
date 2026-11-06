@@ -132,6 +132,19 @@ These numbers are for an i7-13700KF and do not predict a VPS. See 'Sizing'.
   `uct-vps-gate` and is not cancelled however long the queue. This is AUDIT's B3.
 - **PC result**: only the logic. The watch, promotion and verdict are unit-tested. **UNTESTED** against GitHub.
 
+## Real-run observation: what a branch dispatch reports
+
+`decide` counts a run only if `head_branch` is `master` and `event` is `push` or `workflow_dispatch`, and refuses if a counted run
+lacks either. Real runs already show both fields for `push`, `schedule` and `workflow_run`, and the real tool gave the right
+answer on a green, a failed and a cancelled master commit, with branch runs at the same SHA ignored. **A dispatch on a branch has
+not been observed.** AUDIT's D1 depends on it, so it must be seen once on a real run before routing is relied on:
+
+- **Run**, once the draft's dispatch trigger is on a branch, from a branch sitting at master's tip, on the cheapest dispatchable workflow:
+  `gh workflow run clock-parity-fixture.yml --ref <branch>`
+- **Read it**: `gh api "repos/<repo>/actions/runs?event=workflow_dispatch&branch=<branch>&per_page=1" --jq '.workflow_runs[0] | {head_branch, event, head_sha}'`
+- **Pass**: `head_branch` is the branch and not `master`, `event` is `workflow_dispatch`, `head_sha` is master's tip, and `python tools/promotion_gate.py --runs <file> --workflows <file>` gives the same verdict with and without that run.
+- **Stop if** `head_branch` reads `master` or is empty: `decide` would count or refuse on it, and AUDIT needs to know before routing merges.
+
 ## 10. Master gates intact
 
 - **Run**: `python -m pytest tests/test_ci_cost_rails.py tests/test_ci_runner_routing.py tests/test_uct_agent_deploy_gate.py tests/test_pine_runtime_deploy_gate.py -q`,

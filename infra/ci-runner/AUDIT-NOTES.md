@@ -11,8 +11,7 @@ validation, 10 shadow gates, switch.
 | Commit | Content | State |
 |---|---|---|
 | Routing and fixes | B3, B4, Q2, disk, slot capacity, docs | For review |
-| D1 | `decide` counts only master runs | Needed with routing: B4 creates the failing branch run |
-| `decide` supersede (Q4, D2) | Every gating workflow, cancelled only | Changes what promotion reads. Needed before the switch |
+| Promotion PR | Q4, D1, D2 and the event hardening | **Approved as one PR**, built as `agent/pl/promotion-superseded` from master. May land before routing, once the owner gives the go |
 | Switch | Eight workflows move to the VPS on master | **HOLD** for 10 shadow gates and the budgets re-baseline |
 | `ubuntu-26.04` pin (Q8) | `gate` and `verdict` only, not promote | **PENDING** until a real run proves the label |
 
@@ -47,7 +46,7 @@ In the switch commit, gating rails use `uct-vps-gate` on a master push too, so t
 The concurrency group becomes `refused-dispatch-<run id>` for a dispatch off master, so it never joins `master-deploy`. Every job
 starts with a refusal step (in `verdict`, after the fallback label), and `runs-on` sends such a run to hosted, so it never holds a reserved slot.
 
-**D1**: the runs query filters by commit, not branch, so a refused dispatch on a branch at master's tip used to read as a failed `master deploy gate` for master's SHA. `decide` now counts only runs with `head_branch == master`, and refuses if a gating run has no branch at all. That applies to every gating workflow. **Behaviour change**: a failed PR run on a commit that later becomes master's tip no longer refuses it, because it was not a run on master.
+**D1**: the runs query filters by commit, not branch, so a refused dispatch on a branch at master's tip used to read as a failed `master deploy gate` for master's SHA. `decide` now counts only runs with `head_branch == master` and `event` in `{push, workflow_dispatch}`, because a fork's branch can be named `master`. It refuses if a gating run has no branch, or a master run has no event. That applies to every gating workflow. **Behaviour change**: a failed PR run on a commit that later becomes master's tip no longer refuses it, because it was not a run on master.
 
 **The limit**: a dispatch runs the workflow file **on that branch**. A branch that edits the file can remove all of this, or name
 `master-deploy` or `uct-vps-gate` in any other workflow. The rails only bind what merges. Removing the Workflows permission from
@@ -146,7 +145,7 @@ Promotion claims are proved through the real `promotion_gate.decide`. GitHub's q
 gh workflow run agent-ci.yml --ref <branch> -f lane=hosted-fallback
 ```
 
-For master, the sequence below. **Rails first, gate last**: a green gate triggers promotion by itself, and a rail still cancelled or running at that moment refuses it.
+For master, the sequence below, with the owner's version in `OWNER-SETUP.md`. **Rails first, gate last**: a green gate triggers promotion by itself, and a rail still cancelled or running at that moment refuses it.
 
 ```sh
 R=unchartedterritory5995-cyber/UCT-Dashboard

@@ -183,6 +183,63 @@ Verify at github.com > repo > Settings > Actions > Runners: the right number of 
 lanes, exceed the physical cores**. It says why. To read the real core count, use `lscpu`: cores per socket x sockets, not
 `nproc`. On a VPS, ask the provider whether a vCPU is a full core: if it is a hyperthread, use half the vCPU count.
 
+## If the VPS is down: the manual fallback
+
+**When**: `ci queue watch` went red with `RUNNER LOOKS OFFLINE`, and master needs to promote before the VPS returns. If the VPS
+is coming back soon, skip this: restart it, run `gh run rerun <id> --failed` on each failed or cancelled run, then do step 5.
+
+**Who**: you, or AUDIT with your OK. Nothing enforces that, because everything is one account. Every step runs on GitHub-hosted
+runners and spends real minutes, and the spending limit still applies.
+
+**Rails first, gate last.** A green gate starts a promotion by itself. If a rail is still cancelled or running at that moment,
+that promotion refuses. Nothing is harmed, but you then need step 5.
+
+```powershell
+$R = 'unchartedterritory5995-cyber/UCT-Dashboard'
+$SHA = gh api "repos/$R/commits/master" --jq .sha
+```
+
+**1. List what is stuck for this commit, then cancel each.** `ci-queue-watch` may already have cancelled the gate. Never cancel
+anything named `promote to production`.
+
+```powershell
+gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=100" --jq '.workflow_runs[] | select(.status != "completed") | "\(.id) \(.name)"'
+gh run cancel <id> --repo $R
+```
+
+**2. Dispatch each rail that was cancelled, on master.** Before the switch commit the rails are hosted on master, so there is
+nothing to do here: skip to step 4.
+
+```powershell
+foreach ($w in 'wisdom-rails','term018-guards','optionsflow-guard','notebook-bytes','notebook-a11y') { gh workflow run "$w.yml" --repo $R --ref master -f lane=hosted-fallback }
+```
+
+**3. Wait until every rail is green.** Do not start the gate until this list shows `success` for all of them:
+
+```powershell
+gh api "repos/$R/actions/runs?head_sha=$SHA&event=workflow_dispatch&per_page=100" --jq '.workflow_runs[] | "\(.name) \(.status) \(.conclusion)"'
+```
+
+If a rail fails on hosted too, it is a real failure. Stop: promotion refuses it, and it should.
+
+**4. Dispatch the gate, on master, and wait for it.** Its summary will say `MANUAL HOSTED FALLBACK`.
+
+```powershell
+gh workflow run master-deploy-gate.yml --repo $R --ref master -f lane=hosted-fallback
+```
+
+**5. Check whether it promoted, and promote by hand if it did not.**
+
+```powershell
+git ls-remote origin refs/heads/production
+gh workflow run promote-production.yml --repo $R -f sha=$SHA
+```
+
+If `production` already shows `$SHA`, do not run the second command. If it refuses, read the reason in that run's log. Do not retry
+blindly: a cancelled run with no later green run, or any failure, refuses on purpose.
+
+**If master moves during this**, a dispatch runs the new tip, not `$SHA`. Stop and start again for the new tip.
+
 ## Rotation and updates
 
 - Tokens expire at 90 days. An expired token stops new runners, and the gate goes red, loudly.
