@@ -325,8 +325,8 @@ def _rs_column_methods() -> list:
                  f"counts as at its own high only within {tol:g}% of its {lb}-session high, "
                  f"the same tolerance everywhere the platform draws this dot. 0 when either "
                  f"half fails; blank where the RS high itself is blank. " + _RS_BAR_NOTE),
-         "caveat": ("Leaders often do this before they break out, which is why it is watched; "
-                    "it is not a guarantee that price follows. The reverse case, price at a "
+         "caveat": ("IBD calls it more bullish, not a precondition; no published study "
+                    "measures how often it precedes a breakout. The reverse case, price at a "
                     "high while RS is not, is the divergence to distrust.")},
         {"column": "rs_nh_red_day", "label": "RS New High on a Red Day",
          "one_line": "The RS line made a one-year high on a session SPY closed down.",
@@ -335,8 +335,8 @@ def _rs_column_methods() -> list:
                  f"{red:g}% or more against its prior close, the stress-test day; 0 when the "
                  f"high came on any other day; blank where the RS high itself is blank. "
                  + _RS_BAR_NOTE),
-         "caveat": ("Strength on a weak day is real demand more often than strength on a "
-                    "strong one, but a single red day is one observation. Read it beside "
+         "caveat": ("Strength on a weak day is what the UCT workshops watch for; it has not "
+                    "been measured publicly, and a single red day is one observation. Read it beside "
                     "Up on Down Days, which counts them.")},
         {"column": "rs_nh_bars_ago", "label": "RS New High Age (bars)",
          "one_line": "Sessions since the RS line last made a one-year high.",
@@ -381,8 +381,8 @@ def _rs_column_methods() -> list:
          "how": (f"Weinstein's Mansfield formula: the RS line times 100, divided by its own "
                  f"{mn}-session simple average, minus 1, as a percent (rounded to {p['dp']} "
                  f"places). Our reading is on {mn} DAILY bars, the curriculum's daily form of "
-                 f"his 52-week weekly average, never on weekly bars. Above zero means the "
-                 f"stock is outperforming its own past year against SPY; zero is average; "
+                 f"his 52-week weekly average, never on weekly bars. Above zero means the RS "
+                 f"line against SPY is above its own {mn}-session average; zero is at it; "
                  f"blank until {mn} sessions exist. " + _RS_BAR_NOTE),
          "caveat": ("A daily 200 and a weekly 52 are not the same number for the same stock, "
                     "and neither is Weinstein's own chart service's. Compare it with itself "

@@ -246,6 +246,28 @@ def test_no_bulk_filled_column_gains_an_invented_threshold():
 
 # ───────────────── the enum options come off the artifact ───────────────────
 
+def _rs_flags_on(monkeypatch):
+    """Arm both RS flags for one test (moved 2026-11-07, review finding #14 / unit
+    U6): `meta()` now leaves out an RS family whose writer's flag is off, so a rail
+    that reads the WHOLE family off `meta()` arms both flags first. The flags are
+    set where they live: `registry_defs.RS_V2_ENABLED`, and `api.main`'s
+    `rs_history_enabled` (a stand-in module when the app is not imported, so this
+    never builds the app). The dark behaviour itself is railed in
+    `tests/test_rs_fix_u6_screener_surfaces.py`."""
+    import sys
+    import types
+    from api.services.signature import registry_defs
+    monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+    main = sys.modules.get("api.main")
+    if main is not None:
+        monkeypatch.setattr(main, "rs_history_enabled", lambda: True, raising=False)
+    else:
+        stub = types.ModuleType("api.main")
+        stub.rs_history_enabled = lambda: True
+        stub.app = types.SimpleNamespace(dependency_overrides={})
+        monkeypatch.setitem(sys.modules, "api.main", stub)
+
+
 def _snapshot(tmp_path, monkeypatch, rows):
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
     import api.services.screener.snapshot_db as db
@@ -898,6 +920,7 @@ def test_a_measured_band_is_NOT_an_editorial_preset(tmp_path, monkeypatch):
     it as one.
     """
     _snapshot(tmp_path, monkeypatch, _band_rows())
+    _rs_flags_on(monkeypatch)   # 2026-11-07 (U6): every deferred control is served
     by_key = {f["key"]: f for f in filters.meta()["filters"]}
 
     deferred = {k: f for k, f in filters.FILTERS.items()
@@ -1207,12 +1230,13 @@ def test_the_rs_writers_are_read_and_disjoint():
     assert set(bars) | set(ratings) <= set(snapshot_db.COLUMNS)
 
 
-def test_every_rs_column_has_a_control_in_ONE_family_and_a_seat_in_ITS_view():
+def test_every_rs_column_has_a_control_in_ONE_family_and_a_seat_in_ITS_view(monkeypatch):
     """⛔ A FILLED COLUMN IS A SCREENABLE ONE, and a family with no view is half
     shipped. Every RS column has a control keyed by its own name (so the
     column's `desc` reaches the control — `ColumnDesc` joins on filter.key),
     sits in the one Relative Strength category, and has a seat in the family's
     own view. The category is rendered (CATEGORIES) and served (meta)."""
+    _rs_flags_on(monkeypatch)   # 2026-11-07 (U6): served while both writers are armed
     bars, _flags = _rs_bar_columns()
     for col in (*bars, *_rs_rating_columns()):
         f = filters.FILTERS.get(col)
@@ -1337,6 +1361,7 @@ def test_rs_controls_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypatch):
     assert tickers({"key": "rs_rating_3m", "op": "gte", "min": 90}) == ["LEAD"]
     assert tickers({"key": "rs_rating_12m", "op": "lte", "max": 50}) == ["LAG"]
     # …and the served meta types every RS control as the panel will render it
+    _rs_flags_on(monkeypatch)   # 2026-11-07 (U6): the family is served only when armed
     served = {f["key"]: f["type"] for f in filters.meta()["filters"]}
     bars, flags = _rs_bar_columns()
     for key in (*bars, *_rs_rating_columns()):

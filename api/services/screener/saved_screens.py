@@ -484,8 +484,14 @@ def premarket_starters():
 
 #: UCT RELATIVE STRENGTH starters (Phase 2a, unit 2a-08): plain-English names
 #: over the filter keys `filters.py` ships for the ten BAR-DERIVED columns
-#: (`rs_columns.COLUMNS`, the builder's `_step("bars_rs")`), which fill on the
-#: first nightly build after deploy with no flag to flip.
+#: (`rs_columns.COLUMNS`, the builder's `_step("bars_rs")`).
+#: ⚰️ This said they "fill on the first nightly build after deploy with no flag
+#: to flip". Corrected 2026-11-07 (review findings #12, #5): the `bars_rs` step
+#: follows `registry_defs.RS_V2_ENABLED` (review unit U3), so with the flag off the ten columns
+#: are NULL and every starter here would be a screen that found nothing.
+#: `rs_starters()` therefore returns nothing unless that flag is on, the same
+#: shape as `archive_starters()`. The group label has its own row in the
+#: client's `screenGroups.js` GROUPS (it used to fall back to Momentum leaders).
 #:
 #: ⛔ NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD. `rs_rating_ibd` and
 #: the six beside it read the `rs_rating_history` side table, and the job that
@@ -517,7 +523,20 @@ _RS_LIQUID = ({"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
               {"key": "price", "op": "gte", "min": 5})
 
 
+def rs_v2_enabled() -> bool:
+    """`registry_defs.RS_V2_ENABLED`, read at call time. Unreadable ⇒ off (dark)."""
+    try:
+        from api.services.signature import registry_defs  # noqa: PLC0415 - lazy
+        return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+    except Exception:  # noqa: BLE001 -- an unreadable gate shows nothing
+        return False
+
+
 def rs_starters():
+    """The seven RS starters, or none while RS_V2_ENABLED is off (see above)."""
+    if not rs_v2_enabled():
+        return []
+
     def liquid():
         return [dict(f) for f in _RS_LIQUID]
 
