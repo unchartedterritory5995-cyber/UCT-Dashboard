@@ -88,7 +88,9 @@ export function gradeTarget(spec, rec, { roles = {}, before = null, asked = fals
   const text = String(rec.receipt || '').toLowerCase()
   for (const role of Object.keys(roles)) {
     if (rec.landed.includes(role)) continue
-    const named = namesOf(role, roles, before).find(n => text.includes(n.toLowerCase()))
+    // a symbol a chart that did change also shows names that chart, not this one
+    const shared = (n) => rec.landed.some(r => namesOf(r, roles, before).includes(n))
+    const named = namesOf(role, roles, before).find(n => text.includes(n.toLowerCase()) && !shared(n))
     if (named) push(`the receipt does not name ${role}, which did not change`, false, `${show}; receipt names "${named}"`)
   }
   return C
