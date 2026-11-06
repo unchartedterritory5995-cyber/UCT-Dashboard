@@ -64,8 +64,6 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from api.services import alert_rs_series
-
 Series = list[Optional[float]]
 
 
@@ -388,13 +386,16 @@ SERIES_FUNCS: dict[str, Callable[[list[dict], dict], Series]] = {
     # ── 2026-11-04: the one CROSS address (its own partition — NOT a level in
     # `INDICATOR_FUNCS`, so the frozen replay grid does not move) ──
     "ma_cross": _series_ma_cross,
-    # ── 2026-11-06 (RS 2b-04): the UCT Relative Strength addresses — a SECOND
-    # SYMBOL, so `fn.reads_benchmark` is their call shape (`alert_user_series.
-    # call_series` passes tf and sym) and the evaluator gives them a partition of
-    # their own (2b-05: `RS_FUNCS`, excluded from `INDICATOR_FUNCS` so the
-    # 28-wide frozen grid is untouched). Appended LAST, by the same
-    # append-never-reorder rule `close` and `ma_cross` followed. ──
-    **alert_rs_series.RS_SERIES,
+    # ── 2026-11-06 (RS 2b-04): the UCT Relative Strength addresses (`alert_rs_
+    # series.RS_SERIES`, a SECOND SYMBOL — `fn.reads_benchmark` is their call
+    # shape) are NOT appended at import. `alert_rs_series.register_rs_series()`
+    # appends them LAST, by the same append-never-reorder rule `close` and
+    # `ma_cross` followed, and unit 2b-05 calls it where it declares their
+    # partition (`RS_FUNCS`, excluded from `INDICATOR_FUNCS` so the 28-wide
+    # frozen grid is untouched), conditions, labels and decimals: the evaluator
+    # derives its tables from THIS dict at import and `alert_catalog()` indexes
+    # `ALERT_CONDITIONS[address]`, so an entry here without its rows is a
+    # KeyError on the live catalog. ──
 }
 
 
@@ -420,7 +421,8 @@ def address_lookback(address: str, params: Optional[dict]) -> Optional[int]:
     """The history this address DECLARES it reads for these params, or None.
 
     Metadata, like `address_inputs` — read off the column function (`fn.lookback`:
-    `ma_cross` and the RS addresses). `None` means "nothing declared", and the caller keeps
+    `ma_cross`, and the RS addresses once `alert_rs_series.register_rs_series` has
+    added them). `None` means "nothing declared", and the caller keeps
     its knob-sum rule.
     """
     own = getattr(SERIES_FUNCS.get(address), "lookback", None)

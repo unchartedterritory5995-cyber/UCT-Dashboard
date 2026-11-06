@@ -72,6 +72,25 @@ class _Store:
         return bars[-int(want):] if int(want) < len(bars) else list(bars)
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _rs_registered():
+    """⛔ THE ENTRIES ARE REGISTERED HERE, NOT AT IMPORT. `register_rs_series` is
+    unit 2b-05's call (beside the partition and the catalog rows); this module
+    makes it for its own duration and undoes it, so every other alert test file
+    sees the 32-entry table it has always seen."""
+    before = list(alert_series.SERIES_FUNCS)
+    assert not any(a in before for a in ars.RS_ADDRESSES), "nothing registered at import"
+    added = ars.register_rs_series()
+    assert added == ars.RS_ADDRESSES
+    assert ars.register_rs_series() == (), "idempotent"
+    try:
+        yield
+    finally:
+        removed = ars.unregister_rs_series()
+        assert removed == ars.RS_ADDRESSES
+        assert list(alert_series.SERIES_FUNCS) == before, "the table is exactly as it was"
+
+
 def _expected(address, bars, bench, params):
     """The chart's own number for this address: straight off `relative_strength`."""
     spec = ars.RS_ADDRESS_SPECS[address]
@@ -90,6 +109,27 @@ def _series(address, bars, params, *, store, tf="D", sym="TEST"):
 
 
 # ─── the table ───────────────────────────────────────────────────────────────
+
+def test_registration_is_explicit_idempotent_and_appends_last():
+    """On a private table, so the module fixture's registration is not disturbed."""
+    table = {"rsi": alert_series.SERIES_FUNCS["rsi"], "ma_cross": alert_series.SERIES_FUNCS["ma_cross"]}
+    assert ars.register_rs_series(table) == ars.RS_ADDRESSES
+    assert list(table) == ["rsi", "ma_cross", *ars.RS_ADDRESSES], "appended LAST, in catalog order"
+    assert all(table[a] is ars.RS_SERIES[a] for a in ars.RS_ADDRESSES)
+    assert ars.register_rs_series(table) == (), "a second call adds nothing"
+    # an entry already present — somebody's stub — is neither replaced nor removed
+    stub = lambda bars, params: [None] * len(bars)  # noqa: E731
+    partial = {"rs_line.value": stub}
+    assert ars.register_rs_series(partial) == tuple(a for a in ars.RS_ADDRESSES if a != "rs_line.value")
+    assert partial["rs_line.value"] is stub
+    assert ars.unregister_rs_series(partial) == tuple(a for a in ars.RS_ADDRESSES if a != "rs_line.value")
+    assert list(partial) == ["rs_line.value"]
+    assert ars.unregister_rs_series(table) == ars.RS_ADDRESSES and list(table) == ["rsi", "ma_cross"]
+    assert ars.unregister_rs_series(table) == ()
+    # the evaluator's derived tables were built at ITS import, before any registration
+    assert not any(a in ev.INDICATOR_FUNCS for a in ars.RS_ADDRESSES)
+    assert not any(a in ev.all_addresses() for a in ars.RS_ADDRESSES)
+
 
 def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
     keys = list(alert_series.SERIES_FUNCS)
@@ -431,7 +471,7 @@ def test_normalize_stores_one_spelling():
 
 # ─── the declared lookback and the evaluator's window ───────────────────────
 
-def test_declared_lookback_is_the_convergence_prefix_and_the_evaluator_reads_it():
+def test_declared_lookback_is_the_convergence_prefix_and_the_evaluator_reads_it(monkeypatch):
     lb = alert_series.address_lookback
     assert lb("rs_line.value", {}) == 0
     assert lb("rs_line.ma", {}) == 21 * ars.EMA_PREFIX_MULT == 126
@@ -445,6 +485,16 @@ def test_declared_lookback_is_the_convergence_prefix_and_the_evaluator_reads_it(
 
     def alert(address, params):
         return {"indicator": address, "sym": "TEST", "tf": "D", "params_json": json.dumps(params)}
+    # ⛔ `resolve_address` lowercases the stored string and maps it through the
+    # evaluator's IMPORT-TIME `_CANONICAL_ADDRESS`. The RS addresses are camelCase,
+    # so until 2b-05 registers them BEFORE that map is built the evaluator cannot
+    # find the column and the window falls to the floor — pinned here so the
+    # dependency is a sentence somebody reads, not a surprise.
+    assert ev.resolve_address("rs_line.crossUp") == "rs_line.crossup"
+    assert ev.bars_needed_for_alert(alert("rs_line.crossUp", {})) == ev.BARS_MIN == 400
+    for a in ars.RS_ADDRESSES:
+        monkeypatch.setitem(ev._CANONICAL_ADDRESS, a.lower(), a)   # what registration before the map gives
+    assert ev.resolve_address("RS_LINE.CROSSUP") == "rs_line.crossUp"
     assert ev.bars_needed_for_alert(alert("rs_line.crossUp", {})) == ev.bars_wanted(126) == 526
     assert ev.bars_needed_for_alert(alert("rs_line.newHigh", {})) == ev.bars_wanted(252) == 652
     assert ev.bars_needed_for_alert(alert("rs_line.value", {})) == ev.BARS_MIN == 400

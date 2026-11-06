@@ -34,12 +34,18 @@ through `rs_benchmarks.resolve_benchmark` (the chart's SECTOR / INDUSTRY /
 fallback rules), the columns through the two compute functions the chart, the
 screener and this lane all read.
 
-⚠️ WHAT THE EVALUATOR STILL HAS TO DECLARE (unit 2b-05). The entries are
-appended to `SERIES_FUNCS` here; the evaluator derives `INDICATOR_FUNCS` from
-that table minus its named partitions, so until 2b-05 adds the `RS_FUNCS`
-partition (`RS_ADDRESSES` below), the `ALERT_CONDITIONS` / `THRESHOLD_OPERAND`
-/ `ALERT_BASE_LABELS` / `ALERT_VALUE_DECIMALS` rows and the `CLOSED_ONLY`
-membership, `alert_catalog()` has no condition list for these addresses.
+⛔ THE ENTRIES ARE NOT IN `SERIES_FUNCS` UNTIL SOMEBODY REGISTERS THEM.
+`register_rs_series()` appends `RS_SERIES` to `alert_series.SERIES_FUNCS`
+(last, idempotently) and is NOT called at import: the evaluator derives
+`INDICATOR_FUNCS`, `ADDRESS_PARTITIONS` and the catalog from that table at ITS
+import, and `alert_catalog()` indexes `ALERT_CONDITIONS[address]`, so an entry
+in the table without its rows is a `KeyError` on the live catalog. Unit 2b-05
+calls it where it declares the `RS_FUNCS` partition (`RS_ADDRESSES` below,
+excluded from `INDICATOR_FUNCS`), the `CLOSED_ONLY` membership and the
+`ALERT_CONDITIONS` / `THRESHOLD_OPERAND` / `ALERT_BASE_LABELS` /
+`ALERT_VALUE_DECIMALS` rows — all together. Until then the columns exist here
+and are reachable only by a caller holding them (this unit's tests register
+them in a fixture and unregister after).
 """
 
 from __future__ import annotations
@@ -516,6 +522,46 @@ def _rs_column(address: str) -> Callable[..., Series]:
     return fn
 
 
-#: ⭐ THE ENTRIES `alert_series.SERIES_FUNCS` APPENDS, in catalog order.
+#: ⭐ THE ENTRIES `register_rs_series` APPENDS to `alert_series.SERIES_FUNCS`, in catalog order.
 RS_SERIES: dict[str, Callable[..., Series]] = {a: _rs_column(a) for a in RS_ADDRESS_SPECS}
 RS_ADDRESSES: tuple[str, ...] = tuple(RS_SERIES)
+
+
+# ─── registration: explicit, idempotent, never at import ────────────────────
+
+def register_rs_series(series_funcs: Optional[dict] = None) -> tuple[str, ...]:
+    """Append `RS_SERIES` to `alert_series.SERIES_FUNCS` (or to ``series_funcs``),
+    AFTER every entry already there, and return the addresses THIS call added
+    (``()`` when every one was present: idempotent, and an entry already in the
+    table — a test's stub included — is left exactly as it is).
+
+    ⛔ NOT CALLED AT IMPORT, by design (module docstring): the evaluator's
+    derived tables and `alert_catalog()`'s `ALERT_CONDITIONS[address]` make an
+    unregistered-but-present address a live `KeyError`. Unit 2b-05 calls this
+    where it declares the partition, conditions, labels and decimals, so the
+    addresses and their rows land in one place.
+    """
+    if series_funcs is None:
+        from api.services import alert_series
+        series_funcs = alert_series.SERIES_FUNCS
+    added = []
+    for address, fn in RS_SERIES.items():
+        if address not in series_funcs:
+            series_funcs[address] = fn
+            added.append(address)
+    return tuple(added)
+
+
+def unregister_rs_series(series_funcs: Optional[dict] = None) -> tuple[str, ...]:
+    """The inverse, for a fixture's teardown: remove the RS entries that are this
+    module's own functions and return the addresses removed. An address bound
+    to something else (a stub) is left alone."""
+    if series_funcs is None:
+        from api.services import alert_series
+        series_funcs = alert_series.SERIES_FUNCS
+    removed = []
+    for address, fn in RS_SERIES.items():
+        if series_funcs.get(address) is fn:
+            del series_funcs[address]
+            removed.append(address)
+    return tuple(removed)
