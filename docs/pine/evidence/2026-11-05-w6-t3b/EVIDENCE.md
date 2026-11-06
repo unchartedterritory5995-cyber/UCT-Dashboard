@@ -25,7 +25,7 @@ jsfail, classified:
   tip alone `runs/w6t3b/rerun.log`, 3 failed | 200 passed both sides):
   `controlDoorCensus` (flags master's `app/src/agent/guide/slots.js`), `usePreferences.additionsOnly` (flags master's
   `notebook/TodayHome.jsx`), `vendorHarness.coverageAudit` (delta-rsi INCONCLUSIVE). None touch this lane's files.
-- ready-check: FAILS only on those three master reds (outside its allowlist); see the bottom of this file.
+- `ready-check.sh pine-dsk-w6t3b runs/w6t3b-final`: **READY-CHECK PASS** (HEAD b44e74ce53, TIP afea7afaf5, docs-only after TIP).
 
 ## State
 - Branch `feat/pine-w6-t3b-expr-type`; code commit `e105a1f9a3`; merges: T3a tip `7dc6a77d1b`, origin/master
