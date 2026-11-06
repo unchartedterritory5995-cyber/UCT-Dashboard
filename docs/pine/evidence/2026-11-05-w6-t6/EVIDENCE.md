@@ -1,4 +1,4 @@
-NEXT STEP: re-run the FULL final-tip on code tip 2513b7e18c (`bash runs/w6-t6/ft.sh` under lane_env w6-t6 LOCK_FINAL2, after ram_gate), then `scripts/ready-check.sh pine-dsk-w6t6 $UCT_RESUME/runs/w6-t6-final`; then independent Opus review. Engine bump: YES.
+NEXT STEP (WAIT for the coordinator's go, heavy queue): FULL final-tip on merged tip 9912d08b16 (`bash runs/w6-t6/ft.sh`, lane_env w6-t6 LOCK_FINAL2, after ram_gate), then `scripts/ready-check.sh pine-dsk-w6t6 $UCT_RESUME/runs/w6-t6-final`. Review: GO-WITH-NOTES (dsk/reviews/W6-T6.md). Engine bump: YES.
 
 # W6-T6 `for … in` on the runtime lane — evidence
 
@@ -90,3 +90,15 @@ saved-script prebump, runtime definitions, language coverage). The full vitest s
 wrapper was stopped at ~10:24 by the session's low-memory reaper, so no FINAL_DONE was written. The two orphaned shard
 processes (this lane's, created 09:54:46) were stopped so they would not run outside the lock; no other process
 touched. Ready-check therefore not run. Re-run is the next step.
+
+## Round 2 — review GO-WITH-NOTES (`dsk/reviews/W6-T6.md`): N1 fixed, origin/master merged
+- N1: a list HELD by the loop element and changed in the walk (`array.push(q.arr, v)`, `q.arr.push(v)`, `array.clear(q.arr)`,
+  or a helper handed `q` that does so) was served with no capture; now refused by name. One rule in `forInRule.js`
+  (`heldListMutation`, `forInHeldListRefusal`), read by the FE body guard and by the helper scan (`forInFnWritesField`).
+  Queue row Q-W6T6-H. Rail: `w6ForIn.test.js` "a write to the loop variable, or through it" (three shapes + the helper;
+  control: READING `array.size(q.arr)` in the walk is served). Mutation (`runs/w6-t6/mutN1.py`, log `mutN1.log`,
+  --maxWorkers=1): N0 no-op control SURVIVED; N1 drop the guard KILLED. `objectForInLoops.test.js` 55/55 (host unchanged).
+- Merged origin/master `3e8dc3fae5` (W9-T1, dark, disjoint) with a normal merge commit: `9912d08b16`, clean.
+  Targeted on the merged tree (--maxWorkers=1): w6ForIn + w6ForInRuntime + objectDoorGate 119/119.
+- The round-1 measure-pair (base 2f40ee68c5) still classifies this lane's own diffs: N1 only adds a refusal on a shape no
+  census row or capture reached as served (the 16 moved rows' walls are unchanged: none walks a field-held list).
