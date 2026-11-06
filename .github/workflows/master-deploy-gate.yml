@@ -86,7 +86,7 @@ concurrency:
 jobs:
   gate:
     name: deploy-correctness checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 60   # 40 -> 60 (2026-11-04, owner-approved): release train 2 ran the gate 35.2 of 40 min on 3d3d444d4f (Agent vitest 23.7 min, serial); 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest); 25 -> 40 (2026-11-02): Sprint 1 grew the Agent vitest step to 16.2 min and the gate ran 23.5 of 25 min on c3ba71c343
     steps:
       # A dispatch from any branch but master is refused here and in `concurrency` (AUDIT B4).
@@ -660,7 +660,7 @@ jobs:
     name: master deploy gate verdict
     needs: [gate, agent-server, agent-browser, agent-browser-union, pine-runtime]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Label a manual hosted fallback run

@@ -50,6 +50,11 @@ ROUTED = {
 }
 
 
+#: AUDIT Q8: `ubuntu-latest` floats while the VPS image is pinned, so the two gate jobs that stay hosted pin the same OS.
+#: Promotion is left on `ubuntu-latest` on purpose.
+HOSTED_PINNED = {("master-deploy-gate.yml", "gate"): "ubuntu-26.04", ("master-deploy-gate.yml", "verdict"): "ubuntu-26.04"}
+
+
 def _text(name):
     return (WORKFLOWS / name).read_text(encoding="utf-8")
 
@@ -80,7 +85,7 @@ def test_every_job_runs_where_it_is_pinned():
     for name, job_id, job in _jobs():
         if "uses" in job:        # a call into a pinned workflow, which has no runs-on of its own
             continue
-        want = ROUTED.get((name, job_id), HOSTED)
+        want = {**ROUTED, **HOSTED_PINNED}.get((name, job_id), HOSTED)
         if job.get("runs-on") != want:
             wrong.append(f"{name}:{job_id} runs-on {job.get('runs-on')!r}")
     assert not wrong, "jobs not on their pinned machine:\n" + "\n".join(wrong)
@@ -93,7 +98,7 @@ def test_the_routing_table_names_only_real_jobs():
 
 @pytest.mark.parametrize("job_id", ["gate", "verdict"])
 def test_the_gate_core_stays_hosted_as_a_literal(job_id):
-    assert _gate()["jobs"][job_id]["runs-on"] == HOSTED
+    assert _gate()["jobs"][job_id]["runs-on"] == "ubuntu-26.04"
 
 
 def test_promotion_stays_hosted_as_a_literal():
