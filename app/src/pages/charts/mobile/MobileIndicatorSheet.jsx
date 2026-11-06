@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
 import * as engineRegistry from '../../../components/chart/engine/nativeRegistry'
 import { catalogRows, userCatalogRows, catalogGeneration } from '../../../components/chart/indicatorCatalog'
 import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/IndicatorLibraryDialog'
-import { fieldFromInput } from '../../../components/chart/indicatorRegistry'
-import { setInstanceInput, removeInstance } from '../../../components/chart/engine/instanceControls'
+import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed } from '../../../components/chart/indicatorRegistry'
+import { setInstanceInput, removeInstance, applyPresetInputs } from '../../../components/chart/engine/instanceControls'
 import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryButtons'
 import UnavailableIndicators from '../../../components/chart/UnavailableIndicators'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
@@ -25,12 +25,85 @@ function liveInstanceOf(cs, defId) {
   return list.find((i) => i && typeof i === 'object' && !isInstanceTombstone(i) && i.defId === defId) || null
 }
 
+// ─── THE PRESET STATE (UCT RS Phase 2a, unit 2a-11) ─────────────────────────
+//
+// ⚠️ DUPLICATED FROM `IndicatorSettingsDialog.jsx` (`presetsOf`, `detectPreset`),
+// where both are file-private. Unit 2a-11 may not edit that file and may not
+// re-export from it, so the phone carries the same two rules verbatim; unit
+// 2a-15 (the integration unit, which owns the dialog) collapses the pair into
+// one shared export. Keep the RULE identical until then: a preset matches when
+// EVERY key it declares equals the resolved value; the first match wins; a
+// preset with no keys never matches. Nothing is stored on the instance — "which
+// preset is this" is derived from the inputs, so it cannot drift from the chart.
+
+/** The sentinel the Custom chip carries in `data-preset-id`. Not a preset id,
+ *  never written anywhere — the dialog's `CUSTOM_PRESET`, same value. */
+const CUSTOM_PRESET = '__custom'
+
+/** The definition's declared presets (`meta.presets`), shape-filtered so a
+ *  malformed entry renders nothing rather than a broken chip. */
+function presetsOf(def) {
+  const raw = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  return raw.filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id
+    && typeof p.label === 'string' && p.inputs && typeof p.inputs === 'object' && !Array.isArray(p.inputs))
+}
+
+/** The preset whose EVERY declared key equals the resolved value — or `null`
+ *  for Custom. Compared against the RESOLVED values (declared defaults under
+ *  stored inputs), so a fresh instance whose defaults are a preset's values
+ *  reads as that preset. */
+function detectPreset(presets, values) {
+  for (const p of presets) {
+    const keys = Object.keys(p.inputs)
+    if (!keys.length) continue
+    if (keys.every((k) => values[k] === p.inputs[k])) return p
+  }
+  return null
+}
+
+// ─── ONE FIELD ROW ───────────────────────────────────────────────────────────
+//
+// Every editor row is a `ParamRow`: the label-and-control line (`.paramRow`,
+// unchanged) and, under it, the input's `tooltip` as plain help text — there is
+// no hover on a phone, so the help is always visible and reaches assistive
+// tech through `aria-describedby` on the controls, never through their name.
+//
+// ⛔ `activeWhen` DIMS, NEVER REMOVES. A control that vanishes teaches the
+// member it does not exist; one that is visibly inert teaches them what to
+// change first. The row keeps its place and its text at reduced opacity, the
+// controls are `disabled` + `aria-disabled`, and `data-active` says which.
+function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, children }) {
+  return (
+    <div
+      className={`${styles.paramField} ${active ? '' : styles.paramFieldOff}`}
+      data-input-key={inputKey}
+      data-active={active ? 'true' : 'false'}
+      role="group"
+      aria-labelledby={labelId}
+      aria-disabled={active ? undefined : 'true'}
+    >
+      <div className={styles.paramRow}>
+        <span className={styles.indName} id={labelId}>{label}</span>
+        {children}
+      </div>
+      {tip && <span className={styles.paramTip} id={tipId}>{tip}</span>}
+    </div>
+  )
+}
+
+/** The aria every control in a row shares: its help text and its inert state. */
+const controlAria = (tipId, active) => ({
+  ...(tipId ? { 'aria-describedby': tipId } : null),
+  disabled: !active,
+  'aria-disabled': String(!active),
+})
+
 /** Stepper row for an int/float input — the TradingView-mobile idiom: big −/+
  *  around the value, clamped to the definition's declared range. The VALUE is
  *  tappable (wave 11): it opens an inline numeric input, because a stepper
  *  alone made period 20→200 a 180-tap trip. Commit on Enter/blur clamps to the
  *  declared range; Escape abandons the draft. */
-function StepRow({ label, value, min, max, step = 1, onChange }) {
+function StepRow({ inputKey, label, labelId, tip, tipId, active = true, value, min, max, step = 1, onChange }) {
   const v = Number(value)
   const [draft, setDraft] = useState(null)   // null = showing the value, string = typing
   const dec = () => onChange(Math.max(min ?? -Infinity, +(v - step).toFixed(4)))
@@ -42,17 +115,18 @@ function StepRow({ label, value, min, max, step = 1, onChange }) {
     if (!Number.isFinite(n)) return
     onChange(Math.max(min ?? -Infinity, Math.min(max ?? Infinity, n)))
   }
+  const aria = controlAria(tipId, active)
   return (
-    <div className={styles.paramRow}>
-      <span className={styles.indName}>{label}</span>
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}>
       <div className={styles.stepper}>
-        <button type="button" className={styles.stepBtn} onClick={dec} aria-label={`Decrease ${label}`}>−</button>
+        <button type="button" className={styles.stepBtn} onClick={dec} aria-label={`Decrease ${label}`} {...aria}>−</button>
         {draft == null ? (
           <button
             type="button"
             className={styles.stepVal}
             onClick={() => setDraft(String(value))}
             aria-label={`Type ${label}`}
+            {...aria}
           >{value}</button>
         ) : (
           <input
@@ -73,11 +147,12 @@ function StepRow({ label, value, min, max, step = 1, onChange }) {
               if (e.key === 'Escape') setDraft(null)
             }}
             aria-label={label}
+            {...aria}
           />
         )}
-        <button type="button" className={styles.stepBtn} onClick={inc} aria-label={`Increase ${label}`}>+</button>
+        <button type="button" className={styles.stepBtn} onClick={inc} aria-label={`Increase ${label}`} {...aria}>+</button>
       </div>
-    </div>
+    </ParamRow>
   )
 }
 
@@ -86,10 +161,10 @@ function StepRow({ label, value, min, max, step = 1, onChange }) {
  *  the desktop's own `fieldFromInput` (one type-vocabulary authority — a
  *  hand-copied option list here is how a pickable value the compute refuses
  *  gets shipped). Writes the RAW typed value, never the label. */
-function ChipRow({ label, value, options, onChange }) {
+function ChipRow({ inputKey, label, labelId, tip, tipId, active = true, value, options, onChange }) {
+  const aria = controlAria(tipId, active)
   return (
-    <div className={styles.paramRow}>
-      <span className={styles.indName}>{label}</span>
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}>
       <div className={styles.chipsWrap}>
         {options.map(([val, lab]) => (
           <button
@@ -98,17 +173,18 @@ function ChipRow({ label, value, options, onChange }) {
             className={`${styles.chipOpt} ${value === val ? styles.chipOptOn : ''}`}
             onClick={() => onChange(val)}
             aria-pressed={value === val}
+            {...aria}
           >{lab}</button>
         ))}
       </div>
-    </div>
+    </ParamRow>
   )
 }
 
-function SwatchRow({ label, value, onChange }) {
+function SwatchRow({ inputKey, label, labelId, tip, tipId, active = true, value, onChange }) {
+  const aria = controlAria(tipId, active)
   return (
-    <div className={styles.paramRow}>
-      <span className={styles.indName}>{label}</span>
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}>
       <div className={styles.swatches}>
         {SWATCHES.map((c) => (
           <button
@@ -118,10 +194,31 @@ function SwatchRow({ label, value, onChange }) {
             style={{ background: c }}
             onClick={() => onChange(c)}
             aria-label={`${label} ${c}`}
+            {...aria}
           />
         ))}
       </div>
-    </div>
+    </ParamRow>
+  )
+}
+
+/** Bool input as the sheet's iOS-style switch. */
+function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value, onChange }) {
+  const aria = controlAria(tipId, active)
+  return (
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={!!value}
+        aria-label={label}
+        className={`${styles.switch} ${value ? styles.switchOn : ''}`}
+        onClick={() => onChange(!value)}
+        {...aria}
+      >
+        <span className={styles.knob} />
+      </button>
+    </ParamRow>
   )
 }
 
@@ -150,6 +247,7 @@ import { safeCssColour } from '../../../components/chart/engine/objectColour'
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
 export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
+  const uid = useId()
   const chartIqAllowed = useChartIqAllowed()
   const overlays = averageSlotView(cs)
   // Wave 8: tap a row's NAME to edit its parameters in a stacked mini-sheet —
@@ -242,6 +340,120 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     const inst = editInstanceOf(editing.defId, editing.instanceId)
     return def && inst ? { title: def.meta?.name || def.id, def, inst } : null
   })()
+
+  // ── the study editor's model (UCT RS Phase 2a, unit 2a-11) ───────────────
+  //
+  // ⛔ NOT A SECOND GENERATOR. `fieldsForInstance` is the call the desktop
+  // dialog makes: the generated fields in declaration order, each carrying its
+  // `group` / `inline` / `tooltip` / `activeWhen`, and `values` resolved as
+  // "declared default under the stored input". The hand loop over `def.inputs`
+  // this replaced read the raw types and dropped the presentation modifiers.
+  // `sectionize` (the registry's export, the dialog's own rule) turns the
+  // fields into ordered sections; a definition with no `group` yields one
+  // headerless section, so RSI renders the rows it always did.
+  const studyDef = editing?.kind === 'study' ? editTarget?.def || null : null
+  const studyInst = editing?.kind === 'study' ? editTarget?.inst || null : null
+  const studyModel = useMemo(
+    () => (studyDef && studyInst ? fieldsForInstance(studyDef, studyInst) : null),
+    [studyDef, studyInst],
+  )
+  const sections = useMemo(
+    () => (studyDef && studyModel ? sectionize(studyDef, studyModel.all) : []),
+    [studyDef, studyModel],
+  )
+  const presets = useMemo(() => presetsOf(studyDef), [studyDef])
+  const currentPreset = studyModel ? detectPreset(presets, studyModel.values) : null
+
+  // Collapse state, SEEDED from the definition's `meta.groupsCollapsed` hint
+  // (`initialCollapsed`) each time the editor target changes — a group the
+  // member has toggled keeps their choice for the life of that editor, and the
+  // next editor starts from its own definition's hint. Render-time adjustment,
+  // the same idiom as `initialEditing` above, so the first paint of a new
+  // editor is already folded (an effect would paint it open, then fold).
+  const [collapsed, setCollapsed] = useState({})
+  const [collapsedFor, setCollapsedFor] = useState(null)
+  if (editing !== collapsedFor) {
+    setCollapsedFor(editing)
+    const seed = {}
+    for (const g of initialCollapsed(studyDef)) seed[g] = true
+    setCollapsed(seed)
+  }
+
+  // The preset chips write through `applyPresetInputs` — a loop over
+  // `setInstanceInput`, the one door every row here writes through — so a
+  // preset value the definition would refuse never lands, and the write is
+  // ONE `onWrite` whatever the preset's key count. Identity return = nothing
+  // changed (every key already stored at the preset's value) = persist nothing.
+  const applyPreset = (preset) => {
+    if (!studyDef || !studyInst || !preset) return
+    haptics.tap()
+    const next = applyPresetInputs(cs, studyInst.instanceId, studyDef, preset, engineRegistry)
+    if (next !== cs) onWrite({ ...next, preset: 'custom' })
+  }
+
+  const renderStudyField = (f) => {
+    const cur = studyModel.values[f.key]
+    const active = evalActiveWhen(f.activeWhen, studyModel.values)
+    const id = `${uid}-${f.key}`
+    const common = {
+      inputKey: f.key,
+      label: f.label,
+      labelId: `${id}-lbl`,
+      tip: f.tooltip || null,
+      tipId: f.tooltip ? `${id}-tip` : null,
+      active,
+    }
+    const write = (v) => writeStudyInput(editing.defId, f.key, v)
+    switch (f.type) {
+      case 'number':
+        return <StepRow key={f.key} {...common} value={cur} min={f.min} max={f.max} step={f.step} onChange={write} />
+      case 'color':
+        return <SwatchRow key={f.key} {...common} value={cur} onChange={write} />
+      case 'toggle':
+        return <SwitchRow key={f.key} {...common} value={!!cur} onChange={write} />
+      case 'select':
+        return <ChipRow key={f.key} {...common} value={cur} options={f.options || []} onChange={write} />
+      default:
+        // `source`, `datetime`, `session`: no phone control yet — the same gap
+        // the hand loop had (returned null for them), named rather than hidden.
+        return null
+    }
+  }
+
+  const renderSection = (section, si) => {
+    const gid = `${uid}-g${si}`
+    const body = section.rows.map((item, ii) => (
+      item.kind === 'row'
+        ? renderStudyField(item.field)
+        : (
+          // `inline` packs keep their identity on the phone but render one
+          // control per line: two steppers side by side do not clear 44px on a
+          // 390px screen.
+          <div key={`${gid}-p${ii}`} data-inline-group={item.inline}>
+            {item.fields.map(renderStudyField)}
+          </div>
+        )
+    ))
+    if (!section.group) return <div key={gid} className={styles.paramGroup}>{body}</div>
+    const isOpen = !collapsed[section.group]
+    return (
+      <div key={gid} className={styles.paramGroup} data-group={section.group}>
+        <button
+          type="button"
+          className={styles.groupHead}
+          aria-expanded={isOpen}
+          aria-controls={`${gid}-body`}
+          onClick={() => setCollapsed((c) => ({ ...c, [section.group]: isOpen }))}
+        >
+          <span>{section.label}</span>
+          <span className={styles.groupHeadIcon} aria-hidden="true">
+            <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
+          </span>
+        </button>
+        {isOpen && <div id={`${gid}-body`}>{body}</div>}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -380,7 +592,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
       <div className={styles.sheetList}>
         {editing?.kind === 'ma' && editTarget?.o && (
           <>
-            <div className={styles.paramRow}>
+            <div className={styles.paramRow} data-input-key="type">
               <span className={styles.indName}>Average type</span>
               <div className={styles.segRow} role="radiogroup" aria-label="Average type">
                 {/* ⭐ An adopted average may be any kit type (HMA, WMA, …): it is
@@ -398,84 +610,71 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
               </div>
             </div>
             <StepRow
+              inputKey="period"
               label="Period"
+              labelId={`${uid}-ma-period-lbl`}
               value={editTarget.o.period}
               min={1}
               max={400}
               onChange={(v) => writeOverlay(editing.idx, { period: v })}
             />
             <SwatchRow
+              inputKey="color"
               label="Color"
+              labelId={`${uid}-ma-color-lbl`}
               value={editTarget.o.color}
               onChange={(c) => writeOverlay(editing.idx, { color: c })}
             />
           </>
         )}
 
-        {editing?.kind === 'study' && editTarget?.def && (
+        {editing?.kind === 'study' && studyDef && studyModel && (
           <>
-            {(editTarget.def.inputs || []).map((inp) => {
-              const cur = editTarget.inst.inputs?.[inp.key] ?? inp.default
-              if (inp.type === 'int' || inp.type === 'float') {
-                return (
-                  <StepRow
-                    key={inp.key}
-                    label={inp.label || inp.key}
-                    value={cur}
-                    min={inp.min}
-                    max={inp.max}
-                    step={inp.step || (inp.type === 'float' ? 0.1 : 1)}
-                    onChange={(v) => writeStudyInput(editing.defId, inp.key, v)}
-                  />
-                )
-              }
-              if (inp.type === 'color') {
-                return (
-                  <SwatchRow
-                    key={inp.key}
-                    label={inp.label || inp.key}
-                    value={cur}
-                    onChange={(c) => writeStudyInput(editing.defId, inp.key, c)}
-                  />
-                )
-              }
-              if (inp.type === 'bool') {
-                return (
-                  <div key={inp.key} className={styles.paramRow}>
-                    <span className={styles.indName}>{inp.label || inp.key}</span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={!!cur}
-                      aria-label={inp.label || inp.key}
-                      className={`${styles.switch} ${cur ? styles.switchOn : ''}`}
-                      onClick={() => writeStudyInput(editing.defId, inp.key, !cur)}
-                    >
-                      <span className={styles.knob} />
-                    </button>
+            {/* The preset row — first, and only when the definition declares
+                presets (`meta.presets`). One gold chip = the preset the resolved
+                values match (gold is "look here", and there is at most one).
+                "Custom" is a STATE, not a control: it is where a tweak lands and
+                there is nothing to apply, so it is a chip that cannot be
+                pressed — the dialog's CUSTOM_PRESET option, which is a no-op
+                when chosen. The matched preset's origin line reads as help
+                text under the chips, as the dialog shows it under its select. */}
+            {presets.length > 0 && (
+              <div
+                className={`${styles.paramField} ${styles.presetRow}`}
+                data-testid="preset-row"
+                data-preset={currentPreset ? currentPreset.id : CUSTOM_PRESET}
+                role="group"
+                aria-labelledby={`${uid}-preset-lbl`}
+              >
+                <div className={styles.paramRow}>
+                  <span className={styles.indName} id={`${uid}-preset-lbl`}>Preset</span>
+                  <div className={styles.chipsWrap}>
+                    {presets.map((p) => {
+                      const on = !!currentPreset && currentPreset.id === p.id
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`${styles.chipOpt} ${on ? styles.chipOptOn : ''}`}
+                          aria-pressed={on}
+                          data-preset-id={p.id}
+                          onClick={() => applyPreset(p)}
+                        >{p.label}</button>
+                      )
+                    })}
+                    <span
+                      className={`${styles.chipOpt} ${styles.presetCustom} ${currentPreset ? '' : styles.chipOptOn}`}
+                      aria-current={currentPreset ? undefined : 'true'}
+                      data-preset-id={CUSTOM_PRESET}
+                    >Custom</span>
                   </div>
-                )
-              }
-              // Anything else goes through the desktop's own type→field mapper
-              // (indicatorRegistry.fieldFromInput) rather than a fourth hand-
-              // written copy of the type vocabulary. Today that catches `enum`
-              // (AVWAP's anchor, VWAP/AVWAP line style, RS Line's benchmark) —
-              // inputs this editor silently DROPPED before, worst of them the
-              // anchor that defines what AVWAP is.
-              const field = fieldFromInput(inp)
-              if (field?.type === 'select') {
-                return (
-                  <ChipRow
-                    key={inp.key}
-                    label={field.label}
-                    value={cur}
-                    options={field.options}
-                    onChange={(v) => writeStudyInput(editing.defId, inp.key, v)}
-                  />
-                )
-              }
-              return null
-            })}
+                </div>
+                {currentPreset && currentPreset.origin && (
+                  <span className={styles.paramTip} data-testid="preset-origin">{currentPreset.origin}</span>
+                )}
+              </div>
+            )}
+            {sections.map(renderSection)}
             <button
               type="button"
               className={`${styles.row} ${styles.removeRow}`}

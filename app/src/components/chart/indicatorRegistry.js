@@ -443,6 +443,104 @@ export function fieldsForInstance(def, instance) {
   }
 }
 
+// ─── THE GROUPING HELPERS (spec §3.1 `group` / `inline`, plan §6.3 `groupsCollapsed`) ──
+//
+// ⭐ UCT RS PHASE 2a, UNIT 2a-11 — these three are the settings dialog's own
+// `sectionize` / `packRows` / `startsCollapsed`, lifted here so the phone sheet
+// and the dialog read ONE answer to "which rows share a section, which rows
+// share a line, which groups start folded". The dialog keeps its private copy
+// until unit 2a-15 swaps it to these exports (that unit owns the dialog file);
+// the rules below are the dialog's rules, byte for byte in effect, so that swap
+// changes no pixel. Pure: no React, no DOM, no registry read.
+
+/** §6: `inline` packs up to THREE same-type controls onto one row; a fourth wraps. */
+export const INLINE_MAX = 3
+
+/**
+ * The groups a definition asks to START collapsed — `meta.groupsCollapsed`,
+ * strings only, as a Set. A default, not a lock: the consumer keeps the member's
+ * own toggles and reads this only for a group they have not touched. A
+ * definition with no hint, or junk in it, yields an empty Set (everything opens).
+ */
+export function initialCollapsed(def) {
+  const raw = def && def.meta && Array.isArray(def.meta.groupsCollapsed) ? def.meta.groupsCollapsed : []
+  return new Set(raw.filter((g) => typeof g === 'string' && g))
+}
+
+const fieldOf = (item, byKey) => {
+  if (typeof item !== 'string') return item
+  if (!byKey) return null
+  if (byKey instanceof Map) return byKey.get(item) || null
+  return Object.prototype.hasOwnProperty.call(byKey, item) ? byKey[item] : null
+}
+
+/**
+ * Rows for a compact layout: a run of consecutive fields sharing an `inline`
+ * name AND a generated `type` is chunked at `INLINE_MAX` into packs; everything
+ * else is its own row. Mixed types never pack (three widths on one row is a
+ * layout, not a lie — the dialog's rule, pinned by its tests). Layout only:
+ * every field that arrives here leaves here, in order.
+ *
+ * @param {Array<object|string>} fields  generated fields (`fieldsForInstance(...).all`
+ *   or a slice of it), or their KEYS resolved through `byKey`
+ * @param {Map|object} [byKey]  key → field, needed only when `fields` holds keys
+ * @returns {Array<{kind:'row', field, keys:[string]} | {kind:'pack', inline, fields, keys}>}
+ */
+export function packRows(fields, byKey) {
+  const list = (Array.isArray(fields) ? fields : []).map((f) => fieldOf(f, byKey)).filter((f) => f && typeof f.key === 'string')
+  const out = []
+  let i = 0
+  while (i < list.length) {
+    const f = list[i]
+    if (!f.inline) { out.push({ kind: 'row', field: f, keys: [f.key] }); i += 1; continue }
+    let j = i + 1
+    while (j < list.length && list[j].inline === f.inline && list[j].type === f.type) j += 1
+    for (let k = i; k < j; k += INLINE_MAX) {
+      const slice = list.slice(k, Math.min(k + INLINE_MAX, j))
+      out.push({ kind: 'pack', inline: f.inline, fields: slice, keys: slice.map((x) => x.key) })
+    }
+    i = j
+  }
+  return out
+}
+
+/**
+ * Sections by declared `group`, in FIRST-APPEARANCE order, each carrying its
+ * fields in declaration order, its packed rows and whether the definition asks
+ * it to start collapsed. Ungrouped fields keep a headerless section
+ * (`group: null`), so a definition that declares no group renders exactly what
+ * it did before groups existed: one section, no head, never collapsed.
+ *
+ * @param {object} def     a registered definition (read for `meta.groupsCollapsed`)
+ * @param {Array<object>} [fields]  the generated fields to section — all of
+ *   them, or one tab's half (`.inputs` / `.style`); defaults to every field of
+ *   the definition at its declared defaults
+ * @returns {Array<{group: string|null, label: string|null, keys: string[], fields: object[], rows: object[], collapsed: boolean}>}
+ */
+export function sectionize(def, fields) {
+  const list = Array.isArray(fields) ? fields : fieldsForInstance(def, null).all
+  const hint = initialCollapsed(def)
+  const order = []
+  const byGroup = new Map()
+  for (const f of list) {
+    if (!f || typeof f.key !== 'string') continue
+    const g = typeof f.group === 'string' && f.group ? f.group : null
+    if (!byGroup.has(g)) { byGroup.set(g, []); order.push(g) }
+    byGroup.get(g).push(f)
+  }
+  return order.map((g) => {
+    const fs = byGroup.get(g)
+    return {
+      group: g,
+      label: g,
+      keys: fs.map((f) => f.key),
+      fields: fs,
+      rows: packRows(fs),
+      collapsed: g !== null && hint.has(g),
+    }
+  })
+}
+
 /** EVERY live (non-tombstoned) instance of a definition, in STORED ORDER.
  *
  * ⭐ chart-UX-walls TASK 6 — THIS WAS `liveInstanceFor`, WHICH TOOK THE FIRST

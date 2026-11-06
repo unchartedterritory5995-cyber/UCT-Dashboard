@@ -1022,6 +1022,72 @@
 
 .removeRow .rowLabel { color: var(--loss); }
 
+/* ── Study editor: groups, help text, dimming, presets (UCT RS Phase 2a, 2a-11) ─
+   One field = .paramField, a column: the .paramRow line (label + control,
+   unchanged above) and, under it, the input's tooltip as always-visible help
+   text — there is no hover on a phone. .paramRow itself keeps its metrics so
+   the MA editor's hand-rolled rows are untouched. Tokens only; the font is
+   Instrument Sans inherited from the sheet. */
+.paramField { display: flex; flex-direction: column; }
+.paramTip {
+  padding: 0 16px 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+/* `activeWhen` false: DIMMED, never removed. The row keeps its place and stays
+   readable at reduced opacity so the member learns what to change first; its
+   controls are also `disabled`, so the dim is never the only signal. */
+.paramFieldOff { opacity: 0.4; }
+.paramFieldOff .indName { color: var(--text-muted); }
+.stepBtn:disabled,
+.stepVal:disabled,
+.chipOpt:disabled,
+.swatch:disabled,
+.switch:disabled { cursor: default; }
+.stepBtn:disabled:active,
+.chipOpt:disabled:active { background: none; }
+
+/* Group head: a 44px disclosure row in the .sectionLabel voice, chevron on the
+   right, body unmounted while collapsed. Open reads brighter, never gold —
+   gold is reserved for the one active preset chip. */
+.paramGroup { display: flex; flex-direction: column; }
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.groupHead:active { background: var(--bg-hover); }
+.groupHead[aria-expanded="true"] { color: var(--text-bright); }
+.groupHeadIcon { display: flex; align-items: center; color: var(--text-dim); }
+
+/* Preset row: the first row of a study editor whose definition declares
+   presets. The chips reuse .chipOpt; the matched preset is the one gold chip.
+   "Custom" is a state chip (a span), not a control, so it takes no pointer. */
+.presetRow { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.presetCustom { display: inline-flex; align-items: center; cursor: default; }
+
 /* ── Layouts sheet (MobileLayoutsSheet) ─────────────────────────────────────
    The phone's door to the EXISTING workspace/layout system. Rows reuse .row /
    .rowIcon / .rowLabel above; only the two-control row (open + delete), the
