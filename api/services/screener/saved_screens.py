@@ -482,6 +482,110 @@ def premarket_starters():
     ]
 
 
+#: UCT RELATIVE STRENGTH starters (Phase 2a, unit 2a-08): plain-English names
+#: over the filter keys `filters.py` ships for the ten BAR-DERIVED columns
+#: (`rs_columns.COLUMNS`, the builder's `_step("bars_rs")`), which fill on the
+#: first nightly build after deploy with no flag to flip.
+#:
+#: ⛔ NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD. `rs_rating_ibd` and
+#: the six beside it read the `rs_rating_history` side table, and the job that
+#: writes it (`rs_history_nightly`, 04:15 ET) is DARK behind `RS_HISTORY_ENABLED`
+#: (unit 2a-04's ledger entry): non-null on zero prod rows BY CONSTRUCTION, so a
+#: starter on one would return nothing forever — the exact class
+#: `test_screener_saved._KNOWN_EMPTY_IN_PROD` exists for, and the seven are named
+#: there, dated. HELD BACK on 2026-11-06, to ship after the first clean fill
+#: (delete the seven ban entries the same day):
+#:   "RS 90+ (IBD-style)"          rs_rating_ibd >= 90
+#:   "RS 90+ in a leading sector"  rs_rating_ibd >= 90 and sector_rs_pct >= 80
+#:   "RS rating climbing"          rs_rating_chg_20 >= 10 and rs_rating_ibd >= 70
+#:
+#: ⚠️ THRESHOLDS ARE EDITORIAL CLAIMS (`_open_range`'s docstring) and the owner
+#: has not yet approved the set (engineering map §5, open question 5). Every
+#: number below is either one the firm already publishes ($10M+ traded, price
+#: $5+, RS 80+) or the rule's own definition (a flag at 1, a cross whose age is
+#: inside one month of 21 sessions, up on 3+ of 20). Hit counts against a prod
+#: snapshot are UNMEASURED at 2026-11-06 — the collector merged the same day —
+#: and several describe genuinely uncommon events that SHOULD be empty on a
+#: quiet tape (the "counts are a snapshot, not a guarantee" note above).
+#: ⚠️ Mansfield is read on 200 DAILY bars (`rs_columns.MANSFIELD_LENGTH`); the
+#: plan's "(weekly)" wording is not what the column computes, so no name here
+#: says weekly.
+RS_STARTER_GROUP = "Relative strength"
+#: The two published floors every RS starter carries: $10M+ traded is the
+#: `dollar_vol_30d` preset, price $5+ the floor the flagship starters use.
+_RS_LIQUID = ({"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
+              {"key": "price", "op": "gte", "min": 5})
+
+
+def rs_starters():
+    def liquid():
+        return [dict(f) for f in _RS_LIQUID]
+
+    return [
+        {"id": "starter_rs_new_high", "name": "RS new highs (52-week)",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY closed the last session at a 52-week high on daily bars, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_new_high", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_rs_nh_before_price", "name": "RS new high before price",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line made a 52-week high on the last session while price is still more than 2% below its own 52-week high, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_nh_before_price", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_rs_nh_red_day", "name": "RS new highs on a red day",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line made a 52-week high on a session SPY closed down 0.5% or more, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_nh_red_day", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_rs_green_on_red", "name": "Up on down days (3+ of 20)",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks that closed up on at least 3 of the last 20 sessions' SPY down days (SPY down 0.5% or more), $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "green_on_red_20", "op": "gte", "min": 3},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "green_on_red_20", "dir": "desc"}}},
+        # The age keeps counting after a cross the line has since given back
+        # (`relative_strength.bars_ago_column`), so "still above" is a second
+        # clause, the same rule `_RUN_RULE` states for the run columns.
+        {"id": "starter_rs_cross_up_21ema", "name": "RS line crossed above its 21 EMA within 5 bars",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY crossed above its 21-day EMA within the last 5 sessions and is still above it, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_cross_up_bars_ago", "op": "between", "min": 0, "max": 5},
+             {"key": "rs_line_above_ma", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_cross_up_bars_ago", "dir": "asc"}}},
+        # The zero-cross age counts crosses in EITHER direction, so the sign
+        # clause is what makes "turned positive" true.
+        {"id": "starter_rs_mansfield_positive", "name": "Mansfield turned positive this month",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose Mansfield RS (the RS line against its own 200-day average) crossed zero within the last 21 sessions and reads above zero now, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "mansfield_cross_bars_ago", "op": "lte", "max": 21},
+             {"key": "mansfield", "op": "gt", "min": 0},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "mansfield", "dir": "desc"}}},
+        # Agreement alone cuts both ways (two falling slopes agree too), so the
+        # leaders clause is the published RS 80+ floor plus the line above its
+        # average; `rs_rank` is the fast UCT rating and fills in prod today.
+        {"id": "starter_rs_leaders_equal_weight", "name": "Leaders vs equal-weight too",
+         "group": RS_STARTER_GROUP,
+         "description": "RS 80+ stocks whose RS line is above its 21-day EMA and whose 20-day RS slope has the same sign against SPY and against equal-weight RSP, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_rank", "op": "gte", "min": 80},
+             {"key": "rs_benchmark_agree", "op": "eq", "value": 1},
+             {"key": "rs_line_above_ma", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+    ]
+
+
 def starters(user=None):
     """Every starter this user may see. The Extended hours pair joins only when
     `premarket.served_to(user)`; with no user that is a member's answer, so a caller
@@ -746,4 +850,4 @@ def _starter_defs():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ] + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()
+    ] + rs_starters() + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()

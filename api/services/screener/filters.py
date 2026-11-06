@@ -695,6 +695,61 @@ FILTERS = dict([
            {"label": "Rising", "op": "eq", "value": "up"},
            {"label": "Flat", "op": "eq", "value": "flat"},
            {"label": "Falling", "op": "eq", "value": "down"}]),
+    # ── relative strength (UCT Relative Strength, Phase 2a unit 2a-08) ──
+    # ⭐ ONE WRITER EACH, AND THE CONTROL SAYS NO MORE THAN THE WRITER DOES. The
+    # ten bar-derived columns are `rs_columns.collect_one` (the builder's
+    # `_step("bars_rs")`): the last bar of the SAME `relative_strength`
+    # columns the chart's rsLine draws, so a scan, a chart dot and an alert
+    # read one answer. The seven rating columns are `_read_rs_history_fields`
+    # over the `rs_rating_history` side table the 04:15 ET job writes — read
+    # by the 03:00 build, so a row carries the rating as of the session
+    # BEFORE its `bars_asof` (snapshot_db's column comment states it).
+    # ⚠️ NULL, never 0, wherever the window is short (252 prior bars for the
+    # 52-week columns, 200 for Mansfield), the benchmark has no bar at the
+    # row's date, a hole sits inside the lookback, or the rating table has no
+    # row for the name (a dark job, a name outside the rated population).
+    # ⭐ A FLAG IS Yes/No OVER A STORED 1/0 — the flag IS the boundary, the
+    # `pattern_engine_*` / `optionable` reasoning, so nothing editorial rides
+    # on a `_bool`. Every age, count, percent and percentile ships BARE
+    # (`_open_range`): no threshold on them is published. The ONE exception is
+    # `rs_rating_ibd`, which carries the 80 / 90 thresholds `rs_rank` already
+    # publishes above (engineering map §2.5 "Controls": "only rs_rating_ibd
+    # may carry Over 80/90 presets (identical to rs_rank's published
+    # thresholds)"). `test_screener_filters.py` derives all of this from the
+    # two writers, never from a list retyped here.
+    # ⚠️ Mansfield is on 200 DAILY bars (`rs_columns.MANSFIELD_LENGTH`), the
+    # curriculum's daily reading of Weinstein's 52-WEEK average — the label
+    # must never say "weekly". It is a PERCENT above or below that average.
+    _bool("rs_new_high", "RS New High (52-week)", "relative_strength", "rs_new_high"),
+    _bool("rs_nh_before_price", "RS New High Before Price", "relative_strength",
+          "rs_nh_before_price"),
+    _bool("rs_nh_red_day", "RS New High on a Red Day", "relative_strength",
+          "rs_nh_red_day"),
+    _open_range("rs_nh_bars_ago", "RS New High Age (bars)", "relative_strength",
+                "rs_nh_bars_ago"),
+    _open_range("green_on_red_20", "Up on Down Days (of 20)", "relative_strength",
+                "green_on_red_20"),
+    _bool("rs_line_above_ma", "RS Line Above 21 EMA", "relative_strength",
+          "rs_line_above_ma"),
+    _open_range("rs_cross_up_bars_ago", "RS Line Cross-Up Age (bars)",
+                "relative_strength", "rs_cross_up_bars_ago"),
+    _open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield", unit="%"),
+    _open_range("mansfield_cross_bars_ago", "Mansfield Zero-Cross Age (bars)",
+                "relative_strength", "mansfield_cross_bars_ago"),
+    _bool("rs_benchmark_agree", "RS Agrees vs SPY and RSP", "relative_strength",
+          "rs_benchmark_agree"),
+    _range("rs_rating_ibd", "RS Rating (IBD-style)", "relative_strength", "rs_rating_ibd",
+           [{"label": "Any"},
+            {"label": "Over 80", "op": "gte", "min": 80},
+            {"label": "Over 90", "op": "gte", "min": 90}]),
+    _open_range("rs_rating_chg_5", "RS Rating Change (5 sessions)", "relative_strength",
+                "rs_rating_chg_5"),
+    _open_range("rs_rating_chg_20", "RS Rating Change (20 sessions)", "relative_strength",
+                "rs_rating_chg_20"),
+    _open_range("rs_rating_1m", "1M Return Rank", "relative_strength", "rs_rating_1m"),
+    _open_range("rs_rating_3m", "3M Return Rank", "relative_strength", "rs_rating_3m"),
+    _open_range("rs_rating_6m", "6M Return Rank", "relative_strength", "rs_rating_6m"),
+    _open_range("rs_rating_12m", "12M Return Rank", "relative_strength", "rs_rating_12m"),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1023,7 +1078,8 @@ VIEWS = {
     "momentum": {"label": "Momentum", "columns": [
         "ticker", "company", "candle_score", "pct_vs_ema20", "close_cv_pct",
         "avg_body_pct_5", "pole_pct", "adr_pct", "vol_nweek_low",
-        "vol_updown_ratio", "rs_line_trend", "chg_pct_1d"]},
+        "vol_updown_ratio", "rs_line_trend", "rs_rating_ibd", "rs_new_high",
+        "rs_nh_before_price", "chg_pct_1d"]},
     # ⭐ THE THREE VIEWS BELOW EXIST BECAUSE SOMEBODY OPENED THE SCREEN
     # (2026-08-23). Waves 5-6 shipped three whole data families — the pattern
     # engine, dark-pool/options positioning, and the ownership/short block —
@@ -1095,6 +1151,19 @@ VIEWS = {
         "archive_traders_n", "archive_last_call_date", "archive_last_setup",
         "archive_last_r20", "archive_setup", "archive_setup_edge_r",
         "archive_setup_edge_20d", "archive_setup_n"]},
+    # UCT RELATIVE STRENGTH (Phase 2a, 2a-08): every one of the seventeen RS
+    # columns has its seat HERE, so the family is never filterable-and-
+    # invisible (the rail above this block). The three a trader asks of any
+    # list — the rating, the 52-week RS high and the high-before-price — also
+    # sit in Momentum. `rs_rank` leads so the fast UCT rating and the
+    # IBD-style one read side by side, as the chart chip shows them.
+    "relative_strength": {"label": "Relative Strength", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_ibd",
+        "rs_rating_chg_5", "rs_rating_chg_20", "rs_new_high", "rs_nh_before_price",
+        "rs_nh_red_day", "rs_nh_bars_ago", "green_on_red_20", "rs_line_above_ma",
+        "rs_cross_up_bars_ago", "mansfield", "mansfield_cross_bars_ago",
+        "rs_benchmark_agree", "rs_rating_1m", "rs_rating_3m", "rs_rating_6m",
+        "rs_rating_12m"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1129,6 +1198,11 @@ CATEGORIES = [
     # category keeps its position; `pattern_engine_*` joined the existing
     # "pattern" category instead of minting a second pattern group (K5).
     {"key": "flow", "label": "Positioning & Flow"},
+    # UCT Relative Strength (Phase 2a, 2a-08): the seventeen RS columns are one
+    # family with one writer pair, so they get one group rather than being
+    # scattered across Technical and Momentum. Appended for the same reason
+    # `flow` was.
+    {"key": "relative_strength", "label": "Relative Strength"},
 ]
 
 
