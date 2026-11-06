@@ -19,7 +19,7 @@ const ALL_FEATURES = { templates: true, groups: true, workspace: true }
 import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
-import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
+import { LAYOUTS, GRID_MAX_CELLS, gridTemplateLayout } from './gridLayouts'
 import { fetchGroups, fetchGroupTop, fetchPeers, pinEtf } from './groupsApi'
 import { neighborGroup } from './groupRecents'
 import GroupPicker from './GroupPicker'
@@ -106,17 +106,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
     try {
       await saveLayout({
         name: nm,
-        // widgets:[] satisfies the backend's arrangement-shape validation;
-        // kind marks it so the workspace Open-layout menu filters it out.
-        layout: {
-          kind: 'multichart',
-          widgets: [],
-          layout: mc.state.layout,
-          // A forked cell's own chart settings travel with the named layout
-          // (policy A) — sanitizeState carries them back on apply.
-          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null, ...(c.settings ? { settings: c.settings } : {}) })),
-          group: mc.state.group || null,
-        },
+        layout: gridTemplateLayout(mc.state),
         groups: null,
         scope: isAdmin ? saveScope : 'user',
       })

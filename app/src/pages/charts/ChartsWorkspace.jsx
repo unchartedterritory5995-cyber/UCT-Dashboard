@@ -3125,6 +3125,9 @@ function ChartsWorkspaceBoard() {
   // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
   const agentReplayRef = useRef(null)
   agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
+  // ⭐ Multi Chart for UCT Agent: the hook the menu writes through, and the saved grids it lists.
+  const agentMultiChartRef = useRef(null)
+  agentMultiChartRef.current = { mc, global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout }
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3155,6 +3158,7 @@ function ChartsWorkspaceBoard() {
       extraGroups: () => extraGroupsOnRef.current === true,
     },
     layouts: () => agentLayoutsRef.current,
+    multiChart: () => agentMultiChartRef.current,
     watchlists: {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),

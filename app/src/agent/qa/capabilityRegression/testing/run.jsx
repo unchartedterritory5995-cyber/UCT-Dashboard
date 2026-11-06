@@ -154,6 +154,8 @@ export function checkExpect(ctx, e, label) {
     if (e.drafts.revision != null) expect(open[0]?.revision, `${label}: the draft's revision`).toBe(e.drafts.revision)
     if ('name' in e.drafts) expect(open[0]?.name ?? null, `${label}: the draft's name`).toBe(e.drafts.name)
   }
+  if (e.multiChart) for (const [k, v] of Object.entries(e.multiChart)) expect(ctx.st.mc[k] ?? null, `${label}: Multi Chart ${k}`).toEqual(v)
+  if (e.multiChartSaved) expect(ctx.st.mcSaved.map(t => t.name), `${label}: the saved grids`).toEqual(e.multiChartSaved)
   if (e.prefs) for (const [k, v] of Object.entries(e.prefs)) expect(ctx.st.prefs[k], `${label}: preference ${k}`).toEqual(v)
   if (e.templates) {
     const names = (() => { try { return JSON.parse(ctx.st.prefs.chart_templates || '[]').map(t => t.name) } catch { return [] } })()

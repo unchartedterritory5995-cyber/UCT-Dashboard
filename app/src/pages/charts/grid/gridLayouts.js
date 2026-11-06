@@ -38,6 +38,20 @@ export function parseLayoutId(layoutId) {
   return makeLayout(Number(m[1]), Number(m[2]))
 }
 
+// What "Save grid as…" stores: the board as a named multichart layout. widgets:[] satisfies the backend's
+// arrangement-shape validation; kind marks it so the workspace Open-layout menu filters it out. A forked cell's own chart
+// settings travel with the named layout (policy A) — sanitizeState carries them back on apply. The menu and UCT Agent
+// both save through this, so the two can never store different things.
+export function gridTemplateLayout(state) {
+  return {
+    kind: 'multichart',
+    widgets: [],
+    layout: state.layout,
+    cells: state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null, ...(c.settings ? { settings: c.settings } : {}) })),
+    group: state.group || null,
+  }
+}
+
 function genId() {
   return Math.random().toString(36).slice(2, 8)
 }

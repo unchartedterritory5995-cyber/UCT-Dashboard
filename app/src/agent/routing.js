@@ -84,6 +84,15 @@ export const GROUPS = [
       // only — the model had no grid and no add, and put four tickers on TABS of one chart): a count of charts said
       // anywhere, and equal sizing, name this group too (routing only ADDS)
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
+  // ⭐ Multi Chart as a mode (capabilities/multiChartMode.js), in its OWN group for the same reason as chartGrid. Add-only and
+  // riding along, as `undo`: these words only put the group in front of the model, what else is sent is exactly as before.
+  // They carry no meaning: the model reads the request against the actions' own descriptions.
+  { id: 'multiChart', title: 'Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell', domains: ['multiChart'], fillLast: true, addOnly: true, ridesAlong: true,
+    words: [/\bmulti[\s-]?(?:charts?|grids?)\b/, /\bgrid (?:mode|view)\b/, /\b(?:un|de)?sync(?:h|ed|hed|ing|hing|s|hroni[sz]\w*)?\b/, /\b(?:saved|my) (?:\w+ )?grids?\b|\bsave (?:this|the|my) grid\b/,
+      /\bcross ?hairs?\b.*\b(?:together|across|between|every|all|each)\b|\b(?:link|lock|tie|share)\b.*\bcross ?hairs?\b/,
+      /\b(?:exit|leave|quit|close|out of)\b.*\bgrid\b/, /\bback to (?:the |my )?(?:workspace|board|normal view|single chart)\b/,
+      /\b(?:maximi[sz]e|unmaximi[sz]e|full[\s-]?screen|restore the grid)\b/, /\breset\b.*\b(?:cell|grid)\b/,
+      /\b(?:next|previous|prev|refresh)(?: the| this)? group\b|\bgroups? mode\b|\bexit groups\b/] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
   { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal', domains: ['board'], fillLast: true,

@@ -218,6 +218,16 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     })
   }, [apply, deviceClass])
 
+  // ⭐ UCT Agent's exact Undo of a change to the grid itself: these fields back exactly as they were, and nothing else —
+  // `cells` verbatim (ids, tickers, per-cell settings, the tail a smaller layout dropped), `mode` through the device's own
+  // scope. Unlike restoreCells it may leave `mode` alone and put the layout back: an Undo reverses only what its change touched.
+  const restoreFields = useCallback(({ mode, ...fields }) => {
+    apply(prev => {
+      const next = { ...prev, ...fields }
+      return mode === undefined ? next : writeScopedField(next, deviceClass, 'mode', mode)
+    })
+  }, [apply, deviceClass])
+
   const setGroup = useCallback((group) => {
     apply(prev => ({ ...prev, group: group || null }))
   }, [apply])
@@ -259,6 +269,6 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     state, hydrated,
     settingsOpen, setSettingsOpen,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, setGroupsMode, applyGridTemplate,
-    fillCells, restoreCells, setGroup, clearGroup, flushSave,
+    fillCells, restoreCells, restoreFields, setGroup, clearGroup, flushSave,
   }
 }

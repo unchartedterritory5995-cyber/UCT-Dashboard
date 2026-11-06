@@ -1471,6 +1471,149 @@
    ],
    "fast": true
   },
+  "multiChart.deleteSaved": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChartSaved",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.enter": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.exit": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.loadGroup": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.maximize": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "gridCell",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.openSaved": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.resetCell": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "gridCell",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.restoreGrid": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.saveGrid": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChartSaved",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.setOption": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.status": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "news.catalysts": {
    "domain": "news",
    "group": "data",
