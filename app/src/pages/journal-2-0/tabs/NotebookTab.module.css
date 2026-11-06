@@ -661,6 +661,21 @@
      258 px), not only its header. */
   .mainNote { position: relative; }
   .mainNote [data-note-header] { padding-left: calc(var(--tap-min) + 8px); }
+  /* Final polish (WebKit at 390 px): Folders took a row of its own above the note. It joins the back button's row: a 44 px
+     icon door right of the chevron (its name, "Show folders", stays), and the header is padded past both. */
+  .wrap[data-note-open] > .noteFoldersBtn {
+    position: absolute;
+    top: var(--space-sm);
+    left: calc(var(--tap-min) + var(--space-sm));
+    z-index: 41;
+    width: var(--tap-min);
+    margin: 0;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+  }
+  .wrap[data-note-open] > .noteFoldersBtn .sidebarToggleLabel { display: none; }
+  .wrap[data-note-open] .mainNote [data-note-header] { padding-left: calc(2 * var(--tap-min) + 2 * var(--space-sm)); }
   .phoneBack {
     display: inline-flex;
     position: absolute;
