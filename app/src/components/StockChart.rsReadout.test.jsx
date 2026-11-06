@@ -125,8 +125,14 @@ const CARD = Object.freeze({
   what: 'What the RS line is measured against.',
   origin: 'IBD draws RS against the S&P 500; the sector ETF isolates the stock from its group.',
   evidence: 'Persistence over 6 to 12 months; no published hit rate for the dot.',
+  // 2b-09: the evidence line reads the payload when it carries a sentence here
+  evidenceSource: 'scalar:evidence.sentence.benchmark',
   learn: 'beforePrice',
 })
+/** `rs_evidence_pull.HONESTY_SENTENCE` and the measured sentence `sentence_for` builds
+ *  over the 2b-01 fixture (`tests/test_rs_evidence_pull.py`), both verbatim. */
+const HONESTY = 'No published hit rate exists for this signal and UCT has not measured one yet.'
+const MEASURED = '1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher than SPY 63 bars later (median +2.1%). Universe as held, survivorship not yet corrected.'
 const FIXTURE = Object.freeze({
   schemaVersion: 1, id: DEF_ID, version: 1,
   compute: { kind: 'native', fn: 'rsi', rev: 1 },
@@ -371,6 +377,64 @@ describe('the About card', () => {
   })
 })
 
+describe('the evidence line (unit 2b-09) — read from the payload, verbatim', () => {
+  const openCard = async (container) => {
+    let menu
+    await vi.waitFor(async () => {
+      menu = await openMenu(container, 'rsf-1')
+      if (!menu.querySelector('[data-readout-card]')) { await closeMenu(); throw new Error('rows not yet derived') }
+    }, { timeout: 8000, interval: 150 })
+    await act(async () => { fireEvent.click(menu.querySelector('[data-readout-row="benchmark"]')) })
+    await vi.waitFor(() => expect(menuEl()?.querySelector('[data-legend-card="benchmark"]')).not.toBeNull())
+    return menuEl().querySelector('[data-legend-card="benchmark"]')
+  }
+  const evidenceLine = (card) => card.querySelector('[data-card-line="evidence"] span:last-child').textContent
+
+  it('the payload carries the measured sentence → the card prints it VERBATIM, and not the static line', async () => {
+    primeFixture({ ...PAYLOAD, evidence: { asof: '2026-11-04', horizon: 63, source: 'artifact', baseline: null,
+      signals: { benchmark: { n: 1284, hit_rate_pct: 58.3 } }, sentence: { benchmark: MEASURED } } })
+    const { container } = mount()
+    const card = await openCard(container)
+    expect(evidenceLine(card)).toBe(MEASURED)
+    expect(card.textContent).not.toContain(CARD.evidence)
+    expect(card.querySelector('[data-card-line="evidence"]').textContent).toContain('What the evidence says')
+    // the other two lines are untouched
+    expect(card.querySelector('[data-card-line="what"]').textContent).toContain(CARD.what)
+    expect(card.querySelector('[data-card-line="origin"]').textContent).toContain(CARD.origin)
+    await closeMenu()
+  })
+
+  it('no artifact has landed → the provider sends the honesty sentence and the card prints that', async () => {
+    primeFixture({ ...PAYLOAD, evidence: { asof: null, horizon: 63, source: 'none', baseline: null,
+      signals: { benchmark: null }, sentence: { benchmark: HONESTY } } })
+    const { container } = mount()
+    const card = await openCard(container)
+    expect(evidenceLine(card)).toBe(HONESTY)
+    expect(card.textContent).not.toContain(CARD.evidence)
+    await closeMenu()
+  })
+
+  it('an envelope with no evidence block at all → the static line stands (the pre-2b-03 envelope, byte for byte)', async () => {
+    primeFixture(PAYLOAD)
+    const { container } = mount()
+    const card = await openCard(container)
+    expect(evidenceLine(card)).toBe(CARD.evidence)
+    await closeMenu()
+  })
+
+  it('a card whose source resolves to nothing and that declares no static line renders no evidence line', async () => {
+    registry.uninstallUserDefinition(DEF_ID)
+    const bare = { ...FIXTURE, readout: [{ ...FIXTURE.readout[0], card: { what: 'w', origin: 'o', evidenceSource: 'scalar:evidence.sentence.benchmark' } }] }
+    expect(registry.installUserDefinitions([bare]).errors).toEqual([])
+    primeFixture({ ...PAYLOAD, evidence: { sentence: { benchmark: null } } })
+    const { container } = mount()
+    const card = await openCard(container)
+    expect(card.querySelector('[data-card-line="evidence"]')).toBeNull()
+    expect(card.querySelector('[data-card-line="what"]')).not.toBeNull()
+    await closeMenu()
+  })
+})
+
 describe('the control — a definition with no readout[] is untouched', () => {
   it('RSI: the menu renders no readout section, byte for byte the header it always had', async () => {
     primeFixture()
@@ -430,6 +494,15 @@ describe('the wires, read from the source and the stylesheet', () => {
     expect(src.match(/\blegendChips\([\s\S]*?readoutChipOpts\)/g) || []).toHaveLength(2)
     expect(src).toContain("scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current })")
     expect(src).toContain("import { scalarsFor } from './chart/engine/serverCompute'")
+  })
+
+  it('2b-09: the About card reads its evidence through the SAME reader the rows came from, over the resolved inputs', () => {
+    expect(src).toContain("import { cardEvidenceText } from './chart/engine/readoutSchema'")
+    expect(src).toContain('readoutChipOpts.scalarsOf(def, resolvedInputsOf(def, (inst && inst.inputs) || {}))')
+    expect(src).toContain('<LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack=')
+    expect(src).toContain('const evidenceText = cardEvidenceText(row, scalars)')
+    // the card never reads `card.evidence` directly any more — one resolver, one rule
+    expect(src).not.toMatch(/typeof card\.evidence === 'string' && card\.evidence \?/)
   })
 
   it('`serverColumnsGeneration` joins the off-cursor refresh effect\'s deps, so chips re-derive when the envelope lands', () => {

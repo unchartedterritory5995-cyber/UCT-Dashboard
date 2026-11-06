@@ -31,13 +31,29 @@
 //     fallback?: 'not yet rated',            // shown, muted, when the source is missing
 //     chip?:    true,                        // feeds the chip/pane suffix (at most MAX_CHIP_ROWS)
 //     words?:   ['above', 'below'],          // `bool` only: the true / false words
-//     card?:    { what, origin, evidence?, learn? }  // the three-line explanation (About page);
-//                                            // `learn` is a key into the app's Learn map
+//     card?:    { what, origin, evidence?, learn?, evidenceSource? }
+//                                            // the three-line explanation (About page);
+//                                            // `learn` is a key into the app's Learn map;
+//                                            // `evidenceSource` (2b-09) is a `scalar:` /
+//                                            // `payload:` path whose text REPLACES the
+//                                            // static `evidence` line when it resolves
 //   }]
 //
 //   `scalar:` and `payload:` are synonyms — both resolve a dotted path over the
 //   envelope's `payload` object. `input:` reads the instance's own input (its
 //   declared default when unset). A `when` gate reads the same grammar.
+//
+// THE EVIDENCE LINE (unit 2b-09). A card's "What the evidence says" is the one
+// line that changes without a deploy: the nightly backtest (2b-01) publishes
+// `rs/evidence.json`, the web pod pulls it (2b-03) and the provider writes one
+// sentence per card into `payload.evidence.sentence.<key>` — the measured
+// sentence when the signal clears the display floor, the honesty sentence
+// ("No published hit rate exists for this signal and UCT has not measured one
+// yet.") when it does not. `cardEvidenceText` reads that path when the card
+// declares `evidenceSource`, and falls back to the static `card.evidence`
+// (the literature statement, or the same honesty sentence) when the envelope
+// carries nothing there. The static line is therefore what a chart with no
+// landed envelope prints, never a blank.
 //
 // THE FORMATS — one line each, so the next format is one line too:
 //   ratio    a number to 4 significant figures            1.0234 → 1.023
@@ -64,8 +80,14 @@ export const READOUT_ENTRY_FIELDS = Object.freeze([
  *  key into an APP-side lesson map (`lib/deskVideoHref.RS_LEARN_VIDEOS`): the
  *  schema checks it is a non-empty string and nothing more — the map is app
  *  code, this is engine code, and a key the map does not know renders no
- *  link rather than a broken one (`learnHref` answers null). */
-export const READOUT_CARD_FIELDS = Object.freeze(['what', 'origin', 'evidence', 'learn'])
+ *  link rather than a broken one (`learnHref` answers null).
+ *
+ *  `evidenceSource` (2b-09) is a `scalar:` / `payload:` path in the row-source
+ *  grammar (`READOUT_SOURCE_RE`); `defSchema` admits the NAME through this list
+ *  and `cardEvidenceText` reads the value fail-closed — a path that does not
+ *  parse, or resolves to anything but a non-empty string, leaves the static
+ *  `evidence` line standing. */
+export const READOUT_CARD_FIELDS = Object.freeze(['what', 'origin', 'evidence', 'learn', 'evidenceSource'])
 
 /** `<prefix>:<segment>(.<segment>)*` — a prefix from READOUT_SOURCE_PREFIXES and
  *  a dotted path of identifier segments. */
@@ -251,4 +273,39 @@ export function readoutChipRows(def, rows) {
   const flagged = new Set(entries.filter((e) => isPlainObject(e) && e.chip === true).map((e) => e.key))
   const picked = flagged.size ? list.filter((r) => flagged.has(r.key)) : list
   return picked.slice(0, MAX_CHIP_ROWS)
+}
+
+/**
+ * The text of a card's "What the evidence says" line (unit 2b-09): the string
+ * `card.evidenceSource` resolves to over `scalars` when it is a `scalar:` /
+ * `payload:` path and the value there is a non-empty string; else the static
+ * `card.evidence` when that is a non-empty string; else `null` (no line).
+ *
+ * ⛔ FAIL CLOSED, LIKE THE ROWS. An `evidenceSource` that does not parse, an
+ * `input:` source (a card has no instance to read), a path that walks off the
+ * payload, a null, a number, an empty string — every one of them is "nothing
+ * measured" and leaves the static line standing. Whitespace is trimmed; the
+ * text is otherwise VERBATIM, because a measured sentence carries its sample
+ * size, dates and caveat and nothing here may reword them. NEVER THROWS.
+ *
+ * @param {object} entry a readout entry — anything carrying `.card`
+ *   (`def.readout[i]`, or the resolved row the surface joined its card onto)
+ * @param {object|null} scalars the envelope's payload, the SAME reader answer
+ *   the rows were built from (`scalarsFor`); `null` when nothing landed
+ * @returns {string|null}
+ */
+export function cardEvidenceText(entry, scalars) {
+  try {
+    const card = entry && isPlainObject(entry.card) ? entry.card : null
+    if (!card) return null
+    const src = parseReadoutSource(card.evidenceSource)
+    if (src && src.kind === 'scalar' && isPlainObject(scalars)) {
+      const v = readPath(scalars, src.path)
+      if (typeof v === 'string') { const t = v.trim(); if (t) return t }
+    }
+    if (typeof card.evidence === 'string') { const t = card.evidence.trim(); if (t) return t }
+    return null
+  } catch {
+    return null
+  }
 }
