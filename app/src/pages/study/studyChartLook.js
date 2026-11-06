@@ -103,3 +103,32 @@ export function memberSettingsOverride(chartOpts, extras = null) {
   if (instances && instances.length) out = mergeSettingsOverride(out, { indicatorInstances: instances })
   return out
 }
+
+/**
+ * widgetSettingsOverride(chartOpts, ownChartSource, extras) — round 18 (owner, batch 18, on the Hard chart: "It should
+ * look like the users chart widget from the charts tab"): the member's OWN Charts-tab widget look, not the house look
+ * and not just their global seed. `ownChartSource` is the raw blob the widget resolution picked (useChartSurfaceSettings
+ * → ownChartSource: the member's default chart widget's settings, else the first chart widget with saved settings, else
+ * null = the seed alone), laid down first exactly as ChartPane hands it to StockChart, which merges it over the member's
+ * global chart_settings; the study gates and the item's chart options go on top the way the other two overrides apply
+ * them. `extras.memberSettings` may be ONE blob or a LIST of blobs (the global seed AND the widget blob): a bare chart
+ * tombstones the instances of every blob the chart could draw from, whatever their ids.
+ */
+export function widgetSettingsOverride(chartOpts, ownChartSource = null, extras = null) {
+  const o = chartOpts || {}
+  const own = ownChartSource && typeof ownChartSource === 'object' && !Array.isArray(ownChartSource) ? ownChartSource : {}
+  let out = mergeSettingsOverride(own, STUDY_GATES)
+  if (Array.isArray(o.overlays)) {
+    out = { ...out, overlays: o.overlays }
+  } else if (o.overlays === false) {
+    const src = Array.isArray(out.overlays) && out.overlays.length ? out.overlays : CHART_DEFAULTS.overlays
+    out = { ...out, overlays: src.map((ov) => ({ ...ov, enabled: false, removed: true })) }
+    const blobs = extras && extras.memberSettings != null ? [].concat(extras.memberSettings) : []
+    out = mergeSettingsOverride(out, { indicatorInstances: instancesOff(own, ...blobs) })
+  }
+  if (o.volume === false) out = mergeSettingsOverride(out, { volume: { visible: false } })
+  else if (o.volume === true) out = mergeSettingsOverride(out, { volume: { visible: true } })
+  const instances = extras && Array.isArray(extras.instances) ? extras.instances : null
+  if (instances && instances.length) out = mergeSettingsOverride(out, { indicatorInstances: instances })
+  return out
+}

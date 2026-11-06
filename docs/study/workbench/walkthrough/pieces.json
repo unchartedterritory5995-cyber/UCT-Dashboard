@@ -1218,5 +1218,197 @@
     "label": "the end card"
    }
   ]
+ },
+ {
+  "id": "b18-hard",
+  "batch": 18,
+  "title": "1 · Hard mode, in the product (plan piece 43)",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "Eight charts from the bank with nothing to lean on: no ticker, no averages, no volume, candles only. On each you name what fired, or say nothing did; the answer is scored on the server against the bank's own key, the ticker and the lesson come back with the verdict, and the next candles arrive slowly. No hearts: a miss is a miss and the run goes on. Eight for eight lights the fourth crown on the end card. The lab's name-enter-stop version waits on your levels rulings per setup; this is the part that needs none.",
+  "judge": "Score it as the product. Is 'name it' the right Hard question until the levels are ruled? Rank every part.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start card"
+   },
+   {
+    "id": "crowns",
+    "label": "the three crowns and the dark fourth"
+   },
+   {
+    "id": "hidden",
+    "label": "the 'hidden' gem (ticker, averages, volume)"
+   },
+   {
+    "id": "topbar",
+    "label": "the HARD tag, the step pill and the crown legend"
+   },
+   {
+    "id": "bubble",
+    "label": "the mark and its bubble"
+   },
+   {
+    "id": "chip",
+    "label": "the 'Name it' chip and the framing line"
+   },
+   {
+    "id": "chart",
+    "label": "the bare chart (candles only)"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer on the candle"
+   },
+   {
+    "id": "cards",
+    "label": "the four cards (three setups and 'Nothing fired')"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "stamp",
+    "label": "the stamp"
+   },
+   {
+    "id": "runon",
+    "label": "the next candles arriving slowly"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker revealed in the chip after the verdict"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the right / wrong colours on the cards"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   },
+   {
+    "id": "crownsEnd",
+    "label": "the fourth crown on the end card (lit on a perfect run)"
+   }
+  ]
+ },
+ {
+  "id": "b19-hard",
+  "batch": 19,
+  "title": "1 · Hard mode, round 18: the production rebuild on your batch-18 words",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "Your batch-18 verdict was 'needs dramatic production, graphic, layout improvement on brand', with Check, Next, the end card and the fourth crown Cut. This is the same Hard mode (eight bank charts, candles only, name what fired, scored on the server) on a new Study UI kit: a HUD with the run's segments; the chart is YOUR Charts-tab widget (its header, its timeframe bar, your own candle settings, our compass mark) with the ticker masked until the verdict and then shown in the badge and as the watermark; the pointer is a callout that never crosses a candle; numbered gold-coin cards; one brushed-gold Check with a real edge; a seal for the verdict; a lesson card that leads with what happened on this chart, the rule's first sentence under it, the whole rule on demand; a stage for the start and the end, with drawn crowns and a ray burst when the fourth lights.",
+  "judge": "Rank every part against the best learning apps you know. Where it is still Weak, say what a big shot would do.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start card (the stage)"
+   },
+   {
+    "id": "toggles",
+    "label": "the three switches turned off: ticker, averages, volume"
+   },
+   {
+    "id": "crowns",
+    "label": "the drawn crowns, three gold and the dark fourth"
+   },
+   {
+    "id": "start",
+    "label": "the Start button"
+   },
+   {
+    "id": "hud",
+    "label": "the HUD: the mode tag, the run's segments, the step, what is hidden"
+   },
+   {
+    "id": "segs",
+    "label": "the eight segments (gold = named, red = miss, sweep = in play)"
+   },
+   {
+    "id": "bubble",
+    "label": "the mark and its bubble"
+   },
+   {
+    "id": "chip",
+    "label": "the 'Name it' chip and the framing line"
+   },
+   {
+    "id": "frame",
+    "label": "the widget header: the masked ticker badge, our mark"
+   },
+   {
+    "id": "tfbar",
+    "label": "the widget's timeframe bar, locked on 1D"
+   },
+   {
+    "id": "chart",
+    "label": "the chart: your own widget look, candles only"
+   },
+   {
+    "id": "pointer",
+    "label": "the callout on the candle (chip above, arrow down, off the candles)"
+   },
+   {
+    "id": "cards",
+    "label": "the four cards with their coins"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "footer",
+    "label": "the footer bar: the message and the one action"
+   },
+   {
+    "id": "stamp",
+    "label": "the verdict seal on the chart"
+   },
+   {
+    "id": "runon",
+    "label": "the next candles arriving; the ticker as the watermark"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker revealed in the badge, with its logo"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card: what happened here, then the rule"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the right / wrong colours and marks on the cards"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run, in the verdict's colour"
+   },
+   {
+    "id": "bubbleVerdict",
+    "label": "the bubble after the verdict"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   },
+   {
+    "id": "crownsEnd",
+    "label": "the fourth crown on the end card (lit with a ray burst on a perfect run)"
+   },
+   {
+    "id": "gems",
+    "label": "the two gems: Named and XP earned"
+   }
+  ]
  }
 ]

@@ -14,6 +14,7 @@ vi.mock('../../../components/StockChart', () => ({
     const vol = so.volume && so.volume.visible === false ? 'hidden' : 'shown'
     const inst = Array.isArray(so.indicatorInstances) ? so.indicatorInstances : []
     return <div data-testid="stock-chart" data-bars={(props.barsOverride || []).length} data-overlays-on={overlaysOn} data-volume={vol} data-sym={props.sym}
+      data-brand={props.showBrandMark ? '1' : '0'} data-legend={props.hideLegend ? 'hidden' : 'shown'} data-watermark={props.hideWatermark ? '' : (props.watermark || props.sym)}
       data-instances-live={inst.filter((i) => i.deleted !== true).length} data-tombstoned={inst.filter((i) => i.deleted === true).map((i) => i.instanceId).join('|')} />
   },
 }))
@@ -93,12 +94,24 @@ describe('HardChallenge', () => {
     expect(chart.getAttribute('data-sym')).toBe('k1')                 // the item id, never the ticker
     expect(chart.getAttribute('data-instances-live')).toBe('0')        // the member's own averages are off too
     expect(chart.getAttribute('data-tombstoned').split('|')).toContain('ma:custom')
+    // round 18: the member's own Charts-tab widget, with the brand mark and the legend, the ticker masked and the watermark off
+    expect(screen.getByTestId('challenge-chart').getAttribute('data-look')).toBe('widget')
+    expect(chart.getAttribute('data-brand')).toBe('1')
+    expect(chart.getAttribute('data-legend')).toBe('shown')
+    expect(chart.getAttribute('data-watermark')).toBe('')
+    expect(screen.getByTestId('study-chart-frame').getAttribute('data-masked')).toBe('1')
+    expect(screen.getByTestId('sym-label').textContent).not.toContain('JBI')
     fireEvent.click(buttons.find((b) => b.textContent.includes('Kicker')))
     fireEvent.click(screen.getByTestId('hard-check'))
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0]).toMatchObject({ item_id: 'k1', session_id: 'sess-h', answer: { choice: 'Yes', picked_setup: 'Kicker' } })
     expect(await screen.findByText('Gap over the close, close above the high.')).toBeInTheDocument()
     expect(screen.getByText('Named it with nothing to lean on.')).toBeInTheDocument()
+    // the reveal: the ticker in the widget's badge and as its watermark; the lesson card leads with the lesson
+    expect(screen.getByTestId('study-chart-frame').getAttribute('data-masked')).toBe('0')
+    expect(screen.getByTestId('sym-label')).toHaveTextContent('JBI')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-watermark')).toBe('JBI')
+    expect(screen.getByTestId('hard-lesson')).toHaveTextContent('Gap over the close, close above the high.')
     expect(screen.getByTestId('hard-next')).toHaveTextContent('See the run')
     fireEvent.click(screen.getByTestId('hard-next'))
     expect(await screen.findByText('Legendary')).toBeInTheDocument()
