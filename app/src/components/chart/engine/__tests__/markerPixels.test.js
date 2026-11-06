@@ -121,8 +121,8 @@ describe('⛔ CONTROL — the OLD sizes 0.6 and 1.2 were the same 9 px circle at
 
 // ─── 3. the shape unit 6 landed ─────────────────────────────────────────────
 
-describe('the two small dots are the series\' own point markers — radius 2, no floor', () => {
-  for (const key of ['dotNH', 'dotNHpartial']) {
+describe('the small dots are the series\' own point markers — radius 2, no floor (two at Phase 1, four at 2a-14)', () => {
+  for (const key of ['dotNH', 'dotNHpartial', 'dotNL', 'dotMansfieldCross']) {
     it(`${key}: a markers plot with NO marker block and width 2`, () => {
       const p = plot(key)
       expect(p.style).toBe('markers')
@@ -234,13 +234,20 @@ describe('presentation.dotSize is honoured on a plot DECLARED markers', () => {
 describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS value, and the gold dot is a glyph above it', () => {
   const BARS = Array.from({ length: 8 }, (_, i) => ({ t: 1700000000 + i * 86400, c: 10 + i }))
   const rsLine = [1, 1.1, 1.2, 1.15, 1.3, 1.25, 1.4, 1.35]
+  const NONE = [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN]
   const COLUMNS = {
     rsLine,
     rsAbove: [1, 1, 1, 0, 1, 0, 1, 0],
     rsMa: [1, 1.05, 1.1, 1.12, 1.16, 1.18, 1.22, 1.25],
     dotNH: [NaN, NaN, 1.2, NaN, 1.3, NaN, 1.4, NaN],
     dotNHbeforePx: [NaN, NaN, NaN, NaN, 1.3, NaN, NaN, NaN],
-    dotNHpartial: [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN],
+    dotNHpartial: NONE,
+    // 2a-14: the server blanks these unless their toggle is on; the red-day glyph
+    // fires on bar 6 here, the Mansfield cross dot sits BELOW zero on bar 3.
+    mansfield: [NaN, NaN, -2.1, -0.4, 0.8, 1.6, 2.2, 1.9],
+    dotNHred: [NaN, NaN, NaN, NaN, NaN, NaN, 1.4, NaN],
+    dotNL: NONE,
+    dotMansfieldCross: [NaN, NaN, NaN, -0.4, NaN, NaN, NaN, NaN],
   }
 
   function drive(inputs = {}) {
@@ -296,6 +303,26 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     expect(mine[0].markers).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2 }])
   })
 
+  it('dotNHred (2a-14): ONE gold glyph carrying the text RED on its event bar — the Stress reading', () => {
+    const { glyphs } = drive({ showRedDay: true })
+    const red = glyphs.flatMap((g) => g.markers).filter((mk) => mk.text === 'RED')
+    expect(red).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2, text: 'RED' }])
+    // …and it is gold, the premium role, never the bear red (plan §3: red is for losses)
+    expect(rs.inputs.find((i) => i.key === 'dotRedColor').default).toBe(IND_TOKENS.classic.premium)
+  })
+
+  it('dotMansfieldCross (2a-14): a point of its own series at a NEGATIVE Mansfield value — a glyph could not draw it', () => {
+    const { glyphs, dataOf, byColour } = drive({ showMansfield: true })
+    const dot = byColour(IND_TOKENS.classic.neutral, true)
+    expect(dot, 'the neutral cross-dot series').toBeTruthy()
+    const points = dataOf(dot)
+    expect(points.map((p) => ('value' in p ? p.value : null))).toEqual([null, null, null, -0.4, null, null, null, null])
+    expect(glyphs.some((g) => g.series === dot), 'a plain dot never reaches createSeriesMarkers').toBe(false)
+    // the Mansfield line itself draws as a line in the info blue
+    const line = byColour(IND_TOKENS.classic.info, false)
+    expect(line).toBeTruthy()
+  })
+
   it('the RS line itself keeps its line: width 1, visible, no point markers', () => {
     const { byColour } = drive()
     const line = byColour('#6ba3be', false)
@@ -312,27 +339,62 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
   })
 })
 
-// ─── 7. the palette budget (review finding F6, folded in here) ──────────────
+// ─── 7. the palette budget (review finding F6, folded in here; grown at 2a-14) ──
+//
+// ⭐ COUNTED OVER THE PLOTS A PRESET DRAWS, not over every colour input. The
+// engine has no per-plot visibility, so a toggle that is OFF means the server
+// sends a blank column and the plot paints nothing (`_RS_TOGGLE_BLANKS` in
+// `api/routers/signature.py`); a hue on a plot nobody sees is not on the chart.
+// `TOGGLE_OF` is that server table restated here, so a new dot plot without a
+// toggle (or with one this table does not know) is counted as ALWAYS drawn —
+// the conservative direction for a budget.
 
-describe('the hue budget per preset — Classic ≤ 2 non-neutral hues, Phase ≤ 3 (its documented exception)', () => {
+describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral over the plots a preset DRAWS; Phase ≤ 3 (its documented exception)', () => {
   const NEUTRAL = IND_TOKENS.classic.neutral
   const colourInputs = rs.inputs.filter((i) => i.type === 'color')
-  const huesOf = (presetInputs) => new Set(
-    colourInputs.map((i) => String(presetInputs[i.key] !== undefined ? presetInputs[i.key] : i.default).toLowerCase())
-      .filter((h) => h !== NEUTRAL),
-  )
+  const defaults = Object.fromEntries(rs.inputs.map((i) => [i.key, i.default]))
+  const TOGGLE_OF = Object.freeze({
+    dotNH: 'showNewHigh', dotNHbeforePx: 'showNewHighBeforePrice', dotNHpartial: 'shortHistoryDots',
+    dotNHred: 'showRedDay', dotNL: 'showNewLow', mansfield: 'showMansfield', dotMansfieldCross: 'showMansfield',
+  })
+  const drawn = (inputs) => rs.plots.filter((p) => !p.hidden
+    && (TOGGLE_OF[p.key] === undefined || inputs[TOGGLE_OF[p.key]] === true))
+  /** The non-neutral hues on the plots a preset draws, each plot's colour fields
+   *  read through its `$refs` (the member's inputs) exactly as the pool resolves them. */
+  const huesOf = (presetInputs) => {
+    const inputs = { ...defaults, ...presetInputs }
+    const hues = new Set()
+    for (const plot of drawn(inputs)) {
+      for (const field of ['color', 'colorUp', 'colorDown']) {
+        const ref = plot.$refs && plot.$refs[field]
+        const hex = ref ? inputs[ref] : plot[field]
+        if (typeof hex === 'string' && hex.toLowerCase() !== NEUTRAL) hues.add(hex.toLowerCase())
+      }
+    }
+    return hues
+  }
   const preset = (id) => rs.meta.presets.find((p) => p.id === id).inputs
+  const TWO = [IND_TOKENS.classic.info, IND_TOKENS.classic.premium].sort()
 
-  it('the colour inputs are the six the dialog shows, and the neutral is the token', () => {
-    expect(colourInputs.map((i) => i.key)).toEqual(['color', 'lineDownColor', 'maColor', 'dotColor', 'dotBeforePriceColor', 'dotPartialColor'])
+  it('the colour inputs are the ten the dialog shows, every default a Classic token role, and the neutral is the token', () => {
+    expect(colourInputs.map((i) => i.key)).toEqual(['color', 'lineDownColor', 'maColor', 'mansfieldColor', 'dotCrossColor',
+      'dotColor', 'dotBeforePriceColor', 'dotPartialColor', 'dotRedColor', 'dotLowColor'])
     expect(NEUTRAL).toBe('#8a8574')
+    const roles = new Set(Object.values(IND_TOKENS.classic).map((h) => String(h).toLowerCase()))
+    for (const i of colourInputs) expect(roles.has(String(i.default).toLowerCase()), `${i.key} default ${i.default}`).toBe(true)
+    // every toggle the table names is a declared bool input
+    for (const key of new Set(Object.values(TOGGLE_OF))) {
+      expect(rs.inputs.find((i) => i.key === key && i.type === 'bool'), key).toBeTruthy()
+    }
   })
 
-  it('Classic (and Classic weekly): info blue + the premium gold, nothing else', () => {
+  it('Classic (and Classic weekly): info blue + the premium gold, nothing else; Mansfield, red-day and new-low dots are OFF', () => {
     for (const id of ['classic', 'classicWeekly']) {
       const hues = huesOf(preset(id))
       expect(hues.size, id).toBeLessThanOrEqual(2)
-      expect([...hues].sort(), id).toEqual([IND_TOKENS.classic.info, IND_TOKENS.classic.premium].sort())
+      expect([...hues].sort(), id).toEqual(TWO)
+      expect(drawn({ ...defaults, ...preset(id) }).map((p) => p.key), id)
+        .toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial'])
     }
   })
 
@@ -343,7 +405,36 @@ describe('the hue budget per preset — Classic ≤ 2 non-neutral hues, Phase �
     expect(preset('phase').dotColor).toBe(NEUTRAL)
   })
 
+  it('Trend (and Trend weekly): the Mansfield line takes the info blue, the RS line and the plain dots step back to the neutral, gold stays — two hues', () => {
+    for (const id of ['trend', 'trendWeekly']) {
+      expect([...huesOf(preset(id))].sort(), id).toEqual(TWO)
+      expect(preset(id), id).toMatchObject({ showMansfield: true, color: NEUTRAL, lineDownColor: NEUTRAL, dotColor: NEUTRAL,
+        mansfieldColor: IND_TOKENS.classic.info, showRedDay: false, showNewLow: false })
+      const keys = drawn({ ...defaults, ...preset(id) }).map((p) => p.key)
+      expect(keys, id).toContain('mansfield')
+      expect(keys, id).toContain('dotMansfieldCross')
+      expect(keys, id).not.toContain('dotNHred')
+    }
+    expect(preset('trend').mansfieldLength).toBe(200)
+    expect(preset('trendWeekly').mansfieldLength).toBe(52)
+    expect(preset('trendWeekly').lookback).toBe(52)
+  })
+
+  it('Stress: info blue on the line and the plain dots, gold on BOTH large glyphs — two hues (red is for losses and errors, plan §3)', () => {
+    expect([...huesOf(preset('stress'))].sort()).toEqual(TWO)
+    const keys = drawn({ ...defaults, ...preset('stress') }).map((p) => p.key)
+    expect(keys).toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotNHred'])
+    expect(defaults.dotRedColor).toBe(IND_TOKENS.classic.premium)
+    expect(preset('stress')).toMatchObject({ showRedDay: true, showNewHighBeforePrice: true, showMansfield: false })
+  })
+
   it('the untouched definition (no preset) is Classic', () => {
-    expect([...huesOf({})].sort()).toEqual([IND_TOKENS.classic.info, IND_TOKENS.classic.premium].sort())
+    expect([...huesOf({})].sort()).toEqual(TWO)
+  })
+
+  it('⛔ CONTROL: a bear red-day dot would be a third hue under Stress — the counter sees it, by plot, not by input', () => {
+    expect(huesOf({ ...preset('stress'), dotRedColor: IND_TOKENS.classic.bear }).size).toBe(3)
+    // …and the same recolour under Classic, where the dot is OFF, changes nothing on the chart
+    expect([...huesOf({ ...preset('classic'), dotRedColor: IND_TOKENS.classic.bear })].sort()).toEqual(TWO)
   })
 })

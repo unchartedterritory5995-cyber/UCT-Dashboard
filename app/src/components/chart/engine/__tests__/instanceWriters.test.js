@@ -428,8 +428,8 @@ describe('the preset readers — detectPreset / presetFieldsMatch / presetsOf / 
     expect(rsDef.meta.presets.some((p) => p.id === CUSTOM_PRESET)).toBe(false)
   })
 
-  it('⭐ dotPlotsOf: UCT RS draws three dot outputs, RSI none; hidden excluded; a `marker` glyph counts', () => {
-    expect(dotPlotsOf(rsDef).map((p) => p.key)).toEqual(['dotNH', 'dotNHbeforePx', 'dotNHpartial'])
+  it('⭐ dotPlotsOf: UCT RS draws six dot outputs (three at Phase 1, six since 2a-14), RSI none; hidden excluded; a `marker` glyph counts', () => {
+    expect(dotPlotsOf(rsDef).map((p) => p.key)).toEqual(['dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotNHred', 'dotNL', 'dotMansfieldCross'])
     expect(dotPlotsOf(registry.getDefinition('rsi'))).toEqual([])
     expect(dotPlotsOf({ plots: [{ key: 'h', style: 'markers', hidden: true }, { key: 'g', style: 'line', marker: { shape: 'circle' } }] }).map((p) => p.key)).toEqual(['g'])
     expect(dotPlotsOf(null)).toEqual([])

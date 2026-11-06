@@ -209,8 +209,24 @@ _FCB = {
     "rules_key": "fcb",
 }
 
+# ⭐ THE v3 SHAPE BEHIND THE SAME FLAG (Phase 2a, unit 2a-14). `RS_V2_ENABLED`
+# still names the rollout; what it turns on is now the v3 row: the Phase 1
+# columns PLUS the Mansfield line, its two zero-cross events and the cross dot
+# (`RS_PHASE2A_WIRE_COLUMNS`), at `compute.rev` 3. The JS definition carries the
+# same `version` / `compute.rev` and `alert_rev_migration.ADDRESS_REVS` the same
+# rev; `tests/test_rs_columns_provider.py` and `test_alert_rev_migration.py`
+# hold the three equal. `mansfieldState` and `mansfieldCrossBarsAgo` stay off
+# the wire: the chart draws neither, the screener reads them from
+# `relative_strength` directly.
+RS_V3_VERSION = 3
+RS_V3_REV = 3
+RS_PHASE2A_WIRE_COLUMNS: tuple[str, ...] = (
+    "mansfield", "mansfieldCrossUp", "mansfieldCrossDown", "dotMansfieldCross",
+)
+
+
 def _rs_line_row(v2: bool) -> dict:
-    """The `rsLine` row, in its v1 or v2 shape (see `RS_V2_ENABLED`).
+    """The `rsLine` row, in its v1 or v3 shape (see `RS_V2_ENABLED`).
 
     Only COMPUTE-affecting inputs are declared here: `resolve_inputs` drops any
     key the row does not declare, which is exactly what keeps a member's colour
@@ -241,17 +257,26 @@ def _rs_line_row(v2: bool) -> dict:
             {"key": "showNewHigh", "type": "bool", "default": True},
             {"key": "showNewHighBeforePrice", "type": "bool", "default": True},
             {"key": "shortHistoryDots", "type": "bool", "default": True},
+            # ⭐ PHASE 2a (unit 2a-14, rev 3): the Mansfield line and two more dot
+            # toggles. `showMansfield` is a compute input for the same reason the
+            # dot toggles are — the engine has no per-plot visibility an input can
+            # drive, so OFF blanks the `mansfield` column and its cross dot.
+            {"key": "mansfieldLength", "type": "int", "default": rsm.DEFAULT_MANSFIELD_LENGTH,
+             "min": rsm.MANSFIELD_LENGTH_RANGE[0], "max": rsm.MANSFIELD_LENGTH_RANGE[1]},
+            {"key": "showMansfield", "type": "bool", "default": False},
+            {"key": "showRedDay", "type": "bool", "default": False},
+            {"key": "showNewLow", "type": "bool", "default": False},
         ]
     if v2:
         from api.services.relative_strength import PHASE1_COLUMNS
-        columns = list(PHASE1_COLUMNS)
+        columns = list(PHASE1_COLUMNS) + list(RS_PHASE2A_WIRE_COLUMNS)
     else:
         columns = ["rsLine"]
     return {
         "schemaVersion": SCHEMA_VERSION,
         "id": "rsLine",
-        "version": 2 if v2 else 1,
-        "compute": {"kind": "server", "fn": "rsLine", "rev": 2 if v2 else 1},
+        "version": RS_V3_VERSION if v2 else 1,
+        "compute": {"kind": "server", "fn": "rsLine", "rev": RS_V3_REV if v2 else 1},
         "meta": {
             "name": "UCT Relative Strength" if v2 else "Relative Strength Line",
             "shortName": "UCT RS" if v2 else "RS", "category": "Momentum",

@@ -80,7 +80,12 @@ const EMOJI = /\p{Extended_Pictographic}/u
 describe('UCT RS · the readout block is one the schema accepts', () => {
   it('validates on the registered definition, verbatim', () => {
     expect(RS_READOUT.readout).toEqual(READOUT)
-    expect(RS.readout, 'the registered definition grew a readout — unit 2a-14 landed; point this fixture at it').toBeUndefined()
+    // Unit 2a-14 landed the registered `readout[]`; this file keeps its own block
+    // as the schema control (the rows the plan wrote, validated verbatim). The
+    // registered block is railed row by row against the live provider payload in
+    // `tests/test_rs_columns_provider.py` and its surfaces in `StockChart.rsReadout.test.jsx`.
+    expect(Array.isArray(RS.readout) && RS.readout.length > 0, 'the registered definition declares the Leadership readout').toBe(true)
+    expect(RS.readout.filter((e) => e.chip).map((e) => e.key)).toEqual(['benchmark', 'rating'])
   })
 
   it('operator voice: no emoji in any label, word or fallback', () => {
