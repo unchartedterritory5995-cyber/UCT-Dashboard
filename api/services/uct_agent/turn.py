@@ -50,7 +50,7 @@ import re
 import time
 from typing import Any, Callable
 
-from api.services.uct_agent.scan import hidden
+from api.services.uct_agent import flow_calls
 from api.services.uct_agent.scan import refine as scan_refine
 
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
@@ -1228,38 +1228,6 @@ _HIDDEN_SCREEN_UNIVERSE = re.compile(r"\b(?:stocks|names|tickers|equities|ones|t
                                      r"just|top \d+|anything|everything|leaders|which|what)\b", re.I)
 _HIDDEN_NOT_A_SCREEN = re.compile(r"\b(?:where|how|what(?:'s| is| does| do| are)|explain|meaning|means|definition|defined|charts?|levels?|toggle|"
                                   r"settings?|overlay|widget|turn (?:on|off)|enable|disable|bars)\b", re.I)
-
-
-#: The owner's narrow exception to F-16 (app/src/agent/capabilities/screener.js, 11-05): the Agent operates controls already
-#: available to the member, and the one approved here is the Options Flow widget's Calls chip.
-_FLOW_WIDGET_NAME = "options flow"
-_CALLS_WORD = re.compile(r"\bcalls?\b")
-_STOCK_UNIVERSE = re.compile(r"\b(?:stocks?|names|tickers?|equities|companies)\b")
-
-
-def plans_only_flow_calls_chip(message: str, env: dict, context: dict | None) -> bool:
-    """True only when the member named the widget and its Calls chip, asked for no universe of stocks, and EVERY planned op
-    sets that chip on an Options Flow widget on this turn's own board. Nothing else leaves the F-16 refusal: a screen, prose,
-    another chip or control, another widget, a mixed plan. It reads no field and opens no data: only a chip the member has."""
-    low = str(message or "").lower()
-    hit = hidden.hidden_phrase_in(low)
-    if not hit or not _CALLS_WORD.search(low) or _STOCK_UNIVERSE.search(low):
-        return False
-    if re.sub(r"[\s-]+", " ", hit[1]).replace("option ", "options ", 1) != _FLOW_WIDGET_NAME:
-        return False
-    ops = env.get("ops") if isinstance(env, dict) else None
-    entries = (context or {}).get("board") if isinstance(context, dict) else None
-    if not ops or not isinstance(entries, list):
-        return False
-    flow = {str(w.get("id")) for b in entries if isinstance(b, dict) for w in (b.get("widgets") or [])
-            if isinstance(w, dict) and w.get("type") == "optionsflow"}
-    for o in ops:
-        args = o.get("args") if isinstance(o, dict) else None
-        if not isinstance(args, dict) or o.get("action") != "widget.setOption":
-            return False
-        if str(args.get("widget")) not in flow or args.get("key") != "callPut" or str(args.get("value")).strip().lower() not in ("calls", "c"):
-            return False
-    return True
 
 
 def hidden_screen_request(message: str) -> bool:
@@ -2464,8 +2432,20 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     request is classified there FIRST and reaches the planner only through it, with playbook.* removed. "gate" (a
     chart / none turn): #768's knowledge-first backstop stays on although no playbook.* capability is offered;
     "gate_kn": and E-1's own word check (evidence.playbook_worded) found the message playbook-worded."""
-    if not _e1:
+    # The owner's narrow F-16 exception, ahead of E-1, planner v2 and the manifest (flow_calls.py): this class of message is
+    # decided here whatever the request carries, and neither E-1's calls nor a planner v2 loop ever see it.
+    flow_turn = None if (_e1 or headline is not None or answer_only) else flow_calls.classify(message, context, hidden_screen_request(message or ""))
+    if flow_turn in ("refuse", "clear"):
+        reply = (flow_calls.CALLS_ONLY_SENTENCE if flow_turn == "clear"
+                 else f"I didn't run it: {scan_refine.refusal_for_text(message)}")
+        return {"envelope": {"disposition": "answer", "reply": reply, "question": None, "ops": [], "unsupported_category": None},
+                "usage": {"model": model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "research_calls": 0, "model_calls": 0,
+                          "citations": [], "hidden_phrase": True, "flow_calls": flow_turn}, "title": None}
+    if flow_turn == "chip":
+        v2 = None
+    if not _e1 and flow_turn is None:
         _args = dict(locals())
+        _args.pop("flow_turn", None)
         from api.services.uct_agent.knowledge import evidence as _evidence
         if _evidence.active(context, v2):
             return _evidence.serve(run_turn, _args)
@@ -2515,7 +2495,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # NL-1: no keyword decides research. The model asks for it (`research`); the structural gates stay —
     # research only on an answer or a mixed request, never a change based on what was found, never for a
     # plan that looks up UCT's own data (a local lookup), always inside the call and budget limits.
-    forced_research = False if (nl1 or answer_only) else _needs_current_facts(msg)
+    forced_research = False if (nl1 or answer_only or flow_turn) else _needs_current_facts(msg)
     compact = True if nl1 else compact_ops(caps)
     schema = envelope_schema(caps, unselected, compact, nl1=nl1)
     has_last = bool(((context or {}).get("conversation_memory") or {}).get("last_change_detail")) if nl1 else False
@@ -2599,7 +2579,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # always is; the first one is not when UCT will force research on an answer (current facts).
         # (a coach turn never streams its reply: the guard must see the whole text before the member does)
         rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
-                          allowed=((round_ > 0 or not forced_research) and pre_research is None and not coach_turn
+                          allowed=((round_ > 0 or not forced_research) and pre_research is None and not coach_turn and not flow_turn
                                    and not kn_on))      # review #768: knowledge on → an answer never streams
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
@@ -2639,6 +2619,23 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                         output_tokens=int(getattr(u, "output_tokens", 0) or 0))
         if nl1:
             env = nl1_coerce_ops(env, caps)
+        if flow_turn:
+            # the whole turn ends here: no repair, no knowledge step, no research, forced or asked for, and no model text
+            usage["flow_calls"] = "chip"
+            usage["latency_ms"] = int((time.monotonic() - started) * 1000)
+            try:
+                planned = (expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)) if isinstance(env, dict) else None
+            except TurnError:
+                planned = None
+            kept = flow_calls.restrict(planned, context)
+            if kept is None:
+                usage["hidden_phrase"] = True
+                kept = {"disposition": "answer", "reply": f"I didn't run it: {scan_refine.refusal_for_text(msg)}", "question": None,
+                        "ops": [], "unsupported_category": None, "research": None, "need_groups": None}
+            else:
+                usage["flow_calls_chip"] = True
+            envelope = enforce_approval(finish(sanitize_envelope(kept, valid_refs, cap_names, None), kept), caps)
+            return {"envelope": envelope, "usage": usage, "title": None}
         # a request for more action groups plans nothing (sanitize_envelope drops its ops): the browser's reroute
         # takes this request's second call, so it is never repaired first
         asks_groups = bool(unselected_ids and isinstance(env, dict) and isinstance(env.get("need_groups"), list)
@@ -2650,7 +2647,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         if "screener.run" in cap_names and isinstance(env, dict) and not asks_groups:
             hidden_why = scan_refine.refusal_for_text(msg)
             plans_screen = any(isinstance(o, dict) and str(o.get("action") or "").startswith("screener.") for o in env.get("ops") or [])
-            if hidden_why and (plans_screen or hidden_screen_request(msg)) and not plans_only_flow_calls_chip(msg, env, context):
+            if hidden_why and (plans_screen or hidden_screen_request(msg)):
                 usage["hidden_phrase"] = True
                 env = {**env, "disposition": "answer", "reply": f"I didn't run it: {hidden_why}", "ops": [], "question": None,
                        "research": None, "need_groups": None}

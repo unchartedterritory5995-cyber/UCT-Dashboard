@@ -53,7 +53,7 @@ import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { WIDGET_REGISTRY } from '../../widgets/registry'
 import { widgetControls } from '../../widgets/widgetControls'
-import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn, FLOW_FIELDS } from './scanHidden'
+import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn, HIDDEN_PHRASES } from './scanHidden'
 import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN, UNIVERSE_KEYS } from './scanRefine'
 
 // W1.1 R-05: a message shaped like a screen or a refinement of one (a screen verb, "only / just", a universe noun, a
@@ -96,28 +96,40 @@ const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at m
 /** SC-1 §2d: the refusal sentence when ANY part of a wire spec names a hidden field (a filter, an `other`, a logic
  *  leaf, an arithmetic term, the sort, a rank criterion, a column), or null. One walk, every shape. */
 // ⛔ OWNER EXCEPTION TO F-16 (AUDIT 11-05), narrow on purpose: the Agent operates controls already available to the member.
-// With an Options Flow widget ON THIS BOARD, a message that asks for that widget's Calls filter, however it is worded, is
-// not claimed as a screen and reaches widget.setOption. All of it must hold: the hidden phrase IS the widget's name (never
-// "dark pool", never a rating), the member TYPED the word on the Calls chip (`typed`: a typo reading of another word is not
-// that word, and a reading of "calls" must not claim it back), and it asks for no universe of stocks. The approval names this
-// one filter: another chip is told so in plain words. Anything else stays the F-16 refusal, and buildSpec refuses a hidden
-// field on any path, so this opens no field, no data and no route: only the control a member could click.
+// With an Options Flow widget ON THIS BOARD, a message that asks only for that widget's Calls chip is not claimed as a screen
+// and reaches widget.setOption. EVERY hidden phrase in it must be the widget's name, and nothing else may be in it but the word
+// on the chip and the everyday words around it: a closed list, so a universe, a ranking or a threshold nobody listed stays the
+// F-16 refusal. The member's TYPED words decide (`typed`): a typo reading of another word is not that word, and a reading of
+// "calls" must not claim it back. The approval names this one chip: another chip, and clearing, are told so in plain words.
+// The server decides the same class again whatever this says (api/services/uct_agent/flow_calls.py, which holds the same list),
+// and buildSpec refuses a hidden field on any path. This opens no field, no data and no route: only a chip a member could click.
 const FLOW_WIDGET = 'optionsflow'
-const STOCK_UNIVERSE = /\b(?:stocks?|names|tickers?|equities|companies)\b/
-const namesFlowWidgetHere = (lower, phrase, key, host) => {
-  if (!FLOW_FIELDS.has(key) || STOCK_UNIVERSE.test(lower)) return false
+export const FLOW_CHIP_FILLER = new Set(`a an and at can could display filter filtered for from get give i in just keep like limit list me my narrow now of on only
+  our panel please pls see set show that the this to view want widget will would you`.split(/\s+/))
+const lowerOf = (t) => String(t).toLowerCase().replace(/\u2019/g, "'")
+const withoutMarginCall = (low) => low.replace(/\bmargin calls?\b/g, ' ')
+const flowWidgetHere = (host) => {
   let raw = []
   try { raw = host?.widgets?.snapshot?.()?.raw || [] } catch { raw = [] }
-  if (!raw.some(w => w.type === FLOW_WIDGET)) return false
-  const { header, menu } = WIDGET_REGISTRY[FLOW_WIDGET].labels
-  const name = phrase.replace(/[\s-]+/g, ' ').replace(/^option /, 'options ')   // "option flow", "options-flow"
-  return [header, menu].some(t => t.toLowerCase() === name)
+  return raw.some(w => w.type === FLOW_WIDGET)
 }
-const flowChips = () => widgetControls(FLOW_WIDGET).flatMap(f => Object.values(f.shown || {}))
-const saysWord = (typed, word) => new RegExp(`\\b${word.toLowerCase().replace(/s$/, '')}s?\\b`).test(String(typed).toLowerCase())
-const asksCallsOnly = (typed) => saysWord(typed, 'Calls')
-/** The first other chip on the widget that the member typed, or null. */
-const otherFlowChip = (typed) => flowChips().find(w => w !== 'Calls' && saysWord(typed, w)) || null
+const everyHiddenIsTheWidgetName = (lower) => {
+  const { header, menu } = WIDGET_REGISTRY[FLOW_WIDGET].labels
+  const names = [header, menu].map(t => t.toLowerCase())
+  const hits = HIDDEN_PHRASES.flatMap(([p]) => [...lower.matchAll(new RegExp(p, 'g'))].map(m => m[0]))
+  return hits.length > 0 && hits.every(h => names.includes(h.replace(/[\s-]+/g, ' ').replace(/^option /, 'options ')))
+}
+const saysCalls = (typed) => /\bcalls\b|\bcall options?\b/.test(withoutMarginCall(lowerOf(typed)))
+const CLEARING = /\b(?:clear|remove|reset|undo|unset|drop|cancel|stop)\b|\bturn off\b|\btake off\b/
+const onlyTheseWords = (typed, chip) => lowerOf(typed).replace(/\boptions?[\s-]flow\b/g, ' ').replace(chip, ' ')
+  .match(/[a-z0-9$%.&'-]+/g)?.every(w => FLOW_CHIP_FILLER.has(w.replace(/^[.,!?']+|[.,!?']+$/g, ''))) ?? true
+const asksCallsOnly = (typed) => saysCalls(typed) && onlyTheseWords(typed, /\bcalls\b|\bcall options?\b/g)
+/** The other chip this message asks for and nothing more, or null. */
+const otherFlowChip = (typed) => widgetControls(FLOW_WIDGET).flatMap(f => Object.values(f.shown || {})).find(w => {
+  if (w === 'Calls') return false
+  const chip = new RegExp(`\\b${w.toLowerCase().replace(/s$/, '')}s?\\b`, 'g')
+  return chip.test(lowerOf(typed)) && onlyTheseWords(typed, new RegExp(chip.source, 'g'))
+}) || null
 
 export function hiddenRefusal(spec) {
   const keys = []
@@ -1229,10 +1241,12 @@ export function registerScreenerCapabilities() {
       // (a SAVED screen named in the message — "run my Composite screen" — is screener.runSaved's, which refuses a rated
       // saved screen by its own name; the planner / its fast path keep it)
       const hp = hiddenPhraseIn(lower)
-      const flowHere = !!hp && namesFlowWidgetHere(lower, hp.phrase, hp.key, host)
-      if (flowHere && hiddenScreenRequest(lower) && !asksCallsOnly(typed) && otherFlowChip(typed)) {
-        return { __say: `The only Options Flow filter I can set is Calls Only. For ${otherFlowChip(typed)}, use the chip on the widget itself.` }
+      const flowHere = !!hp && flowWidgetHere(host) && everyHiddenIsTheWidgetName(lower)
+      if (flowHere && saysCalls(typed) && CLEARING.test(lowerOf(typed))) {
+        return { __say: 'The only Options Flow filter I can set is Calls Only. To clear it, use Undo or the All chip on the widget itself.' }
       }
+      const other = flowHere && hiddenScreenRequest(lower) && !saysCalls(typed) ? otherFlowChip(typed) : null
+      if (other) return { __say: `The only Options Flow filter I can set is Calls Only. For ${other}, use the chip on the widget itself.` }
       if (hp && hiddenScreenRequest(lower) && !namesSavedScreen(lower) && !(flowHere && asksCallsOnly(typed))) {
         return { filters: [{ field: hp.key, op: 'gte', value: 0, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null }
       }

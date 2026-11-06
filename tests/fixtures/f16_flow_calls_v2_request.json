@@ -1,0 +1,2997 @@
+{
+ "message": "only show calls on the options flow",
+ "context": {
+  "surface": "charts",
+  "charts": [
+   {
+    "ref": "c1",
+    "label": "Chart (SPY)",
+    "position": null,
+    "symbol": "SPY",
+    "timeframe": "D",
+    "timeframeLabel": "Daily",
+    "chartType": "candles",
+    "volume": "visible",
+    "background": "#17181a",
+    "upColor": "#2faf68",
+    "downColor": "#df4646",
+    "extendedHours": false,
+    "scale": "linear",
+    "linkedWidgets": 9
+   }
+  ],
+  "otherWidgets": [
+   "Theme Tracker",
+   "UCT Terminal",
+   "Options Flow",
+   "Breadth",
+   "Indexes",
+   "Scanner",
+   "Market Map",
+   "New Highs / Lows",
+   "Volume Surge"
+  ],
+  "workspace": [
+   {
+    "ref": "w1",
+    "label": "Workspace",
+    "widgetCount": 10,
+    "widgetLimit": 16,
+    "openSlots": {
+     "chart": 0
+    },
+    "visibleWidgets": [
+     {
+      "type": "chart",
+      "label": "Chart",
+      "position": "top-left"
+     },
+     {
+      "type": "themes",
+      "label": "Theme Tracker",
+      "position": "top-left"
+     },
+     {
+      "type": "calendar",
+      "label": "UCT Terminal",
+      "position": "top-right"
+     },
+     {
+      "type": "optionsflow",
+      "label": "Options Flow",
+      "position": "top-right"
+     },
+     {
+      "type": "breadth",
+      "label": "Breadth",
+      "position": "bottom-left"
+     },
+     {
+      "type": "indexes",
+      "label": "Indexes",
+      "position": "bottom-left"
+     },
+     {
+      "type": "scanner",
+      "label": "Scanner",
+      "position": "bottom-right"
+     },
+     {
+      "type": "scatter",
+      "label": "Market Map",
+      "position": "bottom-right"
+     },
+     {
+      "type": "nhnl",
+      "label": "New Highs / Lows",
+      "position": "bottom-left"
+     },
+     {
+      "type": "volumescan",
+      "label": "Volume Surge",
+      "position": "bottom-left"
+     }
+    ]
+   }
+  ],
+  "layouts": [
+   {
+    "ref": "l1",
+    "label": "Layouts",
+    "open": null,
+    "unsavedChanges": true,
+    "previous": null,
+    "layouts": [
+     {
+      "id": "uct-default",
+      "name": "UCT Default",
+      "kind": "built-in"
+     }
+    ]
+   }
+  ],
+  "watchlists": [],
+  "watchlistLibrary": [
+   {
+    "ref": "w2",
+    "label": "Watchlists (create new lists here)"
+   }
+  ],
+  "flagged": [
+   {
+    "ref": "f1",
+    "count": 0,
+    "symbols": []
+   }
+  ],
+  "screener": [
+   {
+    "ref": "s1",
+    "label": "Screener",
+    "fields": "adr_pct,price,chg_pct_1m,above_50sma,sector,dollar_volume_1d,volume_1d,close_1d",
+    "fieldsDetail": "keys only (labels and units omitted for this request)",
+    "savedScreens": [
+     {
+      "id": "7",
+      "name": "Agent Test Screen",
+      "kind": "yours"
+     }
+    ]
+   }
+  ],
+  "alertLibrary": [
+   {
+    "ref": "a1",
+    "label": "Price alerts (create new alerts here)",
+    "status": "loading"
+   }
+  ],
+  "indicatorAlertLibrary": [
+   {
+    "ref": "i1",
+    "label": "Indicator alerts (RSI, MACD\u2026 \u2014 create new ones here; an instance id comes from the indicators entry)",
+    "status": "loading"
+   }
+  ],
+  "stockData": [
+   {
+    "ref": "m1",
+    "label": "UCT stock data (profile, fundamentals, earnings, comparisons, stored news, catalysts)"
+   }
+  ],
+  "breadth": [
+   {
+    "ref": "b1",
+    "label": "UCT market breadth (US, NYSE, Nasdaq \u2014 finalized end of day; dates only here)",
+    "today_et": "2026-10-12",
+    "latest_finalized": {
+     "us": "2026-10-09",
+     "nyse": "2026-10-09",
+     "nasdaq": "2026-10-09"
+    }
+   }
+  ],
+  "settings": [
+   {
+    "ref": "s2",
+    "label": "Your app settings",
+    "appTheme": "Graphite (default dark)",
+    "defaultChartTimeframe": "Daily",
+    "alertSound": "Chime"
+   }
+  ],
+  "app": [
+   {
+    "ref": "a2",
+    "label": "UCT pages (open one here)",
+    "current": "Charts"
+   }
+  ],
+  "watchlistDigest": [
+   {
+    "ref": "d1",
+    "label": "Watchlist email digest",
+    "setting": "unknown"
+   }
+  ],
+  "savedScreenLibrary": [
+   {
+    "ref": "s3",
+    "label": "Saved screens (save, rename, copy, delete here)",
+    "yours": [
+     {
+      "id": "7",
+      "name": "Agent Test Screen"
+     }
+    ],
+    "starters": 0,
+    "lastScreenHere": null
+   }
+  ],
+  "board": [
+   {
+    "ref": "b2",
+    "label": "Board (arrange, remove, link and configure the widgets on it)",
+    "grid": {
+     "cols": 24,
+     "rows": 20
+    },
+    "widgets": [
+     {
+      "id": "w-chart-a",
+      "type": "chart",
+      "label": "Chart",
+      "position": "top-left",
+      "x": 0,
+      "y": 0,
+      "w": 6,
+      "h": 7,
+      "link": "A"
+     },
+     {
+      "id": "w-themes",
+      "type": "themes",
+      "label": "Theme Tracker",
+      "position": "top-left",
+      "x": 6,
+      "y": 0,
+      "w": 6,
+      "h": 10,
+      "link": "A"
+     },
+     {
+      "id": "w-cal",
+      "type": "calendar",
+      "label": "UCT Terminal",
+      "position": "top-right",
+      "x": 12,
+      "y": 0,
+      "w": 6,
+      "h": 10,
+      "link": "A"
+     },
+     {
+      "id": "w-flow",
+      "type": "optionsflow",
+      "label": "Options Flow",
+      "position": "top-right",
+      "x": 18,
+      "y": 0,
+      "w": 6,
+      "h": 10,
+      "link": "A"
+     },
+     {
+      "id": "w-br",
+      "type": "breadth",
+      "label": "Breadth",
+      "position": "bottom-left",
+      "x": 0,
+      "y": 7,
+      "w": 6,
+      "h": 7,
+      "link": "A"
+     },
+     {
+      "id": "w-idx",
+      "type": "indexes",
+      "label": "Indexes",
+      "position": "bottom-left",
+      "x": 6,
+      "y": 10,
+      "w": 6,
+      "h": 5,
+      "link": "A"
+     },
+     {
+      "id": "w-scan",
+      "type": "scanner",
+      "label": "Scanner",
+      "position": "bottom-right",
+      "x": 12,
+      "y": 10,
+      "w": 6,
+      "h": 10,
+      "link": "A",
+      "shows": "IPOs"
+     },
+     {
+      "id": "w-map",
+      "type": "scatter",
+      "label": "Market Map",
+      "position": "bottom-right",
+      "x": 18,
+      "y": 10,
+      "w": 6,
+      "h": 10,
+      "link": "A"
+     },
+     {
+      "id": "w-nh",
+      "type": "nhnl",
+      "label": "New Highs / Lows",
+      "position": "bottom-left",
+      "x": 0,
+      "y": 14,
+      "w": 6,
+      "h": 6,
+      "link": "A"
+     },
+     {
+      "id": "w-vol",
+      "type": "volumescan",
+      "label": "Volume Surge",
+      "position": "bottom-left",
+      "x": 6,
+      "y": 15,
+      "w": 6,
+      "h": 5,
+      "link": "A"
+     }
+    ]
+   }
+  ],
+  "widgetControls": [
+   {
+    "controls": {
+     "themes": "period(1d|1w|1m|3m|1y|ytd), sortDir(asc|desc), todayBasis(close|open), openTheme(ask widget.readOptions), themeSet(ask widget.readOptions)",
+     "calendar": "econStars(1\u20133), day(YYYY-MM-DD, today, tomorrow), tbdOpen(on/off)",
+     "optionsflow": "lead(tape|biggest|sentiment), scope(market|symbol), minPremium(0|250000|500000|1000000), callPut(all|C|P), printType(all|SWEEP|BLOCK), direction(all|BULL|BEAR)",
+     "breadth": "view(heatmap|ratio), reading(+/- member)",
+     "indexes": "index(+/- member)",
+     "scatter": "xKey(ask widget.readOptions), yKey(ask widget.readOptions), sizeKey(ask widget.readOptions), labelMode(spotlight|all|off), followList(on/off), universe(ask widget.readOptions), universes(+/- member)",
+     "nhnl": "universe(ask widget.readOptions), universes(+/- member)",
+     "volumescan": "showLogos(on/off), list(ask widget.readOptions)"
+    },
+    "set": {
+     "w-cal": {
+      "day": "2026-11-05"
+     }
+    }
+   }
+  ],
+  "drawings": [
+   {
+    "ref": "d2",
+    "symbol": "SPY",
+    "shownOn": [
+     "Chart (SPY)"
+    ],
+    "timeframe": "D",
+    "loadedHistory": "2025-01-02 to 2025-10-08",
+    "drawings": []
+   }
+  ],
+  "indicators": [
+   {
+    "ref": "i2",
+    "chart": "Chart (SPY)",
+    "position": null,
+    "symbol": "SPY",
+    "createIndicator": true,
+    "indicators": [
+     {
+      "name": "EMA 9",
+      "id": "ovl:0",
+      "placement": "price"
+     },
+     {
+      "name": "EMA 20",
+      "id": "ovl:1",
+      "placement": "price"
+     },
+     {
+      "name": "SMA 50",
+      "id": "ovl:2",
+      "placement": "price"
+     },
+     {
+      "name": "SMA 200",
+      "id": "ovl:3",
+      "placement": "price"
+     },
+     {
+      "name": "Volume",
+      "placement": "price",
+      "setting": true
+     }
+    ]
+   }
+  ],
+  "indicatorEdits": [
+   {
+    "ref": "i3",
+    "chart": "Chart (SPY)",
+    "position": null,
+    "symbol": "SPY",
+    "canManage": true
+   }
+  ],
+  "indicatorDrafts": [
+   {
+    "ref": "i4",
+    "new": true,
+    "label": "start a NEW indicator draft (or edit one of yourIndicators)",
+    "yourIndicators": []
+   }
+  ],
+  "chartTemplateLibrary": [
+   {
+    "ref": "c2",
+    "label": "Your saved chart templates (save one from a chart, or delete one, here)",
+    "names": []
+   }
+  ],
+  "definitionLibrary": [
+   {
+    "ref": "d3",
+    "label": "Indicator definitions (search, describe, copy, delete your own here)"
+   }
+  ],
+  "agent": [
+   {
+    "ref": "a3",
+    "label": "UCT Agent (ask what I can and cannot do)"
+   }
+  ],
+  "calendar": [
+   {
+    "ref": "c3"
+   }
+  ]
+ },
+ "capabilities": [
+  {
+   "name": "chart.setType",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Change how price is drawn on one chart.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "candles",
+       "hollow",
+       "bars",
+       "hlc",
+       "line",
+       "area"
+      ]
+     }
+    },
+    "required": [
+     "type"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setTimeframe",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Change one chart's timeframe.",
+   "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "timeframe": {
+      "type": "string",
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ]
+     }
+    },
+    "required": [
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setSymbol",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Show a different ticker on one chart. Widgets linked to the same color group follow, exactly as a manual symbol search does.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setSession",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Show or hide pre/post-market (extended hours) on one chart.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "regular",
+       "extended"
+      ]
+     }
+    },
+    "required": [
+     "mode"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setScale",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "scale": {
+      "type": "string",
+      "enum": [
+       "linear",
+       "log",
+       "percent"
+      ]
+     }
+    },
+    "required": [
+     "scale"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.applyTheme",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Apply one of UCT's built-in chart color themes (canvas, candles, grid, text) to one chart.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "theme": {
+      "type": "string",
+      "enum": [
+       "graphite",
+       "midnight",
+       "deep-forest",
+       "warm-charcoal",
+       "slate",
+       "obsidian",
+       "carbon",
+       "midnight-navy",
+       "espresso",
+       "plum",
+       "nord",
+       "gunmetal",
+       "bordeaux",
+       "storm",
+       "umber",
+       "paper",
+       "cream",
+       "cool-gray",
+       "soft-blue",
+       "warm-sand",
+       "mint-light",
+       "sand",
+       "mint",
+       "ember",
+       "emerald",
+       "teal-night",
+       "forest-fire",
+       "aurora",
+       "ocean",
+       "twilight",
+       "dawn",
+       "neon",
+       "synthwave",
+       "electric",
+       "citrus-pop",
+       "magenta-dusk",
+       "aqua-neon",
+       "dust",
+       "sage",
+       "fog",
+       "clay",
+       "heather",
+       "stonewash",
+       "grayscale",
+       "paper-mono",
+       "blue-mono",
+       "green-mono",
+       "amber-mono",
+       "slate-mono",
+       "bold",
+       "ink-on-white",
+       "blue-orange",
+       "teal-magenta",
+       "hi-vis",
+       "sunlight"
+      ]
+     }
+    },
+    "required": [
+     "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setBackground",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Set one chart's background to a single solid color.",
+   "hints": "Pass a hex color like #f3efe4; translate plain color names to hex.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "color"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setCandleColors",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Set one chart's up and/or down candle colors.",
+   "hints": "Hex colors; pass null for a side that should not change.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "up": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "down": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "up",
+     "down"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "volume.setState",
+   "domain": "volume",
+   "target": "chart",
+   "summary": "Show, hide, or remove one chart's built-in Volume pane.",
+   "hints": "\"hide volume\" is hidden (stays in the legend); \"remove volume\" is removed (off the chart).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "state": {
+      "type": "string",
+      "enum": [
+       "visible",
+       "hidden",
+       "removed"
+      ]
+     }
+    },
+    "required": [
+     "state"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.setSetting",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
+   "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed \u2014 crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8\u201345 (whole); volume.maPeriod: 0\u2013500 (whole); watermark.opacity|x|y: 0\u20131; positionCalc.accountSize: 0\u20131000000000; positionCalc.riskPct: 0\u2013100. Any other setting (header info-row fields, volume plot style\u2026): no op \u2014 say where it lives in Chart Settings.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "setting": {
+      "type": "string",
+      "enum": [
+       "grid.visible",
+       "crosshair.mode",
+       "textSize",
+       "showPriceLabels",
+       "showMaLabels",
+       "invertScale",
+       "watermark.visible",
+       "header.titleMode",
+       "header.showChange",
+       "header.legendMode",
+       "candleColorMode",
+       "candles.thinBars",
+       "countdown",
+       "swingLabels.enabled",
+       "swingLabels.sensitivity",
+       "swingLabels.tintByType",
+       "swingLabels.bgEnabled",
+       "grid.color",
+       "crosshair.color",
+       "crosshair.width",
+       "crosshair.style",
+       "crosshair.magnet",
+       "swingLabels.color",
+       "swingLabels.bg",
+       "swingLabels.upColor",
+       "swingLabels.downColor",
+       "markers.earningsBeat",
+       "markers.earningsMiss",
+       "textColor",
+       "watermark.sizeScale",
+       "watermark.weight",
+       "watermark.color",
+       "watermark.lines.logo",
+       "watermark.lines.ticker",
+       "watermark.lines.interval",
+       "watermark.lines.company",
+       "watermark.lines.sector",
+       "watermark.lines.industry",
+       "watermark.lines.theme",
+       "prevDayLevels.high.style",
+       "prevDayLevels.high.width",
+       "prevDayLevels.high.color",
+       "prevDayLevels.low.style",
+       "prevDayLevels.low.width",
+       "prevDayLevels.low.color",
+       "prevDayLevels.close.style",
+       "prevDayLevels.close.width",
+       "prevDayLevels.close.color",
+       "markers.earnings",
+       "markers.splits",
+       "markers.dividends",
+       "markers.news",
+       "markers.desk",
+       "prevDayLevels.high.enabled",
+       "prevDayLevels.low.enabled",
+       "prevDayLevels.close.enabled",
+       "bgMode",
+       "bgGradient.top",
+       "bgGradient.bottom",
+       "volume.upColor",
+       "volume.downColor",
+       "volume.hvcEnabled",
+       "volume.separatePane",
+       "volume.paneHeightPct",
+       "volume.labelVisible",
+       "volume.labelColor",
+       "volume.maPeriod",
+       "volume.maColor",
+       "volume.maLineWidth",
+       "volume.maLineStyle",
+       "volume.barStyle",
+       "watermark.opacity",
+       "watermark.x",
+       "watermark.y",
+       "markers.ipo",
+       "markers.ipoColor",
+       "darkPool.enabled",
+       "darkPool.barColor",
+       "darkPool.labelColor",
+       "heikinAshi",
+       "showChartIq",
+       "positionCalc.accountSize",
+       "positionCalc.riskPct"
+      ]
+     },
+     "value": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     }
+    },
+    "required": [
+     "setting",
+     "value"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": {
+    "setting": [
+     "key",
+     "id",
+     "name",
+     "option",
+     "settingId",
+     "setting_id",
+     "path",
+     "property"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "args {\"setting\": <one id from the list>, \"value\": \u2026} \u2014 \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
+  },
+  {
+   "name": "chart.applyTemplate",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings \u2192 Templates, or right-click \u2192 Chart template): the chart takes the template's whole saved setup, its indicators included.",
+   "hints": "template = a name from chartTemplates, exactly. For several charts (\"all my charts\"), one op per chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "template": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "template"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.resetDefaults",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Restore ONE chart's look to UCT's defaults (Chart Settings \u2192 Restore defaults): colours, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
+   "hints": "target = the chart. Always shown as a proposal first.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.goToDate",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Scroll ONE chart so a past date is at its right edge \u2014 exactly the Time Navigator date box. A view change only: every bar stays on the chart (it is not a replay), nothing is saved; Undo scrolls back.",
+   "hints": "date = YYYY-MM-DD. \"As it looked on <date>\" = this (say in the reply that later bars are still there, just scrolled off to the right).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "date"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.compare",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Overlay other symbols on ONE chart (Tools \u2192 Compare Symbols): add tickers, remove some, or clear all comparisons.",
+   "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ].",
+   "args": {
+    "type": "object",
+    "properties": {
+     "add": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "remove": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "clear": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "add",
+     "remove",
+     "clear"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.addCustomTimeframe",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Add a custom timeframe (e.g. 45 minutes, 2 hours, 3 days) to ONE chart's timeframe menu, exactly like the menu's Custom interval, and optionally switch the chart to it.",
+   "hints": "unit = minutes | hours | days | weeks | months; count = how many (45 for 45 minutes); switch = true to show the chart on it now (the usual case), false to only add it to the menu.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "unit": {
+      "type": "string",
+      "enum": [
+       "minutes",
+       "hours",
+       "days",
+       "weeks",
+       "months"
+      ]
+     },
+     "count": {
+      "type": "integer"
+     },
+     "switch": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "unit",
+     "count",
+     "switch"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "alert.list",
+   "domain": "alert",
+   "target": "alertLibrary",
+   "summary": "Show the member's price alerts from UCT's real alert list: which are active, which went off (and when). Use this (disposition apply) for \"show my alerts\", \"do I have an alert on NVDA?\", \"which alerts went off today?\".",
+   "hints": "target = the ref of the alertLibrary entry. symbol: one ticker to filter by, or null. status: active | triggered | all, or null (= all). triggered_today: true only for \"today\"; else null. These are PRICE alerts only \u2014 indicator alerts (RSI, MACD\u2026) are not listed here.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "status": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "active",
+       "triggered",
+       "all",
+       null
+      ]
+     },
+     "triggered_today": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "status",
+     "triggered_today"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "alert.create",
+   "domain": "alert",
+   "target": "alertLibrary",
+   "summary": "Create ONE price alert in UCT's Alerts: it goes off ONCE when the stock is at or above (direction above) or at or below (direction below) a price level, checked while the market is open. Only price levels \u2014 no percent-move, indicator, volume or time alerts; alerts cannot be paused, edited or made repeating.",
+   "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to \u2026 from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below \u2014 never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one \u2014 create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) \u2014 even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). An alert on an indicator (RSI, MACD, a moving-average cross\u2026) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     },
+     "price": {
+      "type": "number"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "above",
+       "below"
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "price",
+     "direction"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "alert.delete",
+   "domain": "alert",
+   "target": "alert",
+   "summary": "Delete one of the member's price alerts (permanent \u2014 UCT cannot restore a deleted alert).",
+   "hints": "target = the ref of that alert in the alerts list. One op per alert. Deleting is always shown to the member as a proposal first, so when the alert is clear (including \"it\" / \"that one\" right after an alert was named) plan the op \u2014 never ask \"are you sure?\". \"All my inactive alerts\" = one op per alert whose status is not active. If more than one alert could be the one they mean (e.g. two alerts on AMD), clarify with the real alerts as choices \u2014 never pick one. If the alerts list is not shown, use alert.list first.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.list",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlertLibrary",
+   "summary": "Show the member's indicator alerts from UCT's real list: symbol, indicator, condition, timeframe, whether each is active or paused, and why one can't fire. Use this (disposition apply) for \"show my indicator alerts\", \"why hasn't my RSI alert fired\".",
+   "hints": "target = the ref of the indicatorAlertLibrary entry. symbol: one ticker, or null. status: active | paused | attention (alerts that can't fire) | null (all).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "status": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "active",
+       "paused",
+       "attention",
+       null
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "status"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.create",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlertLibrary",
+   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member's own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart's symbol with the instance's own settings, on the chart's timeframe or another native one. Undo deletes it.",
+   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart's indicators entry (never a name); chart = the ref of the chart it is on; plot = null, or for several lines the address the catalog names (macd.signal) \u2014 not sure which line: ask. condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (\"crosses above 70\" = cross_above; \"is over 70\" = above); threshold = the level, else null. MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. The member's own yes/no signal: trigger = becomes_true (\"turns on\") | becomes_false (\"turns off\") | is_true, condition and threshold null; trigger = null otherwise. timeframe = null for the chart's own, or 1 | 5 | 15 | 30 | 60 | D | W | M (\"alert on the weekly RSI\" = W). A PRICE level (\"when NVDA hits 150\") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "plot": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "condition": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "threshold": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "crossWith": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "chart": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "trigger": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "becomes_true",
+       "becomes_false",
+       "is_true",
+       null
+      ]
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "instance",
+     "plot",
+     "condition",
+     "threshold",
+     "crossWith",
+     "chart",
+     "trigger",
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.toggle",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlert",
+   "summary": "Pause or resume ONE indicator alert (the ON / OFF switch on its row in the chart's Indicator Alerts popover). Undo switches it back.",
+   "hints": "target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "active": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "active"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.delete",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlert",
+   "summary": "Delete one of the member's indicator alerts (permanent \u2014 UCT cannot restore a deleted alert).",
+   "hints": "target = the ref of that alert in the indicatorAlerts list. One op per alert. Always shown as a proposal first; if two alerts could be the one they mean, clarify with the real alerts as choices \u2014 never pick one. To stop one without deleting it, indicatorAlert.toggle.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "breadth.show",
+   "domain": "breadth",
+   "target": "breadth",
+   "summary": "MARKET BREADTH from UCT's own data (US, NYSE, Nasdaq): now, on a date or at the close (a close not finalized yet is labelled provisional), the last N sessions, two dates compared, or a range \u2014 % above a moving average, new highs/lows, advance/decline, Stage 2/4. UCT shows the figures; you never see them. Use this (disposition apply, research null), never state breadth figures yourself.",
+   "hints": "target = breadth ref. universe us (default) | nyse | nasdaq | uct. metrics 1\u20134 keys; [] = general overview. value: date null = now; basis \"close\" if a close is asked; side \"below\" for % BELOW MA; else null. compare: compare_date. series: start, end null = latest. rows: sessions N = last N readings. Dates YYYY-MM-DD or null. reply: one short line, no figures. Keys: pct_above_{5,10,20,40,50,100,150,200}sma = % of stocks above that N-day simple MA; new_52w_highs/new_52w_lows = counts at 52-week highs/lows; net_new_high_low = highs minus lows; hi_ratio/lo_ratio = % of stocks at 52-week highs/lows; new_20d_highs/new_20d_lows = 20-day; near_52w_high = within 5% of 52w high; up_4pct_today/down_4pct_today = up/down 4%+ that day; ratio_5day/ratio_10day = up-4%/down-4% ratio over 5/10 days; adv_decline = net advancers; advancing/declining = issues up/down; universe_count = stocks counted; stage2_count/stage4_count = Stage 2 uptrend / Stage 4 downtrend counts.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "value",
+       "compare",
+       "series",
+       "rows"
+      ]
+     },
+     "universe": {
+      "type": "string",
+      "enum": [
+       "us",
+       "nyse",
+       "nasdaq",
+       "uct"
+      ]
+     },
+     "metrics": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "pct_above_5sma",
+        "pct_above_10sma",
+        "pct_above_20sma",
+        "pct_above_40sma",
+        "pct_above_50sma",
+        "pct_above_100sma",
+        "pct_above_150sma",
+        "pct_above_200sma",
+        "new_52w_highs",
+        "new_52w_lows",
+        "net_new_high_low",
+        "hi_ratio",
+        "lo_ratio",
+        "new_20d_highs",
+        "new_20d_lows",
+        "near_52w_high",
+        "up_4pct_today",
+        "down_4pct_today",
+        "ratio_5day",
+        "ratio_10day",
+        "adv_decline",
+        "advancing",
+        "declining",
+        "universe_count",
+        "stage2_count",
+        "stage4_count"
+       ]
+      }
+     },
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "compare_date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "start": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "end": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "basis": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "close",
+       null
+      ]
+     },
+     "side": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "below",
+       null
+      ]
+     },
+     "sessions": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "mode",
+     "universe",
+     "metrics",
+     "date",
+     "compare_date",
+     "start",
+     "end",
+     "basis",
+     "side",
+     "sessions"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "breadth.history",
+   "domain": "breadth",
+   "target": "breadth",
+   "summary": "Search UCT's finalized daily MARKET BREADTH history (US, NYSE, Nasdaq) for when a condition held: the last/first time a measure was below/above a level, crossings, how many times, episodes and how long they lasted. UCT computes it and shows the member; you never see figures. Never say UCT lacks historical breadth.",
+   "hints": "target = breadth entry ref. universe us (default) | nyse | nasdaq | uct; metric = ONE key (same keys as breadth.show). op below | at_or_below | above | at_or_above (strict unless at_or) | crosses_below | crosses_above; level in the measure's unit (10 = 10%). find last | first (date of the most recent / earliest match) | count (sessions + episodes; crossings for crosses_*) | episodes | longest | last_episode (runs of consecutive sessions). start / end YYYY-MM-DD or null (all history). aggregation \"daily\". A follow-up \"that\" / \"it\" = the measure and universe of the member's last breadth request. Lowest / highest in a period: breadth.show mode series. reply: one short line, no figures.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "universe": {
+      "type": "string",
+      "enum": [
+       "us",
+       "nyse",
+       "nasdaq",
+       "uct"
+      ]
+     },
+     "metric": {
+      "type": "string",
+      "enum": [
+       "pct_above_5sma",
+       "pct_above_10sma",
+       "pct_above_20sma",
+       "pct_above_40sma",
+       "pct_above_50sma",
+       "pct_above_100sma",
+       "pct_above_150sma",
+       "pct_above_200sma",
+       "new_52w_highs",
+       "new_52w_lows",
+       "net_new_high_low",
+       "hi_ratio",
+       "lo_ratio",
+       "new_20d_highs",
+       "new_20d_lows",
+       "near_52w_high",
+       "up_4pct_today",
+       "down_4pct_today",
+       "ratio_5day",
+       "ratio_10day",
+       "adv_decline",
+       "advancing",
+       "declining",
+       "universe_count",
+       "stage2_count",
+       "stage4_count"
+      ]
+     },
+     "op": {
+      "type": "string",
+      "enum": [
+       "below",
+       "at_or_below",
+       "above",
+       "at_or_above",
+       "crosses_below",
+       "crosses_above"
+      ]
+     },
+     "level": {
+      "type": "number"
+     },
+     "find": {
+      "type": "string",
+      "enum": [
+       "last",
+       "first",
+       "count",
+       "episodes",
+       "longest",
+       "last_episode"
+      ]
+     },
+     "start": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "end": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "aggregation": {
+      "type": "string",
+      "enum": [
+       "daily"
+      ]
+     }
+    },
+    "required": [
+     "universe",
+     "metric",
+     "op",
+     "level",
+     "find",
+     "start",
+     "end",
+     "aggregation"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "settings.show",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Say what the member's app settings are now (app theme, default chart timeframe, alert sound). Use this (disposition apply) for \"show my settings\".",
+   "hints": "target = the ref of the settings entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "settings.setAppTheme",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Change the WHOLE APP's colour theme (sidebar, panels, pages) \u2014 e.g. \"switch to dark mode / light mode\". Not a chart's colours: for one chart use chart.applyTheme.",
+   "hints": "target = the ref of the settings entry. theme: dark = Graphite (the default dark), oled = OLED Black, light = Light; or one of UCT's themes: slate (Slate, dark), graphite (Graphite, dark), carbon (Carbon, dark), navy (Midnight Navy, dark), forest (Deep Forest, dark), espresso (Espresso, dark), plum (Plum, dark), nord (Nord, dark), gunmetal (Gunmetal, dark), bordeaux (Bordeaux, dark), storm (Storm, dark), umber (Umber, dark), paper (Paper, light), cream (Cream, light), coolgray (Cool Gray, light), softblue (Soft Blue, light), sand (Sand, light), mint (Mint, light). \"Dark mode\" = dark; \"light mode\" = light.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "theme": {
+      "type": "string",
+      "enum": [
+       "dark",
+       "oled",
+       "light",
+       "slate",
+       "graphite",
+       "carbon",
+       "navy",
+       "forest",
+       "espresso",
+       "plum",
+       "nord",
+       "gunmetal",
+       "bordeaux",
+       "storm",
+       "umber",
+       "paper",
+       "cream",
+       "coolgray",
+       "softblue",
+       "sand",
+       "mint"
+      ]
+     }
+    },
+    "required": [
+     "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "settings.setDefaultTimeframe",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Change the timeframe NEW charts open on by default (Settings \u2192 Charts). Charts already on the board keep theirs \u2014 for one of those use chart.setTimeframe.",
+   "hints": "target = the ref of the settings entry. timeframe: 5 | 30 | 60 (minutes), D (daily), W (weekly) \u2014 the only choices Settings offers.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "timeframe": {
+      "type": "string",
+      "enum": [
+       "5",
+       "30",
+       "60",
+       "D",
+       "W"
+      ]
+     }
+    },
+    "required": [
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "settings.setAlertSound",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Turn the in-app alert sound on or off, and/or pick which sound plays (Settings \u2192 Preferences \u2192 Alerts). Does not change whether alerts are delivered.",
+   "hints": "target = the ref of the settings entry. enabled: true | false | null (keep); sound: chime (Chime), bell (Bell), ding (Ding), double_tap (Double Tap), triple_pop (Triple Pop), radar (Radar), urgent (Urgent), soft (Soft), pulse (Pulse), major (Major Chord), or null (keep).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "sound": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "chime",
+       "bell",
+       "ding",
+       "double_tap",
+       "triple_pop",
+       "radar",
+       "urgent",
+       "soft",
+       "pulse",
+       "major",
+       null
+      ]
+     }
+    },
+    "required": [
+     "enabled",
+     "sound"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "app.open",
+   "domain": "app",
+   "target": "app",
+   "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
+   "hints": "target = the ref of the app entry. page: one of terminal (UCT Terminal), charts (Charts), morning-wire (Morning Wire), dashboard (Dashboard), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings \u2014 account | billing | preferences | charts | compass | connections | legal \u2014 else null. symbol: only for page research (the ticker) \u2014 else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "page": {
+      "type": "string",
+      "enum": [
+       "terminal",
+       "charts",
+       "morning-wire",
+       "dashboard",
+       "ai-search",
+       "uct-20",
+       "breadth",
+       "screener",
+       "options-flow",
+       "flow-scoreboard",
+       "live-massive",
+       "catalysts-history",
+       "model-book",
+       "formulas-reference",
+       "desk",
+       "journal",
+       "portfolio-heat",
+       "community",
+       "support",
+       "settings",
+       "research"
+      ]
+     },
+     "section": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "account",
+       "billing",
+       "preferences",
+       "charts",
+       "compass",
+       "connections",
+       "legal",
+       null
+      ]
+     },
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "page",
+     "section",
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "settings.setWatchlistDigest",
+   "domain": "settings",
+   "target": "digest",
+   "summary": "Turn the member's watchlist EMAIL digest (a performance summary of their watchlists, emailed to their account email) on \u2014 daily or weekly \u2014 or off. Same as Settings \u2192 Email Digest.",
+   "hints": "target = the ref of the watchlistDigest entry; frequency = daily (every day 5 PM ET) | weekly (Fridays 5 PM ET) | off. Turning it on starts recurring emails: plan it (propose) and say so in the reply. To just see the current setting, answer from the watchlistDigest entry.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "frequency": {
+      "type": "string",
+      "enum": [
+       "off",
+       "daily",
+       "weekly"
+      ]
+     }
+    },
+    "required": [
+     "frequency"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartGrid.set",
+   "domain": "chartGrid",
+   "target": "board",
+   "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo.",
+   "hints": "Use for \"create/open/show N charts for A, B, C\u2026\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" \u2014 whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") \u2014 the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"\u2026, and a watchlist\") and the board has none: a Watchlist widget is added in a cleared right column; else null. replace = true only when they chose to replace the board with this workspace, \"charts\" to replace only their charts, else null. Never widget.add + chart.setSymbol for this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M",
+       null
+      ]
+     },
+     "layout": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "grid",
+       "columns",
+       "rows",
+       null
+      ]
+     },
+     "new_charts": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "watchlist": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "replace": {
+      "type": [
+       "boolean",
+       "string",
+       "null"
+      ],
+      "enum": [
+       true,
+       false,
+       "charts",
+       null
+      ]
+     }
+    },
+    "required": [
+     "symbols",
+     "timeframe",
+     "layout",
+     "new_charts",
+     "watchlist",
+     "replace"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "board.duplicateChart",
+   "domain": "board",
+   "target": "board",
+   "summary": "Duplicate one chart: its cell is split in two and a copy (same ticker, timeframe, look and indicators, not linked) appears in the other half. Nothing else moves. One change, one Undo.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.setOption",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Change ONE control of a widget on the board, exactly as the widget's own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.",
+   "hints": "target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): \u201cask widget.readOptions\u201d = the widget's own list right now, and a name is enough. (+/-) takes \"+member\" or \"-member\". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "key": {
+      "type": "string"
+     },
+     "value": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "key",
+     "value"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.readOptions",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Say how a widget on the board is set right now: each control's value and its choices (the themes it can open, a map's axes, a Scanner's criteria\u2026).",
+   "hints": "target = the board entry; widget = the widget id.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.sendToJournal",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Send a frozen capture of what a widget on the board shows now to the member's Journal, exactly as the widget's Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes\u2026 One op per widget. There is no Undo.",
+   "hints": "target = the board entry; widget = the widget id; where = note (their current note, else the inbox: the default), newNote or inbox.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "where": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "note",
+       "newNote",
+       "inbox",
+       null
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "where"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.applyThemeAll",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Apply one of UCT's chart themes to EVERY chart on the board (and chart tabs), exactly as the theme gallery's \"all charts\" does; new charts on this layout start with it.",
+   "hints": "target = the ref of the board entry; theme = a chart theme id (the same ids as chart.applyTheme). For ONE chart use chart.applyTheme.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "theme": {
+      "type": "string",
+      "enum": [
+       "graphite",
+       "midnight",
+       "deep-forest",
+       "warm-charcoal",
+       "slate",
+       "obsidian",
+       "carbon",
+       "midnight-navy",
+       "espresso",
+       "plum",
+       "nord",
+       "gunmetal",
+       "bordeaux",
+       "storm",
+       "umber",
+       "paper",
+       "cream",
+       "cool-gray",
+       "soft-blue",
+       "warm-sand",
+       "mint-light",
+       "sand",
+       "mint",
+       "ember",
+       "emerald",
+       "teal-night",
+       "forest-fire",
+       "aurora",
+       "ocean",
+       "twilight",
+       "dawn",
+       "neon",
+       "synthwave",
+       "electric",
+       "citrus-pop",
+       "magenta-dusk",
+       "aqua-neon",
+       "dust",
+       "sage",
+       "fog",
+       "clay",
+       "heather",
+       "stonewash",
+       "grayscale",
+       "paper-mono",
+       "blue-mono",
+       "green-mono",
+       "amber-mono",
+       "slate-mono",
+       "bold",
+       "ink-on-white",
+       "blue-orange",
+       "teal-magenta",
+       "hi-vis",
+       "sunlight"
+      ]
+     }
+    },
+    "required": [
+     "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "board.swap",
+   "domain": "board",
+   "target": "board",
+   "summary": "Swap two widgets' places on the board. Side by side (same rows) or stacked (same columns): each keeps its own size and they trade sides. Otherwise only two widgets of the same size can trade cells. Nothing else moves.",
+   "hints": "target = the ref of the board entry; a, b = the two widgets' ids. \"move my watchlist to the right\" when the chart is on the right = swap the watchlist and that chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "a": {
+      "type": "string"
+     },
+     "b": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "a",
+     "b"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.addTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for \u2026\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M",
+       null
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "timeframe",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.selectTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Switch a chart widget to one of its tabs (clicking the tab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"\u2026 or its label, from the board entry's chartTabs.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.closeTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Close one EXTRA tab of a chart widget (its settings go with it; Undo brings it back exactly). The main tab cannot be closed.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"\u2026 or its label, from the board entry's chartTabs.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.renameTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Rename a chart widget's tab (double-click on the tab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"\u2026 or its label, from the board entry's chartTabs. name = the new label (24 characters at most).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to \u2026\" is layout.rename."
+  },
+  {
+   "name": "chart.linkTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Set the link colour of one chart TAB (the tab's colour dot): tabs and widgets with the same colour follow the same symbol.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"\u2026 or its label, from the board entry's chartTabs. color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink) (E\u2013H only when the board entry says extraLinkColors: true) \u2014 a tab is always linked to a colour. \"Two tabs with linked symbols\" = give both the same colour.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string",
+      "enum": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "tab",
+     "color"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setAlert",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Set an alert that FOLLOWS a drawing (the drawing menu's \"Set alert\u2026\"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line's level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.",
+   "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify \u2014 never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "above",
+       "below"
+      ]
+     },
+     "level": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "drawing",
+     "direction",
+     "level"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "definition.search",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Find indicators by name or what they do \u2014 UCT's built-in indicators and the member's own saved ones (never anyone else's). Read-only.",
+   "hints": "target = the definitionLibrary entry; query = the member's words (\"momentum\", \"volatility bands\", \"my trend\"); kind = builtin | custom | null (both).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "kind": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "builtin",
+       "custom",
+       null
+      ]
+     }
+    },
+    "required": [
+     "query",
+     "kind"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "definition.describe",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Describe ONE indicator \u2014 its settings and their ranges, what it outputs, where it draws, and whether each output can drive an alert or a scan. Read-only.",
+   "hints": "target = the definitionLibrary entry; defId = its id (from a search or a chart's indicators list), or its exact name.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "definition.duplicate",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Save a COPY of an indicator as one of the member's own indicators (the legend's \"Create custom copy\") \u2014 a built-in becomes an editable formula, one of theirs is forked. Shown first; Undo deletes the copy (while no chart draws it).",
+   "hints": "target = the definitionLibrary entry; defId = the indicator's id (or its exact name). To put an indicator on a chart twice use indicatorCopy.duplicate instead.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "definition.delete",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Delete one of the member's OWN saved indicators (built-ins cannot be deleted). Always shown first, naming every chart still drawing it (they stop drawing it). Undo restores it under the same id, so those charts draw it again.",
+   "hints": "target = the definitionLibrary entry; defId = the indicator's id from yourIndicators or a chart's indicators list (or its exact name). If more than one of theirs could be meant, ask \u2014 never pick by similarity.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "agent.capabilities",
+   "domain": "agent",
+   "target": "about",
+   "summary": "Answer what UCT Agent can and cannot do (now, partly, not yet, planned) about a topic \u2014 from UCT's own capability list, never from memory.",
+   "hints": "target = the ref of the agent entry. Use ONLY for a question ABOUT abilities (\"can you draw trendlines?\", \"what can you do with layouts?\", \"can you backtest?\"). A polite request to DO something you can do (\"can you switch this to weekly?\") is a command: plan it, do not use this. topic: overview for \"what can you do?\"; other when no topic fits.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "topic": {
+      "type": "string",
+      "enum": [
+       "backtest",
+       "vision",
+       "breadth",
+       "history",
+       "arrange",
+       "widgets",
+       "layouts",
+       "customIndicator",
+       "indicators",
+       "drawings",
+       "chartSettings",
+       "charts",
+       "savedScreens",
+       "screener",
+       "watchlists",
+       "alerts",
+       "stockInfo",
+       "calendar",
+       "journal",
+       "appSettings",
+       "guide",
+       "undo",
+       "similarity",
+       "overview",
+       "other"
+      ]
+     }
+    },
+    "required": [
+     "topic"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "agent.undo",
+   "domain": "agent",
+   "target": "about",
+   "summary": "Undo YOUR OWN most recent change(s) in this conversation \u2014 exactly what the Undo on that change\u2019s receipt does. UCT refuses it itself when that change can\u2019t be undone (changed since, another board, a protected layout, a permanent action).",
+   "hints": "target = the ref of the agent entry. scope: \"last\" = the newest change (undo that / undo the last change / revert it); \"all\" = every change of the previous request (undo all of that). about = what the member says the change was (\"undo the timeframe change\" \u2192 timeframe), else null. In a request that makes a change AND undoes it (\"switch to weekly, then undo that\"), put the change first and agent.undo LAST. Never tell the member you cannot undo, or to use another Undo: plan this, and UCT reports what it actually undid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "scope": {
+      "type": "string",
+      "enum": [
+       "last",
+       "all"
+      ]
+     },
+     "about": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "indicator",
+       "chart",
+       "widget",
+       "drawing",
+       "layout",
+       "colour",
+       "style",
+       "timeframe",
+       "symbol",
+       "pane",
+       "theme",
+       "resize",
+       "size",
+       "move",
+       "rename",
+       "link",
+       null
+      ]
+     }
+    },
+    "required": [
+     "scope",
+     "about"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": {
+    "scope": {
+     "latest": "last",
+     "newest": "last",
+     "previous": "last",
+     "one": "last",
+     "everything": "all",
+     "turn": "all"
+    },
+    "about": {
+     "color": "colour",
+     "time frame": "timeframe",
+     "ticker": "symbol",
+     "interval": "timeframe"
+    }
+   },
+   "defaults": {
+    "scope": "last"
+   },
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "guide.explain",
+   "domain": "guide",
+   "target": "guide",
+   "summary": "Explain what a UCT term, indicator or feature IS (\u201cwhat does ADR mean?\u201d, \u201cexplain RSI\u201d, \u201cthe difference between an indicator and a condition\u201d), from UCT's own catalog. Changes nothing.",
+   "hints": "target = the guide entry. topic = the member's words for what to explain (an indicator, a UCT term or feature). Prefer it for UCT's own indicators and features \u2014 its text is UCT's catalog. Use ONLY for \"what is / what does / explain / difference\" questions; a request to change something is a command \u2014 plan it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "topic": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "topic"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "guide.show",
+   "domain": "guide",
+   "target": "guide",
+   "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing \u2014 use it for \"where do I\u2026\", \"show me how to\u2026\", \"how do I\u2026\" questions, never to do the thing.",
+   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting\u2026); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "feature": {
+      "type": "string",
+      "enum": [
+       "drawingEdit",
+       "indicatorManage",
+       "layoutAction",
+       "tabAction",
+       "watchlistAction",
+       "alertAction",
+       "widgetAction",
+       "dockAction",
+       "panelAction",
+       "compareAction",
+       "chartMenu",
+       "chartView",
+       "legendChip",
+       "indicatorColor",
+       "indicatorEdit",
+       "alertIndicator",
+       "alertPrice",
+       "multiChart",
+       "widgetResize",
+       "widgetMove",
+       "widgetHeader",
+       "widgetSettings",
+       "widgetAdd",
+       "widgetMerge",
+       "compare",
+       "replay",
+       "periodSort",
+       "goToDate",
+       "chartTab",
+       "chartThemes",
+       "chartTemplate",
+       "chartType",
+       "timeframeCustom",
+       "watchlistAddSymbol",
+       "chartSetting",
+       "layoutSave",
+       "watchlistCreate",
+       "canvas",
+       "link",
+       "symbol",
+       "timeframe",
+       "indicators",
+       "charts",
+       "watchlists",
+       "layouts",
+       "hideDrawings",
+       "drawing",
+       "settings",
+       "screenerScreens",
+       "screenerColumns",
+       "screenerFilters",
+       "breadthViews",
+       "breadthTable",
+       "calendarNextReport",
+       "journalNewNote"
+      ]
+     },
+     "detail": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "feature",
+     "detail"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "calendar.day",
+   "domain": "calendar",
+   "target": "calendar",
+   "summary": "List the earnings reports on ONE day (tickers by session: before the open / after the close), or the whole week when no day is given \u2014 from the week the Calendar page has loaded. Use it for \"what reports on Thursday?\", \"who reports today?\", \"what's on this week?\".",
+   "hints": "target = the ref of the calendar entry; date = YYYY-MM-DD, or null for every day of the week on the page. Tickers only \u2014 no estimates.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  }
+ ],
+ "routing": {
+  "version": 1,
+  "groups": [
+   {
+    "id": "charts",
+    "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+   },
+   {
+    "id": "chartSetup",
+    "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart\u2019s date range (3M\u20135Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+   },
+   {
+    "id": "chartGrid",
+    "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+   },
+   {
+    "id": "boardEdit",
+    "title": "Swap two widgets\u2019 places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+   },
+   {
+    "id": "workspace",
+    "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
+   },
+   {
+    "id": "layouts",
+    "title": "Saved layouts (open, save, create, copy, rename, delete)"
+   },
+   {
+    "id": "indicators",
+    "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+   },
+   {
+    "id": "indicatorSetup",
+    "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+   },
+   {
+    "id": "definitions",
+    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+   },
+   {
+    "id": "drawingTools",
+    "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
+   },
+   {
+    "id": "drawings",
+    "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+   },
+   {
+    "id": "lists",
+    "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
+   },
+   {
+    "id": "screener",
+    "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
+   },
+   {
+    "id": "alerts",
+    "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+   },
+   {
+    "id": "indicatorAlerts",
+    "title": "Indicator alerts on a chart's indicators \u2014 RSI, MACD, EMA / SMA crosses, bands\u2026 (create, pause / resume, delete)"
+   },
+   {
+    "id": "data",
+    "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
+   },
+   {
+    "id": "breadth",
+    "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
+   },
+   {
+    "id": "settings",
+    "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
+   },
+   {
+    "id": "calendar",
+    "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+   },
+   {
+    "id": "agent",
+    "title": "Questions about what UCT Agent can do"
+   },
+   {
+    "id": "undo",
+    "title": "Undo your own last change(s) in this conversation (exactly the receipt\u2019s Undo)"
+   },
+   {
+    "id": "guide",
+    "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) \u2014 changes nothing"
+   }
+  ],
+  "selected": [
+   "charts",
+   "chartGrid",
+   "boardEdit",
+   "definitions",
+   "alerts",
+   "indicatorAlerts",
+   "breadth",
+   "settings",
+   "calendar",
+   "agent",
+   "undo",
+   "guide"
+  ]
+ }
+}

@@ -301,6 +301,25 @@ describe('through the REAL panel with routing v2 on: a control request carries i
     expect(await say('only show calls on the options flow')).toMatch(/can't screen on options-flow/)
     expect(p.st.calls.some(c => c[1].startsWith('/api/screener/scan'))).toBe(false)
   }, 40000)
+  it.each(['only show calls on the options flow with bullish premium', 'only show calls on the options flow with a high rs rank', 'only show calls on the options flow across the market',
+    'only show calls on the options flow for the whole market', 'only show calls on the options flow sorted by net premium', 'only show calls on the options flow, top 10',
+    'only show all unusual calls on the options flow', 'only show calls on the options flow in tech', 'only show the biggest calls on the options flow', 'only show calls on the options flow ranked by size',
+    'only show margin calls on the options flow'])('⛔ more than the chip, "%s": the F-16 refusal, no model call, nothing changes', async (message) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    const before = JSON.stringify(board.state.widgets)
+    expect(await say(message)).toMatch(/can't screen on/)
+    expect(p.turns()).toBe(0)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it.each(['remove calls only from the options flow', 'clear the calls filter on the options flow', 'turn off calls only on the options flow'])('clearing, "%s": one fixed answer, no model call, nothing changes', async (message) => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, { filters: { cp: 'C' } })], syms)
+    const before = JSON.stringify(board.state.widgets)
+    expect(await say(message)).toMatch(/To clear it, use Undo or the All chip/)
+    expect(p.turns()).toBe(0)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
   it('⛔ no hidden field reaches the model: the Calls request carries only the widget control, never a hidden key', async () => {
     const [[chart], syms] = ONE('NVDA')
     const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
