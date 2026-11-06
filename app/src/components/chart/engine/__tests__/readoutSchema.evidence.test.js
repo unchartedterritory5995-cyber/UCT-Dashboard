@@ -195,10 +195,16 @@ describe('the registered copy — UCT Relative Strength cards', () => {
   it('end to end on the registered cards: the payload sentence wins, the honesty form prints as the provider sends it, no envelope prints the static line', () => {
     const measured = { evidence: { sentence: Object.fromEntries(SIGNAL_CARDS.map((k) => [k, k === 'beforePrice' ? MEASURED : HONESTY])) } }
     const honest = { evidence: { source: 'none', sentence: Object.fromEntries(SIGNAL_CARDS.map((k) => [k, HONESTY])) } }
+    // ⚰️ Moved 2026-11-07 (review finding #22): this pinned the Before-price card
+    // printing the server sentence ALONE, which dropped its Bulkowski line on
+    // every V2 envelope. The server sentence now replaces only the closing
+    // honesty sentence, so Before price prints Bulkowski first; the other four
+    // cards' static line is the honesty sentence alone and print as before.
+    const lit = (key) => (key === 'beforePrice' ? cardOf('beforePrice').evidence.slice(0, -HONESTY.length) : '')
     for (const key of SIGNAL_CARDS) {
       const e = RS.readout.find((x) => x.key === key)
-      expect(cardEvidenceText(e, measured), key).toBe(key === 'beforePrice' ? MEASURED : HONESTY)
-      expect(cardEvidenceText(e, honest), key).toBe(HONESTY)
+      expect(cardEvidenceText(e, measured), key).toBe(lit(key) + (key === 'beforePrice' ? MEASURED : HONESTY))
+      expect(cardEvidenceText(e, honest), key).toBe(lit(key) + HONESTY)
       expect(cardEvidenceText(e, null), key).toBe(e.card.evidence)
       expect(cardEvidenceText(e, { benchmark: { resolved: 'SPY' } }), key).toBe(e.card.evidence)
     }

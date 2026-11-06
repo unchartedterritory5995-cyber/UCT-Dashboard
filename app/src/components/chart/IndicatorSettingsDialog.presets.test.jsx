@@ -587,9 +587,16 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
     expect(inst.visibility).toEqual({ preset: 'dailyUp' })
     expect(inst.presentation).toEqual({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
     expect(presetSelect().value).toBe('stress')
-    // back to Classic: the toggles come off, the fields stay as the member had them
+    // back to Classic: the toggles come off AND the fields Stress wrote are reset.
+    // ⚰️ Moved 2026-11-07 (review finding #26): this pinned "the fields stay as the
+    // member had them", which left the pane hidden intraday and the gold dot Large
+    // under a picker that read Classic. Classic now declares visibility 'all' and
+    // the default dot size, so choosing it is Classic on screen too.
     choosePreset('classic')
-    expect(findInstance(latest(), RS_INST()).inputs).toMatchObject({ showRedDay: false, showMansfield: false })
+    const back = findInstance(latest(), RS_INST())
+    expect(back.inputs).toMatchObject({ showRedDay: false, showMansfield: false })
+    expect(back.visibility).toBeUndefined()
+    expect(back.presentation).toBeUndefined()
     expect(presetSelect().value).toBe('classic')
   })
 
