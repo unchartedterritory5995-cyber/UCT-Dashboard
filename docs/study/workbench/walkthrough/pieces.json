@@ -1518,7 +1518,7 @@
   "batch": 22,
   "title": "1 · Hard mode, round 21: your batch-21 ranks, every part",
   "url": "http://127.0.0.1:5232/lab.html?piece=65",
-  "what": "Your AAPL call was right: the engine's Oops Reversal rule fires on that candle, so 'Nothing fired' was wrong. Every Hard chart is now checked against all seven setups before it can play: a chart keeps its place only when its own setup is the one thing that fires, or nothing fires at all. 216 of 363 bank charts pass; your AAPL chart and a WFRD chart where a Launchpad also fires are out. The arrow and the box are replaced: a ring round the candle, a label in open space, an arrow to it, never over another candle. After you answer, the chart runs on to the trade's best point and a few days past it (up to 60 sessions, not 20), quick after the first few candles, and a gold label marks the move: '+20.4% in 22 sessions'. The best point counts only while the trade is alive: once a close breaks the signal candle's low, a later high is not credited to it. When nothing fired, the chart runs on 30 sessions. The ticker shows with the company name, and the big name across the candles is gone. The lesson is a coach's card: a straight headline, the last candle measured in six numbers, what happened on this chart, and the rule as numbered steps in your own words. The status line, the buttons, the start and end screens are rebuilt; the keyboard hint is gone.",
+  "what": "Your AAPL call was right: the engine's Oops Reversal rule fires on that candle, so 'Nothing fired' was wrong. Every Hard chart is now checked against all seven setups before it can play: a chart keeps its place only when its own setup is the one thing that fires, or nothing fires at all. 216 of 363 bank charts pass; your AAPL chart and a WFRD chart where a Launchpad also fires are out. The arrow and the box are replaced: a ring round the candle, a label in open space, an arrow to it, never over another candle. After you answer, the chart runs on to the trade's best point and a few days past it (up to 60 sessions, not 20), quick after the first few candles, and a gold label marks the move: '+20.4% in 22 sessions'. The best point counts only while the trade is alive: once a close breaks the signal candle's low, a later high is not credited to it. When nothing fired, the chart runs on 30 sessions. The ticker shows with the company name, and the big name across the candles is gone. The lesson is a coach's card: a straight headline, the last candle measured in six numbers, what happened on this chart, and the rule as numbered steps in your own words. The status line, the buttons, the start and end screens are rebuilt; the keyboard hint is gone. Final pass against all your earlier notes: our logo rides the progress bar as it fills; the measured numbers add how far the stock sits under its high and how stretched it is from the 20-day and 50-day averages; text no longer bounces in; the answer seal fills the screen for a moment after Check; the chart is a little bigger with only 1-2 candles of space on the right; phone answer pills fit on one line. Still waiting on you: entry and stop levels per setup (you gave the Kicker's: over the prior day's high, or the day-1 30-minute opening range).",
   "judge": "Rank every part. Name an app that does a part better, and I build to it.",
   "parts": [
    {
@@ -1543,7 +1543,7 @@
    },
    {
     "id": "status",
-    "label": "the status line: mode, progress rail, count, charts named"
+    "label": "the status line: mode, progress bar with our logo riding it, count, charts named"
    },
    {
     "id": "frame",
@@ -1587,7 +1587,7 @@
    },
    {
     "id": "lesson",
-    "label": "the coach's card on the first chart"
+    "label": "the coach's card on the first chart (eight measured numbers)"
    },
    {
     "id": "lessonFired",
