@@ -547,6 +547,45 @@ def all_addresses() -> list[str]:
     return [a for partition in ADDRESS_PARTITIONS for a in partition]
 
 
+# ─── 2026-11-07 (RS fix U1, review #2): THE RS ADDRESSES ARE OFFERED ONLY LIT ──
+#
+# Registration above stays UNCONDITIONAL — a stored row must still resolve,
+# evaluate and diagnose whatever the flags say — but OFFERING an RS alert (the
+# catalog the dropdown reads, the create door's `refusal_for`) follows the flag
+# that lights the RS line it describes: `registry_defs.RS_V2_ENABLED`. The
+# rating additionally needs the nightly job that fills its table,
+# `api.main.rs_history_enabled()`; without it the column is None on every bar
+# and an armed rating alert could never fire. Both are READ here, never set,
+# and read per call (a monkeypatched flag in a test, a flipped env on the pod).
+
+def rs_alerts_offered() -> bool:
+    """`RS_V2_ENABLED`, read off `registry_defs` at call time."""
+    from api.services.signature import registry_defs
+    return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+
+
+def rs_rating_offered() -> bool:
+    """The rating's gate: RS alerts offered AND `RS_HISTORY_ENABLED` (its one
+    reader, `api.main.rs_history_enabled`, imported lazily). Any failure to read
+    it is "not offered" — dark is the safe answer."""
+    if not rs_alerts_offered():
+        return False
+    try:
+        from api.main import rs_history_enabled
+        return bool(rs_history_enabled())
+    except Exception:  # noqa: BLE001 - an unreadable switch is an off switch
+        return False
+
+
+def rs_address_offered(address: Optional[str]) -> bool:
+    """True for every non-RS address; for an RS address, whether its flag(s) are lit."""
+    if address not in RS_ADDRESSES:
+        return True
+    if address == alert_rs_series.RS_RATING_ADDRESS:
+        return rs_rating_offered()
+    return rs_alerts_offered()
+
+
 def value_function(address: str) -> Optional[ValueFn]:
     """The value function for a canonical address: level, event or price.
 
@@ -1231,7 +1270,13 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
     # dropdown opens on the same option it always did and every option they
     # already knew is where it was. `ADDRESS_PARTITIONS` is that order.
     groups: dict[str, list[str]] = {}
+    # 2026-11-07 (RS fix U1, review #2): an RS address joins the dropdown only
+    # while its flag is lit (`rs_address_offered`); with every flag at its
+    # default the catalog is the pre-RS one, byte for byte.
+    rs_offered = {a: rs_address_offered(a) for a in RS_ADDRESSES}
     for address in all_addresses():
+        if not rs_offered.get(address, True):
+            continue
         groups.setdefault(plot_base(address), []).append(address)
 
     entries = []
@@ -1911,8 +1956,22 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
     params = _parse_params(alert)
     try:
         from api.services import alert_user_series as _aus
-        series = _aus.call_series(series_fn, bars, params, tf=alert.get("tf"),
-                                  sym=alert.get("sym"))
+        if getattr(series_fn, "reads_benchmark", False):
+            # ⭐ 2026-11-07 (RS fix U1, review #10) — AN RS COLUMN IS COMPUTED ON
+            # THE CLOSED WINDOW. Every RS column is causal (a join by bar time,
+            # averages and rolling extremes over prior bars), so `bars[:i + 1]`
+            # gives the same numbers at `i` and `i - 1` as the full window — and,
+            # unlike the full window, its key does not move with the forming
+            # bar's close, so `alert_rs_series`' cross-cycle cache serves it from
+            # one cycle to the next instead of recomputing ~80 ms per symbol a
+            # minute. The forming bars after `i` are padded `None` (no RS value
+            # is ever judged there), so the column stays aligned to `bars`.
+            closed = _aus.call_series(series_fn, bars[:i + 1], params, tf=alert.get("tf"),
+                                      sym=alert.get("sym"))
+            series = list(closed) + [None] * (len(bars) - i - 1)
+        else:
+            series = _aus.call_series(series_fn, bars, params, tf=alert.get("tf"),
+                                      sym=alert.get("sym"))
         if len(series) != len(bars):
             # The identical assertion `alert_series.series_for` makes, kept HERE
             # because resolving the function up front is what lets one call site

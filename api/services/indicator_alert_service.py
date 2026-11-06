@@ -1175,6 +1175,16 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
                            f"{when} — the nightly rs_rating_history table holds no row "
                            f"for that session (web pod, written after the 03:00 ET "
                            f"screener build), so there is nothing to compare yet")
+        # ⭐ 2026-11-07 (RS fix U1, review #17) — an RS column blank because its
+        # benchmark IS the symbol, or has no stored bars, is not warming up: it
+        # never fills in. Named as the fault it is, so the silence sweep raises
+        # it to needs_attention instead of reading "not enough history" forever.
+        from api.services import alert_rs_series as _ars
+        fault = _ars.benchmark_fault(address, alert.get("sym"), alert.get("tf"),
+                                     params, judged)
+        if fault is not None:
+            label = ev.ALERT_LABELS.get(address, address)
+            return True, f"{label} on {alert.get('sym')}: {fault}"
         pad = closed_lane_pad(address, judged, params)
         if mode == "closed" and pad > 0:
             label = ev.ALERT_LABELS.get(address, address)
@@ -1460,6 +1470,13 @@ REFUSAL_NO_LEVEL = "compares against a level, and no level was given"
 #: only" — so one anchor still names the one gate, and no other gate's sentence
 #: contains it (the disjointness rail is unchanged).
 REFUSAL_RS_TIMEFRAME = "are judged on closed daily"
+#: 2026-11-07 (RS fix U1, review #2) — the anchor of the RS OFFER gate: an RS
+#: address whose flag is dark (`ev.rs_address_offered`). Disjoint from the five
+#: above (`tests/test_rs_fix_u1_alert_lane.py` asserts it both ways).
+REFUSAL_RS_NOT_OFFERED = "are not offered yet"
+#: 2026-11-07 (RS fix U1, review #17) — the anchor of the self-benchmark gate
+#: (`alert_rs_series.self_benchmark_refusal`'s sentence carries it).
+REFUSAL_RS_SELF_BENCHMARK = "would measure the symbol against itself"
 
 #: How many bars the classification probe below runs on. Ichimoku needs 52 + a
 #: 26-bar displacement before it resolves at all, so a short probe would report
@@ -1629,8 +1646,22 @@ def conditions_needing_a_level() -> frozenset:
     )
 
 
+def _rs_not_offered_sentence(address: str) -> str:
+    """2026-11-07 (RS fix U1, review #2): the member sentence for an RS address
+    whose flag is dark. Carries `REFUSAL_RS_NOT_OFFERED`."""
+    from api.services import alert_rs_series
+    if address == alert_rs_series.RS_RATING_ADDRESS:
+        return (f"IBD-style RS rating alerts {REFUSAL_RS_NOT_OFFERED}: the nightly "
+                f"rating job they read from is not switched on, so an alert armed "
+                f"now could never fire.")
+    return (f"UCT Relative Strength alerts {REFUSAL_RS_NOT_OFFERED}: they open with "
+            f"the next version of the RS line on the chart.")
+
+
 def refusal_for(indicator: Optional[str], condition: Optional[str],
-                tf: Optional[str], threshold: Optional[float]) -> Optional[str]:
+                tf: Optional[str], threshold: Optional[float], *,
+                sym: Optional[str] = None,
+                params: Optional[dict] = None) -> Optional[str]:
     """Why this alert could NEVER fire, or ``None`` if it could.
 
     Three gates, and every one of them is true under `ALERT_EVAL_MODE ==
@@ -1656,6 +1687,13 @@ def refusal_for(indicator: Optional[str], condition: Optional[str],
     code = str(tf or "").strip().upper()
     label = ev.ALERT_LABELS.get(address, address)
 
+    # ⭐ 2026-11-07 (RS fix U1, review #2) — THE RS OFFER GATE, FIRST. The
+    # catalog hides an RS address while its flag is dark; this is the same
+    # answer at the door, so a hand-written POST cannot arm what the dropdown
+    # does not offer. Registration is untouched: rows already stored still run.
+    if address in ev.RS_ADDRESSES and not ev.rs_address_offered(address):
+        return _rs_not_offered_sentence(address)
+
     if rule not in evaluable_conditions():
         offered = ", ".join(sorted(evaluable_conditions()))
         return (f"{condition!r} {REFUSAL_UNJUDGEABLE_CONDITION} — it matches no "
@@ -1675,6 +1713,12 @@ def refusal_for(indicator: Optional[str], condition: Optional[str],
     if address in ev.RS_ADDRESSES:
         from api.services import alert_rs_series
         why = alert_rs_series.timeframe_refusal(tf, address)
+        if why is not None:
+            return why
+        # 2026-11-07 (RS fix U1, review #17): a symbol measured against itself
+        # blanks the column on every bar. Asked only when the caller names the
+        # symbol (the member route does); the params decide the benchmark.
+        why = alert_rs_series.self_benchmark_refusal(address, sym, params)
         if why is not None:
             return why
 

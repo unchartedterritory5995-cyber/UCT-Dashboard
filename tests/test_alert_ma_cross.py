@@ -21,6 +21,18 @@ STEP = 300                      # 5-minute bars
 T0 = 1_700_000_000              # 2023 — every bar is closed by the wall clock
 
 
+# 2026-11-07 (RS fix U1, review #2) -- PIN MOVED. The RS alert catalog and the
+# create door now follow `registry_defs.RS_V2_ENABLED` (and, for `rs_line.rating`,
+# `api.main.rs_history_enabled()`), dark by default; registration is unchanged.
+# The pins in this file describe the LIT shape, so both flags are lit here,
+# deterministically. The dark shape is railed in tests/test_rs_fix_u1_alert_lane.py.
+@pytest.fixture(autouse=True)
+def _rs_alert_flags_lit(monkeypatch):
+    from api.services.signature import registry_defs as _rs_flag_defs
+    monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
+
+
 def _bars(closes, start_t=T0, step=STEP):
     return [{"t": start_t + i * step, "o": float(c), "h": float(c) + 0.5,
              "l": float(c) - 0.5, "c": float(c), "v": 100_000}
