@@ -1,4 +1,4 @@
-# NEXT STEP (session restart): final-tip FULL was started in background on tip 508bed7d4c under heavy-final2.lock (command: final-tip.sh pine-dsk-w34d3 w34-d3-final). Logs: C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/w34-d3-final/ (TIP, FINAL_DONE). When FINAL_DONE exists run scripts/ready-check.sh pine-dsk-w34d3 w34-d3-final; if the job died, re-run it. Then fill final-tip rcs here and report. measure-pair and mutations are done (below).
+# STATUS: DONE. final-tip (runs/w34-d3-final2) complete, see final-tip section below. No next step except the coordinator's engine-bump call.
 
 # W3W4-D3 evidence (lane w34-d3), WIP
 
