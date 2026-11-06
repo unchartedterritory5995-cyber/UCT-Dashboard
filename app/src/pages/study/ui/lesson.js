@@ -14,15 +14,15 @@ export function splitLesson(text) {
   const raw = brandWords(String(text || '').replace(/\s+/g, ' ').trim()) || ''
   const citations = []
   let body = raw.replace(CITE, (_, c) => { citations.push(c); return '' }).replace(/\s+([.,;:])/g, '$1').trim()
-  // a near-miss: the detector did not fire, and the rest is why
-  const nm = NOTHING.exec(body)
-  if (nm) {
-    const reason = endStop(cap(body.slice(nm[0].length).trim()))
-    return { setup: '', rule: '', ruleLead: '', ruleRest: '', here: '', nothing: true, reason, citations }
-  }
   let setup = ''
   const named = /^([A-Z][A-Za-z0-9 ()'&/-]{1,48}?):\s+(?=\S)/.exec(body)
   if (named) { setup = named[1]; body = body.slice(named[0].length) }
+  // a near-miss ("Capitulation: the firm's detector does not fire on the last bar of this chart. <why>"): the rest is why
+  const nm = NOTHING.exec(body)
+  if (nm) {
+    const reason = endStop(cap(body.slice(nm[0].length).trim()))
+    return { setup, rule: '', ruleLead: '', ruleRest: '', here: '', nothing: true, reason, citations }
+  }
   let rule = body
   let here = ''
   const at = hereIndex(body)

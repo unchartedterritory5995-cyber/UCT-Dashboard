@@ -1,7 +1,7 @@
 // THE POINTER (round 18, batch 18: "ensure that it doesnt interfere with candles"; round 19, batch 19: the arrow-and-chip
 // callout Cut). A SPOTLIGHT, not an arrow: the candle's own column lit from the top of the pane to the bottom — a
-// translucent band on the candle's time with a thin bright centre line — and a small chip parked in the pane's top
-// margin, above every candle, whose right end meets the band. Nothing is drawn across another candle, and nothing
+// translucent band on the candle's time with a thin bright centre line — and a small chip parked in the pane's bottom
+// margin, under every candle, whose right end meets the band (the widget's own legend owns the top-left). Nothing is drawn across another candle, and nothing
 // points: the lit column IS the answer to "which candle". Pure: records for the chart's own drawings layer (never drawn
 // by hand on top), computed from the bars in hand and measured in the WINDOW's range, which is what the pane's margins
 // are measured in, so the chip stays inside the pane (round 10 ruling: "the chip can never clip").
@@ -26,7 +26,7 @@ export function spotlight(bars, i, { label = 'this candle', color = '#dcbb5e', i
   return [
     { id: `${id}-band`, type: 'vertical', points: [{ time: b.t, price: b.c }], color: withAlpha(color, 0.16), lineWidth: band, locked },
     { id: `${id}-line`, type: 'vertical', points: [{ time: b.t, price: b.c }], color: withAlpha(color, 0.55), lineWidth: 1, locked },
-    { id: `${id}-chip`, type: 'text', points: [{ time: bars[start].t, price: top + range * 0.075 }], text, color, fontSize: 11, bgEnabled: true, bgColor: 'rgba(11,11,11,.9)', borderEnabled: true, borderColor: color, locked },
+    { id: `${id}-chip`, type: 'text', points: [{ time: bars[start].t, price: bot - range * 0.025 }], text, color, fontSize: 11, bgEnabled: true, bgColor: 'rgba(11,11,11,.9)', borderEnabled: true, borderColor: color, locked },
   ]
 }
 
@@ -38,7 +38,7 @@ export function withAlpha(hex, a) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
 
-/** The chip's anchor price for a rail: it sits above every candle in the window. */
+/** The chip for a rail: it hangs under every candle in the window, inside the pane's bottom margin. */
 export function spotlightChip(drawings) {
   return (drawings || []).find((d) => d && d.type === 'text') || null
 }

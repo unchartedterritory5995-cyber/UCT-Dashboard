@@ -55,6 +55,7 @@ export default function StudyChart({ id, bars, view = null, height = 400, annota
     hideCompare: true,
     hideLegend: phone,
     hideScaleToggle: true,
+    showRangeSelector: false,
     showDrawingTools: false,
     hotkeysActive: false,
     dailyDefaultBars: shown,

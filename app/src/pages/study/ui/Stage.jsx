@@ -27,10 +27,11 @@ export function Backdrop({ n = 44, seed = 7 }) {
         {bars.map((b, i) => {
           const cx = i * w + w / 2
           const col = b.up ? '#2faf68' : '#df4646'
+          const y = (v) => (100 - v) * 0.52          // the candles live in the card's top half, behind the title
           return (
             <g key={i} opacity=".55">
-              <line x1={cx} x2={cx} y1={100 - b.h} y2={100 - b.l} stroke={col} strokeWidth=".35" />
-              <rect x={cx - w * 0.3} width={w * 0.6} y={100 - Math.max(b.o, b.c)} height={Math.max(0.6, Math.abs(b.o - b.c))} fill={col} />
+              <line x1={cx} x2={cx} y1={y(b.h)} y2={y(b.l)} stroke={col} strokeWidth=".35" />
+              <rect x={cx - w * 0.3} width={w * 0.6} y={y(Math.max(b.o, b.c))} height={Math.max(0.4, Math.abs(b.o - b.c) * 0.52)} fill={col} />
             </g>
           )
         })}
@@ -74,7 +75,7 @@ export function RunLog({ rows = [] }) {
 export default function Stage({ legend = false, rays = false, hero = false, eyebrow = null, title = null, titlePlain = false, titleNote = null, sub = null, art = null, children = null, actions = null, below = null, testId = null }) {
   return (
     <div className={`${s.kit} ${s.stageWrap}`} data-testid={testId || undefined}>
-      <div className={`${s.stageCard} ${legend ? s.legend : ''} ${hero ? s.hero : ''}`}>
+      <div className={`${s.stageCard} ${legend ? s.legend : ''} ${hero ? s.heroCard : ''}`}>
         {hero ? <Backdrop /> : null}
         {rays ? <span className={s.rays} aria-hidden="true" /> : null}
         {art ? <div className={s.art}>{art}</div> : null}

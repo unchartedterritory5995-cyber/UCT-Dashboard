@@ -25,24 +25,24 @@ describe('spotlight: the candle\'s own column lit, a chip above every candle', (
     expect(band.color).toMatch(/^rgba\(220,187,94,0\.16\)$/)
     expect(d.some((x) => x.type === 'arrow')).toBe(false)            // nothing points across the chart any more
   })
-  it('parks the chip in the pane\'s top margin, above every candle in the window, its right end at the band', () => {
+  it('parks the chip in the pane\'s bottom margin, under every candle in the window, its right end at the band', () => {
     const b = bars()
     const i = b.length - 1
     const d = spotlight(b, i, { label: 'the answer', view: 90, barPx: 6.6 })
     const chip = spotlightChip(d)
     const shown = b.slice(b.length - 90)
     const top = Math.max(...shown.map((x) => x.h)), bot = Math.min(...shown.map((x) => x.l))
-    expect(chip.points[0].price).toBeGreaterThan(top)
-    expect(chip.points[0].price).toBeLessThan(top + (top - bot) * 0.15)    // inside the pane's own top margin
+    expect(chip.points[0].price).toBeLessThan(bot)
+    expect(chip.points[0].price).toBeGreaterThan(bot - (top - bot) * 0.1)   // inside the pane's own bottom margin
     expect(chip.points[0].time).toBeLessThan(b[i].t)                       // it starts left of the band and runs to it
     expect(chip.text).toBe(' THE ANSWER ')
   })
-  it('a candle at the top of its window still gets its chip above it, inside the margin', () => {
-    const b = bars(90, { o: 104, h: 109, l: 103.5, c: 108.4 })
+  it('a candle at the bottom of its window still gets its chip under it, inside the margin', () => {
+    const b = bars(90, { o: 95, h: 95.5, l: 90, c: 90.4 })
     const i = b.length - 1
     const chip = spotlightChip(spotlight(b, i, { view: 90 }))
-    expect(chip.points[0].price).toBeGreaterThan(109)
-    expect(chip.points[0].price).toBeLessThan(109 + (109 - 96.8) * 0.15)
+    expect(chip.points[0].price).toBeLessThan(90)
+    expect(chip.points[0].price).toBeGreaterThan(90 - (103.2 - 90) * 0.1)
   })
   it('a phone packs bars tighter, so the chip spans more of them and the band is narrower', () => {
     const b = bars()

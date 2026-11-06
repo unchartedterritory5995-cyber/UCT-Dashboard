@@ -38,8 +38,9 @@ describe('splitLesson: the chart\'s own sentence leads, the rule follows, the st
 
 describe('the brand and the near-miss (batch 19: "dont say THE FIRM")', () => {
   it('reads "the firm" through the brand words and turns a near-miss fixture into a reason', () => {
-    const L = splitLesson("The firm's detector does not fire on the last bar of this chart. an unfilled volume gap and a pullback, but the low never reached the gap")
+    const L = splitLesson("Gap Support: the firm's detector does not fire on the last bar of this chart. an unfilled volume gap and a pullback, but the low never reached the gap")
     expect(L.nothing).toBe(true)
+    expect(L.setup).toBe('Gap Support')
     expect(L.reason).toBe('An unfilled volume gap and a pullback, but the low never reached the gap.')
     expect(L.here).toBe('')
     expect(JSON.stringify(L)).not.toMatch(/the firm/i)
