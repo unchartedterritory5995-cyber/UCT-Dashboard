@@ -1,4 +1,4 @@
-NEXT STEP (WAIT for the coordinator's go, heavy queue): FULL final-tip on merged tip 9912d08b16 (`bash runs/w6-t6/ft.sh`, lane_env w6-t6 LOCK_FINAL2, after ram_gate), then `scripts/ready-check.sh pine-dsk-w6t6 $UCT_RESUME/runs/w6-t6-final`. Review: GO-WITH-NOTES (dsk/reviews/W6-T6.md). Engine bump: YES.
+NEXT STEP: none on this lane — READY (final-tip FULL + READY-CHECK PASS on 0c897466bc); landing by the coordinator. Engine bump: YES.
 
 # W6-T6 `for … in` on the runtime lane — evidence
 
@@ -102,3 +102,10 @@ touched. Ready-check therefore not run. Re-run is the next step.
   Targeted on the merged tree (--maxWorkers=1): w6ForIn + w6ForInRuntime + objectDoorGate 119/119.
 - The round-1 measure-pair (base 2f40ee68c5) still classifies this lane's own diffs: N1 only adds a refusal on a shape no
   census row or capture reached as served (the 16 moved rows' walls are unchanged: none walks a field-held list).
+
+## final-tip round 2 — COMPLETE (`runs/w6-t6/ft2.sh`, lock `dsk/heavy-final3.lock`, FULL, 2 parallel shards, Node 20.20.2; logs `runs/w6-t6-final2/`, `runs/w6-t6/ft2.out`)
+`TIP 0c897466bc done` (last non-docs `9912d08b16`, merged origin/master `3e8dc3fae5`), `scope=full shards=2`,
+`rc gate=0 hyg=0 py=0 js=1`, `totals=ok errors=0 integrity=ok`. jsfail: the 4 named baselines (`pollingSites.rail`,
+`settingsScope.rail`, `enumerationSites`, `vendorHarness`) + `controlDoorCensus`, `usePreferences.additionsOnly`,
+`vendorHarness.coverageAudit` (delta-rsi wall clock): the same seven red on master recorded by W6-T3b; none touches this lane.
+`ready-check.sh pine-dsk-w6t6 runs/w6-t6-final2`: **READY-CHECK PASS** (HEAD 0c897466bc == origin, docs-only after TIP).
