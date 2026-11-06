@@ -27,6 +27,28 @@ describe('Notebook field edges', () => {
     expect(decl(body(EDITOR, '.folderInline:hover'), 'border-color')).toBe('var(--border-accent)')
   })
 
+  // Final polish (WebKit at 390 px, production): with a border set, Safari drew its native LIGHT select -- a white box
+  // with grey "Unfiled". No native chrome, a transparent fill, our ink, and a drawn chevron (appearance: none takes the
+  // native one away).
+  it('the folder select has no native chrome in WebKit: appearance none, transparent, --text, and a drawn chevron', () => {
+    const b = body(EDITOR, '.folderInline')
+    expect(decl(b, '-webkit-appearance')).toBe('none')
+    expect(decl(b, 'appearance')).toBe('none')
+    expect(decl(b, 'background')).toBe('transparent')
+    expect(decl(b, 'color')).toBe('var(--text)')
+    expect(decl(body(EDITOR, '.folderInlineChev'), 'pointer-events')).toBe('none')
+    const jsx = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx'), 'utf8')
+    expect(jsx).toMatch(/<UIcon name="chevronDown" \{\.\.\.TOOLBAR_ICON\} className=\{styles\.folderInlineChev\} aria-hidden="true" \/>/)
+  })
+
+  // Final polish: the floating "+" covered the last chart's corner in a note on a phone. The column scrolls clear of it
+  // by the list's 96 px.
+  it('on a phone the editor column keeps 96 px of room under its content for the floating "+"', () => {
+    const phone = [...EDITOR.matchAll(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
+    // 2 x --space-3xl (48) = the list's 96 px, on the spacing scale
+    expect(phone).toMatch(/\.column\s*\{\s*padding-bottom:\s*calc\(2 \* var\(--space-3xl\) \+ env\(safe-area-inset-bottom, 0px\)\);\s*\}/)
+  })
+
   it('the themed checkbox draws its 1.5 px field edge in ::before (the element border is 0 on purpose)', () => {
     expect(decl(body(TAB, ':where(.wrap input[type="checkbox"])'), 'border')).toBe('0')
     expect(decl(body(TAB, ':where(.wrap input[type="checkbox"])::before'), 'border')).toBe('1.5px solid var(--field-edge)')
