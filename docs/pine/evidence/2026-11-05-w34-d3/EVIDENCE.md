@@ -34,3 +34,9 @@ The script printed MEASURE_FAILED "base head moved" only because I committed doc
 - C18 corpus audit (out-*.json): identical on the 967-row corpus once the wall-clock `ms` keys are ignored. C18 probes identical. Vendor harness: identical totals (MATCH 111, DIVERGE 107, INCONCLUSIVE 118).
 - runtime-on census: 2 rows differ. `committed:correlation-matrix__dzN3DMCFJL` reachedAfterPeel False -> True, peelSteps 7 -> 1 (the only script that moves). `multi-timeframe-trend-indicator` differs only in the line/token attached to a `pine:timeout` (wall-clock noise).
 - Engine bump: YES recommended (a runtime-lane outcome moves: correlation-matrix).
+
+## final-tip (runs/w34-d3-final2, TIP 47f1b23278; code last touched 508bed7d4c, docs only after)
+rc gate=0 hyg=0, js=1, totals=ok, integrity=ok, errors=0. (An earlier run, w34-d3-final, was INCOMPLETE: my docs commit moved HEAD mid-run.)
+js failures: baselines pollingSites, settingsScope, enumerationSites, vendorHarness, controlDoorCensus; coverageAudit (wall-clock flake: PASSES alone, 192 tests); usePreferences.additionsOnly: fails on `notebook/TodayHome.jsx: 1 opaque setPref site`, a master file this lane never touched (app/src/hooks diff vs master-base is empty); passes on an older base. Not mine.
+ready-check: FAIL only on the coverageAudit flake (re-run alone passes) and the allowlist lacking enumerationSites/vendorHarness/controlDoorCensus/additionsOnly as named baselines; no failure in a file this lane touched.
+Engine bump: YES recommended (correlation-matrix reachedAfterPeel False->True).
