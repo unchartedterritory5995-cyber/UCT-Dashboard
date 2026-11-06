@@ -965,5 +965,122 @@
    "phone": "parts/b19-hard/gems__phone.png",
    "note": ""
   }
+ },
+ "b21-hard": {
+  "intro": {
+   "desk": "parts/b21-hard/intro__desk.png",
+   "phone": "parts/b21-hard/intro__phone.png",
+   "note": ""
+  },
+  "title": {
+   "desk": "parts/b21-hard/title__desk.png",
+   "phone": "parts/b21-hard/title__phone.png",
+   "note": ""
+  },
+  "medal": {
+   "desk": "parts/b21-hard/medal__desk.png",
+   "phone": "parts/b21-hard/medal__phone.png",
+   "note": ""
+  },
+  "lockup": {
+   "desk": "parts/b21-hard/lockup__desk.png",
+   "phone": "parts/b21-hard/lockup__phone.png",
+   "note": ""
+  },
+  "start": {
+   "desk": "parts/b21-hard/start__desk.png",
+   "phone": "parts/b21-hard/start__phone.png",
+   "note": ""
+  },
+  "status": {
+   "desk": "parts/b21-hard/status__desk.png",
+   "phone": "parts/b21-hard/status__phone.png",
+   "note": ""
+  },
+  "frame": {
+   "desk": "parts/b21-hard/frame__desk.png",
+   "phone": "parts/b21-hard/frame__phone.png",
+   "note": ""
+  },
+  "chart": {
+   "desk": "parts/b21-hard/chart__desk.png",
+   "phone": "parts/b21-hard/chart__phone.png",
+   "note": ""
+  },
+  "spotlight": {
+   "desk": "parts/b21-hard/spotlight__desk.png",
+   "phone": "parts/b21-hard/spotlight__phone.png",
+   "note": ""
+  },
+  "prompt": {
+   "desk": "parts/b21-hard/prompt__desk.png",
+   "phone": "parts/b21-hard/prompt__phone.png",
+   "note": ""
+  },
+  "pills": {
+   "desk": "parts/b21-hard/pills__desk.png",
+   "phone": "parts/b21-hard/pills__phone.png",
+   "note": ""
+  },
+  "check": {
+   "desk": "parts/b21-hard/check__desk.png",
+   "phone": "parts/b21-hard/check__phone.png",
+   "note": ""
+  },
+  "hint": {
+   "desk": "parts/b21-hard/hint__desk.png",
+   "phone": null,
+   "note": ""
+  },
+  "verdictLine": {
+   "desk": "parts/b21-hard/verdictLine__desk.png",
+   "phone": "parts/b21-hard/verdictLine__phone.png",
+   "note": ""
+  },
+  "runon": {
+   "desk": "parts/b21-hard/runon__desk.png",
+   "phone": "parts/b21-hard/runon__phone.png",
+   "note": ""
+  },
+  "ticker": {
+   "desk": "parts/b21-hard/ticker__desk.png",
+   "phone": "parts/b21-hard/ticker__phone.png",
+   "note": ""
+  },
+  "cardcolors": {
+   "desk": "parts/b21-hard/cardcolors__desk.png",
+   "phone": "parts/b21-hard/cardcolors__phone.png",
+   "note": ""
+  },
+  "lesson": {
+   "desk": null,
+   "phone": "parts/b21-hard/lesson__phone.png",
+   "note": ""
+  },
+  "next": {
+   "desk": "parts/b21-hard/next__desk.png",
+   "phone": "parts/b21-hard/next__phone.png",
+   "note": ""
+  },
+  "end": {
+   "desk": "parts/b21-hard/end__desk.png",
+   "phone": "parts/b21-hard/end__phone.png",
+   "note": ""
+  },
+  "medalEnd": {
+   "desk": "parts/b21-hard/medalEnd__desk.png",
+   "phone": "parts/b21-hard/medalEnd__phone.png",
+   "note": ""
+  },
+  "gems": {
+   "desk": "parts/b21-hard/gems__desk.png",
+   "phone": "parts/b21-hard/gems__phone.png",
+   "note": ""
+  },
+  "runlog": {
+   "desk": "parts/b21-hard/runlog__desk.png",
+   "phone": "parts/b21-hard/runlog__phone.png",
+   "note": ""
+  }
  }
 }

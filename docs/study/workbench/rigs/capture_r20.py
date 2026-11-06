@@ -86,6 +86,16 @@ def run(b, vp_name, vp, dsf, touch, index):
         time.sleep(2.2)
         if not ok:
             print("   stalled at chart", i); break
+        # a chart whose reveal carries no lesson leaves the lesson part empty: take it on the first later chart that has one
+        if not index.get(PID, {}).get("lesson", {}).get(vp_name) and page.locator("[data-testid=hard-lesson]").count() > 0:
+            time.sleep(0.8)
+            try:
+                loc, region = R.locate(page, STATES["verdict"]["lesson"])
+                if R.shoot(page, loc, region, os.path.join(R.OUT, PID, f"lesson__{vp_name}.png")):
+                    index.setdefault(PID, {}).setdefault("lesson", {"desk": None, "phone": None, "note": ""})[vp_name] = f"parts/{PID}/lesson__{vp_name}.png"
+                    print("   lesson taken on chart", i)
+            except Exception as e:
+                print("   lesson retry failed:", str(e)[:60])
         act(nxt)
         if i < 8:
             until(lambda: cards.count() >= 4, 45); time.sleep(1.2)
@@ -107,5 +117,8 @@ if __name__ == "__main__":
         b.close()
     with open(idx_path, "w", encoding="utf-8") as fh:
         json.dump(index, fh, ensure_ascii=False, indent=1)
-    missing = [f"{k}:{v2}" for k, v in index[PID].items() for v2 in ("desk", "phone") if not v.get(v2)]
+    hint = index[PID].get("hint")
+    if hint is not None and not hint.get("phone"):
+        hint["note"] = "desktop only: a phone has no keyboard, so the hint is not shown there"
+    missing = [f"{k}:{v2}" for k, v in index[PID].items() for v2 in ("desk", "phone") if not v.get(v2) and not (k == "hint" and v2 == "phone")]
     print("missing:", missing or "none")
