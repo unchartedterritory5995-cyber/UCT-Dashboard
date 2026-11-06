@@ -53,12 +53,19 @@ DEFAULT_PRICE_TOLERANCE_PCT = 2.0   # price "at its high" when within 2 % of it
 DEFAULT_RED_DAY_PCT = -0.5          # benchmark closed down at least 0.5 %
 MIN_PARTIAL_LOOKBACK = 20           # short-history dots need at least this many bars
 
+# Phase 2a (unit 2a-02). Mansfield's ``n`` is 52 on weekly bars and 200 on daily
+# (KB 01-methodologies §2; plan §6.3 `mansfieldLength` 200, the Trend weekly
+# preset sets 52). The sensitivity window is plan §7 item 22's 20-bar slope.
+DEFAULT_MANSFIELD_LENGTH = 200
+DEFAULT_SENSITIVITY_WINDOW = 20
+
 # Clamps the provider applies to raw inputs. `registry_defs.resolve_inputs`
 # enforces enum vocabularies only; numbers arrive as the client sent them.
 LOOKBACK_RANGE = (20, 500)
 MA_LENGTH_RANGE = (2, 200)
 PRICE_TOLERANCE_RANGE = (0.0, 10.0)
 RED_DAY_RANGE = (-3.0, 0.0)
+MANSFIELD_LENGTH_RANGE = (2, 500)
 
 
 def _clamp(v, lo, hi, default):
@@ -396,6 +403,217 @@ def compute_phase1_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
         "dotNHred": dot_column(rs, nh_red),
         "dotNHpartial": dot_column(rs, rs_nh_partial),
         "dotNL": dot_column(rs, rs_nl),
+    }
+
+
+# ── Phase 2a (unit 2a-02): Mansfield RS, bars-ago ages, benchmark agreement ─
+#
+# Plan §7 item 13 (Mansfield) and item 22 (benchmark sensitivity); engineering
+# map §2.5 / §2.6 name what the screener (`mansfield`, `mansfield_cross_bars_ago`,
+# `rs_nh_bars_ago`, `rs_cross_up_bars_ago`, `rs_benchmark_agree`) and the alert
+# lane (`rs_line.mansfield`, condition `cross_zero`) read from here. Same
+# contract as everything above: pure, aligned to the input, no I/O, and a bar
+# whose benchmark close is missing is ``None`` in every derived column.
+
+def mansfield_column(rs: Column, length: int) -> Column:
+    """Mansfield Relative Strength over the RS ratio (KB 01-methodologies §2):
+
+        RP[t]  = rs[t] × 100                           the "relative performance" line
+        MRS[t] = (RP[t] / SMA(RP, n)[t] − 1) × 100     n = ``length``
+
+    The zero line is the flattened n-bar average of the ratio; above it the
+    stock is outperforming its own trend against the benchmark. Weinstein's
+    ``n`` is 52 on weekly bars and 200 on daily — the caller picks (plan §6.3
+    `mansfieldLength`). The ×100 is kept so the column IS the published formula
+    rather than an algebraic equivalent of it.
+
+    ⚠️ GAPS ARE SKIPPED, NOT ZEROED. The SMA runs over the VALID bars in order
+    (`rs_moving_average`), so the first ``length − 1`` valid bars are the
+    warm-up pad and a gap bar (``rs[t] is None``) is ``None`` here without
+    resetting the average. ``None`` also where the average is zero — impossible
+    for a positive ratio, refused rather than divided by.
+    """
+    n = len(rs)
+    rp: Column = [float(v) * 100.0 if _is_num(v) else None for v in rs]
+    sma = rs_moving_average(rp, length, "SMA")
+    out: Column = [None] * n
+    for i in range(n):
+        p, m = rp[i], sma[i]
+        if _is_num(p) and _is_num(m) and m != 0:
+            out[i] = (p / m - 1.0) * 100.0
+    return out
+
+
+def mansfield_state_column(mrs: Column) -> List[Optional[int]]:
+    """The three-state Mansfield read (plan §7 item 13's shading; the
+    stageanalysis convention KB §2 records), as INTS:
+
+         1  bull    — above zero AND rising   (mrs[t] > 0 and mrs[t] > mrs[t−1])
+        -1  bear    — below zero AND falling  (mrs[t] < 0 and mrs[t] < mrs[t−1])
+         0  neutral — every other computable bar: above but falling, below but
+                      rising, exactly zero, or unchanged
+      None  — mrs[t] or mrs[t−1] is None: the warm-up pad, a gap bar, and the
+              bar after a gap (no honest prior to compare against — the same
+              strict prior-bar rule `cross_columns` applies)
+
+    ⚠️ THE ONE INT-VALUED COLUMN IN THIS MODULE. Every event column is
+    {0.0, 1.0, None} by type because the marker primitive reads "finite and
+    > 0" as a glyph; this column is a CLASSIFICATION — the screener stores it
+    in `_INT`, the chart shades the pane by it — so it carries −1 / 0 / 1 as
+    Python ints and no marker plot may name it. Domain: {-1, 0, 1, None}.
+    """
+    n = len(mrs)
+    out: List[Optional[int]] = [None] * n
+    for t in range(1, n):
+        v, p = mrs[t], mrs[t - 1]
+        if not (_is_num(v) and _is_num(p)):
+            continue
+        if v > 0 and v > p:
+            out[t] = 1
+        elif v < 0 and v < p:
+            out[t] = -1
+        else:
+            out[t] = 0
+    return out
+
+
+def above_zero_column(mrs: Column) -> Column:
+    """``mrs[t] ≥ 0`` as {0, 1, None} — the same ``≥`` `above_column` uses for
+    the RS line against its MA, so "crossed the zero line" and "crossed the
+    average" are one rule in two places."""
+    out: Column = [None] * len(mrs)
+    for i, v in enumerate(mrs):
+        if _is_num(v):
+            out[i] = 1.0 if v >= 0 else 0.0
+    return out
+
+
+def mansfield_cross_column(mrs: Column) -> Dict[str, Column]:
+    """``crossUp[t] = (mrs[t] ≥ 0) ∧ (mrs[t−1] < 0)``; ``crossDown`` the mirror —
+    the same shape, and the same code, as `cross_columns` (plan §7.9), over the
+    zero line instead of the MA. Both ``None`` where either bar's MRS is
+    ``None`` (warm-up, a gap bar, the bar after it)."""
+    return cross_columns(above_zero_column(mrs))
+
+
+def either(a: Column, b: Column) -> Column:
+    """``a ∨ b`` over {0, 1, None}: ``None`` if either side is ``None`` — the
+    rule `both` and `and_not` already apply, so the three combinators agree
+    about a hole."""
+    out: Column = [None] * len(a)
+    for i, (x, y) in enumerate(zip(a, b)):
+        if x is None or y is None:
+            continue
+        out[i] = 1.0 if (x == 1.0 or y == 1.0) else 0.0
+    return out
+
+
+def bars_ago_column(events: Column) -> Column:
+    """How many bars since the last ``1`` in an event column: ``0`` on the
+    event bar itself, one more on each bar after it, ``None`` before the first
+    event. Floats, like `rolling_count`.
+
+    This is the AGE the screener ranges over — `rs_nh_bars_ago`,
+    `rs_cross_up_bars_ago`, `mansfield_cross_bars_ago` (engineering map §2.5,
+    "crossed above 21 EMA within 5 bars") — computed from the same event column
+    the chart draws, so the preset and the dot can never disagree.
+
+    ⚠️ A ``None`` IN THE EVENT COLUMN IS "NO EVENT SEEN HERE", NOT A RESET. The
+    count keeps running through ``0`` and ``None`` bars alike: the distance to
+    the last event the column SAW is still known. An event hidden inside a hole
+    can only make the age too LARGE, never claim a cross that did not happen —
+    the safe direction for a scan. Callers that want the hole itself blank
+    mask it (`compute_mansfield_columns` does, on the gap bar).
+    """
+    out: Column = [None] * len(events)
+    last: Optional[int] = None
+    for i, e in enumerate(events):
+        if e == 1.0:
+            last = i
+        if last is not None:
+            out[i] = float(i - last)
+    return out
+
+
+def _slope(values: Sequence[MaybeNum]) -> MaybeNum:
+    """Ordinary least-squares slope of ``values`` against ``0, 1, …, n−1``;
+    ``None`` with fewer than two values or any value missing."""
+    n = len(values)
+    if n < 2 or any(not _is_num(v) for v in values):
+        return None
+    x_mean = (n - 1) / 2.0
+    y_mean = sum(float(v) for v in values) / n
+    num = sum((i - x_mean) * (float(v) - y_mean) for i, v in enumerate(values))
+    den = sum((i - x_mean) ** 2 for i in range(n))
+    return num / den
+
+
+def benchmark_agree(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
+                    window: int = DEFAULT_SENSITIVITY_WINDOW) -> Column:
+    """Plan §7 item 22 (benchmark sensitivity) as a per-bar {0, 1, None}:
+    ``1`` when the sign of the ``window``-bar least-squares slope of each RS
+    series agrees — all rising or all falling — ``0`` when they disagree (a
+    FLAT slope on any of them is neither, so it disagrees), ``None`` until
+    ``window`` bars exist or while any series' window holds a gap.
+
+    The three series are the stock's RS against SPY, RSP and its sector ETF,
+    each aligned to the stock's bars; "leaders vs equal-weight too" is this
+    column at 1 (engineering map §2.5 starter copy).
+    """
+    series = (list(rs_vs_a), list(rs_vs_b), list(rs_vs_c))
+    n = len(series[0])
+    out: Column = [None] * n
+    if window < 2:
+        return out
+    for t in range(window - 1, n):
+        slopes: List[float] = []
+        for s in series:
+            sl = _slope(s[t - window + 1:t + 1]) if len(s) > t else None
+            if sl is None:
+                break
+            slopes.append(sl)
+        if len(slopes) != len(series):
+            continue
+        signs = {1 if sl > 0 else (-1 if sl < 0 else 0) for sl in slopes}
+        out[t] = 1.0 if signs in ({1}, {-1}) else 0.0
+    return out
+
+
+# ⛔ A SECOND TUPLE, NOT AN EXTENSION OF THE FIRST. `PHASE1_COLUMNS` is the
+# `rsLine` definition's wire contract at `compute.rev: 2`, pinned by
+# `tests/test_rs_columns_provider.py` and the `rs_events_default` fixture;
+# growing it would bump the rev for every client. Unit 2a-14 joins these to the
+# columns list when it bumps the rev to 3 (engineering map §4.1 item 7).
+PHASE2A_COLUMNS = (
+    "mansfield", "mansfieldState", "mansfieldCrossUp", "mansfieldCrossDown", "mansfieldCrossBarsAgo",
+)
+
+
+def compute_mansfield_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                              length: int = DEFAULT_MANSFIELD_LENGTH) -> Dict[str, Column]:
+    """The Phase 2a Mansfield column set, aligned to ``bars`` — what the Trend
+    preset plots (plan §6.7 "Mansfield zero cross"), the screener stores as
+    `mansfield` / `mansfield_cross_bars_ago` and the alert lane addresses as
+    `rs_line.mansfield` (`cross_zero`). One call, so all three read one answer.
+
+    ``length`` is clamped to ``MANSFIELD_LENGTH_RANGE`` the way Phase 1 clamps
+    ``maLength``. Every column is ``None`` on a gap bar, the age included (a
+    bar with no benchmark close has no Mansfield reading to be the age OF).
+    """
+    n_len = int(_clamp(length, *MANSFIELD_LENGTH_RANGE, default=DEFAULT_MANSFIELD_LENGTH))
+    if len(bars) == 0:
+        return {k: [] for k in PHASE2A_COLUMNS}
+    rs = rs_line(bars, benchmark_bars)
+    mrs = mansfield_column(rs, n_len)
+    crosses = mansfield_cross_column(mrs)
+    age = bars_ago_column(either(crosses["crossUp"], crosses["crossDown"]))
+    age = [None if mrs[i] is None else v for i, v in enumerate(age)]
+    return {
+        "mansfield": mrs,
+        "mansfieldState": mansfield_state_column(mrs),
+        "mansfieldCrossUp": crosses["crossUp"],
+        "mansfieldCrossDown": crosses["crossDown"],
+        "mansfieldCrossBarsAgo": age,
     }
 
 

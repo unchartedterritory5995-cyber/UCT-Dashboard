@@ -77,6 +77,11 @@ RS_LINE_CASES = ["rs_line_spy"]
 # which has no RS compute and reads the file as a CONTRACT instead.
 RS_EVENT_CASES = ["rs_events_default"]
 
+# ⭐ PHASE 2a (UCT RS, unit 2a-02): the MANSFIELD columns of `relative_strength.py`
+# — `kind: "rs_mansfield"`, the same two-series footing, the same kind of list,
+# and again NO `_CASE_COLUMNS` row. Read by `test_rs_mansfield_*` below.
+RS_MANSFIELD_CASES = ["rs_mansfield"]
+
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
 # `RS_LINE_CASES` directly above, for a different constraint.
@@ -244,7 +249,7 @@ def test_every_fixture_file_is_covered_by_a_test():
     """A fixture nobody reads is a fixture nobody maintains."""
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
-              | set(AST_CASES))
+              | set(RS_MANSFIELD_CASES) | set(AST_CASES))
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )
@@ -1515,6 +1520,200 @@ def test_compute_case_has_NO_rs_events_row_for_the_SAME_reason_rs_line_has_none(
     with pytest.raises(KeyError):
         ic.compute_case("rs_events", case["bars"], case["params"])
     assert case["case"] not in CASES, "an rs_events case in the parametrised sweep would raise"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# UCT RELATIVE STRENGTH, PHASE 2a (unit 2a-02) — the MANSFIELD columns' fixture
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# `rs_mansfield` is to `relative_strength.compute_mansfield_columns` what
+# `rs_events_default` is to `compute_phase1_columns`: two series, a
+# `benchmarkBars` sibling, a dedicated test, NO `_CASE_COLUMNS` row. 70
+# hand-designed WEEKLY bars (Friday-dated) with one gap (bar 40), and eight rows
+# derived on paper in the fixture's own `note` (bars 9, 20, 23, 28, 29, 41, 43,
+# 64) so the file pins the published formula — RP = rs × 100, MRS = (RP /
+# SMA(RP, n) − 1) × 100 — and not merely whatever the module did.
+
+RS_MANSFIELD_COLUMNS = ("mansfield", "mansfieldState", "mansfieldCrossUp",
+                        "mansfieldCrossDown", "mansfieldCrossBarsAgo")
+
+
+def _rs_mansfield_gap(case):
+    """The ONE stock bar whose time the benchmark does not carry."""
+    bench_t = {b["t"] for b in case["benchmarkBars"]}
+    gaps = [i for i, b in enumerate(case["bars"]) if b["t"] not in bench_t]
+    assert len(gaps) == 1 and gaps[0] > 0, gaps
+    return gaps[0]
+
+
+@pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
+def test_rs_mansfield_python_lane_matches_every_golden_column(name):
+    """Every key of `PHASE2A_COLUMNS`, at rel-tol 1e-9, None ⇄ None exactly."""
+    case = load_case(name)
+    assert case["kind"] == "rs_mansfield"
+    assert "bars" in case and "benchmarkBars" in case
+    bars, bench = case["bars"], case["benchmarkBars"]
+    assert set(case["params"]) == {"length"}, case["params"]
+    length = case["params"]["length"]
+    assert rs_mod.MANSFIELD_LENGTH_RANGE[0] <= length <= rs_mod.MANSFIELD_LENGTH_RANGE[1], "a clamped fixture pins the clamp"
+    got = rs_mod.compute_mansfield_columns(bars, bench, length)
+    assert set(got) == set(case["expected"]) == set(rs_mod.PHASE2A_COLUMNS) == set(RS_MANSFIELD_COLUMNS), (
+        f"{name}: column set drifted"
+    )
+    for col, exp in case["expected"].items():
+        assert len(got[col]) == len(bars), f"{name}.{col} not aligned to bars"
+        assert len(exp) == len(bars), f"{name}.{col} fixture not aligned to bars"
+        for i, (g, e) in enumerate(zip(got[col], exp)):
+            assert _close(g, e, case["relTol"]), f"{name}.{col}[{i}]: {g!r} != {e!r}"
+
+
+@pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
+def test_rs_mansfield_domains_BY_TYPE_and_each_column_fires(name):
+    """Crosses are {0.0, 1.0, None} by type and each carries a 1 and a 0; the
+    state is {-1, 0, 1, None} as INTS and all three states occur; the age is a
+    non-negative whole float with a 0.0 somewhere; `mansfield` is a real line,
+    not an event in disguise."""
+    case = load_case(name)
+    exp = case["expected"]
+    for col in ("mansfieldCrossUp", "mansfieldCrossDown"):
+        for i, v in enumerate(exp[col]):
+            assert v is None or (type(v) is float and v in (0.0, 1.0)), f"{name}.{col}[{i}] = {v!r}"
+        assert 1.0 in exp[col], f"{name}.{col} never fires"
+        assert 0.0 in exp[col], f"{name}.{col} is never 0 — a constant column pins nothing"
+    st = exp["mansfieldState"]
+    for i, v in enumerate(st):
+        assert v is None or (type(v) is int and v in (-1, 0, 1)), f"{name}.mansfieldState[{i}] = {v!r}"
+    assert {v for v in st if v is not None} == {-1, 0, 1}, "all three states must occur"
+    age = exp["mansfieldCrossBarsAgo"]
+    for i, v in enumerate(age):
+        assert v is None or (type(v) is float and v >= 0 and v == int(v)), f"{name}.mansfieldCrossBarsAgo[{i}] = {v!r}"
+    assert 0.0 in age and max(v for v in age if v is not None) > 1.0
+    assert any(v not in (None, 0.0, 1.0, -1.0) for v in exp["mansfield"])
+    assert any(v is not None and v > 0 for v in exp["mansfield"]) and any(v is not None and v < 0 for v in exp["mansfield"])
+
+
+@pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
+def test_rs_mansfield_warmup_gap_and_resume_rules(name):
+    """⭐ NEVER INVENT A VALUE. Warm-up is exactly `length − 1` bars; the gap bar
+    is None in EVERY column (the age included — a bar with no benchmark close
+    has no reading to be the age OF); the SMA skips the gap so `mansfield`
+    answers on the very next bar; the state and both crosses need a prior bar
+    so they are None there too; and the age counts THROUGH the hole."""
+    case = load_case(name)
+    exp, n = case["expected"], len(case["bars"])
+    gap = _rs_mansfield_gap(case)
+    length = case["params"]["length"]
+    assert exp["mansfield"][:length - 1] == [None] * (length - 1)
+    assert exp["mansfield"][length - 1] is not None
+    holes = [i for i, v in enumerate(exp["mansfield"]) if v is None and i >= length - 1]
+    assert holes == [gap], holes
+    for col in RS_MANSFIELD_COLUMNS:
+        assert exp[col][gap] is None, f"{col}[{gap}] invented a value across the gap"
+    assert gap + 1 < n
+    assert exp["mansfield"][gap + 1] is not None, "the SMA restarted after the gap instead of skipping it"
+    for col in ("mansfieldState", "mansfieldCrossUp", "mansfieldCrossDown"):
+        assert exp[col][gap + 1] is None, f"{col}[{gap + 1}] has no honest prior bar"
+        assert exp[col][gap + 2] is not None, f"{col} did not resume two bars after the gap"
+    assert exp["mansfieldCrossBarsAgo"][gap - 1] is not None
+    assert exp["mansfieldCrossBarsAgo"][gap + 1] == exp["mansfieldCrossBarsAgo"][gap - 1] + 2
+
+
+def test_rs_mansfield_the_eight_hand_derived_rows():
+    """🔴 THE ORACLE THAT IS NOT THE CODE. The fixture's `note` derives eight
+    rows on paper; this test is those derivations as assertions. RS is read
+    from the BARS (close / benchmark close at the same `t`), the SMA is a plain
+    mean of ten RP values, so every line is one piece of arithmetic."""
+    case = load_case("rs_mansfield")
+    bars, bench, exp = case["bars"], case["benchmarkBars"], case["expected"]
+    assert case["params"] == {"length": 10}
+    assert len(bars) == 70 and _rs_mansfield_gap(case) == 40
+    assert bars[1]["t"] - bars[0]["t"] == 604800, "weekly bars"
+    from datetime import timezone as _tz
+    assert datetime.fromtimestamp(bars[0]["t"], tz=_tz.utc).strftime("%A") == "Friday"
+    c = [b["c"] for b in bars]
+    by_t = {b["t"]: b["c"] for b in bench}
+    bt = [by_t.get(b["t"]) for b in bars]           # benchmark close on the stock's calendar
+    mrs, st, up, down, age = (exp[k] for k in RS_MANSFIELD_COLUMNS)
+
+    def rp(i):
+        return c[i] / bt[i] * 100.0
+
+    def hand(i, window):
+        sma = sum(rp(j) for j in window) / 10
+        return (rp(i) / sma - 1.0) * 100.0
+
+    # BAR 9 — the first MRS. Benchmark is 100 on bars 0..9, so RP = close.
+    assert all(bt[j] == 100.0 for j in range(0, 30))
+    assert sum(c[0:10]) == pytest.approx(509.7) and sum(c[0:10]) / 10 == pytest.approx(50.97)
+    assert mrs[9] == pytest.approx((52.0 / 50.97 - 1) * 100, rel=1e-12) == pytest.approx(2.020797, abs=5e-7)
+    assert mrs[:9] == [None] * 9 and st[9] is None and up[9] is None and down[9] is None and age[9] is None
+
+    # BAR 20 — above zero but FALLING ⇒ neutral.
+    assert sum(c[11:21]) == pytest.approx(560.9)
+    assert mrs[20] == pytest.approx((58.4 / 56.09 - 1) * 100, rel=1e-12) == pytest.approx(4.118381, abs=5e-7)
+    assert mrs[19] == pytest.approx(5.566565, abs=5e-7) and mrs[20] < mrs[19] and mrs[20] > 0
+    assert st[20] == 0 and up[20] == 0.0 and down[20] == 0.0 and age[20] is None
+
+    # BAR 23 — the first CROSS DOWN; below and falling ⇒ bear; age 0.
+    assert sum(c[14:24]) == pytest.approx(572.0)
+    assert mrs[23] == pytest.approx((57.0 / 57.2 - 1) * 100, rel=1e-12) == pytest.approx(-0.349650, abs=5e-7)
+    assert mrs[22] == pytest.approx(0.983491, abs=5e-7) and mrs[22] >= 0 > mrs[23]
+    assert down[23] == 1.0 and up[23] == 0.0 and st[23] == -1 and age[23] == 0.0
+    assert all(v is None for v in age[:23]), "no cross before bar 23 ⇒ no age"
+
+    # BAR 28 — BEAR: below and still falling.
+    assert sum(c[19:29]) == pytest.approx(567.3)
+    assert mrs[28] == pytest.approx((54.6 / 56.73 - 1) * 100, rel=1e-12) == pytest.approx(-3.754627, abs=5e-7)
+    assert mrs[27] == pytest.approx(-3.434981, abs=5e-7) and mrs[28] < mrs[27] < 0
+    assert st[28] == -1 and age[28] == 5.0
+
+    # BAR 29 — below zero but RISING ⇒ neutral.
+    assert sum(c[20:30]) == pytest.approx(562.9)
+    assert mrs[29] == pytest.approx((54.2 / 56.29 - 1) * 100, rel=1e-12) == pytest.approx(-3.712915, abs=5e-7)
+    assert mrs[28] < mrs[29] < 0 and st[29] == 0 and age[29] == 6.0
+
+    # BAR 41 — the bar after the GAP: the SMA is over bars 31..39 and 41 (40 skipped).
+    assert bt[40] is None and mrs[40] is None
+    window_41 = list(range(31, 40)) + [41]
+    assert [round(rp(j), 6) for j in window_41] == [
+        53.004926, 52.843137, 52.292683, 52.135922, 51.690821,
+        51.538462, 51.483254, 51.619048, 51.753555, 51.226415,
+    ]
+    assert sum(rp(j) for j in window_41) / 10 == pytest.approx(51.958822, abs=5e-7)
+    assert mrs[41] == pytest.approx(hand(41, window_41), rel=1e-12) == pytest.approx(-1.409591, abs=5e-7)
+    assert st[41] is None and up[41] is None and down[41] is None
+    assert age[41] == 18.0 == 41 - 23, "counted through the gap"
+
+    # BAR 43 — the CROSS UP; above and rising ⇒ bull; age 0.
+    window_43 = list(range(33, 40)) + [41, 42, 43]
+    assert sum(rp(j) for j in window_43) / 10 == pytest.approx(51.785578, abs=5e-7)
+    assert mrs[43] == pytest.approx(hand(43, window_43), rel=1e-12) == pytest.approx(1.402457, abs=5e-7)
+    assert mrs[42] == pytest.approx(-0.414780, abs=5e-7) and mrs[42] < 0 <= mrs[43]
+    assert up[43] == 1.0 and down[43] == 0.0 and st[43] == 1 and age[43] == 0.0
+
+    # BAR 64 — below but rising after the second cross down (bar 62).
+    assert all(bt[j] == 100.0 for j in range(54, 70))
+    assert sum(c[55:65]) == pytest.approx(629.6)
+    assert mrs[64] == pytest.approx((62.5 / 62.96 - 1) * 100, rel=1e-12) == pytest.approx(-0.730623, abs=5e-7)
+    assert mrs[63] == pytest.approx(-0.968100, abs=5e-7) and mrs[63] < mrs[64] < 0
+    assert st[64] == 0 and age[64] == 2.0
+
+    # The crosses, by index — so a series edit cannot quietly move them.
+    assert [i for i, v in enumerate(down) if v == 1.0] == [23, 62]
+    assert [i for i, v in enumerate(up) if v == 1.0] == [43]
+    # …and the benchmark varies, so a close-only Mansfield cannot satisfy the file.
+    assert len({v for v in bt if v is not None}) > 1
+    close_only = rs_mod.mansfield_column([v / 100.0 for v in c], 10)
+    assert any(a is not None and b is not None and abs(a - b) > 1e-6 for a, b in zip(close_only, mrs))
+
+
+def test_compute_case_has_NO_rs_mansfield_row_for_the_SAME_reason_rs_line_has_none():
+    """Two series. `compute_case(kind, bars, params)` carries one."""
+    assert ic.case_columns("rs_mansfield") == ()
+    case = load_case("rs_mansfield")
+    with pytest.raises(KeyError):
+        ic.compute_case("rs_mansfield", case["bars"], case["params"])
+    assert case["case"] not in CASES and case["case"] not in RS_EVENT_CASES
 
 
 # ─── the AST lane: a formula a USER wrote, read by both lanes ────────────────
