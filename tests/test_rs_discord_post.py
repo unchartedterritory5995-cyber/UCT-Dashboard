@@ -426,8 +426,11 @@ def test_the_poster_never_raises_and_a_landed_post_is_never_hidden(monkeypatch):
             raise RuntimeError("disk full")
 
     r = rp.post_rs_summary(SESSION, leaders_fn=lambda s: FIXTURE, send=send, dedup=_MarkFails())
-    assert r["posted"] is True and r["reason"] == "posted" and r["marked"] is False, \
+    # 2026-11-07 (review #32, unit U9): the reason now carries the marker failure;
+    # it was "posted". `posted` stays True, so the retry pass still skips it.
+    assert r["posted"] is True and r["marked"] is False, \
         "the post went out; a marker that could not be written must not read as silence"
+    assert r["reason"] == "posted; the session marker was not recorded: RuntimeError"
 
 
 def test_a_run_in_flight_is_reported_not_doubled(monkeypatch):

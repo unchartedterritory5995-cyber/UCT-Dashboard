@@ -131,9 +131,21 @@ class FileMarker:
     unreadable marker also reads as "never posted" (the fail direction the
     retry pass needs), never a crash.
 
+    `mark` returns True when the marker is on disk and False when the write
+    failed (a full or read-only volume). A landed post whose marker could not
+    be written is also remembered IN THIS PROCESS, per marker path, so a
+    same-process admin call cannot post that session again; a later successful
+    write hands the record back to the file. A restart forgets it, which the
+    receipt's `marked=False` and its reason say at the time.
+
     Any object with `posted(session) -> bool` and `mark(session)` can stand in
-    (the `dedup=` seam of `post_rs_summary`).
+    (the `dedup=` seam of `post_rs_summary`). Its `mark` returning False, or
+    raising, reads as "not recorded"; any other return reads as recorded.
     """
+
+    #: marker path -> the landed session its file could not record (review #32).
+    _unrecorded: dict = {}
+    _unrecorded_lock = threading.Lock()
 
     def __init__(self, path=None):
         self._path = pathlib.Path(path) if path else None
@@ -150,9 +162,14 @@ class FileMarker:
 
     def posted(self, session) -> bool:
         key = str(session or "").strip()
-        return bool(key) and self.last_posted() == key
+        if not key:
+            return False
+        if self.last_posted() == key:
+            return True
+        with FileMarker._unrecorded_lock:
+            return FileMarker._unrecorded.get(str(self.path)) == key
 
-    def mark(self, session) -> None:
+    def mark(self, session) -> bool:
         p = self.path
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -170,6 +187,12 @@ class FileMarker:
                 raise
         except Exception as e:  # noqa: BLE001
             log.warning("[rs-post] could not record the session marker: %s", e)
+            with FileMarker._unrecorded_lock:
+                FileMarker._unrecorded[str(p)] = str(session or "").strip()
+            return False
+        with FileMarker._unrecorded_lock:
+            FileMarker._unrecorded.pop(str(p), None)
+        return True
 
 
 def last_posted() -> str:
@@ -537,7 +560,10 @@ def post_rs_summary(session, *, leaders_fn, webhook_url=None, send=None, dedup=N
     "leaders_fn failed: <Error>", "no leaders for this session",
     "below the floor: N names, floor is F", "refused by the validator: ...",
     "dry run", then the transport's "rate-limited", "http NNN",
-    "http NNN after one retry", "send failed: <Error>", or "posted".
+    "http NNN after one retry", "send failed: <Error>", or "posted". A landed
+    post whose marker could not be written keeps `posted: True`, sets
+    `marked: False` and reads "posted; the session marker was not recorded"
+    (plus ": <Error>" when an injected dedup raised).
     """
     session = str(session or "").strip()
     receipt = {"posted": False, "reason": "", "session": session, "chars": 0, "leaders": 0,
@@ -611,9 +637,17 @@ def _post_locked(receipt, session, *, leaders_fn, webhook_url, send, dedup, slee
         # a marker that cannot be written must never read back as "nothing was
         # sent" (`FileMarker.mark` never raises; an injected `dedup` might).
         receipt["posted"] = True
+        error = ""
         try:
-            marker.mark(session)
-            receipt["marked"] = True
+            recorded = marker.mark(session)
         except Exception as e:  # noqa: BLE001
             log.warning("[rs-post] the post landed but the marker was not recorded: %s", e)
+            recorded, error = False, type(e).__name__
+        # Only an explicit False (or a raise) is "not recorded": a seam whose
+        # mark() returns None, like the admin door's test-room `_NoMark`, keeps
+        # reading as marked (review #32, 2026-11-07).
+        receipt["marked"] = recorded is not False
+        if not receipt["marked"]:
+            receipt["reason"] = "posted; the session marker was not recorded" + (
+                f": {error}" if error else "")
     return receipt
