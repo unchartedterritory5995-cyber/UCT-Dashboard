@@ -17,10 +17,14 @@ HOW A RUN WORKS
        with ``ts <= asof``, newest ``depth``, oldest first) and its signal
        columns computed ONCE over that history (`signals.compute_signal_columns`
        explains why that is point-in-time). Rows for the wanted sessions go to
-       the store per ticker; checkpoints are written after the ticker loop.
-       A restart therefore costs the RUN in flight, never a finished one: rows
-       for un-checkpointed pairs are cleared and re-measured. Bound a run with
-       ``sessions``.
+       the store's STAGE table per ticker; after the loop `store.swap_in`
+       replaces the old rows of those pairs, writes their checkpoints and
+       empties the stage in ONE transaction. A restart therefore costs the RUN
+       in flight, never a finished one, and changes nothing published: the
+       old rows and the ``open`` checkpoints stay until the swap, so the next
+       run asks for the same sessions again (review finding #3, 2026-11-07).
+       Sessions holding rows with no checkpoint (left by the clear-first run
+       before that fix) are requested too. Bound a run with ``sessions``.
     4. The artifact is rebuilt from EVERYTHING in the store and published
        through the injected ``put_bytes`` when asked and when it clears the
        row floor.
@@ -166,7 +170,8 @@ def rows_to_bars(rows) -> List[dict]:
 
 
 def plan_sessions(sessions_held: Sequence[int], requested_n: int, checkpoints: Dict[Tuple[int, str], str],
-                  signal_names: Sequence[str], max_horizon: int) -> dict:
+                  signal_names: Sequence[str], max_horizon: int, *,
+                  unchecked_sessions: Sequence[int] = ()) -> dict:
     """Which ``(session, signal)`` pairs this run measures, and which of them can
     be marked ``done``. Returns ``{requested, wanted, completable, pairs_skipped}``:
     ``wanted`` is ``{session: {signal, ...}}`` over the requested sessions, the
@@ -175,11 +180,15 @@ def plan_sessions(sessions_held: Sequence[int], requested_n: int, checkpoints: D
     An ``open`` checkpoint is a promise to re-measure, so every open session
     the calendar still holds is requested whether or not the newest
     ``requested_n`` window reaches it; a nightly run with a small window still
-    closes the sessions it left open last time."""
+    closes the sessions it left open last time. ``unchecked_sessions`` (sessions
+    holding rows without a checkpoint, `store.unchecked_pairs`) are requested
+    on the same terms: a row with no checkpoint is a measurement nobody
+    finished."""
     held = [int(s) for s in sessions_held]
     idx_of = {s: i for i, s in enumerate(held)}
     newest = held[-int(requested_n):] if requested_n and requested_n > 0 else list(held)
     reopened = {s for (s, _k), st in checkpoints.items() if st == S.OPEN and s in idx_of}
+    reopened |= {int(s) for s in unchecked_sessions if int(s) in idx_of}
     requested = sorted(set(newest) | reopened)
     keys = list(signal_names) + [BASELINE_KEY]
     last_idx = len(held) - 1
@@ -360,7 +369,9 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
     conn = S.open_store(db, horizons=hs, read_only=dry_run)
     try:
         cps = S.checkpoints(conn)
-        plan = plan_sessions(sessions_held, int(sessions or 0), cps, list(sig), max(hs))
+        unchecked = {s for s, _k in S.unchecked_pairs(conn)}
+        plan = plan_sessions(sessions_held, int(sessions or 0), cps, list(sig), max(hs),
+                             unchecked_sessions=sorted(unchecked))
         wanted, completable = plan["wanted"], plan["completable"]
         receipt["sessions_requested"] = len(plan["requested"])
         receipt["sessions_measured"] = len(wanted)
@@ -371,6 +382,8 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         # 3. the ticker loop
         mem_rows: List[Row] = []
         pair_rows: Dict[Tuple[int, str], int] = {}
+        if not dry_run:
+            S.discard_stage(conn)                   # rows of a run that died are never published
         if wanted:
             oldest = min(wanted)
             # bars from the oldest wanted session to asof, plus the warm-up before it
@@ -379,11 +392,10 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
                 def sink(ticker: str, rows: List[Row]) -> None:
                     mem_rows.extend(rows)
             else:
-                S.clear(conn, [(s, k) for s, ks in wanted.items() for k in ks])
                 written = {"n": 0}
 
                 def sink(ticker: str, rows: List[Row]) -> None:
-                    S.write_rows(conn, rows, hs)
+                    S.write_rows(conn, rows, hs, table=S.STAGE_TABLE)
                     for r in rows:
                         pair_rows[(r[0], r[1])] = pair_rows.get((r[0], r[1]), 0) + 1
                     written["n"] += 1
@@ -396,12 +408,15 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
             receipt["rows_written"] = stats["rows"]
             receipt["events"] = stats["events"]
             if not dry_run:
+                marks: Dict[Tuple[int, str], Tuple[str, int]] = {}
                 for s, ks in wanted.items():
                     status = S.DONE if completable[s] else S.OPEN
                     for k in ks:
-                        S.mark(conn, s, k, status, pair_rows.get((s, k), 0))
+                        marks[(s, k)] = (status, pair_rows.get((s, k), 0))
                         receipt["pairs_done" if status == S.DONE else "pairs_open"] += 1
-                conn.commit()
+                S.swap_in(conn, marks, hs)
+        elif not dry_run and unchecked:
+            S.swap_in(conn, {}, hs)                 # nothing to measure: still drop unchecked rows
 
         # 4. the artifact
         if dry_run:

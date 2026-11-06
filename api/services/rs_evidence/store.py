@@ -14,10 +14,24 @@ TABLES
                                     measured: never measured again.
                             'open'  the longest window ran past the held
                                     history: re-measured on the next run.
-    rs_evidence_meta        version and horizons; a mismatch REBUILDS the two
+    rs_evidence_rows_stage  the rows of the run IN FLIGHT, same shape as
+                            ``rs_evidence_rows``. Nothing reads it but
+                            :func:`swap_in`; a run that dies leaves it to be
+                            discarded by the next one.
+    rs_evidence_meta        version and horizons; a mismatch REBUILDS the
                             tables above (they are derived from bars.db and
                             the method; nothing original is lost).
     rs_evidence_runs        one JSON receipt per run.
+
+AN INTERRUPTED RUN CHANGES NOTHING PUBLISHED (review finding #3, 2026-11-07).
+A run writes its rows to the stage table only; the old rows and checkpoints of
+the pairs it re-measures stay in place until :func:`swap_in` replaces them,
+marks the checkpoints and empties the stage in ONE transaction. A run killed
+mid-loop (a timeout, a redeploy) therefore leaves every ``open`` checkpoint in
+place, so the next run asks for those sessions again, and no row of the half
+run reaches :func:`summary`. Rows without a checkpoint (what the old
+clear-first run left behind) are reported by :func:`unchecked_pairs` so the job
+re-measures them, and :func:`swap_in` deletes any that remain.
 """
 
 from __future__ import annotations
@@ -26,7 +40,7 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .measure import BASELINE_KEY, HORIZONS, MaybeNum, Row, summarise_values
 
@@ -35,6 +49,7 @@ ROWS_TABLE = "rs_evidence_rows"
 CHECKPOINT_TABLE = "rs_evidence_checkpoint"
 META_TABLE = "rs_evidence_meta"
 RUNS_TABLE = "rs_evidence_runs"
+STAGE_TABLE = "rs_evidence_rows_stage"
 DONE = "done"
 OPEN = "open"
 
@@ -81,6 +96,10 @@ def ensure_schema(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) 
             session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
             PRIMARY KEY (session, signal, ticker)
         );
+        CREATE TABLE IF NOT EXISTS {STAGE_TABLE} (
+            session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
+            PRIMARY KEY (session, signal, ticker)
+        );
         CREATE INDEX IF NOT EXISTS {ROWS_TABLE}_signal ON {ROWS_TABLE}(signal);
         CREATE TABLE IF NOT EXISTS {CHECKPOINT_TABLE} (
             session INTEGER NOT NULL, signal TEXT NOT NULL, status TEXT NOT NULL,
@@ -111,10 +130,15 @@ def _check_meta(conn: sqlite3.Connection, horizons: Sequence[int], *, rebuild: b
         raise StoreRefused(f"store meta {have or '{}'} does not match version {want['version']} "
                            f"horizons {want['horizons']}; open it for writing to rebuild")
     if have:
-        conn.executescript(f"DROP TABLE IF EXISTS {ROWS_TABLE}; DROP TABLE IF EXISTS {CHECKPOINT_TABLE};")
+        conn.executescript(f"DROP TABLE IF EXISTS {ROWS_TABLE}; DROP TABLE IF EXISTS {CHECKPOINT_TABLE}; "
+                           f"DROP TABLE IF EXISTS {STAGE_TABLE};")
         cols = ", ".join(f"{c} REAL" for c in _ex_cols(horizons))
         conn.executescript(f"""
             CREATE TABLE {ROWS_TABLE} (
+                session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
+                PRIMARY KEY (session, signal, ticker)
+            );
+            CREATE TABLE {STAGE_TABLE} (
                 session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
                 PRIMARY KEY (session, signal, ticker)
             );
@@ -137,19 +161,55 @@ def checkpoints(conn: Optional[sqlite3.Connection]) -> Dict[Tuple[int, str], str
             conn.execute(f"SELECT session, signal, status FROM {CHECKPOINT_TABLE}")}
 
 
-def clear(conn: sqlite3.Connection, pairs: Iterable[Tuple[int, str]]) -> None:
-    """Drop the rows AND the checkpoint of every ``(session, signal)`` pair -
-    the first thing a run does to the pairs it is about to (re)measure, so an
-    interrupted run leaves no checkpoint for a half-written pair."""
-    ps = [(int(s), str(k)) for s, k in pairs]
-    conn.executemany(f"DELETE FROM {ROWS_TABLE} WHERE session = ? AND signal = ?", ps)
-    conn.executemany(f"DELETE FROM {CHECKPOINT_TABLE} WHERE session = ? AND signal = ?", ps)
+def unchecked_pairs(conn: Optional[sqlite3.Connection]) -> Set[Tuple[int, str]]:
+    """``{(session, signal)}`` that have stored rows but no checkpoint - the
+    leftovers of a run that died between writing rows and marking them (the
+    clear-first run before 2026-11-07). Empty for a missing store."""
+    if conn is None:
+        return set()
+    have = {(int(s), str(k)) for s, k in conn.execute(f"SELECT DISTINCT session, signal FROM {ROWS_TABLE}")}
+    marked = {(int(s), str(k)) for s, k in conn.execute(f"SELECT session, signal FROM {CHECKPOINT_TABLE}")}
+    return have - marked
+
+
+def discard_stage(conn: sqlite3.Connection) -> None:
+    """Empty the stage table: the first thing a writing run does, so the rows of
+    a run that died never mix with this one's."""
+    conn.execute(f"DELETE FROM {STAGE_TABLE}")
     conn.commit()
 
 
-def write_rows(conn: sqlite3.Connection, rows: Iterable[Row], horizons: Sequence[int] = HORIZONS) -> int:
+def swap_in(conn: sqlite3.Connection, marks: Dict[Tuple[int, str], Tuple[str, int]],
+            horizons: Sequence[int] = HORIZONS) -> None:
+    """Publish the staged run in ONE transaction: delete the old rows of every
+    re-measured pair, move the staged rows in, write each pair's checkpoint
+    (``marks`` is ``{(session, signal): (status, rows)}``), delete any row
+    still without a checkpoint, and empty the stage. Nothing is committed until
+    all of it has run, so an exception here leaves the store as it was."""
+    names = ", ".join(["session", "signal", "ticker"] + _ex_cols(horizons))
+    ps = [(int(s), str(k)) for s, k in marks]
+    try:
+        conn.executemany(f"DELETE FROM {ROWS_TABLE} WHERE session = ? AND signal = ?", ps)
+        conn.execute(f"INSERT OR REPLACE INTO {ROWS_TABLE}({names}) SELECT {names} FROM {STAGE_TABLE}")
+        for (s, k), (status, n) in marks.items():
+            mark(conn, s, k, status, n)
+        orphans = sorted(unchecked_pairs(conn))
+        conn.executemany(f"DELETE FROM {ROWS_TABLE} WHERE session = ? AND signal = ?", orphans)
+        conn.execute(f"DELETE FROM {STAGE_TABLE}")
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+
+
+def write_rows(conn: sqlite3.Connection, rows: Iterable[Row], horizons: Sequence[int] = HORIZONS, *,
+               table: str = ROWS_TABLE) -> int:
+    """Insert measurement rows into ``table`` (the published rows by default; the
+    job writes to :data:`STAGE_TABLE`)."""
+    if table not in (ROWS_TABLE, STAGE_TABLE):
+        raise ValueError(f"write_rows writes {ROWS_TABLE} or {STAGE_TABLE}, not {table!r}")
     cols = _ex_cols(horizons)
-    sql = (f"INSERT OR REPLACE INTO {ROWS_TABLE}(session, signal, ticker, {', '.join(cols)}) "
+    sql = (f"INSERT OR REPLACE INTO {table}(session, signal, ticker, {', '.join(cols)}) "
            f"VALUES ({', '.join('?' for _ in range(3 + len(cols)))})")
     data = [(int(s), str(k), str(t)) + tuple(ex[i] if i < len(ex) else None for i in range(len(cols)))
             for s, k, t, ex in rows]
