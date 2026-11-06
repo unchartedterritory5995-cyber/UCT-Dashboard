@@ -527,3 +527,9 @@ Merging to master is still not authorized in this file; the owner approves it di
 
 >>> PAUSED 2026-11-05 19:26 for an owner session restart. RESUME FROM reviews/RESUME-2026-11-05.md. Production is at engine 18. W9 (PR #869) is on master, gate pending. Blocker to check first: census 218 -> 212 (reviews/W34-T0.md). Builders were told to push WIP and stop. <<<
 >>> 2026-11-05 20:24 PAUSED. Full resume prompt: reviews/RESUME-PROMPT-2026-11-05.md (paste into the next session). <<<
+>>> RESUMED 2026-11-05 21:36.
+- Production holds engine 18 + W9 (3ca4b0d358).
+- The first W9 gate failed on the screener pin guard (W9-T14a edited scan_evaluator.py). The pin was moved to 3ca4b0d358 (f091bff4ff), and a later gate promoted.
+- Rule added to BUILDER-BRIEF-COMMON: a landing that touches the screener moves the pin in the same PR.
+- D2 READY-CHECK PASS; review started.
+- Resumed D1 (clean final-tip), D3 (final-tip), W6-T3b (measure-pair + final-tip), and the W34-T0 review. <<<
