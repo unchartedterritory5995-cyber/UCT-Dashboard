@@ -9,12 +9,15 @@ The chart's `benchmark` input is an enum the server resolves:
   :data:`SECTOR_ETF`. Unmapped ⇒ SPY with ``fallback`` set, and the legend says
   so (plan §6.10).
 * ``INDUSTRY`` — an equal-weight composite of the symbol's industry group
-  (`industry_map.tickers_in_industry`), indexed to 100 at each member's first
-  bar in the window and averaged over the members present at each time. Too
-  few members ⇒ the sector ETF, then SPY.
+  (`industry_map.tickers_in_industry`): 100 at its first bar, then CHAIN-LINKED
+  bar to bar from the members present at both ends of each step, with a member
+  that joins or returns indexed to the composite's own level on that bar (so a
+  membership change is never a step in the line). Too few members ⇒ the sector
+  ETF, then SPY.
 
 ⭐ PURE WHERE IT CAN BE. The bar fetcher is injected (the router passes
-`_fetch_bars_for_tf`), and the industry-map reads are wrapped in two tiny
+`_fetch_bars_for_tf`; an optional `has_bars` presence probe rides the same
+pattern), and the industry-map and cap-universe reads are wrapped in three tiny
 functions a test can monkeypatch, so every branch below is exercised without a
 database.
 """
@@ -84,16 +87,77 @@ def _members_of(industry: str) -> List[str]:
         return []
 
 
+def _cap_universe() -> set:
+    """The chartable universe (`groups.cap_universe_set`, hyphen + uppercase),
+    empty when it cannot be read — one seam for tests, best effort like the map."""
+    try:
+        from api.services.groups import cap_universe_set
+        return set(cap_universe_set() or ())
+    except Exception:                                   # noqa: BLE001
+        logger.exception("rs_benchmarks: cap universe read failed")
+        return set()
+
+
+HasBars = Callable[[str, str], bool]
+
+
+def order_industry_members(members: Sequence[str], tf: str, fetch_bars: FetchBars,
+                           has_bars: Optional[HasBars] = None) -> List[str]:
+    """The group in the order the composite should take members from: names
+    WITH bars in the store first, then names in the cap universe, then the
+    alphabet as the tie-break.
+
+    ⭐ ONLY WHEN THE CAP BITES. A group within :data:`MAX_INDUSTRY_MEMBERS` is
+    fetched whole whatever the order, so it is returned sorted and unprobed —
+    the probe is one small read per name, and most groups never pay it. A
+    larger group used to be sliced alphabetically (review finding B7):
+    "Biotechnology"'s composite was the alphabet-first micro-caps that happened
+    to have bars, and its largest names were excluded by construction.
+
+    ``has_bars`` is the injected presence probe (same pattern as ``fetch_bars``);
+    without one, ``fetch_bars(sym, tf, 1)`` is the probe.
+    """
+    names = sorted({str(m).upper() for m in members if m})
+    if len(names) <= MAX_INDUSTRY_MEMBERS:
+        return names
+    probe = has_bars or (lambda sym, tf_: bool(fetch_bars(sym, tf_, 1)))
+    cap = _cap_universe()
+
+    def key(sym: str):
+        try:
+            present = bool(probe(sym, tf))
+        except Exception:                               # noqa: BLE001 — a failed probe is "unknown", not fatal
+            present = False
+        return (not present, sym.replace(".", "-") not in cap, sym)
+
+    return sorted(names, key=key)
+
+
 def equal_weight_composite(series_by_member: Dict[str, Sequence[dict]]) -> List[dict]:
     """Equal-weight index of several close series, as bars ``{"t", "c"}``.
 
-    Each member is indexed to 100 at ITS first bar inside the window, so a member
-    with a shorter history joins at 100 when it appears rather than dragging the
-    average. A time is emitted only when at least :data:`MIN_PRESENT_SHARE` of the
+    ⭐ CHAIN-LINKED, SO A MEMBERSHIP CHANGE IS NEVER A STEP. The composite is 100
+    at its first emitted bar, where every present member is indexed to 100. From
+    one emitted bar to the next it moves by the aggregate change of the members
+    present at BOTH bars (``Σ indexed[t] / Σ indexed[prev]`` — equal weight at
+    entry, buy-and-hold after, exactly the mean-of-indexed-values the composite
+    always was while nobody joined or left). A member present at ``t`` but not at
+    the previous emitted bar — a shorter history, or a bar it missed — contributes
+    nothing to that step and is (re)indexed so its value at ``t`` EQUALS the
+    composite: ``scale_m = composite[t] / c_m[t]``, i.e. ``c_m[t] / c_m[first_m] ×
+    composite[first_m]`` from then on. A member missing at ``t`` contributes
+    nothing to that step either. The earlier shape (each member 100 at its OWN
+    first bar, mean over whoever is present) stepped 3–5 % on the bar an IPO
+    joined a group and stepped-and-reversed on any one-bar gap, which fired
+    red-day and RS-new-high events across the whole group (review finding B8).
+
+    A time is emitted only when at least :data:`MIN_PRESENT_SHARE` of the
     members have a bar there; otherwise the composite has a gap, and the RS line
-    joined to it will be ``None`` on that bar (never a guessed value).
+    joined to it will be ``None`` on that bar (never a guessed value). When no
+    member spans two consecutive emitted bars (a whole-group turnover, which the
+    presence rule makes near-impossible) the level is carried unchanged: there
+    is no information about the change, and a flat bar is not an invented one.
     """
-    firsts: Dict[str, float] = {}
     closes_at: Dict[str, Dict[object, float]] = {}
     times: set = set()
     for m, bars in series_by_member.items():
@@ -101,8 +165,6 @@ def equal_weight_composite(series_by_member: Dict[str, Sequence[dict]]) -> List[
         for b in sorted(bars, key=lambda x: x.get("t")):
             c = b.get("c")
             if isinstance(c, (int, float)) and not isinstance(c, bool) and c > 0:
-                if m not in firsts:
-                    firsts[m] = float(c)
                 d[b.get("t")] = float(c)
                 times.add(b.get("t"))
         if d:
@@ -110,26 +172,55 @@ def equal_weight_composite(series_by_member: Dict[str, Sequence[dict]]) -> List[
     n = len(closes_at)
     if n == 0:
         return []
+    scale: Dict[str, float] = {}          # member → multiplier onto the composite's scale
+    prev_present: set = set()             # members with a bar at the last EMITTED time
+    prev_t: object = None
+    level: Optional[float] = None
     out: List[dict] = []
     for t in sorted(times):
-        vals = [closes_at[m][t] / firsts[m] * 100.0 for m in closes_at if t in closes_at[m]]
-        if len(vals) / n < MIN_PRESENT_SHARE:
+        present = [m for m in closes_at if t in closes_at[m]]
+        if len(present) / n < MIN_PRESENT_SHARE:
             continue
-        out.append({"t": t, "c": sum(vals) / len(vals)})
+        linked = [m for m in present if m in prev_present]
+        if level is None:
+            level = 100.0
+        elif linked:
+            now = sum(closes_at[m][t] * scale[m] for m in linked)
+            before = sum(closes_at[m][prev_t] * scale[m] for m in linked)
+            level = level * now / before
+        # else: nobody spans the step — the level carries (docstring).
+        for m in present:
+            if m not in prev_present:
+                scale[m] = level / closes_at[m][t]
+        out.append({"t": t, "c": level})
+        prev_present = set(present)
+        prev_t = t
     return out
 
 
 def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
-                      fetch_bars: FetchBars) -> dict:
+                      fetch_bars: FetchBars, has_bars: Optional[HasBars] = None) -> dict:
     """Resolve the enum to bars.
 
     Returns ``{"requested", "resolved", "label", "fallback", "bars"}``.
     ``resolved`` is a ticker for literal and sector benchmarks and the string
     ``"INDUSTRY:<name>"`` for a composite. ``fallback`` is ``None`` when the
     request resolved as asked, else a short reason the legend prints.
+    ``has_bars`` is the optional presence probe `order_industry_members` uses
+    on a group larger than the fetch cap.
     """
     req = str(requested or DEFAULT_BENCHMARK).upper()
     sym_u = str(sym or "").upper()
+
+    # ⛔ AN UNKNOWN VALUE IS AN ERROR, NOT SPY. The definition's enum vocabulary
+    # (`registry_defs.RS_LINE_BENCHMARKS`, derived from the two tuples above)
+    # refuses it upstream in `resolve_inputs`, so this is unreachable from the
+    # route; a direct caller that reaches it gets a ValueError rather than an RS
+    # line against SPY under a chip that names something else (review B10).
+    if req not in LITERAL_BENCHMARKS and req not in AUTO_BENCHMARKS:
+        raise ValueError(
+            f"unknown benchmark {req!r}; the vocabulary is "
+            f"{LITERAL_BENCHMARKS + AUTO_BENCHMARKS}")
 
     if req in LITERAL_BENCHMARKS:
         return {"requested": req, "resolved": req, "label": LABELS.get(req, req),
@@ -154,36 +245,34 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
         return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
                 "fallback": None, "bars": fetch_bars(etf, tf, count)}
 
-    if req == "INDUSTRY":
-        groups = _groups_for(sym_u) or {}
-        industry = groups.get("industry")
-        if (industry or "") == ETF_INDUSTRY:
-            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-                    "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-        members = sorted({m.upper() for m in _members_of(industry)}) if industry else []
-        # Fetch first, then count: a member without bars in the store contributes
-        # nothing, so the floor is on CONTRIBUTING names and the label says how
-        # many actually carried the composite (review finding). The fetch cap
-        # keeps a 200-name group from costing 200 reads per chart open.
-        series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
-        contributing = {m: s for m, s in series.items() if s}
-        if len(contributing) >= MIN_INDUSTRY_MEMBERS:
-            composite = equal_weight_composite(contributing)
-            if composite:
-                return {"requested": req, "resolved": f"INDUSTRY:{industry}",
-                        "label": f"{industry} (equal-weight, {len(contributing)} names)",
-                        "fallback": None, "bars": composite}
-        # Not enough of a group: fall to the sector, then the market, and say so.
-        sector = groups.get("sector")
-        etf = SECTOR_ETF.get(sector or "")
-        if etf:
-            return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
-                    "fallback": "industry group too small" if industry else "no industry",
-                    "bars": fetch_bars(etf, tf, count)}
+    # req == "INDUSTRY" — the last value in the vocabulary checked above.
+    groups = _groups_for(sym_u) or {}
+    industry = groups.get("industry")
+    if (industry or "") == ETF_INDUSTRY:
         return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-                "fallback": "no industry or sector", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-
-    # Unknown value: the definition's enum vocabulary refuses it upstream
-    # (`registry_defs.resolve_inputs`); this is the belt to that brace.
+                "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+    members = (order_industry_members(_members_of(industry), tf, fetch_bars, has_bars)
+               if industry else [])
+    # Fetch first, then count: a member without bars in the store contributes
+    # nothing, so the floor is on CONTRIBUTING names and the label says how
+    # many actually carried the composite (review finding). The fetch cap
+    # keeps a 200-name group from costing 200 full reads per chart open, and
+    # `order_industry_members` puts the names that HAVE bars (and are in the
+    # cap universe) ahead of the slice so the cap never excludes them.
+    series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
+    contributing = {m: s for m, s in series.items() if s}
+    if len(contributing) >= MIN_INDUSTRY_MEMBERS:
+        composite = equal_weight_composite(contributing)
+        if composite:
+            return {"requested": req, "resolved": f"INDUSTRY:{industry}",
+                    "label": f"{industry} (equal-weight, {len(contributing)} names)",
+                    "fallback": None, "bars": composite}
+    # Not enough of a group: fall to the sector, then the market, and say so.
+    sector = groups.get("sector")
+    etf = SECTOR_ETF.get(sector or "")
+    if etf:
+        return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
+                "fallback": "industry group too small" if industry else "no industry",
+                "bars": fetch_bars(etf, tf, count)}
     return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-            "fallback": f"unknown benchmark {req}", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+            "fallback": "no industry or sector", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
