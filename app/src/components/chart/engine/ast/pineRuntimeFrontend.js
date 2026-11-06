@@ -2436,9 +2436,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
   // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
   const DRAWING_HISTORY_CAPTURED = false
+  // ONE gate: only the drawing build's `condHistory` (below, at the lowering of a pure subtree) reads it;
+  // `servedCondCall` is reached from there alone, so it needs no second copy.
   const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
-    if (objectsInRun && !drawingHistoryServed) return null
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')

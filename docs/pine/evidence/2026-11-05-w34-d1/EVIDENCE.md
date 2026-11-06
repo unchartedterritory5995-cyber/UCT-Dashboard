@@ -1,5 +1,18 @@
 NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
 
+FIX r2 (re-review GO-WITH-NOTES):
+- Whole drawing history path is now behind the one gate (drawingHistoryServed in condHistory, from DRAWING_HISTORY_CAPTURED=false or the
+  test-only opts.w3nD1ServeDrawingHistory). Gate off = the drawing build is master's, including a block local's [1]: master draws the
+  previous BAR's value there (B01 pins the previous RUN, so it is wrong but unchanged). Affected census scripts: NONE, so no output moves,
+  no member loses a served value, engine bump: NO. With the gate on (test option) [1] is refused by name; queue row W3N-D1d decides it.
+  Correction (N2): ta.change in a block was already refused on master; only [1] ever differed, and now not even that with the gate off.
+- N1 probes: W3N-D1 split into four probes vw-w3n-draw-block-history-{a,b,c,d}.pine, one label per UP bar, so RDDT's 308 labels all
+  survive max_labels_count=500 and warm-up is visible; doc rewritten, capture-queue.json regenerated (--check PASS).
+- Mutations (runs/w34-d1/mut3.out): noop SURVIVED; gate on in product, gate ignores test option, gate removed, drop lexForeign refusal,
+  admit stdev, shared ring: all KILLED. The redundant second gate copy in servedCondCall was deleted (it survived, being unreachable).
+- lookback_agreement.json: lookbackAgreement.test.js writes it unconditionally; alone on branch and on master 768816c654 it leaves the file
+  unchanged. See the final-tip note below for the full-suite result.
+
 FINAL-TIP r1 (full, code tip 07e1646b81, shared heavy-final3.lock, runs/w34-d1/final4.log, outdir runs/w34-d1-final):
 gate=0 hyg=0 js=1 totals=ok errors=0; jsfail = the baseline set incl. coverageAudit and usePreferences.additionsOnly.
 integrity=tree-changed-during-run: tools/lookback_agreement.json was rewritten by a test in the full run (one line differs);
