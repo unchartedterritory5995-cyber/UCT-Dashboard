@@ -3561,6 +3561,18 @@ export default function NoteEditorPage({
   // Above 640 px the coach card is unchanged; the mic's hint, since the 2026-10-10 UX pass,
   // waits at EVERY width (see the mic below). Rails: NoteEditorPage.firstRunDefer.test.jsx.
   const deferFirstRun = useIsPhone()
+  // Finish batch (2026-11-05, iPhone at 360-390 px): the header row has room for back, Folders and the four controls,
+  // not for the indicator's words too, so a phone says them at the end of the line under the title (NoteDetailsLine
+  // `trail`). ONE indicator is mounted at a time, so there is one polite region. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const savedOnTitleLine = deferFirstRun
+  const saveIndicator = (className) => (
+    <span className={className} role="status" aria-live="polite" data-save-indicator="">
+      {indicatorOn ? saveIndicatorWords({
+        status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
+        offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
+      }) : ''}
+    </span>
+  )
   useEffect(() => (deferFirstRun ? claimFirstRunStage() : undefined), [deferFirstRun])
 
   // The lock IS `editable`: every surface that edits the note asks
@@ -5267,12 +5279,9 @@ export default function NoteEditorPage({
             read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
             one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
             announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}
-        <span className={styles.savedIndicator} role="status" aria-live="polite" data-save-indicator="">
-          {indicatorOn ? saveIndicatorWords({
-            status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-            offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
-          }) : ''}
-        </span>
+        {/* Finish batch (2026-11-05, iPhone): on a phone the indicator sits on the line under the title
+            (`savedOnTitleLine`), so the header is ONE row: back · Folders · ★ · AI · Share · ⋯. */}
+        {!savedOnTitleLine && saveIndicator(styles.savedIndicator)}
         {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to
             Trash are in ⋯; the folder and the linked trades are on the line under the title. */}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
@@ -5942,7 +5951,8 @@ export default function NoteEditorPage({
           aria-label="Subtitle"
         />
         <NoteDetailsLine items={detailItems} open={detailsOpen} onToggle={toggleDetails}
-          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead} />
+          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead}
+          trail={savedOnTitleLine ? saveIndicator(styles.savedLine) : null} />
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
