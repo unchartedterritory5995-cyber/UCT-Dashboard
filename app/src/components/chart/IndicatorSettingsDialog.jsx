@@ -46,8 +46,8 @@ import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs,
          sectionize, initialCollapsed, INLINE_MAX } from './indicatorRegistry'
 import { findInstance, setInstanceInput, setInstanceHidden,
          setInstanceDisplayTarget, applyPresetInputs, setInstanceDotSize,
-         presetsOf, detectPreset, CUSTOM_PRESET, dotPlotsOf, DOT_SIZE_OPTIONS } from './engine/instanceControls'
-import { storedDotSize, DEFAULT_DOT_SIZE } from './engine/presentation'
+         presetsOf, detectPreset, CUSTOM_PRESET, dotPlotsOf, DOT_SIZE_OPTIONS,
+         instanceDotSizeReading, DOT_SIZE_MIXED } from './engine/instanceControls'
 // ⭐ 2a-12 — the preset readers moved into the engine (`presetsOf`, `detectPreset`,
 // `CUSTOM_PRESET`) so this dialog and the phone sheet read ONE copy. The id is
 // re-exported here for the callers that always imported it from the dialog.
@@ -620,9 +620,13 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
 
   const placementTarget = instance.placement?.target || def.placement?.target || MOVE_TARGETS[0]
   // ⭐ 2a-12 — the Dot size control's facts: which outputs draw dots (none ⇒ no
-  // control) and the word the instance level stores (nothing ⇒ "Default").
+  // control) and the word every dot draws at (nothing stored ⇒ "Default").
+  // ⭐ U8 #11 (2026-11-07): "Mixed" while a per-dot size (Stress's Large
+  // before-price dot) disagrees with the instance level, so the control never
+  // says Default over a Large dot, and any word chosen is a real change (the
+  // writer then deletes the per-dot sizes).
   const dotPlots = dotPlotsOf(def)
-  const dotSize = storedDotSize(instance, null) || DEFAULT_DOT_SIZE
+  const dotSize = instanceDotSizeReading(instance, def)
 
   return (
     <Sheet open={open} onClose={handleDone} variant="auto" title={title} maxWidth={520} className={sheetClassName}>
@@ -707,6 +711,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
                       value={dotSize}
                       onChange={(e) => setDotSize(e.target.value)}
                     >
+                      {dotSize === DOT_SIZE_MIXED && <option value={DOT_SIZE_MIXED} disabled>Mixed</option>}
                       {DOT_SIZE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </span>
