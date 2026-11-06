@@ -34,7 +34,7 @@ export const TOURS = [
     flag: 'notebook_review_drafts_enabled',
     title: 'Reviews that write themselves',
     replayable: true,
-    start: '/journal/notebook',
+    start: '/journal/notebook?view=home',
     load: steps(() => import('./reviewDrafts.steps')),
   },
   {

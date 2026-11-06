@@ -372,6 +372,11 @@ const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => 
  */
 export default function ResearchHome({
   onOpenNote, onCreateNote, onCreateThesis, onImport, hasAnyNotes,
+  // Tier 4 fix round 2 (live CLS): false while NotebookTab's note count is still loading -- when `hasAnyNotes` also
+  // reads false. Home stays on its skeleton until it is known, so a member WITH notes never sees the first-run
+  // welcome flash in and give way to Home (measured on production: 0.023 + 0.023 at 390 px). Default true: a caller
+  // that does not say keeps today's behaviour.
+  notesKnown = true,
   // Fix I-3: what the sample's "Remove it" pre-check needs from the Notebook -- the notes
   // this device holds as blocked (useBlockedNotes), and a title for each held note it names.
   blockedNoteIds = null, titleOf = () => null,
@@ -605,7 +610,7 @@ export default function ResearchHome({
   // (checklistEnabled + its closed key), so the slot itself is unconditional.
   const gettingStartedSlot = <GettingStartedChecklist hasAnyNotes={hasAnyNotes} onCreateNote={onCreateNote} onAddSample={isPaid ? addSample : null} /> // W14-D
 
-  if (isLoading) {
+  if (isLoading || !notesKnown) {
     // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's
     // own section-row layout (title, then a couple of rows) -- same idiom
     // as NoteEditorPage's note-loading skeleton -- instead of bare text.
@@ -613,7 +618,10 @@ export default function ResearchHome({
     // rows, the shape Home lands in -- so the page does not grow by a screen when the read arrives (CLS 0.169
     // desktop / 0.220 phone was measured on Home). It was a title and two text lines.
     return (
-      <div className={styles.homeSkeleton} role="status" aria-label="Loading…" data-home-skeleton="">
+      // Fix round 2 (live CLS): the skeleton, the welcome and Home's top row are three DIFFERENT nodes (keys). Unkeyed,
+      // React reused the skeleton's <div> for the welcome and the welcome's for Home's top row, and a reused node that
+      // moves is a layout shift (desktop 0.0597: the welcome took the skeleton's node and its 40 px top margin).
+      <div key="home-skeleton" className={styles.homeSkeleton} role="status" aria-label="Loading…" data-home-skeleton="">
         <div className={styles.skeletonHeader}>
           <SkeletonBlock height={38} />
           <SkeletonPill width={112} height={38} />
@@ -702,7 +710,7 @@ export default function ResearchHome({
       </>
     )
     return (
-      <div className={welcomeExtras ? `${styles.firstRun} ${styles.welcome}` : styles.firstRun}>
+      <div key="first-run" className={welcomeExtras ? `${styles.firstRun} ${styles.welcome}` : styles.firstRun}>
         {welcomeExtras ? (
           <div className={styles.welcomeHeader}>
             {/* W14-keys: the heading is where focus lands when the auto-started base tour closes
@@ -769,7 +777,7 @@ export default function ResearchHome({
   // every return below, so the boxes after it keep their positions (and their state) when the
   // home flips between quiet and full, exactly as before.
   const homeTop = (
-    <div className={styles.homeTop} data-export-exclude>
+    <div key="home-top" className={styles.homeTop} data-export-exclude>
       <div className={styles.homeHeader}>
         <HomeSearch hidden={searchActive} onOpenNote={onOpenNote} />
         {hasAnyNotes && onOpenNewNoteSheet && (
@@ -848,7 +856,11 @@ export default function ResearchHome({
   // Lazy (I4), at the same tree position as before. Mounted only while the board's flag is on, so a
   // member whose switch is off fetches nothing; the flag is latched for the tab's life
   // (notebookFlags), so the slot is null or the Suspense for the whole session and never flips.
-  const setupsBox = setupsBoardEnabled() ? <Suspense fallback={null}><SetupsBox /></Suspense> : null
+  // Fix round 2 (live CLS): while its chunk loads, the box's own height is held (`.setupsReserve`), so Ask and the
+  // boxes below do not drop when it arrives.
+  const setupsBox = setupsBoardEnabled()
+    ? <Suspense fallback={<div className={styles.setupsReserve} aria-hidden="true" data-home-reserve="setups" />}><SetupsBox /></Suspense>
+    : null
 
   // P0.7 (owner decision, 2026-10-11): ONE Ask section. Research Home used to have two doors --
   // "Ask Notebook to do something" under the Notices box and a lower Ask box -- and a member could
@@ -877,7 +889,9 @@ export default function ResearchHome({
         })} />
       </div>
       {notebookFlag('notebook_ai_actions_enabled') === true
-        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
+        // Fix round 2 (live CLS): the closed "Or tell Notebook what to change" door's height is held while its chunk
+        // loads (desktop 32 + 12, touch 44 + 12, AiActionsPanel.module.css), so the boxes below never drop by it.
+        ? <Suspense fallback={<div className={styles.aiActionsReserve} aria-hidden="true" data-home-reserve="ai-actions" />}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
         : null}
     </section>
   )

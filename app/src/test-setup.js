@@ -38,6 +38,7 @@ import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/run
 import './components/chart/engine/lowerTfGate.js'
 import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
 import { __setFirstLiveWidgetForTests } from './pages/journal-2-0/lib/notebookTelemetry'
+import { __setTodayLandingForTests } from './pages/journal-2-0/lib/todayHome'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -62,6 +63,11 @@ beforeEach(() => { __setWarmRetryDelaysForTests([]) })
 // pin "renders from params without a fetch"; the beacon is off here by default and railed ON in
 // `pages/journal-2-0/lib/notebookTelemetry.test.js` and `components/notebook/EmptyNamesAsk.test.jsx`.
 beforeEach(() => { __setFirstLiveWidgetForTests(false) })
+
+// ── Audit 2026-11-05 (S15): the Today home is the Notebook's default landing. The suites written before it render a
+// bare Notebook and expect Research Home, so the default is off here; `?view=today` still opens Today, and the
+// landing itself is railed ON in `pages/journal-2-0/tabs/NotebookTab.todayLanding.test.jsx`.
+beforeEach(() => { __setTodayLandingForTests(false) })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers
