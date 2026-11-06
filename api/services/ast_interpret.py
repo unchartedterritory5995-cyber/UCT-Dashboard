@@ -539,7 +539,7 @@ REFUSALS: Mapping[str, str] = {
 #: the JS constant; this file carries the number and not a second copy of the
 #: argument.
 #:
-#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``scan_evaluator._MAX_BARS`` caps a
+#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``bars_window.HISTORY_WINDOW_BARS`` caps a
 #: sweep at 5,000 bars, so the most this walker can ever be asked for is
 #: ``5000 x 960`` (the grammar's own ``maxLookback``) = 4,800,000 steps -- below
 #: this ceiling either way. The note above says the low number existed to bound

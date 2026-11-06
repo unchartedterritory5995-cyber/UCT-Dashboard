@@ -153,3 +153,18 @@ export function publishedSentence(folderName, copied) {
   const what = folderName == null ? 'Published' : `Published "${folderName}"`
   return `${what}. ${pageCopiedSentence(copied)}`
 }
+
+/** S20 (audit 2026-11-05): a publish undone within this long is a TRUST INCIDENT (the member did not mean it). */
+export const TRUST_UNDO_WINDOW_MS = 10 * 60 * 1000
+
+/** How long ago `pub` was published, in ms, when it is inside TRUST_UNDO_WINDOW_MS; else null. A stamp with no zone
+ *  is read as UTC (the server writes UTC); an unreadable one is null, never an incident. */
+export function publishUndoneMs(pub, now = Date.now()) {
+  const raw = typeof pub?.createdAt === 'string' ? pub.createdAt.trim() : ''
+  if (!raw) return null
+  const iso = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  const t = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`)
+  if (!Number.isFinite(t)) return null
+  const ms = now - t
+  return ms >= 0 && ms <= TRUST_UNDO_WINDOW_MS ? ms : null
+}

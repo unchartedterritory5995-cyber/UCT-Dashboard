@@ -741,6 +741,10 @@ export default function App() {
                   {/* Wave 13 lane 13J: the setups board. The page reads its two flags itself and
                       fetches nothing while both are off; every route it calls 404s while dark. */}
                   <Route path="notebook/setups" element={<SetupsBoard />} />
+                  {/* S13 (audit 2026-11-05, detail #67): My Playbook INSIDE the Journal shell, the Notebook sidebar's
+                      door to it (the Journal tabs stay above it; "Back to Notebook"). Same page, same read: the
+                      standalone /journal-2-0/playbook route below stays for Insights and every existing link. */}
+                  <Route path="notebook/playbook" element={<J2MyPlaybook />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />

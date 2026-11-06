@@ -46,7 +46,7 @@
 
 .chev {
   margin-left: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -155,4 +155,14 @@
 /* Touch (wave 15): the account pill audited 29px. */
 @media (max-width: 1024px) {
   .pill { min-height: var(--tap-min); }
+}
+
+/* Final polish (live scorecard: phone /journal CLS 0.1036, one shift at ~1.08 s): the pill read "All Accounts"
+   (132 px) until the account read landed and named the account ("Default", 99 px). The header row wraps, so the
+   narrower pill pulled the next button up a row and the Today cards moved. On a phone the pill is one width
+   whatever it says; a longer name ends in an ellipsis. Rail: AccountSelector.phoneWidth.test.js. */
+@media (max-width: 640px) {
+  .wrap { width: 132px; }
+  .pill { width: 100%; min-width: 0; }
+  .pill .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

@@ -56,6 +56,12 @@ function ChartEmbed({
   // fetch-herd class the multi-chart grid already turns off. Default TRUE: every
   // other caller is byte-identical to before.
   backgroundWarm = true,
+  // S12 (audit M9 point 2): phone chart mode, decided by WidgetEmbedView at phone width. The chart drops its
+  // auto-labels (the company watermark, Chart IQ and the pattern layer) until the header's Insights toggle asks
+  // for them. VIEW-ONLY: `disablePatterns` and `hideWatermark` are StockChart props, never settings, so nothing
+  // is written to the note or to the member's chart settings. Absent (false) everywhere else: byte-identical.
+  phoneMode = false,
+  insights = false,
 }, ref) {
   const params = attrs?.params || {}
   const paneRef = useRef(null)
@@ -134,7 +140,8 @@ function ChartEmbed({
     // mode exits must never light up StockChart's MobileDrawBar swap over a
     // read-only chart.
     mobileDrawBar: !!annotate && !!mobileDrawBar,
-  }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady,
+    ...(phoneMode ? { hideWatermark: true, ...(insights ? {} : { disablePatterns: true }) } : {}),
+  }), [phoneMode, insights, live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady,
     peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair, backgroundWarm, mobileDrawBar])
 
   return (

@@ -1350,6 +1350,11 @@ def _row_timing(row: dict | None) -> str | None:
     return None
 
 
+def _earnings_cost_surface(warm: bool) -> str:
+    """The ledger surface of one earnings AI call: the background warm or a member's click."""
+    return "earnings_warm" if warm else "earnings_click"
+
+
 def _release_unbilled_attempt(kind: str, sym: str, exc: BaseException) -> None:
     """An HTTP error response generated nothing and is free, so it does not use the
     name's daily warm attempt: a provider outage at 06:20 must not leave the whole
@@ -1665,7 +1670,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
             )
 
             client = _get_anthropic_client()
-            msg = client.messages.create(
+            request = dict(
                 model=_EARNINGS_AI_MODEL,
                 max_tokens=_EARNINGS_AI_MAX_TOKENS,
                 # Claude 5 models emit a thinking block by default, which eats
@@ -1676,6 +1681,14 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
                 metadata={"user_id": "earnings_analysis:global"},
                 messages=[{"role": "user", "content": prompt}],
             )
+            from api.services import narrative_cost_guard as _guard
+            _surface = _earnings_cost_surface(force_fresh_check)
+            with _guard.charge_if_failed(_surface, request):
+                msg = client.messages.create(**request)
+            try:
+                _guard.record_from_response(_surface, _EARNINGS_AI_MODEL, msg)
+            except Exception:  # noqa: BLE001 -- the ledger never loses a paid answer
+                _logger.exception("earnings ledger write failed for %s", sym)
             parsed = _parse_json_block(_anthropic_text(msg))
             analysis_headline = str(parsed.get("headline", "")).strip()
             analysis_summary  = str(parsed.get("summary",  "")).strip()
@@ -2074,7 +2087,7 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         )
 
         client = _get_anthropic_client()
-        msg = client.messages.create(
+        request = dict(
             model=_EARNINGS_AI_MODEL,
             max_tokens=_EARNINGS_PREVIEW_AI_MAX_TOKENS,
             # Disable Claude-5 default thinking — it truncates the JSON (see the
@@ -2083,6 +2096,14 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
             metadata={"user_id": "earnings_preview:global"},
             messages=[{"role": "user", "content": prompt}],
         )
+        from api.services import narrative_cost_guard as _guard
+        _surface = _earnings_cost_surface(force_fresh_check)
+        with _guard.charge_if_failed(_surface, request):
+            msg = client.messages.create(**request)
+        try:
+            _guard.record_from_response(_surface, _EARNINGS_AI_MODEL, msg)
+        except Exception:  # noqa: BLE001 -- the ledger never loses a paid answer
+            _logger.exception("earnings ledger write failed for %s", sym)
         parsed = _parse_json_block(_anthropic_text(msg))
         preview_text    = str(parsed.get("preview", "")).strip()
         preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]

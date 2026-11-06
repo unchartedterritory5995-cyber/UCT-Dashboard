@@ -1042,3 +1042,8 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
+
+/* S14 (audit 2026-11-05): the Help search over Quick answers, and its one status line (mounted empty, so the
+   sentence it later holds is announced). */
+.helpSearchStatus { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }
+.helpSearchStatus:empty { margin: 0; }

@@ -22,6 +22,24 @@
 
 This file provides guidance to Claude Code when working in this repository.
 
+## ⛔ GitHub Actions is BILLED — push discipline (owner, 2026-11-06)
+
+This repo is **private**, so every Actions minute costs money. The $300 budget ran out on 11-06, five
+days into the month (6,819 runs in 6 days; most were `agent ci` runs on per-commit pushes, ~76 min each).
+
+- **Push a branch once per finished, locally tested unit of work.** Never push after every commit to
+  "save progress"; a commit can stay local. Run the focused tests locally first: CI confirms, it is not the
+  test loop.
+- **A push runs the workflow files ON THAT BRANCH.** A branch cut before PR #877 still runs the old,
+  unfiltered `agent ci` on every push. Merge master into a long-lived branch before you keep pushing to it.
+- **New or edited workflows** need `paths:` on PR triggers and on non-master push triggers, and the
+  SHA-grouped PR-cancel `concurrency:` block. Never `cancel-in-progress: true` on anything that runs on master
+  pushes. `tests/test_ci_cost_rails.py` enforces this and the master deploy gate runs it.
+- The master deploy gate running the full Agent suite on every master push is deliberate. Do not path-filter it.
+- If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
+  Tell the owner; do not re-push to retry.
+
+
 ## Project Overview
 
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:

@@ -58,6 +58,8 @@ import threading
 import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 
+from api.services.bars_window import HISTORY_WINDOW_BARS
+
 _logger_name = __name__
 
 #: One user address: `u_` + 12 hex + `.` + a plot key. The id grammar is
@@ -482,7 +484,7 @@ def _symbol_bars(ticker: str, tf: str, want: int) -> list:
 
 
 #: The most bars another symbol is read for, whatever the formula asks.
-_SYMBOL_MAX_BARS = 5000
+_SYMBOL_MAX_BARS = HISTORY_WINDOW_BARS
 
 
 def _external_reads(tree: Any) -> tuple:
@@ -867,7 +869,7 @@ RUNTIME_DATE_TFS = ("D", "W", "M")
 #: intraday"), because it has no tree whose lookback could be measured. 32,768 is the
 #: runtime's own `HISTORY` limit (`engine/runtime/limits.js` `DEFAULT_LIMITS`), held equal
 #: by a rail, and the service's `bars.n` ceiling (design 3.2).
-RUNTIME_WINDOW_DATE = 5000
+RUNTIME_WINDOW_DATE = HISTORY_WINDOW_BARS
 RUNTIME_WINDOW_INTRADAY = 32768
 
 #: The cycle's batch for the (sym, tf) group being evaluated, or None (see

@@ -435,7 +435,10 @@ const SERVER_LEDGER = {
   'api/services/journal_two/note_daily.py':
     'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
     + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
-    + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
+    + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write; '
+    + 'since S15 (audit 2026-11-05) ALSO reached from notebook_today.today_note_section (GET /api/j2/notes/today, the Today '
+    + 'home): create-if-missing with the member\'s template and a seed applied at creation only; it returns no body, '
+    + 'and an existing note is never written, so there is nothing for a client to settle',
   // Wave 8 (8C; controller ruling on the whole-branch pass): the sample notebook reaches the
   // notes through `import_confirm` and `delete_note`, which the matcher did not name, so the
   // matcher now names every note writer a module outside journal_two.py can call.

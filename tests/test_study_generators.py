@@ -550,6 +550,35 @@ def test_the_committed_bank_never_prints_a_missing_number():
     assert not bad, bad[:12]
 
 
+def test_no_drafting_note_reaches_a_member_facing_field():
+    """The bear-gap drafts of 2026-10-27 carried "(owner ruling pending; owner
+    2026-10-27: ...)" inside lesson_text, a note to the reviewer printed where
+    a member would read it (backlog, cleared 2026-11-05). The rail reads every
+    committed segment, and validate() refuses a new one; a citation of a
+    settled ruling, the lessons' own style, stays allowed."""
+    bad = []
+    for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
+        for it in json.loads(path.read_text(encoding="utf-8")):
+            for v in _common.drafting_notes(it):
+                bad.append(f"{path.stem}:{it.get('id')}:{v}")
+    assert not bad, bad[:12]
+    cited = {"prompt_json": {"q": "Is the last bar a bear gap?"},
+             "lesson_text": "A gap against a downtrend is a different setup (owner rulings 2026-10-23/24)."}
+    assert _common.drafting_notes(cited) == []
+    clean = _common.make_item(
+        type="spot", skill_id="setup.family3.bear_gap", q="Is the last bar a bear gap off the highs?",
+        answer="yes", choices=["Yes", "No"], source_kind="setups", source_ref="t#bear#1", lesson_origin="session",
+        lesson_text="Bear Gap off the Highs: the first true gap down since a recent top, marked on the gap day itself.")
+    assert _common.validate([clean]) == []
+    for text in ('Bear Gap (owner ruling pending; owner 2026-10-27: "later"): the first gap down.',
+                 "What this lesson teaches is the owner's to rule on the charts.",
+                 "TODO: the stop goes under the low."):
+        noted = dict(clean, lesson_text=text)
+        assert any("drafting note in lesson_text" in p for p in _common.validate([noted])), text
+    asked = dict(clean, prompt_json={"q": "Is this a bear gap (ruling pending)?", "choices": ["Yes", "No"]})
+    assert any("drafting note in prompt_json.q" in p for p in _common.validate([asked]))
+
+
 def test_setup_fact_lines_leave_a_clause_out_rather_than_print_none():
     from scripts.study import gen_setup_examples as gse
     thin_gap = {"gap_pct": 4.49, "bars_since_gap": 7, "first_test": True, "levels_touched": ["top", "mid"]}

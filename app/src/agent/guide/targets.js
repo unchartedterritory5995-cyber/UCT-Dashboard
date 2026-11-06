@@ -157,7 +157,28 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
 // its right end: the settings gear, among others. The member can neither see nor reach it, so the guide slides that row
 // sideways while the step needs it, and puts it back afterwards. It is a view of the same controls: nothing is stored.
 let slid = []
-const clips = (node) => { let o = ''; try { o = getComputedStyle(node).overflowX } catch { o = '' } return /hidden|clip/.test(o) && node.scrollWidth > node.clientWidth }
+const clips = (node) => { let o = ''; try { o = getComputedStyle(node).overflowX } catch { o = '' } return /hidden|clip|auto|scroll/.test(o) && node.scrollWidth > node.clientWidth }
+// a row squeezed to nothing: with two charts and the Agent open the drawing strip has no width at all, because the fixed
+// buttons beside it take the whole line. There is nothing to slide, so its neighbours step aside for the step
+const SQUEEZED_PX = 8
+const squeezed = (node) => node.getClientRects?.().length > 0 && node.getBoundingClientRect().width < SQUEEZED_PX
+function makeRoom(el) {
+  for (let p = el; p && p !== document.body; p = p.parentElement) {
+    // a row of controls, not one tool the member hid under Customize (a button collapsed to width 0)
+    if (!squeezed(p) || p.childElementCount < 2 || !p.parentElement) continue
+    for (const sib of p.parentElement.children) {
+      if (sib === p) continue
+      slid.push({ node: sib, display: sib.style.display })
+      sib.style.display = 'none'
+    }
+    return
+  }
+}
+/** The control is in the page with a box, whether or not a narrow row is showing it now. */
+export function exists(target, ctx) {
+  anyBox = true
+  try { return !!findTarget(target, ctx) } finally { anyBox = false }
+}
 /** Slide the clipping row so this target shows → it is now on screen. */
 export function unclip(target, ctx) {
   if (typeof document === 'undefined' || findTarget(target, ctx)) return false
@@ -165,6 +186,7 @@ export function unclip(target, ctx) {
   let el = null
   try { el = findTarget(target, ctx) } finally { anyBox = false }
   if (!el?.getBoundingClientRect || el.getClientRects?.().length === 0) return false
+  makeRoom(el)
   for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
     if (!clips(p)) continue
     const box = p.getBoundingClientRect()
@@ -172,11 +194,15 @@ export function unclip(target, ctx) {
     const by = r.right > box.right ? r.right - box.right + 6 : r.left < box.left ? r.left - box.left - 6 : 0
     if (by) { slid.push({ node: p, left: p.scrollLeft }); p.scrollLeft += by }
   }
+  // below the fold of a long window (the formula box in the builder): bring it up
+  if (!findTarget(target, ctx)) reveal(el)
   return !!findTarget(target, ctx)
 }
 /** Put back every row `unclip` slid. */
 export function restoreClipped() {
-  for (const { node, left } of slid.reverse()) { try { node.scrollLeft = left } catch { /* gone */ } }
+  for (const { node, left, display } of slid.reverse()) {
+    try { if (display != null) node.style.display = display; else node.scrollLeft = left } catch { /* gone */ }
+  }
   slid = []
 }
 

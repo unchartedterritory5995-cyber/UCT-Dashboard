@@ -255,10 +255,15 @@ def _call(system: str, messages: list[dict]) -> Any:
     from api.services import narrative_cost_guard as guard
     from api.services.engine import _get_anthropic_client
     m = model()
-    resp = _get_anthropic_client().with_options(timeout=CALL_TIMEOUT_S, max_retries=0).messages.create(
-        model=m, max_tokens=MAX_TOKENS, system=system,
-        output_config={"format": {"type": "json_schema", "schema": SCHEMA}, "effort": EFFORT},
-        messages=messages)
+    charged = dict(model=m, max_tokens=MAX_TOKENS, system=system,
+                   output_config={"format": {"type": "json_schema", "schema": SCHEMA}, "effort": EFFORT},
+                   messages=messages)
+    # ⛔ The keywords stay on the call: the no-tools rail reads them there.
+    with guard.charge_if_failed(COST_SURFACE, charged):
+        resp = _get_anthropic_client().with_options(timeout=CALL_TIMEOUT_S, max_retries=0).messages.create(
+            model=m, max_tokens=MAX_TOKENS, system=system,
+            output_config={"format": {"type": "json_schema", "schema": SCHEMA}, "effort": EFFORT},
+            messages=messages)
     try:
         guard.record_from_response(COST_SURFACE, m, resp)
     except Exception:  # noqa: BLE001 -- the ledger never fails a request

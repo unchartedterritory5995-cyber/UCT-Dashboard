@@ -46,6 +46,7 @@ import styles from './GuideOverlay.module.css'
 
 const COVERED = 'That control is behind the window that’s open. Close the window, and I’ll carry on from here.'
 const OFF = 'This control is greyed out right now, so it can’t be clicked yet.'
+const BUSY = 'I’m still working on your last request. Press Do it for me again when I’ve finished.'
 const FIRST = 'This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.'
 
 // the menu or window a control sits in: the card keeps off it when there is room
@@ -92,6 +93,8 @@ export default function GuideOverlay() {
         if (met && armed) { nextStep(); return }
         if (!met) armed = true
       }
+      // a list's first entry is the control itself: below the fold of a long window it is scrolled up, not passed over for the fallback
+      if (Array.isArray(step.target)) unclip(step.target[0], st)
       const el = findTarget(step.target, st) || (unclip(step.target, st) ? findTarget(step.target, st) : null)
       if (el) {
         lostSince = null
@@ -187,7 +190,7 @@ export default function GuideOverlay() {
   const control = step.name || st.feature.control || 'that control'
   const text = !rect
     ? (paused ? `I can’t see ${control} right now. Bring it back and I’ll carry on from here, or start again.` : 'Looking for it on your screen…')
-    : (why || shownHint || step.text)
+    : (hint?.key === stepKey && hint.busy ? hint.text : why || shownHint || step.text)
   const onNext = () => {
     if (last) { endGuide('done'); return }
     const to = reachableAfter(st.steps, st.index, st)
@@ -221,7 +224,7 @@ export default function GuideOverlay() {
         </div>
         <p className={styles.text} aria-live="polite" data-testid="guide-text">{text}</p>
         <div className={styles.actions}>
-          {hasDoIt(st.feature) && <button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={requestGuideDoIt}>Do it for me</button>}
+          {hasDoIt(st.feature) && <button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={() => { setHint(requestGuideDoIt() ? null : { key: stepKey, text: BUSY, busy: true }) }}>Do it for me</button>}
           {(st.index > 0 || paused) && <button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={onRestart}>Restart</button>}
           {st.index > 0 && !step.noBack && <button type="button" className={styles.btn} onClick={onBack}>Back</button>}
           {!paused && (
