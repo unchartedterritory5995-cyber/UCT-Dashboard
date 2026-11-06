@@ -45,6 +45,9 @@ _MARKER = "# promotion-gate:"
 #: something is wrong with the gate itself.
 ALWAYS_RUNS = "master deploy gate"
 
+#: A run counts for promotion only if it ran on this branch. See decide().
+MASTER_BRANCH = "master"
+
 PROMOTE, WAIT, REFUSE = "PROMOTE", "WAIT", "REFUSE"
 
 
@@ -138,12 +141,22 @@ def decide(*, gating: list[str], runs: list[dict], workflows: list[dict]) -> tup
     if disabled:
         return REFUSE, "gating workflow(s) are not active: %s" % ", ".join(sorted(disabled))
 
+    # ⛔ THE RUNS QUERY FILTERS BY COMMIT ONLY. A run dispatched on a branch sitting at master's tip has master's SHA, so
+    # read as-is it would count: a refused branch dispatch would REFUSE master's commit, and a green one could pass it.
+    # Only runs ON MASTER speak for master. A gating run with no branch cannot be placed, so it refuses rather than
+    # being dropped: dropping it would turn an unreadable answer into "not relevant".
+    named = [r for r in runs if r.get("name") in gating]
+    unplaced = sorted({r.get("name") for r in named if not r.get("head_branch")})
+    if unplaced:
+        return REFUSE, "gating run(s) carry no head_branch, so they cannot be placed on master: %s" % ", ".join(unplaced)
+
     by_name: dict[str, list[dict]] = {}
-    for r in runs:
-        by_name.setdefault(r.get("name"), []).append(r)
+    for r in named:
+        if r.get("head_branch") == MASTER_BRANCH:
+            by_name.setdefault(r.get("name"), []).append(r)
 
     if ALWAYS_RUNS in gating and ALWAYS_RUNS not in by_name:
-        return REFUSE, "%r did not run for this commit; it has no path filter on master, so its absence is a fault" % ALWAYS_RUNS
+        return REFUSE, "%r did not run on master for this commit; it has no path filter on master, so its absence is a fault" % ALWAYS_RUNS
 
     pending, failed = [], []
     for name in gating:
@@ -186,6 +199,13 @@ def _self_check() -> int:
           {"name": "vite build args", "state": "active"}], REFUSE),
         ("no runs at all", g, [], wf, REFUSE),
         ("no gating set resolved", [], [ok(ALWAYS_RUNS)], wf, REFUSE),
+        ("a failed branch run at master's SHA does not count", g,
+         [ok(ALWAYS_RUNS), {"name": ALWAYS_RUNS, "status": "completed", "conclusion": "failure", "head_branch": "x"}],
+         wf, PROMOTE),
+        ("a green branch run does not stand in for master", g,
+         [{"name": ALWAYS_RUNS, "status": "completed", "conclusion": "success", "head_branch": "x"}], wf, REFUSE),
+        ("a gating run with no branch refuses", g,
+         [dict(ok(ALWAYS_RUNS), head_branch=None)], wf, REFUSE),
         ("a later green gate supersedes a cancelled one", g,
          [dict(ok(ALWAYS_RUNS), created_at="2026-01-01T02:00:00Z"),
           {"name": ALWAYS_RUNS, "status": "completed", "conclusion": "cancelled", "created_at": "2026-01-01T01:00:00Z"}],
@@ -197,7 +217,8 @@ def _self_check() -> int:
     ]
     bad = 0
     for label, gate, runs, works, want in cases:
-        got, why = decide(gating=gate, runs=runs, workflows=works)
+        placed = [{"head_branch": MASTER_BRANCH, **r} for r in runs]
+        got, why = decide(gating=gate, runs=placed, workflows=works)
         flag = "ok " if got == want else "FAIL"
         if got != want:
             bad += 1

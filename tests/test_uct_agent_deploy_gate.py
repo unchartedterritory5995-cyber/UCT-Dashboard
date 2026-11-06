@@ -124,18 +124,18 @@ def test_a_FAILED_agent_step_refuses_PROMOTION_through_the_real_promotion_rules(
     assert gate_name == pg.ALWAYS_RUNS and verdicts[gate_name] == "yes"     # the Agent tests run in THE gating job
     gating = [n for n, v in verdicts.items() if v == "yes"]
     wf = [{"name": n, "state": "active"} for n in verdicts]
-    ok = lambda n: {"name": n, "status": "completed", "conclusion": "success"}
-    failed = [{"name": gate_name, "status": "completed", "conclusion": "failure"}]
+    ok = lambda n: {"name": n, "status": "completed", "conclusion": "success", "head_branch": "master"}
+    failed = [{"name": gate_name, "status": "completed", "conclusion": "failure", "head_branch": "master"}]
     verdict, why = pg.decide(gating=gating, runs=failed, workflows=wf)
     assert verdict == pg.REFUSE and gate_name in why
     # …and the same commit with a green gate WOULD promote (the refusal is the failure's doing)
     assert pg.decide(gating=gating, runs=[ok(gate_name)], workflows=wf)[0] == pg.PROMOTE
     # a gate still running is never promoted either
-    running = [{"name": gate_name, "status": "in_progress", "conclusion": None}]
+    running = [{"name": gate_name, "status": "in_progress", "conclusion": None, "head_branch": "master"}]
     assert pg.decide(gating=gating, runs=running, workflows=wf)[0] == pg.WAIT
     # a CANCELLED gate refuses, and a gate that never ran for the commit (MISSING) refuses — it is
     # the always-runs check, so its absence is a fault, never "not relevant"
-    cancelled = [{"name": gate_name, "status": "completed", "conclusion": "cancelled"}]
+    cancelled = [{"name": gate_name, "status": "completed", "conclusion": "cancelled", "head_branch": "master"}]
     assert pg.decide(gating=gating, runs=cancelled, workflows=wf)[0] == pg.REFUSE
     assert pg.decide(gating=gating, runs=[], workflows=wf)[0] == pg.REFUSE
     other = [ok(n) for n in gating if n != gate_name]
