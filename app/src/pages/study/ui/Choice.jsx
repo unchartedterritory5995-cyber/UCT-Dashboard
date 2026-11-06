@@ -1,7 +1,7 @@
-// ANSWER CARDS (round 18; owner, batch 16: "gold-coin answer cards"; batch 18: "better and more on brand"). A numbered
-// coin, the label, and after the verdict a mark; the card itself is the control (a real button with a pressed state and
-// a keyboard focus ring). States: idle · sel (picked, not yet checked) · right · wrong · quiet (the others after the
-// verdict). `i` staggers the deal when the grid cascades.
+// ANSWER CARDS (round 18; owner, batch 16: "gold-coin answer cards"; batch 18: "better and more on brand"; batch 19: the
+// cards and their colours Weak). A thin gold ring with the number, the label, and after the verdict the ring itself
+// carries the mark; the card is the control (a real button with a pressed state and a keyboard focus ring). States:
+// idle · sel (picked, not yet checked) · right · wrong · quiet (the others after the verdict). `i` staggers the deal.
 import UIcon from '../../../components/ui/UIcon'
 import s from './study.module.css'
 
@@ -17,10 +17,10 @@ export default function Choice({ n, label, state = 'idle', onClick, disabled = f
   const cls = [s.card, state === 'sel' ? s.sel : '', state === 'right' ? s.right : '', state === 'wrong' ? s.wrong : '', state === 'quiet' ? s.quiet : ''].filter(Boolean).join(' ')
   return (
     <button type="button" className={cls} style={{ '--i': i }} disabled={disabled} onClick={onClick} aria-pressed={state === 'sel' ? true : undefined} data-state={state}>
-      <span className={s.coin} aria-hidden="true">{n}</span>
+      <span className={s.num} aria-hidden="true">
+        {state === 'right' ? <UIcon name="check" size={14} gold={false} /> : state === 'wrong' ? <UIcon name="x" size={14} gold={false} /> : n}
+      </span>
       <span className={s.cardLabel}>{label}</span>
-      {state === 'right' ? <span className={s.cardMark} aria-label="right"><UIcon name="check" size={18} gold={false} /></span>
-        : state === 'wrong' ? <span className={s.cardMark} aria-label="wrong"><UIcon name="x" size={18} gold={false} /></span> : null}
     </button>
   )
 }

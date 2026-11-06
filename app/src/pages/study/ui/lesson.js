@@ -1,15 +1,25 @@
-// THE LESSON'S TWO HALVES (round 18; owner, batch 18: "This content here needs significant improvement and
-// simplification"). A bank lesson is ONE paragraph: "<Setup>: <the rule, the owner's definition, several sentences>
-// Here the stock <what this chart did, measured from its bars>." Nothing here rewrites a word of it (no model writes a
-// market fact, and the lesson's numbers come from the bars): the card shows the chart's own sentence first, the rule's
-// first sentence under it, and the rest of the rule on demand. The bank's provenance stamps "(owner rulings
-// 2026-10-23/24)" are lifted out of the member's reading and returned separately.
+// THE LESSON'S PARTS (round 18; owner, batch 18: "This content here needs significant improvement and simplification";
+// batch 19: "dont say THE FIRM"). A bank lesson is ONE paragraph: "<Setup>: <the rule, the owner's definition, several
+// sentences> Here the stock <what this chart did, measured from its bars>." A near-miss fixture reads "The firm's
+// detector does not fire on the last bar of this chart. <why not>". Nothing here rewrites a market fact (the lesson's
+// numbers come from the bars): the chart's own sentence leads, the rule's first sentence follows, the rest of the rule
+// on demand; "the firm" is read through the product's own brand words (drills/types.brandWords, the round-17b ruling);
+// the bank's provenance stamps "(owner rulings 2026-10-23/24)" are lifted out of the member's reading and kept.
+import { brandWords } from '../drills/types'
+
 const CITE = /\s*\((owner rulings?[^)]*)\)/gi
+const NOTHING = /^(?:UCT's|The firm's|Our)\s+detector does not fire on the last bar of this chart\.?\s*/i
 
 export function splitLesson(text) {
-  const raw = String(text || '').replace(/\s+/g, ' ').trim()
+  const raw = brandWords(String(text || '').replace(/\s+/g, ' ').trim()) || ''
   const citations = []
   let body = raw.replace(CITE, (_, c) => { citations.push(c); return '' }).replace(/\s+([.,;:])/g, '$1').trim()
+  // a near-miss: the detector did not fire, and the rest is why
+  const nm = NOTHING.exec(body)
+  if (nm) {
+    const reason = endStop(cap(body.slice(nm[0].length).trim()))
+    return { setup: '', rule: '', ruleLead: '', ruleRest: '', here: '', nothing: true, reason, citations }
+  }
   let setup = ''
   const named = /^([A-Z][A-Za-z0-9 ()'&/-]{1,48}?):\s+(?=\S)/.exec(body)
   if (named) { setup = named[1]; body = body.slice(named[0].length) }
@@ -18,7 +28,7 @@ export function splitLesson(text) {
   const at = hereIndex(body)
   if (at >= 0) { rule = body.slice(0, at).trim(); here = body.slice(at).trim() }
   const [ruleLead, ruleRest] = firstSentence(cap(rule))
-  return { setup, rule: cap(rule), ruleLead, ruleRest, here: endStop(here), citations }
+  return { setup, rule: cap(rule), ruleLead, ruleRest, here: endStop(here), nothing: false, reason: '', citations }
 }
 
 /** Where the chart's own sentence starts: a "Here" that opens the text or follows a stop (the LAST such one). */

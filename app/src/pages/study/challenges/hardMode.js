@@ -13,7 +13,11 @@ import { SETUP_NAMES } from './challengeBank'
 
 export const HARD_TOTAL = 8
 export const NOTHING = 'Nothing fired'
-export const HARD_CHART = Object.freeze({ overlays: false, volume: false })
+// Round 19 (owner, batch 19, on the start card's switches: "I dont like that we are asking questions about stuff with
+// important indicators blank ... i dont see the point"): the TICKER is the one thing hidden; the member's own averages and
+// volume stay, so the chart is their own. Plan piece 43 said candles only; his words outrank it. `{ overlays: false,
+// volume: false }` restores candles only.
+export const HARD_CHART = Object.freeze({})
 export const RUN_ON_MS = 330   // the owner, batch 10: "show the next candles a bit slower"
 
 function seeded(seed) {

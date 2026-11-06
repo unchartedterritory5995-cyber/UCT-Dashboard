@@ -1,7 +1,6 @@
 // THE HUD (round 18; owner, batch 18, on the HARD tag, the step pill and the crown legend: "a higher level quality of
 // production and graphics"). One glass bar: the mode tag, a segmented run (gold for a named chart, red for a miss, a
 // sweep on the one in play), the step, and on the right what this mode hides plus whatever the mode adds (a crown row).
-import { Crown } from './Crowns'
 import UIcon from '../../../components/ui/UIcon'
 import s from './study.module.css'
 
@@ -11,7 +10,7 @@ export default function Hud({ mode = 'hard', step = 0, total = 1, results = [], 
   const name = LABEL[mode] || mode
   return (
     <div className={s.hud} role="group" aria-label={`${name}, ${step + 1} of ${total}`}>
-      <span className={`${s.modeTag} ${s[mode] || ''} ${live ? s.live : ''}`}><Crown size={14} />{name}</span>
+      <span className={`${s.modeTag} ${s[mode] || ''} ${live ? s.live : ''}`}><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="currentColor" /></svg>{name}</span>
       <div className={s.segs} aria-hidden="true">
         {Array.from({ length: total }, (_, i) => {
           const r = results[i]

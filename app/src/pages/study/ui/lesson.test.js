@@ -27,12 +27,28 @@ describe('splitLesson: the chart\'s own sentence leads, the rule follows, the st
     expect(L.here).toBe('')
     expect(L.ruleLead).toBe('The day before closes red and weak.')
     expect(L.ruleRest).toBe('Then it gaps up.')
-    expect(splitLesson('')).toEqual({ setup: '', rule: '', ruleLead: '', ruleRest: '', here: '', citations: [] })
+    expect(splitLesson('')).toEqual({ setup: '', rule: '', ruleLead: '', ruleRest: '', here: '', nothing: false, reason: '', citations: [] })
   })
   it('never rewrites a word: the halves re-join to the stamped-free original', () => {
     const L = splitLesson(HVE)
     const original = HVE.replace(/\s*\(owner rulings[^)]*\)/g, '')
     expect(`${L.setup}: ${L.rule.charAt(0).toLowerCase()}${L.rule.slice(1)} ${L.here}`).toBe(original)
+  })
+})
+
+describe('the brand and the near-miss (batch 19: "dont say THE FIRM")', () => {
+  it('reads "the firm" through the brand words and turns a near-miss fixture into a reason', () => {
+    const L = splitLesson("The firm's detector does not fire on the last bar of this chart. an unfilled volume gap and a pullback, but the low never reached the gap")
+    expect(L.nothing).toBe(true)
+    expect(L.reason).toBe('An unfilled volume gap and a pullback, but the low never reached the gap.')
+    expect(L.here).toBe('')
+    expect(JSON.stringify(L)).not.toMatch(/the firm/i)
+  })
+  it('a setups lesson is not a near-miss, and never says the firm either', () => {
+    const L = splitLesson("Kicker: the firm's Kicker needs a red day first. Here the stock gapped up 3% after a red day.")
+    expect(L.nothing).toBe(false)
+    expect(L.ruleLead).toBe("UCT's Kicker needs a red day first.")
+    expect(L.here).toBe('Here the stock gapped up 3% after a red day.')
   })
 })
 

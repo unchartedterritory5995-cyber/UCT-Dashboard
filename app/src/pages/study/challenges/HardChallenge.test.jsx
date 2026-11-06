@@ -19,6 +19,10 @@ vi.mock('../../../components/StockChart', () => ({
   },
 }))
 vi.mock('../../../components/study/StudyMark', () => ({ default: () => <span data-testid="mark" /> }))
+vi.mock('../../../components/chart/pane/ChartPane', async () => {
+  const StockChart = (await import('../../../components/StockChart')).default
+  return { default: (props) => <div data-testid="chart-pane" data-tfbar={props.showTfBar === false ? 'off' : 'on'}>{props.identityLabel}<StockChart sym={props.sym} showBrandMark {...(props.stockChartProps || {})} /></div> }
+})
 // the member's own chart settings, as the chart merges them underneath: one average of their own, added by hand
 vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: { chart_settings: { indicatorInstances: [{ instanceId: 'ma:custom', defId: 'movingAverage', inputs: { source: 'close', period: 10, maType: 'sma' } }] } } }) }))
 
@@ -79,7 +83,7 @@ describe('hardMode helpers', () => {
 })
 
 describe('HardChallenge', () => {
-  it('strips the chart to candles, deals the cards, posts Yes for the named setup and lights the fourth crown on a perfect run', async () => {
+  it('mounts the real widget with the ticker masked, deals the cards, posts Yes for the named setup and earns Legendary on a perfect run', async () => {
     const posts = []
     render(<HardChallenge fetcher={fetcherWith(posts)} onClose={() => {}} />)
     fireEvent.click(await screen.findByRole('button', { name: /Start hard mode/ }))
@@ -89,37 +93,36 @@ describe('HardChallenge', () => {
     expect(cards.textContent).toContain('Kicker')
     expect(cards.textContent).toContain(NOTHING)
     const chart = screen.getByTestId('stock-chart')
-    expect(chart.getAttribute('data-overlays-on')).toBe('0')
-    expect(chart.getAttribute('data-volume')).toBe('hidden')
+    // round 19: the REAL pane, no timeframe bar, the member's own averages and volume kept (batch 19: blank indicators Cut)
+    expect(screen.getByTestId('chart-pane').getAttribute('data-tfbar')).toBe('off')
+    expect(chart.getAttribute('data-volume')).toBe('shown')
+    expect(chart.getAttribute('data-tombstoned')).toBe('')
     expect(chart.getAttribute('data-sym')).toBe('k1')                 // the item id, never the ticker
-    expect(chart.getAttribute('data-instances-live')).toBe('0')        // the member's own averages are off too
-    expect(chart.getAttribute('data-tombstoned').split('|')).toContain('ma:custom')
-    // round 18: the member's own Charts-tab widget, with the brand mark and the legend, the ticker masked and the watermark off
-    expect(screen.getByTestId('challenge-chart').getAttribute('data-look')).toBe('widget')
     expect(chart.getAttribute('data-brand')).toBe('1')
     expect(chart.getAttribute('data-legend')).toBe('shown')
     expect(chart.getAttribute('data-watermark')).toBe('')
-    expect(screen.getByTestId('study-chart-frame').getAttribute('data-masked')).toBe('1')
+    expect(screen.getByTestId('study-chart').getAttribute('data-masked')).toBe('1')
     expect(screen.getByTestId('sym-label').textContent).not.toContain('JBI')
     fireEvent.click(buttons.find((b) => b.textContent.includes('Kicker')))
     fireEvent.click(screen.getByTestId('hard-check'))
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0]).toMatchObject({ item_id: 'k1', session_id: 'sess-h', answer: { choice: 'Yes', picked_setup: 'Kicker' } })
     expect(await screen.findByText('Gap over the close, close above the high.')).toBeInTheDocument()
-    expect(screen.getByText('Named it with nothing to lean on.')).toBeInTheDocument()
+    expect(screen.getByText('Named it.')).toBeInTheDocument()
     // the reveal: the ticker in the widget's badge and as its watermark; the lesson card leads with the lesson
-    expect(screen.getByTestId('study-chart-frame').getAttribute('data-masked')).toBe('0')
+    expect(screen.getByTestId('study-chart').getAttribute('data-masked')).toBe('0')
     expect(screen.getByTestId('sym-label')).toHaveTextContent('JBI')
     expect(screen.getByTestId('stock-chart').getAttribute('data-watermark')).toBe('JBI')
     expect(screen.getByTestId('hard-lesson')).toHaveTextContent('Gap over the close, close above the high.')
     expect(screen.getByTestId('hard-next')).toHaveTextContent('See the run')
     fireEvent.click(screen.getByTestId('hard-next'))
     expect(await screen.findByText('Legendary')).toBeInTheDocument()
-    expect(screen.getByTestId('fourth-crown').getAttribute('data-lit')).toBe('1')
+    expect(screen.getByTestId('legend-medal').getAttribute('data-lit')).toBe('1')
+    expect(screen.getByTestId('run-log')).toHaveTextContent('Kicker')
     expect(screen.getByTestId('hard-right')).toHaveTextContent('1/1')
   })
 
-  it('"Nothing fired" on a chart where the setup did fire posts No, is a miss, and the end card keeps the fourth crown dark', async () => {
+  it('"Nothing fired" on a chart where the setup did fire posts No, is a miss, and the end card keeps the medal dark', async () => {
     const posts = []
     render(<HardChallenge fetcher={fetcherWith(posts)} onClose={() => {}} />)
     fireEvent.click(await screen.findByRole('button', { name: /Start hard mode/ }))
@@ -131,7 +134,7 @@ describe('HardChallenge', () => {
     expect(await screen.findByText('It was the Kicker.')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('hard-next'))
     expect(await screen.findByText('0 of 1')).toBeInTheDocument()
-    expect(screen.getByTestId('fourth-crown').getAttribute('data-lit')).toBe('0')
+    expect(screen.getByTestId('legend-medal').getAttribute('data-lit')).toBe('0')
     expect(screen.getByTestId('hard-right')).toHaveTextContent('0/1')
   })
 })
