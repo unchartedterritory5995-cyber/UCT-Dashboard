@@ -47,3 +47,6 @@ rc gate=0 hyg=0, js=1, totals=ok, integrity=ok, errors=0. (An earlier run, w34-d
 js failures: baselines pollingSites, settingsScope, enumerationSites, vendorHarness, controlDoorCensus; coverageAudit (wall-clock flake: PASSES alone, 192 tests); usePreferences.additionsOnly: fails on `notebook/TodayHome.jsx: 1 opaque setPref site`, a master file this lane never touched (app/src/hooks diff vs master-base is empty); passes on an older base. Not mine.
 ready-check: FAIL only on the coverageAudit flake (re-run alone passes) and the allowlist lacking enumerationSites/vendorHarness/controlDoorCensus/additionsOnly as named baselines; no failure in a file this lane touched.
 Engine bump: YES recommended (correlation-matrix reachedAfterPeel False->True).
+
+## FIX r1 final-tip (runs/w34-d3-final3, tip ae20b5f98f, merged with master; FE file identical to master)
+gate 0, hyg 0, integrity ok, totals ok. js failures: allowlisted baselines + usePreferences.additionsOnly (master red, TodayHome.jsx:487) + coverageAudit (flake) + vendorHarness.wseCalcBars (timing-sensitive under full load; PASSES alone 2/2). All are files this lane does not touch.
