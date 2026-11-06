@@ -1,0 +1,1240 @@
+diff --git a/app/src/App.jsx b/app/src/App.jsx
+index 3127eb32be..e4e2b8fe8c 100644
+--- a/app/src/App.jsx
++++ b/app/src/App.jsx
+@@ -77,7 +77,9 @@ const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/Insights
+ const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
+ const CommunitySurface = lazy(() => import('./pages/journal-2-0/surfaces/CommunitySurface'))
+ const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/AccountsSurface'))
+-const Community = lazy(() => import('./pages/community/CommunityPage'))
++// LOCAL REDESIGN PROTOTYPE — /community points at the new Floor design.
++// To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
++const Community = lazy(() => import('./pages/community/CommunityRedesign'))
+ const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
+ const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
+ const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
+diff --git a/app/src/components/StockChart.jsx b/app/src/components/StockChart.jsx
+index 66d5ff7e90..72a43855c9 100644
+--- a/app/src/components/StockChart.jsx
++++ b/app/src/components/StockChart.jsx
+@@ -130,6 +130,13 @@ import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
+ // ⚠️ `EMPTY_OWNED` stood beside this and went with `engineOwned` at B5 Task 4 —
+ // it had exactly two occurrences, its declaration and that one `else` arm.
+ const EMPTY_INSTANCES = Object.freeze([])
++// The owning window of a DOM node (the popped-out window when this chart lives in a
++// PopoutWindow, else the main window). Mirrors the identical helper in
++// ChartDrawingOverlay.jsx — a concurrent popout-portal change added winOf() call
++// sites here without defining/importing it, which crashed /charts at runtime
++// (ReferenceError, invisible to the build + the project's no-undef-off eslint). This
++// restores the missing definition; the two copies are one line and behave identically.
++const winOf = (node) => (node && node.ownerDocument && node.ownerDocument.defaultView) || window
+ // The crosshair legend's "nothing to print" answer. Frozen and module-scope for
+ // the same reason as the one above: the hover path runs once per animation frame
+ // and must allocate nothing when there are no indicators on the chart.
+@@ -10701,15 +10708,16 @@ export default function StockChart({
+             ? prev : { top, height })
+       } catch { /* pane not ready */ }
+     }
+-    const schedule = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(measure) }
++    const win = winOf(container)
++    const schedule = () => { if (raf) win.cancelAnimationFrame(raf); raf = win.requestAnimationFrame(measure) }
+     measure()
+-    const ro = new ResizeObserver(schedule)
++    const ro = new win.ResizeObserver(schedule)
+     ro.observe(container)
+     const paneEl = candleSeriesRef.current?.getPane?.()?.getHTMLElement?.()
+     if (paneEl) ro.observe(paneEl)
+-    const t1 = setTimeout(measure, 60)
+-    const t2 = setTimeout(measure, 300)
+-    return () => { ro.disconnect(); clearTimeout(t1); clearTimeout(t2); if (raf) cancelAnimationFrame(raf) }
++    const t1 = win.setTimeout(measure, 60)
++    const t2 = win.setTimeout(measure, 300)
++    return () => { ro.disconnect(); win.clearTimeout(t1); win.clearTimeout(t2); if (raf) win.cancelAnimationFrame(raf) }
+     // NOTE: keyed on whether the index pane EXISTS (length>0), not on the data
+     // itself — so a ticker switch (new data, pane unchanged) doesn't re-measure
+     // and momentarily shift the overlays. The ResizeObserver catches real resizes.
+@@ -10740,15 +10748,16 @@ export default function StockChart({
+             ? prev : { top, height })
+       } catch { /* pane not ready */ }
+     }
+-    const schedule = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(measure) }
++    const win = winOf(container)
++    const schedule = () => { if (raf) win.cancelAnimationFrame(raf); raf = win.requestAnimationFrame(measure) }
+     measure()
+-    const ro = new ResizeObserver(schedule)
++    const ro = new win.ResizeObserver(schedule)
+     ro.observe(container)
+     const paneEl = paneOf()
+     if (paneEl) ro.observe(paneEl)
+-    const t1 = setTimeout(measure, 60)
+-    const t2 = setTimeout(measure, 300)
+-    return () => { ro.disconnect(); clearTimeout(t1); clearTimeout(t2); if (raf) cancelAnimationFrame(raf) }
++    const t1 = win.setTimeout(measure, 60)
++    const t2 = win.setTimeout(measure, 300)
++    return () => { ro.disconnect(); win.clearTimeout(t1); win.clearTimeout(t2); if (raf) win.cancelAnimationFrame(raf) }
+   }, [idxOverlayActive, indexPaneSeries.length > 0, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
+ 
+   // ── Multi-symbol comparison overlays — cleanup on unmount ──
+@@ -12026,21 +12035,22 @@ export default function StockChart({
+       externalCrosshairAppliedRef.current = false
+     }
+     const onLeave = () => { pointerOverRef.current = false }
++    const win = winOf(el)
+     el.addEventListener('pointerdown', onDown, true)
+     el.addEventListener('wheel', onWheel, { passive: true, capture: true })
+     el.addEventListener('mouseenter', onEnter)
+     el.addEventListener('mouseleave', onLeave)
+-    window.addEventListener('pointermove', onMove, true)
+-    window.addEventListener('pointerup', onUp, true)
+-    window.addEventListener('pointercancel', onUp, true)
++    win.addEventListener('pointermove', onMove, true)
++    win.addEventListener('pointerup', onUp, true)
++    win.addEventListener('pointercancel', onUp, true)
+     return () => {
+       el.removeEventListener('pointerdown', onDown, true)
+       el.removeEventListener('wheel', onWheel, true)
+       el.removeEventListener('mouseenter', onEnter)
+       el.removeEventListener('mouseleave', onLeave)
+-      window.removeEventListener('pointermove', onMove, true)
+-      window.removeEventListener('pointerup', onUp, true)
+-      window.removeEventListener('pointercancel', onUp, true)
++      win.removeEventListener('pointermove', onMove, true)
++      win.removeEventListener('pointerup', onUp, true)
++      win.removeEventListener('pointercancel', onUp, true)
+     }
+   }, [])
+ 
+@@ -12551,13 +12561,14 @@ export default function StockChart({
+     }
+     const onKey = (e) => { if (e.key === 'Escape') setIpoPopup(null) }
+     const onWheel = () => setIpoPopup(null)   // scroll-wheel zoom = chart moved → dismiss
+-    document.addEventListener('pointerdown', onDown, true)
+-    document.addEventListener('keydown', onKey)
+-    document.addEventListener('wheel', onWheel, { capture: true, passive: true })
++    const doc = winOf(containerRef.current).document
++    doc.addEventListener('pointerdown', onDown, true)
++    doc.addEventListener('keydown', onKey)
++    doc.addEventListener('wheel', onWheel, { capture: true, passive: true })
+     return () => {
+-      document.removeEventListener('pointerdown', onDown, true)
+-      document.removeEventListener('keydown', onKey)
+-      document.removeEventListener('wheel', onWheel, { capture: true })
++      doc.removeEventListener('pointerdown', onDown, true)
++      doc.removeEventListener('keydown', onKey)
++      doc.removeEventListener('wheel', onWheel, { capture: true })
+     }
+   }, [ipoPopup])
+ 
+@@ -13426,8 +13437,9 @@ export default function StockChart({
+       {dpHover && typeof document !== 'undefined' && createPortal((() => {
+         const TOOLTIP_W = 260
+         const TOOLTIP_H = 150
+-        const vw = window.innerWidth || document.documentElement.clientWidth || 1920
+-        const vh = window.innerHeight || document.documentElement.clientHeight || 1080
++        const _dpWin = winOf(containerRef.current)   // popped-window aware
++        const vw = _dpWin.innerWidth || _dpWin.document.documentElement.clientWidth || 1920
++        const vh = _dpWin.innerHeight || _dpWin.document.documentElement.clientHeight || 1080
+         // Always position to the LEFT of cursor — bars sit on the chart's
+         // right edge so cursor is always near the right side of the screen,
+         // and opening leftward is the natural direction. Clamp to ≥8 so
+@@ -13539,7 +13551,7 @@ export default function StockChart({
+             </div>
+           </div>
+         )
+-      })(), document.body)}
++      })(), winOf(containerRef.current).document.body)}
+       {!showFatalError && (
+         <img
+           src={brandMark}
+@@ -14114,6 +14126,9 @@ export default function StockChart({
+                the legacy V1 toolbar gear + its inline panel there. Other surfaces
+                (no modal) keep it as their only settings entry point. */
+             hideSettingsButton={!!onOpenSettings}
++            /* Drawing Boards tool button — charts workspace only (same signal as
++               the settings modal); appended after the drawing tools in the toolbar. */
++            showTracings={!!onOpenSettings}
+             showExtended={isIntraday && !hideExtHoursToolbarToggle ? showExtended : null}
+             onToggleExtended={isIntraday && !hideExtHoursToolbarToggle ? handleToggleExtended : null}
+             onScreenshot={() => setScreenshotPopoverOpen(true)}
+diff --git a/app/src/components/chart/ChartDrawingOverlay.jsx b/app/src/components/chart/ChartDrawingOverlay.jsx
+index 7143e48fc1..c363720435 100644
+--- a/app/src/components/chart/ChartDrawingOverlay.jsx
++++ b/app/src/components/chart/ChartDrawingOverlay.jsx
+@@ -4,6 +4,14 @@ import { createPortal } from 'react-dom'
+ import ColorPanel from './ColorPanel'
+ import isModalOpen from '../../utils/modalOpen'
+ 
++// When this overlay is portaled into a popped-out chart window, the component runs
++// in the OPENER's JS context but its DOM lives in the popup — so global `window` /
++// `document` / `ResizeObserver` / `devicePixelRatio` point at the wrong realm and
++// its gestures, outside-click dismissals and canvas sizing break there. Resolve the
++// realm from a DOM node so a popped overlay behaves identically to an in-tab one;
++// resolves to `window` in the main tab (no-op for the 99% case).
++const winOf = (node) => (node && node.ownerDocument && node.ownerDocument.defaultView) || window
++
+ // ─── Tool definitions ────────────────────────────────────────────────────────
+ const POINT_COUNT = {
+   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
+@@ -1367,9 +1375,10 @@ export default function ChartDrawingOverlay({
+     const canvas = canvasRef.current
+     const wrapper = canvas?.parentElement
+     if (!canvas || !wrapper) return
++    const win = winOf(wrapper)
+ 
+     const setSize = (width, height) => {
+-      const dpr = window.devicePixelRatio || 1
++      const dpr = win.devicePixelRatio || 1
+       canvas.width = width * dpr
+       canvas.height = height * dpr
+       canvas.style.width = width + 'px'
+@@ -1381,7 +1390,10 @@ export default function ChartDrawingOverlay({
+     const rect = wrapper.getBoundingClientRect()
+     setSize(rect.width, rect.height)
+ 
+-    const ro = new ResizeObserver(([entry]) => {
++    // The ResizeObserver MUST come from the wrapper's OWN realm: an opener-realm RO
++    // never fires for an element in a popped-out window, which would freeze the
++    // overlay canvas at its first size and misalign every drawing after a resize.
++    const ro = new win.ResizeObserver(([entry]) => {
+       const { width, height } = entry.contentRect
+       setSize(width, height)
+       redrawRef.current?.()
+@@ -1469,7 +1481,7 @@ export default function ChartDrawingOverlay({
+     const canvas = canvasRef.current
+     if (!canvas) return
+     const ctx = canvas.getContext('2d')
+-    const dpr = window.devicePixelRatio || 1
++    const dpr = winOf(canvas).devicePixelRatio || 1
+     const { w, h } = sizeRef.current
+     if (w === 0 || h === 0) return
+     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+@@ -2292,8 +2304,9 @@ export default function ChartDrawingOverlay({
+       if (e.target === canvasRef.current) return
+       setSelectedId(null)
+     }
+-    document.addEventListener('pointerdown', onDocDown, true)
+-    return () => document.removeEventListener('pointerdown', onDocDown, true)
++    const doc = winOf(canvasRef.current).document
++    doc.addEventListener('pointerdown', onDocDown, true)
++    return () => doc.removeEventListener('pointerdown', onDocDown, true)
+   }, [selectedId, setSelectedId])
+ 
+   // ── Hit test all drawings ── (already defined above)
+@@ -2535,8 +2548,9 @@ export default function ChartDrawingOverlay({
+   useEffect(() => {
+     if (!ctxMenu) return
+     const close = () => setCtxMenu(null)
+-    window.addEventListener('pointerdown', close)
+-    return () => window.removeEventListener('pointerdown', close)
++    const win = winOf(canvasRef.current)
++    win.addEventListener('pointerdown', close)
++    return () => win.removeEventListener('pointerdown', close)
+   }, [ctxMenu])
+ 
+   return (
+@@ -3039,7 +3053,10 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
+             }}
+           />
+         </div>,
+-        document.body,
++        // Portal into the menu's OWN document so a popped-out chart's color picker
++        // opens in the popup, not back in the opener window. menuRef is mounted by
++        // the time colorOpen can be true.
++        (menuRef.current?.ownerDocument || document).body,
+       )}
+     </div>
+   )
+diff --git a/app/src/components/chart/ChartToolbar.jsx b/app/src/components/chart/ChartToolbar.jsx
+index 4443d487e5..a91f98d7c3 100644
+--- a/app/src/components/chart/ChartToolbar.jsx
++++ b/app/src/components/chart/ChartToolbar.jsx
+@@ -11,6 +11,7 @@ import IndicatorAlertPopover from './IndicatorAlertPopover'
+ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
+ import BuilderSheet from './builder/BuilderSheet'
+ import PatternToolbarButton from './PatternToolbarButton'
++import BoardsToolButton from './BoardsToolButton'
+ import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
+ import { ENGINE_OWNED } from './engine/flipState'
+ import { isIndicatorEnabled } from './engine/instanceControls'
+@@ -798,9 +799,9 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
+       x: Math.max(0, Math.min(maxX, base.x + (ev.clientX - startX))),
+       y: Math.max(0, Math.min(maxY, base.y + (ev.clientY - startY))),
+     })
+-    const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up) }
+-    document.addEventListener('pointermove', move)
+-    document.addEventListener('pointerup', up)
++    const up = () => { hostDoc.removeEventListener('pointermove', move); hostDoc.removeEventListener('pointerup', up) }
++    hostDoc.addEventListener('pointermove', move)
++    hostDoc.addEventListener('pointerup', up)
+   }
+   // EXACT toolbar-button colours (passed as props because the CSS vars are chart-
+   // scoped and this portals to <body>). Border = the button hover shade so the
+@@ -884,6 +885,7 @@ function ChartToolbar({
+   setMagnet = null,              // when provided, shows the magnet toggle
+   toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
+   hideSettingsButton = false,    // charts workspace has the new ChartSettingsModal — drop the legacy V1 gear + inline panel there
++  showTracings = false,          // charts workspace only: append the Drawing Boards button after the drawing tools
+   // ⭐ The chart's own engine instances, forwarded to the alert popover so an
+   // alert can name the INSTANCE it was armed from (Phase C Task 15). Default
+   // `[]`, so every mount site that does not pass it behaves exactly as before:
+@@ -1153,6 +1155,11 @@ function ChartToolbar({
+             {ICONS[t.id]}
+           </button>
+         ))}
++        {/* Drawing Boards — at the END of the drawing tools, styled identically (it's
++            handed this toolbar's own scoped button classes). Charts workspace only. */}
++        {!toolFilter && showTracings && (
++          <BoardsToolButton btnClassName={styles.btn} activeClassName={styles.active} currentSym={currentSym} />
++        )}
+         {/* ── Favorite Drawings: show/hide tools + pick favorites for the floating toolbar ── */}
+         {!toolFilter && (
+           <button
+diff --git a/app/src/components/chart/SymbolSearch.jsx b/app/src/components/chart/SymbolSearch.jsx
+index 0e048b741d..eda7dbdea4 100644
+--- a/app/src/components/chart/SymbolSearch.jsx
++++ b/app/src/components/chart/SymbolSearch.jsx
+@@ -96,7 +96,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
+   // Focus the input once it's mounted (after the position is known). The
+   // activeElement guard keeps a scroll-triggered reposition from stealing the caret.
+   useEffect(() => {
+-    if (open && menuPos && inputRef.current && document.activeElement !== inputRef.current) {
++    if (open && menuPos && inputRef.current && inputRef.current.ownerDocument.activeElement !== inputRef.current) {
+       inputRef.current.focus()
+       const len = inputRef.current.value.length
+       try { inputRef.current.setSelectionRange(len, len) } catch {}
+@@ -111,16 +111,20 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
+       const inMenu = dropdownRef.current && dropdownRef.current.contains(e.target)
+       if (!inWrap && !inMenu) setOpen(false)
+     }
+-    document.addEventListener('mousedown', handler)
+-    return () => document.removeEventListener('mousedown', handler)
++    const doc = (wrapRef.current?.ownerDocument) || document   // popped-window aware
++    doc.addEventListener('mousedown', handler)
++    return () => doc.removeEventListener('mousedown', handler)
+   }, [open])
+ 
+-  // Close on Escape
++  // Close on Escape. Bind in the trigger's OWN document: the dropdown input is an
++  // editable field, so the popout key-forwarder deliberately skips it — a listener
++  // on the opener would never see Escape typed inside a popped-out chart's search.
+   useEffect(() => {
+     if (!open) return
+     const handler = (e) => { if (e.key === 'Escape') setOpen(false) }
+-    document.addEventListener('keydown', handler)
+-    return () => document.removeEventListener('keydown', handler)
++    const doc = (wrapRef.current?.ownerDocument) || document
++    doc.addEventListener('keydown', handler)
++    return () => doc.removeEventListener('keydown', handler)
+   }, [open])
+ 
+   // Return focus to the chart when the dropdown CLOSES so type-to-search works
+@@ -137,13 +141,15 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
+     if (!justClosed) return undefined
+     const host = boundsRef?.current
+     if (!host) return undefined
+-    const id = requestAnimationFrame(() => {
+-      const ae = document.activeElement
+-      if (!ae || ae === document.body) {
++    const hostDoc = host.ownerDocument || document
++    const hostWin = hostDoc.defaultView || window
++    const id = hostWin.requestAnimationFrame(() => {
++      const ae = hostDoc.activeElement
++      if (!ae || ae === hostDoc.body) {
+         try { host.focus({ preventScroll: true }) } catch { /* not focusable */ }
+       }
+     })
+-    return () => cancelAnimationFrame(id)
++    return () => hostWin.cancelAnimationFrame(id)
+   }, [open, boundsRef])
+ 
+   // Debounced server-side autocomplete (3,685-ticker $300M+ universe).
+@@ -334,7 +340,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
+             )}
+           </div>
+         </div>,
+-        document.body,
++        // Portal into the trigger's OWN document so a popped-out chart's ticker
++        // dropdown opens in the popup, not the opener window.
++        (wrapRef.current?.ownerDocument || document).body,
+       )}
+     </div>
+   )
+diff --git a/app/src/components/chart/drawingsStore.js b/app/src/components/chart/drawingsStore.js
+index 4398e3bc14..25f912c0b1 100644
+--- a/app/src/components/chart/drawingsStore.js
++++ b/app/src/components/chart/drawingsStore.js
+@@ -133,6 +133,7 @@ function _commit(sym, e, updated, record = true) {
+   _writeSym(sym, updated)
+   e.snapshot = _buildSnapshot(e)
+   _notify(sym)
++  _bumpAny()
+ }
+ 
+ // ── Read side ───────────────────────────────────────────────────────────────
+@@ -248,6 +249,7 @@ export function snapshotHistory(sym) {
+   e.future = []
+   e.snapshot = _buildSnapshot(e)
+   _notify(sym)
++  _bumpAny()
+ }
+ 
+ export function undo(sym) {
+@@ -265,6 +267,7 @@ export function undo(sym) {
+   _writeSym(sym, e.drawings)
+   e.snapshot = _buildSnapshot(e)
+   _notify(sym)
++  _bumpAny()
+ }
+ 
+ export function redo(sym) {
+@@ -280,6 +283,347 @@ export function redo(sym) {
+   _writeSym(sym, e.drawings)
+   e.snapshot = _buildSnapshot(e)
+   _notify(sym)
++  _bumpAny()
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// TRACINGS — named, transparent overlay sheets that span every ticker (Phase 0)
++// ─────────────────────────────────────────────────────────────────────────────
++// A "tracing" is a sheet of drawings. Phase 0 lands the DATA MODEL + migration
++// ONLY: exactly one tracing is active and owns all existing drawings, which stay
++// byte-for-byte where they already live (STORAGE_KEY). There is no switching, no
++// multi-sheet render, and no UI yet — those are Phase 1.
++//
++// ⭐ INVARIANT: the ACTIVE tracing's per-sym drawings ALWAYS live in STORAGE_KEY
++// ('uct-chart-drawings'); every NON-active tracing's drawings live in the tracings
++// doc's `archive`. That is the whole reason the per-sym registry above needed ZERO
++// changes — loadAll / _writeSym operate on the active slot BY CONSTRUCTION. A
++// Phase-1 active-switch is therefore a SWAP through STORAGE_KEY (plus entry
++// invalidation), never a rewrite of the drawing path.
++//
++// ⭐ The doc is only persisted once the user TOUCHES the tracing system (a meta
++// mutation). Absent a persisted doc, the store reports a single implicit default
++// tracing — so a member who never opens the tracings UI writes no new key and their
++// storage is identical to before this landed. That is what keeps every pre-existing
++// drawings test green without modification.
++//
++// ⛔ Default sheets carry NO name (empty string). The numbered "Tracing N" is a
++// DISPLAY placeholder derived by tracingLabel() so the UI and tests share ONE
++// definition — never a name baked into stored data.
++
++const TRACINGS_KEY = 'uct-chart-tracings'
++const DEFAULT_TRACING_ID = 'default'
++// Distinct, theme-agnostic sheet colors; createTracing picks the next by order.
++const TRACING_PALETTE = ['#c9a84c', '#5b9bd5', '#e06666', '#63c384', '#b48ce0', '#e0a35b', '#4fc0c0']
++
++/** Display name for a board: the user's name if set, else the numbered placeholder
++ *  derived from its position. ONE authority for both UI and tests. (The feature is
++ *  called "Drawing Boards" in the UI; the internal identifiers stay `tracing*`.) */
++export function tracingLabel(t) {
++  const nm = t && typeof t.name === 'string' ? t.name.trim() : ''
++  return nm || `Board ${((t && t.order) || 0) + 1}`
++}
++
++function _defaultTracing() {
++  return { id: DEFAULT_TRACING_ID, name: '', color: TRACING_PALETTE[0], order: 0 }
++}
++
++// What an un-migrated store reports: one active default tracing owning STORAGE_KEY.
++// NOT persisted until a mutation materializes it.
++function _virtualDoc() {
++  const t = _defaultTracing()
++  return { v: 1, tracings: [t], activeId: t.id, visibleIds: [t.id], archive: {} }
++}
++
++function _loadDoc() {
++  try {
++    const raw = localStorage.getItem(TRACINGS_KEY)
++    if (!raw) return null
++    const doc = JSON.parse(raw)
++    if (!doc || !Array.isArray(doc.tracings) || doc.tracings.length === 0) return null
++    // Self-repair a partial/foreign doc rather than throwing user data away.
++    if (!doc.tracings.some((t) => t && t.id === doc.activeId)) doc.activeId = doc.tracings[0].id
++    // visibleIds: drop ghost ids, force-include the active sheet, keep tracing order.
++    const valid = new Set(doc.tracings.map((t) => t.id))
++    const vis = new Set((Array.isArray(doc.visibleIds) ? doc.visibleIds : []).filter((id) => valid.has(id)))
++    vis.add(doc.activeId)
++    doc.visibleIds = doc.tracings.filter((t) => vis.has(t.id)).map((t) => t.id)
++    if (!doc.archive || typeof doc.archive !== 'object') doc.archive = {}
++    // The ACTIVE sheet's data lives in STORAGE_KEY — archive[activeId] is never
++    // authoritative, so drop any stale duplicate a prior swap left behind.
++    if (doc.archive[doc.activeId]) { const a = { ...doc.archive }; delete a[doc.activeId]; doc.archive = a }
++    if (typeof doc.v !== 'number') doc.v = 1
++    return doc
++  } catch { return null }
++}
++
++// Read-only resolve (never persists) — reads see a coherent doc even pre-migration.
++function _ensureDoc() { return _loadDoc() || _virtualDoc() }
++
++function _saveDoc(doc) {
++  try { localStorage.setItem(TRACINGS_KEY, JSON.stringify(doc)) }
++  catch { /* quota — the in-memory snapshot stays authoritative for the session */ }
++}
++
++// Tracings have their OWN stable snapshot + subscription (mirrors the per-sym one),
++// so a Phase-1 useTracings() hook is a thin useSyncExternalStore adapter.
++let _tracingsSnapshot = null
++const _tracingSubs = new Set()
++
++function _buildTracingsSnapshot(doc) {
++  return {
++    tracings: doc.tracings.map((t) => ({ ...t })),
++    activeId: doc.activeId,
++    visibleIds: [...doc.visibleIds],
++  }
++}
++
++function _tracingsSnap() {
++  if (!_tracingsSnapshot) _tracingsSnapshot = _buildTracingsSnapshot(_ensureDoc())
++  return _tracingsSnapshot
++}
++
++function _commitDoc(doc) {
++  _saveDoc(doc)
++  _tracingsSnapshot = _buildTracingsSnapshot(doc)
++  _tracingSubs.forEach((cb) => { try { cb() } catch { /* one bad subscriber never breaks the rest */ } })
++  _bumpAny()
++}
++
++// ── Tracings read API ────────────────────────────────────────────────────────
++export function getTracingsSnapshot() { return _tracingsSnap() }
++export function subscribeTracings(cb) {
++  _tracingSubs.add(cb)
++  return () => { _tracingSubs.delete(cb) }
++}
++export function listTracings() { return _tracingsSnap().tracings }
++export function getActiveTracingId() { return _tracingsSnap().activeId }
++export function getVisibleTracingIds() { return _tracingsSnap().visibleIds }
++
++// ── Tracings meta mutations ──────────────────────────────────────────────────
++// Phase 0 ships the SAFE subset only: these touch tracing META (name/color/order/
++// visibility) + the archive, NEVER the ACTIVE sheet's live drawings or the per-sym
++// registry, so no entry invalidation is required. setActiveTracing + deleteTracing
++// are Phase 1: they swap STORAGE_KEY and must invalidate mounted entries, wired
++// alongside the multi-sheet overlay render.
++export function createTracing(opts = {}) {
++  const doc = _ensureDoc()
++  const id = crypto.randomUUID()
++  const order = doc.tracings.length
++  const color = opts.color || TRACING_PALETTE[order % TRACING_PALETTE.length]
++  const name = typeof opts.name === 'string' ? opts.name.trim().slice(0, 60) : ''
++  doc.tracings = [...doc.tracings, { id, name, color, order }]
++  _commitDoc(doc)
++  return id
++}
++
++export function renameTracing(id, name) {
++  const doc = _ensureDoc()
++  if (!doc.tracings.some((t) => t.id === id)) return
++  const nm = typeof name === 'string' ? name.slice(0, 60) : ''
++  doc.tracings = doc.tracings.map((t) => (t.id === id ? { ...t, name: nm } : t))
++  _commitDoc(doc)
++}
++
++export function recolorTracing(id, color) {
++  if (typeof color !== 'string' || !color) return
++  const doc = _ensureDoc()
++  if (!doc.tracings.some((t) => t.id === id)) return
++  doc.tracings = doc.tracings.map((t) => (t.id === id ? { ...t, color } : t))
++  _commitDoc(doc)
++}
++
++export function reorderTracings(orderedIds) {
++  if (!Array.isArray(orderedIds)) return
++  const doc = _ensureDoc()
++  const byId = new Map(doc.tracings.map((t) => [t.id, t]))
++  const next = []
++  orderedIds.forEach((id) => { if (byId.has(id)) { next.push(byId.get(id)); byId.delete(id) } })
++  // Any tracing not named in orderedIds keeps its relative order, appended at the end.
++  doc.tracings.forEach((t) => { if (byId.has(t.id)) next.push(t) })
++  doc.tracings = next.map((t, i) => ({ ...t, order: i }))
++  _commitDoc(doc)
++}
++
++export function setTracingVisible(id, visible) {
++  const doc = _ensureDoc()
++  if (!doc.tracings.some((t) => t.id === id)) return
++  const set = new Set(doc.visibleIds)
++  if (visible) set.add(id); else set.delete(id)
++  // The active sheet stays visible (single-sheet render floor); preserve order.
++  set.add(doc.activeId)
++  doc.visibleIds = doc.tracings.filter((t) => set.has(t.id)).map((t) => t.id)
++  _commitDoc(doc)
++}
++
++// ── Active-switch + delete (the ops that move drawing data) ──────────────────
++// Reload every MOUNTED sym's entry from an authoritative active-slot map, dropping
++// per-sym undo/redo history, and notify — so mounted charts repaint on the new
++// sheet. Takes the map IN MEMORY (not a disk re-read) so a failed STORAGE_KEY write
++// (quota) can't desync the live session from what the user sees.
++function _reloadAllEntriesFrom(activeMap) {
++  for (const [sym, e] of _entries) {
++    e.drawings = activeMap[sym] || []
++    e.past = []
++    e.future = []
++    e.snapshot = _buildSnapshot(e)
++    _notify(sym)
++  }
++}
++
++// Make `id` the active sheet. The active sheet's drawings live in STORAGE_KEY, so
++// this SWAPS: the outgoing sheet is archived, the incoming sheet's archived data is
++// promoted into STORAGE_KEY. Writes the doc (durable archive) BEFORE STORAGE_KEY so
++// the microsecond gap between two synchronous writes can only mis-DISPLAY a sheet
++// until the next switch — never lose the archive.
++export function setActiveTracing(id) {
++  const doc = _ensureDoc()
++  if (id === doc.activeId) return
++  if (!doc.tracings.some((t) => t.id === id)) return
++  const outgoing = loadAll()                                  // current active sym→drawings
++  const incoming = (doc.archive && doc.archive[id]) || {}
++  doc.archive = { ...(doc.archive || {}), [doc.activeId]: outgoing }
++  doc.activeId = id
++  const vis = new Set(doc.visibleIds); vis.add(id)
++  doc.visibleIds = doc.tracings.filter((t) => vis.has(t.id)).map((t) => t.id)
++  _commitDoc(doc)                                             // write #1 — durable archive + meta
++  saveAll(incoming)                                           // write #2 — new active slot
++  _reloadAllEntriesFrom(incoming)                             // repaint mounted charts
++}
++
++// Delete a sheet. Never removes the last one. Deleting the ACTIVE sheet discards its
++// live drawings (that IS the delete) and promotes a fallback into the active slot.
++export function deleteTracing(id) {
++  const doc = _ensureDoc()
++  if (doc.tracings.length <= 1) return                        // always keep one sheet
++  if (!doc.tracings.some((t) => t.id === id)) return
++  const deletingActive = id === doc.activeId
++  doc.tracings = doc.tracings.filter((t) => t.id !== id).map((t, i) => ({ ...t, order: i }))
++  const nextArchive = { ...(doc.archive || {}) }; delete nextArchive[id]
++  doc.archive = nextArchive
++  doc.visibleIds = doc.visibleIds.filter((x) => x !== id)
++  if (deletingActive) {
++    const fallback = doc.tracings[0].id
++    const incoming = (doc.archive && doc.archive[fallback]) || {}
++    doc.activeId = fallback
++    if (!doc.visibleIds.includes(fallback)) doc.visibleIds = [fallback, ...doc.visibleIds]
++    _commitDoc(doc)
++    saveAll(incoming)
++    _reloadAllEntriesFrom(incoming)
++  } else {
++    if (!doc.visibleIds.length) doc.visibleIds = [doc.activeId]
++    _commitDoc(doc)
++  }
++}
++
++/** Coverage counts for a tracing — how many symbols carry marks and the total
++ *  number of drawings across all of them. Powers the panel's "233 syms" line.
++ *  Side-effect free. */
++export function tracingStats(tracingId) {
++  const doc = _ensureDoc()
++  const map = tracingId === doc.activeId ? loadAll() : ((doc.archive && doc.archive[tracingId]) || {})
++  let syms = 0
++  let drawings = 0
++  for (const k in map) {
++    const arr = map[k]
++    if (Array.isArray(arr) && arr.length) { syms += 1; drawings += arr.length }
++  }
++  return { syms, drawings }
++}
++
++/** Capture-time peek at ONE tracing's drawings for a sym (used by the Phase-1b
++ *  multi-sheet ghost render). Side-effect free; returns a deep copy. Reads the
++ *  active sheet from STORAGE_KEY and any other sheet from the doc archive. */
++export function peekTracingDrawings(tracingId, sym) {
++  if (!sym || !tracingId) return []
++  try {
++    const doc = _ensureDoc()
++    const src = tracingId === doc.activeId ? loadAll() : ((doc.archive && doc.archive[tracingId]) || {})
++    const arr = src[sym]
++    return Array.isArray(arr) ? JSON.parse(JSON.stringify(arr)) : []
++  } catch { return [] }
++}
++
++// ── Cross-device sync surface (Phase 2) ──────────────────────────────────────
++// The sync layer (useTracingsSync) needs (1) a single "anything changed" signal to
++// debounce a push on, and (2) whole-state export/import to move the full set of
++// sheets between this browser and the server. USER mutations funnel through _commit
++// (drawings), the undo/redo/snapshot paths, and _commitDoc (sheet meta), so
++// _bumpAny() is called at exactly those points — never on a sync-IN import, so
++// adopting the server copy can't echo straight back as a push.
++let _changeSeq = 0
++const _anySubs = new Set()
++function _bumpAny() {
++  _changeSeq += 1
++  _anySubs.forEach((cb) => { try { cb() } catch { /* one bad subscriber never breaks the rest */ } })
++}
++export function subscribeAnyChange(cb) { _anySubs.add(cb); return () => { _anySubs.delete(cb) } }
++export function getChangeSeq() { return _changeSeq }
++
++/** Is there any user-created tracing content in THIS browser? (a drawing on any
++ *  sheet, or more than the single default sheet). Lets the sync layer avoid
++ *  clobbering a device that has local work when it first meets an empty server. */
++export function hasLocalTracingContent() {
++  const doc = _loadDoc()
++  if (doc && doc.tracings.length > 1) return true
++  const hasDraw = (m) => { for (const k in m) { if (Array.isArray(m[k]) && m[k].length) return true } return false }
++  if (hasDraw(loadAll())) return true
++  if (doc && doc.archive) { for (const id in doc.archive) { if (hasDraw(doc.archive[id])) return true } }
++  return false
++}
++
++/** Serialize ALL tracings (meta + every sheet's drawings) into one plain object for
++ *  server storage. The active sheet's data (STORAGE_KEY) is folded into
++ *  byTracing[activeId] so the blob is a complete, self-contained snapshot. */
++export function exportTracings() {
++  const doc = _ensureDoc()
++  const byTracing = { ...(doc.archive || {}) }
++  byTracing[doc.activeId] = loadAll()
++  return {
++    v: doc.v || 1,
++    tracings: doc.tracings.map((t) => ({ ...t })),
++    activeId: doc.activeId,
++    visibleIds: [...doc.visibleIds],
++    byTracing,
++  }
++}
++
++/** Replace ALL local tracings with a server blob (shape from exportTracings). Splits
++ *  it back into the two-key storage, reloads every mounted chart's entry, and
++ *  refreshes the tracings snapshot. No-ops on a malformed blob. Does NOT bump the
++ *  change signal — a sync-IN must not trigger a push back out. */
++export function importTracings(blob) {
++  if (!blob || !Array.isArray(blob.tracings) || blob.tracings.length === 0) return
++  if (!blob.byTracing || typeof blob.byTracing !== 'object') return
++  const tracings = blob.tracings
++    .filter((t) => t && t.id)
++    .map((t, i) => ({
++      id: t.id,
++      name: typeof t.name === 'string' ? t.name : '',
++      color: (typeof t.color === 'string' && t.color) ? t.color : TRACING_PALETTE[i % TRACING_PALETTE.length],
++      order: i,
++    }))
++  if (!tracings.length) return
++  let activeId = blob.activeId
++  if (!tracings.some((t) => t.id === activeId)) activeId = tracings[0].id
++  const valid = new Set(tracings.map((t) => t.id))
++  const vis = new Set((Array.isArray(blob.visibleIds) ? blob.visibleIds : []).filter((id) => valid.has(id)))
++  vis.add(activeId)
++  const visibleIds = tracings.filter((t) => vis.has(t.id)).map((t) => t.id)
++  const okMap = (m) => (m && typeof m === 'object' && !Array.isArray(m)) ? m : {}
++  const activeMap = okMap(blob.byTracing[activeId])
++  const archive = {}
++  for (const t of tracings) {
++    if (t.id === activeId) continue
++    const m = blob.byTracing[t.id]
++    if (m && typeof m === 'object' && !Array.isArray(m)) archive[t.id] = m
++  }
++  const doc = { v: blob.v || 1, tracings, activeId, visibleIds, archive }
++  saveAll(activeMap)                    // STORAGE_KEY = active sheet
++  _saveDoc(doc)
++  _tracingsSnapshot = _buildTracingsSnapshot(doc)
++  _reloadAllEntriesFrom(activeMap)      // repaint mounted charts
++  _tracingSubs.forEach((cb) => { try { cb() } catch { /* */ } })
+ }
+ 
+ // ── Test/debug helpers (mirrors realtimeCandle.js) ──────────────────────────
+@@ -291,6 +635,10 @@ export function _reset() {
+   _pendingNotify.clear()
+   _flushScheduled = false
+   _syncNotify = _SYNC_NOTIFY_DEFAULT
++  _tracingsSnapshot = null
++  _tracingSubs.clear()
++  _changeSeq = 0
++  _anySubs.clear()
+ }
+ 
+ export function _setSyncNotify(v) { _syncNotify = !!v }
+diff --git a/app/src/pages/charts/ChartsWorkspace.jsx b/app/src/pages/charts/ChartsWorkspace.jsx
+index 702031946c..2f89777351 100644
+--- a/app/src/pages/charts/ChartsWorkspace.jsx
++++ b/app/src/pages/charts/ChartsWorkspace.jsx
+@@ -16,6 +16,8 @@ import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings,
+ import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
+ import { widgetOwnChrome } from './widgetChrome'
+ import MergedSeamOverlay from './MergedSeamOverlay'
++import CollapsedRailOverlay from './CollapsedRailOverlay'
++import { collapseWidget, expandWidget, expandAll, RAIL_PX } from './mergedCollapse'
+ import WidgetHost from './WidgetHost'
+ import MobileWorkspace from './widgets/MobileWorkspace'
+ import { findPlacement } from './findOpenSlot'
+@@ -37,6 +39,7 @@ import ReplayPanel from './ReplayPanel'
+ import { addWidgetTab } from './widgetTabs'
+ import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
+ import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
++import useTracingsSync from '../../components/chart/useTracingsSync'
+ import styles from './ChartsWorkspace.module.css'
+ 
+ const ResponsiveGridLayout = WidthProvider(Responsive)
+@@ -497,6 +500,9 @@ function DeleteConfirm({ onYes, onCancel }) {
+ export default function ChartsWorkspace() {
+   const isMobile = useMediaQuery('(max-width: 640px)')
+   const { prefs, setPref, loading: prefsLoading } = usePreferences()
++  // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;
++  // newer-wins against the server via the preferences store. Renders nothing.
++  useTracingsSync()
+   // Current app theme, read live by handleAddWidget to STAMP a new widget with the
+   // theme it was placed under (persists in opts so a theme-following widget keeps its
+   // placement color across reloads; only NEW widgets pick up the current theme).
+@@ -800,6 +806,20 @@ export default function ChartsWorkspace() {
+     }, 500)
+   }, [setPref])
+ 
++  // Leaving merged mode restores any minimized panes. Their rails only render
++  // while merged, so an un-restored collapsed widget would be hidden from the board
++  // with no affordance to bring it back. Covers every un-merge path (button, a
++  // loaded layout, etc.), not just the toggle.
++  useEffect(() => {
++    if (merged) return
++    setLayout(prev => {
++      if (!prev.widgets.some(w => w.collapsed)) return prev
++      const next = { ...prev, widgets: expandAll(prev.widgets) }
++      scheduleSave(next)
++      return next
++    })
++  }, [merged, scheduleSave])
++
+   // Flush any pending debounced save when leaving the page (SPA nav / unmount) so
+   // the last arrangement is always what loads next time — no dependence on the
+   // 500ms window having elapsed before the user navigates away.
+@@ -1034,6 +1054,28 @@ export default function ChartsWorkspace() {
+     })
+   }, [scheduleSave])
+ 
++  // Minimize a pane (seam chevron): the pane leaves the tiling, its neighbours
++  // grow to fill, and a thin rail renders at its edge. Exactly reversible.
++  const handleCollapse = useCallback((id, edge) => {
++    setLayout(prev => {
++      const widgets = collapseWidget(prev.widgets, id, edge)
++      if (widgets === prev.widgets) return prev   // not a clean collapse — no-op
++      const next = { ...prev, widgets }
++      scheduleSave(next)
++      return next
++    })
++  }, [scheduleSave])
++
++  const handleExpand = useCallback((id) => {
++    setLayout(prev => {
++      const widgets = expandWidget(prev.widgets, id)
++      if (widgets === prev.widgets) return prev
++      const next = { ...prev, widgets }
++      scheduleSave(next)
++      return next
++    })
++  }, [scheduleSave])
++
+   const handleColorChange = useCallback((id, color) => {
+     setLayout(prev => {
+       const next = { ...prev, widgets: prev.widgets.map(w => w.id === id ? { ...w, color } : w) }
+@@ -1817,7 +1859,10 @@ export default function ChartsWorkspace() {
+   // A popped-out widget is hidden from the board but KEPT in layout.widgets: its
+   // slot frees up and the grid recompacts while it's away, and its stored
+   // position is still there to dock back into.
+-  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
++  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id) && !w.collapsed)
++  // Minimized panes: hidden from the tiling (their neighbours grew to fill), shown
++  // as thin rails over the board. Only meaningful while merged.
++  const collapsedWidgets = layout.widgets.filter(w => w.collapsed && !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
+   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
+   // Floating widgets stay in layout.widgets (geometry preserved for docking) but are
+   // hidden from the grid and rendered in FloatingWidgetPanels over the canvas.
+@@ -1827,6 +1872,26 @@ export default function ChartsWorkspace() {
+   // RGL configuration (viewport lock, 24 columns, computed row height) is
+   // defined once here so a board on another monitor can't drift out of sync with
+   // the workspace it came from.
++  // Reserve real space for a collapsed pane's rail: inset the neighbour that grew
++  // to fill it by RAIL_PX on the facing side, so its content (a chart canvas, the
++  // date axis, …) stops at the rail edge instead of rendering underneath it. The
++  // widget body's ResizeObserver refits to the shrunk box. Border-box so padding
++  // insets rather than growing the item.
++  const railInsetFor = (w) => {
++    if (!merged || !collapsedWidgets.length) return undefined
++    let pl = 0, pr = 0, pt = 0, pb = 0
++    for (const C of collapsedWidgets) {
++      const rows = w.y < C.y + C.h && w.y + w.h > C.y
++      const colsO = w.x < C.x + C.w && w.x + w.w > C.x
++      if (C.collapseEdge === 'left' && w.x === C.x && rows) pl = RAIL_PX
++      else if (C.collapseEdge === 'right' && (w.x + w.w) === (C.x + C.w) && rows) pr = RAIL_PX
++      else if (C.collapseEdge === 'top' && w.y === C.y && colsO) pt = RAIL_PX
++      else if (C.collapseEdge === 'bottom' && (w.y + w.h) === (C.y + C.h) && colsO) pb = RAIL_PX
++    }
++    if (!pl && !pr && !pt && !pb) return undefined
++    return { boxSizing: 'border-box', paddingLeft: pl, paddingRight: pr, paddingTop: pt, paddingBottom: pb }
++  }
++
+   const renderGrid = (widgets, h, rowHeightOverride, widthOverride) => {
+     // A popped-out board passes an explicit width (measured against its OWN
+     // window); the main board leaves it undefined and uses WidthProvider's
+@@ -1884,7 +1949,7 @@ export default function ChartsWorkspace() {
+         // "dock the header to the bottom when another widget sits directly above"
+         // seam-blend behavior was reverted at owner request 2026-08-20.)
+         return (
+-          <div key={w.id} data-widget-id={w.id}>
++          <div key={w.id} data-widget-id={w.id} style={railInsetFor(w)}>
+             <WidgetHost
+               widget={w}
+               headerAtBottom={false}
+@@ -2131,6 +2196,18 @@ export default function ChartsWorkspace() {
+               minWFor={minWFor}
+               minHFor={minHFor}
+               onResize={handleSeamResize}
++              onCollapse={handleCollapse}
++            />
++          )}
++          {/* Minimized-pane rails (ThinkorSwim-style): click to restore the pane
++              to its exact prior size. */}
++          {merged && !gridMode && gridWidth > 0 && collapsedWidgets.length > 0 && (
++            <CollapsedRailOverlay
++              widgets={collapsedWidgets}
++              colWidth={gridWidth / GRID_COLS}
++              rowHeight={rowHeight}
++              labelFor={(w) => HEADER_LABELS[w.type] || WIDGET_LABELS[w.type] || 'Panel'}
++              onExpand={handleExpand}
+             />
+           )}
+         </main>
+diff --git a/app/src/pages/charts/ChartsWorkspace.module.css b/app/src/pages/charts/ChartsWorkspace.module.css
+index f88a4807a0..0ac2bd1cfb 100644
+--- a/app/src/pages/charts/ChartsWorkspace.module.css
++++ b/app/src/pages/charts/ChartsWorkspace.module.css
+@@ -1238,19 +1238,103 @@
+ .seamV, .seamH {
+   position: absolute;
+   pointer-events: auto;
+-  background: transparent;
+-  transition: background 90ms ease;
+   touch-action: none;     /* let pointer capture own the gesture, no page pan */
+ }
+ .seamV { cursor: col-resize; }
+ .seamH { cursor: row-resize; }
+-/* A faint gold hairline appears on hover so the draggable seams are
+-   discoverable; while a drag is active EVERY seam shows it so the whole
+-   split-pane grid is visible as you drag. */
+-.seamV:hover,
+-.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+-.seamH:hover,
+-.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
++/* The divider itself — a visible grooved gutter between two merged widgets
++   (ThinkorSwim style), drawn centered on the boundary. A persistent thin line
++   that thickens + goes gold on hover / while dragging, so the whole split-pane
++   grid lights up as you resize. The ::before is the visible line; the element
++   is a wider invisible grab zone around it. */
++.seamV::before, .seamH::before {
++  content: '';
++  position: absolute;
++  background: var(--color-border, #2a2a30);
++  transition: background 90ms ease, width 90ms ease, height 90ms ease;
++}
++.seamV::before { top: 0; bottom: 0; left: 50%; width: 3px; transform: translateX(-50%); }
++.seamH::before { left: 0; right: 0; top: 50%; height: 3px; transform: translateY(-50%); }
++.seamV:hover::before,
++.seamOverlayDragging .seamV::before { width: 5px; background: var(--ut-gold, #c9a84c); }
++.seamH:hover::before,
++.seamOverlayDragging .seamH::before { height: 5px; background: var(--ut-gold, #c9a84c); }
++
++/* Seam + its collapse tab share a transparent passthrough group. */
++.seamGroup { pointer-events: none; }
++
++/* Collapse control — a flat, thin TAB embedded in the divider (not a circle),
++   like ThinkorSwim's handle. A child of the seam bar so it tracks the divider
++   live during a drag. */
++.seamCollapseBtn {
++  position: absolute;
++  z-index: 2;
++  pointer-events: auto;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  padding: 0;
++  border: 1px solid var(--color-border, #3a3a42);
++  border-radius: 3px;
++  background: var(--color-bg-elevated, #26262c);
++  color: var(--color-text-muted, #b8b8c0);
++  cursor: pointer;
++  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
++  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
++}
++.seamCollapseBtnV { width: 13px; height: 34px; transform: translate(-50%, -50%); }
++.seamCollapseBtnH { width: 34px; height: 13px; transform: translate(-50%, -50%); }
++.seamCollapseBtn:hover,
++.seamCollapseBtn:focus-visible {
++  background: var(--ut-gold, #c9a84c);
++  color: #14140f;
++  border-color: var(--ut-gold, #c9a84c);
++}
++
++/* Minimized-pane rails overlay: same pixel space as the seam overlay. The rail is
++   a thin reserved strip (its neighbour is inset by RAIL_PX so nothing renders
++   under it) with a gold accent on the edge facing the board + a centered tab. */
++.railOverlay {
++  position: absolute;
++  inset: 0;
++  z-index: 7;
++  pointer-events: none;
++}
++.collapsedRail {
++  position: absolute;
++  pointer-events: auto;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  margin: 0;
++  padding: 0;
++  border: 0;
++  background: var(--color-bg-elevated, #1b1b1f);
++  color: var(--color-text-muted, #b8b8c0);
++  cursor: pointer;
++  overflow: hidden;
++  transition: background 120ms ease, color 120ms ease;
++}
++.collapsedRail:hover { color: var(--ut-gold, #c9a84c); }
++.collapsedRail:focus-visible { outline: 1px solid var(--ut-gold, #c9a84c); outline-offset: -2px; }
++/* Gold accent line on the edge facing the board (mirrors ThinkorSwim's blue). */
++.collapsedRailLeft   { box-shadow: inset -2px 0 0 rgba(201,168,76,0.7); }
++.collapsedRailRight  { box-shadow: inset  2px 0 0 rgba(201,168,76,0.7); }
++.collapsedRailTop    { box-shadow: inset 0 -2px 0 rgba(201,168,76,0.7); }
++.collapsedRailBottom { box-shadow: inset 0  2px 0 rgba(201,168,76,0.7); }
++/* The chevron tab inside the rail — same flat look as the seam tab. */
++.collapsedRailTab {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 15px;
++  height: 26px;
++  border: 1px solid var(--color-border, #3a3a42);
++  border-radius: 3px;
++  background: var(--color-bg-hover, #26262c);
++}
++.collapsedRailH .collapsedRailTab { width: 26px; height: 15px; }
++.collapsedRail:hover .collapsedRailTab { background: var(--ut-gold, #c9a84c); color: #14140f; }
+ 
+ /* Widget body becomes the container-query root for its embedded child page —
+    container queries inside Watchlists / ThemeTrackerPage / Screener
+diff --git a/app/src/pages/charts/MergedSeamOverlay.jsx b/app/src/pages/charts/MergedSeamOverlay.jsx
+index 5e7c4f6326..1ade3d35ce 100644
+--- a/app/src/pages/charts/MergedSeamOverlay.jsx
++++ b/app/src/pages/charts/MergedSeamOverlay.jsx
+@@ -19,13 +19,25 @@
+ 
+ import { useCallback, useMemo, useState } from 'react'
+ import { computeSeams, applyVerticalDrag, applyHorizontalDrag } from './mergedSeams'
++import { seamCollapseTarget } from './mergedCollapse'
++import UIcon from '../../components/ui/UIcon'
+ import styles from './ChartsWorkspace.module.css'
+ 
+-const HANDLE_PX = 8   // hit-area thickness of a seam bar (visual line is thinner)
++const HANDLE_PX = 12   // grab-zone thickness of a seam bar (visible line is thinner)
++
++// The collapse chevron points TOWARD the pane that will minimize. UIcon has no
++// left glyph, so a right chevron is flipped for the left/right cases.
++const CHEVRON_FOR = {
++  left: { name: 'chevronRight', rot: 180 },
++  right: { name: 'chevronRight', rot: 0 },
++  top: { name: 'chevronUp', rot: 0 },
++  bottom: { name: 'chevronDown', rot: 0 },
++}
+ 
+ export default function MergedSeamOverlay({
+   widgets, cols, rows, colWidth, rowHeight,
+   minWFor, minHFor, onResize,   // onResize(nextWidgets, commit:boolean)
++  onCollapse,                   // onCollapse(widgetId, edge) — minimize a pane
+ }) {
+   const seams = useMemo(() => computeSeams(widgets, cols, rows), [widgets, cols, rows])
+   const [dragging, setDragging] = useState(false)
+@@ -100,40 +112,73 @@ export default function MergedSeamOverlay({
+ 
+   if (!colWidth || !rowHeight) return null
+ 
++  // The collapse tab for a seam — a flat handle embedded IN the divider that
++  // minimizes the narrower adjacent pane. Rendered as a CHILD of the seam bar so
++  // the drag handler (which moves the bar's DOM directly) carries it live with the
++  // divider. Only appears where the collapse is clean (seamCollapseTarget != null),
++  // so a layout can never be corrupted. Positioned relative to the bar's own box.
++  const collapseTab = (seam, type, barX0, barY0) => {
++    if (!onCollapse) return null
++    const target = seamCollapseTarget(seam, type, widgets)
++    if (!target) return null
++    const C = widgets.find(w => w.id === target.id)
++    if (!C) return null
++    const chev = CHEVRON_FOR[target.edge]
++    const style = type === 'v'
++      ? { left: HANDLE_PX / 2, top: (C.y + C.h / 2) * rowHeight - barY0 }
++      : { left: (C.x + C.w / 2) * colWidth - barX0, top: HANDLE_PX / 2 }
++    return (
++      <button
++        type="button"
++        className={`${styles.seamCollapseBtn} ${type === 'v' ? styles.seamCollapseBtnV : styles.seamCollapseBtnH}`}
++        style={style}
++        title="Minimize this panel"
++        aria-label="Minimize panel"
++        onPointerDown={(e) => e.stopPropagation()}
++        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCollapse(target.id, target.edge) }}
++      >
++        <UIcon name={chev.name} size={11} gold={false}
++          style={chev.rot ? { transform: `rotate(${chev.rot}deg)` } : undefined} />
++      </button>
++    )
++  }
++
+   return (
+     <div className={`${styles.seamOverlay} ${dragging ? styles.seamOverlayDragging : ''}`}>
+-      {seams.vertical.map(s => (
+-        <div
+-          key={s.key}
+-          className={styles.seamV}
+-          style={{
+-            left: s.c * colWidth - HANDLE_PX / 2,
+-            top: s.y0 * rowHeight,
+-            height: (s.y1 - s.y0) * rowHeight,
+-            width: HANDLE_PX,
+-          }}
+-          role="separator"
+-          aria-orientation="vertical"
+-          aria-label="Drag to resize columns"
+-          onPointerDown={(e) => onPointerDown(s, 'v', e)}
+-        />
+-      ))}
+-      {seams.horizontal.map(s => (
+-        <div
+-          key={s.key}
+-          className={styles.seamH}
+-          style={{
+-            top: s.r * rowHeight - HANDLE_PX / 2,
+-            left: s.x0 * colWidth,
+-            width: (s.x1 - s.x0) * colWidth,
+-            height: HANDLE_PX,
+-          }}
+-          role="separator"
+-          aria-orientation="horizontal"
+-          aria-label="Drag to resize rows"
+-          onPointerDown={(e) => onPointerDown(s, 'h', e)}
+-        />
+-      ))}
++      {seams.vertical.map(s => {
++        const barX0 = s.c * colWidth - HANDLE_PX / 2
++        const barY0 = s.y0 * rowHeight
++        return (
++          <div
++            key={s.key}
++            className={styles.seamV}
++            style={{ left: barX0, top: barY0, height: (s.y1 - s.y0) * rowHeight, width: HANDLE_PX }}
++            role="separator"
++            aria-orientation="vertical"
++            aria-label="Drag to resize columns"
++            onPointerDown={(e) => onPointerDown(s, 'v', e)}
++          >
++            {collapseTab(s, 'v', barX0, barY0)}
++          </div>
++        )
++      })}
++      {seams.horizontal.map(s => {
++        const barX0 = s.x0 * colWidth
++        const barY0 = s.r * rowHeight - HANDLE_PX / 2
++        return (
++          <div
++            key={s.key}
++            className={styles.seamH}
++            style={{ left: barX0, top: barY0, width: (s.x1 - s.x0) * colWidth, height: HANDLE_PX }}
++            role="separator"
++            aria-orientation="horizontal"
++            aria-label="Drag to resize rows"
++            onPointerDown={(e) => onPointerDown(s, 'h', e)}
++          >
++            {collapseTab(s, 'h', barX0, barY0)}
++          </div>
++        )
++      })}
+     </div>
+   )
+ }
+diff --git a/app/src/pages/charts/popout/PopoutWindow.jsx b/app/src/pages/charts/popout/PopoutWindow.jsx
+index a69bc5efbf..fe0c2c8ea2 100644
+--- a/app/src/pages/charts/popout/PopoutWindow.jsx
++++ b/app/src/pages/charts/popout/PopoutWindow.jsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useRef, useState } from 'react'
+ import { createPortal } from 'react-dom'
++import { PortalHostContext } from '../../../components/chart/portalHost'
+ 
+ /**
+  * Renders `children` into a real, separate browser window the user can drag to
+@@ -122,7 +123,19 @@ export default function PopoutWindow({
+     }
+   }, [container, title])
+ 
+-  return container ? createPortal(children, container) : null
++  // Provide the popped window's own <body> as the portal host so every floating
++  // menu / dropdown / picker inside this window portals into THIS window, not the
++  // opener. `container` lives in the popup, so `container.ownerDocument.body` is the
++  // popup body — and it is defined here because createPortal only runs once
++  // `container` exists.
++  return container
++    ? createPortal(
++        <PortalHostContext.Provider value={container.ownerDocument.body}>
++          {children}
++        </PortalHostContext.Provider>,
++        container,
++      )
++    : null
+ }
+ 
+ /**
+diff --git a/app/src/pages/charts/widgets/ChartWidget.jsx b/app/src/pages/charts/widgets/ChartWidget.jsx
+index a3093166eb..9a2ed77a0c 100644
+--- a/app/src/pages/charts/widgets/ChartWidget.jsx
++++ b/app/src/pages/charts/widgets/ChartWidget.jsx
+@@ -8,6 +8,8 @@ import AiSearchWidget from './AiSearchWidget'
+ import UIcon from '../../../components/ui/UIcon'
+ import LeverageInverseControl from './LeverageInverseControl'
+ import ViewHoldingsControl from './ViewHoldingsControl'
++import ChartDetailDock, { ChartPanelsButton } from './ChartDetailDock'
++import { normalizeDock } from './chartDock'
+ import styles from '../ChartsWorkspace.module.css'
+ import ChartTabStrip from './ChartTabStrip'
+ import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
+@@ -248,6 +250,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null
+     setGroupSym(activeColor, s)
+   }, [activeColor, setGroupSym, persistActiveSettings])
+ 
++  // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
++  // The three stock-specific widgets, docked into THIS chart instead of floating
++  // as their own always-linked widgets. State rides opts.dock (persisted like
++  // opts.tf); the panels read the chart's own color group, so their symbol tracks
++  // the chart with no extra wiring. `setDock` accepts a value or an updater fn.
++  const dock = useMemo(() => normalizeDock(opts?.dock), [opts?.dock])
++  const dockRef = useRef(dock)
++  dockRef.current = dock
++  const setDock = useCallback((updater) => {
++    const next = typeof updater === 'function' ? updater(dockRef.current) : updater
++    onOptsChange?.({ ...(opts || {}), dock: next })
++  }, [opts, onOptsChange])
++
+   // ── Tab handlers (all go through the pure chartTabs reducer) ──
+   const tabList = useMemo(() => chartTabList(opts), [opts])
+   const tabColors = useMemo(
+@@ -390,6 +405,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null
+ 
+   return (
+     <>
++      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange}>
+       <ChartPane
+         ref={paneRef}
+         sym={sym}
+@@ -459,6 +475,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null
+           ) : null,
+           tfBarRight: (
+             <>
++              {/* Info panels — Profile / News / Fundamentals docked into the chart */}
++              <ChartPanelsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
+               {!isThemeIndex && (
+                 <LeverageInverseControl
+                   sym={sym}
+@@ -496,6 +514,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null
+           overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
+         }}
+       />
++      </ChartDetailDock>
+       {/* ── Chart right-click menu ── */}
+       {ctxMenu && (
+         <>

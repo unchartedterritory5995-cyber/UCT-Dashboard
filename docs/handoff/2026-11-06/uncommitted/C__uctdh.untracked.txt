@@ -1,0 +1,6 @@
+after.txt
+final.txt
+final2.txt
+mine.txt
+mine_names.txt
+py.log

@@ -1,0 +1,1 @@
+app/src/components/chart/engine/__tests__/vendorHarness/uieRuntimeAcceptance.measure.test.js

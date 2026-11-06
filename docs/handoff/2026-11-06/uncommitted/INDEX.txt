@@ -1,0 +1,17 @@
+C:/Users/blake/projects/UCT-Dashboard feat/app-themes 1a5cb38a02 patch=1240 untracked=26
+C:/Users/blake/projects/uct-drawing-boards-wt deploy/daily-freshness a049cfcde8 patch=615 untracked=0
+C:/Users/blake/projects/uct-drawing-boards-wt/.worktrees/pack-full feat/intraday-integrity d9da2232e8 patch=388 untracked=0
+C:/w/intra fix/intraday-current-camera 1f11625ab5 patch=2663 untracked=3
+C:/w/jud HEAD e6690e67f1 patch=67 untracked=0
+C:/w/mtfb2 HEAD eb8e19c905 patch=0 untracked=0
+C:/w/rpw feat/uie-gate1 59e1520106 patch=204 untracked=0
+C:/uctbase HEAD ddd7152568 patch=0 untracked=2
+C:/uctdh fix/daily-candle-duplicate-and-cold-paint b63cf97759 patch=0 untracked=6
+C:/w/a1gc tmp/gatec-on-a1 596f7ebd45 patch=0 untracked=3
+C:/w/a1int HEAD 2928cfc55e patch=0 untracked=2
+C:/w/ind feat/indicators-consolidation 0c30c90a65 patch=0 untracked=2
+C:/w/indaud audit/indicators-competitive-2026-10-13 f4e9a4d14d patch=0 untracked=1
+C:/w/indbase HEAD f093bf7310 patch=0 untracked=2
+C:/w/mcmaster HEAD 32ef5e4535 patch=0 untracked=1
+C:/w/mtf feat/mtf-indicators 7cb819b9fd patch=0 untracked=1
+C:/w/rbase HEAD 59e1520106 patch=0 untracked=1

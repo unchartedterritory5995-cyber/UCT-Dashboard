@@ -1,0 +1,2663 @@
+diff --git a/app/src/testing/scan/scanHarness.jsx b/app/src/testing/scan/scanHarness.jsx
+index 26b520d2da..abac7ffeb7 100644
+--- a/app/src/testing/scan/scanHarness.jsx
++++ b/app/src/testing/scan/scanHarness.jsx
+@@ -205,6 +205,19 @@ function Harness() {
+         const key = Object.keys(d)[0]
+         try { return key ? d[key].renderedTail(k || 2) : null } catch { return null }
+       },
++      volTail: (k) => {
++        const d = window.__uctChartDebug || {}
++        const key = Object.keys(d)[0]
++        try { return key ? d[key].renderedVolumeTail(k || 2) : null } catch { return null }
++      },
++      // Which writer owns the developing bar right now — the §17 release blocker
++      // turns on this being observable rather than inferred from symptoms.
++      pushActive: () => {
++        const d = window.__uctChartDebug || {}
++        const key = Object.keys(d)[0]
++        try { return key && d[key].barsPushActive ? d[key].barsPushActive() : null }
++        catch { return null }
++      },
+       // ⛔ WHICH LAYER IS STUCK? The rendered close froze at 104 while the
+       // fixture kept serving prices. Reading the STORE alongside the RENDERED
+       // series is the only way to tell "the feed stopped" from "the chart
+diff --git a/tools/boundary_replay.py b/tools/boundary_replay.py
+index a60619bab5..653e5802c9 100644
+--- a/tools/boundary_replay.py
++++ b/tools/boundary_replay.py
+@@ -46,7 +46,36 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+ from intraday_tail_harness import (   # noqa: E402
+     CLOCK_JS, FAKE_NOW, Fixture, SEED_JS, CACHE_LOGIC_VERSION, make_bars, route_handler,
+ )
+-from scan_handoff_harness import CLEAR_IDB, start_dev_server  # noqa: E402
++from scan_handoff_harness import CLEAR_IDB  # noqa: E402
++
++
++def start_dev_server(port: int):
++    """Dev server with VITE_REALTIME_BARS=1.
++
++    ⛔ THE FLAG IS SET FOR THE HARNESS PROCESS ONLY -- nothing in the repo or in
++    any deploy config changes. It has to be on at BUILD time because
++    `useRealtimeBars` reads `import.meta.env`, which Vite inlines; setting it in
++    the page would be too late. The price-lane scenarios are unaffected: with the
++    flag on but no bar frames emitted, `delivering` stays false, so Writer A still
++    owns the bar exactly as it does in production today."""
++    import subprocess as _sp, urllib.request as _ur
++    env = dict(os.environ, BROWSER="none", VITE_REALTIME_BARS="1")
++    proc = _sp.Popen(["npx", "vite", "--port", str(port), "--strictPort", "--host", "127.0.0.1"],
++                     cwd=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app"),
++                     env=env, stdout=_sp.PIPE, stderr=_sp.STDOUT,
++                     shell=(os.name == "nt"), text=True)
++    import time as _t
++    end = _t.time() + 120
++    while _t.time() < end:
++        if proc.poll() is not None:
++            raise RuntimeError("vite exited before it was ready")
++        try:
++            with _ur.urlopen(f"http://127.0.0.1:{port}/scan-harness.html", timeout=2) as r:
++                if r.status == 200:
++                    return proc
++        except Exception:                                   # noqa: BLE001
++            _t.sleep(0.5)
++    raise RuntimeError("vite did not become ready in 120s")
+ from stimulus import require, verdict, summarize, render, StimulusError, INVALID, PASS, FAIL  # noqa: E402
+ 
+ SYM, TF = "USO", "5"
+@@ -56,6 +85,69 @@ PERIOD = 300
+ BOUNDARY = int((FAKE_NOW.replace(minute=20, second=0, microsecond=0)).timestamp())
+ 
+ 
++BARS_ES_SHIM = r"""
++// ── DETERMINISTIC TRANSPORT FOR /api/stream/bars, AND NOTHING ELSE ──────────
++//
++// The brief allows a controlled transport provided the SEMANTICS under test are
++// the real bars lane. So this replaces exactly one thing -- the browser's
++// EventSource for the bars URL -- and leaves barsStreamManager (keyed dispatch,
++// the 500ms coalesce, the immediate prior-bucket boundary flush, the delivering
++// hysteresis), useRealtimeBars, Writer B and Lightweight Charts entirely real.
++//
++// Batched route.fulfill was the alternative and it is WORSE here: the response
++// ends after each batch, EventSource reconnects, `connected` drops, and
++// `delivering` flaps false -- which hands the bar back to Writer A mid-scenario
++// and would have measured the fallback while claiming to measure the bars lane.
++(() => {
++  const Real = window.EventSource;
++  const feeds = [];
++  function FakeES(url) {
++    if (String(url).indexOf('/api/stream/bars') === -1) return new Real(url);
++    const self = this;
++    this.url = String(url);
++    this.readyState = 0;
++    this.withCredentials = false;
++    this._listeners = {};
++    this.onopen = null; this.onerror = null; this.onmessage = null;
++    this.addEventListener = (t, fn) => {
++      (this._listeners[t] = this._listeners[t] || []).push(fn);
++    };
++    this.removeEventListener = (t, fn) => {
++      const a = this._listeners[t] || [];
++      const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1);
++    };
++    this.close = () => { self.readyState = 2; const i = feeds.indexOf(self); if (i >= 0) feeds.splice(i, 1); };
++    this._fire = (type, data) => {
++      const ev = { type, data: typeof data === 'string' ? data : JSON.stringify(data) };
++      (self._listeners[type] || []).forEach(fn => { try { fn(ev) } catch (e) { void e } });
++      if (type === 'message' && typeof self.onmessage === 'function') self.onmessage(ev);
++    };
++    feeds.push(this);
++    // Open on a macrotask so subscribers finish registering first, exactly as a
++    // real connection would.
++    setTimeout(() => {
++      if (self.readyState === 2) return;
++      self.readyState = 1;
++      if (typeof self.onopen === 'function') self.onopen({ type: 'open' });
++    }, 0);
++  }
++  window.EventSource = FakeES;
++  window.__barsFeed = {
++    count: () => feeds.length,
++    open: () => feeds.filter(f => f.readyState === 1).length,
++    // Emit one `bar` frame exactly as api/routers/stream.py serialises it.
++    bar: (sym, tf, bar) => {
++      let n = 0;
++      for (const f of feeds) { if (f.readyState === 1) { f._fire('bar', { sym, tf, bar }); n++; } }
++      return n;
++    },
++    heartbeat: () => { for (const f of feeds) if (f.readyState === 1) f._fire('heartbeat', '{}'); },
++    error: () => { for (const f of feeds) if (typeof f.onerror === 'function') f.onerror({ type: 'error' }); },
++  };
++})();
++"""
++
++
+ # ── THE AUTHORITATIVE TAPE ───────────────────────────────────────────────────
+ 
+ def tape_normal():
+@@ -86,6 +178,14 @@ def tape_genuine_gap():
+     return [(b - 10.0, 99.80), (b - 4.0, 100.00), (b + 3.0, 101.00), (b + 7.0, 101.10)]
+ 
+ 
++def tape_developing():
++    """Several accepted trades INSIDE N+1 so the developing bar must move
++    correctly: the open must not follow, the high must rise, the low must fall."""
++    b = BOUNDARY
++    return [(b - 10.0, 146.30), (b - 4.0, 146.28),
++            (b + 1.0, 146.40), (b + 3.0, 146.55), (b + 5.0, 146.20), (b + 8.0, 146.37)]
++
++
+ def authoritative(tape, period=PERIOD):
+     """Bucket the tape on MARKET time — the truth every scenario is scored against."""
+     bars = {}
+@@ -319,6 +419,379 @@ def run_scenario(page, holder, name, tape, *, note="", expect=PASS, **obs_kw):
+     return rec
+ 
+ 
++# ── THE BARS LANE ────────────────────────────────────────────────────────────
++#
++# ⭐ WHAT THIS PROVES THAT THE PRICE LANE CANNOT. bar_broadcaster already keeps a
++# NATIVE 5m partial, bucketed by the TRADE's own timestamp and accumulated per
++# accepted trade, and /api/stream/bars already publishes it with full OHLCV. So
++# the bars lane is structurally immune to Cause 1 (there is no receipt clock in
++# its bucket identity) and it answers Cause 2 by carrying the authoritative OPEN
++# rather than letting the client infer one from sampled closes.
++#
++# These scenarios emit the server's bar payloads verbatim and score the RENDERED
++# candle field by field, including VOLUME -- a visually plausible candle with a
++# wrong open or volume is a failure, not a pass.
++
++
++def server_partials(tape, period=PERIOD):
++    """What bar_broadcaster's _partials would hold after each accepted trade.
++
++    Mirrors the T path: bucket by the TRADE's timestamp, o on bucket create,
++    h/l extended, c = last accepted price, v summed. Emitted as the running
++    partial, which is exactly what the wire carries."""
++    # ⛔ BUCKET IDENTITY IN SECONDS, THE WIRE IN MILLISECONDS -- and the first cut
++    # mixed them: it stored `t` as ms and compared it against a seconds bucket, so
++    # `cur["t"] != bt` was ALWAYS true, a fresh partial was created per trade, and
++    # every frame went out flat (o=h=l=c). Five bars-lane scenarios failed on
++    # high/low and it read like a product defect. This is the same ms/s trap the
++    # design audit flagged for `mp["ts"]`, which is exactly why that conversion
++    # gets its own test rather than a careful reading.
++    out, cur, cur_bt = [], None, None
++    for ts, px in tape:
++        bt = int(ts // period) * period
++        if cur is None or cur_bt != bt:
++            cur_bt = bt
++            cur = {"t": bt * 1000, "o": px, "h": px, "l": px, "c": px, "v": 100}
++        else:
++            cur = {**cur, "h": max(cur["h"], px), "l": min(cur["l"], px),
++                   "c": px, "v": cur["v"] + 100}
++        out.append({"marketTs": ts, "bucket": bt, "bar": dict(cur)})
++    return out
++
++
++def emit_bar(page, bar):
++    return page.evaluate("([s, t, b]) => window.__barsFeed.bar(s, t, b)", [SYM, TF, bar])
++
++
++def read_fields(page, et_offset):
++    tail = page.evaluate("() => window.__scan.tail(4)") or []
++    vol = page.evaluate("() => window.__scan.volTail(4)") or []
++    vmap = {v["time"]: v["value"] for v in vol}
++    ren = {b["time"]: {**b, "volume": vmap.get(b["time"])} for b in tail}
++    return ren, tail, vol
++
++
++def score_bars(name, ren, auth, et_offset, *, expect_gap=None):
++    wantN, wantN1 = BOUNDARY - PERIOD + et_offset, BOUNDARY + et_offset
++    rN, rN1 = ren.get(wantN), ren.get(wantN1)
++    bN, bN1 = auth.get(BOUNDARY - PERIOD), auth.get(BOUNDARY)
++    if not (rN and rN1 and bN and bN1):
++        return None, {"N": bool(rN), "N1": bool(rN1)}
++    eq = lambda a, b: a is not None and b is not None and abs(a - b) < 0.005
++    fields = {
++        "N.close": eq(rN.get("close"), bN["c"]),
++        "N.high": eq(rN.get("high"), bN["h"]),
++        "N.low": eq(rN.get("low"), bN["l"]),
++        "N1.open": eq(rN1.get("open"), bN1["o"]),
++        "N1.high": eq(rN1.get("high"), bN1["h"]),
++        "N1.low": eq(rN1.get("low"), bN1["l"]),
++        "N1.close": eq(rN1.get("close"), bN1["c"]),
++    }
++    gap_auth = round(bN1["o"] - bN["c"], 4)
++    gap_ren = round((rN1.get("open") or 0) - (rN.get("close") or 0), 4)
++    return {
++        "rendered": {"N": rN, "N1": rN1}, "authoritative": {"N": bN, "N1": bN1},
++        "fields": fields, "authGap": gap_auth, "renderedGap": gap_ren,
++        "falseGap": round(gap_ren - gap_auth, 4),
++        "allFieldsTrue": all(fields.values()),
++    }, None
++
++
++def bars_scenario(page, holder, name, tape, *, expect=PASS, note="",
++                  drop_final_n=False, corrupt_open=None, stale_after=False,
++                  claim_delivering_only=False, own_view=False):
++    """One bars-lane boundary, driven through the REAL barsStreamManager."""
++    # ⛔⛔ THE BOUNDARY BUCKETS MUST BE BORN FROM THE STREAM. The first cut seeded
++    # history through 13:15, so bucket N already existed as a FIXTURE bar (~102)
++    # and Writer B correctly MERGED the tape (~146) into it -- preserving the
++    # existing open and extending h/l. Scoring that merged bar against a
++    # tape-only authoritative made N.high/N.low fail in every scenario, which
++    # looked like a product defect and was entirely my model. End both the seed
++    # AND the fixture's server clock before N so nothing but the bars lane can
++    # author these two buckets.
++    pre = FAKE_NOW - timedelta(minutes=7)          # last seeded bar = 13:10
++    holder["f"] = Fixture()
++    holder["f"].server_now = pre
++    page.goto(f"{holder['base']}/scan-harness.html?blank=1", wait_until="domcontentloaded")
++    page.evaluate(CLEAR_IDB)
++    page.evaluate("() => { localStorage.setItem('uct.chartTiming','1');"
++                  "        localStorage.setItem('uct.cameraAudit','1') }")
++    page.evaluate(SEED_JS, [SYM, TF, make_bars(int(TF), pre, 4), CACHE_LOGIC_VERSION])
++    page.goto(f"{holder['base']}/scan-harness.html?tf={TF}&syms={SYM}",
++              wait_until="domcontentloaded")
++    page.wait_for_timeout(4000)
++    et_offset = page.evaluate(
++        "() => { const d = new Date();"
++        "  const et = new Date(d.toLocaleString('en-US', {timeZone:'America/New_York'}));"
++        "  const ut = new Date(d.toLocaleString('en-US', {timeZone:'UTC'}));"
++        "  return (et - ut) / 1000 }")
++
++    if own_view:
++        el = page.query_selector("canvas")
++        bb = el.bounding_box() if el else None
++        if bb:
++            cx, cy = bb["x"] + bb["width"] * 0.6, bb["y"] + bb["height"] * 0.5
++            page.mouse.move(cx, cy); page.mouse.down()
++            for i in range(1, 9):
++                page.mouse.move(cx + 420 * i / 8, cy); page.wait_for_timeout(10)
++            page.mouse.up(); page.wait_for_timeout(200)
++    page.evaluate("() => window.__scan.camera.clear()")
++    owned = page.evaluate("() => window.__scan.camera.owned()")
++    cam_before = page.evaluate("() => window.__scan.timeRange()")
++
++    feeds = page.evaluate("() => window.__barsFeed ? window.__barsFeed.open() : -1")
++    auth = authoritative(tape)
++    parts = server_partials(tape)
++    emitted, ledger = 0, []
++
++    if not claim_delivering_only:
++        for i, p in enumerate(parts):
++            bar = dict(p["bar"])
++            is_final_n = (p["bucket"] < BOUNDARY
++                          and (i + 1 == len(parts) or parts[i + 1]["bucket"] >= BOUNDARY))
++            if drop_final_n and is_final_n:
++                ledger.append({**p, "dropped": "final-N"}); continue
++            if corrupt_open is not None and p["bucket"] >= BOUNDARY:
++                bar["o"] = corrupt_open
++            n = emit_bar(page, bar)
++            emitted += 1
++            ledger.append({"marketTs": p["marketTs"], "bucket": p["bucket"],
++                           "bar": bar, "subscribersFed": n})
++            page.wait_for_timeout(220)
++        if stale_after:
++            # BAR-NC3: re-deliver an EARLIER N+1 partial after a newer one.
++            older = [p for p in parts if p["bucket"] >= BOUNDARY]
++            if len(older) >= 2:
++                emit_bar(page, dict(older[0]["bar"]))
++                ledger.append({**older[0], "staleReplay": True})
++                page.wait_for_timeout(300)
++    page.wait_for_timeout(900)   # clear the 500ms coalesce window
++
++    push_active = page.evaluate("() => window.__scan.pushActive()")
++    ren, tail, vol = read_fields(page, et_offset)
++    cam_after = page.evaluate("() => window.__scan.timeRange()")
++    unauth = page.evaluate("() => window.__scan.camera.unauthorized()")
++    scored, missing = score_bars(name, ren, auth, et_offset)
++
++    rec = {"scenario": name, "note": note, "expected": expect, "lane": "bars",
++           "ownedView": owned, "pushActive": push_active, "feedsOpen": feeds,
++           "emitted": emitted, "ledger": ledger, "renderedTail": tail, "volumeTail": vol,
++           "cameraBefore": cam_before, "cameraAfter": cam_after,
++           "unauthorizedCameraMoves": len(unauth)}
++    if scored:
++        rec.update(scored)
++
++    try:
++        require(f"{name}: a bars subscriber was connected", feeds and feeds > 0, feeds)
++        require(f"{name}: authoritative bar frames reached the lane",
++                emitted > 0 if not claim_delivering_only else False,
++                {"emitted": emitted, "claimOnly": claim_delivering_only})
++        require(f"{name}: Writer B owns the developing bar", push_active is True, push_active)
++        require(f"{name}: both boundary bars rendered", scored is not None, missing)
++    except StimulusError as exc:
++        rec["verdict"] = INVALID
++        rec["why"] = str(exc)
++        rec["asExpected"] = (INVALID == expect)
++        print(f"  {name:<36} INVALID {'(as expected)' if rec['asExpected'] else '<-- UNEXPECTED'}"
++              f" -- {exc}", flush=True)
++        return rec
++
++    cam_moved = (bool(cam_before and cam_after)
++                 and (int(cam_before["from"]) != int(cam_after["from"])
++                      or int(cam_before["to"]) != int(cam_after["to"])))
++    rec["cameraMoved"] = cam_moved
++    ok = scored["allFieldsTrue"] and abs(scored["falseGap"]) < 0.005
++    if own_view:
++        ok = ok and not cam_moved and len(unauth) == 0
++    rec["verdict"] = verdict(True, ok)
++    rec["asExpected"] = (rec["verdict"] == expect)
++    bad = [k for k, v in scored["fields"].items() if not v]
++    print(f"  {name:<36} {rec['verdict']:<7}{'' if rec['asExpected'] else ' <-- UNEXPECTED'} "
++          f"falseGap={scored['falseGap']:+.2f} bad={bad or 'none'} "
++          f"pushActive={push_active} camMoved={cam_moved}", flush=True)
++    return rec
++
++def bars_multi_boundary(page, holder, name, n=5):
++    """§10 -- at least four consecutive 5m boundaries on the bars lane.
++
++    ⛔ THE SYMPTOM CLASS THIS CATCHES IS ACCUMULATION. A single boundary can be
++    right while every one of duplicate buckets, missing buckets, creeping camera
++    drift and volume corruption builds up over several. Each boundary is scored
++    on its own authoritative bar AND the run is scored on what accumulated."""
++    pre = FAKE_NOW - timedelta(minutes=7)
++    holder["f"] = Fixture(); holder["f"].server_now = pre
++    page.goto(f"{holder['base']}/scan-harness.html?blank=1", wait_until="domcontentloaded")
++    page.evaluate(CLEAR_IDB)
++    page.evaluate("() => { localStorage.setItem('uct.chartTiming','1');"
++                  "        localStorage.setItem('uct.cameraAudit','1') }")
++    page.evaluate(SEED_JS, [SYM, TF, make_bars(int(TF), pre, 4), CACHE_LOGIC_VERSION])
++    page.goto(f"{holder['base']}/scan-harness.html?tf={TF}&syms={SYM}",
++              wait_until="domcontentloaded")
++    page.wait_for_timeout(4000)
++    et = page.evaluate(
++        "() => { const d = new Date();"
++        "  const et = new Date(d.toLocaleString('en-US', {timeZone:'America/New_York'}));"
++        "  const ut = new Date(d.toLocaleString('en-US', {timeZone:'UTC'}));"
++        "  return (et - ut) / 1000 }")
++    page.evaluate("() => window.__scan.camera.clear()")
++    cam0 = page.evaluate("() => window.__scan.timeRange()")
++    log0 = page.evaluate("() => window.__scan.range()")
++
++    # One tape spanning n buckets, three accepted trades each.
++    base_t = BOUNDARY - PERIOD
++    tape, px = [], 146.00
++    for k in range(n):
++        for j, d in enumerate((10.0, 150.0, 290.0)):
++            px = round(px + (0.03 if (j + k) % 2 == 0 else -0.02), 2)
++            tape.append((base_t + k * PERIOD + d, px))
++    auth = authoritative(tape)
++    parts = server_partials(tape)
++
++    rows, seen_buckets = [], []
++    for p in parts:
++        emit_bar(page, dict(p["bar"]))
++        page.wait_for_timeout(200)
++    page.wait_for_timeout(900)
++
++    tail = page.evaluate("() => window.__scan.tail(%d)" % (n + 3)) or []
++    vol = page.evaluate("() => window.__scan.volTail(%d)" % (n + 3)) or []
++    vmap = {v["time"]: v["value"] for v in vol}
++    ren = {b["time"]: {**b, "volume": vmap.get(b["time"])} for b in tail}
++    cam1 = page.evaluate("() => window.__scan.timeRange()")
++    log1 = page.evaluate("() => window.__scan.range()")
++    unauth = page.evaluate("() => window.__scan.camera.unauthorized()")
++    push_active = page.evaluate("() => window.__scan.pushActive()")
++
++    eq = lambda a, b: a is not None and b is not None and abs(a - b) < 0.005
++    prev_bt = None
++    for k in range(n):
++        bt = base_t + k * PERIOD
++        r, a = ren.get(bt + et), auth.get(bt)
++        row = {"boundary": k, "bucket": bt, "rendered": r, "authoritative": a}
++        if r and a:
++            row["fields"] = {"open": eq(r.get("open"), a["o"]), "high": eq(r.get("high"), a["h"]),
++                             "low": eq(r.get("low"), a["l"]), "close": eq(r.get("close"), a["c"])}
++            if prev_bt is not None:
++                pr, pa = ren.get(prev_bt + et), auth.get(prev_bt)
++                if pr and pa:
++                    row["falseGap"] = round((r.get("open") - pr.get("close"))
++                                            - (a["o"] - pa["c"]), 4)
++            row["allTrue"] = all(row["fields"].values())
++        else:
++            row["allTrue"] = False
++            row["missing"] = {"rendered": bool(r), "authoritative": bool(a)}
++        rows.append(row); seen_buckets.append(bt); prev_bt = bt
++
++    times = [b["time"] for b in tail]
++    duplicates = len(times) != len(set(times))
++    expected_times = [base_t + k * PERIOD + et for k in range(n)]
++    missing = [t for t in expected_times if t not in set(times)]
++    cam_drift = (None if not (cam0 and cam1)
++                 else max(abs(int(cam0["from"]) - int(cam1["from"])),
++                          abs(int(cam0["to"]) - int(cam1["to"]))))
++    logical_frac = [round(((log1["from"] % 1) + 1) % 1, 4)] if log1 else []
++    vols = [ren.get(base_t + k * PERIOD + et, {}).get("volume") for k in range(n)]
++
++    rec = {"scenario": name, "lane": "bars", "expected": PASS, "boundaries": rows,
++           "duplicateBuckets": duplicates, "missingBuckets": missing,
++           "cameraDrift": cam_drift, "unauthorizedCameraMoves": len(unauth),
++           "logicalFrac": logical_frac, "volumes": vols,
++           "renderedTimes": times, "pushActive": push_active}
++    try:
++        require(f"{name}: Writer B owned the bar", push_active is True, push_active)
++        require(f"{name}: every boundary rendered", not missing, {"missing": missing})
++        require(f"{name}: {n} boundaries were actually crossed",
++                len([r for r in rows if r.get("fields")]) >= 4,
++                len([r for r in rows if r.get("fields")]))
++    except StimulusError as exc:
++        rec["verdict"] = INVALID; rec["why"] = str(exc); rec["asExpected"] = False
++        print(f"  {name:<36} INVALID -- {exc}", flush=True)
++        return rec
++    ok = (all(r["allTrue"] for r in rows) and not duplicates and not missing
++          and all(abs(r.get("falseGap", 0)) < 0.005 for r in rows)
++          and all(v for v in vols))
++    rec["verdict"] = verdict(True, ok)
++    rec["asExpected"] = (rec["verdict"] == PASS)
++    print(f"  {name:<36} {rec['verdict']:<7} boundariesTrue="
++          f"{sum(1 for r in rows if r['allTrue'])}/{n} dup={duplicates} "
++          f"missing={len(missing)} camDrift={cam_drift}s unauth={len(unauth)} "
++          f"vols={vols}", flush=True)
++    return rec
++
++
++def writer_ownership(page, holder, name):
++    """§17 -- the handoff, which is a release blocker.
++
++    Bars delivering -> Writer B owns. Connection drops -> Writer A resumes. The
++    thing that must NOT happen is the fallback re-opening a bucket Writer B
++    already opened with the authoritative price, or a duplicate candle."""
++    pre = FAKE_NOW - timedelta(minutes=7)
++    holder["f"] = Fixture(); holder["f"].server_now = pre
++    page.goto(f"{holder['base']}/scan-harness.html?blank=1", wait_until="domcontentloaded")
++    page.evaluate(CLEAR_IDB)
++    page.evaluate("() => { localStorage.setItem('uct.chartTiming','1');"
++                  "        localStorage.setItem('uct.cameraAudit','1') }")
++    page.evaluate(SEED_JS, [SYM, TF, make_bars(int(TF), pre, 4), CACHE_LOGIC_VERSION])
++    page.goto(f"{holder['base']}/scan-harness.html?tf={TF}&syms={SYM}",
++              wait_until="domcontentloaded")
++    page.wait_for_timeout(4000)
++    et = page.evaluate(
++        "() => { const d = new Date();"
++        "  const et = new Date(d.toLocaleString('en-US', {timeZone:'America/New_York'}));"
++        "  const ut = new Date(d.toLocaleString('en-US', {timeZone:'UTC'}));"
++        "  return (et - ut) / 1000 }")
++
++    before = page.evaluate("() => window.__scan.pushActive()")
++    parts = server_partials(tape_normal())
++    for p in parts:
++        emit_bar(page, dict(p["bar"])); page.wait_for_timeout(200)
++    page.wait_for_timeout(900)
++    during = page.evaluate("() => window.__scan.pushActive()")
++    tail_b = page.evaluate("() => window.__scan.tail(4)")
++    n1_open_b = next((b["open"] for b in (tail_b or []) if b["time"] == BOUNDARY + et), None)
++
++    # Drop the bars connection; Writer A must take over.
++    page.evaluate("() => window.__barsFeed.error()")
++    page.wait_for_timeout(1200)
++    after_drop = page.evaluate("() => window.__scan.pushActive()")
++    # Now feed the price lane a LATER, DIFFERENT price inside the same bucket.
++    holder["f"].script(SYM, [{"price": 146.90, "change_pct": 0.4, "day_open": 146.30,
++                              "updated_at": BOUNDARY + 20}])
++    for _ in range(4):
++        page.evaluate("() => window.__scan.tick()"); page.wait_for_timeout(260)
++    tail_a = page.evaluate("() => window.__scan.tail(4)")
++    times_a = [b["time"] for b in (tail_a or [])]
++    n1_a = next((b for b in (tail_a or []) if b["time"] == BOUNDARY + et), None)
++
++    rec = {"scenario": name, "lane": "handoff", "expected": PASS,
++           "pushBefore": before, "pushDuring": during, "pushAfterDrop": after_drop,
++           "n1OpenUnderWriterB": n1_open_b, "n1AfterFallback": n1_a,
++           "renderedTimesAfter": times_a,
++           "duplicateBuckets": len(times_a) != len(set(times_a))}
++    try:
++        require(f"{name}: Writer B took ownership while bars delivered",
++                before is False and during is True, {"before": before, "during": during})
++        require(f"{name}: ownership returned to Writer A after the drop",
++                after_drop is False, after_drop)
++        require(f"{name}: the fallback actually moved the bar",
++                bool(n1_a) and abs((n1_a.get("close") or 0) - 146.90) < 0.005,
++                n1_a)
++    except StimulusError as exc:
++        rec["verdict"] = INVALID; rec["why"] = str(exc); rec["asExpected"] = False
++        print(f"  {name:<36} INVALID -- {exc}", flush=True)
++        return rec
++    # ⛔ THE RELEASE BLOCKER: the sampled fallback price must NOT become the open
++    # of a bucket Writer B already opened authoritatively.
++    open_held = abs((n1_a.get("open") or 0) - (n1_open_b or 0)) < 0.005
++    ok = open_held and not rec["duplicateBuckets"]
++    rec["authoritativeOpenHeld"] = open_held
++    rec["verdict"] = verdict(True, ok)
++    rec["asExpected"] = (rec["verdict"] == PASS)
++    print(f"  {name:<36} {rec['verdict']:<7} B:{before}->{during}->{after_drop} "
++          f"openHeld={open_held} ({n1_open_b} -> {n1_a.get('open')}) "
++          f"dup={rec['duplicateBuckets']}", flush=True)
++    return rec
++
+ def main():
+     import socket
+     with socket.socket() as s:
+@@ -333,6 +806,7 @@ def main():
+             browser = pw.chromium.launch()
+             ctx = browser.new_context(viewport={"width": 1400, "height": 860})
+             ctx.add_init_script(CLOCK_JS % int(FAKE_NOW.timestamp() * 1000))
++            ctx.add_init_script(BARS_ES_SHIM)
+             holder = {"f": fixture, "base": f"http://127.0.0.1:{port}"}
+             ctx.route("**/api/**", lambda route, request: route_handler(holder["f"])(route, request))
+             page = ctx.new_page()
+@@ -372,6 +846,54 @@ def main():
+                 page, holder, "NC6 dead stimulus", [(BOUNDARY - 12.0, 146.30),
+                                                     (BOUNDARY - 6.0, 146.29)],
+                 note="no new-bucket event at all — must be INVALID", expect=INVALID, clock="market"))
++            # ── THE BARS LANE ───────────────────────────────────────────────
++            print("", flush=True)
++            print("[bnd-replay] BARS LANE (real barsStreamManager + Writer B):", flush=True)
++            results.append(bars_scenario(
++                page, holder, "B1 normal boundary", tape_normal(),
++                note="clean boundary, authoritative open"))
++            results.append(bars_scenario(
++                page, holder, "B2 receipt-delay immune", tape_edge(),
++                note="the trade that broke the price lane; market-time bucketed here"))
++            results.append(bars_scenario(
++                page, holder, "B3 price lane coalesced away", tape_edge(),
++                # ⭐ THE STRONGEST FORM OF THE E4 CONDITION. No bars scenario feeds
++                # the price lane at all, so Writer A receives NOTHING -- every price
++                # snapshot is "coalesced away". If the fields are still true, the
++                # authoritative OHLC alone carried them.
++                note="the E4 condition at its limit: the price lane delivers nothing"))
++            results.append(bars_scenario(
++                page, holder, "B4 developing updates in N+1", tape_developing(),
++                note="open stable, high up, low down, close follows"))
++            results.append(bars_scenario(
++                page, holder, "B5 genuine gap (bars)", tape_genuine_gap(),
++                note="a real 1.00 gap must survive the bars lane too"))
++            results.append(bars_scenario(
++                page, holder, "B6 owned camera", tape_normal(),
++                note="member owns the view across a bars-lane boundary", own_view=True))
++            results.append(bars_scenario(
++                page, holder, "B7 untouched camera", tape_normal(),
++                note="untouched chart keeps following"))
++
++            results.append(bars_multi_boundary(page, holder,
++                            "B8 five consecutive boundaries", n=5))
++            results.append(writer_ownership(page, holder,
++                            "B9 writer ownership handoff"))
++
++            print("[bnd-replay] BARS NEGATIVE CONTROLS:", flush=True)
++            results.append(bars_scenario(
++                page, holder, "BAR-NC1 drop final N payload", tape_normal(),
++                expect=FAIL, drop_final_n=True))
++            results.append(bars_scenario(
++                page, holder, "BAR-NC2 corrupt N+1 open", tape_normal(),
++                expect=FAIL, corrupt_open=999.99))
++            results.append(bars_scenario(
++                page, holder, "BAR-NC3 stale N+1 after newer", tape_normal(),
++                expect=FAIL, stale_after=True))
++            results.append(bars_scenario(
++                page, holder, "BAR-NC4 claims delivering, no bars", tape_normal(),
++                expect=INVALID, claim_delivering_only=True))
++
+             # ── §11/§12/§17 TAIL REPAIR, PERSISTENCE, AND THE CAMERA ────────
+             # Build a KNOWN-BAD boundary (the receipt-time race), then let the
+             # authoritative /api/bars tail land and measure what it repairs, how
+diff --git a/tools/boundary_replay_out.json b/tools/boundary_replay_out.json
+index acf00cb196..b49cda0049 100644
+--- a/tools/boundary_replay_out.json
++++ b/tools/boundary_replay_out.json
+@@ -1,10 +1,10 @@
+ {
+   "summary": {
+-    "requested": 11,
+-    "valid": 10,
+-    "passed": 3,
+-    "failed": 7,
+-    "invalid": 1,
++    "requested": 22,
++    "valid": 20,
++    "passed": 10,
++    "failed": 10,
++    "invalid": 2,
+     "accepted": true,
+     "expectationMismatches": [],
+     "productDefects": [
+@@ -2022,6 +2022,2028 @@
+       "why": "stimulus not proven: NC6 dead stimulus: new-bucket events were delivered | evidence=0",
+       "asExpected": true
+     },
++    {
++      "scenario": "B1 normal boundary",
++      "note": "clean boundary, authoritative open",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 6,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492791.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.3,
++            "c": 146.32,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.35,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492809.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.33,
++            "v": 300
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29
++        },
++        {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 300
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33,
++          "volume": 300
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.32,
++          "l": 146.29,
++          "c": 146.29,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.31,
++          "h": 146.35,
++          "l": 146.31,
++          "c": 146.33,
++          "n": 3
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": 0.02,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "B2 receipt-delay immune",
++      "note": "the trade that broke the price lane; market-time bucketed here",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 5,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492799.8,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.44,
++            "l": 146.29,
++            "c": 146.44,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492801.5,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.46,
++            "h": 146.46,
++            "l": 146.46,
++            "c": 146.46,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492806.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.46,
++            "h": 146.48,
++            "l": 146.46,
++            "c": 146.48,
++            "v": 200
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.44,
++          "low": 146.29,
++          "close": 146.44
++        },
++        {
++          "time": 1789478400,
++          "open": 146.46,
++          "high": 146.48,
++          "low": 146.46,
++          "close": 146.48
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 200
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.44,
++          "low": 146.29,
++          "close": 146.44,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.46,
++          "high": 146.48,
++          "low": 146.46,
++          "close": 146.48,
++          "volume": 200
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.44,
++          "l": 146.29,
++          "c": 146.44,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.46,
++          "h": 146.48,
++          "l": 146.46,
++          "c": 146.48,
++          "n": 2
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": 0.02,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "B3 price lane coalesced away",
++      "note": "the E4 condition at its limit: the price lane delivers nothing",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 5,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492799.8,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.44,
++            "l": 146.29,
++            "c": 146.44,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492801.5,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.46,
++            "h": 146.46,
++            "l": 146.46,
++            "c": 146.46,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492806.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.46,
++            "h": 146.48,
++            "l": 146.46,
++            "c": 146.48,
++            "v": 200
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.44,
++          "low": 146.29,
++          "close": 146.44
++        },
++        {
++          "time": 1789478400,
++          "open": 146.46,
++          "high": 146.48,
++          "low": 146.46,
++          "close": 146.48
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 200
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.44,
++          "low": 146.29,
++          "close": 146.44,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.46,
++          "high": 146.48,
++          "low": 146.46,
++          "close": 146.48,
++          "volume": 200
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.44,
++          "l": 146.29,
++          "c": 146.44,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.46,
++          "h": 146.48,
++          "l": 146.46,
++          "c": 146.48,
++          "n": 2
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": 0.02,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "B4 developing updates in N+1",
++      "note": "open stable, high up, low down, close follows",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 6,
++      "ledger": [
++        {
++          "marketTs": 1789492790.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492796.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.28,
++            "c": 146.28,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492801.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.4,
++            "h": 146.4,
++            "l": 146.4,
++            "c": 146.4,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492803.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.4,
++            "h": 146.55,
++            "l": 146.4,
++            "c": 146.55,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.4,
++            "h": 146.55,
++            "l": 146.2,
++            "c": 146.2,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492808.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.4,
++            "h": 146.55,
++            "l": 146.2,
++            "c": 146.37,
++            "v": 400
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.3,
++          "low": 146.28,
++          "close": 146.28
++        },
++        {
++          "time": 1789478400,
++          "open": 146.4,
++          "high": 146.55,
++          "low": 146.2,
++          "close": 146.37
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 200
++        },
++        {
++          "time": 1789478400,
++          "value": 400
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.3,
++          "low": 146.28,
++          "close": 146.28,
++          "volume": 200
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.4,
++          "high": 146.55,
++          "low": 146.2,
++          "close": 146.37,
++          "volume": 400
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.3,
++          "l": 146.28,
++          "c": 146.28,
++          "n": 2
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.4,
++          "h": 146.55,
++          "l": 146.2,
++          "c": 146.37,
++          "n": 4
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.12,
++      "renderedGap": 0.12,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "B5 genuine gap (bars)",
++      "note": "a real 1.00 gap must survive the bars lane too",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 4,
++      "ledger": [
++        {
++          "marketTs": 1789492790.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 99.8,
++            "h": 99.8,
++            "l": 99.8,
++            "c": 99.8,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492796.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 99.8,
++            "h": 100.0,
++            "l": 99.8,
++            "c": 100.0,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492803.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 101.0,
++            "h": 101.0,
++            "l": 101.0,
++            "c": 101.0,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492807.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 101.0,
++            "h": 101.1,
++            "l": 101.0,
++            "c": 101.1,
++            "v": 200
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 99.8,
++          "high": 100,
++          "low": 99.8,
++          "close": 100
++        },
++        {
++          "time": 1789478400,
++          "open": 101,
++          "high": 101.1,
++          "low": 101,
++          "close": 101.1
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 200
++        },
++        {
++          "time": 1789478400,
++          "value": 200
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 99.8,
++          "high": 100,
++          "low": 99.8,
++          "close": 100,
++          "volume": 200
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 101,
++          "high": 101.1,
++          "low": 101,
++          "close": 101.1,
++          "volume": 200
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 99.8,
++          "h": 100.0,
++          "l": 99.8,
++          "c": 100.0,
++          "n": 2
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 101.0,
++          "h": 101.1,
++          "l": 101.0,
++          "c": 101.1,
++          "n": 2
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 1.0,
++      "renderedGap": 1,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "B6 owned camera",
++      "note": "member owns the view across a bars-lane boundary",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": true,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 6,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492791.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.3,
++            "c": 146.32,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.35,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492809.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.33,
++            "v": 300
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29
++        },
++        {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 300
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789448400,
++        "to": 1789473000
++      },
++      "cameraAfter": {
++        "from": 1789448400,
++        "to": 1789473000
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33,
++          "volume": 300
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.32,
++          "l": 146.29,
++          "c": 146.29,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.31,
++          "h": 146.35,
++          "l": 146.31,
++          "c": 146.33,
++          "n": 3
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": 0.02,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "B7 untouched camera",
++      "note": "untouched chart keeps following",
++      "expected": "PASS",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 6,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492791.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.3,
++            "c": 146.32,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.35,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492809.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.33,
++            "v": 300
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29
++        },
++        {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 300
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33,
++          "volume": 300
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.32,
++          "l": 146.29,
++          "c": 146.29,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.31,
++          "h": 146.35,
++          "l": 146.31,
++          "c": 146.33,
++          "n": 3
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": 0.02,
++      "falseGap": 0.0,
++      "allFieldsTrue": true,
++      "cameraMoved": false,
++      "verdict": "PASS",
++      "asExpected": true
++    },
++    {
++      "scenario": "BAR-NC1 drop final N payload",
++      "note": "",
++      "expected": "FAIL",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 5,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492791.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.3,
++            "c": 146.32,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 300
++          },
++          "dropped": "final-N"
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.35,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492809.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.33,
++            "v": 300
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.3,
++          "close": 146.32
++        },
++        {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 200
++        },
++        {
++          "time": 1789478400,
++          "value": 300
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.3,
++          "close": 146.32,
++          "volume": 200
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33,
++          "volume": 300
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.32,
++          "l": 146.29,
++          "c": 146.29,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.31,
++          "h": 146.35,
++          "l": 146.31,
++          "c": 146.33,
++          "n": 3
++        }
++      },
++      "fields": {
++        "N.close": false,
++        "N.high": true,
++        "N.low": false,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": -0.01,
++      "falseGap": -0.03,
++      "allFieldsTrue": false,
++      "cameraMoved": false,
++      "verdict": "FAIL",
++      "asExpected": true
++    },
++    {
++      "scenario": "BAR-NC2 corrupt N+1 open",
++      "note": "",
++      "expected": "FAIL",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 6,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492791.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.3,
++            "c": 146.32,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 999.99,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 999.99,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.35,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492809.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 999.99,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.33,
++            "v": 300
++          },
++          "subscribersFed": 1
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29
++        },
++        {
++          "time": 1789478400,
++          "open": 999.99,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 300
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 999.99,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.33,
++          "volume": 300
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.32,
++          "l": 146.29,
++          "c": 146.29,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.31,
++          "h": 146.35,
++          "l": 146.31,
++          "c": 146.33,
++          "n": 3
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": false,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": true
++      },
++      "authGap": 0.02,
++      "renderedGap": 853.7,
++      "falseGap": 853.68,
++      "allFieldsTrue": false,
++      "cameraMoved": false,
++      "verdict": "FAIL",
++      "asExpected": true
++    },
++    {
++      "scenario": "BAR-NC3 stale N+1 after newer",
++      "note": "",
++      "expected": "FAIL",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": true,
++      "feedsOpen": 1,
++      "emitted": 6,
++      "ledger": [
++        {
++          "marketTs": 1789492788.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.3,
++            "l": 146.3,
++            "c": 146.3,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492791.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.3,
++            "c": 146.32,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492794.0,
++          "bucket": 1789492500,
++          "bar": {
++            "t": 1789492500000,
++            "o": 146.3,
++            "h": 146.32,
++            "l": 146.29,
++            "c": 146.29,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492805.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.35,
++            "v": 200
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492809.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.35,
++            "l": 146.31,
++            "c": 146.33,
++            "v": 300
++          },
++          "subscribersFed": 1
++        },
++        {
++          "marketTs": 1789492802.0,
++          "bucket": 1789492800,
++          "bar": {
++            "t": 1789492800000,
++            "o": 146.31,
++            "h": 146.31,
++            "l": 146.31,
++            "c": 146.31,
++            "v": 100
++          },
++          "staleReplay": true
++        }
++      ],
++      "renderedTail": [
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        },
++        {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29
++        },
++        {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.31
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        },
++        {
++          "time": 1789478100,
++          "value": 300
++        },
++        {
++          "time": 1789478400,
++          "value": 100
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "rendered": {
++        "N": {
++          "time": 1789478100,
++          "open": 146.3,
++          "high": 146.32,
++          "low": 146.29,
++          "close": 146.29,
++          "volume": 300
++        },
++        "N1": {
++          "time": 1789478400,
++          "open": 146.31,
++          "high": 146.35,
++          "low": 146.31,
++          "close": 146.31,
++          "volume": 100
++        }
++      },
++      "authoritative": {
++        "N": {
++          "t": 1789492500,
++          "o": 146.3,
++          "h": 146.32,
++          "l": 146.29,
++          "c": 146.29,
++          "n": 3
++        },
++        "N1": {
++          "t": 1789492800,
++          "o": 146.31,
++          "h": 146.35,
++          "l": 146.31,
++          "c": 146.33,
++          "n": 3
++        }
++      },
++      "fields": {
++        "N.close": true,
++        "N.high": true,
++        "N.low": true,
++        "N1.open": true,
++        "N1.high": true,
++        "N1.low": true,
++        "N1.close": false
++      },
++      "authGap": 0.02,
++      "renderedGap": 0.02,
++      "falseGap": 0.0,
++      "allFieldsTrue": false,
++      "cameraMoved": false,
++      "verdict": "FAIL",
++      "asExpected": true
++    },
++    {
++      "scenario": "BAR-NC4 claims delivering, no bars",
++      "note": "",
++      "expected": "INVALID",
++      "lane": "bars",
++      "ownedView": false,
++      "pushActive": false,
++      "feedsOpen": 1,
++      "emitted": 0,
++      "ledger": [],
++      "renderedTail": [
++        {
++          "time": 1789476900,
++          "open": 102.31,
++          "high": 102.61,
++          "low": 102.06,
++          "close": 102.41
++        },
++        {
++          "time": 1789477200,
++          "open": 100.57,
++          "high": 100.87,
++          "low": 100.32,
++          "close": 100.67
++        },
++        {
++          "time": 1789477500,
++          "open": 101.32,
++          "high": 101.62,
++          "low": 101.07,
++          "close": 101.42
++        },
++        {
++          "time": 1789477800,
++          "open": 102.07,
++          "high": 102.37,
++          "low": 101.82,
++          "close": 102.17
++        }
++      ],
++      "volumeTail": [
++        {
++          "time": 1789476900,
++          "value": 1300
++        },
++        {
++          "time": 1789477200,
++          "value": 1100
++        },
++        {
++          "time": 1789477500,
++          "value": 1400
++        },
++        {
++          "time": 1789477800,
++          "value": 1200
++        }
++      ],
++      "cameraBefore": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "cameraAfter": {
++        "from": 1789455000,
++        "to": 1789479600
++      },
++      "unauthorizedCameraMoves": 0,
++      "verdict": "INVALID",
++      "why": "stimulus not proven: BAR-NC4 claims delivering, no bars: authoritative bar frames reached the lane | evidence={'emitted': 0, 'claimOnly': True}",
++      "asExpected": true
++    },
+     {
+       "scenario": "R0 bad boundary (pre-repair)",
+       "note": "seed the wrong bars, then repair them",
+@@ -2253,8 +4275,8 @@
+     },
+     "barsRequestsDuringWindow": 2,
+     "barsRequestSample": [
+-      "http://127.0.0.1:59112/api/bars/USO?tf=5&bars=600&since=1789492499",
+-      "http://127.0.0.1:59112/api/bars/USO?tf=5&bars=600&since=1789492799"
++      "http://127.0.0.1:62334/api/bars/USO?tf=5&bars=600&since=1789492499",
++      "http://127.0.0.1:62334/api/bars/USO?tf=5&bars=600&since=1789492799"
+     ],
+     "verdict": "PASS",
+     "why": null,
+@@ -2306,7 +4328,7 @@
+         "close": 146.48
+       }
+     ],
+-    "secondsToRepair": 25.52,
++    "secondsToRepair": 5.27,
+     "repaired": true,
+     "cameraBefore": {
+       "from": 1789455000,

@@ -1,0 +1,2 @@
+app/.vite-preview/
+app/vite.preview.config.js

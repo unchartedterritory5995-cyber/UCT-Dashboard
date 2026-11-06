@@ -1,0 +1,615 @@
+diff --git a/app/src/components/Layout.jsx b/app/src/components/Layout.jsx
+index c3df1273a2..2eef452c1d 100644
+--- a/app/src/components/Layout.jsx
++++ b/app/src/components/Layout.jsx
+@@ -99,6 +99,11 @@ export default function Layout({ children }) {
+           <main className={styles.main}>
+             {children ?? <Outlet />}
+           </main>
++          {/* Backdrop dim behind the desktop nav while it is hovered-open, so the
++              expanded rail reads as a DRAWER over the page (content clearly behind
++              it) instead of the panel edge "cutting off" the page title/content.
++              Driven purely by CSS `:has(nav:hover)` — see Layout.module.css. */}
++          <div className={styles.navScrim} aria-hidden="true" />
+           <FeedbackWidget />
+           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+           <TickerHubSheet />
+diff --git a/app/src/components/Layout.module.css b/app/src/components/Layout.module.css
+index 3782b81fe3..9a8e79b593 100644
+--- a/app/src/components/Layout.module.css
++++ b/app/src/components/Layout.module.css
+@@ -4,6 +4,37 @@
+   height: 100dvh;  /* iOS Safari dynamic viewport */
+   overflow: hidden;
+ }
++
++/* Desktop: reserve a permanent 60px gutter for the collapsed nav rail, which is
++   now position:fixed (out of flow) so its hover-expand OVERLAYS the workspace
++   instead of pushing it. .main (flex:1) fills the rest and never reflows on hover.
++   Scoped >1024px: at <=1024px the nav is display:none and the shell is column. */
++@media (min-width: 1025px) {
++  .shell {
++    padding-left: 60px;
++  }
++}
++
++/* Backdrop dim behind the expanded nav. Full-viewport, non-interactive, sits
++   BELOW the nav (z-index 100) but above page content, and fades in only while the
++   sidebar is hovered-open — so the overlay reads as a drawer over a dimmed page
++   rather than a panel clipping the title. `:has()` keys it off the real hover
++   state (no JS); the 0.12s delay matches the rail's expand enter-delay so the dim
++   and the slide start together and a transient brush-past doesn't flash it. */
++.navScrim {
++  position: fixed;
++  inset: 0;
++  z-index: 90;
++  background: rgba(0, 0, 0, 0.34);
++  opacity: 0;
++  pointer-events: none;
++  transition: opacity 0.18s ease;
++}
++@media (min-width: 1025px) {
++  .shell:has(nav[data-testid="nav-sidebar"]:hover) .navScrim {
++    opacity: 1;
++  }
++}
+ .main {
+   flex: 1;
+   min-width: 0;
+diff --git a/app/src/components/NavBar.jsx b/app/src/components/NavBar.jsx
+index d1ee2625df..d8b346df35 100644
+--- a/app/src/components/NavBar.jsx
++++ b/app/src/components/NavBar.jsx
+@@ -2,7 +2,6 @@
+ import { NavLink, Link } from 'react-router-dom'
+ import useSWR from 'swr'
+ import { useAuth } from '../context/AuthContext'
+-import AlertBell from './AlertBell'
+ import UIcon from './ui/UIcon'
+ import { NAV_GROUPS } from './navGroups'
+ import styles from './NavBar.module.css'
+@@ -13,20 +12,26 @@ const fetcher = (url) =>
+ 
+ // Exported so navGroups.test.js can verify every entry maps into exactly one
+ // NAV_GROUPS bucket, without restating this list a second time in the test.
++// Order WITHIN each group is this array's relative order (GROUPED_NAV_ITEMS
++// preserves it); which group an item lands in is navGroups.js. Grouped here
++// with comments so the two read together.
+ export const NAV_ITEMS = [
+-  { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
+-  { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
++  // HOME
++  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
+   { to: '/charts',       label: 'Charts',        icon: 'equity' },
++  { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
++  // MARKETS
++  { to: '/dashboard',    label: 'Dashboard',     icon: 'dashboard' },
+   { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
+   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
+   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
+-  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
+   { to: '/screener',     label: 'Screener',      icon: 'screener' },
+   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
+   { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
+   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
+-  { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
++  // CHARTS
+   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
++  // JOURNAL
+   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
+   { to: '/journal',      label: 'Journal',       icon: 'journal' },
+   { to: '/community',    label: 'Community',     icon: 'community' },
+@@ -59,10 +64,19 @@ const GROUPED_NAV_ITEMS = (() => {
+ })()
+ 
+ export default function NavBar() {
+-  const { user, isPaid } = useAuth()
++  const { user, isPaid, plan } = useAuth()
+   const isAdmin = user?.role === 'admin'
+   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
+ 
++  // Account-card plan label (mirrors MoreSheet's identity header).
++  const planLabel = isAdmin
++    ? 'Admin'
++    : isPaid
++      ? (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Pro')
++      : 'Free'
++  const accountName = user?.display_name || user?.email || 'Guest'
++  const accountInitial = (user?.display_name || user?.email || '?')[0].toUpperCase()
++
+   // P5-C unification: Compass unread count on the Journal nav link.
+   // Polls /api/voice/insights/pending every 30s. Voice/Compass is paid-only
+   // (mirrors GlobalVoiceGate's isPaid check), so only poll for paid users —
+@@ -158,14 +172,46 @@ export default function NavBar() {
+         {GROUPED_NAV_ITEMS.map((group) => (
+           <div key={group.key} className={styles.navGroup}>
+             {group.label && <div className={styles.groupLabel}>{group.label}</div>}
+-            {group.items.map(renderItem)}
++            {/* Support lives in the compact utility cluster at the bottom, not the
++                main list — filter it out here so it isn't rendered twice. */}
++            {group.items.filter((i) => i.to !== '/support').map(renderItem)}
+           </div>
+         ))}
+       </div>
+       <div className={styles.bottomItems}>
+-        <div className={styles.alertSlot}>
+-          <AlertBell />
+-        </div>
++        {/* Account card — identity header for the footer (avatar + name + plan).
++            Fills the rail's lower space and gives one-tap account access. Avatar
++            is served per-user with an initials fallback (mirrors MoreSheet). */}
++        <Link
++          to="/settings"
++          className={styles.accountCard}
++          title={`${accountName} — ${planLabel}`}
++          aria-label={`Account: ${accountName}, ${planLabel}`}
++        >
++          <span className={styles.accountAvatar}>
++            {user?.id && (
++              <img
++                src={`/api/auth/avatar/${user.id}`}
++                alt=""
++                className={styles.accountAvatarImg}
++                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
++              />
++            )}
++            <span
++              className={styles.accountInitials}
++              style={user?.id ? { display: 'none' } : undefined}
++            >
++              {accountInitial}
++            </span>
++          </span>
++          <span className={styles.accountText}>
++            <span className={styles.accountName}>{accountName}</span>
++            <span className={styles.accountPlan}>{planLabel}</span>
++          </span>
++        </Link>
++        {/* Alerts bell temporarily removed from the sidebar (owner request). To
++            restore: re-add <div className={styles.alertSlot}><AlertBell /></div>
++            here and the AlertBell import + .alertSlot style. */}
+         {isAdmin && (
+           <NavLink
+             to="/admin"
+@@ -203,6 +249,7 @@ export default function NavBar() {
+             <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+           </Link>
+         )}
++        {renderItem(NAV_ITEMS.find((i) => i.to === '/support'))}
+         <a
+           href={WEBSITE_URL}
+           target="_blank"
+diff --git a/app/src/components/NavBar.module.css b/app/src/components/NavBar.module.css
+index 84e4514ba2..0f31474c90 100644
+--- a/app/src/components/NavBar.module.css
++++ b/app/src/components/NavBar.module.css
+@@ -8,26 +8,35 @@
+   flex-direction: column;
+   align-items: center;
+   padding: 10px 0;
+-  /* Flex child that pushes the content aside on expand (the layout adjusts so
+-     nothing is covered). Kept smooth by isolating the heavy content's layout —
+-     see `contain` on the page/table wrappers. */
+-  position: sticky;
++  /* OVERLAY (not push): the rail is FIXED out of layout flow so the expanded
++     panel floats OVER the workspace instead of reflowing it. The 60px gutter
++     that keeps .main clear of the collapsed rail is reserved by .shell in
++     Layout.module.css (desktop only) — so hover-expand never shifts content.
++     Was position:sticky + a flex-shrink:0 column that grew 60→200px and pushed
++     the whole workspace 140px on every hover (the reflow this replaces; the old
++     `contain`-on-wrappers smoothing was working around that shift, not fixing it). */
++  position: fixed;
++  left: 0;
+   top: 0;
+   height: 100vh;
+   overflow: hidden;
+-  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1);
++  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.18s ease;
+   will-change: width;
+   z-index: 100;
+ }
+ .nav:hover {
+   width: 200px;
+   align-items: flex-start;
+-  /* Enter-delay so the expand only fires on a DELIBERATE, sustained hover — not on
+-     a transient layout flick (a scrollbar toggling, a re-render reflow) that briefly
+-     slides the nav under a stationary cursor. Without it, a sub-frame spurious hover
+-     played the full 0.2s expand+collapse = the "menu shakes by itself" bug. Collapse
+-     stays instant: the base .nav rule (delay 0) applies on hover-out. */
+-  transition-delay: 0.12s;
++  /* Floating-panel elevation: a soft drop-shadow so it reads as ABOVE the
++     workspace, plus a 1px inner right-edge highlight so the panel edge is crisp
++     against the dimmed page (the "slick" touch). */
++  box-shadow: 6px 0 30px rgba(0, 0, 0, 0.40), inset -1px 0 0 rgba(255, 255, 255, 0.05);
++  /* Expand INSTANTLY on hover (no enter-delay). The old 0.12s delay guarded against
++     the "menu shakes by itself" bug — a transient layout flick (scrollbar toggle,
++     re-render reflow) sliding the IN-FLOW rail under a stationary cursor. The rail
++     is now position:fixed (out of flow), so layout flicks can't move it and the
++     spurious-hover risk is gone — the expand can start the instant the cursor
++     touches the 60px column. */
+ }
+ .brand {
+   display: flex;
+@@ -71,7 +80,6 @@
+   max-width: 150px;
+   margin-left: 11px;
+   opacity: 1;
+-  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
+ }
+ .brandNameTop {
+   font-family: var(--font-display, var(--font-sans));
+@@ -79,7 +87,11 @@
+   font-weight: 800;
+   letter-spacing: 3px;
+   line-height: 1.05;
+-  color: var(--ut-green-bright);
++  /* Exact green of the compass mark PNG (sampled: dominant #67DB44) so the "UCT"
++     wordmark matches the logo beside it. NOT var(--ut-green-bright) (#34d17c, a
++     teal-mint that read visibly different); the logo is a fixed asset, so this is
++     a fixed hex, correct on every theme. */
++  color: #67db44;
+ }
+ .brandNameSub {
+   font-family: var(--font-sans);
+@@ -93,8 +105,13 @@
+   display: flex;
+   align-items: center;
+   gap: 12px;
+-  width: 100%;
+-  padding: 10px 18px;
++  align-self: stretch;            /* fill the rail minus the pill inset margins */
++  /* Inset margin + radius so hover/active render as a rounded PILL (a modern
++     selection) instead of a full-bleed bar. 8px margin + 10px padding = 18px, so
++     the icon still lands on the collapsed rail's 30px centerline. */
++  margin: 1px 8px;
++  padding: 9px 10px;
++  border-radius: 9px;
+   color: var(--text);
+   text-decoration: none;
+   font-size: 13.5px;
+@@ -116,8 +133,10 @@
+      remap — e.g. a teal app-theme). The nav is always dark chrome, so a fixed
+      gold reads correctly on every theme and is the brand's "you are here". */
+   color: #dcbb5e !important;
+-  background: rgba(220, 187, 94, 0.13);
+-  box-shadow: inset 2px 0 0 #dcbb5e;
++  background: rgba(220, 187, 94, 0.14);
++  /* Soft gold ring around the pill instead of a hard full-height left bar —
++     reads cleaner on the rounded selection. */
++  box-shadow: inset 0 0 0 1px rgba(220, 187, 94, 0.30);
+ }
+ /* 🔴 THE RAIL USED TO OVERFLOW ITS OWN `overflow: hidden` BOX, SILENTLY.
+    `.nav` is `height: 100vh; overflow: hidden`, and this was `flex: 1` with no
+@@ -144,76 +163,100 @@
+   width: 100%;
+   flex: 1;
+   min-height: 0;
++  /* Option 5: flat rail, no headings/dividers — items keep their natural,
++     uniform row rhythm (NOT stretched to fill: space-between spread them too far
++     apart). overflow-y:auto + min-height:0 remain ONLY as a safety net for an
++     unusually short window; the scrollbar chrome is hidden in every state. */
+   overflow-y: auto;
+-  /* Collapsed (icon-only, 60px) rail: keep it scrollable but hide the scrollbar
+-     chrome, which otherwise drew a stray vertical line beside the icons. Scrolling
+-     still works (wheel/touch); the track returns when the rail expands on hover so
+-     an overflowing expanded menu still shows its scrollbar. */
+-  scrollbar-width: none;            /* Firefox */
++  scrollbar-width: none;                                   /* Firefox: no bar */
+ }
+-.mainItems::-webkit-scrollbar { width: 0; height: 0; }   /* WebKit — collapsed */
+-.nav:hover .mainItems { scrollbar-width: thin; }
+-.nav:hover .mainItems::-webkit-scrollbar { width: 8px; }
+-.navGroup {
++.mainItems::-webkit-scrollbar { width: 0; height: 0; }     /* WebKit: no bar */
++/* Option 5 — NO group headings, NO dividers. `display: contents` dissolves the
++   group wrapper boxes so every NAV item becomes a direct flex child of
++   .mainItems; that is what lets `justify-content: space-between` distribute the
++   ITEMS evenly (with the wrappers as real boxes it would space the four groups,
++   not the icons). The heading elements still exist in the JSX but render nothing
++   and take no space. (Was: reserved-height headings + a centered hairline divider
++   per group — removed at the owner's request for a flat, evenly-spaced rail.) */
++.navGroup { display: contents; }
++.groupLabel { display: none; }
++.bottomItems {
+   display: flex;
+   flex-direction: column;
+   width: 100%;
++  /* Subtle separator between the scrolling nav and the pinned utilities
++     (Admin · Settings · Support · Website). The alerts bell that used to lead
++     this block was removed (owner request); the section sizes to its rows. */
++  border-top: 1px solid color-mix(in srgb, var(--text-muted) 22%, transparent);
++  padding-top: 6px;
+ }
+-/* Group heading (Home / Markets / Charts / Journal) — the four-group
+-   taxonomy the (since-removed) bottom tab bar first used, shared via
+-   navGroups.js. Same opacity/hover-delay recipe as .label: invisible while
+-   the rail is collapsed to 60px (no room for text), fades in with the other
+-   labels on the deliberate-hover expand to 200px. */
+-/* ⛔ `display: none`, NOT `opacity: 0`. This rule was copied byte-for-byte from
+-   `.label`'s hover recipe, and the copy is the defect: `.label` is INLINE
+-   inside a row that already has height, so hiding it by opacity costs nothing.
+-   `.groupLabel` is a BLOCK with 18px of vertical padding, so four invisible
+-   ones added ~106px of height to a rail that had ~77px to spare. Reuse of a
+-   correct recipe is not automatically correct — it depends on the box. */
+-.groupLabel {
+-  display: none;
+-  width: 100%;
+-  padding: 14px 18px 4px;
+-  font-family: var(--font-mono);
+-  font-size: 9px;
+-  font-weight: 700;
+-  letter-spacing: 1.5px;
+-  text-transform: uppercase;
+-  color: var(--text-muted);
+-  opacity: 0;
+-  transition: opacity 0.15s;
+-  white-space: nowrap;
++/* Account card — footer identity header (avatar + name + plan). The 30px avatar
++   centres on the icon column (30px) via margin 8 + padding 7 = 15px left edge;
++   the name/plan text fades in with the rail like the item labels. */
++.accountCard {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  align-self: stretch;
++  margin: 2px 8px 8px;
++  padding: 7px;
++  border-radius: 10px;
++  text-decoration: none;
++  color: var(--text);
++  transition: background 0.15s;
+   overflow: hidden;
+ }
+-.navGroup:first-child .groupLabel {
+-  padding-top: 4px;
+-}
+-.nav:hover .groupLabel {
+-  display: block;
+-  opacity: 1;
+-  /* ⚠️ THE DELAY NO LONGER DOES ANYTHING FOR THESE HEADINGS, and saying so
+-     beats leaving a comment that describes a mechanism that stopped running.
+-     `display` is not an animatable property, so swapping none→block makes the
+-     element appear at once and the `transition: opacity` above never gets a
+-     chance to run — the headings POP while the item labels still fade in over
+-     0.15s after the same 0.12s delay. That is a small, accepted cosmetic
+-     inconsistency, taken because `opacity: 0` is what cost the collapsed rail
+-     ~106px of invisible height. The delay is kept only so a future revert to an
+-     animatable hiding mechanism inherits the right timing. */
+-  transition-delay: 0.12s;
+-}
+-.bottomItems {
++.accountCard:hover { background: var(--bg-hover); }
++.accountAvatar {
++  position: relative;
++  flex: none;
++  width: 30px;
++  height: 30px;
++  border-radius: 50%;
++  overflow: hidden;
+   display: flex;
+-  flex-direction: column;
+-  width: 100%;
+-  border-top: 1px solid var(--border);
+-  padding-top: 8px;
++  align-items: center;
++  justify-content: center;
++  background: color-mix(in srgb, #dcbb5e 20%, var(--bg-surface));
++  color: #dcbb5e;
++  font-family: var(--font-sans);
++  font-size: 13px;
++  font-weight: 700;
++  box-shadow: inset 0 0 0 1px rgba(220, 187, 94, 0.35);
+ }
+-.alertSlot {
++.accountAvatarImg { width: 100%; height: 100%; object-fit: cover; }
++.accountInitials {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+-  padding: 4px 0;
++  width: 100%;
++  height: 100%;
++}
++.accountText {
++  display: flex;
++  flex-direction: column;
++  min-width: 0;
++  opacity: 0;
++  transition: opacity 0.15s;
++}
++.nav:hover .accountText {
++  opacity: 1;
++}
++.accountName {
++  font-size: 13px;
++  font-weight: 600;
++  color: var(--text-bright);
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++}
++.accountPlan {
++  font-size: 10px;
++  font-weight: 700;
++  letter-spacing: 0.6px;
++  text-transform: uppercase;
++  color: #dcbb5e;
++  white-space: nowrap;
+ }
+ .icon {
+   font-size: 16px;
+@@ -231,7 +274,6 @@
+ }
+ .nav:hover .label {
+   opacity: 1;
+-  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
+ }
+ 
+ /* ─── Tablet: lock to icon-only, no hover expand ─────────────────────────────── */
+diff --git a/app/src/components/NavBar.overflow.test.js b/app/src/components/NavBar.overflow.test.js
+index d72a6d4d6f..02d5d569c2 100644
+--- a/app/src/components/NavBar.overflow.test.js
++++ b/app/src/components/NavBar.overflow.test.js
+@@ -63,49 +63,42 @@ describe('the scrolling item list', () => {
+   })
+ })
+ 
+-describe('the group labels cost no height while the rail is collapsed', () => {
+-  test('.groupLabel is display:none by default, not merely transparent', () => {
++describe('Option 5 — no group headings or dividers, icons distributed evenly', () => {
++  // The owner asked for a flat rail: nav icons in one uniform-spaced list, no
++  // section labels, no separators. Two declarations carry it — a hidden label
++  // and a dissolved wrapper — with the items at their natural row rhythm.
++  test('.groupLabel renders nothing (display:none) — no headings, no reserved height', () => {
+     const b = block('.groupLabel')
+     expect(b, '.groupLabel is gone from NavBar.module.css').not.toBe('')
+-    expect(b, '.groupLabel is hidden by opacity again — that is free on an inline '
+-      + '.label and ~26px each on this block, which is how ~106px of invisible '
+-      + 'height got into a rail with ~77px to spare')
++    expect(b, '.groupLabel is not display:none — a section heading (and the height '
++      + 'it reserves) is back in what should be a flat rail')
+       .toMatch(/display:\s*none/)
+   })
+ 
+-  test('…and it comes back on the deliberate-hover expand', () => {
+-    // The control: without this, "costs no height" is satisfied by a label that
+-    // is never shown at all, which would silently delete the taxonomy.
+-    expect(block('.nav:hover .groupLabel'),
+-      'the group headings never render — the four-group taxonomy is gone')
+-      .toMatch(/display:\s*block/)
++  test('.navGroup is display:contents so the wrappers add no spacing between clusters', () => {
++    // With the group wrappers as real boxes, each group would introduce its own
++    // box into the flex column and break the uniform item rhythm. contents
++    // dissolves them so every item is a direct flex child of .mainItems.
++    expect(block('.navGroup'),
++      '.navGroup is not display:contents — the group boxes are back and the flat, '
++      + 'uniform spacing is gone')
++      .toMatch(/display:\s*contents/)
+   })
+ 
+-  test('the touch/tablet block re-hides them, or specificity re-adds the 106px', () => {
+-    // 🔴 THE THIRD CHANGE THE FIX NEEDED, AND THE ONE THAT WAS NOT RAILED.
+-    // `@media (hover: none), (max-width: 900px)` already carried a bare
+-    // `.groupLabel { display: none }` at (0,1,0). The hover rule above is
+-    // (0,3,0) — two classes plus `:hover`, a pseudo-CLASS — and specificity
+-    // beats source order, so it wins INSIDE that media block too: a touch
+-    // device that fires :hover re-adds the ~106px the block exists to avoid.
+-    // Deleting the hover selector from that block left all five other
+-    // assertions in this file green, which is exactly why it needs its own.
+-    const i = css.indexOf('@media (hover: none)')
+-    expect(i, 'the touch/tablet lock block is gone').toBeGreaterThan(-1)
+-    const tablet = css.slice(i).split('\n}')[0]
+-    expect(tablet,
+-      'the tablet block hides `.groupLabel` but not `.nav:hover .groupLabel`, '
+-      + 'which outranks it — a touch device that fires :hover gets the invisible '
+-      + 'height back')
+-      .toMatch(/\.nav:hover\s+\.groupLabel[^{]*\{[^}]*display:\s*none|\.nav:hover\s+\.groupLabel\s*\{\s*display:\s*none/)
++  test('no group divider rule survives — Option 5 removed all separators', () => {
++    // The per-group `.groupLabel::before` hairline is gone. `block()` returns ''
++    // for a selector that no longer opens a rule.
++    expect(block('.groupLabel::before'),
++      'a .groupLabel::before divider rule is back — Option 5 removed every divider')
++      .toBe('')
+   })
+ 
+-  test('CONTROL: .label keeps the opacity recipe, which is correct FOR IT', () => {
+-    // The point of the fix is not "opacity is bad" — it is that the recipe's
+-    // cost depends on the box. `.label` is inline inside a sized row.
++  test('CONTROL: .label keeps the opacity recipe (item labels still fade in on hover)', () => {
++    // Removing the section headings does NOT touch the per-ITEM labels — those
++    // still fade in with the width transition on hover.
+     const b = block('.label')
+     expect(b).toMatch(/opacity:\s*0/)
+-    expect(b, '.label was "fixed" too — it never had this problem, and '
+-      + 'display:none on it would kill the width transition').not.toMatch(/display:\s*none/)
++    expect(b, '.label uses display:none — that would kill the label fade/transition')
++      .not.toMatch(/display:\s*none/)
+   })
+ })
+diff --git a/app/src/components/StockChart.jsx b/app/src/components/StockChart.jsx
+index a5732f0d73..9d48263ff2 100644
+--- a/app/src/components/StockChart.jsx
++++ b/app/src/components/StockChart.jsx
+@@ -944,7 +944,14 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
+ // So EVERY chart now gets full history from the nearest edge PoP. Instant per-browser revert:
+ // localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false); dial the
+ // cohort back by lowering this constant + redeploying. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
+-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
++// ⛔ TEMPORARILY DISABLED (2026-09-02): the split-fetch fetches + caches deep sealed
++// history correctly (IDB confirmed back to a ticker's IPO), but the RENDER selector
++// (`bars = ... _idbFresh && idbBars.length > data.bars.length ? idbBars : data.bars`)
++// draws only the ~600-bar first-paint tail — the deep merged idbBars is loaded but never
++// rendered, so every daily chart appeared to "stop at ~2024". Reverting to the pre-8/31
++// path (deep history via /api/bars) restores full history for everyone. Re-enable to a
++// canary % ONLY after the split-fetch render/merge path is fixed + verified end-to-end.
++export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 0
+ 
+ function _barsHistoryBucket() {
+   try {
+@@ -4595,7 +4602,17 @@ export default function StockChart({
+   // before ~March 2024" bug). Depending on the dwell-warm/prefetch race to backfill it
+   // is unreliable — pin full depth so the whole history up to the cutoff loads at once.
+   const _pinnedFull = !!(entryDate || exactDateRange || replayCutoff)
+-  const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
++  // No-blink first paint (2026-09-03): a standalone D/W/M chart fetches its FULL depth as the
++  // SINGLE first request, instead of the viewport-first shallow(600)→deep two-stage that
++  // repaints ~900 ms later ("blink" back to full history). The deep fetch already happens
++  // unconditionally via the dwell-warm below, so this is FEWER fetches, not more — it just
++  // makes the one deep fetch BE the first paint. Scoped to backgroundWarm charts (grid cells
++  // pass backgroundWarm=false → keep viewport-first, the herd guard) and to D/W/M (intraday
++  // full depth is 20-32k bars — too heavy for a first paint; intraday keeps viewport-first).
++  // Override / pinned / replay charts already fetch full (_pinnedFull) or don't fetch at all.
++  const _deepFirstPaint = backgroundWarm && !barsOverridePending
++    && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
++  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : fetchDepth
+ 
+   // Intraday refetches more often to keep candles current during market hours
+   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
+diff --git a/app/src/components/mobile/MoreSheet.jsx b/app/src/components/mobile/MoreSheet.jsx
+index 18223de7fd..fefab41b13 100644
+--- a/app/src/components/mobile/MoreSheet.jsx
++++ b/app/src/components/mobile/MoreSheet.jsx
+@@ -27,7 +27,6 @@ const NAV_SECTIONS = [
+       { to: '/options-flow', label: 'Options Flow', icon: 'flow' },
+       { to: '/flow-scoreboard', label: 'Flow Record', icon: 'star' },
+       { to: '/live-massive', label: 'Live Flow', icon: 'bolt' },
+-      { to: '/post-market', label: 'Post Market', icon: 'moon' },
+     ],
+   },
+   {
+diff --git a/app/src/components/navGroups.js b/app/src/components/navGroups.js
+index 532c07ac7b..55ae13a060 100644
+--- a/app/src/components/navGroups.js
++++ b/app/src/components/navGroups.js
+@@ -16,12 +16,14 @@
+ // not — so the one deliberate gap stays a documented, verified fact instead
+ // of a silent landmine the next person re-derives by hand.
+ export const NAV_GROUPS = [
+-  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/dashboard', '/morning-wire'] },
++  // routes[0] = the group's primary navigable target; home also contributes
++  // routes[1] as the free-tier Wire entry (/morning-wire) — see navigableTargets().
++  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/calendar', '/morning-wire', '/charts'] },
+   { key: 'markets', label: 'Markets', icon: 'markets',
+-    routes: ['/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
+-             '/post-market', '/screener', '/calendar', '/catalysts', '/ai-search', '/uct-20'] },
++    routes: ['/dashboard', '/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
++             '/post-market', '/screener', '/catalysts', '/ai-search', '/uct-20'] },
+   { key: 'charts', label: 'Charts', icon: 'chart',
+-    routes: ['/charts', '/watchlists', '/theme-tracker', '/model-book', '/setup-library'] },
++    routes: ['/model-book', '/watchlists', '/theme-tracker', '/setup-library'] },
+   { key: 'journal', label: 'Journal', icon: 'journal',
+     routes: ['/journal', '/community', '/desk', '/support'] },
+ ]
+diff --git a/app/src/components/navGroups.test.js b/app/src/components/navGroups.test.js
+index 9a0ed5d06a..e4b015d65b 100644
+--- a/app/src/components/navGroups.test.js
++++ b/app/src/components/navGroups.test.js
+@@ -45,7 +45,7 @@ test('navigableTargets() is exactly one `to` per group, plus the home/wire split
+   // routes[0] of every group, plus routes[1] of home (the free-tier Wire
+   // tab) — five targets total for four groups.
+   expect(navigableTargets().sort()).toEqual(
+-    ['/breadth', '/charts', '/dashboard', '/journal', '/morning-wire'].sort(),
++    ['/calendar', '/dashboard', '/journal', '/model-book', '/morning-wire'].sort(),
+   )
+ })
+ 

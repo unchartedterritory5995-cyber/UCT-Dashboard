@@ -1,0 +1,204 @@
+diff --git a/app/src/components/chart/engine/ast/thinkscript.js b/app/src/components/chart/engine/ast/thinkscript.js
+index 61f76fbbbe..82f45ad60a 100644
+--- a/app/src/components/chart/engine/ast/thinkscript.js
++++ b/app/src/components/chart/engine/ast/thinkscript.js
+@@ -292,6 +292,11 @@ export const NOTES = Object.freeze({
+   // discriminator. Renamed rather than weakening the rail.
+   'thinkscript:note-chrome':
+     'this line draws on a chart and produces no value a screen can read, so it is listed here and skipped',
++  // ⭐ UIE-1 — a drawing line whose instruction the chart CARRIES (painting
++  // strategy, default colour, line weight, `declare lower/upper`). Still listed,
++  // never dropped: the member is told the line was read and what it became.
++  'thinkscript:note-carried':
++    'this line sets how the study is drawn, and the chart draws it that way; a screen reads no drawing, so it does not change a screened value',
+ })
+ 
+ /** ⛔ THE ONE PLACE A GUARD ENTERS THIS DOOR. Reads `REFUSALS` rather than
+@@ -1872,6 +1877,138 @@ const TS_CHROME_CALLS = Object.freeze({
+   hidepricebars: 'hides the price bars themselves',
+ })
+ 
++// --------------------------------------------------------------------------- //
++// ⭐⭐ UIE-1 (2026-10-10) — THE PRESENTATION A STUDY STATES, CARRIED
++// --------------------------------------------------------------------------- //
++//
++// Every drawing line above used to be listed and skipped, so a thinkScript study
++// arrived as plain default lines: a momentum HISTOGRAM drew as a line, an
++// arrow-on-signal study drew a 0/1 line, `RSI.SetDefaultColor(Color.RED)` drew
++// gold. The canonical definition, the renderer and the import door already carry
++// all of this for Pine (`pine.js::outputPresentation` → `PineBox` → `BuilderSheet`
++// rows); thinkScript simply never said it. These tables let it say it IN THE SAME
++// SHAPE, so no second presentation model exists and no consumer changes.
++//
++// ⛔ ONLY WHAT THE VENDOR PUBLISHES, AND ONLY STATIC VALUES. Every entry below is
++// read off toslc.thinkorswim.com (fetched 2026-10-10). An argument that is not a
++// literal (`GetColor(5)`, `RSI.color("OverBought")`, an expression) is NOT
++// resolved, and its line stays a listed `note-chrome` exactly as before. A line
++// that IS carried is still listed — with `note-carried` — so nothing a member
++// pasted ever disappears from the import list.
++
++/** `Color.<NAME>` → `#rrggbb`, from each constant's own reference page
++ *  (`/center/reference/thinkScript/Constants/Color/Color-<NAME>`, "Its RGB
++ *  representation is (r, g, b)."). ⛔ `CURRENT` is absent: its page states no
++ *  value ("Refers to the default plot color … changed on the UI"). */
++export const TS_COLORS = Object.freeze({
++  black: '#000000',
++  blue: '#0000ff',
++  cyan: '#00ffff',
++  dark_gray: '#404040',
++  dark_green: '#006400',
++  dark_orange: '#ff7f00',
++  dark_red: '#800000',
++  gray: '#808080',
++  green: '#00ff00',
++  light_gray: '#c0c0c0',
++  light_green: '#90ee72', // (144, 238, 114) — as published, not CSS lightgreen
++  light_orange: '#ffa500',
++  light_red: '#ff3f00',
++  lime: '#bfff00',
++  magenta: '#ff00ff',
++  orange: '#ffc800',
++  pink: '#ffafaf',
++  plum: '#800080',
++  red: '#ff0000',
++  violet: '#9999ff',
++  white: '#ffffff',
++  yellow: '#ffff00',
++  uptick: '#038000',
++  downtick: '#cc0000',
++})
++
++/** `PaintingStrategy.<NAME>` → the per-output presentation Pine's door already
++ *  emits. ⛔ ONLY the strategies whose drawing this chart reproduces as published:
++ *  LINE and HISTOGRAM by name; BOOLEAN_ARROW_UP/DOWN by their pages ("mark true
++ *  values with up arrows below low prices" / "down arrows above high prices") —
++ *  which is exactly `markerPrimitive`'s glyph-where-value>0 at below/aboveBar.
++ *  ARROW_UP/DOWN, POINTS, SQUARES, TRIANGLES, DASHES, the LINE_VS_* family, the
++ *  wedges, HORIZONTAL and VALUES_* are NOT carried: their pages state no placement
++ *  this renderer can match, so their lines stay listed as skipped. */
++export const TS_PAINTING = Object.freeze({
++  line: Object.freeze({ style: 'line' }),
++  histogram: Object.freeze({ style: 'histogram' }),
++  boolean_arrow_up: Object.freeze({ style: 'markers', marker: Object.freeze({ shape: 'arrowUp', position: 'belowBar' }) }),
++  boolean_arrow_down: Object.freeze({ style: 'markers', marker: Object.freeze({ shape: 'arrowDown', position: 'aboveBar' }) }),
++})
++
++/** `SetLineWeight`'s published range: "measured in pixels and ranges from 1 to 5
++ *  inclusively". */
++const TS_LINE_WEIGHT = Object.freeze({ min: 1, max: 5 })
++
++const hex2 = (n) => n.toString(16).padStart(2, '0')
++
++/** A literal colour argument → `#rrggbb`, or `null` (not a colour this door can read). */
++function staticColourArg(node) {
++  if (!node) return null
++  if (node.e === 'name') {
++    const m = /^color\.([a-z_]+)$/i.exec(String(node.name))
++    return m && Object.hasOwn(TS_COLORS, m[1].toLowerCase()) ? TS_COLORS[m[1].toLowerCase()] : null
++  }
++  // `CreateColor(r, g, b)` with three literal integers 0–255. The page states no
++  // range; a value outside a byte is not a colour this chart can draw, so it is
++  // not carried rather than clamped into a different colour.
++  if (node.e === 'call' && key(node.name) === 'createcolor' && !node.base) {
++    const vals = (node.args || []).map((a) => (a && !a.name && a.value && a.value.e === 'num' ? a.value.value : null))
++    if (vals.length !== 3 || vals.some((v) => !Number.isInteger(v) || v < 0 || v > 255)) return null
++    return `#${vals.map(hex2).join('')}`
++  }
++  return null
++}
++
++/** The plot a method-form chrome call is addressed to (`RSI.SetDefaultColor(…)` →
++ *  `rsi`), or `null` for a bare call. Mirrors `chromeOf`: the lexer emits a dotted
++ *  name as ONE token, and `UpArrow .SetPaintingStrategy` arrives with a base. */
++function chromeTarget(call) {
++  const name = String(call.name)
++  const dot = name.lastIndexOf('.')
++  if (dot > 0) return key(name.slice(0, dot).trim())
++  if (call.base && call.base.e === 'name') return key(call.base.name)
++  return null
++}
++
++/** What a chrome call says about its plot's presentation, as `{ target, pres }`, or
++ *  `null` when this door does not carry it. Pure: reads the call, writes nothing. */
++function carriedPresentationOf(call) {
++  const target = chromeTarget(call)
++  if (!target) return null
++  const dot = String(call.name).lastIndexOf('.')
++  const method = key(dot < 0 ? call.name : String(call.name).slice(dot + 1))
++  const args = (call.args || []).filter((a) => a && !a.name).map((a) => a.value)
++  if (args.length !== 1) return null
++  const [arg] = args
++  if (method === 'setpaintingstrategy') {
++    const m = arg && arg.e === 'name' ? /^paintingstrategy\.([a-z_]+)$/i.exec(String(arg.name)) : null
++    const p = m && Object.hasOwn(TS_PAINTING, m[1].toLowerCase()) ? TS_PAINTING[m[1].toLowerCase()] : null
++    if (!p) return null
++    return { target, pres: { style: p.style, ...(p.marker ? { marker: { ...p.marker } } : {}) },
++      said: `drawn as ${p.marker ? `${p.marker.shape === 'arrowUp' ? 'an up arrow below' : 'a down arrow above'} the bar where it is true` : `a ${p.style}`}` }
++  }
++  if (method === 'setdefaultcolor') {
++    const color = staticColourArg(arg)
++    return color ? { target, pres: { color }, said: `drawn in ${color}` } : null
++  }
++  if (method === 'setlineweight') {
++    const w = arg && arg.e === 'num' ? arg.value : null
++    if (!Number.isInteger(w) || w < TS_LINE_WEIGHT.min || w > TS_LINE_WEIGHT.max) return null
++    return { target, pres: { width: w }, said: `drawn ${w}px wide` }
++  }
++  return null
++}
++
++/** `declare lower` / `declare upper` → Pine's `overlay` (the author's pane intent). */
++const TS_DECLARE_OVERLAY = Object.freeze({ lower: false, upper: true })
++
+ /** The chrome sentence for a parsed statement-level call, or `null`.
+  *
+  *  ⛔⛔ THE SUFFIX IS TAKEN FROM THE NAME, NOT FROM `call.base`, AND THAT IS
+@@ -2130,6 +2267,14 @@ function readStatement(toks, ctx) {
+     const word = toks[1]
+     if (!word || word.kind !== 'ident') throw refuse('thinkscript:statement', head)
+     ctx.declaration = key(word.value)
++    // ⭐ UIE-1 — `declare lower` / `declare upper` IS the author's pane choice, and
++    // the chart carries it (Pine's `overlay`). Any other `declare` keeps its note.
++    if (Object.hasOwn(TS_DECLARE_OVERLAY, ctx.declaration)) {
++      ctx.overlay = TS_DECLARE_OVERLAY[ctx.declaration]
++      ctx.ignored.push(noteValue('thinkscript:note-carried', head.line, head.column,
++        `\`${head.text} ${word.text}\` — drawn ${ctx.overlay ? 'on the price chart' : 'in its own pane below the price'}`))
++      return
++    }
+     ctx.ignored.push(noteValue('thinkscript:note-declare', head.line, head.column,
+       `\`${head.text} ${word.text}\``))
+     return
+@@ -2250,6 +2395,23 @@ function readStatement(toks, ctx) {
+     }
+     const what = chromeOf(expr)
+     if (what === null) throw refuse('thinkscript:statement', expr.tok)
++    // ⭐ UIE-1 — a static presentation instruction is CARRIED onto its plot and
++    // listed as such; everything else is listed and skipped exactly as before.
++    const carried = carriedPresentationOf(expr)
++    if (carried) {
++      const prev = ctx.presentation.get(carried.target) || {}
++      ctx.presentation.set(carried.target, { ...prev, ...carried.pres })
++      const note = noteValue('thinkscript:note-carried', expr.tok.line, expr.tok.column,
++        `\`${chromeToken(expr)}\` — ${carried.said}`,
++        { index: expr.tok.index, token: chromeToken(expr) })
++      ctx.ignored.push(note)
++      // ⛔ "CARRIED" IS ONLY TRUE IF A PLOT OF THAT NAME EXISTS. Kept beside the
++      // note so `translateThinkScript` can turn it back into the skipped-line note
++      // when the instruction was addressed to a `def`, an unknown name, or a plot
++      // that refused — never claiming a drawing the chart does not make.
++      ctx.carriedNotes.push({ note, target: carried.target, skipped: `\`${chromeToken(expr)}\` ${what}` })
++      return
++    }
+     ctx.ignored.push(noteValue('thinkscript:note-chrome', expr.tok.line, expr.tok.column,
+       `\`${chromeToken(expr)}\` ${what}`,
+       { index: expr.tok.index, token: chromeToken(expr) }))
+@@ -2266,6 +2428,9 @@ function readProgram(lexed, inputValues = null) {
+   const ctx = {
+     env: new Map(), outputs: [], ignored: [...lexed.notes], folded: [],
+     hard: [], declaration: null, text: lexed.text, plotted: new Set(),
++    // ⭐ UIE-1 — per-plot presentation carried from drawing lines (keyed by the
++    // plot's lower-cased name), and the `declare lower/upper` pane intent.
++    presentation: new Map(), overlay: null, carriedNotes: [],
+     // ⛔ `null`, NOT `{}`. "Nobody offered any values" and "an empty map was
+     // offered" read identically at every use site, and this repo has paid for that
+     // distinction more than once — the guard above tests the map's presence before
