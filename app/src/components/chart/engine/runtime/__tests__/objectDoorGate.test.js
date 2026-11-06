@@ -90,6 +90,15 @@ const SHAPES = {
   forin_live: ['a = array.from(close)\nn = 0\nfor [i, x] in a\n    if i < 3\n        array.push(a, x)\n    n += 1\nv = n + k * 0\n', true],
   forin_udt: ['', true, 'type P\n    float p\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(2))\n',
     's = 0.0\nfor q in ps\n    s += q.p\nv = s + close * 0 + k * 0\n'],
+  // ⭐ W6-T9 — receiver types (overloads by receiver type, a chain off an element, a member on a
+  // field's array). A widened dispatch (`receiverTypesServed`), so the door keeps master's own
+  // refusals (`runtime:udt-method`, `pine:member`, `runtime:expression-statement`).
+  t9_overload: ['', false, 'type A\n    float a = 1\ntype B\n    float b = 2\nmethod m(A x) =>\n    x.a\nmethod m(B x) =>\n    x.b\n',
+    'v = A.new(close + k * 0).m() + B.new(2).m()\n'],
+  t9_chain: ['', false, 'type Z\n    float s = 0\nvar zs = array.new<Z>()\nzs.push(Z.new(close))\n',
+    'cp = zs.copy()\nv = cp.get(0).s + k * 0\n'],
+  t9_field_coll: ['', false, 'type T\n    array<float> c\nvar t = T.new(array.new<float>())\n',
+    't.c.unshift(close + k * 0)\nv = t.c.size() + k * 0\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
