@@ -17,7 +17,8 @@ coordinator's ruling:
 - **Notes:**
   - (a) The lock rail fails only when the ledger changes without a bump. Non-pin bumps pass.
     Both cases are in the rail spec (rule 7).
-  - (b) `snapshot_builder.DEEP_BARS` is folded into `bars_window.HISTORY_WINDOW_BARS` (3.4).
+  - (b) `snapshot_builder.DEEP_BARS` is NOT folded into `bars_window.HISTORY_WINDOW_BARS`: it is the
+    all-time-high lookback and keeps its own literal (ruling R13; 3.4).
   - (c) W5-T11, W5-T14 and W5-T15 are **not** on the train yet. W5-T15 lands through the train
     (`integ/pine-train-2026-11-05`), and T14a builds from the train tip (T14a, section 6).
   - The review's N4: SPY variants use a warm-up of 5x the longest lookback, and any that do not
@@ -374,15 +375,12 @@ the 40 only-W9 scripts, 12 are firm.
     becomes true by construction.
   - `screener_backtest.MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS` (`:160`, on master and the
     train). This retires the restatement that `:156-159` explains.
-  - **`snapshot_builder.DEEP_BARS = HISTORY_WINDOW_BARS`** (`snapshot_builder.py:667`, train). It
-    is the same quantity, not a different one:
-    - it is the depth of the one daily read per ticker (`_read_daily_bars`, `:670-672`) that feeds
-      the nightly screener rows the sweep evaluates;
-    - its own comment says "5000 matches the bars API ceiling";
-    - `scan_evaluator`'s comment says it matches this read.
-    Three modules claiming agreement in comments is exactly an unwired one-authority value. A
-    longer window (D9) should deepen the snapshot's ATH read with it, so the two cannot disagree
-    about how much history a server lane sees.
+  - **Not `snapshot_builder.DEEP_BARS`** (ruling R13, superseding this section's first draft,
+    which folded it in). `DEEP_BARS` (`snapshot_builder.py:669`) is the all-time-high lookback
+    behind `dist_ath_pct` / `new_ath`, a different quantity that happens to share the value 5,000.
+    Binding it to the window would let a window change (D9) silently redefine "all-time high" on
+    every member's screen. It keeps its own named literal; its comment no longer claims to match
+    the bars API ceiling (W9-T2), and `bars_window.py`'s docstring names it as NOT this quantity.
   - the T14 route.
 
   The move is task **T14a**, owned with W5's owner and done before T14.
@@ -399,16 +397,18 @@ the 40 only-W9 scripts, 12 are firm.
     the new route stays green. E-3 asserts the number of handlers it walked, so the new route is
     walked, not skipped. T14's PR quotes that E-3 run.
   - **One authority** (new, T14a: `tests/test_history_window_one_authority.py`). It parses by AST:
-    - `scan_evaluator._MAX_BARS`, `screener_backtest.MAX_BARS_PER_SYMBOL`,
-      `snapshot_builder.DEEP_BARS` and the T14 route's window are each bound to the name
-      `HISTORY_WINDOW_BARS`, imported from `api.services.bars_window`;
-    - no other assignment of an integer literal `5000` / `5_000` appears in those four modules;
+    - `scan_evaluator._MAX_BARS`, `screener_backtest.MAX_BARS_PER_SYMBOL` and the T14 route's
+      window are each bound to the name `HISTORY_WINDOW_BARS`, imported from
+      `api.services.bars_window`;
+    - no other assignment of an integer literal `5000` / `5_000` appears in those three modules;
+    - `snapshot_builder.DEEP_BARS` stays its own integer literal (R13; rail
+      `test_DEEP_BARS_is_a_different_quantity_and_keeps_its_own_literal`);
     - `bars_window.py` holds exactly one assignment.
 
     Mutations:
     - restore `_MAX_BARS = 5000`: red;
     - give the route a literal: red;
-    - restore `DEEP_BARS = 5000`: red;
+    - bind `DEEP_BARS = HISTORY_WINDOW_BARS`: red (R13);
     - add a second assignment in `bars_window.py`: red.
 - **The rule.** Every broker run uses the last `HISTORY_WINDOW_BARS` bars.
   - `fromListing` is true only when the window reaches the listing.
@@ -721,7 +721,7 @@ The three tabs, the refusal sentences and the stamp. **Depends:** T13a.
   - new `api/services/bars_window.py`;
   - the `_MAX_BARS` line in `scan_evaluator.py` (`:227`, train);
   - `screener_backtest.py`: `:156-160`, the `MAX_BARS_PER_SYMBOL` restatement and its comment;
-  - `snapshot_builder.py:667` (`DEEP_BARS`) and its comment;
+  - the comment on `snapshot_builder.py` `DEEP_BARS` only (its value and literal stay, R13);
   - the comment at `scan_evaluator.py:223`;
   - new `tests/test_history_window_one_authority.py`.
 - **Delivers:** 3.4's constant and rails. Behaviour is identical: the value is still 5,000.
@@ -1093,8 +1093,8 @@ sessions** plus the spike. E is about 2 more sessions.
 6. **The chart lane's `/api/bars?bars=5000`** looks like a restated third copy of the window. It
    is a follow-up for the chart lane, so that it reads `bars_window` through an endpoint. The
    other 5,000 literals in `api/` (alert lanes, `render_panels`, `user_definitions`) are not
-   R10's; the coordinator decides whether they should be. `snapshot_builder.DEEP_BARS` is R10's
-   and is folded in by T14a (3.4).
+   R10's; the coordinator decides whether they should be. `snapshot_builder.DEEP_BARS` is NOT R10's:
+   it is the all-time-high lookback and stays separate (R13, 3.4).
 7. How the current statement walker skips an order-only `if` (F10).
 8. The broker's cost on the W5 service.
 9. TradingView's 15-minute depth on the rig plan (W9-R1i).
