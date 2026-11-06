@@ -22,7 +22,7 @@ OTHER = "vite build args"
 
 
 def run(conclusion, created=None, status="completed", name=GATE):
-    r = {"name": name, "status": status, "conclusion": conclusion, "head_branch": "master"}
+    r = {"name": name, "status": status, "conclusion": conclusion, "head_branch": "master", "event": "push"}
     if created:
         r["created_at"] = created
     return r

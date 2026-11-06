@@ -19,8 +19,8 @@ GATE = pg.ALWAYS_RUNS
 RAILS = ["wisdom rails", "term018 guards", "Options Flow guard", "notebook bytes", "Notebook accessibility"]
 
 
-def run(conclusion="success", branch="master", name=GATE, status="completed"):
-    return {"name": name, "status": status, "conclusion": conclusion, "head_branch": branch}
+def run(conclusion="success", branch="master", name=GATE, status="completed", event="push"):
+    return {"name": name, "status": status, "conclusion": conclusion, "head_branch": branch, "event": event}
 
 
 def no_branch(name=GATE):
@@ -94,12 +94,73 @@ def test_a_failed_rail_on_master_still_refuses(rail):
     assert decide(run(), run("failure", name=rail))[0] == pg.REFUSE
 
 
+# ---- a fork's branch can be named master: the branch alone does not place a run
+
+def fork(conclusion="success", name=GATE, event="pull_request"):
+    return run(conclusion, name=name, event=event)
+
+
+def test_a_green_fork_pr_on_a_branch_named_master_does_not_promote():
+    verdict, why = decide(fork())
+    assert verdict == pg.REFUSE and "did not run on master" in why
+
+
+def test_a_failed_fork_pr_on_a_branch_named_master_does_not_refuse_master():
+    verdict, why = decide(run(), fork("failure"))
+    assert verdict == pg.PROMOTE, why
+
+
+def test_a_green_fork_pr_does_not_outvote_a_failed_master_run():
+    assert decide(run("failure"), fork())[0] == pg.REFUSE
+
+
+def test_a_green_fork_pr_cannot_supersede_a_cancelled_gate():
+    cancelled = dict(run("cancelled"), created_at="2026-11-06T01:00:00Z")
+    assert decide(cancelled, dict(fork(), created_at="2026-11-06T02:00:00Z"))[0] == pg.REFUSE
+
+
+@pytest.mark.parametrize("rail", RAILS)
+def test_a_green_fork_pr_does_not_clear_a_failed_rail(rail):
+    assert decide(run(), run("failure", name=rail), fork(name=rail))[0] == pg.REFUSE
+
+
+@pytest.mark.parametrize("event", ["pull_request", "pull_request_target", "schedule", "workflow_run", "workflow_call"])
+def test_only_a_push_or_a_dispatch_counts(event):
+    assert decide(run(event=event))[0] == pg.REFUSE
+
+
+@pytest.mark.parametrize("event", ["push", "workflow_dispatch"])
+def test_a_push_and_a_dispatch_on_master_both_count(event):
+    assert decide(run(event=event))[0] == pg.PROMOTE
+
+
+def test_every_gating_workflow_is_reachable_by_a_counted_event():
+    """A gating workflow with neither trigger could never be counted, and its absence would read as not relevant."""
+    import yaml
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        text = path.read_text(encoding="utf-8")
+        if pg.classify(text) == "yes":
+            doc = yaml.safe_load(text)
+            assert "push" in doc.get("on", doc.get(True)), path.name
+
+
 # ---- a run that cannot be placed
 
 @pytest.mark.parametrize("bad", [no_branch(), dict(run(), head_branch=None), dict(run(), head_branch="")])
 def test_a_gate_run_with_no_branch_refuses(bad):
     verdict, why = decide(bad)
     assert verdict == pg.REFUSE and "head_branch" in why
+
+
+@pytest.mark.parametrize("value", [None, ""])
+def test_a_master_run_with_no_event_refuses(value):
+    verdict, why = decide(dict(run(), event=value))
+    assert verdict == pg.REFUSE and "event" in why
+
+
+def test_a_branch_run_with_no_event_is_simply_not_counted():
+    """Only a run we would otherwise count has to be placed."""
+    assert decide(run(), dict(run(branch="agent/x"), event=None))[0] == pg.PROMOTE
 
 
 def test_a_rail_run_with_no_branch_refuses_even_beside_a_green_gate():

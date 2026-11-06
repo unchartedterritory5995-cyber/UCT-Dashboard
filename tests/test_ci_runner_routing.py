@@ -382,7 +382,7 @@ def _decide(*runs):
 
 
 def _run(status, conclusion):
-    return {"name": pg.ALWAYS_RUNS, "status": status, "conclusion": conclusion, "head_branch": "master"}
+    return {"name": pg.ALWAYS_RUNS, "status": status, "conclusion": conclusion, "head_branch": "master", "event": "push"}
 
 
 @pytest.mark.parametrize("conclusion", ["failure", "cancelled", "timed_out", "skipped", "startup_failure", "stale", None])
