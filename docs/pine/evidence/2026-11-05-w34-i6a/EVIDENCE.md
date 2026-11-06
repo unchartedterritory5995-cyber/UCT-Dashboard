@@ -1,4 +1,4 @@
-NEXT STEP: measure-pair (0 C18 verdict diffs; adx-and-di-for-v4 byte-identical), WAITING for the coordinator's go. Mutation batch DONE (7/7 as expected). Then re-merge master, final-tip FULL + ready-check. Engine bump: YES (a refusal becomes a served value on the runtime pane; `SCRIPT_ENGINE_VERSION` NOT edited here).
+NEXT STEP: final-tip FULL + baselines + ready-check, HOLDING for the coordinator's go. Measure-pair DONE (0 C18 diffs, 0 unintended); origin/master 9a75786663 (engine 21) merged. Mutation batch DONE. Engine bump: YES (a refusal becomes a served value on the runtime pane; `SCRIPT_ENGINE_VERSION` NOT edited here).
 
 # W34-I6a: a `switch` arm that wraps onto a continuation line
 
@@ -104,8 +104,27 @@ before each (10.7-11.9 GB, never under 4 GB). Log: `_resume-2026-11-01/runs/w34-
 | M5 join at the object door | KILLED |
 | M6 N1 opener skip off | KILLED |
 
-## Pending (heavy, each waits for the coordinator's go)
+## measure-pair (coordinator GO; `runs/w34-i6a/mp.sh`, lock `dsk/heavy-mp3.lock`, ram_gate; base `pine-dsk-mpbase3` switched in-job)
 
-1. measure-pair: expect 0 C18 verdict diffs (the door path is unchanged by construction) and
-   `adx-and-di-for-v4` byte-identical.
-2. Merge origin/master again, final-tip FULL + baselines, ready-check.
+Pair: `== side tip 1246d11976` / `== side base bde38b0d69` (tested-on-master `bde38b0d69`), runtime 0 and 1, census on.
+Free RAM never under 11 GB. Logs `runs/w34-i6a/mp-all.log`, `mp0.log`, `mp1.log`; compare `runs/w34-i6a/mpcompare{0,1}.txt`
+(`runs/w6t3b/mpcompare.py`).
+- **C18 corpus audit 395 rows: 0 differ (rt0 and rt1). Constructed probes 69: 0 differ.**
+- **Harness** rt0 identical (93/103/140). rt1 tip 112/107/117 vs base 111/107/118: `delta-rsi-oscillator-strategy-rddt-1d`
+  INCONCLUSIVE -> MATCH, the known wall-clock flake (W34-D1, W6-T6 record it; the script has no `switch`). NOISE.
+  `adx-and-di-for-v4` (RDDT and SPY) MATCH on both sides, unchanged.
+- **Census rt1 (967 rows): 2 differ.** INTENDED: `fvg-detector-tradingfinder…` **ATTACHES** runtime-on (attached
+  false -> true, peelSteps 4 -> 0). NOISE: `multi-timeframe-trend-indicator` (`pine:timeout` refusal count, recorded by
+  W4-T14 / W6-T3a/b / W6-T6).
+- **Census rt0: 6 differ.** INTENDED: `fvg-detector-tradingfinder…` only the `.runtime.attached` annotation (production lane
+  unchanged). NOISE (timeout / stuck rows recorded by W34-D2 / W6-T3b / W6-T6): adaptive-trend-following-suite (timeout
+  text), ai-supertrend-x-pivot (`stuck`), volatility-coil-edge-bullbyte, halftrend-bigbeluga, mirage-liquidity-sweep.
+0 unintended.
+
+## Merge
+
+origin/master `9a75786663` (engine 21) merged with a normal merge after the measure; clean.
+
+## Pending (heavy, waits for the coordinator's go)
+
+1. final-tip FULL + baselines on the merged tip, then ready-check.
