@@ -790,6 +790,72 @@ export function scanMutability(stmts, out) {
   return acc
 }
 
+/** ⭐⭐ W34-I4 — A v1/v2 SELF-REFERENCING DEFINITION, READ BY THE RUN AS PINE RUNS IT.
+ *
+ *  Before v3, Pine let a definition read its own past: `i1 = c1*src + c2*nz(i1[1])`.
+ *  The script is a SERIES `i1`, assigned once per bar, whose `i1[1]` is last bar's
+ *  value and, on bar 0, the history operator's `na` (there is no earlier bar). That
+ *  is exactly the v4 spelling `i1 = na` + `i1 := c1*src + c2*nz(i1[1])`, which this
+ *  lane already runs as a slot. So the statement is rewritten to that pair and the
+ *  run computes the reference's arithmetic from bar 0: no re-seeded window, no
+ *  curtain and no lookback budget (the host lane's `accum`, which refused the shape
+ *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
+ *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
+ *
+ *  ⛔⛔ ONLY WHEN EVERY SELF READ IS `nz(name[k])` (or `nz(name[k], fill)` with a
+ *  self-free fill), `k` a whole literal >= 1. There the reference states the
+ *  bar-0 value: `nz` replaces the history operator's `na`. A bare self read
+ *  (`col[1] == 1`, `a*close + b*x[1]`) leaves bar 0 to a rule the reference does
+ *  not state for v1/v2 (does `na` propagate, or does the series start at 0?), so
+ *  it is NOT rewritten: it keeps the host lane's `pine:state` refusal by name, and
+ *  the capture-queue row W34-I4-S1 asks TradingView (named on
+ *  `thelark-lma-v2-laguerre`, `col`, line 43). Never a guessed seed.
+ *  ⛔ Top-level, single-line definitions of a name nothing else declares or
+ *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18
+ *  object door never calls this (master's answer stands there). */
+export function v2SelfReferenceStatements(stmts, version) {
+  if (!Array.isArray(stmts) || (version != null && version > 2)) return stmts
+  const mut = scanMutability(stmts)
+  const declared = new Map()
+  for (const st of stmts) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq === 1 && toks[0] && toks[0].kind === 'ident' ? toks[0] : null
+    if (nameTok) declared.set(nameTok.value, (declared.get(nameTok.value) || 0) + 1)
+  }
+  const isIdent = (t, v) => !!t && t.kind === 'ident' && (v === undefined || t.value === v)
+  /** Every read of `name` in `rhs` is a guarded history read; at least one exists. */
+  const guardedSelfRef = (rhs, name) => {
+    let reads = 0
+    for (let i = 0; i < rhs.length; i += 1) {
+      if (!isIdent(rhs[i], name)) continue
+      if (isPunct(rhs[i - 1], '.') || isPunct(rhs[i + 1], '.')) continue
+      const k = rhs[i + 2]
+      const guarded = isPunct(rhs[i - 1], '(') && isIdent(rhs[i - 2], 'nz') && !isPunct(rhs[i - 3], '.')
+        && isPunct(rhs[i + 1], '[') && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
+        && isPunct(rhs[i + 3], ']') && (isPunct(rhs[i + 4], ')') || isPunct(rhs[i + 4], ','))
+      if (!guarded) return false
+      reads += 1
+    }
+    return reads > 0
+  }
+  let changed = false
+  const out = []
+  for (const st of stmts) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq === 1 && isIdent(toks[0]) ? toks[0] : null
+    const plain = nameTok && !(st.sub && st.sub.length) && !(st.body && st.body.length)
+      && declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)
+    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value)) { out.push(st); continue }
+    const eqTok = toks[eq]
+    out.push({ ...st, header: [nameTok, eqTok, { ...eqTok, kind: 'ident', value: 'na' }], body: [], sub: [] })
+    out.push({ ...st, header: [nameTok, { ...eqTok, value: ':=' }, ...toks.slice(eq + 1)] })
+    changed = true
+  }
+  return changed ? out : stmts
+}
+
 // ── scope chain ─────────────────────────────────────────────────────────────
 
 /** ⭐⭐ A SCOPE IS A FRAME, AND A SLOT IS ALLOCATED PER DECLARATION — never per
@@ -1318,6 +1384,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
+  // bar-0 value (`nz(x[k])`) runs as the slot it is (`v2SelfReferenceStatements`).
+  // ⛔ Not at the C18 object door: it keeps master's answer.
+  if (!atObjectDoor) stmts = v2SelfReferenceStatements(stmts, version)
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
