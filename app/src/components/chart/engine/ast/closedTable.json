@@ -1703,6 +1703,19 @@
       "yields": "num",
       "sentence": "the 30-day average volume"
     },
+    "base_pivot_px": {
+      "source": {
+        "store": "screener_rows",
+        "column": "base_pivot_px"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the pivot price the symbol's HEAD base structure's own detection computed (the entry a Flat Base or Base-on-Base names, in dollars); blank when the head structure has no pivot -- never invented"
+    },
     "base_relation_count": {
       "source": {
         "store": "screener_rows",
@@ -3493,6 +3506,8 @@
     "base_matches": "TEXT -- every structure the symbol satisfied at once, delimiter-wrapped so the Base Structure filter can test membership. A list is not a number; expressing membership needs a `contains` this table does not declare, exactly as `patterns` and `candle_matches` already record",
     "base_render": "TEXT -- the rendered head, primary (secondary) +N. A display string, not a fact a formula can compute over",
     "rvol_live": "LIVE-ONLY -- volume vs usual by now, written only by the screener's intraday overlay and NULL in every nightly row by design. A scalar is read from `screener_rows` at the snapshot's cadence, so every expression over it would be a hole on every symbol at every hour; the nightly volume reading a formula can use is `vol_ratio`",
+    "premarket_price": "LIVE-ONLY, 2026-11-06 -- the last extended-hours print (pre-market from 04:00 ET, after-hours after the close; the key is historical, the label a member reads is Ext-hrs). It is in `snapshot_db.LIVE_ONLY_COLUMNS`: written only to `screener_premarket` by `premarket.py` and served through query.py's `pm` join, NULL in every nightly `screener_rows` row by design. A scalar is read from `screener_rows` at the snapshot's cadence, so every expression over it would be a hole on every symbol at every hour -- `rvol_live`'s reason. The nightly price a formula can use is `price`",
+    "premarket_chg_pct": "LIVE-ONLY, 2026-11-06 -- the extended-hours print's change vs the prior close, in percent. Same door and same reason as `premarket_price`: `snapshot_db.LIVE_ONLY_COLUMNS`, served only through query.py's `pm` join on `screener_premarket` and NULL in every nightly row, so a scalar over it would be a hole at every hour. The nightly change a formula can use is `chg_pct_1d`",
     "archive_calls_n": "DISPLAY-ONLY ARCHIVE CONTEXT, 2026-10-16 -- written by `archive_join` from the private trader archive and refused as a scalar on purpose: owner decision 3 allows archive context on scanner surfaces only as DISPLAY, never as an input to what fires or how it scores, and a declared scalar would let a formula, a saved scan or an alert condition key on it. It is also blank whenever WISDOM_ARCHIVE_ENABLED is off, so under R8 it cannot be one yet either",
     "archive_traders_n": "DISPLAY-ONLY ARCHIVE CONTEXT, 2026-10-16 -- written by `archive_join` from the private trader archive and refused as a scalar on purpose: owner decision 3 allows archive context on scanner surfaces only as DISPLAY, never as an input to what fires or how it scores, and a declared scalar would let a formula, a saved scan or an alert condition key on it. It is also blank whenever WISDOM_ARCHIVE_ENABLED is off, so under R8 it cannot be one yet either",
     "archive_last_call_date": "TEXT -- the date of the team's newest archived call on the name. DISPLAY-ONLY ARCHIVE CONTEXT, 2026-10-16 -- written by `archive_join` from the private trader archive and refused as a scalar on purpose: owner decision 3 allows archive context on scanner surfaces only as DISPLAY, never as an input to what fires or how it scores, and a declared scalar would let a formula, a saved scan or an alert condition key on it. It is also blank whenever WISDOM_ARCHIVE_ENABLED is off, so under R8 it cannot be one yet either",

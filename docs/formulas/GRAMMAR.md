@@ -183,7 +183,7 @@ decide whether a formula can run at all.
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |
 
-## Per-symbol values (138)
+## Per-symbol values (139)
 
 One value per symbol rather than one per bar — a fundamental, a rating, a count.
 `Refreshed` is how often the number behind it moves.
@@ -203,6 +203,7 @@ of these, because drawing today’s number on past bars would invent a history.
 | `avg_body_pct_5` | a number | nightly | the 5-bar body tightness, the average candle body as a percent of its range |
 | `avg_range` | a number | nightly | the average bar range, high minus low, in price rather than percent, over the 20 completed sessions before the newest bar |
 | `avg_volume_30d` | a number | nightly | the 30-day average volume |
+| `base_pivot_px` | a number | nightly | the pivot price the symbol's HEAD base structure's own detection computed (the entry a Flat Base or Base-on-Base names, in dollars); blank when the head structure has no pivot -- never invented |
 | `base_relation_count` | a number | nightly | the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired |
 | `beta` | a number | nightly | the beta |
 | `blended_growth` | a number | nightly | the blended earnings and revenue growth |

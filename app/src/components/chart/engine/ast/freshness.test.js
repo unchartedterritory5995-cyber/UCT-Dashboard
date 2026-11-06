@@ -61,7 +61,12 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // screener columns crossed from `_scalars_excluded` into the vocabulary.
     // 137 -> 138 on 2026-10-11: `dollar_vol_1d`, the newest session's dollar volume (see
     // `tests/test_ast_scalars.py`'s partition pin)
-    expect(names.length).toBe(138)
+    // 138 -> 139 on 2026-11-06 (UCT RS Phase 2a, unit 2a-01): `base_pivot_px`, the
+    // pivot the HEAD base structure's own detection computed -- REAL, written by the
+    // shipped `bases.classify` beside `base_relation_count`, so `bars_asof` like every
+    // column that producer emits. Same commit: `premarket_price`/`premarket_chg_pct`
+    // EXCLUDED (the excluded pin below). Python pin: (138, 68) -> (139, 100).
+    expect(names.length).toBe(139)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
@@ -121,7 +126,17 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //   excluded 77 + 21 = 98        the scan primitives (2026-11-05), filterable
     //                               through the screener catalog; a formula
     //                               scalar over them is a separate decision.
-    expect(Object.keys(excluded).length).toBe(98)
+    //   excluded 98 + 2 = 100        `premarket_price` and `premarket_chg_pct`
+    //                               (2026-11-06, UCT RS Phase 2a unit 2a-01) --
+    //                               the extended-hours print and its change vs
+    //                               the prior close, LIVE-ONLY for `rvol_live`'s
+    //                               reason: `snapshot_db.LIVE_ONLY_COLUMNS`,
+    //                               served through query.py's `pm` join on
+    //                               `screener_premarket` and NULL in every
+    //                               nightly row, so a scalar over them would be
+    //                               a hole at every hour. The Python pin moved
+    //                               with it: (138, 68) -> (139, 100).
+    expect(Object.keys(excluded).length).toBe(100)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)
