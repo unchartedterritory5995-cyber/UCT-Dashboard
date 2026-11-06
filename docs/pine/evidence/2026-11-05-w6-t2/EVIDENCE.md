@@ -31,9 +31,15 @@ mutation, so it was reverted rather than shipped unproved.
 ## Engine bump: yes (v3/v4 scripts using `method` as a name go from refused to served).
 Measure-pair, C18 diffs, final-tip: see below.
 
-## STATUS at push (incomplete)
-Measure-pair (heavy-mp2.lock, base pine-dsk-mpbase2 at merge-base 7f6dd3714d) and final-tip (heavy-final2.lock)
-were NOT run: heavy-mp2.lock was held by another lane ('w34-d2-rep') for 20+ minutes. Next step: run
-`$RUN/mp.sh` (C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/w6-t2/mp.sh), read the C18 out/probe diffs
-and census first-wall moves (expected: price-divergence-detector-v32 first wall moves; no C18 door diff expected,
-as only the runtime lane's `method`-as-name refusal changes), then merge origin/master and run final-tip.
+## Measure-pair (heavy-mp2.lock, base pine-dsk-mpbase2 asserted at 7f6dd3714d before and after)
+- C18 corpus audit: no differences except per-script timing (`ms`). C18 constructed probes: identical.
+- Vendor harness: identical (336 captures, MATCH 110, DIVERGE 107, INCONCLUSIVE 119 both sides).
+- Census (runtime-on, 967 rows): one row moved, `price-divergence-detector-v32-revised-by-justunclel`
+  (stuck false->true reaches the peel, steps 1->2). No attach claimed. `technical-ratings` did not move (item 2 not changed).
+- Classification: intended. No door output changes.
+
+## Final-tip (full, heavy-final2.lock) at f3c12a473f (master merged; master's diff touches nothing under app/src)
+gate=0 hyg=0 js=1, totals ok, integrity ok. Failing files: controlDoorCensus, enumerationSites, vendorHarness,
+settingsScope.rail, pollingSites.rail (baselines), vendorHarness.coverageAudit (delta-rsi, re-run alone: still fails),
+usePreferences.additionsOnly (TodayHome.jsx opaque setPref, from master). The last two were re-run on the base
+7f6dd3714d: both fail there identically, so neither is from this lane.
