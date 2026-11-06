@@ -35,10 +35,15 @@ default `na` line), `remove_row` / `remove_col` (explicit index), `fill` / `subm
 the matrix (negative included); `add_row`/`add_col` of the wrong length, past the size, or the default line on 0x0;
 `remove_row`/`remove_col` with the index omitted (the stated default `matrix.rows()` is past the last row) or of the last
 row/column; `fill`/`submatrix` ranges past, reversed or `na`; `min`/`max`/`avg` over an `na` cell or an empty matrix;
-`avg` of a possibly-int matrix with a fractional mean (its `series int` form); `sum` with `na`, of two sizes, or a
+(review N1) a zero-length row or column added (`add_row` on k x 0, `add_col` on 0 x k, default or an empty array) and
+an empty-range `submatrix`; `avg` of a possibly-int matrix with a fractional mean (its `series int` form); `sum` with `na`, of two sizes, or a
 possibly-int matrix plus a fraction. Not in the table (`runtime:array` at build): `det`, `inv`, `pinv`, `rank`, `kron`,
 `mult`, `eigen…`, `transpose`, `reshape`, `median`, `mode`, `sort`, `concat`, `swap_*`, `reverse`, `diff`, `pow`, `trace`, `is_*`.
 `for … in` over a matrix keeps T6's W6-F1 refusal (`runtime:loop`).
+
+## Review (GO-WITH-NOTES, `dsk/reviews/W6-T7.md`)
+N1 fixed: the degenerate shapes stop by name (W6-M1; probe rows D01-D04, E09-E10; queue row extended), rails in
+`w6Matrix.test.js` ("zero-length lines and empty submatrices"), each guard hand-mutated away and killed. N2-N4 noted, not changed.
 
 ## Findings for the coordinator
 1. `matrix.sum` is matrix ADDITION in the reference (returns a matrix), not a reduction; served as such.
@@ -52,7 +57,7 @@ possibly-int matrix plus a fraction. Not in the table (`runtime:array` at build)
 5. No hostParity / canary case uses a matrix (grepped `services/pine_runtime`, `__fixtures__/hostParity`).
 
 ## Rails (red on master, green on the tip)
-- New `runtime/__tests__/w6Matrix.test.js` (47 tests). Against master f9651f47ee's four engine sources
+- New `runtime/__tests__/w6Matrix.test.js` (51 tests after review N1; 47 at f15cc651fb). Against master f9651f47ee's four engine sources
   (`runs/w6-t7/redmaster.log`): `46 failed | 1 passed` (the 1 is the door-gated check, vacuous on master; the roster
   test covers it).
 - `objectDoorGate.test.js` + W6-T7 block (18 shapes x 3 + control): the door draws master's answer (refused, nothing
@@ -85,6 +90,11 @@ possibly-int matrix plus a fraction. Not in the table (`runtime:array` at build)
 | M17 `encodeState` cannot encode a matrix | KILLED |
 | M18 first attempt was a syntax error (invalid); M18b default `na` for every type | KILLED |
 | M19 `heldNow` skips matrix cells | KILLED |
+| N1a `add_row` zero-length guard removed (review N1) | KILLED |
+| N1b `add_col` zero-length guard removed | KILLED |
+| N1c `submatrix` empty-range guard removed | KILLED |
+| N1d `submatrix` guard checks rows only | KILLED |
+| M00 control (N1 run) | SURVIVED |
 
 ## Not yet run (heavy; each waits for the coordinator's GO)
 - mutate.py batch; measure-pair (expect 0 C18 diffs, `adx-and-di-for-v4` unmoved; movers per spec:

@@ -379,3 +379,26 @@ describe('⭐ a drawing held in a matrix cell counts as held in a collection (th
     expect(fin.withheld.label).toBeUndefined()
   })
 })
+
+// ⛔ review N1 — the DEGENERATE shapes no reference sentence pins: whether Pine errors on them,
+// or counts a 0×k / k×0 matrix as "empty", is W6-M1 (rows D01-D04 of the probe).
+describe('⛔ zero-length lines and empty submatrices stop by name (W6-M1, review N1)', () => {
+  it('add_row of a zero-length row into a k×0 matrix (default and an empty array)', () => {
+    expect(() => runPine('m = matrix.new<float>(2, 0)\nmatrix.add_row(m)\nplot(close)')).toThrow(/matrix\.add_row of a zero-length row into a matrix of 2×0.*W6-M1/)
+    expect(() => runPine('m = matrix.new<float>(2, 0)\nmatrix.add_row(m, 0, array.new_float(0))\nplot(close)')).toThrow(/matrix\.add_row of a zero-length row.*W6-M1/)
+  })
+  it('add_col of a zero-length column into a 0×k matrix (default and an empty array)', () => {
+    expect(() => runPine('m = matrix.new<float>(0, 3)\nmatrix.add_col(m)\nplot(close)')).toThrow(/matrix\.add_col of a zero-length column into a matrix of 0×3.*W6-M1/)
+    expect(() => runPine('m = matrix.new<float>(0, 3)\nmatrix.add_col(m, 0, array.new_float(0))\nplot(close)')).toThrow(/matrix\.add_col of a zero-length column.*W6-M1/)
+  })
+  it('submatrix of an empty row range and of an empty column range', () => {
+    expect(() => runPine(`${M22}s = matrix.submatrix(m, 1, 1)\nplot(close)`)).toThrow(/matrix\.submatrix of an empty range.*W6-M1/)
+    expect(() => runPine(`${M22}s = matrix.submatrix(m, 0, 2, 1, 1)\nplot(close)`)).toThrow(/matrix\.submatrix of an empty range.*W6-M1/)
+  })
+  it('CONTROL: a one-row submatrix and a non-empty line are still served', () => {
+    const [r] = runPine(`${M22}s = matrix.submatrix(m, 1, 2, 1, 2)\nplot(matrix.get(s, 0, 0))`)
+    expect(r).toEqual(per((b) => b.c))
+    const [c] = runPine('m = matrix.new<float>(0, 2)\nmatrix.add_row(m, 0, array.from(close, open))\nplot(matrix.rows(m))')
+    expect(c).toEqual(per(() => 1))
+  })
+})

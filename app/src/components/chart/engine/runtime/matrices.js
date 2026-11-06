@@ -26,6 +26,8 @@
 //   · `add_row` / `add_col` with an array of the wrong length, the default `na` row on
 //     an empty matrix, and removing the last row or column (what `columns` /
 //     `rows` reads after it);
+//   · (review N1) a zero-length row or column added (`add_row` on a k×0 matrix, `add_col` on
+//     a 0×k one) and an empty-range `submatrix` (a 0×k or k×0 result);
 //   · `remove_row` / `remove_col` with the index omitted (the entry's default,
 //     `matrix.rows()`, is past the last row);
 //   · `min` / `max` / `avg` over an `na` cell or an empty matrix; `avg` of a
@@ -199,6 +201,9 @@ export function buildMatrixFns({ CollectionError, isUnfilled }) {
           if (empty) throw unpinned('matrix.add_row with no array on an empty matrix (how many `na` values)')
           line = naLine(m, m.cols, 'matrix.add_row')
         }
+        // ⛔ review N1 — a ZERO-LENGTH row (on a k×0 matrix): whether Pine errors, or counts a
+        // k×0 matrix as "empty", is not stated (W6-M1)
+        if (line.length === 0) throw unpinned(`matrix.add_row of a zero-length row into a matrix of ${m.rows}×${m.cols}`)
         budget.charge('ARRAY_OPERATIONS', 1)
         budget.peak('ARRAY_ELEMENTS', (m.rows + 1) * line.length)
         m.cells.splice(at, 0, line)
@@ -227,6 +232,8 @@ export function buildMatrixFns({ CollectionError, isUnfilled }) {
           if (empty) throw unpinned('matrix.add_col with no array on an empty matrix (how many `na` values)')
           line = naLine(m, m.rows, 'matrix.add_col')
         }
+        // ⛔ review N1 — a ZERO-LENGTH column (on a 0×k matrix), as `add_row` (W6-M1)
+        if (line.length === 0) throw unpinned(`matrix.add_col of a zero-length column into a matrix of ${m.rows}×${m.cols}`)
         budget.charge('ARRAY_OPERATIONS', line.length)
         budget.peak('ARRAY_ELEMENTS', line.length * (m.cols + 1))
         if (empty) {
@@ -286,6 +293,11 @@ export function buildMatrixFns({ CollectionError, isUnfilled }) {
         const m = a[0]
         const [r0, r1] = rangeArg(a, 1, m.rows, 'matrix.submatrix', 'row')
         const [c0, c1] = rangeArg(a, 3, m.cols, 'matrix.submatrix', 'column')
+        // ⛔ review N1 — an EMPTY range (from == to) would give a 0×k or k×0 matrix, a shape no
+        // sentence pins (W6-M1)
+        if (r0 === r1 || c0 === c1) {
+          throw unpinned(`matrix.submatrix of an empty range (rows [${r0}, ${r1}), columns [${c0}, ${c1}))`)
+        }
         budget.peak('ARRAY_ELEMENTS', (r1 - r0) * (c1 - c0))
         const cells = []
         for (let r = r0; r < r1; r += 1) cells.push(m.cells[r].slice(c0, c1))
