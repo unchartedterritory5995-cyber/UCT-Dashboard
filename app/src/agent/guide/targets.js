@@ -157,15 +157,19 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
 // its right end: the settings gear, among others. The member can neither see nor reach it, so the guide slides that row
 // sideways while the step needs it, and puts it back afterwards. It is a view of the same controls: nothing is stored.
 let slid = []
+// a window is scrolled for a control once: this runs on every tick, and must not fight the member's own scrolling
+let scrolledTo = new WeakSet()
 const clips = (node) => { let o = ''; try { o = getComputedStyle(node).overflowX } catch { o = '' } return /hidden|clip|auto|scroll/.test(o) && node.scrollWidth > node.clientWidth }
 // a row squeezed to nothing: with two charts and the Agent open the drawing strip has no width at all, because the fixed
 // buttons beside it take the whole line. There is nothing to slide, so its neighbours step aside for the step
 const SQUEEZED_PX = 8
 const squeezed = (node) => node.getClientRects?.().length > 0 && node.getBoundingClientRect().width < SQUEEZED_PX
+// ⛔ only a toolbar row we know, because this hides what stands beside it: a collapsed dock or panel is never one
+const ROOM_ROWS = '[data-guide="chart.drawingTools"]'
 function makeRoom(el) {
   for (let p = el; p && p !== document.body; p = p.parentElement) {
     // a row of controls, not one tool the member hid under Customize (a button collapsed to width 0)
-    if (!squeezed(p) || p.childElementCount < 2 || !p.parentElement) continue
+    if (!p.matches?.(ROOM_ROWS) || !squeezed(p) || p.childElementCount < 2 || !p.parentElement) continue
     for (const sib of p.parentElement.children) {
       if (sib === p) continue
       slid.push({ node: sib, display: sib.style.display })
@@ -195,11 +199,12 @@ export function unclip(target, ctx) {
     if (by) { slid.push({ node: p, left: p.scrollLeft }); p.scrollLeft += by }
   }
   // below the fold of a long window (the formula box in the builder): bring it up
-  if (!findTarget(target, ctx)) reveal(el)
+  if (!findTarget(target, ctx) && !scrolledTo.has(el)) { scrolledTo.add(el); reveal(el) }
   return !!findTarget(target, ctx)
 }
 /** Put back every row `unclip` slid. */
 export function restoreClipped() {
+  scrolledTo = new WeakSet()
   for (const { node, left, display } of slid.reverse()) {
     try { if (display != null) node.style.display = display; else node.scrollLeft = left } catch { /* gone */ }
   }
