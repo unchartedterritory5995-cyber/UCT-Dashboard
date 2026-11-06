@@ -6,16 +6,18 @@ import d5 from '../../../lab/duo.module.css'
 import styles from '../DrillPlayer.module.css'
 import BlitzChallenge from './BlitzChallenge'
 import BossChallenge from './BossChallenge'
+import HardChallenge from './HardChallenge'
 import KickerChallenge from './KickerChallenge'
 
 export const CHALLENGES = [
   { kind: 'blitz', title: 'Blitz', sub: 'Sixty seconds, no hearts, a quick read on every chart.', icon: 'bolt' },
   { kind: 'boss', title: 'Boss', sub: 'Ten charts, one heart. Miss once and it ends.', icon: 'star' },
   { kind: 'kicker', title: 'Spot the Kicker', sub: 'Three gold candles. One is the real thing.', icon: 'eye' },
+  { kind: 'hard', title: 'Hard mode', sub: 'Candles only: no ticker, no averages, no volume. Name what fired.', icon: 'eyeOff' },
 ]
 export const CHALLENGE_KINDS = new Set(CHALLENGES.map((c) => c.kind))
 
-const BODIES = { blitz: BlitzChallenge, boss: BossChallenge, kicker: KickerChallenge }
+const BODIES = { blitz: BlitzChallenge, boss: BossChallenge, kicker: KickerChallenge, hard: HardChallenge }
 
 export default function ChallengeSheet({ kind, open = true, onClose, profile = null, fetcher, signedOut = null }) {
   const meta = CHALLENGES.find((c) => c.kind === kind) || CHALLENGES[0]
