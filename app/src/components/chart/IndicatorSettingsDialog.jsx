@@ -44,7 +44,7 @@ import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { effectiveColourFor } from './engine/pool'
 import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs } from './indicatorRegistry'
 import { findInstance, setInstanceInput, setInstanceHidden,
-         setInstanceDisplayTarget } from './engine/instanceControls'
+         setInstanceDisplayTarget, applyPresetInputs } from './engine/instanceControls'
 import { PLACEMENT_TARGETS, isSessionString } from './engine/defSchema'
 import { chipsFrom } from './engine/readout'
 import styles from './IndicatorSettingsDialog.module.css'
@@ -111,6 +111,34 @@ function packRows(fields) {
     i = j
   }
   return out
+}
+
+/** The `<option>` value that stands for "no preset matches" in the picker. It is
+ *  not a preset id and is never written anywhere — choosing it is a no-op. */
+export const CUSTOM_PRESET = '__custom'
+
+/** The definition's declared presets (`meta.presets`), shape-filtered so a
+ *  malformed entry renders nothing rather than a broken row. `defSchema` already
+ *  refuses the malformed shapes; this is the dialog's own guard against a
+ *  registry that was not validated through it. */
+function presetsOf(def) {
+  const raw = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  return raw.filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id
+    && typeof p.label === 'string' && p.inputs && typeof p.inputs === 'object' && !Array.isArray(p.inputs))
+}
+
+/** The preset whose EVERY declared key equals the value the form shows — or
+ *  `null` for Custom. Derived, never stored: the instance carries inputs, not a
+ *  preset id, so this cannot drift from what the chart draws. Compared against
+ *  the RESOLVED values (declared defaults under stored inputs), so a fresh
+ *  instance whose defaults are a preset's values reads as that preset. */
+function detectPreset(presets, values) {
+  for (const p of presets) {
+    const keys = Object.keys(p.inputs)
+    if (!keys.length) continue
+    if (keys.every((k) => values[k] === p.inputs[k])) return p
+  }
+  return null
 }
 
 /** Sections by declared `group`, in first-appearance order. Ungrouped fields keep
@@ -313,6 +341,54 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   const setTarget = useCallback((target) => {
     writeSettings(setInstanceDisplayTarget(settingsRef.current, instanceId, target, registry))
   }, [instanceId, registry, writeSettings])
+
+  // ── the preset picker (generic: `def.meta.presets`) ───────────────────────
+  //
+  // Rendered only when the definition declares presets. A preset is a named set
+  // of input values; choosing one applies EVERY key through `applyPresetInputs`,
+  // which is a loop over `setInstanceInput` — the same door every row above
+  // writes through — so the snapshot-on-open Cancel rollback undoes it like any
+  // other edit. "Which preset is this" is DERIVED from the shown values
+  // (`detectPreset`); nothing is stored on the instance.
+  //
+  // `pickedPresetId` remembers the preset the member last chose or the form last
+  // matched, so "Reset to preset" has a target after a tweak flips the select to
+  // Custom. It is dialog-local UI state, reset per open and per instance.
+  const presets = useMemo(() => presetsOf(def), [def])
+  const currentPreset = useMemo(() => detectPreset(presets, shown), [presets, shown])
+  const [pickedPresetId, setPickedPresetId] = useState(null)
+  // ⛔ ORDER MATTERS: effects run in declaration order, so the two RESETS come
+  // first and the "remember the match" effect last. Reversed, a mount that
+  // matches a preset remembers it and then forgets it in the same commit, and
+  // Reset is dead until the member changes something twice.
+  useEffect(() => { if (!open) setPickedPresetId(null) }, [open])
+  useEffect(() => { setPickedPresetId(null) }, [instanceId])
+  useEffect(() => { if (currentPreset) setPickedPresetId(currentPreset.id) }, [currentPreset])
+
+  const applyPreset = useCallback((preset) => {
+    if (!preset || !def) return
+    // A pending keystroke on a key the preset also sets would re-apply itself
+    // 250 ms after the preset — commit what is pending FIRST, then the preset
+    // writes over it, and the draft for those keys is cleared so the form shows
+    // the preset's values rather than the stale text.
+    flushNow()
+    const keys = Object.keys(preset.inputs)
+    setDraft((d) => { const out = { ...d }; for (const k of keys) delete out[k]; return out })
+    setNotes((s) => { const out = { ...s }; for (const k of keys) out[k] = null; return out })
+    setPickedPresetId(preset.id)
+    writeSettings(applyPresetInputs(settingsRef.current, instanceId, def, preset, registry))
+  }, [def, instanceId, registry, flushNow, writeSettings])
+
+  const onPresetSelect = useCallback((e) => {
+    const id = e.target.value
+    if (id === CUSTOM_PRESET) return
+    applyPreset(presets.find((p) => p.id === id))
+  }, [presets, applyPreset])
+
+  const resetPreset = useCallback(() => {
+    const target = currentPreset || presets.find((p) => p.id === pickedPresetId) || null
+    applyPreset(target)
+  }, [currentPreset, presets, pickedPresetId, applyPreset])
 
   // ── close paths ───────────────────────────────────────────────────────────
   //
@@ -528,9 +604,28 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     )
   }
 
-  const renderFields = (fields) => sectionize(fields).map((section, si) => {
+  // `meta.groupsCollapsed` names the groups that START collapsed (plan §6.3). It
+  // is a default, not a lock: `collapsed` holds only the member's own toggles,
+  // and a group they have not touched reads the definition's hint. Everything
+  // else — a group not named, a definition with no hint — opens as before.
+  //
+  // ⛔ THE HINT IS THE INPUTS TAB'S (§6.3, "Settings dialog: Inputs tab"). A
+  // colour input shares its group name with the inputs beside it, so the same
+  // set applied on the Style tab (§6.4, the plot-referenced colours and widths)
+  // would open that tab with EVERY control folded away — for UCT RS the Style tab
+  // holds nothing but the two hinted groups. Style groups start expanded.
+  const startsCollapsed = new Set(
+    def && def.meta && Array.isArray(def.meta.groupsCollapsed)
+      ? def.meta.groupsCollapsed.filter((g) => typeof g === 'string')
+      : [],
+  )
+
+  const renderFields = (fields, { hint = false } = {}) => sectionize(fields).map((section, si) => {
     const gid = `${uid}-g${si}`
-    const isOpen = !collapsed[section.group || `__${si}`]
+    const ckey = section.group || `__${si}`
+    const isOpen = Object.prototype.hasOwnProperty.call(collapsed, ckey)
+      ? !collapsed[ckey]
+      : !(hint && section.group && startsCollapsed.has(section.group))
     const body = section.items.map((item, ii) => (
       item.kind === 'row'
         ? renderField(item.field, false)
@@ -564,6 +659,38 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
         ref={rootRef} className={styles.root}
         {...{ [PORTAL_POPUP_ATTR]: 'indicator-settings' }}
       >
+        {presets.length > 0 && (
+          <div className={styles.presetBar} data-testid="preset-picker">
+            <div className={styles.presetRow}>
+              <label className={styles.presetLabel} id={`${uid}-preset-lbl`} htmlFor={`${uid}-preset`}>
+                Preset
+              </label>
+              <span className={styles.presetControls}>
+                <select
+                  className={styles.sel} id={`${uid}-preset`}
+                  aria-labelledby={`${uid}-preset-lbl`}
+                  aria-describedby={currentPreset && currentPreset.origin ? `${uid}-preset-origin` : undefined}
+                  value={currentPreset ? currentPreset.id : CUSTOM_PRESET}
+                  onChange={onPresetSelect}
+                >
+                  {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  <option value={CUSTOM_PRESET}>Custom</option>
+                </select>
+                <button
+                  type="button" className={styles.presetBtn}
+                  onClick={resetPreset}
+                  disabled={!currentPreset && !presets.some((p) => p.id === pickedPresetId)}
+                >Reset to preset</button>
+              </span>
+            </div>
+            {currentPreset && currentPreset.origin && (
+              <span className={styles.presetOrigin} id={`${uid}-preset-origin`} data-testid="preset-origin">
+                {currentPreset.origin}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className={styles.tabs} role="tablist" aria-label="Indicator settings">
           {TABS.map(([key, label]) => (
             <button
@@ -582,7 +709,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
         >
           {tab === 'inputs' && (
             model.inputs.length
-              ? renderFields(model.inputs)
+              ? renderFields(model.inputs, { hint: true })
               : <div className={styles.empty}>This indicator declares no computed inputs.</div>
           )}
 

@@ -1213,6 +1213,50 @@ function validateMeta(meta, def, errors) {
       )
     }
   }
+  // `presets` is read by the settings dialog's generic preset picker: a named set
+  // of input values applied to the CURRENT instance through `setInstanceInput`.
+  // Light shape check only — each entry needs a string `id` and `label` and an
+  // object `inputs`. Keys and values inside `inputs` are NOT checked against the
+  // declared inputs here: the writer validates every value at apply time and the
+  // picker skips an undeclared key with a warning, so a stale preset degrades
+  // rather than refusing the whole definition.
+  if (meta.presets !== undefined && meta.presets !== null) {
+    if (!Array.isArray(meta.presets)) {
+      errors.push(`meta.presets: expected an array of {id, label, inputs}, got ${fmt(meta.presets)}`)
+    } else {
+      const seen = new Set()
+      meta.presets.forEach((p, i) => {
+        if (!isPlainObject(p)) {
+          errors.push(`meta.presets[${i}]: expected an object {id, label, inputs}, got ${fmt(p)}`)
+          return
+        }
+        if (!isNonEmptyString(p.id)) {
+          errors.push(`meta.presets[${i}].id: required non-empty string, got ${fmt(p.id)}`)
+        } else if (seen.has(p.id)) {
+          errors.push(`meta.presets[${i}].id: duplicate preset id ${fmt(p.id)}`)
+        } else {
+          seen.add(p.id)
+        }
+        if (!isNonEmptyString(p.label)) {
+          errors.push(`meta.presets[${i}].label: required non-empty string, got ${fmt(p.label)}`)
+        }
+        if (p.origin !== undefined && typeof p.origin !== 'string') {
+          errors.push(`meta.presets[${i}].origin: expected a string, got ${fmt(p.origin)}`)
+        }
+        if (!isPlainObject(p.inputs)) {
+          errors.push(`meta.presets[${i}].inputs: required object of input values, got ${fmt(p.inputs)}`)
+        }
+      })
+    }
+  }
+  // `groupsCollapsed` is read by the settings dialog: the input groups named here
+  // open collapsed. Names that match no declared group are inert, so only the
+  // shape is checked.
+  if (meta.groupsCollapsed !== undefined && meta.groupsCollapsed !== null) {
+    if (!Array.isArray(meta.groupsCollapsed) || meta.groupsCollapsed.some((g) => typeof g !== 'string' || !g)) {
+      errors.push(`meta.groupsCollapsed: expected an array of group names, got ${fmt(meta.groupsCollapsed)}`)
+    }
+  }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
   // asymmetric policy, and the round-trip promise depends on this silence.
