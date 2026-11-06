@@ -1,5 +1,23 @@
 NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
 
+FIX r1 (review NO-GO @5b10b9ff6f, B1/N1/N2):
+- B1: sma/ema/rma are NOT served to drawings. The machinery stays, gated off by DRAWING_HISTORY_CAPTURED = false
+  (FE, beside servedCondCall); test-only opts.w3nD1ServeDrawingHistory lifts it. Product callers never set it.
+  Gate off: refused by name (runtime:conditional-history). W3N-D1 queued: docs/pine/capture-queue-2026-11-05-w3w4-d1.md,
+  probe tools/visual_conformance/probes/vw-w3n-draw-block-history.pine, capture-queue.json regenerated with
+  tools/vendor_harness/evidence_engine.py queue (--check PASS). rt5RuntimeObjects/coverageMapDoorCensus fixtures reverted to master.
+- Rails (w3nDrawCondHistory, gate off refuses; gate on with the test option holds today's values). Mutations (runs/w34-d1/mut2.out):
+  noop SURVIVED; gate on in product, gate ignores test option, gate removed, drop lexForeign refusal, admit stdev, shared ring: all KILLED.
+- N1: nested-block lexForeign case added to the refused list (kills the reviewer's mutant).
+- N2 deviation: the spec rail "rt5 witness MATCHes through the drawing build" is not built; a block local's [1] is refused
+  instead (master drew the previous BAR's value; B01 pins the previous RUN).
+- measure-pair (tip vs master 51ea1acf04, base HEAD asserted before/after, runs/w34-d1/mp2): C18 audit 0 diffs, probes 0 diffs.
+  Harness differs only on delta-rsi-oscillator-strategy (MATCH on tip, INCONCLUSIVE on base): the known wall-clock flake; no D1 path
+  (the gate is off). Census not run. No served value changes.
+- Engine bump: NO for this tip (no script output changes: sma/ema/rma refused as before, the only behaviour change is
+  block-local [1] and ta.change in a block now refused by name where master drew a value; zero C18 movement). Re-decide when W3N-D1 MATCHes and the gate flips (then yes).
+- Locks: this lane used per-lane lock names; from now shared dsk/heavy-final3.lock and heavy-mp3.lock.
+
 FINAL-TIP (full, tip defa05f551, clean tree, heavy-final3 lock): log runs/w34-d1/final3.log, outdir runs/w34-d1-final.
 rcs: gate=0 hyg=0 js=1 totals=ok errors=0 integrity=ok. ready-check FAIL on two non-baseline files, both not from D1:
 - vendorHarness.coverageAudit delta-rsi: re-run alone still INCONCLUSIVE, and it fails identically on master (pine-dsk-mpbase3 @7f6dd3714d).
