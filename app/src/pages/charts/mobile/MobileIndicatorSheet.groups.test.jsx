@@ -149,7 +149,7 @@ describe('every field row carries data-input-key, one per declared input, in dec
 })
 
 describe('tooltips — visible help text, reaching the controls by aria-describedby and never by name', () => {
-  test('the Average length stepper is described by its tooltip and its name is the label alone', () => {
+  test('the Average (bars) stepper is described by its tooltip and its name is the label alone', () => {
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
     const tip = rsDef().inputs.find((i) => i.key === 'maLength').tooltip
@@ -157,9 +157,9 @@ describe('tooltips — visible help text, reaching the controls by aria-describe
     const row = rowFor(ed, 'maLength')
     expect(row.textContent).toContain(tip)
     // The name is the label alone — an exact-name role query is the proof.
-    const inc = within(ed).getByRole('button', { name: 'Increase Average length (bars)' })
-    const dec = within(ed).getByRole('button', { name: 'Decrease Average length (bars)' })
-    const typeIt = within(ed).getByRole('button', { name: 'Type Average length (bars)' })
+    const inc = within(ed).getByRole('button', { name: 'Increase Average (bars)' })
+    const dec = within(ed).getByRole('button', { name: 'Decrease Average (bars)' })
+    const typeIt = within(ed).getByRole('button', { name: 'Type Average (bars)' })
     for (const b of [inc, dec, typeIt]) {
       const by = b.getAttribute('aria-describedby')
       expect(by).toBeTruthy()
@@ -252,7 +252,7 @@ describe('the preset row — chips over meta.presets, the match pressed, one wri
     const initial = rsCs()
     const onWrite = mount(initial, rsEditing)
     const ed = editor(RS_EDITOR)
-    await user.click(within(ed).getByRole('button', { name: 'Increase Average length (bars)' }))
+    await user.click(within(ed).getByRole('button', { name: 'Increase Average (bars)' }))
     expect(onWrite).toHaveBeenCalledTimes(1)
     expect(liveOf(latest(onWrite, initial), RS)[0].inputs.maLength).toBe(22)
     const row = within(editor(RS_EDITOR)).getByTestId('preset-row')
