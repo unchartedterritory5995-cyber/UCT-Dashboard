@@ -746,5 +746,468 @@
    "phone": "parts/b17-drill/end__phone.png",
    "note": ""
   }
+ },
+ "b18-hard": {
+  "intro": {
+   "desk": "parts/b18-hard/intro__desk.png",
+   "phone": "parts/b18-hard/intro__phone.png",
+   "note": ""
+  },
+  "crowns": {
+   "desk": "parts/b18-hard/crowns__desk.png",
+   "phone": "parts/b18-hard/crowns__phone.png",
+   "note": ""
+  },
+  "hidden": {
+   "desk": "parts/b18-hard/hidden__desk.png",
+   "phone": "parts/b18-hard/hidden__phone.png",
+   "note": ""
+  },
+  "topbar": {
+   "desk": "parts/b18-hard/topbar__desk.png",
+   "phone": "parts/b18-hard/topbar__phone.png",
+   "note": ""
+  },
+  "bubble": {
+   "desk": "parts/b18-hard/bubble__desk.png",
+   "phone": "parts/b18-hard/bubble__phone.png",
+   "note": ""
+  },
+  "chip": {
+   "desk": "parts/b18-hard/chip__desk.png",
+   "phone": "parts/b18-hard/chip__phone.png",
+   "note": ""
+  },
+  "chart": {
+   "desk": "parts/b18-hard/chart__desk.png",
+   "phone": "parts/b18-hard/chart__phone.png",
+   "note": ""
+  },
+  "pointer": {
+   "desk": "parts/b18-hard/pointer__desk.png",
+   "phone": "parts/b18-hard/pointer__phone.png",
+   "note": ""
+  },
+  "cards": {
+   "desk": "parts/b18-hard/cards__desk.png",
+   "phone": "parts/b18-hard/cards__phone.png",
+   "note": ""
+  },
+  "check": {
+   "desk": "parts/b18-hard/check__desk.png",
+   "phone": "parts/b18-hard/check__phone.png",
+   "note": ""
+  },
+  "stamp": {
+   "desk": "parts/b18-hard/stamp__desk.png",
+   "phone": "parts/b18-hard/stamp__phone.png",
+   "note": ""
+  },
+  "runon": {
+   "desk": "parts/b18-hard/runon__desk.png",
+   "phone": "parts/b18-hard/runon__phone.png",
+   "note": ""
+  },
+  "ticker": {
+   "desk": "parts/b18-hard/ticker__desk.png",
+   "phone": "parts/b18-hard/ticker__phone.png",
+   "note": ""
+  },
+  "lesson": {
+   "desk": "parts/b18-hard/lesson__desk.png",
+   "phone": "parts/b18-hard/lesson__phone.png",
+   "note": ""
+  },
+  "cardcolors": {
+   "desk": "parts/b18-hard/cardcolors__desk.png",
+   "phone": "parts/b18-hard/cardcolors__phone.png",
+   "note": ""
+  },
+  "next": {
+   "desk": "parts/b18-hard/next__desk.png",
+   "phone": "parts/b18-hard/next__phone.png",
+   "note": ""
+  },
+  "end": {
+   "desk": "parts/b18-hard/end__desk.png",
+   "phone": "parts/b18-hard/end__phone.png",
+   "note": ""
+  },
+  "crownsEnd": {
+   "desk": "parts/b18-hard/crownsEnd__desk.png",
+   "phone": "parts/b18-hard/crownsEnd__phone.png",
+   "note": ""
+  }
+ },
+ "b19-hard": {
+  "intro": {
+   "desk": "parts/b19-hard/intro__desk.png",
+   "phone": "parts/b19-hard/intro__phone.png",
+   "note": ""
+  },
+  "toggles": {
+   "desk": "parts/b19-hard/toggles__desk.png",
+   "phone": "parts/b19-hard/toggles__phone.png",
+   "note": ""
+  },
+  "crowns": {
+   "desk": "parts/b19-hard/crowns__desk.png",
+   "phone": "parts/b19-hard/crowns__phone.png",
+   "note": ""
+  },
+  "start": {
+   "desk": "parts/b19-hard/start__desk.png",
+   "phone": "parts/b19-hard/start__phone.png",
+   "note": ""
+  },
+  "hud": {
+   "desk": "parts/b19-hard/hud__desk.png",
+   "phone": "parts/b19-hard/hud__phone.png",
+   "note": ""
+  },
+  "segs": {
+   "desk": "parts/b19-hard/segs__desk.png",
+   "phone": "parts/b19-hard/segs__phone.png",
+   "note": ""
+  },
+  "bubble": {
+   "desk": "parts/b19-hard/bubble__desk.png",
+   "phone": "parts/b19-hard/bubble__phone.png",
+   "note": ""
+  },
+  "chip": {
+   "desk": "parts/b19-hard/chip__desk.png",
+   "phone": "parts/b19-hard/chip__phone.png",
+   "note": ""
+  },
+  "frame": {
+   "desk": "parts/b19-hard/frame__desk.png",
+   "phone": "parts/b19-hard/frame__phone.png",
+   "note": ""
+  },
+  "tfbar": {
+   "desk": "parts/b19-hard/tfbar__desk.png",
+   "phone": "parts/b19-hard/tfbar__phone.png",
+   "note": ""
+  },
+  "chart": {
+   "desk": "parts/b19-hard/chart__desk.png",
+   "phone": "parts/b19-hard/chart__phone.png",
+   "note": ""
+  },
+  "pointer": {
+   "desk": "parts/b19-hard/pointer__desk.png",
+   "phone": "parts/b19-hard/pointer__phone.png",
+   "note": ""
+  },
+  "cards": {
+   "desk": "parts/b19-hard/cards__desk.png",
+   "phone": "parts/b19-hard/cards__phone.png",
+   "note": ""
+  },
+  "check": {
+   "desk": "parts/b19-hard/check__desk.png",
+   "phone": "parts/b19-hard/check__phone.png",
+   "note": ""
+  },
+  "footer": {
+   "desk": "parts/b19-hard/footer__desk.png",
+   "phone": "parts/b19-hard/footer__phone.png",
+   "note": ""
+  },
+  "stamp": {
+   "desk": "parts/b19-hard/stamp__desk.png",
+   "phone": "parts/b19-hard/stamp__phone.png",
+   "note": ""
+  },
+  "runon": {
+   "desk": "parts/b19-hard/runon__desk.png",
+   "phone": "parts/b19-hard/runon__phone.png",
+   "note": ""
+  },
+  "ticker": {
+   "desk": "parts/b19-hard/ticker__desk.png",
+   "phone": "parts/b19-hard/ticker__phone.png",
+   "note": ""
+  },
+  "lesson": {
+   "desk": "parts/b19-hard/lesson__desk.png",
+   "phone": "parts/b19-hard/lesson__phone.png",
+   "note": ""
+  },
+  "cardcolors": {
+   "desk": "parts/b19-hard/cardcolors__desk.png",
+   "phone": "parts/b19-hard/cardcolors__phone.png",
+   "note": ""
+  },
+  "next": {
+   "desk": "parts/b19-hard/next__desk.png",
+   "phone": "parts/b19-hard/next__phone.png",
+   "note": ""
+  },
+  "bubbleVerdict": {
+   "desk": "parts/b19-hard/bubbleVerdict__desk.png",
+   "phone": "parts/b19-hard/bubbleVerdict__phone.png",
+   "note": ""
+  },
+  "end": {
+   "desk": "parts/b19-hard/end__desk.png",
+   "phone": "parts/b19-hard/end__phone.png",
+   "note": ""
+  },
+  "crownsEnd": {
+   "desk": "parts/b19-hard/crownsEnd__desk.png",
+   "phone": "parts/b19-hard/crownsEnd__phone.png",
+   "note": ""
+  },
+  "gems": {
+   "desk": "parts/b19-hard/gems__desk.png",
+   "phone": "parts/b19-hard/gems__phone.png",
+   "note": ""
+  }
+ },
+ "b21-hard": {
+  "intro": {
+   "desk": "parts/b21-hard/intro__desk.png",
+   "phone": "parts/b21-hard/intro__phone.png",
+   "note": ""
+  },
+  "title": {
+   "desk": "parts/b21-hard/title__desk.png",
+   "phone": "parts/b21-hard/title__phone.png",
+   "note": ""
+  },
+  "medal": {
+   "desk": "parts/b21-hard/medal__desk.png",
+   "phone": "parts/b21-hard/medal__phone.png",
+   "note": ""
+  },
+  "lockup": {
+   "desk": "parts/b21-hard/lockup__desk.png",
+   "phone": "parts/b21-hard/lockup__phone.png",
+   "note": ""
+  },
+  "start": {
+   "desk": "parts/b21-hard/start__desk.png",
+   "phone": "parts/b21-hard/start__phone.png",
+   "note": ""
+  },
+  "status": {
+   "desk": "parts/b21-hard/status__desk.png",
+   "phone": "parts/b21-hard/status__phone.png",
+   "note": ""
+  },
+  "frame": {
+   "desk": "parts/b21-hard/frame__desk.png",
+   "phone": "parts/b21-hard/frame__phone.png",
+   "note": ""
+  },
+  "chart": {
+   "desk": "parts/b21-hard/chart__desk.png",
+   "phone": "parts/b21-hard/chart__phone.png",
+   "note": ""
+  },
+  "spotlight": {
+   "desk": "parts/b21-hard/spotlight__desk.png",
+   "phone": "parts/b21-hard/spotlight__phone.png",
+   "note": ""
+  },
+  "prompt": {
+   "desk": "parts/b21-hard/prompt__desk.png",
+   "phone": "parts/b21-hard/prompt__phone.png",
+   "note": ""
+  },
+  "pills": {
+   "desk": "parts/b21-hard/pills__desk.png",
+   "phone": "parts/b21-hard/pills__phone.png",
+   "note": ""
+  },
+  "check": {
+   "desk": "parts/b21-hard/check__desk.png",
+   "phone": "parts/b21-hard/check__phone.png",
+   "note": ""
+  },
+  "hint": {
+   "desk": "parts/b21-hard/hint__desk.png",
+   "phone": null,
+   "note": ""
+  },
+  "verdictLine": {
+   "desk": "parts/b21-hard/verdictLine__desk.png",
+   "phone": "parts/b21-hard/verdictLine__phone.png",
+   "note": ""
+  },
+  "runon": {
+   "desk": "parts/b21-hard/runon__desk.png",
+   "phone": "parts/b21-hard/runon__phone.png",
+   "note": ""
+  },
+  "ticker": {
+   "desk": "parts/b21-hard/ticker__desk.png",
+   "phone": "parts/b21-hard/ticker__phone.png",
+   "note": ""
+  },
+  "cardcolors": {
+   "desk": "parts/b21-hard/cardcolors__desk.png",
+   "phone": "parts/b21-hard/cardcolors__phone.png",
+   "note": ""
+  },
+  "lesson": {
+   "desk": "parts/b21-hard/lesson__desk.png",
+   "phone": "parts/b21-hard/lesson__phone.png",
+   "note": ""
+  },
+  "next": {
+   "desk": "parts/b21-hard/next__desk.png",
+   "phone": "parts/b21-hard/next__phone.png",
+   "note": ""
+  },
+  "end": {
+   "desk": "parts/b21-hard/end__desk.png",
+   "phone": "parts/b21-hard/end__phone.png",
+   "note": ""
+  },
+  "medalEnd": {
+   "desk": "parts/b21-hard/medalEnd__desk.png",
+   "phone": "parts/b21-hard/medalEnd__phone.png",
+   "note": ""
+  },
+  "gems": {
+   "desk": "parts/b21-hard/gems__desk.png",
+   "phone": "parts/b21-hard/gems__phone.png",
+   "note": ""
+  },
+  "runlog": {
+   "desk": "parts/b21-hard/runlog__desk.png",
+   "phone": "parts/b21-hard/runlog__phone.png",
+   "note": ""
+  }
+ },
+ "b22-hard": {
+  "intro": {
+   "desk": "parts/b22-hard/intro__desk.png",
+   "phone": "parts/b22-hard/intro__phone.png",
+   "note": ""
+  },
+  "title": {
+   "desk": "parts/b22-hard/title__desk.png",
+   "phone": "parts/b22-hard/title__phone.png",
+   "note": ""
+  },
+  "medal": {
+   "desk": "parts/b22-hard/medal__desk.png",
+   "phone": "parts/b22-hard/medal__phone.png",
+   "note": ""
+  },
+  "rules": {
+   "desk": "parts/b22-hard/rules__desk.png",
+   "phone": "parts/b22-hard/rules__phone.png",
+   "note": ""
+  },
+  "start": {
+   "desk": "parts/b22-hard/start__desk.png",
+   "phone": "parts/b22-hard/start__phone.png",
+   "note": ""
+  },
+  "status": {
+   "desk": "parts/b22-hard/status__desk.png",
+   "phone": "parts/b22-hard/status__phone.png",
+   "note": ""
+  },
+  "frame": {
+   "desk": "parts/b22-hard/frame__desk.png",
+   "phone": "parts/b22-hard/frame__phone.png",
+   "note": ""
+  },
+  "chart": {
+   "desk": "parts/b22-hard/chart__desk.png",
+   "phone": "parts/b22-hard/chart__phone.png",
+   "note": ""
+  },
+  "pointer": {
+   "desk": "parts/b22-hard/pointer__desk.png",
+   "phone": "parts/b22-hard/pointer__phone.png",
+   "note": ""
+  },
+  "prompt": {
+   "desk": "parts/b22-hard/prompt__desk.png",
+   "phone": "parts/b22-hard/prompt__phone.png",
+   "note": ""
+  },
+  "pills": {
+   "desk": "parts/b22-hard/pills__desk.png",
+   "phone": "parts/b22-hard/pills__phone.png",
+   "note": ""
+  },
+  "check": {
+   "desk": "parts/b22-hard/check__desk.png",
+   "phone": "parts/b22-hard/check__phone.png",
+   "note": ""
+  },
+  "verdictLine": {
+   "desk": "parts/b22-hard/verdictLine__desk.png",
+   "phone": "parts/b22-hard/verdictLine__phone.png",
+   "note": ""
+  },
+  "runon": {
+   "desk": "parts/b22-hard/runon__desk.png",
+   "phone": "parts/b22-hard/runon__phone.png",
+   "note": ""
+  },
+  "ticker": {
+   "desk": "parts/b22-hard/ticker__desk.png",
+   "phone": "parts/b22-hard/ticker__phone.png",
+   "note": ""
+  },
+  "cardcolors": {
+   "desk": "parts/b22-hard/cardcolors__desk.png",
+   "phone": "parts/b22-hard/cardcolors__phone.png",
+   "note": ""
+  },
+  "lesson": {
+   "desk": "parts/b22-hard/lesson__desk.png",
+   "phone": "parts/b22-hard/lesson__phone.png",
+   "note": ""
+  },
+  "next": {
+   "desk": "parts/b22-hard/next__desk.png",
+   "phone": "parts/b22-hard/next__phone.png",
+   "note": ""
+  },
+  "lessonFired": {
+   "desk": "parts/b22-hard/lessonFired__desk.png",
+   "phone": "parts/b22-hard/lessonFired__phone.png",
+   "note": ""
+  },
+  "lessonNone": {
+   "desk": "parts/b22-hard/lessonNone__desk.png",
+   "phone": "parts/b22-hard/lessonNone__phone.png",
+   "note": ""
+  },
+  "runonNone": {
+   "desk": "parts/b22-hard/runonNone__desk.png",
+   "phone": "parts/b22-hard/runonNone__phone.png",
+   "note": ""
+  },
+  "end": {
+   "desk": "parts/b22-hard/end__desk.png",
+   "phone": "parts/b22-hard/end__phone.png",
+   "note": ""
+  },
+  "score": {
+   "desk": "parts/b22-hard/score__desk.png",
+   "phone": "parts/b22-hard/score__phone.png",
+   "note": ""
+  },
+  "stats": {
+   "desk": "parts/b22-hard/stats__desk.png",
+   "phone": "parts/b22-hard/stats__phone.png",
+   "note": ""
+  },
+  "runlog": {
+   "desk": "parts/b22-hard/runlog__desk.png",
+   "phone": "parts/b22-hard/runlog__phone.png",
+   "note": ""
+  }
  }
 }

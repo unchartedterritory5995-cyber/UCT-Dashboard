@@ -32,7 +32,11 @@ into one working directory (call it `LS`) and replace those two paths in the scr
 1. **The sandbox backend (port 8077)** — the whole Study bank with the pod bars, a local reviewer account:
    `bash LS/reset_local.sh` (needs the repo's Python venv with the backend deps; it runs
    `tools/local_backend_sandbox.py --port 8077`, imports the bank with `scripts/study/import_bank.py`, approves every
-   item, creates the reviewer account). `start_backend.sh` alone restarts it without re-importing.
+   item, creates the reviewer account). ⚠ `start_backend.sh` alone does NOT restart it in place: the tool imports the
+   repo's conftest, which mints FRESH, EMPTY temp dirs on every start (bank, bars and the reviewer account gone;
+   measured 2026-11-05 after a restart for a server fix). To restart on new code and keep everything, use
+   `bash LS/start_backend_pinned.sh` (`run_sandbox_pinned.py` points every pinned path back at the workbench's own
+   data dir and auth.db; edit the two paths at its top on a new computer).
 2. **The Vite lab (port 5232)** — the real components on the sandbox:
    `cd app && npx vite --config vite.config.lab.mjs --host 127.0.0.1 --port 5232 --strictPort`
    (`/lab.html?piece=64` = the real DrillPlayer on Today's set; `&set=free` = a fresh free set each load).

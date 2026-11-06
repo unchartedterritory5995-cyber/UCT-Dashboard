@@ -102,7 +102,8 @@
 /** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
 /** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
 /** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
-export const SCRIPT_ENGINE_VERSION = 20
+/** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
+export const SCRIPT_ENGINE_VERSION = 21
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

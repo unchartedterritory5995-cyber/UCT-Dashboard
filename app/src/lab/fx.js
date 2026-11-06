@@ -43,3 +43,24 @@ export function useCountUp(target, on, ms = 30) {
   }, [target, on, ms])
   return on ? v : 0
 }
+
+/** The run-on TO A POINT (round 21; the owner, batch 21: "why only do like 5-10 days continuation, we should do to the
+ *  full culmination or maximization of the trade"). Appends `forward` one bar at a time until `count` bars have arrived:
+ *  the first `slowN` at `slowMs` (batch 10: "show the next candles a bit slower"), the rest at `fastMs`, so a 40-bar
+ *  run still lands in seconds. `count` may grow while it runs (more forward bars arrive after the reveal). Under
+ *  prefers-reduced-motion every bar arrives at once. Returns { bars, k } where k is how many have arrived. */
+export function useRunOnTo(base, forward, count, on, { slowMs = 330, fastMs = 140, slowN = 5 } = {}) {
+  const [k, setK] = useState(0)
+  const [was, setWas] = useState(on)
+  if (on !== was) { setWas(on); setK(0) }
+  const target = Math.max(0, Math.min(count || 0, forward?.length || 0))
+  const still = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+  useEffect(() => {
+    if (!on || still || k >= target) return undefined
+    const t = setTimeout(() => setK((v) => v + 1), k < slowN ? slowMs : fastMs)
+    return () => clearTimeout(t)
+  }, [on, k, target, still, slowMs, fastMs, slowN])
+  const shown = still ? target : Math.min(k, target)
+  const bars = useMemo(() => (on && base ? [...base, ...(forward || []).slice(0, shown)] : base), [base, forward, on, shown])
+  return { bars, k: on ? shown : 0 }
+}
