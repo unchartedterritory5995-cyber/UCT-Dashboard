@@ -1,55 +1,84 @@
-// HARD MODE (production plan piece 43, built 2026-11-05 while the drill's batch 17 waits on the owner's ranks).
-// Eight charts from the bank with nothing to lean on: no ticker, no averages, no volume, candles only. On each the
-// member names what fired (or says nothing did); the answer is scored on the server against the bank's own key
-// (hardMode.js), the lesson and the ticker come back with the verdict, and the forward bars run on slowly. No
-// hearts: a miss is a miss and the run goes on. Eight for eight lights the fourth crown on the end card, for this
-// run. Every XP number shown is what the attempts earned; nothing here invents one.
+// HARD MODE (production plan piece 43). Round 20 made the chart the hero; round 21 applies the owner's batch-21 ranks
+// (2026-11-06), every part:
+//   * correctness first: "It says that NOTHING FIRED and AAPL in this example IS an oops reversal! We cannot have
+//     incorrect examples and explanations!" The pool is swept on the server (api/services/study_hard.py: a Yes chart
+//     nothing else fires on, a No chart nothing fires on at all), the verdict reads the bank's key from the reveal, and
+//     another setup's name is posted as itself so the server records the miss;
+//   * the pointer (11/100, Cut): the spotlight band and the bottom chip are gone; the chart's own callout layer draws a
+//     ring round the candle and a pill in open space with an arrow to it (ui/callout.js);
+//   * the run-on (Cut; "why only do like 5-10 days continuation, we should do to the full culmination or maximization
+//     of the trade and the opportunity!"): the forward strip runs to the move's furthest point and a few sessions past
+//     it, quick after the first few bars, and a gold callout marks the culmination with the measured move;
+//   * the ticker (Cut): no watermark across the candles; the badge carries the ticker and the company's name;
+//   * the lesson (Okay; "simpler to read and more direct as a teacher and mentor"): a coach's card (ui/LessonCard);
+//   * the status line, Check and Next (Weak), the keyboard hint (Cut), the start stage's title, medal, brief and Start
+//     button, the end stage's medal and gems: rebuilt in the kit (ui/*, study.module.css "ROUND 21").
+// The prompt line and the widget's header (both Good) are kept as they were.
+// THE MODE: eight charts from the bank; the TICKER is hidden and the member names what fired on the last candle, or says
+// nothing did; the chart is otherwise their own (their averages, their volume). Scored on the server against the bank's
+// own key; the lesson and the ticker come back with the verdict. No hearts. Eight for eight earns Legendary, for this
+// run. Every XP number shown is what the attempts earned.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import UIcon from '../../../components/ui/UIcon'
-import StudyMark from '../../../components/study/StudyMark'
-import StartCard, { StartButton } from '../../../lab/StartCard'
-import { Confetti, Stamp } from '../../../lab/bits'
-import { useCountUp, useRunOn } from '../../../lab/fx'
-import { spot } from '../../../lab/pointers'
-import d5 from '../../../lab/duo.module.css'
-import lab from '../../../lab/lab.module.css'
+import { useCountUp, useRunOnTo } from '../../../lab/fx'   // pure motion (bars running on, a count-up); no styling rides in
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
-import ChallengeChart from './ChallengeChart'
-import { fetchSpotPool, scoreAttempt } from './challengeBank'
+import { fetchForwardRest, fetchSpotPool, scoreAttempt } from './challengeBank'
 import { yesNo } from './KickerChallenge'
-import { HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, hardAnswer, hardChoices, hardRight, idSeed, setupFired } from './hardMode'
+import {
+  HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, SHORT_SETUPS, culmination, culminationLabel, hardAnswer, hardChoices, hardRight,
+  idSeed, runLength, setupFired, withArticle,
+} from './hardMode'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
+import { Medal, ScoreRing } from '../ui/Medal'
+import Hud from '../ui/Hud'
+import Prompt from '../ui/Prompt'
+import Choice, { ChoiceGrid } from '../ui/Choice'
+import Stamp from '../ui/Stamp'
+import StudyButton from '../ui/StudyButton'
+import StudyChart from '../ui/StudyChart'
+import LessonCard from '../ui/LessonCard'
+import Stage, { Confetti, Rules, RunLog, StatCard } from '../ui/Stage'
+import { calloutLook, hardCallouts } from '../ui/callout'
+import s from '../ui/study.module.css'
 
-/** Three crowns and the dark fourth; `lit` lights it (a perfect run). */
-export function Crowns({ lit = false, size = 44 }) {
-  return (
-    <div className={d5.crownRow} style={{ fontSize: size }} aria-label={lit ? 'four crowns, the fourth lit' : 'three crowns and a dark fourth'}>
-      <span>♛</span><span>♛</span><span>♛</span>
-      <span className={`${d5.dimC} ${lit ? d5.lit : ''}`} data-testid="fourth-crown" data-lit={lit ? '1' : '0'}>♛</span>
-    </div>
-  )
-}
+const RULES = [
+  { icon: 'lock', title: 'No ticker', text: 'The name stays hidden until you answer.' },
+  { icon: 'chart', title: 'Your chart', text: 'Your own averages and your own volume.' },
+  { icon: 'flag', title: 'Name it', text: 'What fired on the last candle, or nothing did.' },
+]
 
-function Q({ idx, item, total, prefs, fetcher, onDone }) {
+function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')      // ask | ok | bad
   const [fwd, setFwd] = useState(null)
   const [lesson, setLesson] = useState('')
+  const [rule, setRule] = useState(null)
   const [ticker, setTicker] = useState('')
   const [fired, setFired] = useState(null)
   const [xp, setXp] = useState(0)
-  const shownAt = useRef(0)
-  useEffect(() => { shownAt.current = performance.now() }, [])
   const [busy, setBusy] = useState(false)   // the attempt is on the wire: Check reads Checking and a second tap posts nothing
+  const [restDone, setRestDone] = useState(false)   // the rest of the forward strip has come back (or there was none)
+  const shownAt = useRef(0)
+  const live = useRef(true)
+  useEffect(() => { shownAt.current = performance.now(); live.current = true; return () => { live.current = false } }, [])
+  const phone = useIsPhone()
   const bars = item.bars
   const n = bars.length
   const choices = useMemo(() => hardChoices(item, idSeed(item.id)), [item])
-  const all = useRunOn(bars, fwd, state !== 'ask', RUN_ON_MS)
-  const ann = useMemo(() => (!n || !all ? null : spot(all, n - 1, {
-    label: state === 'ask' ? 'this candle' : state === 'ok' ? 'you were right' : 'the answer',
-    id: `h${idx}`, color: state === 'ask' ? '#dcbb5e' : state === 'ok' ? '#2faf68' : '#df4646', halo: state === 'ask',
-  })), [all, n, state, idx])
+  const short = SHORT_SETUPS.includes(item.name)
+  const culm = useMemo(() => (fired === true ? culmination(bars[n - 1], fwd, short) : null), [fired, fwd, bars, n, short])
+  const runN = runLength(fwd?.length || 0, culm, fired === true)
+  const { bars: all, k } = useRunOnTo(bars, fwd, runN, state !== 'ask', { slowMs: RUN_ON_MS })
+  const view = Math.min(90, all?.length || 0)
+  const look = useMemo(() => calloutLook(phone), [phone])
+  const truth = fired === true ? item.name : fired === false ? NOTHING : 'The answer'
+  const callouts = useMemo(() => hardCallouts({
+    index: n - 1,
+    label: state === 'ask' ? 'Last candle' : truth,
+    tone: state,
+    peak: culm && k > culm.offset ? { index: n + culm.offset, text: culminationLabel(culm) } : null,
+  }), [n, state, truth, culm, k])
   const check = async () => {
     if (pick == null || state !== 'ask' || busy) return
     setBusy(true)
@@ -57,82 +86,122 @@ function Q({ idx, item, total, prefs, fetcher, onDone }) {
     const { yes, no } = yesNo(item.choices)
     let right = false
     let wasFired = null
+    let attempt = null
     try {
-      const a = await scoreAttempt(item, hardAnswer(picked, item, yes, no), performance.now() - shownAt.current, fetcher)
-      right = hardRight(picked, item, a.correct)
-      wasFired = setupFired(picked, item, a.correct)
-      setFwd(a.forward); setLesson(a.reveal?.lesson || ''); setTicker(a.reveal?.sym || a.reveal?.ticker || ''); setXp(Number(a.progress?.xp_gained || 0))
+      attempt = await scoreAttempt(item, hardAnswer(picked, item, yes, no), performance.now() - shownAt.current, fetcher)
+      right = hardRight(picked, item, attempt.correct)
+      wasFired = setupFired(picked, item, attempt.correct, attempt.reveal?.answer)
+      setFwd(attempt.forward); setLesson(attempt.reveal?.lesson || ''); setRule(attempt.reveal?.setup_rule || null)
+      setTicker(attempt.reveal?.sym || attempt.reveal?.ticker || ''); setXp(Number(attempt.progress?.xp_gained || 0))
     } catch { right = false }
+    if (!live.current) return
     setBusy(false); setFired(wasFired); setState(right ? 'ok' : 'bad'); revealFeedback(right, prefs)
-  }
-  useEffect(() => {
-    const k = (e) => {
-      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return
-      if (state !== 'ask') { if (e.key === 'Enter') onDone(state === 'ok', xp); return }
-      const i = +e.key - 1; if (i >= 0 && i < choices.length) setPick(i)
-      if (e.key === 'Enter' && pick != null) check()
+    // the rest of the forward strip, so the run-on can reach the move's culmination
+    if (attempt) {
+      fetchForwardRest(attempt, attempt.forward.length, fetcher).then((more) => {
+        if (!live.current) return
+        if (more.length) setFwd((f) => [...(f || []), ...more])
+        setRestDone(true)
+      })
+    } else {
+      setRestDone(true)
     }
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
-  })
+  }
+  // the number keys pick a pill; Enter is the action button's own hotkey (StudyButton), so it fires exactly once
+  useEffect(() => {
+    const onKey = (e) => {
+      if (state !== 'ask' || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return
+      const i = +e.key - 1
+      if (i >= 0 && i < choices.length) setPick(i)
+    }
+    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
+  }, [state, choices.length])
   const picked = pick == null ? null : choices[pick]
-  const bubble = state === 'ask' ? 'Candles only. What fired on the last candle?'
-    : state === 'ok' ? (fired ? 'Named it with nothing to lean on.' : 'Right. Nothing fired here.')
-      : fired ? `It was the ${item.name}.` : `Nothing fired here${picked && picked !== NOTHING ? `, and it was not a ${picked}` : ''}.`
   const rightCard = (c) => state === 'bad' && fired != null && ((fired && c === item.name) || (!fired && c === NOTHING))
+  const cardState = (c, i) => {
+    if (state === 'ask') return pick === i ? 'sel' : 'idle'
+    if (pick === i) return state === 'ok' ? 'right' : 'wrong'
+    if (rightCard(c)) return 'right'
+    return 'quiet'
+  }
   const last = idx + 1 >= total
+  const mood = state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'
+  const where = ticker || 'this chart'
+  const xpNote = xp > 0 ? ` · +${xp} XP` : ''
+  const headline = state === 'ok'
+    ? (fired === false ? 'Right. Nothing fired.' : 'Named it.')
+    : fired === true ? `It was ${withArticle(item.name)}.` : fired === false ? 'Nothing fired here.' : 'Not this one.'
+  const detail = state === 'ok'
+    ? (fired === false ? <><b>{where}</b> · no setup on the last candle{xpNote}</> : <>{item.name} on <b>{where}</b>{xpNote}</>)
+    : fired === true ? <><b>{where}</b> · you said {picked === NOTHING ? 'nothing fired' : picked}</>
+      : fired === false ? <><b>{where}</b> · not {withArticle(picked)}</> : <b>{where}</b>
   return (
-    <div className={`${d5.slideIn} ${state === 'bad' ? d5.shakeHard : ''}`} data-testid="hard-question">
-      <div className={d5.topbar}>
-        <span className={`${d5.hardTag} ${state === 'ask' ? d5.pulse : ''}`}>HARD</span>
-        <div className={d5.stepsCompact}><span className={`${d5.stepPill} ${d5.now}`} data-testid="hard-step">{idx + 1} of {total}</span></div>
-        <span className={d5.legend} aria-hidden="true">♛♛♛<b>♛</b></span>
+    <div className={`${s.kit} ${s.screen}`} data-testid="hard-question" data-state={state} data-run={state !== 'ask' && restDone && k >= runN ? 'done' : 'running'}>
+      {state !== 'ask' ? <span className={`${s.flash} ${state === 'ok' ? s.ok : s.bad}`} aria-hidden="true" /> : null}
+      {state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} pop /> : null}
+      <Hud mode="hard" step={idx} total={total} results={results} live={state === 'ask'} />
+      <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`}>
+        <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}
+          callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} />
       </div>
-      <div className={d5.ask}>
-        <StudyMark mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={60} />
-        <div className={d5.bubble}>{bubble}</div>
-      </div>
-      <div className={d5.qLine}>
-        <span className={d5.qSetup}>{state === 'ask' ? 'Name it' : ticker || item.name}</span>
-        <span className={d5.qText}>{state === 'ask' ? 'No ticker, no averages, no volume. Which setup, if any, fired on the last candle?' : `A ${item.name} question from the bank${ticker ? `, on ${ticker}` : ''}.`}</span>
-      </div>
-      <div className={lab.chartBox}>
-        {state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}
-        <ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={320} annotations={ann} chartOpts={HARD_CHART} fetcher={fetcher} />
-      </div>
-      <div className={`${d5.cards} ${d5.cascade}`} data-testid="hard-cards">
-        {choices.map((c, k) => {
-          let cls = d5.card
-          if (state === 'ask' && pick === k) cls += ` ${d5.sel}`
-          if (state !== 'ask' && pick === k) cls += state === 'ok' ? ` ${d5.right}` : ` ${d5.wrong}`
-          if (rightCard(c)) cls += ` ${d5.right}`
-          return <button key={c} type="button" className={cls} style={{ '--i': k }} disabled={state !== 'ask'} onClick={() => { setPick(k); tapFeedback(prefs) }}><span className={d5.key}>{k + 1}</span>{c}</button>
-        })}
-      </div>
-      {state !== 'ask' && lesson ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{lesson}</p></details> : null}
-      <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
+      <Prompt mood={mood} tone={state} size={phone ? 40 : 48}
+        title={state === 'ask' ? 'What fired on the last candle?' : headline}
+        sub={state === 'ask' ? <>Your chart, without its name. <b>Name it</b>, or say nothing did.</> : detail}
+        seal={state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} inline /> : null} />
+      <ChoiceGrid row testId="hard-cards" label="Your answer">
+        {choices.map((c, i) => (
+          <Choice key={c} pill n={i + 1} i={i} label={c} state={cardState(c, i)} disabled={state !== 'ask'} onClick={() => { setPick(i); tapFeedback(prefs) }} />
+        ))}
+      </ChoiceGrid>
+      <div className={s.actionBar}>
         {state === 'ask'
-          ? <button type="button" className={`${d5.btn} ${pick != null && !busy ? d5.live : ''}`} disabled={pick == null || busy} onClick={check} data-testid="hard-check">{busy ? 'Checking' : 'Check'}</button>
-          : <button type="button" className={`${d5.btn} ${state === 'ok' ? d5.live : d5.red}`} onClick={() => onDone(state === 'ok', xp)} data-testid="hard-next">{last ? 'See the run' : 'Next'}</button>}
-      </div></div>
+          ? <StudyButton kind="primary" size="xl" arrow wide={phone} hotkey="Enter" busy={busy} disabled={pick == null} onClick={check} testId="hard-check">{busy ? 'Checking' : 'Check'}</StudyButton>
+          : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide={phone} hotkey="Enter" onClick={() => onDone(state === 'ok', xp, ticker, fired === false ? NOTHING : item.name, picked)} testId="hard-next">{last ? 'See the run' : 'Next'}</StudyButton>}
+      </div>
+      {state !== 'ask' && (lesson || rule) ? (
+        <LessonCard text={lesson} ticker={ticker || null} setup={item.name} fired={fired} bars={bars} setupRule={rule} />
+      ) : null}
     </div>
   )
 }
 
-function Done({ right, total, xp, onBack, onAgain }) {
+const VERDICT_WORD = (right, total) => {
+  const r = total ? right / total : 0
+  if (total > 0 && right === total) return 'Legendary'
+  if (r >= 0.75) return 'Sharp eyes'
+  if (r >= 0.5) return 'Getting there'
+  return 'Tough run'
+}
+
+function bestStreak(results) {
+  let best = 0, run = 0
+  for (const r of results) { run = r ? run + 1 : 0; if (run > best) best = run }
+  return best
+}
+
+function Done({ right, total, xp, log, results, onBack, onAgain }) {
   const perfect = total > 0 && right === total
   const shown = useCountUp(xp, true, 28)
+  const acc = total ? Math.round((right / total) * 100) : 0
   return (
     <>
       {perfect ? <Confetti /> : null}
-      <StartCard tone="dark" eyebrow="Hard mode" title={perfect ? 'Legendary' : `${right} of ${total}`} art={<Crowns lit={perfect} size={54} />}
-        lead={perfect ? `${total} for ${total} with nothing to lean on. The fourth crown is lit for this run.` : `${right} named with nothing to lean on. ${total} for ${total} lights the fourth crown.`}
-        button={<StartButton tone="dark" icon="crown" label="Again" sub="new charts · candles only" onClick={onAgain} />}
-        below={<button type="button" className={d5.linkBtn} onClick={onBack}>Back to Study</button>}>
-        <div className={d5.gems}>
-          <div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="check" size={20} /></span><small>Right</small><b data-testid="hard-right">{right}/{total}</b></div></div>
-          <div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>XP earned</small><b data-testid="hard-xp">+{shown}</b></div></div>
+      <Stage full hero legend={perfect} rays={perfect} eyebrow="Hard mode · the run" title={VERDICT_WORD(right, total)} titleClass={perfect ? s.titleMetal : s.titleRun}
+        sub={perfect ? `${total} for ${total} without a ticker. Legendary, for this run.` : `${right} of ${total} named without a ticker.`}
+        art={perfect ? <Medal lit ignite size={112} /> : <ScoreRing value={right} total={total} />} testId="hard-done"
+        actions={<>
+          <StudyButton kind="primary" size="xl" arrow hotkey="Enter" onClick={onAgain} testId="hard-again">Run it again</StudyButton>
+          <StudyButton kind="ghost" onClick={onBack}>Back to Study</StudyButton>
+        </>}>
+        {perfect ? null : <span className={s.legendHint}><Medal size={22} testId="legend-medal" /> {total} for {total} lights the Legendary medal</span>}
+        <div className={s.stats}>
+          <StatCard i={0} icon="star" label="XP earned" value={`+${shown}`} tone="gold" testId="hard-xp" />
+          <StatCard i={1} icon="check" label="Named" value={`${right}/${total}`} tone="green" testId="hard-right" />
+          <StatCard i={2} icon="flame" label="Best streak" value={bestStreak(results)} tone="flame" testId="hard-streak" />
         </div>
-      </StartCard>
+        <span className={s.accuracy}>{acc}% accuracy</span>
+        <RunLog rows={log} />
+      </Stage>
     </>
   )
 }
@@ -145,34 +214,42 @@ export default function HardChallenge({ profile = null, fetcher = studyFetch, on
   const [reload, setReload] = useState(0)
   const [i, setI] = useState(0)
   const [right, setRight] = useState(0)
+  const [results, setResults] = useState([])
+  const [log, setLog] = useState([])
   const [xp, setXp] = useState(0)
   const [run, setRun] = useState(0)
   useEffect(() => {
     let on = true
-    fetchSpotPool(undefined, 4, fetcher).then((p) => { if (on) setPool(p) }).catch((e) => { if (on) { setError(e); setPool([]) } })
+    fetchSpotPool(undefined, 4, fetcher, undefined, { hard: true }).then((p) => { if (on) setPool(p) }).catch((e) => { if (on) { setError(e); setPool([]) } })
     return () => { on = false }
   }, [reload, fetcher])
   const total = Math.min(HARD_TOTAL, pool?.length || 0)
   const items = useMemo(() => (pool ? pool.slice(0, HARD_TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
-  const start = () => { setPhase('play'); setI(0); setRight(0); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(HARD_TOTAL), ...p.slice(0, HARD_TOTAL)]) }
+  const start = () => { setPhase('play'); setI(0); setRight(0); setResults([]); setLog([]); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(HARD_TOTAL), ...p.slice(0, HARD_TOTAL)]) }
   const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }
 
   if (error) return <ChallengeError what="the hard-mode charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
   if (phase === 'intro') {
-    const count = total || 'Eight'
+    const count = total || HARD_TOTAL
     return (
-      <StartCard tone="dark" eyebrow="Challenge" title="Hard mode" art={<Crowns size={44} />}
-        lead={`${count} charts from the bank with nothing to lean on: no ticker, no averages, no volume. Candles only. Name what fired, or say nothing did. ${count} for ${String(count).toLowerCase()} lights the fourth crown.${pool ? '' : ' Loading the bank.'}`}
-        button={<StartButton tone="dark" icon="crown" label={pool == null ? 'Loading the bank' : pool.length ? 'Start hard mode' : 'No charts yet'} sub={pool == null ? 'a second or two' : pool.length ? `${total} charts · candles only` : 'come back after a new import'} onClick={() => pool?.length && start()} />}>
-        <div className={d5.gems}>
-          <div className={`${d5.gem} ${d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="eyeOff" size={20} /></span><small>Hidden</small><b>ticker · averages · volume</b></div></div>
-          <div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>On a perfect run</small><b>Legendary</b></div></div>
-        </div>
-      </StartCard>
+      <Stage full hero eyebrow={`Challenge · ${count} charts`} title="Hard mode" titleClass={s.titleMetal} art={<Medal size={92} />} testId="hard-intro"
+        actions={<StudyButton kind="primary" size="xl" arrow hotkey="Enter" disabled={!pool?.length} onClick={() => pool?.length && start()} testId="hard-start">
+          {pool == null ? 'Loading the bank' : pool.length ? 'Start' : 'No charts yet'}
+        </StudyButton>}
+        below={<span className={s.reward}><b>{count} for {count}</b> · lights the Legendary medal</span>}>
+        <Rules items={RULES} />
+      </Stage>
     )
   }
-  if (phase === 'done') return <Done right={right} total={total} xp={xp} onBack={onClose} onAgain={again} />
+  if (phase === 'done') return <Done right={right} total={total} xp={xp} log={log} results={results} onBack={onClose} onAgain={again} />
   const item = items[i]
-  if (!item) return <p className={d5.startLead}>No charts in the bank yet.</p>
-  return <Q key={`${run}-${i}`} idx={i} item={item} total={total} prefs={prefs} fetcher={fetcher} onDone={(ok, gained) => { setXp((v) => v + (gained || 0)); if (ok) setRight((v) => v + 1); if (i + 1 >= total) { setPhase('done'); endFeedback(prefs) } else setI(i + 1) }} />
+  if (!item) return <p className={`${s.kit} ${s.heroSub}`}>No charts in the bank yet.</p>
+  return (
+    <Q key={`${run}-${i}`} idx={i} item={item} total={total} results={results} prefs={prefs} fetcher={fetcher}
+      onDone={(ok, gained, ticker, truth, said) => {
+        setXp((v) => v + (gained || 0)); if (ok) setRight((v) => v + 1); setResults((r) => [...r, !!ok])
+        setLog((l) => [...l, { name: truth || item.name, ticker: ticker || '', ok: !!ok, said: ok ? null : said }])
+        if (i + 1 >= total) { setPhase('done'); endFeedback(prefs) } else setI(i + 1)
+      }} />
+  )
 }
