@@ -3876,8 +3876,12 @@ const RS_LINE_RAW = {
     // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
     // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
     // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
-    { ...colorInput('color', 'Line above average', '#6ba3be'), group: 'Line' },
-    { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line' },
+    // ⭐ The pair carries its own instructions (review finding V3): two identical
+    // swatches for one line say why, and the second says what it colours.
+    { ...colorInput('color', 'Line above average', '#6ba3be'), group: 'Line',
+      tooltip: 'Classic uses one colour; keep both swatches the same for a single-colour line' },
+    { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line',
+      tooltip: 'Colour where the RS line is below its average; the Phase preset sets red here' },
     { ...colorInput('maColor', 'Average colour', '#8a8574'), group: 'Line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'New-high lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
