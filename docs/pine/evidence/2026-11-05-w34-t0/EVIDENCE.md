@@ -18,9 +18,12 @@ production census (967 rows) was kept; `job2.sh` re-ran runtime-on + maps + targ
 - `[drawing-objects]` sole: 55 before -> 3 after (doc said 56: master moved). Of the 55: 6 -> `[paint-withheld]`, 1 -> `[drawing-never-attempted]`,
   3 stay, the rest (45) now carry named dropped-op walls (single: create:label <- pine:text-value 2, others 1 each; many are multi-wall).
 - `[imperative]` sole: 39 before -> 39 after (doc said 41). The imperative bucket was not mis-bucketed by this; unchanged.
-- B1: of the 39 door `pine:no-output` in the drawing bucket, every one has attemptedOps>0 and droppedOps>0 on the door lane (0 zero-attempt there); the 2 zero-attempt
-  rows in the screener why file do not reproduce on the member door. New `[drawing-no-output-other]` touches: 0.
-- Map headline transfer 212 (31.2%), runtime-on 260.
+- B1 (corrected r1): of the 39 door `pine:no-output` rows in the old sole-55 drawing bucket, 36 attempted and dropped ops (`dropped`),
+  2 attempted none (`never-attempted`: builtin:pivot-points-standard, builtin:trading-sessions), and 1 attempted 110 and dropped 0
+  (`no-output-other`: committed:correlation-matrix). The earlier "0 zero-attempt" claim was false. T1's measure-pair set is the 36
+  rows with attemptedOps>0 and droppedOps>0, not 39. The two zero-attempt and the one no-output-other row end with named item walls
+  (`label.new`, `line.new`) rather than the new buckets (named beats bucket), so `[drawing-no-output-other]` touches 0 hides that one row.
+- Map headline transfer 212 (31.2%), runtime-on 260. Against W0 (218 / 268) the -6 / -8 is entirely W9-T0's `places_orders` predicate (8 order-placing strategies newly carry `[strategy]`); per-script door verdicts: 0 diffs.
 
 ## Rails and mutations
 `tests/test_pine_coverage_w3w4_t0_honesty.py` (11) + vitest `W3W4-T0: dropHeads` (2). `mut.py`: P0 and J0 no-op controls green; P1..P8, J1, J2 all red (killed). Log `mut.out` under runs/w34-t0.
@@ -29,3 +32,9 @@ production census (967 rows) was kept; `job2.sh` re-ran runtime-on + maps + targ
 - hyg=1 was the 6.1 MB wall-detail JSON (5 MB limit); fixed by compact JSON (3.9 MB) in the next commit, hygiene re-run alone: clean; the 3 pine pytest files: 44 passed.
 - js failures: baselines pollingSites, settingsScope, enumerationSites, controlDoorCensus, coverageAudit; plus vendorHarness.test.js
   (tolerancePolicy float 0.000049999999999999996 vs 0.00005, a file this lane does not touch).
+
+## Declared out of scope (r1): spec item 6, the `drawing-build-empty` tag and its rail 4
+Not built. W34-D2 found the drawing build DOES lower ops, and that the door's value-build re-probe hid the refusal; so a tag keyed on
+"the drawing build declined with zero ops lowered" would label a decline the census cannot attribute to that build, and would be a
+wrong-reason label. Item 6 waits for D2's finding to be fixed in the probe (or for the census to probe the drawing build directly).
+`masterSha` in the map reads 3ca4b0d358; the census tree was 299a1a77cb (c855e8cadf plus the W9-T0 branch), both engine 18.
