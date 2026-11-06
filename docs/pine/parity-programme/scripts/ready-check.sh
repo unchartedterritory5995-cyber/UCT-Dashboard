@@ -22,9 +22,10 @@ TIP=$(awk '{print $2}' "$O/TIP"); git cat-file -e "$TIP^{commit}" 2>/dev/null ||
 fd() { grep -m1 -o -E "(^|[ ])$1=[^ ]*" "$O/FINAL_DONE" | head -1 | sed -E "s/^ ?$1=//"; }
 # enumerationSites + vendorHarness: red on master 646dca8cbf too (new master harness.jsx; Node 20 V8 1e-4 tolerance),
 # verified by the landing train 2026-11-05 (runs/train). Remove them when master is green again.
+# vendorHarness.coverageAudit: delta-rsi 1000 ms wall clock, red on master ALONE on this desktop (master 761-942 ms under load, >1000 now); a machine limit, budget NOT widened.
 # additionsOnly: red on master 2026-11-06 (app TodayHome.jsx:487, another team; confirmed by the W34-D3 review).
 # controlDoorCensus: red on master since PR #832 (55d7c62819, app/src/agent/guide/slots.js not in BULK_BLOB_SITES), not Pine (runs/diag-cdc).
-BASELINE_FAIL_RE='^(pollingSites\.rail|settingsScope\.rail|enumerationSites|vendorHarness|controlDoorCensus|additionsOnly)\.test\.jsx?$'
+BASELINE_FAIL_RE='^(pollingSites\.rail|settingsScope\.rail|enumerationSites|vendorHarness|controlDoorCensus|usePreferences\.additionsOnly|vendorHarness\.coverageAudit)\.test\.jsx?$'
 SCOPE=$(fd scope); [ "$SCOPE" = full ] || fail "final-tip scope is '${SCOPE:-unknown}', only a FULL run counts (shards allowed)"
 [ "$(fd integrity)" = ok ] || fail "final-tip integrity=$(fd integrity) (HEAD or tree moved during the run, or old-format FINAL_DONE)"
 [ "$(fd totals)" = ok ] || fail "totals=$(fd totals): a vitest run/shard reported no totals"
