@@ -398,7 +398,6 @@ def test_a_queued_gate_waits_and_never_promotes(status):
     assert _decide(_run(status, None)) == pg.WAIT
 
 
-def test_a_green_fallback_run_does_not_launder_a_cancelled_run_on_the_same_commit():
-    """A fact AUDIT has to rule on (AUDIT-NOTES.md, 'Fallback'): promotion reads every run for a SHA, so a manual
-    fallback that passes on a commit whose push run was cancelled still REFUSES. Safe, but it cannot rescue that commit."""
+def test_a_cancelled_run_with_no_order_stays_refused():
+    """Without timestamps nothing says the green run came later, so the old refusal stands."""
     assert _decide(_run("completed", "cancelled"), _run("completed", "success")) == pg.REFUSE
