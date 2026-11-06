@@ -121,7 +121,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-bright);
 }
 .levelLabel {
@@ -155,7 +155,7 @@
   gap: 6px 10px;
 }
 .noteLink {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-bright);
   /* Underlined in its own colour: a fixed white underline was invisible in the light theme. */
   text-decoration: underline;
@@ -169,7 +169,8 @@
   gap: 4px;
   min-height: 32px;
   padding: 4px 10px;
-  font-size: 12.5px;
+  /* Finish batch: 12.5 px was off the type scale (the Notebook home's "Plan it"); 13 matches its input. */
+  font-size: 13px;
   color: var(--text-bright);
   background: transparent;
   border: 1px solid var(--border);
@@ -240,7 +241,7 @@
 }
 .reasons {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-bright);
   overflow-wrap: anywhere;
 }

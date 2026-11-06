@@ -227,7 +227,6 @@
   "spacing 6px": 1
  },
  "pages/journal-2-0/components/notebook/EmptyNamesAsk.module.css": {
-  "font-size 12.5px": 1,
   "spacing 10px": 2,
   "spacing 3px": 1,
   "spacing 5px": 1,
@@ -708,7 +707,6 @@
   "icon-size 14px": 1
  },
  "pages/journal-2-0/components/notebook/SetupsBoard.module.css": {
-  "font-size 12.5px": 4,
   "font-size 13.5px": 1,
   "spacing 10px": 8,
   "spacing 18px": 1,
