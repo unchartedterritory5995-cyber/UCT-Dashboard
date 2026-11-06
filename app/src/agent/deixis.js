@@ -244,8 +244,11 @@ export function chartsNamedBy(text, charts = []) {
  *   several charts changed → { propose } the change is shown for approval, never applied at once
  * → null when every changed chart is identified (or the board has one chart).
  */
-function clickFits(words, charts, sel) {
-  const said = [...String(words || '').matchAll(POS_WORDS)].map(m => m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom'))
+// a position word only where it stands for a chart: "the top one", "the chart in the bottom right". "the top was 150", "on top",
+// "right now" and "the left shoulder" say nothing about a chart, so they never take the click's place
+const CHART_POSITION = new RegExp(`${POS_WORDS.source}[\\s-]+(?:chart|one|cell|corner|pane)\\b|\\b(?:chart|one)\\s+(?:in|at|on)\\s+the\\s+${POS_WORDS.source}`, 'gi')
+const chartPositions = (words) => [...String(words || '').matchAll(CHART_POSITION)].map(m => (m[1] || m[2]).toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom'))
+function clickFits(said, charts, sel) {
   if (!said.length) return true
   return said.some(w => { const parts = w.split('-'); return charts.some(c => c.ref === sel && c.position && parts.every(p => c.position.split('-').includes(p))) })
 }
@@ -289,7 +292,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
   // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
-  if (sel && (/\bthis\b/i.test(words) || (!named.size && clickFits(words, charts, sel)))) named.add(sel)
+  const said = chartPositions(words)
+  const answered = (pickedRefs || []).some(Boolean)
+  if (sel && (/\bthis\b/i.test(words) || (!answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {

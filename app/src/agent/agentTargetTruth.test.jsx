@@ -102,6 +102,13 @@ describe('words that name a chart outrank the click', () => {
     await b.say('kindly flip this over to the weekly view')
     expect(tfOf(b.board, 'br')).toBe('W')
   }, 30000)
+  it.each([['kindly set the top was 150 line weekly'], ['kindly flip it right now to the weekly view'], ['kindly go weekly with the label on top'], ['kindly go weekly, the left shoulder matters']])('NEGATIVE: "%s": a position word that is not a chart leaves the click standing', async (t0) => {
+    const b = p.mount([cell('t', 0, 0, 24, 10), cell('m', 0, 10, 12, 10), cell('r', 12, 10, 12, 10)], { 'N:t': 'SPY', 'N:m': 'QQQ', 'N:r': 'TSLA' })
+    p.select('r')
+    p.st.envelopes.push(p.env('apply', [setTf('r', 'W')]))
+    await b.say(t0)
+    expect(tfOf(b.board, 'r')).toBe('W')
+  }, 30000)
   it('nothing named: the click answers, as before', async () => {
     const b = quad('br')
     p.st.envelopes.push(p.env('apply', [setTf('br', 'W')]))
