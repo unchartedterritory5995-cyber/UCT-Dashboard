@@ -51,7 +51,9 @@ const TINY = ['//@version=5', 'indicator("t")', 'var float s = 0.0', 's := s + c
 // a collection error on the first bar: Pine stops the script here, this lane names it
 // ⚰️ RT7 — this was `array.max` of an empty array, which is MEASURED now (na, as Pine;
 // `rt7ArrayNa.test.js`). `array.sum` of an empty array is still an unmeasured, named stop.
-const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.new_float(0)', 'plot(array.median(a))', ''].join(LF)
+// ⭐ W6-T5 — `array.median` of an EMPTY array is `na` now (its v6 reference entry); an `na`
+// ELEMENT is what still stops the script by name (W6-A1).
+const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.from(1.0, na)', 'plot(array.median(a))', ''].join(LF)
 
 const rtDef = (source, id = 'u_rf_safety') => ({
   id,
