@@ -3118,6 +3118,11 @@
       "status": "dark",
       "where": ["web"],
       "note": "P4b. Gates sharing a Today or trade page layout to the community library, the Page layouts chip, previewing and adopting a layout. Server-only (no payload key), so it carries no member_facing label: the feature strip would list it as not measured to every member while it is dark; give it a payload key that says False before declaring one. Needs JOURNAL_PAGE_LAYOUTS_ENABLED too (the style library it also needed was retired as always on, 2026-11-04). Off: layout items read like ones that do not exist and every layout route answers 404. Arm: railway variables --service web --set NOTEBOOK_LAYOUT_SHARING_ENABLED=1 (the owner's). Rollback: 0; adopted layouts stay in members' own preferences."
+    },
+    "RS_V2_ENABLED": {
+      "status": "dark",
+      "where": ["web"],
+      "note": "UCT Relative Strength v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md section 13). Read ONCE at import by api/services/signature/registry_defs.py: it chooses which shape the rsLine server row declares. Off (default): the v1 row, one column, compute.rev 1, the chart draws the plain RS line only. On: the Phase 1 column set, rev 2, a payload envelope key; the chart draws the moving average and the new-high dots. Arm: railway variables --service web --set RS_V2_ENABLED=1 (the owner's). Rollback: set 0 and railway redeploy --service web --yes (a variable delete alone does not restart the process). Needs the worker to have warmed RSP and the sector ETFs once (bars_prewarm PRIORITY_TICKERS) or the equal-weight and sector benchmarks answer the no-benchmark-bars state."
     }
   },
   "retired": {

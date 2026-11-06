@@ -52,7 +52,10 @@ LABELS: Dict[str, str] = {
     "RSP": "Equal-weight S&P 500 (RSP)",
 }
 
-#: An industry composite needs at least this many members to mean anything.
+#: The universe map's industry label for every ETF (its Finviz source's convention).
+ETF_INDUSTRY = "Exchange Traded Fund"
+
+#: An industry composite needs at least this many CONTRIBUTING members to mean anything.
 MIN_INDUSTRY_MEMBERS = 3
 #: And is capped so a 200-name group does not cost 200 bar reads per chart open.
 MAX_INDUSTRY_MEMBERS = 60
@@ -133,7 +136,16 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
                 "fallback": None, "bars": fetch_bars(req, tf, count)}
 
     if req == "SECTOR":
-        sector = (_groups_for(sym_u) or {}).get("sector")
+        groups = _groups_for(sym_u) or {}
+        sector = groups.get("sector")
+        # ⭐ AN ETF HAS NO SECTOR OF ITS OWN. The universe map files every ETF under
+        # sector "Financial" / industry "Exchange Traded Fund" (its source's
+        # convention), so SPY's "sector ETF" would resolve to XLF — a comparison
+        # that means nothing. For an ETF the market is the benchmark, and the
+        # legend says why (plan §6.10; Phase 2 map §4.1.6).
+        if (groups.get("industry") or "") == ETF_INDUSTRY:
+            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
+                    "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
         etf = SECTOR_ETF.get(sector or "")
         if not etf:
             return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
@@ -145,14 +157,21 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
     if req == "INDUSTRY":
         groups = _groups_for(sym_u) or {}
         industry = groups.get("industry")
+        if (industry or "") == ETF_INDUSTRY:
+            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
+                    "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
         members = sorted({m.upper() for m in _members_of(industry)}) if industry else []
-        members = members[:MAX_INDUSTRY_MEMBERS]
-        if len(members) >= MIN_INDUSTRY_MEMBERS:
-            series = {m: fetch_bars(m, tf, count) for m in members}
-            composite = equal_weight_composite({m: s for m, s in series.items() if s})
+        # Fetch first, then count: a member without bars in the store contributes
+        # nothing, so the floor is on CONTRIBUTING names and the label says how
+        # many actually carried the composite (review finding). The fetch cap
+        # keeps a 200-name group from costing 200 reads per chart open.
+        series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
+        contributing = {m: s for m, s in series.items() if s}
+        if len(contributing) >= MIN_INDUSTRY_MEMBERS:
+            composite = equal_weight_composite(contributing)
             if composite:
                 return {"requested": req, "resolved": f"INDUSTRY:{industry}",
-                        "label": f"{industry} (equal-weight, {len(series)} names)",
+                        "label": f"{industry} (equal-weight, {len(contributing)} names)",
                         "fallback": None, "bars": composite}
         # Not enough of a group: fall to the sector, then the market, and say so.
         sector = groups.get("sector")

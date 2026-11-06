@@ -443,24 +443,27 @@ describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () 
     expect(calls[0]).not.toContain('lineColor')
   })
 
-  it('⛔ REV GATING — an entry on another rev is a miss, re-asked once, and draws nothing meanwhile', async () => {
+  it('⛔ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED — the flag-off (v1) envelope renders the line and never loops', async () => {
     const def = getDefinition('rsLine')
     expect(def.compute.rev).toBe(2)
     const inputs = { benchmark: 'SPY' }
     const ctx = { sym: 'NVDA', tf: 'D' }
-    // a stale rev-1 envelope lands in the cache (a browser that fetched before the deploy)
-    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs), { columns: { rsLine: [0.5] }, times: [20260105], rev: 1 })
-    expect(revMismatch(cachedColumns('rsLine', 'NVDA', 'D', inputs), def)).toBe(true)
+    // the dark default: the server row is v1 (one column, rev 1) while the client definition is v2
     const calls = []
-    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [0.7] }, times: [20260105], rev: 2 }) }
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [0.5] }, times: [20260105], rev: 1 }) }
     const bars = [{ t: '2026-01-05', c: 1 }]
-    expect(serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })).toEqual({})
-    expect(cachedColumns('rsLine', 'NVDA', 'D', inputs), 'the stale entry is gone at once').toBeNull()
-    await new Promise((r) => setTimeout(r, 0))     // let the fetch chain land (several microtasks)
-    expect(calls.length, 'the lane asks on a microtask, as it always has').toBe(1)
-    const drawn = serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })
-    expect(Array.from(drawn.rsLine)).toEqual([0.7])
-    expect(calls.length, 'the re-ask happened once').toBe(1)
+    expect(serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })).toEqual({})     // nothing landed yet
+    await new Promise((r) => setTimeout(r, 0))
+    expect(calls.length).toBe(1)
+    for (let i = 0; i < 5; i++) {
+      const drawn = serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })
+      expect(Array.from(drawn.rsLine), 'the v1 answer is drawn').toEqual([0.5])
+      expect(drawn.rsMa, 'and the columns the v1 server does not send are simply absent').toBeUndefined()
+    }
+    await new Promise((r) => setTimeout(r, 0))
+    expect(calls.length, 'no re-ask: five renders, one fetch').toBe(1)
+    // the mismatch is still visible as a signal
+    expect(revMismatch(cachedColumns('rsLine', 'NVDA', 'D', inputs), def)).toBe(true)
   })
 
   it('`scalarsFor` reads the landed payload and never asks', () => {
@@ -471,9 +474,9 @@ describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () 
     primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
       { columns: { rsLine: [0.5] }, times: [20260105], rev: 2, payload: { benchmark: { resolved: 'SPY' } } })
     expect(scalarsFor(def, inputs, ctx)).toEqual({ benchmark: { resolved: 'SPY' } })
-    // on the wrong rev the scalars are withheld with the columns
+    // a v1 server sends no payload, so the readout simply has none
     primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
-      { columns: { rsLine: [0.5] }, times: [20260105], rev: 1, payload: { stale: true } })
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 1 })
     expect(scalarsFor(def, inputs, ctx)).toBeNull()
   })
 })

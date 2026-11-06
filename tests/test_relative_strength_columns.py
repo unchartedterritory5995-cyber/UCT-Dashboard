@@ -179,6 +179,25 @@ def test_last_rs_high_and_legend_scalars_read_the_last_bar():
     assert leg["above"] is True and leg["maSlope"] == 1
 
 
+def test_red_on_green_is_the_mirror_of_green_on_red():
+    """A green day is the benchmark UP by at least the red-day magnitude and the
+    stock strictly DOWN; a flat day on either side is neither (review finding)."""
+    closes = [100.0, 99.0, 99.0, 98.0, 99.0]          # down, flat, down, up
+    bench = [100.0, 100.6, 100.4, 101.2, 100.0]        # +0.6, −0.2, +0.8, −1.19
+    out = rs.compute_phase1_columns(_bars(closes), _bars(bench), {"lookback": 20, "maLength": 2})
+    assert out["rog"] == [None, 1.0, 0.0, 1.0, 0.0]    # flat stock on a mild day is not red-on-green
+    assert out["gor"] == [None, 0.0, 0.0, 0.0, 1.0]
+
+
+def test_partial_dots_only_when_the_history_really_is_short():
+    series = [float(v) for v in range(1, 40)]
+    bars, bench = _bars(series), _bars([2.0] * 39)
+    long = rs.compute_phase1_columns(bars, bench, {"lookback": 30, "maLength": 5})
+    assert all(v is None for v in long["rsNHpartial"]) and all(v is None for v in long["dotNHpartial"])
+    short = rs.compute_phase1_columns(bars, bench, {"lookback": 30, "maLength": 5}, short_history=True)
+    assert any(v == 1.0 for v in short["rsNHpartial"])
+
+
 def test_no_column_ever_carries_nan_or_a_bool():
     n = 60
     out = rs.compute_phase1_columns(_bars([float(i + 1) for i in range(n)]),

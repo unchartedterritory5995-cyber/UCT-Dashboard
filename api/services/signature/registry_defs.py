@@ -203,12 +203,21 @@ def _rs_line_row(v2: bool) -> dict:
          "options": list(RS_LINE_BENCHMARKS)},
     ]
     if v2:
+        # ⭐ ONE SOURCE FOR THE RANGES. `relative_strength` owns the defaults and
+        # the clamp ranges (it is the module that computes with them); this row
+        # READS them, so the resolver's clamp and the compute's clamp cannot drift
+        # (review finding: the two were typed twice).
+        from api.services import relative_strength as rsm
         inputs += [
-            {"key": "maLength", "type": "int", "default": 21, "min": 2, "max": 200},
-            {"key": "maType", "type": "enum", "default": "EMA", "options": ["EMA", "SMA"]},
-            {"key": "lookback", "type": "int", "default": 252, "min": 20, "max": 500},
-            {"key": "priceTolerance", "type": "float", "default": 2.0, "min": 0.0, "max": 10.0},
-            {"key": "redDayThreshold", "type": "float", "default": -0.5, "min": -3.0, "max": 0.0},
+            {"key": "maLength", "type": "int", "default": rsm.DEFAULT_MA_LENGTH,
+             "min": rsm.MA_LENGTH_RANGE[0], "max": rsm.MA_LENGTH_RANGE[1]},
+            {"key": "maType", "type": "enum", "default": rsm.DEFAULT_MA_TYPE, "options": ["EMA", "SMA"]},
+            {"key": "lookback", "type": "int", "default": rsm.DEFAULT_LOOKBACK,
+             "min": rsm.LOOKBACK_RANGE[0], "max": rsm.LOOKBACK_RANGE[1]},
+            {"key": "priceTolerance", "type": "float", "default": rsm.DEFAULT_PRICE_TOLERANCE_PCT,
+             "min": rsm.PRICE_TOLERANCE_RANGE[0], "max": rsm.PRICE_TOLERANCE_RANGE[1]},
+            {"key": "redDayThreshold", "type": "float", "default": rsm.DEFAULT_RED_DAY_PCT,
+             "min": rsm.RED_DAY_RANGE[0], "max": rsm.RED_DAY_RANGE[1]},
             {"key": "showNewHigh", "type": "bool", "default": True},
             {"key": "showNewHighBeforePrice", "type": "bool", "default": True},
             {"key": "shortHistoryDots", "type": "bool", "default": True},

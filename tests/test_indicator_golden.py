@@ -1305,7 +1305,7 @@ def test_rs_events_python_lane_matches_every_golden_column(name):
     # the inputs are INSIDE the declared ranges — a clamped fixture would pin
     # the clamp, not its own params.
     assert rs_mod.resolve_phase1_inputs(inputs) == inputs
-    got = rs_mod.compute_phase1_columns(bars, bench, inputs)
+    got = rs_mod.compute_phase1_columns(bars, bench, inputs, short_history=True)  # the fixture IS a whole short history
     assert set(got) == set(case["expected"]) == set(rs_mod.PHASE1_COLUMNS), f"{name}: column set drifted"
     for col, exp in case["expected"].items():
         assert len(got[col]) == len(bars), f"{name}.{col} not aligned to bars"

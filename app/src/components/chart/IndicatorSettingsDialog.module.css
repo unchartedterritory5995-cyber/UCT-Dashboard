@@ -68,7 +68,8 @@
   white-space: nowrap;
 }
 .presetBtn:hover { border-color: var(--border-accent); }
-.presetBtn:focus-visible { outline: 1px solid var(--border-accent); outline-offset: -2px; }
+/* Keyboard focus keeps the global 2 px gold ring (brand guide §22: never remove the
+   focus ring); the earlier 1 px inset border-accent ring measured 1.6:1. */
 .presetBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .presetOrigin {
   display: block;

@@ -166,8 +166,11 @@ def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch)
     assert env["times"] == [1000 + i for i in range(n)]
     assert fetch.calls[0] == ("NVDA", "D", 852), "lookback + 600 bars on a daily chart"
     p = env["payload"]
-    assert p["benchmark"] == {"requested": "SPY", "resolved": "SPY", "label": "S&P 500 (SPY)", "fallback": None}
-    assert p["history"] == {"bars": n, "short": False} and p["intraday"] is False
+    assert p["benchmark"] == {"requested": "SPY", "resolved": "SPY", "label": "S&P 500 (SPY)", "fallback": None, "bars": n}
+    # 330 bars came back for a request of 852: the store holds the stock's whole
+    # history, so this IS a short history and the partial dots are allowed.
+    assert p["history"] == {"bars": n, "requested": 852, "short": True} and p["intraday"] is False
+    assert p["state"] == "short-history" and p["benchmark"]["bars"] == n
     assert p["inputs"]["lookback"] == 252 and "lineColor" not in p["inputs"]
     assert p["legend"]["above"] is not None and p["lastRsHigh"]["barsAgo"] == 0
     # events are 0/1/None and dots sit on the line
@@ -237,6 +240,80 @@ def test_columns_route_serves_the_v2_envelope(client, monkeypatch, v2_row):  # n
     assert body["payload"]["benchmark"]["resolved"] == "SPY"
     assert all(len(col) == n for col in body["columns"].values())
     assert all(v is None or isinstance(v, (int, float)) for v in body["columns"]["rsNH"])
+
+
+def test_benchmark_equal_to_the_symbol_is_a_state_not_a_flat_line_of_new_highs(v2_row, monkeypatch):
+    """SPY vs SPY is 1.0 on every bar; ties count as new highs, so without this a
+    SPY chart on the default benchmark would wear a dot on every bar."""
+    n = 60
+    store = {"SPY": _bars([400.0 + i for i in range(n)])}
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    monkeypatch.setattr(sig.cache, "get", lambda k: None)
+    monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: None)
+    env = sig._rs_line_provider("SPY", "D", {"benchmark": "SPY", "lookback": 20})
+    assert env["payload"]["state"] == "same-symbol"
+    assert all(v is None for v in env["columns"]["rsNH"]) and all(v is None for v in env["columns"]["rsLine"])
+
+
+def test_a_benchmark_without_bars_is_a_state_cached_for_one_minute_only(v2_row, monkeypatch):
+    n = 60
+    store = {"NVDA": _bars([100.0 + i for i in range(n)])}      # RSP has no rows yet
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    monkeypatch.setattr(sig.cache, "get", lambda k: None)
+    ttls = []
+    monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: ttls.append(ttl))
+    env = sig._rs_line_provider("NVDA", "D", {"benchmark": "RSP", "lookback": 20})
+    assert env["payload"]["state"] == "no-benchmark-bars"
+    assert env["payload"]["benchmark"]["bars"] == 0 and env["payload"]["history"]["bars"] == n
+    assert all(v is None for v in env["columns"]["rsLine"])
+    assert ttls == [60], "a degraded answer must not be remembered for six hours"
+
+
+def test_cache_key_carries_the_ET_session_day_and_ttl_runs_to_the_next_close(v2_row, monkeypatch):
+    n = 30
+    store = {"NVDA": _bars([100.0 + i for i in range(n)]), "SPY": _bars([400.0] * n)}
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    monkeypatch.setattr(sig, "_et_session_day", lambda: "2026-11-06")
+    seen = {}
+    monkeypatch.setattr(sig.cache, "get", lambda k: None)
+    monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.update({"key": k, "ttl": ttl}))
+    sig._rs_line_provider("NVDA", "D", {"lookback": 20})
+    assert seen["key"].endswith(":2026-11-06")
+    assert 60 <= seen["ttl"] <= 3 * 24 * 3600
+    assert 60 <= sig._seconds_to_next_et_close() <= 3 * 24 * 3600
+
+
+def test_an_etf_gets_the_market_as_its_sector_benchmark_with_a_reason(monkeypatch):
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Financial", "industry": rb.ETF_INDUSTRY})
+    fetch = _fetcher({"SPY": _bars([1, 2]), "XLF": _bars([9, 9])})
+    out = rb.resolve_benchmark("QQQ", "SECTOR", "D", 10, fetch)
+    assert out["resolved"] == "SPY" and out["fallback"] == "symbol is an ETF"
+    out = rb.resolve_benchmark("QQQ", "INDUSTRY", "D", 10, fetch)
+    assert out["resolved"] == "SPY" and out["fallback"] == "symbol is an ETF"
+
+
+def test_industry_composite_counts_only_members_that_have_bars(monkeypatch):
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
+    monkeypatch.setattr(rb, "_members_of", lambda ind: ["AAAA", "AMD", "NVDA", "AVGO", "ZZZZ"])
+    store = {"AMD": _bars([10, 11]), "NVDA": _bars([100, 100]), "AVGO": _bars([50, 55]), "XLK": _bars([1])}
+    out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
+    assert out["resolved"] == "INDUSTRY:Semiconductors"
+    assert out["label"].endswith("(equal-weight, 3 names)"), out["label"]
+    monkeypatch.setattr(rb, "_members_of", lambda ind: ["AAAA", "AMD", "ZZZZ"])
+    out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
+    assert out["resolved"] == "XLK" and out["fallback"] == "industry group too small"
+
+
+def test_the_two_python_benchmark_vocabularies_are_one_set():
+    assert set(rd.RS_LINE_BENCHMARKS) == set(rb.LITERAL_BENCHMARKS) | set(rb.AUTO_BENCHMARKS)
+
+
+def test_the_python_row_reads_its_ranges_from_the_compute_module():
+    by_key = {i["key"]: i for i in rd._rs_line_row(True)["inputs"]}
+    assert (by_key["lookback"]["min"], by_key["lookback"]["max"]) == rsmod.LOOKBACK_RANGE
+    assert (by_key["maLength"]["min"], by_key["maLength"]["max"]) == rsmod.MA_LENGTH_RANGE
+    assert by_key["lookback"]["default"] == rsmod.DEFAULT_LOOKBACK
+    assert by_key["redDayThreshold"]["default"] == rsmod.DEFAULT_RED_DAY_PCT
 
 
 def test_the_js_definition_names_exactly_the_inputs_the_python_row_declares():

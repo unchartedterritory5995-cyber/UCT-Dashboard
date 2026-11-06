@@ -893,11 +893,13 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     intraday = store not in ("D", "W", "M")
     count = _rs_bars_count(store, params["lookback"])
 
-    # ⭐ CACHED PER SESSION DAY (plan §8.2). The key carries only COMPUTE inputs
+    # ⭐ CACHED PER ET SESSION DAY (plan §8.2). The key carries only COMPUTE inputs
     # (`resolve_inputs` already dropped the rest), the resolved timeframe and the
-    # calendar day, so a stale answer cannot outlive the session it describes;
-    # the TTL is the ceiling, the day in the key is the floor.
-    day = time.strftime("%Y-%m-%d", time.gmtime())
+    # EASTERN calendar day — the day a session closes on, not UTC's, which rolls
+    # over at 8 pm ET and would split one session's answer across two keys — so a
+    # stale answer cannot outlive the session it describes. The TTL (below) runs
+    # to the next session close on D/W/M; the day in the key is the floor.
+    day = _et_session_day()
     ck = _ck("rs2" if registry_defs.RS_V2_ENABLED else "rs1",
              f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
              f"{json.dumps(toggles, sort_keys=True)}:{day}")
@@ -910,8 +912,22 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
 
     bars = _fetch_bars_for_tf(sym, tf, count)
     bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=_fetch_bars_for_tf)
-    cols = rsmod.compute_phase1_columns(bars, bench["bars"], params)
     times = [int(b["t"]) for b in bars]
+    # The STATE the chart should show (plan §6.10), decided here from the data
+    # rather than inferred client-side from an empty pane. `same-symbol` and
+    # `no-benchmark-bars` blank every derived column: a flat 1.0 ratio against
+    # itself would fire a "new high" on every bar (ties count), and a benchmark
+    # with no bars has no ratio at all.
+    same_symbol = str(bench.get("resolved", "")).upper() == sym.upper()
+    no_bench = not bench.get("bars")
+    short_history = bool(times) and len(times) < count
+    if same_symbol or no_bench:
+        cols = {k: [None] * len(times) for k in rsmod.PHASE1_COLUMNS}
+    else:
+        cols = rsmod.compute_phase1_columns(bars, bench["bars"], params, short_history=short_history)
+    state = ("same-symbol" if same_symbol else "no-benchmark-bars" if no_bench
+             else "no-bars" if not times else "intraday" if intraday
+             else "short-history" if short_history else "ok")
 
     if not registry_defs.RS_V2_ENABLED:
         envelope = {"columns": {"rsLine": _round_series(cols["rsLine"], 6)},
@@ -938,21 +954,52 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
         for k in ("rsLine", "rsMa") + dot_keys:
             cols[k] = _round_series(cols[k], 6)      # a RATIO: six places, not four
         payload = {
-            "benchmark": {k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
+            "benchmark": dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
+                              bars=len(bench.get("bars") or [])),
             "legend": rsmod.legend_scalars(cols),
             "lastRsHigh": rsmod.last_rs_high(cols, times),
-            "history": {"bars": len(times), "short": len(times) < params["lookback"]},
+            "history": {"bars": len(times), "requested": count, "short": short_history},
             "inputs": params,
             "intraday": intraday,
+            "state": state,
         }
         envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
 
+    # A degraded answer (no benchmark bars yet, nothing for the symbol) is cached
+    # for one minute only: the worker may land the missing rows any time, and a
+    # six-hour memory of "nothing" would outlive the fix (review finding).
     try:
         if times:
-            cache.set(ck, envelope, ttl=900 if intraday else 6 * 3600)
+            ttl = 60 if no_bench else (900 if intraday else _seconds_to_next_et_close())
+            cache.set(ck, envelope, ttl=ttl)
     except Exception:                                  # noqa: BLE001 — see the DPL cache-write note
         logger.exception("signature: rs cache write failed for %s", sym)
     return envelope
+
+
+def _et_now():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York"))
+
+
+def _et_session_day() -> str:
+    """The Eastern calendar day — the day a session closes on."""
+    return _et_now().strftime("%Y-%m-%d")
+
+
+def _seconds_to_next_et_close(close_hour: int = 16, close_minute: int = 5) -> int:
+    """Seconds until the next 16:05 ET (five minutes after the cash close, when the
+    day's bars have settled). Weekends roll to the next weekday; the result is at
+    least 60 and at most three days, so a holiday never pins an answer for a week."""
+    from datetime import timedelta
+    now = _et_now()
+    target = now.replace(hour=close_hour, minute=close_minute, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    while target.weekday() >= 5:
+        target += timedelta(days=1)
+    return int(max(60, min((target - now).total_seconds(), 3 * 24 * 3600)))
 
 
 def _rs_bars_count(store_tf: str, lookback: int) -> int:

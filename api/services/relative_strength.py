@@ -228,11 +228,30 @@ def red_day_column(benchmark_change_pct: Column, threshold_pct: float = DEFAULT_
     return out
 
 
+def green_day_column(benchmark_change_pct: Column, threshold_pct: float) -> Column:
+    """``green[t] = Δ%B[t] ≥ threshold`` — the mirror of `red_day_column`, with the
+    threshold given as a POSITIVE magnitude (default +0.5)."""
+    out: Column = [None] * len(benchmark_change_pct)
+    for i, d in enumerate(benchmark_change_pct):
+        if _is_num(d):
+            out[i] = 1.0 if d >= threshold_pct else 0.0
+    return out
+
+
 def up_day_column(stock_change_pct: Column) -> Column:
     out: Column = [None] * len(stock_change_pct)
     for i, d in enumerate(stock_change_pct):
         if _is_num(d):
             out[i] = 1.0 if d > 0 else 0.0
+    return out
+
+
+def down_day_column(stock_change_pct: Column) -> Column:
+    """Strictly down (a flat day is neither up nor down)."""
+    out: Column = [None] * len(stock_change_pct)
+    for i, d in enumerate(stock_change_pct):
+        if _is_num(d):
+            out[i] = 1.0 if d < 0 else 0.0
     return out
 
 
@@ -309,12 +328,19 @@ def resolve_phase1_inputs(inputs: Optional[dict]) -> dict:
 
 
 def compute_phase1_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
-                           inputs: Optional[dict] = None) -> Dict[str, Column]:
+                           inputs: Optional[dict] = None, *, short_history: bool = False) -> Dict[str, Column]:
     """Every Phase 1 column of plan §8, aligned to ``bars``.
 
     Pure; the caller rounds for the wire (`indicator_compute` rounds the RS line
     to 6 dp because it is a ratio, not a price — the same rule applies here and
     is applied by the provider, not by this function).
+
+    ``short_history`` — True only when ``bars`` is the stock's WHOLE history
+    (the caller asked the store for more bars than exist). The partial-lookback
+    dots (`rsNHpartial` / `dotNHpartial`) are meaningful only then: on a long
+    history the first bars of a fetched window are an arbitrary slice, and a
+    "high over all available bars" at their head would be a dot on nothing
+    (review finding, 2026-11-06). Off ⇒ those two columns are all ``None``.
     """
     p = resolve_phase1_inputs(inputs)
     n = len(bars)
@@ -330,17 +356,25 @@ def compute_phase1_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
     crosses = cross_columns(above)
 
     rs_nh = rolling_extreme_event(rs, p["lookback"], high=True)
-    rs_nh_partial = partial_extreme_event(rs, p["lookback"], high=True)
+    rs_nh_partial = (partial_extreme_event(rs, p["lookback"], high=True) if short_history
+                     else [None] * n)
     rs_nl = rolling_extreme_event(rs, p["lookback"], high=False)
     px_nh = rolling_extreme_event(closes, p["lookback"], high=True, tolerance_pct=p["priceTolerance"])
     nh_before_px = and_not(rs_nh, px_nh)
 
-    red = red_day_column(pct_change(bench), p["redDayThreshold"])
-    up = up_day_column(pct_change(closes))
-    down_stock = [None if u is None else (1.0 - u) for u in up]
-    green_bench = [None if r is None else (1.0 - r) for r in red]  # not red ⇒ "green or flat"
+    # ⭐ RED ON GREEN IS THE MIRROR OF GREEN ON RED, in both halves (plan §7.9): a
+    # "green" benchmark day is up by at least the same magnitude the red-day
+    # threshold asks for, and the stock must be DOWN, not merely not-up. The
+    # earlier shape ("not red" and "not up") fired on flat and −0.4 % benchmark
+    # days and on flat stock days — a different, looser event wearing the name.
+    bench_chg = pct_change(bench)
+    stock_chg = pct_change(closes)
+    red = red_day_column(bench_chg, p["redDayThreshold"])
+    green = green_day_column(bench_chg, -p["redDayThreshold"])
+    up = up_day_column(stock_chg)
+    down = down_day_column(stock_chg)
     gor = both(red, up)
-    rog = both(green_bench, down_stock)
+    rog = both(green, down)
     nh_red = both(rs_nh, red)
 
     return {

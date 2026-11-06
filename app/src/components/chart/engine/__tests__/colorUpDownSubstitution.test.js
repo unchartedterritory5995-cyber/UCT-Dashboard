@@ -219,14 +219,14 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
 
   it('the line is coloured by the `rsAbove` column through two colour inputs', () => {
     expect(line.colorMode).toBe('column:rsAbove')
-    expect(line.$refs.colorUp).toBe('lineUpColor')
+    expect(line.$refs.colorUp).toBe('color')
     expect(line.$refs.colorDown).toBe('lineDownColor')
     // The chip's one swatch follows the "above" colour.
-    expect(line.$refs.color).toBe('lineUpColor')
+    expect(line.$refs.color).toBe('color')
   })
 
   it('the two inputs live in the Line group, labelled by what they colour; `lineColor` is gone', () => {
-    const up = rs.inputs.find((i) => i.key === 'lineUpColor')
+    const up = rs.inputs.find((i) => i.key === 'color')
     const down = rs.inputs.find((i) => i.key === 'lineDownColor')
     expect(up).toMatchObject({ type: 'color', label: 'Line above average', group: 'Line', default: '#6ba3be' })
     expect(down).toMatchObject({ type: 'color', label: 'Line below average', group: 'Line', default: '#6ba3be' })
@@ -235,7 +235,7 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
 
   it('⭐ Classic resolves to ONE hue for up and down — the ≤2 hues + 1 neutral budget holds', () => {
     const classic = preset('classic')
-    expect(classic.inputs).toMatchObject({ lineUpColor: '#6ba3be', lineDownColor: '#6ba3be' })
+    expect(classic.inputs).toMatchObject({ color: '#6ba3be', lineDownColor: '#6ba3be' })
     const cc = columnColorsForPlot(resolvePlotForInstance(line, classic.inputs))
     expect(cc).toEqual({ key: 'rsAbove', up: '#6ba3be', down: '#6ba3be' })
     // And the untouched definition (first turn-on, nothing picked) draws the same.
@@ -247,7 +247,7 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     const phase = preset('phase')
     expect(phase).toMatchObject({ label: 'Phase (21 EMA)' })
     expect(phase.origin).toMatch(/Manrav video 59/)
-    expect(phase.inputs).toMatchObject({ maLength: 21, maType: 'EMA', lineUpColor: IND_TOKENS.classic.bull, lineDownColor: IND_TOKENS.classic.bear })
+    expect(phase.inputs).toMatchObject({ maLength: 21, maType: 'EMA', color: IND_TOKENS.classic.bull, lineDownColor: IND_TOKENS.classic.bear })
     const cc = columnColorsForPlot(resolvePlotForInstance(line, phase.inputs))
     expect(cc).toEqual({ key: 'rsAbove', up: '#3cb868', down: '#e74c3c' })
     expect(cc.up).not.toBe(cc.down)
@@ -261,7 +261,7 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
   })
 
   it('the colours stay on the client — neither keys the server fetch', () => {
-    expect(rs.meta.serverInputs).not.toContain('lineUpColor')
+    expect(rs.meta.serverInputs).not.toContain('color')
     expect(rs.meta.serverInputs).not.toContain('lineDownColor')
   })
 
@@ -281,7 +281,7 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     const rsChip = classic.find((c) => c.plotKey === 'rsLine')
     expect(rsChip).toBeTruthy()
     expect(rsChip.color).toBe('#6ba3be')
-    // The Phase preset's chip follows `lineUpColor` — one swatch, the "above" hue.
+    // The Phase preset's chip follows `color` — one swatch, the "above" hue.
     const phase = chipsFor(preset('phase').inputs)
     expect(phase.some((c) => c.plotKey === 'rsAbove')).toBe(false)
     expect(phase.find((c) => c.plotKey === 'rsLine').color).toBe('#3cb868')

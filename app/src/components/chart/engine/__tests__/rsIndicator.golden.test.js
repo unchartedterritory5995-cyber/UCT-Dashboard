@@ -106,7 +106,9 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
 
   it('every LINE plot of the definition names an expected column', () => {
     const lines = def.plots.filter(p => p.style === 'line')
-    expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsMa'])
+    // `rsAbove` is the HIDDEN 0/1 condition that colours the line (unit 5); it is
+    // a line plot by declaration and a column in the fixture like the others.
+    expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa'])
     for (const p of lines) {
       expect(exp, `line plot "${p.key}" is not in the fixture`).toHaveProperty(p.key)
       expect(exp[p.key].some(Number.isFinite), `${p.key} is entirely null`).toBe(true)

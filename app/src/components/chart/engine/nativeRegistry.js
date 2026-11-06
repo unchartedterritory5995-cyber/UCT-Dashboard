@@ -3816,9 +3816,12 @@ const RS_LINE_RAW = {
   compute: { kind: 'server', fn: 'rsLine', rev: 2 },
   meta: {
     name: 'UCT Relative Strength', shortName: 'UCT RS', category: CAT.RELATIVE_STRENGTH,
-    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark, with new-high dots and seven ways to read it, from O\'Neil\'s classic to Weinstein\'s Mansfield and UCT\'s stress test.',
-    tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'rs rating', 'blue dot',
-      'mansfield', 'rrg', 'rotation', 'leader', 'leadership', 'price relative'],
+    // ⛔ THE DESCRIPTION PROMISES ONLY WHAT THIS PHASE SHIPS (review finding): the
+    // Mansfield, rotation and stress-test readings and the rating arrive in Phase
+    // 2a/3 and are added here when they do, never before.
+    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark, its moving average, and dots where the line makes a new high — before price did, in gold.',
+    tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'blue dot',
+      'leader', 'leadership', 'price relative', 'benchmark'],
     tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
     // ⭐ THE INPUTS THE SERVER DECLARES — and therefore the only ones that key the
@@ -3832,19 +3835,21 @@ const RS_LINE_RAW = {
     groupsCollapsed: ['Line', 'New highs'],
     // Read by the preset picker (plan §5, §6.8): a named set of input values,
     // applied to the CURRENT instance through `setInstanceInput`.
+    // ⭐ A PRESET SETS ONLY WHAT IT IS ABOUT (review finding, 2026-11-06): the
+    // reading — the average, the lookback and the line's colouring — never the
+    // benchmark or the dot toggles, so choosing Phase keeps the member's benchmark
+    // and changing the benchmark does not flip the picker to Custom. The weekly
+    // variant exists to set 52 bars on a weekly chart. Phase trades the one blue
+    // hue for bull/bear and drops the plain dots to the neutral, so it draws three
+    // hues (bull, bear, gold) plus a neutral — the plan's documented exception to
+    // the two-hue budget (plan §3).
     presets: [
       { id: 'classic', label: 'Classic (O\'Neil)', origin: 'IBD, MarketSurge',
-        inputs: { benchmark: 'SPY', maLength: 21, maType: 'EMA', lookback: 252, priceTolerance: 2,
-          showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true,
-          lineUpColor: '#6ba3be', lineDownColor: '#6ba3be' } },
-      // ⭐ The two line hexes are the Classic chart preset's `bull`/`bear` roles
-      // (`designTokens.IND_TOKENS.classic`, the app's --gain/--loss). Literals,
-      // because a preset is a set of INPUT VALUES and a colour input holds the
-      // colour the picker would hold, not a token reference.
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: '#6ba3be', lineDownColor: '#6ba3be', dotColor: '#6ba3be' } },
+      { id: 'classicWeekly', label: 'Classic, weekly chart', origin: 'IBD, MarketSurge; 52 bars is one year of weekly bars',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: '#6ba3be', lineDownColor: '#6ba3be', dotColor: '#6ba3be' } },
       { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
-        inputs: { benchmark: 'SPY', maLength: 21, maType: 'EMA', lookback: 252, priceTolerance: 2,
-          showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true,
-          lineUpColor: '#3cb868', lineDownColor: '#e74c3c' } },
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: '#3cb868', lineDownColor: '#e74c3c', dotColor: '#8a8574' } },
     ],
   },
   placement: { target: 'pane', pane: { height: 0.18 } },
@@ -3859,11 +3864,11 @@ const RS_LINE_RAW = {
       options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
         ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)']],
     },
-    { key: 'maLength', type: 'int', label: 'Moving average', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
+    { key: 'maLength', type: 'int', label: 'Average length (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
       tooltip: 'Bars in the moving average on the RS line. 21 is the curriculum default; 50 is a slower read.' },
-    { key: 'showNewHigh', type: 'bool', label: 'Show RS new highs', default: true, group: 'Simple',
-      tooltip: 'Small dot when the RS line is at its highest level of the lookback.' },
-    { key: 'showNewHighBeforePrice', type: 'bool', label: 'Show RS new high before price', default: true, group: 'Simple',
+    { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
+      tooltip: 'Small dot when the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
+    { key: 'showNewHighBeforePrice', type: 'bool', label: 'RS high before price', default: true, group: 'Simple',
       tooltip: 'Large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
     { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
@@ -3871,23 +3876,23 @@ const RS_LINE_RAW = {
     // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
     // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
     // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
-    { ...colorInput('lineUpColor', 'Line above average', '#6ba3be'), group: 'Line' },
+    { ...colorInput('color', 'Line above average', '#6ba3be'), group: 'Line' },
     { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line' },
-    { ...colorInput('maColor', 'Average', '#8a8574'), group: 'Line' },
+    { ...colorInput('maColor', 'Average colour', '#8a8574'), group: 'Line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
-    { key: 'lookback', type: 'int', label: 'New-high lookback', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
+    { key: 'lookback', type: 'int', label: 'New-high lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'Bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
     { key: 'priceTolerance', type: 'float', label: 'Price-high tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
-      tooltip: 'Price counts as not at its high when it is more than this far below its lookback high. The same tolerance defines the dot and the evidence statistic.' },
+      tooltip: 'Price counts as not at its high when it is more than this far below its lookback high.' },
     { key: 'shortHistoryDots', type: 'bool', label: 'Short-history dots', default: true, group: 'New highs',
-      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in the neutral colour.' },
-    { ...colorInput('dotColor', 'RS new high', '#6ba3be'), group: 'New highs' },
-    { ...colorInput('dotBeforePriceColor', 'RS high before price', '#c9a84c'), group: 'New highs' },
+      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in a muted colour.' },
+    { ...colorInput('dotColor', 'RS new high dot', '#6ba3be'), group: 'New highs' },
+    { ...colorInput('dotBeforePriceColor', 'RS high before price dot', '#c9a84c'), group: 'New highs' },
     { ...colorInput('dotPartialColor', 'Short-history dot', '#8a8574'), group: 'New highs' },
   ],
   plots: [
     { key: 'rsLine', label: 'RS', style: 'line', colorMode: 'column:rsAbove',
-      color: '$lineUpColor', colorUp: '$lineUpColor', colorDown: '$lineDownColor', width: '$lineWidth',
+      color: '$color', colorUp: '$color', colorDown: '$lineDownColor', width: '$lineWidth',
       role: 'primary', legend: { decimals: 4 } },
     // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
     // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read

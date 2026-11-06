@@ -72,6 +72,12 @@ DEFAULT_REV = 1
 ADDRESS_REVS: dict[str, int] = {
     # VWAP_SESSION_ANCHOR, applied 2026-08-03. The ET-session accumulator.
     "vwap": 2,
+    # UCT RELATIVE STRENGTH v2, 2026-11-06. The server-lane `rsLine` definition
+    # moved from one column to the Phase 1 set (plan §8). No alert address is
+    # bound to `rsLine` yet (RS alerts are a Phase 2b partition), so there are no
+    # bindings to migrate; the entry keeps the two lanes' vocabulary equal, which
+    # is the rail's whole point.
+    "rsLine": 2,
 }
 
 

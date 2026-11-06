@@ -424,17 +424,17 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   const sent = pickServerInputs(def, inputs)
   const parsed = ensureColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
   if (!parsed) return {}
-  if (revMismatch(parsed, def)) {
-    // ⭐ REV GATING (plan §8.3). The entry was computed by a server definition on
-    // another `compute.rev`: drop it and ask again, drawing nothing meanwhile
-    // rather than new plots over old columns. `_inflight` dedupes the re-ask.
-    const key = serverColumnsKey(def.id, sym, ctx.tf, sent)
-    if (key) {
-      _cache.delete(key)
-      if (!_inflight.has(key)) fetchColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
-    }
-    return {}
-  }
+  // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
+  // The first cut treated a rev mismatch as a cache miss and asked again. But the
+  // only way the two revs differ is a SERVER that is on another revision — the
+  // flag off (the dark default: v1 row, rev 1, one column) or a deploy skew —
+  // and asking again returns the same envelope, so every render re-asked:
+  // an unbounded loop that drew nothing. The in-memory cache cannot hold an
+  // entry from before a deploy (it lives one page load), so there is no stale
+  // entry for gating to catch. What arrives is drawn: the binder binds the plots
+  // whose columns exist and ignores the rest, which on the v1 server is exactly
+  // "the RS line and nothing else". `revMismatch` stays exported as a SIGNAL for
+  // the readout ("this chart is drawing an older server answer").
   return alignColumns(parsed, bars)
 }
 
@@ -448,6 +448,8 @@ export function scalarsFor(def, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!def || !sym) return null
   const parsed = cachedColumns(def.id, sym, ctx.tf, pickServerInputs(def, inputs))
-  if (!parsed || revMismatch(parsed, def)) return null
+  if (!parsed) return null
+  // Same rule as the columns: what the server sent is what the readout reads.
+  // A v1 server sends no payload, so this is simply null there.
   return parsed.payload || null
 }
