@@ -1,17 +1,25 @@
 // THE ONE CHART a challenge mounts: the drill player's lockdown recipe (studyMode, the bars in hand, frozen, no
 // watermark, no live updates, no feeds, the house look), framed on the last `view` bars, with the library's tap
-// (a touch tap too) handed back as {time, index, bar, price}.
+// (a touch tap too) handed back as {time, index, bar, price}. `chartOpts` is an item-style chart option set
+// (`overlays: false`, `volume: false`, studyChartLook) a mode such as Hard uses to strip the chart to candles.
 import { useCallback, useMemo } from 'react'
 import StockChart from '../../../components/StockChart'
 import useSessionChartSettings from '../../../components/chart/pane/useSessionChartSettings'
 import useHouseChart from '../useHouseChart'
+import usePreferences from '../../../hooks/usePreferences'
 import { studySettingsOverride } from '../studyChartLook'
 import { tapDayKey } from '../chartTapTime'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 
-export default function ChallengeChart({ id, bars, view = null, height = 320, annotations = null, markers = null, extra = null, onBarTap = null, fetcher }) {
+export default function ChallengeChart({ id, bars, view = null, height = 320, annotations = null, markers = null, extra = null, onBarTap = null, chartOpts = null, fetcher }) {
   const houseSettings = useHouseChart(fetcher)
-  const studyOverride = useMemo(() => studySettingsOverride(null, houseSettings, {}), [houseSettings])
+  // a bare chart (`overlays: false`, Hard mode) must switch off the member's OWN averages too: the chart merges
+  // their blob in underneath the override, as instances, so the override reads it (the same cached preferences
+  // the chart reads; no request for any other chart)
+  const bare = !!chartOpts && chartOpts.overlays === false
+  const { prefs } = usePreferences(bare)
+  const member = bare ? prefs.chart_settings : null
+  const studyOverride = useMemo(() => studySettingsOverride(chartOpts, houseSettings, bare ? { memberSettings: member } : {}), [chartOpts, houseSettings, bare, member])
   const sessionChart = useSessionChartSettings(studyOverride, id || null)
   const phone = useIsPhone()
   const n = bars?.length || 0

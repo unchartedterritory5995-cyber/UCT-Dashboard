@@ -3,9 +3,10 @@
  * "this is not what our charts look like"), with the drill gates on top.
  */
 import { describe, it, expect } from 'vitest'
-import { studySettingsOverride } from './studyChartLook'
+import { instancesOff, memberSettingsOverride, studySettingsOverride } from './studyChartLook'
+import { isInstanceTombstone } from '../../components/chart/instanceShape'
 import { RENDER_VOL_PANE_PCT } from '../../components/chart/houseLook'
-import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
+import { CHART_DEFAULTS, liveOverlayList, mergeChartSettings, mergeSettingsOverride } from '../../components/chart/chartDefaults'
 
 const OWNER = {
   chartType: 'candles',
@@ -79,5 +80,38 @@ describe('studySettingsOverride', () => {
     expect(studySettingsOverride({ volume: false }, OWNER)).toEqual(studySettingsOverride({ volume: false }, OWNER))
     expect(OWNER.volume.paneHeightPct).toBe(22)       // the owner blob is never mutated
     expect(OWNER.chartType).toBe('candles')
+  })
+})
+
+describe('a bare chart (overlays: false): the member\'s own averages go too', () => {
+  const inst = (i) => ({ instanceId: `ovl:${i}`, defId: 'movingAverage', inputs: { source: 'close', period: [9, 20][i], maType: 'ema' } })
+  // the owner blob as it is stored today: overlay slots adopted (removed, marked) into instances
+  const ADOPTED = { overlays: OWNER.overlays.map((o, i) => ({ ...o, removed: true, adopted: `ovl:${i}` })), indicatorInstances: [inst(0), inst(1)] }
+  const CUSTOM = { instanceId: 'ma:custom', defId: 'movingAverage', inputs: { source: 'close', period: 10, maType: 'sma' } }
+  const MEMBER = { ...ADOPTED, indicatorInstances: [...ADOPTED.indicatorInstances, CUSTOM] }
+  const live = (cs) => (cs.indicatorInstances || []).filter((i) => !isInstanceTombstone(i)).map((i) => i.instanceId)
+  const drawn = (member, over) => mergeSettingsOverride(mergeChartSettings(member), over)   // what StockChart merges
+
+  it('tombstones every instance the chart would draw, whatever its id (the first Hard mode capture drew three averages)', () => {
+    const over = studySettingsOverride({ overlays: false, volume: false }, ADOPTED, { memberSettings: MEMBER })
+    const cs = drawn(MEMBER, over)
+    expect(live(cs)).toEqual([])
+    expect(liveOverlayList(cs.overlays).filter((o) => o.enabled)).toEqual([])
+    expect(cs.volume.visible).toBe(false)
+    // the member blob as the preferences store holds it: a JSON string
+    expect(live(drawn(MEMBER, studySettingsOverride({ overlays: false }, ADOPTED, { memberSettings: JSON.stringify(MEMBER) })))).toEqual([])
+  })
+
+  it('an older blob with live overlay slots is switched off as well: the slots are removed, not merely disabled, so the merge cannot adopt them back', () => {
+    expect(live(drawn(OWNER, studySettingsOverride({ overlays: false }, OWNER, { memberSettings: OWNER })))).toEqual([])
+  })
+
+  it('leaves the averages drawing when an item does not ask for a bare chart', () => {
+    expect(live(drawn(MEMBER, studySettingsOverride(null, ADOPTED))).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('the member look (round 17) switches them off the same way', () => {
+    expect(live(drawn(MEMBER, memberSettingsOverride({ overlays: false }, { memberSettings: MEMBER })))).toEqual([])
+    expect(instancesOff(MEMBER).map((t) => t.instanceId)).toContain('ma:custom')
   })
 })

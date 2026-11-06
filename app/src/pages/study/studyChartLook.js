@@ -10,7 +10,7 @@
  * opts OUT through its prompt chart options (`overlays: false`, `volume: false`)
  * or names its own averages (`overlays: [...]`).
  */
-import { CHART_DEFAULTS, mergeSettingsOverride } from '../../components/chart/chartDefaults'
+import { CHART_DEFAULTS, mergeChartSettings, mergeSettingsOverride } from '../../components/chart/chartDefaults'
 import { applyHouseLook } from '../../components/chart/houseLook'
 
 export const HOUSE_CHART_URL = '/api/study/house-chart'
@@ -32,6 +32,30 @@ const STUDY_GATES = Object.freeze({
 })
 
 /**
+ * instancesOff(...blobs) — tombstone patches (merged by id) for EVERY indicator
+ * instance the chart would draw from these settings blobs, each read the way
+ * StockChart reads a member's blob (mergeChartSettings: the defaults under it,
+ * an older blob's overlay slots adopted into `ovl:<i>` instances). A member's
+ * averages ARE instances since the fold (maAdoption.js), so `overlays: false`
+ * alone left three of them drawing on the first Hard mode capture (2026-11-05):
+ * the list it switched off was already empty. Pass the member's own blob too:
+ * the chart merges it underneath the override, and its instances carry ids the
+ * house blob never saw.
+ */
+export function instancesOff(...blobs) {
+  const ids = new Set()
+  for (const raw of blobs) {
+    let b = raw
+    if (typeof b === 'string') { try { b = JSON.parse(b) } catch { b = null } }
+    const cs = mergeChartSettings(b && typeof b === 'object' ? b : {})
+    for (const inst of (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])) {
+      if (inst && typeof inst.instanceId === 'string') ids.add(inst.instanceId)
+    }
+  }
+  return [...ids].map((instanceId) => ({ instanceId, deleted: true }))
+}
+
+/**
  * studySettingsOverride(chartOpts, houseSettings, extras) — the StockChart
  * `settingsOverride` for one item. `houseSettings` is the owner's blob from
  * GET /api/study/house-chart (null while loading or when none is saved: the
@@ -46,7 +70,11 @@ export function studySettingsOverride(chartOpts, houseSettings = null, extras = 
     out = { ...out, overlays: o.overlays }                       // the item names its own averages
   } else if (o.overlays === false) {
     const src = Array.isArray(out.overlays) && out.overlays.length ? out.overlays : CHART_DEFAULTS.overlays
-    out = { ...out, overlays: src.map((ov) => ({ ...ov, enabled: false })) }
+    // `removed` as well as `enabled: false`: the override merge ADOPTS a live slot back into an `ovl:<i>`
+    // instance (maAdoption.js) and would revive the very average this switches off; a removed slot reserves
+    // its id with a tombstone instead. The member's own instances are tombstoned by id, whatever their ids.
+    out = { ...out, overlays: src.map((ov) => ({ ...ov, enabled: false, removed: true })) }
+    out = mergeSettingsOverride(out, { indicatorInstances: instancesOff(houseSettings, extras && extras.memberSettings) })
   }
   if (o.volume === false) out = mergeSettingsOverride(out, { volume: { visible: false } })
   else if (o.volume === true) out = mergeSettingsOverride(out, { volume: { visible: true } })
@@ -65,7 +93,10 @@ export function memberSettingsOverride(chartOpts, extras = null) {
   const o = chartOpts || {}
   let out = { ...STUDY_GATES }
   if (Array.isArray(o.overlays)) out = { ...out, overlays: o.overlays }
-  else if (o.overlays === false) out = { ...out, overlays: CHART_DEFAULTS.overlays.map((ov) => ({ ...ov, enabled: false })) }
+  else if (o.overlays === false) {
+    out = { ...out, overlays: CHART_DEFAULTS.overlays.map((ov) => ({ ...ov, enabled: false, removed: true })) }
+    out = mergeSettingsOverride(out, { indicatorInstances: instancesOff(extras && extras.memberSettings) })
+  }
   if (o.volume === false) out = mergeSettingsOverride(out, { volume: { visible: false } })
   else if (o.volume === true) out = mergeSettingsOverride(out, { volume: { visible: true } })
   const instances = extras && Array.isArray(extras.instances) ? extras.instances : null
