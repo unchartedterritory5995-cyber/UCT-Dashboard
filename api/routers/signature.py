@@ -1024,6 +1024,19 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
             "sensitivity": sensitivity,
             "checks": checks,
             "theme": _rs_theme(groups),
+            # THE EVIDENCE RIDES THE SESSION KEY, NOT ITS OWN (unit 2b-03). The
+            # artifact changes once a night (the worker publishes after 21:30 ET,
+            # the web pulls it at 04:30 ET) and the key above already turns over
+            # on the ET calendar day, so the morning's first compute reads the
+            # new file. A same-day refresh of the artifact is picked up at the
+            # next session key or on the 60 s degraded path below. The one lag:
+            # an envelope cached between the midnight key turnover and the 04:30
+            # pull carries the previous night's numbers until the next close --
+            # one session behind a statistic that moves by tenths per session.
+            # Deliberately NOT in the key: the file's `asof` would cost one stat
+            # per request for a second cold cache a day, and its `generated_at`
+            # would cold-cache every symbol on every re-publish.
+            "evidence": _rs_evidence(),
         }
         envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
 
@@ -1145,6 +1158,49 @@ def _rs_rating(sym: str) -> dict:
     else:
         out["source"] = "dark" if dark else "missing"
     return out
+
+
+def _rs_evidence() -> dict:
+    """``payload.evidence`` (unit 2b-03): what the worker's evidence job measured
+    for each readout card's signal, read from the artifact the 04:30 ET pull
+    lands at ``<DATA_DIR>/rs_evidence.json`` (`rs_evidence_pull.load_local`,
+    one ``os.stat`` per call, parsed once per file).
+
+    ``{asof, horizon, signals: {rsHigh, beforePrice, redDay, phase, mansfield},
+    sentence: {same keys}, baseline, source}``. Each ``signals[key]`` is
+    `rs_evidence_pull.evidence_for` for the card's signal (`CARD_SIGNALS`:
+    rsHigh -> rs_new_high, beforePrice -> rs_new_high_before_price, redDay ->
+    rs_new_high_red_day, phase -> rs_cross_up_21ema, mansfield ->
+    mansfield_cross_up) at the 63-bar horizon, or None when the artifact is
+    absent or carries no block for it. Each ``sentence[key]`` is the card's
+    evidence sentence: the measured one when ``n`` clears the artifact's own
+    display floor, `HONESTY_SENTENCE` otherwise. ``baseline`` is the all-bars
+    hit rate the signal is read against. ``source`` is ``artifact`` or ``none``.
+    Never raises and never fabricates: absent means every signal None and every
+    sentence the honesty line, so a card can point at
+    ``scalar:evidence.sentence.<key>`` and always print something true.
+    """
+    from api.services import rs_evidence_pull as ep
+    keys = tuple(ep.CARD_SIGNALS)
+
+    def _empty() -> dict:
+        return {"asof": None, "horizon": ep.DEFAULT_HORIZON,
+                "signals": {k: None for k in keys},
+                "sentence": {k: ep.HONESTY_SENTENCE for k in keys},
+                "baseline": None, "source": "none"}
+
+    try:
+        art = ep.load_local()
+        if not art:
+            return _empty()
+        signals = {k: ep.evidence_for(name, ep.DEFAULT_HORIZON, art) for k, name in ep.CARD_SIGNALS.items()}
+        return {"asof": art.get("asof"), "horizon": ep.DEFAULT_HORIZON,
+                "signals": signals,
+                "sentence": {k: ep.sentence_for(ev) for k, ev in signals.items()},
+                "baseline": ep.baseline_for(ep.DEFAULT_HORIZON, art), "source": "artifact"}
+    except Exception:                                  # noqa: BLE001 -- the evidence is a garnish, never a 500
+        logger.exception("signature: rs evidence read failed")
+        return _empty()
 
 
 def _rs_theme(groups: dict) -> dict | None:
