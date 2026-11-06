@@ -72,7 +72,12 @@ from bisect import bisect_right
 from contextlib import closing
 from datetime import date, datetime, timedelta
 
-from api.services.rs_weighted_return import period_return
+from api.services.rs_weighted_return import (
+    IBD_COMPONENTS,
+    IBD_REQUIRED_TERM,
+    IBD_TERMS,
+    period_return,
+)
 from api.services.screener import snapshot_db
 
 log = logging.getLogger(__name__)
@@ -84,12 +89,12 @@ RUNS_KEEP = 60
 #: The one-shot backfill's done-marker, written beside ``screener.db``.
 BACKFILL_MARKER = ".rs_history_backfill_v1"
 
-#: ``(label, bars_back, weight)`` - plan §7 item 17. The ONLY copy of the weights.
-IBD_TERMS = (("q1", 63, 0.40), ("q2", 126, 0.20), ("q3", 189, 0.20), ("q4", 252, 0.20))
-#: The term that cannot be missing.
-REQUIRED_TERM = "q1"
-#: ``(column, bars_back)`` for the component percentiles (plan §7 item 19).
-COMPONENTS = (("m1", 21), ("m3", 63), ("m6", 126), ("m12", 252))
+#: ``(label, bars_back, weight)`` - plan §7 item 17. The one copy lives in
+#: ``rs_weighted_return`` beside the fast rating's table (the single-authority
+#: rail allows exactly one module to declare RS lookbacks); re-exported here
+#: under the names this module's readers use.
+REQUIRED_TERM = IBD_REQUIRED_TERM
+COMPONENTS = IBD_COMPONENTS
 #: The rating scale's top; the bottom is 1.
 RATING_MAX = 99
 #: Closes read per ticker: the 252-bar term needs 253 closes, plus a margin for a

@@ -55,6 +55,30 @@ RS_TERMS: Tuple[Tuple[str, int, float], ...] = (
 #: greppable from either lane.
 REQUIRED_TERM = "3m"
 
+#: The IBD-style RATING history's own table (plan §7 item 17; the nightly
+#: ``rs_rating_history`` side table, ``api/services/screener/rs_history.py``):
+#: four quarters, the most recent double-weighted. ⛔ Kept HERE, beside
+#: ``RS_TERMS``, because ``tests/test_single_authority_rails.py`` fingerprints
+#: the 63/126 pair and allows exactly one module to declare RS lookbacks — two
+#: tables in one place can be compared; the same pair in two files is how the
+#: fast rating once drifted 15.7 % between copies. ``rs_history`` imports these.
+IBD_TERMS: Tuple[Tuple[str, int, float], ...] = (
+    ("q1", 63, 0.40),
+    ("q2", 126, 0.20),
+    ("q3", 189, 0.20),
+    ("q4", 252, 0.20),
+)
+#: The IBD-style term that cannot be missing.
+IBD_REQUIRED_TERM = "q1"
+#: ``(column, bars_back)`` for the rating history's component percentiles
+#: (plan §7 item 19): plain 1/3/6/12-month returns.
+IBD_COMPONENTS: Tuple[Tuple[str, int], ...] = (
+    ("m1", 21),
+    ("m3", 63),
+    ("m6", 126),
+    ("m12", 252),
+)
+
 
 def period_return(closes: Sequence[float], bars_back: int) -> Optional[float]:
     """Percentage return over ``bars_back`` trading bars, or ``None``.
