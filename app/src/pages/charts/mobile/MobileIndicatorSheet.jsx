@@ -19,6 +19,50 @@ import styles from './MobileCharts.module.css'
 // anchored popover doesn't fit a bottom sheet; eight good lines cover it.
 const SWATCHES = ['#7b68ee', '#38bdf8', '#f472b6', '#c9a84c', '#4ade80', '#f87171', '#e0dac8', '#fb923c']
 
+// ─── STACKED ROWS (UCT RS Phase 2a visual, A5b / A5c) ─────────────────────────
+//
+// A chip row whose options cannot sit beside their label on a 390 px screen
+// STACKS: the label on its own line, the chips under it, left-aligned and
+// wrapping. The rule is generic to the sheet's chip rows and reads the options,
+// never a key name: more than three options, or any option label longer than
+// twelve characters. So the RS Preset (seven) and Benchmark (six) rows stack and
+// Average type (Exponential / Simple) stays inline. ⚰️ Before this a long row
+// right-aligned its chips into a 70% column and printed one chip per line.
+const CHIP_STACK_MAX_OPTIONS = 3
+const CHIP_STACK_MAX_LABEL = 12
+
+/** Does a chip row with these option labels stack under its label? */
+function chipRowStacks(labels) {
+  const list = Array.isArray(labels) ? labels : []
+  return list.length > CHIP_STACK_MAX_OPTIONS || list.some((l) => String(l ?? '').length > CHIP_STACK_MAX_LABEL)
+}
+
+/**
+ * The swatches a colour row offers: the input's CURRENT colour when the palette
+ * does not hold it, then the definition DEFAULT when it differs, then the eight
+ * palette colours, deduped case-insensitively. ⭐ So the row always shows, and can
+ * mark, what the chart is drawing: UCT RS's `#6ba3be` and `#8a8574` are not in the
+ * palette, and before this a fresh RS editor showed eight swatches and marked none.
+ * Only a CSS-safe colour becomes a swatch (`safeCssColour`); the values come back
+ * lower-cased, which is the comparison `SwatchRow` marks the current one by.
+ */
+function swatchSet(current, fallback) {
+  const out = []
+  const seen = new Set()
+  const add = (c) => {
+    const css = safeCssColour(c)
+    if (!css) return
+    const k = css.toLowerCase()
+    if (seen.has(k)) return
+    seen.add(k)
+    out.push(k)
+  }
+  const inPalette = (c) => typeof c === 'string' && SWATCHES.includes(c.trim().toLowerCase())
+  for (const c of [current, fallback]) if (!inPalette(c)) add(c)
+  for (const c of SWATCHES) add(c)
+  return out
+}
+
 /** First LIVE instance of a definition in the RESOLVED settings — the one the
  *  chart is drawing and the one a param edit must land on. */
 function liveInstanceOf(cs, defId) {
@@ -53,7 +97,7 @@ function liveInstanceOf(cs, defId) {
 // member it does not exist; one that is visibly inert teaches them what to
 // change first. The row keeps its place and its text at reduced opacity, the
 // controls are `disabled` + `aria-disabled`, and `data-active` says which.
-function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, children }) {
+function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, stacked = false, children }) {
   return (
     <div
       className={`${styles.paramField} ${active ? '' : styles.paramFieldOff}`}
@@ -62,8 +106,9 @@ function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, childre
       role="group"
       aria-labelledby={labelId}
       aria-disabled={active ? undefined : 'true'}
+      data-stacked={stacked ? 'true' : undefined}
     >
-      <div className={styles.paramRow}>
+      <div className={`${styles.paramRow} ${stacked ? styles.paramRowStacked : ''}`}>
         <span className={styles.indName} id={labelId}>{label}</span>
         {children}
       </div>
@@ -144,9 +189,10 @@ function StepRow({ inputKey, label, labelId, tip, tipId, active = true, value, m
  *  gets shipped). Writes the RAW typed value, never the label. */
 function ChipRow({ inputKey, label, labelId, tip, tipId, active = true, value, options, onChange }) {
   const aria = controlAria(tipId, active)
+  const stacked = chipRowStacks(options.map(([, lab]) => lab))
   return (
-    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}>
-      <div className={styles.chipsWrap}>
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active} stacked={stacked}>
+      <div className={`${styles.chipsWrap} ${stacked ? styles.chipsStacked : ''}`}>
         {options.map(([val, lab]) => (
           <button
             key={String(val)}
@@ -162,22 +208,34 @@ function ChipRow({ inputKey, label, labelId, tip, tipId, active = true, value, o
   )
 }
 
-function SwatchRow({ inputKey, label, labelId, tip, tipId, active = true, value, onChange }) {
+/** A colour row. ⭐ STACKED, ALWAYS (A5c): the label on its own line, the swatches
+ *  under it, so "Line below avg" never wraps beside eight circles. Each swatch is a
+ *  44 px button around a 30 px circle (the circle is the `::before`, painted from
+ *  `--sw`), and exactly one is marked — `aria-pressed` plus the ring — because
+ *  `swatchSet` always includes the current colour. `fallback` is the definition's
+ *  declared default, offered so a member can get back to it. */
+function SwatchRow({ inputKey, label, labelId, tip, tipId, active = true, value, fallback, onChange }) {
   const aria = controlAria(tipId, active)
+  const current = String(value ?? '').trim().toLowerCase()
   return (
-    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}>
-      <div className={styles.swatches}>
-        {SWATCHES.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`${styles.swatch} ${String(value).toLowerCase() === c ? styles.swatchOn : ''}`}
-            style={{ background: c }}
-            onClick={() => onChange(c)}
-            aria-label={`${label} ${c}`}
-            {...aria}
-          />
-        ))}
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active} stacked>
+      <div className={`${styles.swatches} ${styles.swatchesStacked}`}>
+        {swatchSet(value, fallback).map((c) => {
+          const on = current === c
+          return (
+            <button
+              key={c}
+              type="button"
+              className={`${styles.swatch} ${on ? styles.swatchOn : ''}`}
+              style={{ '--sw': c }}
+              data-colour={c}
+              onClick={() => onChange(c)}
+              aria-label={`${label} ${c}`}
+              aria-pressed={on}
+              {...aria}
+            />
+          )
+        })}
       </div>
     </ParamRow>
   )
@@ -393,8 +451,10 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     switch (f.type) {
       case 'number':
         return <StepRow key={f.key} {...common} value={cur} min={f.min} max={f.max} step={f.step} onChange={write} />
-      case 'color':
-        return <SwatchRow key={f.key} {...common} value={cur} onChange={write} />
+      case 'color': {
+        const declared = (studyDef.inputs || []).find((i) => i && i.key === f.key)
+        return <SwatchRow key={f.key} {...common} value={cur} fallback={declared ? declared.default : undefined} onChange={write} />
+      }
       case 'toggle':
         return <SwitchRow key={f.key} {...common} value={!!cur} onChange={write} />
       case 'select':
@@ -632,9 +692,12 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
                 role="group"
                 aria-labelledby={`${uid}-preset-lbl`}
               >
-                <div className={styles.paramRow}>
+                {/* ⭐ A5b: STACKED — the label alone at the top-left, the seven chips
+                    under it, wrapping left to right (4 lines at most on a 390 px
+                    phone), and the origin line under the chips. */}
+                <div className={`${styles.paramRow} ${styles.paramRowStacked}`}>
                   <span className={styles.indName} id={`${uid}-preset-lbl`}>Preset</span>
-                  <div className={styles.chipsWrap}>
+                  <div className={`${styles.chipsWrap} ${styles.chipsStacked}`}>
                     {presets.map((p) => {
                       const on = !!currentPreset && currentPreset.id === p.id
                       return (
@@ -656,7 +719,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
                   </div>
                 </div>
                 {currentPreset && currentPreset.origin && (
-                  <span className={styles.paramTip} data-testid="preset-origin">{currentPreset.origin}</span>
+                  <span className={`${styles.paramTip} ${styles.presetOrigin}`} data-testid="preset-origin">{currentPreset.origin}</span>
                 )}
               </div>
             )}

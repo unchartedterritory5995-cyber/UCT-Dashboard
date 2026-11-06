@@ -989,6 +989,7 @@
   max-width: 70%;
 }
 .chipOpt {
+  position: relative;
   min-height: 38px;
   padding: 0 12px;
   border: 1px solid var(--border);
@@ -1008,17 +1009,45 @@
   background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
 }
 
+/* ⭐ A5b (UCT RS Phase 2a visual): a chip's VISUAL height stays 38px and its HIT
+   area is 44px — the `::after` reaches 3px past each edge, inside the 8px gap of a
+   stacked block, so two rows of chips never overlap their targets. */
+.chipOpt::after { content: ''; position: absolute; inset: -3px 0; }
+.presetCustom::after { content: none; }
+
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* ⭐ A5c: a swatch is a 44px BUTTON around a 30px circle. The circle is the
+   `::before`, painted from `--sw` (set inline per swatch), so the hit area is the
+   button's own box and neighbours never overlap — 44px buttons sit edge to edge
+   and read as 14px between circles. Selected: the existing ring, a 2px
+   `--text-bright` line outside a 2px surface gap, plus `aria-pressed`. */
 .swatch {
-  width: 30px;
-  height: 30px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: none;
   border-radius: 50%;
-  border: 2px solid transparent;
+  background: none;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.swatchOn { border-color: var(--text-bright); box-shadow: 0 0 0 2px var(--bg-surface); }
+.swatch::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sw, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 14%, transparent);
+}
+.swatchOn::before { box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--text-bright); }
+.swatchesStacked { gap: 0; justify-content: flex-start; margin-left: -7px; }
 
 .removeRow .rowLabel { color: var(--loss); }
 
@@ -1087,6 +1116,30 @@
    "Custom" is a state chip (a span), not a control, so it takes no pointer. */
 .presetRow { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .presetCustom { display: inline-flex; align-items: center; cursor: default; }
+
+/* ── Stacked rows (UCT RS Phase 2a visual, A5b / A5c) ────────────────────────
+   A row whose options cannot sit beside the label (the sheet's rule,
+   `chipRowStacks`: more than 3 options or a label over 12 characters, and every
+   colour row) puts the label on its own line and the options under it,
+   left-aligned and wrapping with 8px gaps. One column, no right-ragged chip
+   stack. The label keeps its line (`nowrap`): with the row to itself it never
+   needs two. */
+.paramRowStacked {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+.paramRowStacked > .indName { flex: none; white-space: nowrap; }
+.chipsStacked {
+  justify-content: flex-start;
+  max-width: none;
+  gap: 8px;
+}
+/* The preset's origin line under its chips: 12px, the muted ink. */
+.presetOrigin { font-size: 12px; color: var(--text-muted); }
 
 /* ── Layouts sheet (MobileLayoutsSheet) ─────────────────────────────────────
    The phone's door to the EXISTING workspace/layout system. Rows reuse .row /

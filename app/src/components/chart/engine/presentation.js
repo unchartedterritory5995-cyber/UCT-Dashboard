@@ -127,6 +127,15 @@ const RESTYLEABLE_DEF_STYLES = Object.freeze(
 )
 
 /**
+ * May a member restyle this output at all? `false` only when the definition says
+ * `restyle: false` on the plot (UCT RS's dot plots, Phase 2a visual A6). Absent
+ * means yes, so every definition that never heard of the field keeps its offer.
+ */
+export function isPlotRestyleable(plot) {
+  return !!plot && typeof plot === 'object' && plot.restyle !== false
+}
+
+/**
  * ⛔ STYLES THAT DO NOT BELONG ON A SHARED PANE, and why capability depends on
  * PLACEMENT and not only on the output.
  *
@@ -153,6 +162,12 @@ const isKnownStyle = (v) => typeof v === 'string' && PLOT_STYLES.includes(v)
 export function availableStyles(plot, ctx) {
   const declared = plot && plot.style
   if (!declared || !RESTYLEABLE_DEF_STYLES.has(declared)) return []
+  // ⭐ UCT RS PHASE 2a VISUAL (A6) — A PLOT MAY OPT OUT: `restyle: false`. A sparse
+  // dot column (one value every few dozen bars) restyled as a line or an area draws
+  // nothing, so offering it is the dropdown that lies, one plot at a time. The
+  // definition says so at the plot (`defSchema` validates the field); this answers
+  // "nothing to offer", so every Plot style surface drops the row by the same rule.
+  if (!isPlotRestyleable(plot)) return []
   const shared = ctx && ctx.target === 'volume'
   // ⛔⛔ CANDLES ARE NEVER OFFERED WITHOUT A SOURCE THAT CAN MEAN THEM. Every
   // other style is a property of the OUTPUT — any column can be drawn as an area
@@ -213,11 +228,16 @@ export function resolvePlotStyle(instance, plot, ctx) {
   const key = plot && plot.key
 
   let chosen = null
-  if (pres && pres.plots && typeof key === 'string' && key) {
+  // ⭐ A PLOT THAT OPTS OUT OF RESTYLING DRAWS AS DECLARED, whatever is stored. The
+  // menu stops offering it (`availableStyles`), and the resolver honours the same
+  // rule, so a style stored before the opt-out (or by an instance-level
+  // `plotStyle`) cannot turn a dot column into an empty line.
+  const optedOut = !isPlotRestyleable(plot)
+  if (!optedOut && pres && pres.plots && typeof key === 'string' && key) {
     const perOutput = pres.plots[key] && pres.plots[key].style
     if (isKnownStyle(perOutput)) chosen = perOutput
   }
-  if (!chosen && pres && isKnownStyle(pres.plotStyle)) chosen = pres.plotStyle
+  if (!optedOut && !chosen && pres && isKnownStyle(pres.plotStyle)) chosen = pres.plotStyle
 
   // ⭐⭐ THE SOURCE'S DEFAULT OUTRANKS THE DEFINITION'S — BUT ONLY FOR A ROW THAT *IS*
   // THE SOURCE, and that condition is the whole reason this is safe. `dataSeries`
@@ -235,7 +255,7 @@ export function resolvePlotStyle(instance, plot, ctx) {
   // ⚠️ IT SITS BELOW BOTH USER LEVELS ON PURPOSE. A member who chose Histogram keeps
   // Histogram; a default is what you get before you choose, never a correction of a
   // choice you already made.
-  if (!chosen && ctx && isKnownStyle(ctx.sourceDefaultStyle)) {
+  if (!optedOut && !chosen && ctx && isKnownStyle(ctx.sourceDefaultStyle)) {
     chosen = ctx.sourceDefaultStyle
   }
 
