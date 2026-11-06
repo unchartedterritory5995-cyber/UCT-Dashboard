@@ -105,6 +105,16 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
     // CONTROL — a list of ANOTHER type cannot be the walked one
     expect(build(`b = array.from("q", "r")\n${WALK('if array.size(b) > 0\n        array.remove(b, 0)')}`).ok).toBe(true)
   })
+  it('a list the body binds to a NEW array (and never reassigns) cannot be the walked one; one bound to a name can', () => {
+    const fresh = WALK('var float[] t = array.new_float(2)\n    if array.size(t) > 0\n        array.pop(t)')
+    const b = build(fresh)
+    expect(b.ok, b.refusal && b.refusal.message).toBe(true)
+    // ⛔ CONTROLS — bound to the walked list, or reassigned in the body: refused by name
+    expect(refusal(WALK('t = a\n    array.pop(t)')).message).toMatch(/changes `t`, which may be `a`/)
+    // `array.slice` is a VIEW of the list (Pine reference), not a new array
+    expect(refusal(WALK('t = array.slice(a, 0, 1)\n    array.pop(t)')).message).toMatch(/changes `t`, which may be `a`/)
+    expect(refusal(WALK('var float[] t = array.new_float(2)\n    t := a\n    array.pop(t)')).message).toMatch(/changes `t`, which may be `a`/)
+  })
   it('a write to the loop variable, or through it (W6-F1)', () => {
     expect(refusal(WALK('x := 4.0')).message).toMatch(/writes the loop variable `x`/)
     expect(refusal(WALK('i += 1')).message).toMatch(/writes the loop variable `i`/)
@@ -112,6 +122,12 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
     expect(refusal(rec).message).toMatch(/writes the loop variable `p`/)
     const handed = 'type P\n    float v\nbump(q) =>\n    q.v := 3\nps = array.from(P.new(1))\nfor p in ps\n    bump(p)\nplot(close)\n'
     expect(refusal(handed).message).toMatch(/hands the element `p`/)
+    // …through a function that calls one that writes, too
+    const deep = 'type P\n    float v\nbump(q) =>\n    q.v := 3\nouter(q) =>\n    bump(q)\nps = array.from(P.new(1))\nfor p in ps\n    outer(p)\nplot(close)\n'
+    expect(refusal(deep).message).toMatch(/hands the element `p`/)
+    // CONTROL — a function that only READS the element is served
+    const reads = 'type P\n    float v\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(4))\ntwice(P q) =>\n    q.v * 2\ns = 0.0\nfor p in ps\n    s += twice(p)\nplot(s)\n'
+    expect(lastValues(reads)).toEqual([8])
   })
   it('inside a function body; a loop whose value is read; `polyline.all`; a matrix; a map; a non-array', () => {
     expect(refusal('f(a) =>\n    s = 0.0\n    for x in a\n        s += x\n    s\nplot(f(array.from(1.0)))\n').message)

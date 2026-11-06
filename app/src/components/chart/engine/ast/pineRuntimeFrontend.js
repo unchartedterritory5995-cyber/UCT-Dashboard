@@ -10278,10 +10278,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
     // ⛔ …and a change by anything else to a list that MAY be the walked one under another name
     // (an alias holds the same array): another list of the same type, one this lane cannot
-    // type, or any list a called function changes. A list of another type cannot be it.
+    // type, or any list a called function changes. A list of another type cannot be it, and
+    // neither can one the body itself binds to a NEW array and never reassigns
+    // (`var line[] tmp = array.new_line(n)` inside the loop).
     if (!family) {
+      const fresh = forInFreshLocals(st.sub)
       for (const t of forInUnwitnessedTargets(st.sub, rule)) {
-        if (t === src) continue
+        if (t === src || (t !== null && fresh.has(t) && !forInWrites(st.sub, t))) continue
         const ty = t === null ? null : exprType({ type: 'name', name: t, tok: first }, scope)
         if (!ty || tyKey(ty) === tyKey(srcTy)) {
           refuse(`the body changes \`${t === null ? 'a list a called function is handed' : t}\`, which may be \`${src}\`, `
@@ -10293,7 +10296,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     for (const v of [elem, idx]) {
       if (v !== null && forInWrites(st.sub, v)) refuse(`the body writes the loop variable \`${v}\` or through it, not yet captured (W6-F1)`)
     }
-    if ((!elemTy(srcTy) || elemTy(srcTy).kind === 'udt') && forInHandsOn(st.sub, elem, rule)) {
+    // …and handing the element to a function that writes a field (at any depth of its calls):
+    // the element is a reference, so that is a write through `x` too.
+    if (forInHandsOn(st.sub, elem, rule)) {
       refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
     }
 
@@ -10359,6 +10364,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
     scanList(list, false)
     return out
   }
+  /** The names the statements bind (`[var] [type] name = …`, at any depth) to a NEW array: the
+   *  right-hand side is one `array.new*` / `array.from` / `array.copy` call. */
+  const forInFreshLocals = (list, out = new Set()) => {
+    for (const s2 of list || []) {
+      const ts = s2.header || []
+      const eq = findTop(ts, (x) => isPunct(x, '='))
+      const nt = eq > 0 ? ts[eq - 1] : null
+      const head = ts[eq + 1]
+      if (nt && nt.kind === 'ident' && head && head.kind === 'ident' && isPunct(ts[eq + 2], '(')
+          && (/^array\.new(_[a-z]+)?$/.test(String(head.value)) || head.value === 'array.from' || head.value === 'array.copy')
+          && closeOfToks(ts, eq + 2) === ts.length - 1) {
+        out.add(String(nt.value))
+      }
+      forInFreshLocals(s2.sub, out)
+    }
+    return out
+  }
+  /** The index closing the bracket opened at `open`, or -1. */
+  const closeOfToks = (ts, open) => {
+    let depth = 0
+    for (let k = open; k < ts.length; k += 1) {
+      if (isPunct(ts[k], '(') || isPunct(ts[k], '[')) depth += 1
+      else if (isPunct(ts[k], ')') || isPunct(ts[k], ']')) { depth -= 1; if (depth === 0) return k }
+    }
+    return -1
+  }
   /** Does a statement write `name` (`name := …`, `name += …`, `[…, name] := …`) or a field
    *  through it (`name.f := …`)? */
   const forInWrites = (list, name) => (list || []).some((s2) => {
@@ -10370,7 +10401,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
     return hit || tuple || forInWrites(s2.sub, name)
   })
-  /** Is `name` handed to a user function (an argument, or the receiver of a script's method)? */
+  /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`)? */
+  const forInFnWritesField = (fn, rule, seen = new Set()) => {
+    if (seen.has(fn) || !rule.fnDefs.has(fn)) return false
+    seen.add(fn)
+    const scan = (items) => (items || []).some((s2) => {
+      const ts = s2.header || []
+      return ts.some((tk, i) => {
+        if (!tk || tk.kind !== 'ident') return false
+        const v = String(tk.value)
+        if (v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value)) return true
+        if (!isPunct(ts[i + 1], '(')) return false
+        const m = splitMethodName(v)
+        const callee = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+        return !!callee && forInFnWritesField(callee, rule, seen)
+      }) || scan(s2.sub)
+    })
+    return scan(rule.fnDefs.get(fn).body)
+  }
+  /** Is `name` handed to a user function that writes a field (an argument, or the receiver of
+   *  a script's method)? */
   const forInHandsOn = (list, name, rule) => (list || []).some((s2) => {
     const ts = s2.header || []
     const here = ts.some((tk, i) => {
@@ -10378,7 +10428,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const v = String(tk.value)
       const m = splitMethodName(v)
       const fn = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
-      if (!fn) return false
+      if (!fn || !forInFnWritesField(fn, rule)) return false
       if (m && m.recv === name) return true
       let depth = 0
       for (let k = i + 1; k < ts.length; k += 1) {
