@@ -127,6 +127,13 @@ import { treesHash as treesHashOf, assertTrees } from './ast/trees'
 // what a legal program is; this file only adds the DOCUMENT-level rules the
 // program module cannot know (is it bound, and does every node it names exist).
 import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from './ast/objectProgram'
+// ⭐ THE READOUT VOCABULARY IS OWNED BY ITS READER (`readoutSchema.js`), the
+// same way LEGEND_FIELDS is owned here and read by `readout.js`: one list, two
+// modules, and a format the resolver cannot print cannot be declared.
+import {
+  READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
+  parseReadoutSource,
+} from './readoutSchema'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -1272,6 +1279,130 @@ function validateMeta(meta, def, errors) {
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
   // asymmetric policy, and the round-trip promise depends on this silence.
+}
+
+/**
+ * ⭐⭐ `readout[]` — THE ROWS A SERVER-LANE DEFINITION PRINTS IN WORDS (Phase 2a).
+ *
+ * A top-level field, and a BEHAVIOURAL one: each entry decides what the legend
+ * and the pane readout say about a scalar the envelope carried, so it is
+ * validated fail-closed like `plots[].legend` — explicitly carved out of the
+ * preserve-unknown policy that every other top-level key enjoys. The grammar
+ * and the formats are `readoutSchema.js`'s (its header is the full account);
+ * this checks a definition against them so a row that could only ever print
+ * "undefined" is refused at registration, by index, rather than rendered.
+ *
+ * Every message names the definition and the entry index, because a readout
+ * block is authored once per tenant and read by nobody until a chart draws it.
+ *
+ * @param {object} def the whole definition (reads `readout`, `id`)
+ * @param {Map<string, object>} inputsByKey the declared inputs, for `input:` sources
+ * @param {string[]} errors
+ */
+function validateReadout(def, inputsByKey, errors) {
+  const readout = def.readout
+  if (readout === undefined || readout === null) return
+  const who = `definition ${fmt(def.id)}`
+  const SOURCE_HELP = `expected ${READOUT_SOURCE_PREFIXES.map((p) => `${p}:<${p === 'input' ? 'key' : 'path'}>`).join(', ')}`
+  if (!Array.isArray(readout)) {
+    errors.push(`readout: ${who} — expected an array of readout rows {key, label, source, format}, got ${fmt(readout)}`)
+    return
+  }
+  const seen = new Set()
+  readout.forEach((entry, i) => {
+    const path = `readout[${i}]`
+    if (!isPlainObject(entry)) {
+      errors.push(`${path}: ${who} — expected an object {key, label, source, format}, got ${fmt(entry)}`)
+      return
+    }
+    for (const key of Object.keys(entry)) {
+      if (!READOUT_ENTRY_FIELDS.includes(key)) {
+        errors.push(
+          `${path}.${key}: ${who} — unknown readout field — expected one of: ${list(READOUT_ENTRY_FIELDS)}. ` +
+          `A readout row decides what the legend prints, so an unknown field fails closed rather than being preserved.`,
+        )
+      }
+    }
+    if (!isNonEmptyString(entry.key)) {
+      errors.push(`${path}.key: ${who} — required non-empty string, got ${fmt(entry.key)}`)
+    } else if (!KEY_RE.test(entry.key)) {
+      errors.push(`${path}.key: ${who} — ${fmt(entry.key)} is not a legal key (must match ${KEY_RE})`)
+    } else if (seen.has(entry.key)) {
+      errors.push(`${path}.key: ${who} — duplicate readout key ${fmt(entry.key)}`)
+    } else {
+      seen.add(entry.key)
+    }
+    if (!isNonEmptyString(entry.label)) {
+      errors.push(`${path}.label: ${who} — required non-empty string (the member-facing row name), got ${fmt(entry.label)}`)
+    }
+    // `source` and `when` share one grammar; `input:` must name a declared input
+    // for the same reason `meta.legendParams` must — the row would read nothing.
+    for (const field of ['source', 'when']) {
+      const v = entry[field]
+      if (field === 'when' && (v === undefined || v === null)) continue
+      if (!isNonEmptyString(v)) {
+        errors.push(`${path}.${field}: ${who} — required string, ${SOURCE_HELP}, got ${fmt(v)}`)
+        continue
+      }
+      const parsed = parseReadoutSource(v)
+      if (!parsed) {
+        const prefix = v.includes(':') ? v.slice(0, v.indexOf(':')) : v
+        errors.push(
+          `${path}.${field}: ${who} — ${fmt(v)} is not a readout source` +
+          (READOUT_SOURCE_PREFIXES.includes(prefix) ? ` (a dotted path of identifiers must follow the prefix)` : ` — unknown prefix ${fmt(prefix)}`) +
+          `; ${SOURCE_HELP}`,
+        )
+        continue
+      }
+      if (parsed.kind === 'input') {
+        if (parsed.path.length !== 1) {
+          errors.push(`${path}.${field}: ${who} — an input source names ONE input key, got ${fmt(v)}`)
+        } else if (!inputsByKey.has(parsed.path[0])) {
+          errors.push(
+            `${path}.${field}: ${who} — ${fmt(parsed.path[0])} names no declared input. ` +
+            `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+          )
+        }
+      }
+    }
+    if (!READOUT_FORMATS.includes(entry.format)) {
+      errors.push(
+        `${path}.format: ${who} — unknown readout format ${fmt(entry.format)} — expected one of: ${list(READOUT_FORMATS)}`,
+      )
+    }
+    if (entry.fallback !== undefined && !isNonEmptyString(entry.fallback)) {
+      errors.push(`${path}.fallback: ${who} — expected a non-empty string, got ${fmt(entry.fallback)}`)
+    }
+    if (entry.chip !== undefined && typeof entry.chip !== 'boolean') {
+      errors.push(`${path}.chip: ${who} — expected a boolean, got ${fmt(entry.chip)}`)
+    }
+    if (entry.words !== undefined) {
+      if (entry.format !== 'bool') {
+        errors.push(`${path}.words: ${who} — only a "bool" row carries a word pair (this row is ${fmt(entry.format)})`)
+      } else if (!Array.isArray(entry.words) || entry.words.length !== 2 || entry.words.some((w) => typeof w !== 'string')) {
+        errors.push(`${path}.words: ${who} — expected [trueWord, falseWord], two strings, got ${fmt(entry.words)}`)
+      }
+    }
+    if (entry.card !== undefined) {
+      if (!isPlainObject(entry.card)) {
+        errors.push(`${path}.card: ${who} — expected an object {what, origin, evidence?}, got ${fmt(entry.card)}`)
+      } else {
+        for (const key of Object.keys(entry.card)) {
+          if (!READOUT_CARD_FIELDS.includes(key)) {
+            errors.push(`${path}.card.${key}: ${who} — unknown card field — expected one of: ${list(READOUT_CARD_FIELDS)}`)
+          }
+        }
+        for (const key of ['what', 'origin']) {
+          if (!isNonEmptyString(entry.card[key])) {
+            errors.push(`${path}.card.${key}: ${who} — required non-empty string, got ${fmt(entry.card[key])}`)
+          }
+        }
+        if (entry.card.evidence !== undefined && typeof entry.card.evidence !== 'string') {
+          errors.push(`${path}.card.evidence: ${who} — expected a string, got ${fmt(entry.card.evidence)}`)
+        }
+      }
+    }
+  })
 }
 
 function validatePlacement(placement, errors) {
@@ -2620,6 +2751,9 @@ export function validateDefinition(def) {
       }
     })
     inputs.forEach((input, i) => validateActiveWhen(input, i, inputsByKey, errors))
+
+    // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
+    validateReadout(out, inputsByKey, errors)
 
     // ─ plots (substitution happens here, in-place on the clone) ─
     const plotKeyIndex = new Map()

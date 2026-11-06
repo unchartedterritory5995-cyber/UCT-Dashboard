@@ -99,6 +99,11 @@ import { semanticName, namesItselfSemantically } from './semanticName'
 import { formatFundamentalValue, fundamentalFormatOfInstance } from './fundamentalFormat'
 import { tfLabel } from '../timeframes'
 import { safeCssColour } from './objectColour'
+// ⭐ THE SECOND PURE IMPORT, AND IT KEEPS THE PURITY CLAIM TOO. `readoutSchema`
+// resolves a definition's `readout[]` over scalars handed to it — no registry,
+// no serverCompute, no DOM. The scalars themselves arrive through `opts.scalarsOf`
+// (see `stampReadout`), so this module still imports no server lane.
+import { readoutRows, readoutChipRows } from './readoutSchema'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -280,6 +285,107 @@ function chipLabel(def, plot, inputs, displayName) {
   return `${name}(${values.join(', ')})`
 }
 
+// ─── THE PANE SUFFIX: WHAT THE LONG NAME IS MEASURED AGAINST (2026-11-06) ────
+//
+// ⚰️ MEASURED ON A REAL SCREENSHOT: the RS pane read `UCT Relative Strength
+// 0.2477` with no benchmark anywhere on the chart. The chip label carries it —
+// `chipLabel` prints `name(params)` from `meta.legendParams`, so the strip reads
+// `UCT RS(SPY)` — but `paneReadoutLabel` prints `meta.name` + `chip.suffix` and
+// deliberately drops the parameter list (`Relative Strength Index`, never
+// `Relative Strength Index(14)`). A period is a SETTING and belongs in the
+// settings dialog; a benchmark is WHAT THE LINE IS, and a pane that does not say
+// it is a line a member cannot read.
+//
+// ⛔ THE RULE IS BY DECLARED INPUT TYPE, NOT BY DEFINITION. A `legendParams`
+// entry whose input is a NAMED choice (`enum`, `string`) is identity and reads
+// ` · <value>` after the long name, the grammar §31 already uses for a named
+// source (`EMA 20 · QQQ`); a number (`int`, `float`) is a setting and stays out,
+// which is what keeps every existing pane label byte-identical. A `source`
+// input is excluded on purpose — its value is an address, and this module never
+// prints one (see `siblingSuffixes`).
+//
+// ⭐ AND THE SERVER'S RESOLVED READING WINS OVER THE MEMBER'S REQUEST. When the
+// caller hands a `opts.scalarsOf` reader and the definition's `readout[]` has a
+// chip row keyed like the legend param (`key: 'benchmark'` reading
+// `scalar:benchmark.resolved`), that row's text REPLACES the input value in the
+// suffix — `· XLK` for a member who asked for `SECTOR`. Until the payload lands
+// the input value stands, which is honest: that is what was asked for.
+//
+// ⛔ `chip.label` AND `chip.text` ARE NEVER TOUCHED HERE. The `name(params)`
+// grammar is pinned byte-for-byte by three rails; this writes `chip.suffix`
+// (the field `paneReadoutLabel` already prints) and `chip.readout` only.
+const IDENTITY_INPUT_TYPES = new Set(['enum', 'string'])
+
+/** `legendParams` whose input is a named choice, resolved for THIS instance:
+ *  `Map(key → value)`, declaration order. Empty for every numeric parameter. */
+function legendIdentityParts(def, inputs) {
+  const parts = new Map()
+  const params = def && def.meta && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
+  if (!params.length) return parts
+  const declared = new Map((def.inputs || [])
+    .filter((i) => i && typeof i.key === 'string').map((i) => [i.key, i]))
+  for (const k of params) {
+    const inp = declared.get(k)
+    if (!inp || !IDENTITY_INPUT_TYPES.has(inp.type)) continue
+    const raw = (inputs && inputs[k] !== undefined) ? inputs[k] : inp.default
+    if (typeof raw === 'string' && raw) parts.set(k, raw)
+  }
+  return parts
+}
+
+/**
+ * Stamp a chip's pane suffix and, when a reader is present, its readout rows.
+ *
+ *   chip.suffix  = identity parts (` · SPY`) + the sibling suffix the
+ *                  disambiguator may already have set (` (maLength 50)`) + the
+ *                  remaining chip-flagged readout rows (` · 94`). Written only
+ *                  when it is non-empty or a reader was given, so a chip with
+ *                  nothing to say is byte-identical to before.
+ *   chip.readout = every resolved readout row (`readoutSchema.readoutRows`),
+ *                  `[]` when the definition declares none or the reader answers
+ *                  nothing. Present only when a reader was given.
+ *
+ * ⛔ THE READER IS CALLED WITH THE INPUTS AS THE COMPUTE READS THEM (declared
+ * defaults under the stored values — `resolvedInputsOf`), because that is what
+ * `computeFor` keyed the server fetch with (`resolveInputs`); handing it the raw
+ * stored object would miss the cache for every untouched instance.
+ *
+ * ⛔ NEVER THROWS. This runs on the rAF flush; a reader that throws is "no
+ * scalars", exactly as a `lastValue` thunk that throws is "no fallback".
+ */
+function stampReadout(chip, def, inputs, opts) {
+  if (!chip || !def) return chip
+  const reader = (opts && typeof opts.scalarsOf === 'function') ? opts.scalarsOf : null
+  const identity = legendIdentityParts(def, inputs)
+  let rows = null
+  if (reader) {
+    rows = []
+    if (Array.isArray(def.readout) && def.readout.length) {
+      let scalars = null
+      try { scalars = reader(def, resolvedInputsOf(def, inputs)) } catch { scalars = null }
+      // A plain object or nothing: an array, a string or a number is not a
+      // payload, and "nothing landed" prints no rows — not even a fallback.
+      if (scalars && typeof scalars === 'object' && !Array.isArray(scalars)) {
+        rows = readoutRows(def, scalars, { inputs })
+      }
+    }
+  }
+  const extra = []
+  if (rows && rows.length) {
+    for (const r of readoutChipRows(def, rows)) {
+      if (identity.has(r.key)) identity.set(r.key, r.text)
+      else extra.push(r.text)
+    }
+  }
+  const lead = [...identity.values()].map((v) => ` · ${v}`).join('')
+  const sibling = typeof chip.suffix === 'string' ? chip.suffix : ''
+  const tail = extra.map((t) => ` · ${t}`).join('')
+  const suffix = `${lead}${sibling}${tail}`
+  if (rows) chip.readout = rows
+  if (suffix || rows) chip.suffix = suffix
+  return chip
+}
+
 /** A plot's colour for THIS instance. Mirrors `pool.resolvePlotForInstance`
  *  without importing it, because that module carries the LWC option vocabulary
  *  and the legend needs one field. */
@@ -327,6 +433,16 @@ function resolvePlotColor(plot, inputs, def) {
  *        would have been wrong the moment a second instance of one definition
  *        exists: two RSI lines at different periods would print the same number
  *        twice. That is the reason this is a PARAMETER and not a lookup inside.
+ * @param {Function} [displayFor] `(defId, instanceId) => string|null`, the stored
+ *        display name of the instance (a `labelFrom: 'source'` definition).
+ * @param {object[]} [instances] the normalised instance list, for the sibling
+ *        disambiguator's source words.
+ * @param {{scalarsOf?: (def: object, inputs: object) => (object|null)}} [opts]
+ *        Phase 2a: a reader for the scalars a server-lane envelope carried
+ *        beside its columns (the caller binds `serverCompute.scalarsFor` to its
+ *        ctx). Absent — every existing caller — the chips are byte-identical to
+ *        before; present, each chip gains `readout` and `suffix`. See
+ *        `stampReadout`.
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
  *        order the entries were given.
  */
@@ -340,7 +456,7 @@ function hoveredTimeOf(seriesData) {
   return undefined
 }
 
-export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances) {
+export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances, opts) {
   const get = resolveRegistry(registry)
   const out = []
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
@@ -442,7 +558,11 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     })
     inputsByChip.set(out.length - 1, inputs)
   }
-  return disambiguateSiblings(out, inputsByChip, registry, instances)
+  const chips = disambiguateSiblings(out, inputsByChip, registry, instances)
+  // ⭐ AFTER the sibling pass, so the pane suffix composes with — never
+  // overwrites — the ` (maLength 50)` a second copy earned. Label untouched.
+  chips.forEach((c, i) => stampReadout(c, get(c.defId), inputsByChip.get(i), opts))
+  return chips
 }
 
 /**
@@ -731,8 +851,9 @@ function disambiguateSiblings(chips, inputsByChip, registry, instances) {
  * @param {Map}      seriesData `crosshairMove` param's `seriesData` map
  * @param {object|Function} registry
  * @param {object[]} instances the normalised instance list (for per-instance inputs)
+ * @param {object} [opts] passed through to `chipsFrom` (`opts.scalarsOf`)
  */
-export function engineChips(bindings, seriesData, registry, instances) {
+export function engineChips(bindings, seriesData, registry, instances, opts) {
   const byId = new Map((Array.isArray(instances) ? instances : [])
     .filter(i => i && typeof i.instanceId === 'string')
     .map(i => [i.instanceId, i]))
@@ -753,7 +874,7 @@ export function engineChips(bindings, seriesData, registry, instances) {
   // `inputsFor` makes, for the same reason: two copies of one definition can
   // carry two names, and `cs.indicators[defId]` cannot express that.
   const displayFor = (_defId, instanceId) => legendName(byId.get(instanceId))
-  return chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances)
+  return chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances, opts)
 }
 
 /**
@@ -789,12 +910,15 @@ export function engineChips(bindings, seriesData, registry, instances) {
  * @param {Map|null} seriesData `crosshairMove`'s map, or null when off-cursor
  * @param {object|Function} registry
  * @param {object[]} instances the normalised instance list, in stack order
+ * @param {object} [opts] passed through to `engineChips` (`opts.scalarsOf`); a
+ *        hidden instance's label-only chip is stamped the same way, so it keeps
+ *        its pane suffix without a value.
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,hidden,text}[]}
  */
-export function legendChips(bindings, seriesData, registry, instances) {
+export function legendChips(bindings, seriesData, registry, instances, opts) {
   const get = resolveRegistry(registry)
   const formatted = new Map()
-  for (const c of engineChips(bindings, seriesData, registry, instances)) {
+  for (const c of engineChips(bindings, seriesData, registry, instances, opts)) {
     formatted.set(`${c.instanceId}::${c.plotKey}`, c)
   }
 
@@ -865,7 +989,9 @@ export function legendChips(bindings, seriesData, registry, instances) {
       // un-hide from, and it formats its own label — so a `labelFrom` definition
       // fixed only in `chipsFrom` would still print "Series" for a hidden QQQ.
       const label = chipLabel(def, plot, inputs, legendName(inst))
-      out.push({
+      // ⭐ The pane suffix (and, with a reader, the readout rows) ride on the
+      // label-only chip too — a hidden RS pane still says which benchmark it is.
+      out.push(stampReadout({
         defId: def.id,
         plotKey: plot.key,
         instanceId: inst.instanceId,
@@ -893,7 +1019,7 @@ export function legendChips(bindings, seriesData, registry, instances) {
         ...(isHidden ? {} : { computed: drawn.has(`${inst.instanceId}::${plot.key}`) }),
         text: label,
         sparse,
-      })
+      }, def, inputs, opts))
     }
   }
 }

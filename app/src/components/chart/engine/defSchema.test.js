@@ -12,6 +12,9 @@ import { parseFormula, astHash } from './ast/parse'
 // ⭐ AND THE ONE MULTI-TREE HASH, for the same reason: a fixture that typed its
 // own `treesHash` would be comparing its copy of the definition to itself.
 import { treesHash, assertTrees } from './ast/trees'
+// ⭐ THE READOUT VOCABULARY, from the module that resolves it — so the accept
+// case below cannot cover fewer formats than the resolver prints.
+import { READOUT_FORMATS } from './readoutSchema'
 
 const rsiDef = () => ({
   schemaVersion: 1, id: 'rsi', version: 1,
@@ -1305,5 +1308,123 @@ describe('schema v2 — many trees, one hash', () => {
         expect(treesAccepts, `trees on ${JSON.stringify(k)}`).toBe(KEY_RE.test(k))
       }
     })
+  })
+})
+
+// ─── readout[] — the rows a server-lane definition prints in words (Phase 2a) ─
+//
+// A top-level BEHAVIOURAL field: each entry decides what the legend and the
+// pane readout say about a scalar the envelope carried, so it fails closed like
+// `plots[].legend` — explicitly carved out of the preserve-unknown policy that
+// `futureTopLevel` above still enjoys. The grammar and the formats are
+// `readoutSchema.js`'s; every refusal names the definition AND the entry index,
+// because a readout block is authored once per tenant and read by nobody until
+// a chart draws it.
+describe('readout[] — validated fail-closed, by definition id and entry index', () => {
+  const withReadout = (readout) => {
+    const d = rsiDef()
+    // an enum input, so an `input:` row has something to read
+    d.inputs.push({ key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY',
+      options: [['SPY', 'S&P 500'], ['QQQ', 'Nasdaq 100']] })
+    if (readout !== undefined) d.readout = readout
+    return d
+  }
+  const GOOD = [
+    { key: 'benchmark', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+      card: { what: 'What the line is measured against.', origin: 'IBD draws RS against the S&P 500.', evidence: 'none yet' } },
+    { key: 'note', label: 'Benchmark note', source: 'payload:benchmark.fallback', format: 'text',
+      when: 'scalar:benchmark.fallback' },
+    { key: 'requested', label: 'Requested', source: 'input:benchmark', format: 'text' },
+    { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct' },
+    { key: 'phase', label: 'RS line', source: 'scalar:legend.above', format: 'bool',
+      words: ['above its average', 'below its average'] },
+    { key: 'rsHigh', label: 'RS high', source: 'scalar:lastRsHigh.barsAgo', format: 'barsAgo' },
+    { key: 'rating', label: 'Rating', source: 'scalar:rating.ibd', format: 'int', fallback: 'not yet rated' },
+    { key: 'rs', label: 'RS', source: 'scalar:legend.last', format: 'ratio' },
+  ]
+
+  it('accepts a block using every format, every source prefix, when, fallback, chip, words and card — and its absence', () => {
+    const r = validateDefinition(withReadout(GOOD))
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(validateDefinition(withReadout(undefined)).ok).toBe(true)
+    expect(validateDefinition(withReadout(null)).ok).toBe(true)
+    expect(validateDefinition(withReadout([])).ok).toBe(true)
+    // …and the accept case really covers every format the resolver prints, so a
+    // format added to one module and not the other fails here by name.
+    expect([...new Set(GOOD.map((e) => e.format))].sort()).toEqual([...READOUT_FORMATS].sort())
+    expect(new Set(GOOD.map((e) => e.source.split(':')[0]))).toEqual(new Set(['scalar', 'payload', 'input']))
+  })
+
+  it('preserves the block VERBATIM on the returned definition — validated, never coerced', () => {
+    expect(ok(withReadout(GOOD)).readout).toEqual(GOOD)
+  })
+
+  it('refuses a source whose prefix is not scalar:, payload: or input:, naming the definition and the index', () => {
+    const e = errs(withReadout([GOOD[0], { ...GOOD[1], source: 'column:rsLine' }])).join('\n')
+    expect(e).toMatch(/readout\[1\]\.source/)
+    expect(e).toMatch(/definition "rsi"/)
+    expect(e).toMatch(/unknown prefix "column"/)
+    expect(e).toMatch(/scalar:<path>, payload:<path>, input:<key>/)
+    // …and the GOOD row beside it is not blamed
+    expect(e).not.toMatch(/readout\[0\]/)
+  })
+
+  it('refuses an unknown format by name, naming the definition and the index', () => {
+    const e = errs(withReadout([GOOD[0], GOOD[1], { ...GOOD[2], format: 'money' }])).join('\n')
+    expect(e).toMatch(/readout\[2\]\.format/)
+    expect(e).toMatch(/definition "rsi"/)
+    expect(e).toMatch(/unknown readout format "money"/)
+    for (const f of READOUT_FORMATS) expect(e).toContain(f)
+  })
+
+  it('refuses a missing label, naming the definition and the index', () => {
+    const noLabel = { ...GOOD[3] }; delete noLabel.label
+    const e = errs(withReadout([GOOD[0], GOOD[1], GOOD[2], noLabel])).join('\n')
+    expect(e).toMatch(/readout\[3\]\.label/)
+    expect(e).toMatch(/definition "rsi"/)
+    expect(errs(withReadout([{ ...GOOD[0], label: '' }])).join('\n')).toMatch(/readout\[0\]\.label/)
+  })
+
+  it('refuses an unknown row field BY NAME — a readout row is behavioural, not a document field', () => {
+    const e = errs(withReadout([{ ...GOOD[0], decimals: 2 }])).join('\n')
+    expect(e).toMatch(/readout\[0\]\.decimals/)
+    expect(e).toMatch(/unknown readout field/)
+    expect(e).toMatch(/fails closed/)
+  })
+
+  it('refuses an input: source that names no declared input, a dotted input path, and a duplicate key', () => {
+    expect(errs(withReadout([{ ...GOOD[2], source: 'input:lookback' }])).join('\n'))
+      .toMatch(/readout\[0\]\.source[^\n]*"lookback" names no declared input/)
+    expect(errs(withReadout([{ ...GOOD[2], source: 'input:benchmark.x' }])).join('\n'))
+      .toMatch(/readout\[0\]\.source[^\n]*ONE input key/)
+    expect(errs(withReadout([GOOD[0], { ...GOOD[1], key: 'benchmark' }])).join('\n'))
+      .toMatch(/readout\[1\]\.key[^\n]*duplicate readout key "benchmark"/)
+    expect(errs(withReadout([{ ...GOOD[0], key: 'a.b' }])).join('\n')).toMatch(/readout\[0\]\.key/)
+  })
+
+  it('refuses a malformed path, a `when` that is not a source, words off a bool row, a bad card, and a non-array block', () => {
+    expect(errs(withReadout([{ ...GOOD[0], source: 'scalar:' }])).join('\n')).toMatch(/readout\[0\]\.source/)
+    expect(errs(withReadout([{ ...GOOD[0], source: 'scalar:legend..above' }])).join('\n')).toMatch(/readout\[0\]\.source/)
+    expect(errs(withReadout([{ ...GOOD[0], when: 'maybe' }])).join('\n')).toMatch(/readout\[0\]\.when/)
+    expect(errs(withReadout([{ ...GOOD[0], when: 'input:nope' }])).join('\n')).toMatch(/readout\[0\]\.when[^\n]*names no declared input/)
+    expect(errs(withReadout([{ ...GOOD[3], words: ['up', 'down'] }])).join('\n')).toMatch(/readout\[0\]\.words[^\n]*only a "bool" row/)
+    expect(errs(withReadout([{ ...GOOD[4], words: ['only one'] }])).join('\n')).toMatch(/readout\[0\]\.words/)
+    expect(errs(withReadout([{ ...GOOD[0], fallback: '' }])).join('\n')).toMatch(/readout\[0\]\.fallback/)
+    expect(errs(withReadout([{ ...GOOD[0], chip: 'yes' }])).join('\n')).toMatch(/readout\[0\]\.chip/)
+    expect(errs(withReadout([{ ...GOOD[0], card: { what: 'x' } }])).join('\n')).toMatch(/readout\[0\]\.card\.origin/)
+    expect(errs(withReadout([{ ...GOOD[0], card: { what: 'x', origin: 'y', source: 'z' } }])).join('\n'))
+      .toMatch(/readout\[0\]\.card\.source[^\n]*unknown card field/)
+    expect(errs(withReadout([{ ...GOOD[0], card: 'IBD' }])).join('\n')).toMatch(/readout\[0\]\.card/)
+    expect(errs(withReadout(['benchmark'])).join('\n')).toMatch(/readout\[0\]: definition "rsi"/)
+    expect(errs(withReadout({ key: 'x' })).join('\n')).toMatch(/^readout: definition "rsi"/m)
+  })
+
+  it('is exhaustive — every bad row is reported in one pass', () => {
+    const e = errs(withReadout([
+      { ...GOOD[0], source: 'column:x' }, { ...GOOD[1], format: 'money' }, { ...GOOD[2], label: '' },
+    ]))
+    for (const i of [0, 1, 2]) {
+      expect(e.some((m) => m.startsWith(`readout[${i}]`)), `readout[${i}] went unreported`).toBe(true)
+    }
   })
 })
