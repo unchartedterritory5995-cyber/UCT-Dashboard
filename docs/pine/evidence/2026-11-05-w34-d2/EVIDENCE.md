@@ -38,16 +38,26 @@ No script attaches; none was expected (nothing newly drawn). Cell text stays ref
 Engine bump: NO for drawing output (nothing drawn changes), but the door's decline code moves for these scripts
 (telemetry/refusal text). Coordinator's call; I recommend no bump.
 
-## MUTATIONS
-Proved by hand (tiny single-file rail, before the lock queue): with the door line reverted to `r.guard === 'runtime:object-op'`
-the two shape rails go RED (2 failed of 6); the no-op control (`&& true`) stays green (6 of 6).
-The formal run (`mutate.py`, 4 mutations incl. no-op and predicate mutations, `runs/w34-d2/muts.json`, driver
-`runs/w34-d2/mut.sh`, output `runs/w34-d2/mut.out`) was QUEUED behind `w34t0-job` on heavy-mut.lock when I stopped; it may still
-run and writes mut.out; mutate.py restores each file byte for byte.
-Neighbouring suite green: `builder/memberPane` + `tableClear` = 34 files, 320 tests passed, 2 skipped.
+## Measure-pair (base c855e8cadf asserted before and after; tip 5ea5f9ed17; 967 rows per lane)
+Harness verdicts and C18 probes: byte-identical base vs tip in both lanes. C18 audit: 0 diffs. `attached` unchanged on every row.
+### Runtime-on census: 18 rows differ, all refusal-name moves of a correct word for a wrong one (value build's no-output -> the drawing build's own word)
+- rth-opening-range-with-extensions: no-output -> `runtime:call-conversion-state`, peel now ends clean.
+- strong-start-rvol-dashboard: no-output -> `runtime:history-dynamic-offset`, then `runtime:request`.
+- session-tpo-profile, dynamic-swing-anchored-vwap-strategy (peel tail): final no-output -> peel ends clean.
+- power-of-3-ict-01: final no-output -> `runtime:statement`.
+- 9 doc examples (array.join, array.new_label, request.security_lower_tf, str.repeat, str.substring, strategy.closedtrades.entry_id/entry_time, strategy.default_entry_qty, strategy.opentrades.entry_id): no-output -> `runtime:array` / `pine:builtin` / `pine:request` / `pine:strategy-call`.
+- trading-sessions, multi-timeframe-trend-indicator: step names identical; only a census annotation (`rtProbe`) differs.
+### Production census: 3 rows differ (ai-supertrend-x-pivot, halftrend-bigbeluga, luxy-momentum)
+Re-run alone, production lane, 3x on base (c855e8cadf, HEAD asserted) and 3x on tip, interleaved (`runs/w34-d2/rep-*.jsonl`).
+All 18 runs: identical step lists (guard + reason + attached) per script, base == tip, `attached` false everywhere, final `pine:roundtrip`.
+- ai-supertrend: 7 steps, ends `pine:roundtrip` on every run, both sides (the one-off `stuck None` in mp0 base did not recur).
+- halftrend (8 steps, 89-93 s) and luxy (5 steps, 109-133 s): same in all 6 runs each.
+Classification: time-budget noise (the translator's "did not finish" budget under load; wall times 2.1-133 s vary run to run, signatures never do). No real production change.
 
-## NOT DONE (next steps)
-1. Read `runs/w34-d2/mut.out`: expect noop SURVIVED, the other three KILLED.
-2. merge origin/master, then final-tip (heavy-final2.lock) on the final tree, then ready-check.sh.
-3. measure-pair (heavy-mp2.lock, base pine-dsk-mpbase2 switched to the merge-base, assert HEAD before/after), queued behind D3.
-   Expected C18 diff: none (front end untouched); expected movers: only the runtime-on census rows above.
+## MUTATIONS
+`mutate.py` (runs/w34-d2/mut.out): noop-control SURVIVED; door-only-object-op, predicate-drops-no-output, predicate-defers-everything KILLED.
+Reviewer N1 (`runtimeObjectsDoor.js:77`): rail `runtimeOwnObjectsOf: a clean host drawing whose value build says no-output ...` plus a control (host draws and plots keeps the host).
+Reverting :77 to `=== VALUE_BUILD_DRAWING_GUARD` -> 1 failed of 8 (KILLED); `&& true` no-op -> 8 of 8.
+memberPane + tableClear: 34 files, 320 tests green.
+
+## Engine bump: no (door only; no translator output changes).
