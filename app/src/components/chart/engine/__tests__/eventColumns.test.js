@@ -199,11 +199,17 @@ const SHIPPED_COLUMNS = Object.freeze({
   avwap: ['avwap'],
   atrBands: ['upper', 'middle', 'lower'],
   // ── Phase C Task 13, the SERVER lane ──
-  // One plot, one column — and it is written here for the same reason as the
-  // rest: `columnKeys` is a pure read of the DECLARATION, so a server-lane
-  // definition is covered by exactly the same rail as a native. Where the two
-  // lanes differ is who FILLS the column, which is `computeFor`'s business.
-  rsLine: ['rsLine'],
+  // Written here for the same reason as the rest: `columnKeys` is a pure read of
+  // the DECLARATION, so a server-lane definition is covered by exactly the same
+  // rail as a native. Where the two lanes differ is who FILLS the column, which
+  // is `computeFor`'s business.
+  // ⭐ UCT RELATIVE STRENGTH v2 (2026-11-06): six declared columns — the line, the
+  // hidden `rsAbove` condition that colours it, its moving average, and three
+  // dot marker plots. The server sends twelve more (events for scans) that the
+  // definition does NOT declare, because `events[]` cannot be declared on the
+  // server lane (registration probes compute); `columnKeys` reads the declaration,
+  // so they are rightly absent here. Plan §8.2 lists the full wire set.
+  rsLine: ['rsLine', 'rsAbove', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who
