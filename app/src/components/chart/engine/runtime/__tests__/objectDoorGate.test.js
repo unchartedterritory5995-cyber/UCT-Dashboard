@@ -52,8 +52,36 @@ const SHAPES = {
   // ⭐ WS-D constant-var folding (gate review MEDIUM): an input default read from a `var`
   // nothing reassigns. Master refuses it (`runtime:input-state`); without the door gate on
   // `inputConsts` the door drew "146.05" / "299.06" here (reviewer's probes, RDDT 1D).
+  // ⭐ W4 T10 — the state kernels are pane-only; the door answers what master answered
+  // (`runtime:call-windowed-state`), the `false` flavour.
+  t10_cum: ['x = close + k * 0\nv = ta.cum(x)\n', false],
+  t10_pivot: ['x = high + k * 0\nv = ta.pivothigh(x, 3, 3)\n', false],
+  t10_stoch: ['x = close + k * 0\nv = ta.stoch(x, high, low, 14)\n', false],
+  t10_vwap: ['x = close + k * 0\nv = ta.vwap(x)\n', false],
   cv_int: ['', false, 'var int LEN = 5\nlen = input.int(LEN, "L")\n', 'v = ta.sma(close, len) + k * 0\n'],
   cv_float: ['', false, 'var float M = 2.0\nm = input.float(M, "M")\n', 'v = close * m + k * 0\n'],
+  // ⭐ W4 T4 — a `?:` arm with per-call-site history (`ta.sma` in the arm taken when the
+  // test reads state). A widened predicate (`armHistoryGuard`), so the door keeps master's
+  // own refusal (`runtime:conditional-history`).
+  arm_sma: ['x = close + k * 0\nv = x > open ? ta.sma(close, 5) : close\n', false],
+  arm_change: ['x = close + k * 0\nv = x > open ? ta.change(close) : 0.0\n', false],
+  // W4 T3: a session / timeframe text fixed before bar 0 (the chart's own timeframe through a
+  // parameter, two texts joined with `+`, a `var` nothing reassigns). Widened predicates: the door
+  // falls back to master's arms, which refuse a session clock whose arguments are not literals.
+  sess_ownTf: ['', false, 'inS(r, s) => not na(time(r, s))\n', 'v = (inS(timeframe.period, "0930-1600:23456") ? 1 : 0) + k * 0\n'],
+  sess_join: ['', false, 'inS(s) => not na(time(timeframe.period, s + ":23456"))\n', 'v = (inS("0930-1600") ? 1 : 0) + k * 0\n'],
+  sess_var: ['', false, 'var string SESS = "0930-1600:23456"\n', 'v = (not na(time(timeframe.period, SESS)) ? 1 : 0) + k * 0\n'],
+  // The same join as the argument of a C47 `switch` over a parameter: the door keeps master's refusal
+  // (`runtime:block-value`), the pane picks the arm the joined text selects.
+  sw_join: ['', false, 'ma(src, m) =>\n    switch m\n        "WMA" => ta.wma(src, 3)\n        "HMA" => ta.hma(src, 3)\n        => ta.sma(src, 3)\n', 'v = ma(close + k * 0, "W" + "MA")\n'],
+  // ⭐ W4-T2 `simple` folding (a widened fold, so the door keeps master's refusal): a
+  // reassignment under an invariant test, a never-reassigned `var`, arithmetic over an input.
+  t2_if: ['', false, 'len = 10\nif timeframe.isintraday\n    len := 5\n', 'v = ta.sma(close + k * 0, len)\n'],
+  t2_var: ['', false, 'var L = 7\n', 'v = ta.sma(close + k * 0, L)\n'],
+  t2_arith: ['', false, 'n = input.int(4, "N")\n', 'v = ta.sma(close + k * 0, n + 2)\n'],
+  // W4-T9 a frame local derived from a parameter bounds a loop's offset (a widened fold,
+  // so the door keeps master's refusal).
+  t9_local: ['', false, 'f(src, length) =>\n    periods = length - 1\n    s = 0.0\n    for j = 0 to periods\n        s += src[j]\n    s / length\n', 'v = f(close + k * 0, 3)\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
@@ -126,5 +154,45 @@ describe('⭐⭐⭐ the object door builds what master 685b5e91d7 builds; the ru
     // keeps it, so the rail cannot pass by refusing everything at the door.
     const src = H + 'ss = input.session("0930-1600", "S")\n' + STATE + 'v = str.length(ss) + k * 0\n' + label('v')
     expect(doorRun(src)).toEqual({ ok: true, labels: ['9'] })
+  })
+})
+
+// ⭐⭐ W4-T11 — the text builtins added after master 685b5e91d7 (str.substring, str.replace,
+// str.tonumber, str.pos, str.format_time) ask `objectDoorRefuses` first, like every capability
+// since. Over a MUTATING text (the runtime shape), the door keeps master's answer (refused, no
+// label), the pane serves it, and the same pane build at the door refuses BY NAME. The control
+// is `str.length` over the same text: master served it, the door still builds it.
+describe('⭐⭐ W4-T11 text builtins are gated at the object door', () => {
+  const TXT = 'string s = "!none"\nstring z = "!none"\nif close > open\n    s := "abcdef"\n    z := "12"\n'
+  // name -> [a NUMBER over the text (plotted on the pane), the label text for the door run]
+  const SHAPES_T = {
+    substring: ['str.length(str.substring(s, 1, 3))', 'str.substring(s, 1, 3)'],
+    substring2: ['str.length(str.substring(s, 1))', 'str.substring(s, 1)'],
+    replace: ['str.length(str.replace(s, "b", "XX"))', 'str.replace(s, "b", "XX")'],
+    replace4: ['str.length(str.replace(s, "b", "XX", 0))', 'str.replace(s, "b", "XX", 0)'],
+    tonumber: ['str.tonumber(z)', 'str.tostring(str.tonumber(z))'],
+    pos: ['str.pos(s, "c")', 'str.tostring(str.pos(s, "c"))'],
+    format_time: ['str.format_time(1709985600000, "yyyy") == "2024" ? 1 : 0', 'str.format_time(1709985600000, "yyyy")'],
+  }
+  const asLabel = (expr) => H + TXT + 'if barstate.islast\n    label.new(bar_index, high, ' + expr + ')\n'
+  const asPlot = (expr) => H + TXT + 'plot(' + expr + ')\n'
+  for (const [name, [num, txt]] of Object.entries(SHAPES_T)) {
+    it(`${name}: the door draws nothing new (master: refused, no label)`, () => {
+      expect(doorRun(asLabel(txt))).toEqual({ ok: false, labels: null })
+    })
+    it(`${name}: the runtime pane builds it`, () => {
+      const b = paneBuild(asPlot(num))
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the same build at the object door refuses BY NAME`, () => {
+      const b = paneBuild(asPlot(num), { objectDoor: true })
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:object-door')
+      expect(b.refusal.message).toMatch(/runtime pane only/)
+    })
+  }
+  it('CONTROL: str.length over the same text is master\'s and builds at the door', () => {
+    const b = paneBuild(H + TXT + 'plot(str.length(s))\n', { objectDoor: true })
+    expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
   })
 })

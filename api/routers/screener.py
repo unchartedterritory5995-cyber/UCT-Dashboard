@@ -188,8 +188,14 @@ def screener_meta(user=Depends(require_paid)):
 def screener_fields(options: int = 0, _user=Depends(require_paid)):
     """The filter registry alone (key/label/type/unit/category) — no measurement.
     For callers that need to know which fields exist, not draw the filter panel.
-    `?options=1` adds each value-list field's values and coverage (filters.field_options)."""
-    out = {"fields": scr_filters.field_catalog()}
+    `?options=1` adds each value-list field's values and coverage (filters.field_options).
+    `logic_enabled` says whether a `logic` tree would run here (SCREENER_LOGIC_ENABLED). `live_fields` are the keys the
+    live tier can overlay during the session, so a caller comparing two fields can say when they read different clocks."""
+    from api.services.screener import logic as scr_logic
+    # `logic_enabled`: a caller that composes screens (UCT Agent) can say a group is off before it asks, instead of
+    # finding out from a refusal. The scan route still refuses on its own.
+    out = {"fields": scr_filters.field_catalog(), "logic_enabled": scr_logic.is_enabled(),
+           "live_fields": scr_filters.live_field_keys()}
     if options:
         out["options"] = scr_filters.field_options()
     return out

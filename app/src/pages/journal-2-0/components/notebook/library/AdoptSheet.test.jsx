@@ -11,7 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import AdoptSheet, {
-  ADDED_SENTENCE, ADDED_TEMPLATE_SENTENCE, DEBOUNCE_MS, MISSING_HINT, TITLE, UPDATED_SENTENCE, creditLine, createWords, useYourWords,
+  ADDED_SENTENCE, ADDED_TEMPLATE_SENTENCE, DEBOUNCE_MS, MISSING_HINT, SKIP_WORDS, TITLE, UPDATED_SENTENCE, creditLine, createWords, useYourWords,
 } from './AdoptSheet'
 import { openAdoptSheet } from './openAdoptSheet'
 import { contractBody } from '../../../__fixtures__/contract'
@@ -129,6 +129,8 @@ describe("AdoptSheet against the server's recorded answers (contract fixtures)",
     const { navigate } = mount()
     expect(await screen.findByText(createWords(q.createName))).toBeInTheDocument()  // q.createName, q.use: null
     await waitFor(() => expect(useButton()).not.toBeDisabled())
+    // S9: the default is now "Just this note"; the member picks Create to start the routine.
+    fireEvent.click(screen.getByRole('radio', { name: createWords(q.createName) }))
     fireEvent.click(useButton())
     await waitFor(() => expect(net.posts().filter((c) => c.url === USE)).toHaveLength(1))
     expect(net.posts().find((c) => c.url === USE).body.choices).toEqual({ [q.slot]: { create: true } })
@@ -529,12 +531,26 @@ describe('the choices', () => {
     expect(make.checked).toBe(false)
   })
 
-  it('with no routine of the member\'s to reuse, the template\'s is created', async () => {
+  // S9 (audit 2026-11-05): a routine starts only when the member asks for one. With none of their own to reuse, the
+  // default is "Just this note" (`skip`: nothing is made); it was "Create … from the template", which made a routine
+  // behind the member's back. Choosing Create still sends `create` (the next rail, and create_choice_sent).
+  it('with no routine of the member\'s to reuse, "Just this note" is the default and nothing is made', async () => {
     const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: [{ ...QUESTIONS[0], use: null }] }) })
     mount()
     await ready()
     expect(screen.queryByRole('radio', { name: /^Use your/ })).toBeNull()
-    expect(screen.getByRole('radio', { name: createWords('Pre-market routine') }).checked).toBe(true)
+    expect(screen.getByRole('radio', { name: SKIP_WORDS }).checked).toBe(true)
+    expect(screen.getByRole('radio', { name: createWords('Pre-market routine') }).checked).toBe(false)
+    fireEvent.click(useButton())
+    await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
+    expect(net.calls.find((c) => c.url === USE).body.choices).toEqual({ routine_a: { skip: true } })
+  })
+
+  it('with no routine of the member\'s, choosing Create sends create', async () => {
+    const net = installServer({ preview: previewAnswer(RICH_SLOTS, { questions: [{ ...QUESTIONS[0], use: null }] }) })
+    mount()
+    await ready()
+    fireEvent.click(screen.getByRole('radio', { name: createWords('Pre-market routine') }))
     fireEvent.click(useButton())
     await waitFor(() => expect(net.calls.some((c) => c.url === USE)).toBe(true))
     expect(net.calls.find((c) => c.url === USE).body.choices).toEqual({ routine_a: { create: true } })
@@ -655,6 +671,8 @@ describe('server sentences and the credit line', () => {
     })
     const first = mount({ galleryId: G })
     await ready()
+    // S9: the default is "Just this note" now; this rail is about a lost Use that MADE the routine, so it asks for one.
+    fireEvent.click(screen.getByRole('radio', { name: createWords('Pre-market routine') }))
     fireEvent.click(useButton())
     expect(await screen.findByRole('alert')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))

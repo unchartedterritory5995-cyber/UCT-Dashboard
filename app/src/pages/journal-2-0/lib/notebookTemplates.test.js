@@ -10,7 +10,7 @@ import {
   templateStructure,
   templateWantsTicker,
 } from './notebookTemplates'
-import { WALKTHROUGH_TITLE, isWalkthroughNode, table, toggle } from './templateBlocks'
+import { WALKTHROUGH_TITLE, LEGACY_WALKTHROUGH_TITLE, isWalkthroughNode, table, toggle } from './templateBlocks'
 import { NOTEBOOK_TYPE_SCHEMA } from './notebookSchema'
 import { editorSchema } from './tiptap'
 import { emptyTemplateContext } from './templateContext'
@@ -301,7 +301,15 @@ describe('12B -- every template carries a walkthrough, and the preview never sho
     }
   })
 
-  it('the body ENDS in exactly one collapsed "How to use this template" toggle holding those steps', () => {
+  // S7 fix round 2: the walkthrough's title is "How to fill in this note" now; a stored note's old title still counts.
+  it("a stored note's legacy walkthrough title is still recognised; the new title never says 'use this template'", () => {
+    expect(isWalkthroughNode(toggle(LEGACY_WALKTHROUGH_TITLE, []))).toBe(true)
+    expect(isWalkthroughNode(toggle(WALKTHROUGH_TITLE, []))).toBe(true)
+    expect(isWalkthroughNode(toggle('Some other toggle', []))).toBe(false)
+    expect(WALKTHROUGH_TITLE).not.toMatch(/use this template/i)
+  })
+
+  it('the body ENDS in exactly one collapsed walkthrough toggle holding those steps', () => {
     for (const t of TEMPLATES) {
       for (const [label, ctx] of CONTEXTS) {
         const top = t.build(ctx).content

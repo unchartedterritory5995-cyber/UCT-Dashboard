@@ -37,7 +37,12 @@ import re
 from typing import Any, Mapping
 
 PLOT_STYLES = ("line", "stepline", "histogram", "area", "baseline", "hlines",
-               "markers", "band")
+               "markers", "band", "candles", "ohlcBars")
+#: W4-T13 -- the two styles drawn from FOUR computed columns (`plots[].ohlc`), and the
+#: colour parts a document may name for each (`plots[].ohlcColors`); `defSchema.js`
+#: `OHLC_DEF_STYLES` / `OHLC_COLOUR_PARTS`, held equal by the shared fixture.
+OHLC_DEF_STYLES = ("candles", "ohlcBars")
+OHLC_COLOUR_PARTS = {"candles": ("body", "wick", "border"), "ohlcBars": ("body",)}
 RESERVED_PLOT_STYLES = ("zones", "bgband", "barcolor", "fill", "cross")
 MARKER_SHAPES = ("circle", "square", "arrowUp", "arrowDown")
 MARKER_POSITIONS = ("aboveBar", "belowBar", "inBar")
@@ -51,7 +56,7 @@ COLOR_MODES = ("fixed", "sign")
 #: NOT one of them and must not become one: its ceiling (`_check_width`) carries its
 #: OWN fingerprint, the plot's key + the width it draws (`_width_fp`).
 _PLOT_PRESENTATION = ("style", "marker", "colorMode", "colorUp", "colorDown",
-                      "colorPalette", "colorGradient", "colorPacked")
+                      "colorPalette", "colorGradient", "colorPacked", "ohlc", "ohlcColors")
 
 _HEX = re.compile(r"^#[0-9a-f]{6}([0-9a-f]{2})?$", re.IGNORECASE)
 
@@ -246,6 +251,49 @@ def _check_plot_colour_fields(plot: Mapping, path: str, fp: str, out: list) -> N
         if field in plot and not _is_str(plot[field]):
             _err(out, f"{path}.{field}", "plot-colour-field",
                  f"{path}.{field}: expected a non-empty colour string", fp)
+
+
+def _check_ohlc(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
+    """W4-T13: `defSchema.validateOhlc` -- a candles / ohlcBars row names the columns it is
+    drawn from (`ohlc` = {open, high, low}; its own column is the close), may name colour
+    columns (`ohlcColors`), and no other style may carry either."""
+    if plot.get("style") not in OHLC_DEF_STYLES:
+        for f in ("ohlc", "ohlcColors"):
+            if f in plot:
+                _err(out, f"{path}.{f}", "plot-ohlc",
+                     f"{path}.{f}: only a \"candles\" or \"ohlcBars\" plot names OHLC columns", fp)
+        return
+
+    def ref_ok(v: Any, p: str) -> None:
+        if not _is_str(v):
+            _err(out, p, "plot-ohlc", f"{p}: expected a plot key", fp)
+        elif v == plot.get("key"):
+            _err(out, p, "plot-ohlc", f"{p}: the plot's own column is its close; name another", fp)
+        elif v not in columns:
+            _err(out, p, "plot-ohlc", f"{p}: references a column no plot declares", fp)
+
+    ohlc = plot.get("ohlc")
+    if not isinstance(ohlc, Mapping):
+        _err(out, f"{path}.ohlc", "plot-ohlc",
+             f"{path}.ohlc: style {plot.get('style')!r} requires {{open, high, low}} naming three plot keys", fp)
+    else:
+        for k in ohlc:
+            if k not in ("open", "high", "low"):
+                _err(out, f"{path}.ohlc.{k}", "plot-ohlc", f"{path}.ohlc.{k}: unknown part", fp)
+        for k in ("open", "high", "low"):
+            ref_ok(ohlc.get(k), f"{path}.ohlc.{k}")
+    if "ohlcColors" in plot:
+        oc = plot["ohlcColors"]
+        if not isinstance(oc, Mapping):
+            _err(out, f"{path}.ohlcColors", "plot-ohlc", f"{path}.ohlcColors: expected an object", fp)
+        else:
+            parts = OHLC_COLOUR_PARTS[plot["style"]]
+            for k, v in oc.items():
+                if k not in parts:
+                    _err(out, f"{path}.ohlcColors.{k}", "plot-ohlc",
+                         f"{path}.ohlcColors.{k}: unknown part for {plot['style']!r}", fp)
+                else:
+                    ref_ok(v, f"{path}.ohlcColors.{k}")
 
 
 def _check_color_mode(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
@@ -502,6 +550,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_width(plot, inputs, path, out)
         _check_plot_colour_fields(plot, path, fp, out)
         _check_color_mode(plot, path, fp, columns, out)
+        _check_ohlc(plot, path, fp, columns, out)
     _check_paints(definition.get("paints"), columns, out)
     return out
 

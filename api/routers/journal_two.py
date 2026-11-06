@@ -225,6 +225,13 @@ _J2_TELEMETRY_EVENTS = {
     # P5 (starter packs, Task 6) - a note made from a style or a style applied to one, a style created, and a
     # trader block inserted. Closed enums only: never a style id, a name, a note or a block's params.
     "style_applied", "style_created", "block_used",
+    # Audit 2026-11-05, S16 + S20 (return metrics): the first run's Build and Skip, the first widget that showed
+    # the member's own tickers, a recap written, and a trust incident. Counts, enums and bools only. Read back by
+    # GET /api/admin/notebook-return-metrics (journal_two/notebook_return_metrics.py).
+    "first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident",
+    # Audit 2026-11-05, S15 + S20 (the morning open): the Today home was opened, with the ET session it opened in
+    # and whether that open made the day's note. Enums and bools only.
+    "today_opened",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -350,6 +357,31 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
                  "prepEarnings", "prepMovers", "prepLevels", "tradeReview", "moodCheckIn", "marketcontext",
                  "reminder"),
     },
+    # S16 / S20 (audit 2026-11-05). `names` is a COUNT of tickers, never the tickers.
+    "first_run_completed": {
+        "names": "num",
+        "pack": ("swing", "day", "prop", "options", "earnings", "none"),
+        "plan": "bool",
+        "ms": "num",
+    },
+    "first_run_skipped": {
+        "step": "num",
+    },
+    "first_live_widget": {
+        "source": ("watchlist", "reporting", "first_run"),
+        "names": "num",
+    },
+    "recap_written": {
+        "created": "bool",
+    },
+    "trust_incident": {
+        "kind": ("publish_undone", "widget_restored"),
+        "ms": "num",
+    },
+    "today_opened": {
+        "session": ("premarket", "open", "after_close", "closed"),
+        "created": "bool",
+    },
 }
 
 
@@ -439,6 +471,20 @@ def _take_compass_door(door, user_id: str) -> None:
     counter that cannot be read admits (fails open)."""
     if not compass_daily_caps.take(door, user_id):
         raise HTTPException(status_code=429, detail=door.sentence)
+
+
+def _replace_coach_output(output_id: str, user_id: str, generate):
+    """Forget the output, then generate its replacement (generation is idempotent on
+    a live row). A failed generation puts the old one back: dropping it would leave the
+    member with nothing but another paid generate to get it back."""
+    coach_service.forget_review(review_id=output_id, user_id=user_id)
+    try:
+        return generate()
+    except Exception as e:
+        coach_service.restore_review(output_id, user_id=user_id)
+        if isinstance(e, RuntimeError):
+            raise HTTPException(status_code=503, detail=str(e))
+        raise
 
 
 def _reject_unified_for_per_trade(account_id: str) -> None:
@@ -2014,14 +2060,28 @@ def list_notes_endpoint(
     # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
     # Model Book call this same endpoint and would otherwise receive rows that
     # match no word typed, with nothing to say why (and spend an embed each).
+    meaning_pending = None
     if meaning:
         from api.services.journal_two import note_semantic
+        only_query = not (folder_id or tag or ticker or embed_symbol or embed_widget
+                          or deleted or date_from or date_to or symbol_in is not None
+                          or savedViewId or property_filter)
         rows = note_semantic.append_meaning_hits(
             user["id"], q, rows, total=total, offset=offset, limit=limit,
-            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
-                            or deleted or date_from or date_to or symbol_in is not None
-                            or savedViewId or property_filter),
+            only_query=only_query,
         )
+        # Audit 2026-11-05, spec S4 (B18): a search that found nothing by meaning says how many of
+        # the member's notes the index has not reached yet (the sweep runs every 15 minutes).
+        # ⛔ Fix round 1 (review finding 5): WHATEVER THE QUERY'S SHAPE -- the count does not depend
+        # on it, and the B18 report was a two-word query ("consolidation pattern"), which
+        # `query_shape` classes LEXICAL. Armed, unfiltered, first page, a real query only; dark
+        # issues no SQL here. The count is cached per member (note_semantic.pending_count).
+        if (only_query and (q or "").strip() and note_semantic.semantic_enabled()
+                and not offset and not any(r.get("matchKind") == "meaning" for r in rows)):
+            try:
+                meaning_pending = note_semantic.pending_count(user["id"])
+            except Exception:  # noqa: BLE001 -- a status line never fails the search
+                meaning_pending = None
     # Wave 11 (lane 11B): each live row of THIS page carries its formula/rollup values
     # (`computed`), so every view can show them. A member with no computed property
     # leaves the payload untouched.
@@ -2037,7 +2097,12 @@ def list_notes_endpoint(
         if vals:
             for r in rows:
                 r["computed"] = vals.get(r["id"], {})
-    return {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    out = {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    if meaning_pending is not None:
+        out["meaningPending"] = meaning_pending
+        if note_semantic.pending_count_capped(meaning_pending):
+            out["meaningPendingCapped"] = True   # N4: the panel says "1,000+"
+    return out
 
 
 @router.get("/notes/backlinks")
@@ -2575,7 +2640,18 @@ def daily_note_endpoint(
     from api.services.journal_two import note_daily
     body = payload or {}
     try:
-        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
+        # Tier 3b fix round 1 (I3, I9): `seedToday: true` -- the door that MAKES the day's note on an explicit press
+        # (the first run's Build, Today's "Start a fresh one") starts it with the Today home's plan, so the names
+        # the member just typed reach today's plan. Applied only when this call makes the note.
+        seed = None
+        if body.get("seedToday") is True:
+            from api.middleware.auth_middleware import get_user_plan
+            from api.services.journal_two import notebook_today
+            paid = is_paid_user({**user, "plan": get_user_plan(user["id"])})
+            # Fix round 2 (N5): built HERE, before the door opens its write transaction -- the seed's reads (the
+            # market, up to 200 chart notes, the names) must never run while auth.db's write lock is held.
+            seed = notebook_today.plan_seed_for(user["id"], paid=paid)
+        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"), seed_blocks=seed)
     except note_daily.DailyNoteError as e:
         raise HTTPException(status_code=400, detail=str(e))
     # Wave 10 (10D): an existing daily note stored before the depth cap opens
@@ -2583,6 +2659,22 @@ def daily_note_endpoint(
     if isinstance(out, dict) and "note" in out:
         out = {**out, "note": _servable_note(out["note"])}
     return out
+
+
+@router.get("/notes/today")
+def notes_today_endpoint(
+    make: int = Query(default=1, ge=0, le=1),
+    user: dict = Depends(get_current_user_with_plan),
+) -> dict[str, Any]:
+    """Audit 2026-11-05, S15/S18: the Today home's ONE aggregated read (`notebook_today.py`) -- today's note
+    (made from the member's daily template the first time today, ET, through the daily note door), the setups
+    near entry, the member's names, what is open from yesterday, on this day, the market line and the session.
+    Every section degrades on its own (`null` plus a reason in `reasons`); no vendor or model call is reachable.
+    `?make=0` (fix round 1, I9): never make the day's note (the first run is pending or open); a trashed day's note
+    is never replaced by this read either (I3).
+    ⛔ Declared above every `/notes/{note_id}` route, like `/notes/daily`."""
+    from api.services.journal_two import notebook_today
+    return notebook_today.get_today(user["id"], paid=is_paid_user(user), make=bool(make))
 
 
 NOTE_BATCH_EXPORT_MAX = 500
@@ -5117,6 +5209,8 @@ def generate_coach_weekly_review(
     _require_compass_enabled(user["id"], account_id)
 
     week_start = (payload or {}).get("weekStart") or _most_recent_closed_monday()
+    if coach_service.replaces_forgotten(user["id"], account_id, "weekly_review", "week_start", week_start):
+        _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     try:
         return coach_service.generate_weekly_review(
             user_id=user["id"], account_id=account_id, week_start=week_start,
@@ -5140,14 +5234,9 @@ def regenerate_coach_weekly_review(
     # Charged BEFORE the forget below, so a refusal never drops the review.
     _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     # v1: forget the existing, then regenerate. Caller treats as replacement.
-    coach_service.forget_review(review_id=review_id, user_id=user["id"])
-    try:
-        return coach_service.generate_weekly_review(
-            user_id=user["id"], account_id=account_id,
-            week_start=week_start,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    return _replace_coach_output(review_id, user["id"], lambda: coach_service.generate_weekly_review(
+        user_id=user["id"], account_id=account_id, week_start=week_start,
+    ))
 
 
 @router.post("/accounts/{account_id}/coach/weekly-reviews/{review_id}/feedback")
@@ -5218,6 +5307,8 @@ def generate_coach_eod_recap(
     from zoneinfo import ZoneInfo
     et = ZoneInfo("America/New_York")
     day = (payload or {}).get("day") or _dt.now(et).date().isoformat()
+    if coach_service.replaces_forgotten(user["id"], account_id, "eod_recap", "day", day):
+        _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
     try:
         return coach_service.generate_eod_recap(
             user_id=user["id"], account_id=account_id, day=day,
@@ -5237,13 +5328,9 @@ def regenerate_coach_eod_recap(
         raise HTTPException(status_code=404, detail="Recap not found")
     day = (existing.get("metadata") or {}).get("day")
     _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
-    coach_service.forget_review(review_id=recap_id, user_id=user["id"])
-    try:
-        return coach_service.generate_eod_recap(
-            user_id=user["id"], account_id=account_id, day=day,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    return _replace_coach_output(recap_id, user["id"], lambda: coach_service.generate_eod_recap(
+        user_id=user["id"], account_id=account_id, day=day,
+    ))
 
 
 @router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/feedback")
@@ -5547,6 +5634,8 @@ def generate_trade_review(
     trade_id = (payload or {}).get("trade_id")
     if not trade_id:
         raise HTTPException(status_code=400, detail="trade_id required")
+    if tr.replaces_forgotten(user["id"], trade_id):
+        _take_compass_door(compass_daily_caps.TRADE_REVIEW_REGENERATE, user["id"])
     return tr.generate_review(
         user_id=user["id"], account_id=account_id, trade_id=trade_id,
     )

@@ -32,10 +32,11 @@ const ruleBody = (block, selector) => {
 }
 
 describe('Home search box on touch (iOS focus zoom)', () => {
-  it('the desktop rule keeps its 13.5px type (the control being corrected exists)', () => {
+  // Tier 4 fix round 2: the desktop size is the V1 scale's 13 (was 13.5); the control is the same.
+  it('the desktop rule keeps its 13px type (the control being corrected exists)', () => {
     const base = css.match(/(?:^|\})\s*\.searchBox\s*\{([^}]*)\}/)
     expect(base, '.searchBox base rule').toBeTruthy()
-    expect(base[1]).toMatch(/font-size:\s*13\.5px/)
+    expect(base[1]).toMatch(/font-size:\s*13px/)
   })
 
   it('is 16px inside the 1024px touch block', () => {

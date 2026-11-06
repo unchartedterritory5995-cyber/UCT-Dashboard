@@ -29,6 +29,7 @@ import ConnectTilesCompact from '../../connectors/ConnectTilesCompact'
 import CaptureDoors from '../CaptureDoors'
 import ExportGuide from './ExportGuide'
 import styles from './ImportWizard.module.css'
+import HelpAnswerLink from '../HelpAnswerLink'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
 // Plan B Task 11: the summary's "Couldn't be copied" rows read the SAME sentence the in-note
 // notice reads (one copy table, pinned cross-runtime). A plain module with no imports, so it
@@ -303,6 +304,9 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
 
   const [progress, setProgress] = useState(null)
   const [summaryResult, setSummaryResult] = useState(null)
+  // Audit 2026-11-05, spec S5 (B9): the folder the batch actually landed in, named at confirm time
+  // (null = Unfiled, when no destination could be resolved).
+  const [summaryDestName, setSummaryDestName] = useState(null)
   // Plan B Task 11: "Re-import to recover missing pictures and links" (server `mode: "recover"`).
   // Component state only, off by default, never persisted: it is a per-import choice.
   // Plan F Task 10: `initialRecover` (the one-time repair notice's door) seeds it on each OPEN; the
@@ -587,7 +591,13 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
     // row for the same note. Each note still counts in exactly one column.
     const attention = new Set(summaryResult.attentionKeys || [])
     for (const d of visibleDocs) {
-      const label = d.folderPath?.length ? d.folderPath.join(' / ') : 'Unfiled'
+      // ⛔ S5 (B9): a note's row is where it LANDED -- under the destination folder, its source
+      // folders nested inside it (notes.ensure_folder_path). This read the source path alone, so
+      // a batch imported into a chosen folder was reported as "Unfiled".
+      const path = d.folderPath?.length ? d.folderPath.join(' / ') : ''
+      const label = summaryDestName
+        ? (path ? `${summaryDestName} / ${path}` : summaryDestName)
+        : (path || 'Unfiled')
       if (!map.has(label)) map.set(label, { label, arrived: 0, unchanged: 0, attention: 0 })
       const bucket = map.get(label)
       const outcome = summaryResult.outcomes?.[d.importKey]
@@ -601,7 +611,7 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
       else if (outcome === 'failed' || outcome === 'batch_failed' || outcome === 'unfinished') bucket.attention += 1
     }
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
-  }, [visibleDocs, summaryResult])
+  }, [visibleDocs, summaryResult, summaryDestName])
 
   const rootFolders = useMemo(() => folders.filter((f) => !f.parentId), [folders])
 
@@ -840,6 +850,9 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
       if (stopRef.current) { stopBeforeSaving(); return }
       const destFolderId = await resolveDestFolderId()
       if (cancelled()) return
+      setSummaryDestName(destFolderId
+        ? (rootFolders.find((f) => f.id === destFolderId)?.name || `Imported from ${sourceLabel}`)
+        : null)
       const { runImport } = await import('../../../lib/importer/commit')
       if (cancelled()) return
       const result = await runImport({
@@ -871,7 +884,7 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
       setError(readableError(err))
       setStep('error')
     }
-  }, [resolveDestFolderId, sourceLabel, visibleDocs, recoverOn, onImported])
+  }, [resolveDestFolderId, sourceLabel, visibleDocs, recoverOn, onImported, rootFolders])
 
   const handleStop = useCallback(() => {
     stopRef.current = true
@@ -999,6 +1012,10 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
         <div className={styles.wrap}>
           {step === 'drop' && (
             <div className={styles.dropWrap}>
+              {/* S14: this feature's "?" opens its own Quick Answer. */}
+              <p className={styles.helpRow}>
+                What comes across, and from where <HelpAnswerLink faqId="notebook-import" topic="importing notes" />
+              </p>
               <ConnectTilesCompact />
               <div
                 className={`${styles.dropzone} ${dragOver ? styles.dropzoneActive : ''}`}

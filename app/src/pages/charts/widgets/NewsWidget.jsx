@@ -20,6 +20,7 @@ import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { buildNewsCapture, newsCaptureSettings } from './captures/newsCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
@@ -219,6 +220,10 @@ export default function NewsWidget({
     return () => document.removeEventListener('mousedown', onDown, true)
   }, [expandedKey])
 
+  // ONE builder with the Notebook's /news insert (captures/newsCapture.js).
+  const newsCapture = () => buildNewsCapture({ symbol: sym, events, company }, { filter, settings })
+  useWidgetDoor(() => ({ capture: () => (journalDoor && !readOnly && sym && events?.length > 0 ? { kind: 'news', capture: newsCapture(), label: `${sym} news` } : null) }))
+
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
@@ -256,7 +261,7 @@ export default function NewsWidget({
           {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
         {!readOnly && (
-        <div className={styles.filters}>
+        <div className={styles.filters} data-guide="news.filters">
           {FILTERS.map(f => (
             <button
               key={f.key}
@@ -274,8 +279,6 @@ export default function NewsWidget({
             door keeps the auto, the gear drops to a 2px gap when the door
             renders. */}
         {journalDoor && !readOnly && sym && events?.length > 0 && (() => {
-          // ONE builder with the Notebook's /news insert (captures/newsCapture.js).
-          const newsCapture = () => buildNewsCapture({ symbol: sym, events, company }, { filter, settings })
           return (
             <>
               <button
@@ -316,7 +319,7 @@ export default function NewsWidget({
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           style={journalDoor && sym && events?.length > 0 ? { marginLeft: 2 } : undefined}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="News widget settings"
         ><UIcon name="gear" size={13} /></button>
         )}

@@ -60,8 +60,8 @@ export default function TourOfferPrompt({ entry, onAccept: acceptOffer, onLater:
         <p id={bodyId} className={styles.body}>{OFFER_COPY.body}</p>
       </div>
       <div className={styles.actions} role="toolbar" aria-labelledby={titleId} {...containerProps}>
-        <button type="button" className={styles.accept} onClick={onAccept} {...itemProps('accept')}>{OFFER_COPY.accept}</button>
-        <button type="button" className={styles.later} onClick={onLater} aria-keyshortcuts="Escape"
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onAccept} {...itemProps('accept')}>{OFFER_COPY.accept}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onLater} aria-keyshortcuts="Escape"
           {...itemProps('later')}>{OFFER_COPY.later}</button>
       </div>
     </section>

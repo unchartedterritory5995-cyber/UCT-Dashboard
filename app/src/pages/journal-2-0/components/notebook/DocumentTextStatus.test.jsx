@@ -188,3 +188,46 @@ describe('a complete document still discloses that it was scanned', () => {
     })).toBeNull()
   })
 })
+
+// ⛔ Audit 2026-11-05, spec S5 (B4): a note holding only widgets showed FOUR "Image — Text read
+// from a scanned page" lines, and a plain screenshot showed "Image looks like a scan". Root cause:
+// every widget's archived snapshot PNG is uploaded through the image door (lib/embedArchive.js),
+// which makes each one an OCR document; OCR then reads the chart's axis numbers. An image document
+// is spoken of only when the note holds that image, and only while it is pending or has no text.
+describe('S5 (B4): images are spoken of only when the note holds them', () => {
+  const img = (id, file, extra) => ({
+    id, name: 'Image', attachmentUrl: `/api/j2/notes/attachments/u1/n1/inline/${file}`,
+    pagesTotal: 1, pagesWithText: 1, pagesFromOcr: 1, pagesAwaitingOcr: 0, textComplete: true,
+    status: 'ready', ...extra,
+  })
+  const snapshotOcr = img('d1', 'snap1.png')                                     // a widget's archive PNG
+  const noText = img('d2', 'shot.png', { pagesWithText: 0, pagesFromOcr: 0, textComplete: false, status: 'no_text' })
+  const pending = img('d3', 'new.png', { pagesTotal: 0, pagesWithText: 0, pagesFromOcr: 0, textComplete: false, status: 'pending' })
+
+  it('widget snapshots (images the note does not hold) say nothing', () => {
+    const { container } = render(<DocumentTextStatus documents={[snapshotOcr, noText, pending]} imageUrls={[]} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an image the note holds whose text WAS read says nothing (no scan disclosure for a picture)', () => {
+    const { container } = render(<DocumentTextStatus documents={[snapshotOcr]}
+      imageUrls={['/api/j2/notes/attachments/u1/n1/inline/snap1.png']} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an image the note holds that is pending or has no text is said, without calling it a scan', () => {
+    render(<DocumentTextStatus documents={[noText, pending]}
+      imageUrls={['/api/j2/notes/attachments/u1/n1/inline/shot.png', '/api/j2/notes/attachments/u1/n1/inline/new.png']} />)
+    const region = screen.getByRole('status', { name: 'Attachment text status' })
+    expect(region).toHaveTextContent('Image has no readable text, so Search and Ask cannot use it.')
+    expect(region).toHaveTextContent('Image is still being read…')
+    expect(region.textContent).not.toMatch(/scan/i)
+  })
+
+  it('CONTROL: a PDF is unchanged, whatever the body holds', () => {
+    const pdf = { id: 'p', name: 'Deck.pdf', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/deck.pdf',
+      status: 'ready', pagesTotal: 2, pagesWithText: 0, pagesAwaitingOcr: 0, textComplete: false }
+    render(<DocumentTextStatus documents={[pdf]} imageUrls={[]} />)
+    expect(screen.getByRole('status')).toHaveTextContent('looks like a scan')
+  })
+})

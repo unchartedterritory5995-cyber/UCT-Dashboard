@@ -123,7 +123,7 @@ describe('⭐ what the two C18 scripts write around their loops', () => {
       + 'load(n) =>\n    array.clear(strikes)\n    i = 0\n    while i < n\n        array.push(strikes, i)\n        i += 1\n'
       + 'load(3)\nplot(array.size(strikes))\n'
     expect(out0(src)).toEqual(all(3))
-    const r = build('g(n) =>\n    i = 0\n    while i < n\n        i += 1\nplot(g(3))\n')
+    const r = build('g(n) =>\n    i = 0\n    while i < n\n        i += 1\n        if i > 1\n            break\nplot(g(3))\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:function')
     expect(r.refusal.message).toMatch(/ends in a loop/)

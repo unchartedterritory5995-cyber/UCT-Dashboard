@@ -1,0 +1,346 @@
+{
+ "about": "W5-T4 host-parity corpus (docs/pine/SERVER-RUNTIME-DESIGN.md 2.3). Original first-party Pine only; bars generated from these seeds by tools/pine_runtime_host_parity.mjs makeBars().",
+ "reportOnly": {
+  "reason": "V8 Math.sin/Math.cos differ by 1 ulp between V8 13.6 (Node 24) and V8 14.5 (Chrome 145); measured 2026-11-04, see docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md",
+  "cases": [
+   "transcendental@forming",
+   "transcendental@listing"
+  ]
+ },
+ "barSets": {
+  "d5000": {
+   "tf": "D",
+   "n": 5000,
+   "start": "2007-01-03",
+   "seed": 101,
+   "startCents": 4000,
+   "volCents": 90,
+   "ctx": {
+    "tf": "D",
+    "newestBarIsForming": false,
+    "historyFromListing": false,
+    "symbol": {
+     "ticker": "HPX",
+     "exchange": "NASDAQ"
+    }
+   }
+  },
+  "m5_32768": {
+   "tf": "5",
+   "n": 32768,
+   "start": "2024-01-02",
+   "seed": 202,
+   "startCents": 18000,
+   "volCents": 40,
+   "ctx": {
+    "tf": "5",
+    "newestBarIsForming": false,
+    "historyFromListing": false,
+    "symbol": {
+     "ticker": "HPX",
+     "exchange": "NASDAQ"
+    }
+   }
+  },
+  "listing": {
+   "tf": "D",
+   "n": 1500,
+   "start": "2015-01-02",
+   "seed": 303,
+   "startCents": 2500,
+   "volCents": 60,
+   "ctx": {
+    "tf": "D",
+    "newestBarIsForming": false,
+    "historyFromListing": true,
+    "symbol": {
+     "ticker": "HPX",
+     "exchange": "NASDAQ"
+    }
+   }
+  },
+  "forming": {
+   "tf": "D",
+   "n": 2000,
+   "start": "2016-06-01",
+   "seed": 404,
+   "startCents": 9000,
+   "volCents": 120,
+   "ctx": {
+    "tf": "D",
+    "newestBarIsForming": true,
+    "historyFromListing": true,
+    "symbol": {
+     "ticker": "HPX",
+     "exchange": "NASDAQ"
+    }
+   }
+  },
+  "calcbars": {
+   "tf": "D",
+   "n": 3000,
+   "start": "2012-03-01",
+   "seed": 505,
+   "startCents": 6000,
+   "volCents": 75,
+   "calcBars": 400,
+   "ctx": {
+    "tf": "D",
+    "newestBarIsForming": false,
+    "historyFromListing": true,
+    "symbol": {
+     "ticker": "HPX",
+     "exchange": "NASDAQ"
+    }
+   }
+  }
+ },
+ "scripts": [
+  {
+   "name": "arrays_basic",
+   "file": "corpus/arrays_basic.pine",
+   "barSets": [
+    "listing"
+   ],
+   "note": "a named refusal at build or run: refusal parity (HP-5)"
+  },
+  {
+   "name": "arrays_sort",
+   "file": "corpus/arrays_sort.pine",
+   "barSets": [
+    "listing"
+   ],
+   "note": "a named refusal at build or run: refusal parity (HP-5)"
+  },
+  {
+   "name": "arrays_window",
+   "file": "corpus/arrays_window.pine"
+  },
+  {
+   "name": "atr_bands",
+   "file": "corpus/atr_bands.pine"
+  },
+  {
+   "name": "bollinger",
+   "file": "corpus/bollinger.pine"
+  },
+  {
+   "name": "cci_mfi_wpr",
+   "file": "corpus/cci_mfi_wpr.pine"
+  },
+  {
+   "name": "crosses",
+   "file": "corpus/crosses.pine"
+  },
+  {
+   "name": "dmi_adx",
+   "file": "corpus/dmi_adx.pine",
+   "barSets": [
+    "listing"
+   ],
+   "note": "a named refusal at build or run: refusal parity (HP-5)"
+  },
+  {
+   "name": "dmi_manual",
+   "file": "corpus/dmi_manual.pine"
+  },
+  {
+   "name": "ema_macd",
+   "file": "corpus/ema_macd.pine"
+  },
+  {
+   "name": "for_loop_wma",
+   "file": "corpus/for_loop_wma.pine"
+  },
+  {
+   "name": "heikin",
+   "file": "corpus/heikin.pine"
+  },
+  {
+   "name": "history_ref",
+   "file": "corpus/history_ref.pine"
+  },
+  {
+   "name": "infinities",
+   "file": "corpus/infinities.pine"
+  },
+  {
+   "name": "ints_rounding",
+   "file": "corpus/ints_rounding.pine"
+  },
+  {
+   "name": "methods_udt",
+   "file": "corpus/methods_udt.pine"
+  },
+  {
+   "name": "na_handling",
+   "file": "corpus/na_handling.pine"
+  },
+  {
+   "name": "nested_if",
+   "file": "corpus/nested_if.pine"
+  },
+  {
+   "name": "percentrank",
+   "file": "corpus/percentrank.pine"
+  },
+  {
+   "name": "pivots",
+   "file": "corpus/pivots.pine"
+  },
+  {
+   "name": "rma_alma_hma",
+   "file": "corpus/rma_alma_hma.pine"
+  },
+  {
+   "name": "rsi_stoch",
+   "file": "corpus/rsi_stoch.pine"
+  },
+  {
+   "name": "signed_zero",
+   "file": "corpus/signed_zero.pine"
+  },
+  {
+   "name": "slope_loop",
+   "file": "corpus/slope_loop.pine"
+  },
+  {
+   "name": "supertrend",
+   "file": "corpus/supertrend.pine",
+   "barSets": [
+    "listing",
+    "forming",
+    "calcbars"
+   ],
+   "note": "ta.supertrend under the warm-up curtain costs > 1 s (the pane budget) on 5,000+ bars"
+  },
+  {
+   "name": "switch_ternary",
+   "file": "corpus/switch_ternary.pine"
+  },
+  {
+   "name": "time_fields",
+   "file": "corpus/time_fields.pine"
+  },
+  {
+   "name": "transcendental",
+   "file": "corpus/transcendental.pine"
+  },
+  {
+   "name": "tuple_return",
+   "file": "corpus/tuple_return.pine"
+  },
+  {
+   "name": "udf_basic",
+   "file": "corpus/udf_basic.pine"
+  },
+  {
+   "name": "valuewhen_cum",
+   "file": "corpus/valuewhen_cum.pine"
+  },
+  {
+   "name": "var_accumulators",
+   "file": "corpus/var_accumulators.pine"
+  },
+  {
+   "name": "vwap_like",
+   "file": "corpus/vwap_like.pine"
+  },
+  {
+   "name": "while_loop",
+   "file": "corpus/while_loop.pine"
+  },
+  {
+   "name": "h_array_growth",
+   "file": "corpus/h_array_growth.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:limit"
+  },
+  {
+   "name": "h_for_1e12",
+   "file": "corpus/h_for_1e12.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:limit"
+  },
+  {
+   "name": "h_infinite_while",
+   "file": "corpus/h_infinite_while.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:limit"
+  },
+  {
+   "name": "h_ir_size",
+   "generate": "ir-size",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "budget:nodes",
+   "note": "design 4 says \"IR limit\": the front end refuses a formula past its node budget by name before any IR is built"
+  },
+  {
+   "name": "h_program_size",
+   "generate": "program-size",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:limit"
+  },
+  {
+   "name": "h_recursion",
+   "file": "corpus/h_recursion.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:statement"
+  },
+  {
+   "name": "h_request_security",
+   "file": "corpus/h_request_security.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:request"
+  },
+  {
+   "name": "h_string_doubling",
+   "file": "corpus/h_string_doubling.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:limit"
+  },
+  {
+   "name": "h_varip_window",
+   "file": "corpus/h_varip_window.pine",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:varip"
+  },
+  {
+   "name": "h_deep_chain",
+   "generate": "deep-chain",
+   "hostile": true,
+   "barSets": [
+    "listing"
+   ],
+   "expectGuard": "runtime:statement",
+   "note": "the front end's own stack overflow, named runtime:statement; the stack depth is a host property, so this case measures it"
+  }
+ ]
+}

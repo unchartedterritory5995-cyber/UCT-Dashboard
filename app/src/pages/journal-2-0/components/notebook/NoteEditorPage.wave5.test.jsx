@@ -77,6 +77,8 @@ describe('NoteEditorPage — text color + highlight door (Wave 5)', () => {
 describe('NoteEditorPage — outline door (Wave 5)', () => {
   it('the toolbar Outline button opens the note\'s headings, H4 included; it shares the palette\'s corner', async () => {
     await renderEditor()
+    // S10 (audit 2026-11-05, M4): the Outline door is an item in "More note actions" now.
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     const toggle = screen.getByRole('button', { name: 'Outline' })
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(toggle)

@@ -41,7 +41,29 @@ PRODUCTION, RUNTIME_ON = CM.LANE_PRODUCTION, CM.LANE_RUNTIME_ON
 HARNESS = os.path.join(CM.ROOT, "tests", "fixtures", "vendor", "harness")
 
 
-def rt_wave(w):
+def placing_orders(script):
+    """Whether a coverage-map script row is a strategy that places orders: the map's own `placesOrders`
+    (read from the script's text). A map written before W9 T0 has none and answers by its `[strategy]` label."""
+    return bool(script["placesOrders"]) if "placesOrders" in script else "[strategy]" in script["walls"]
+
+
+def rt_wave(w, tags=(), order_strategy=False):
+    """The plan wave that owns one runtime-lane wall.
+
+    ⭐ W4 T0 - three walls are re-mapped by what is behind them, not by their label alone
+    (W4-BREAKDOWN section 0, findings 3 and 4):
+      * `runtime:loop` with the `for … in` detail is W6 (collections), not W4: tag `for-in`;
+      * a bare `security(…)` (the v1-v4 spelling) reaches `runtime:call-undeclared-builtin-state`
+        and is W7 (request.*): tag `bare-security`;
+      * `runtime:no-output` on a script that places orders is W9 (the strategy tester).
+    `tags` is `runtimeOn.walls.tags[script][wall]` (coverage_map.py); `order_strategy` is whether
+    the script is a strategy that places orders. Called with neither, it answers by label alone."""
+    if w == "runtime:loop" and "for-in" in tags:
+        return "W6"
+    if w == "runtime:call-undeclared-builtin-state" and "bare-security" in tags:
+        return "W7"
+    if w == "runtime:no-output" and order_strategy:
+        return "W9"
     if w in ("pine:builtin", "pine:function", "pine:arity", "pine:input-kind", "pine:named-argument", "pine:role-order"):
         return "W1"
     if w in ("pine:drawing", "host:pine:object-removal-lost") or w.startswith("host:pine:object"):
@@ -58,6 +80,44 @@ def rt_wave(w):
     if w.startswith("host:pine:constant-only") or w.startswith("host:pine:presentation-only") or w == "threw":
         return "other"
     return "W4"
+
+
+def capture_plan(rows, uses, rt_only):
+    """⭐ W4 T0 - the greedy over unverified items (COVERAGE-MAP section 7.1), with its two W0 lows closed.
+
+    `rows` are the transferring scripts of either lane, each `{key, agree, lane, existingCapture, ...}`;
+    `uses[key]` is the set of still-unverified graded items the script uses; `rt_only` holds the items a
+    capture already MATCHes with in the runtime-on run.
+
+      1. A script whose own-lane capture already DIVERGEs is NOT a candidate. The capture exists (RDDT
+         and SPY daily); capturing it again cannot verify its items, the divergence is a correctness
+         lead (7.2). Counting its items made "N captures cover M of the U" overstated.
+      2. Items are credited PER LANE. The 73 are items with no MATCH in the PRODUCTION harness run; a
+         capture of a runtime-on row (a script that transfers only with the runtime pane on) grades the
+         RUNTIME lane's handling of them and never the translator's, so it is credited to
+         `coveredRuntimeLane` and never to `coveredProduction` (the number the headline claim uses).
+         A runtime-on row still does not count an item a capture already MATCHes with in that run.
+    Returns picks (best first, each `{..., verifiesNewItems}`), the two covered sets, and the diverging
+    scripts left out with the items they use."""
+    covered = {PRODUCTION: set(), RUNTIME_ON: set()}
+    diverging = {r["key"]: sorted(uses[r["key"]]) for r in rows if r["existingCapture"] == "DIVERGE" and uses[r["key"]]}
+    cands = [r for r in rows if r["existingCapture"] not in ("MATCH", "DIVERGE")]
+
+    def gain(r):
+        g = uses[r["key"]] - covered[r["lane"]]
+        return g - set(rt_only) if r["lane"] == RUNTIME_ON else g
+
+    picks = []
+    while True:
+        best = max(cands, key=lambda r: (len(gain(r)), r.get("agree") or 0), default=None)
+        if not best or not gain(best):
+            break
+        new = sorted(gain(best))
+        covered[best["lane"]] |= set(new)
+        picks.append({**{k: v for k, v in best.items()}, "verifiesNewItems": new})
+        cands = [r for r in cands if r["key"] != best["key"]]
+    return {"picks": picks, "coveredProduction": covered[PRODUCTION], "coveredRuntimeLane": covered[RUNTIME_ON],
+           "excludedDiverging": dict(sorted(diverging.items()))}
 
 
 def greedy(sets, base):
@@ -178,6 +238,7 @@ def main():
     # ---- runtime-on lane
     ro = d["runtimeOn"]
     rt_by = ro["walls"]["byScript"]
+    rt_tags = ro["walls"].get("tags", {})
     rt_wall_scripts = collections.defaultdict(list)
     host_dirty = []
     rtw = collections.defaultdict(lambda: {"blocks": [], "onlyThisWave": []})
@@ -185,8 +246,9 @@ def main():
     for k, ws in rt_by.items():
         for w in dict.fromkeys(ws):            # each wall once per script, in first-seen order
             rt_wall_scripts[w].append(k)
-        wv = {rt_wave(w) for w in ws}
-        if "[strategy]" in S[k]["walls"]:      # orders are never simulated: W9 always
+        order_strategy = placing_orders(S[k])
+        wv = {rt_wave(w, rt_tags.get(k, {}).get(w, ()), order_strategy) for w in ws}
+        if order_strategy:                     # orders are never simulated: W9 always
             wv.add("W9")
         if not wv:                             # host attached, objects dropped / paint withheld
             host_dirty.append(k)
@@ -196,6 +258,12 @@ def main():
             rtw[x]["blocks"].append(k)
         if len(wv) == 1:
             rtw[next(iter(wv))]["onlyThisWave"].append(k)
+
+    def wall_wave(w):
+        # the wave of the wall's label, unless EVERY script carrying it maps it to one other wave
+        # (`for-in` on all of `runtime:loop`'s scripts, say)
+        by_script = {rt_wave(w, rt_tags.get(k, {}).get(w, ()), placing_orders(S[k])) for k in rt_wall_scripts[w]}
+        return next(iter(by_script)) if len(by_script) == 1 else rt_wave(w)
 
     prod_sets = {s["key"]: {PROD_WAVE.get(label_cap.get(w, "?"), "?") for w in s["walls"]} for s in notclean}
     wave_greedy = {"production": greedy(prod_sets, sum(1 for s in d["scripts"] if s["clean"])),
@@ -233,30 +301,28 @@ def main():
         for n in graded_unverified(src):
             rt_only[n].append(os.path.splitext(os.path.basename(f))[0])
     uses = {k: graded_unverified(source_of(k)) for k in S if k in either}
-    # a candidate has no MATCH in its own lane yet; a runtime-on row does not count an item that a
-    # capture already MATCHes with in the runtime-on run (its capture would grade it there again)
-    cands = [S[k] for k in S if k in either and own[k] != "MATCH"]
-    gain = {s["key"]: uses[s["key"]] - (set(rt_only) if lane(s["key"]) == RUNTIME_ON else set()) for s in cands}
-    covered, picks = set(), []
-    while True:
-        best = max(cands, key=lambda s: (len(gain[s["key"]] - covered), s.get("agreeCount") or 0), default=None)
-        if not best or not (gain[best["key"]] - covered):
-            break
-        new = sorted(gain[best["key"]] - covered)
-        covered |= set(new)
-        picks.append({**brief(best["key"]), "lane": lane(best["key"]),
-                      "existingCapture": own[best["key"]], "verifiesNewItems": new})
-        cands = [s for s in cands if s["key"] != best["key"]]
+    # ⭐ W4 T0 (the two W0 lows on 7.1): see `capture_plan`
+    plan = capture_plan(
+        [{**brief(k), "lane": lane(k), "existingCapture": own[k]} for k in S if k in either],
+        uses, rt_only)
+    picks, covered, covered_rt = plan["picks"], plan["coveredProduction"], plan["coveredRuntimeLane"]
+    diverging = plan["excludedDiverging"]
     rest = sorted(unver - covered)
     graded_rest = [n for n in rest if not n.startswith(CM.UNGRADED_PREFIXES)]
     used_by = {n: [k for k in S if k in either and n in uses[k]] for n in graded_rest}
+    nonmatch = {n: [k for k in used_by[n] if own[k] != "MATCH"] for n in graded_rest}
     not_covered = {
         "ungraded": [n for n in rest if n.startswith(CM.UNGRADED_PREFIXES)],
         "inNoTransferringScript": [n for n in graded_rest if not used_by[n]],
-        "onlyInScriptsThatAlreadyMatch": {n: used_by[n] for n in graded_rest
-                                          if used_by[n] and all(own[k] == "MATCH" for k in used_by[n])},
-        "onlyInRuntimeOnTransfersAlreadyVerifiedThere": {n: used_by[n] for n in graded_rest
-                                                  if used_by[n] and not all(own[k] == "MATCH" for k in used_by[n])},
+        "onlyInScriptsThatAlreadyMatch": {n: used_by[n] for n in graded_rest if used_by[n] and not nonmatch[n]},
+        # every script that could still verify it already has a capture that DIVERGEs: capturing
+        # again on the same RDDT/SPY daily setup cannot verify it, the divergence is the lead
+        "onlyInScriptsWhoseCaptureDiverges": {n: used_by[n] for n in graded_rest
+                                              if nonmatch[n] and all(own[k] == "DIVERGE" for k in nonmatch[n])},
+        # the rest are used only by runtime-on rows: a capture of one grades the RUNTIME lane
+        # (`coveredRuntimeLane` below), never the production lane's count
+        "onlyInRuntimeOnTransfers": {n: used_by[n] for n in graded_rest
+                                     if nonmatch[n] and not all(own[k] == "DIVERGE" for k in nonmatch[n])},
     }
     regrade = sorted(({**brief(k), "lane": lane(k), "verdict": own[k]} for k in S
                       if k in either and own[k] in ("INCONCLUSIVE", "DIVERGE")), key=lambda c: c["lane"] != PRODUCTION)
@@ -267,7 +333,7 @@ def main():
         "prodWallCapability": label_cap,
         "prodWaves": {w: {k: sorted(v) for k, v in x.items()} for w, x in sorted(prod_wave.items())},
         "runtimeWalls": {w: sorted(v) for w, v in sorted(rt_wall_scripts.items(), key=lambda kv: (-len(kv[1]), kv[0]))},
-        "runtimeWallWave": {w: rt_wave(w) for w in sorted(rt_wall_scripts)},
+        "runtimeWallWave": {w: wall_wave(w) for w in sorted(rt_wall_scripts)},
         "runtimeWaves": {w: {k: sorted(v) for k, v in x.items()} for w, x in sorted(rtw.items())},
         "waveGreedy": wave_greedy,
         "runtimeOnHostAttachedDirty": sorted(host_dirty),
@@ -280,6 +346,8 @@ def main():
         "captureRegradeTransferring": regrade,
         "capturePopularUncaptured": [brief(s["key"]) | {"lane": lane(s["key"])} for s in popular],
         "unverifiedItems": len(unver), "unverifiedItemsCoveredByGreedy": len(covered),
+        "unverifiedItemsCoveredRuntimeLaneOnly": sorted(covered_rt - covered),
+        "captureExcludedDiverging": diverging,
         "unverifiedItemsMatchingOnlyInRuntimeOn": {n: v for n, v in sorted(rt_only.items())},
         "unverifiedItemsNotCovered": not_covered,
         "titles": {k: (S[k].get("title") or k) for k in S},
@@ -290,8 +358,10 @@ def main():
     print("prod waves", {w: (len(x["blocks"]), len(x["onlyThisWave"]), len(x["firm"])) for w, x in sorted(prod_wave.items())})
     print("rt waves", {w: (len(x["blocks"]), len(x["onlyThisWave"])) for w, x in sorted(rtw.items())})
     print("verified", {ln: "%d of %d" % (len(verified[ln]), n) for ln, n in ((PRODUCTION, len(clean)), (RUNTIME_ON, len(rt_set)))})
-    print("captures greedy", len(picks), "covering", len(covered), "of", len(unver),
-          "; matching only in the runtime-on run:", len(rt_only))
+    print("captures greedy: %d production-lane captures cover %d of %d; %d runtime-on captures grade %d more items in the "
+          "runtime lane only; %d DIVERGE scripts left out; matching only in the runtime-on run: %d" % (
+              sum(1 for c in picks if c["lane"] == PRODUCTION), len(covered), len(unver),
+              sum(1 for c in picks if c["lane"] == RUNTIME_ON), len(covered_rt - covered), len(diverging), len(rt_only)))
     if a.old_map:
         old = json.load(open(a.old_map, encoding="utf-8"))
         oh, nh = old["headline"], d["headline"]

@@ -214,13 +214,15 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
     expect(r.guard).toBe('runtime:function-global-state')
   })
 
-  it('⛔ history over an expression INSIDE A FUNCTION still refuses by name', () => {
-    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
+  // W4-T7: a function body's own statement list and result now hoist (served,
+  // `w4FrameHoist.test.js`); a NESTED list inside the body still refuses.
+  it('⛔ history over an expression in a NESTED LIST of a function still refuses by name', () => {
+    expect(refusalOf(`${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := (v + 1)[1]\n    r\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 
-  it('⛔ a window over an expression INSIDE A FUNCTION still refuses by name', () => {
-    expect(refusalOf(`${head}f(v) =>\n    ta.sma(v + 1, 5)\nplot(f(close))\n`).guard)
+  it('⛔ a window over an expression in a NESTED LIST of a function still refuses by name', () => {
+    expect(refusalOf(`${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := ta.sma(v + 1, 5)\n    r\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 

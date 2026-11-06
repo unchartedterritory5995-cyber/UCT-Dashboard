@@ -797,7 +797,13 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             clauses.append(f"{col} = ?"); params.append(f["value"])
         elif op == "in":
             vals = f.get("values") or []
-            if vals:
+            if vals and filters.is_token_list(key):
+                # ⛔ A WRAPPED TOKEN LIST IS NOT ONE VALUE PER ROW. `IN` compares the whole cell, so a hammer that was also
+                # an engulfing (`,hammer,bullish-engulfing,`) never equals `,hammer,` and a bare `hammer` equals nothing.
+                # `instr` is the exact-token test, with no LIKE wildcards in a token to think about.
+                clauses.append("(" + " OR ".join(f"instr({col}, ?) > 0" for _ in vals) + ")")
+                params.extend(filters.wrap_token(v) for v in vals)
+            elif vals:
                 clauses.append(f"{col} IN ({','.join('?' for _ in vals)})")
                 params.extend(vals)
         elif op == "not_in":
@@ -807,7 +813,12 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             # so the NULL is kept explicitly. (Include's `IN` has the opposite,
             # correct default: an unknown type is not one of the chosen buckets.)
             vals = f.get("values") or []
-            if vals:
+            if vals and filters.is_token_list(key):
+                # the same blank rule as below: a bar with no pattern at all holds none of these
+                has = " OR ".join(f"instr({col}, ?) > 0" for _ in vals)
+                clauses.append(f"(NOT ({has}) OR {col} IS NULL)")
+                params.extend(filters.wrap_token(v) for v in vals)
+            elif vals:
                 ph = ",".join("?" for _ in vals)
                 clauses.append(f"({col} NOT IN ({ph}) OR {col} IS NULL)")
                 params.extend(vals)

@@ -5,6 +5,7 @@ import { registerChartCapabilities } from './capabilities/chart'
 import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
+import { registerListViewCapabilities } from './capabilities/listView'
 import { registerScreenerCapabilities } from './capabilities/screener'
 import { registerSessionMeasures } from './capabilities/sessionMeasures'
 import { registerAlertCapabilities } from './capabilities/alert'
@@ -23,6 +24,7 @@ import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
 import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
+import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
 import { registerDefinitionCapabilities } from './capabilities/definitions'
 import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
@@ -48,6 +50,7 @@ export function registerBuiltins() {
   registerWorkspaceCapabilities()
   registerLayoutCapabilities()
   registerWatchlistCapabilities()
+  registerListViewCapabilities()
   registerScreenerCapabilities()
   registerSessionMeasures()
   registerAlertCapabilities()
@@ -67,6 +70,7 @@ export function registerBuiltins() {
   registerIndicatorAuthoringCapabilities()
   registerChartSetupCapabilities()
   registerIndicatorControlCapabilities()
+  registerIndicatorTemplateCapabilities()
   registerDefinitionCapabilities()
   registerAboutCapabilities()
   registerGuideCapabilities()

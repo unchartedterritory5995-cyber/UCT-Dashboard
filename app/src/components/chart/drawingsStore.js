@@ -211,6 +211,16 @@ export function addDrawing(sym, d) {
   return id
 }
 
+// Put back a drawing that was removed, exactly as it was and under its OWN id (the Agent's Undo): an earlier
+// change to that drawing is addressed by this id, so a new one would strand it. An id already in use mints a new one.
+export function restoreDrawing(sym, d) {
+  if (!sym || !d?.id) return addDrawing(sym, d)
+  const e = _ensure(sym)
+  if (e.drawings.some(x => x.id === d.id)) { const { id: _taken, ...body } = d; return addDrawing(sym, body) }
+  _commit(sym, e, [...e.drawings, normalizeDrawing(d)])
+  return d.id
+}
+
 export function removeDrawing(sym, id) {
   if (!sym) return
   const e = _ensure(sym)

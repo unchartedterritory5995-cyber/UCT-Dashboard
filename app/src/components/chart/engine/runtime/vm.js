@@ -26,7 +26,7 @@ import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, C
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
-import { ARRAY_FNS, kindOf, argKind } from './collections.js'
+import { ARRAY_FNS, kindOf, argKind, CollectionError } from './collections.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
 // scope in other arms, and a record accessor silently shadowed by one of them
 // would read the wrong thing with nothing red.
@@ -360,9 +360,15 @@ export function execute(program, ctx, limits, opts) {
   const carAlpha = carPlan.map((c, i) => (carSpec[i].alpha ? carSpec[i].alpha(c.n) : undefined))
   const carOffset = new Int32Array(carPlan.length)
   let carCells = 0
-  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carSpec[i].cells }
+  // ⭐ W4 T10 — `cells` IS A NUMBER FOR EVERY MEMBER THAT HOLDS A FIXED HANDFUL OF
+  // SCALARS AND A FUNCTION OF THE LENGTH FOR ONE THAT HOLDS A RING (the pivots),
+  // exactly as `CARRIED2`'s always was; `init` receives the length for the same
+  // reason. Existing members' `init(st, off)` ignore the extra argument.
+  const carCellsOf = (i) => (typeof carSpec[i].cells === 'function'
+    ? carSpec[i].cells(carPlan[i].n) : carSpec[i].cells)
+  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carCellsOf(i) }
   const carState = new Float64Array(carCells)
-  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i])
+  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i], carPlan[i].n)
   if (carPlan.length) {
     budget.peak('CARRIED_INSTANCES', carPlan.length)
     budget.peak('CARRIED_CELLS', carCells)
@@ -976,6 +982,16 @@ export function execute(program, ctx, limits, opts) {
             // ⭐ 'any' IS A REAL KIND HERE, not a missing check: `array.push`
             // takes whatever the array holds, and a typed array's element type
             // is the FRONT END's to police, not the VM's.
+            // ⭐⭐ W6-T3a (review N1) — AN `na` COLLECTION IS A NAMED STOP. A slot typed by
+            // its written type alone (`var array<float> a = na`) holds `na` here until a
+            // collection is assigned. Pine raises a runtime error on an `na` array id;
+            // this stops BY NAME (`runtime:CollectionError`), never with the VM's
+            // internal kind-mismatch sentence.
+            if (want === 'array' && typeof stack[sp + i] === 'number' && Number.isNaN(stack[sp + i])) {
+              throw new CollectionError(
+                `\`${op.fn}\`: the array is \`na\` (no array was assigned to it before this call); `
+                + 'Pine stops the script here with a runtime error')
+            }
             if (want !== 'any' && kindOf(stack[sp + i]) !== want) {
               throw new VmError(
                 `pc ${pc - 1}: \`${op.fn}\` argument ${i + 1} takes ${want === 'array' ? 'an' : 'a'} `
@@ -1030,9 +1046,38 @@ export function execute(program, ctx, limits, opts) {
           // observation ring — the fourth time this addressing has been needed.
           const wi = windowBase + a
           const w = winPlan[wi]
-          const span = w.span
+          // ⭐⭐ W4-T8 — A `dynamic` WINDOW READS ITS LENGTH EVERY BAR (v6 `series int`). The length is
+          // on top of the stack (`lowerIr` pushes it after the source) and `w.span` is only the RING,
+          // sized to Pine's history ceiling; the span of THIS bar is the length it just read. A length
+          // that is `na`, fractional, below 1 or beyond the ring is stopped BY NAME, never clamped:
+          // clamping is how a bad length would answer a real number for a window nobody asked for.
+          let span = w.span
+          if (w.dynamic === true) {
+            const rawLen = stack[--sp]
+            if (!Number.isInteger(rawLen) || rawLen < 1 || rawLen > w.span) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — the length of \`${w.name}\` was `
+                + `${Number.isNaN(rawLen) ? 'na' : rawLen} on this bar, and a window length must be a whole number `
+                + `from 1 to ${w.span} (Pine's history buffer)`)
+            }
+            span = rawLen
+          }
           const live = stack[--sp]
           const policy = winNa[wi]
+
+          if (policy === 'skip' && w.dynamic === true) {
+            // ⭐ THE SAME MEASURED RULE (the last `span` FINITE observations, answering even ON the
+            // `na` bar), over a ring that keeps the LAST `w.span` finite values RIGHT-ALIGNED, so the
+            // window of this bar's length is its tail: `[w.span - span, w.span - 1]`.
+            const obs = winObs[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1)
+              obs[w.span - 1] = live
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, w.span - span, w.span - 1)
+            break
+          }
 
           if (policy === 'skip') {
             // ⭐ THE MEASURED RULE: the last `span` FINITE observations, however
@@ -1092,7 +1137,9 @@ export function execute(program, ctx, limits, opts) {
           // the history commit phase does for a skipped site (it re-commits a
           // HELD value). Two lifetimes, two rules, one wave apart.
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
-          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
+          // ⭐ W4 T10 — `m` is the plan entry's SECOND number where a member needs
+          // one (`ta.pivothigh`'s `rightbars`); every other member ignores it.
+          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci], carPlan[ci].m)
           break
         }
                 case 90 /* OP.CARRIED2 */: {
@@ -1102,12 +1149,15 @@ export function execute(program, ctx, limits, opts) {
           // ⭐⭐ RT7 — THE SITE IS FRAME-RELATIVE, as `OP.CARRIED`'s: `carried2Base`
           // is the call site's block, so two invocations of one body keep two
           // rings (`ta.valuewhen`) or two previous-bar pairs (the cross family).
+          // ⭐ W4 T10 — A THREE-INPUT MEMBER (`inputs: 3`: `ta.stoch`, `ta.vwap`)
+          // has its third value on top of the stack, pushed last.
+          const c2 = carried2Base + a
+          const v2third = car2Spec[c2].inputs === 3 ? stack[--sp] : NaN
           const v2src = stack[--sp]
           const v2cond = stack[--sp]
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
-          const c2 = carried2Base + a
           stack[sp++] = car2Spec[c2].step(
-            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n)
+            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n, v2third)
           break
         }
                 case 71 /* OP.RET */: {

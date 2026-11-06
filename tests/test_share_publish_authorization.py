@@ -98,6 +98,10 @@ PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
         {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-images", "plan": None, "body": None},
     ("GET", "/api/j2/share/links"):
         {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session", "body": None},
+    # Audit 2026-11-05, S19: "Preview: see exactly what they'll see" -- the owner's own note through the share
+    # reducer, nothing written. Read off the route: `require_paid`, `enforce_rate(PREVIEW_RATE, SCOPE_PREVIEW)`.
+    ("GET", "/api/j2/notes/{note_id}/share/preview"):
+        {"auth": "owner", "gate": G_SHARE, "bucket": "notebook-share-preview", "plan": "paid", "body": None},
     # ── publish-to-web (B4) ──
     ("GET", "/api/j2/publish"):
         {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session", "body": None},
@@ -137,6 +141,7 @@ BUCKET_LIMITS: dict[str, tuple[int, str]] = {
     "notebook-share-public": (60, "minute"),
     "notebook-share-images": (240, "minute"),
     "notebook-share-mint": (30, "hour"),
+    "notebook-share-preview": (60, "minute"),
     "notebook-publish-public": (60, "minute"),
     "notebook-publish-images": (240, "minute"),
     "notebook-publish-mint": (30, "hour"),
@@ -607,6 +612,8 @@ BUILDERS: dict[tuple[str, str], RequestBuilder] = {
         lambda w, t: ("GET", f"/api/j2/notes/{_note_for(w, t)}/share"),
     ("POST", "/api/j2/notes/{note_id}/share"):
         lambda w, t: ("POST", f"/api/j2/notes/{_note_for(w, t)}/share"),
+    ("GET", "/api/j2/notes/{note_id}/share/preview"):
+        lambda w, t: ("GET", f"/api/j2/notes/{_note_for(w, t)}/share/preview"),
     ("DELETE", "/api/j2/notes/{note_id}/share"):
         lambda w, t: ("DELETE", f"/api/j2/notes/{_note_for(w, t)}/share"),
     ("GET", "/api/j2/shared/{token}"):
@@ -724,7 +731,7 @@ def test_1_the_owner_list_holds_only_the_callers_things(app, client, world):
     # The editor's context read: A asking about B's note learns nothing about it.
     ctx = client.get(f"/api/j2/publish?note_id={world['B_note']}").json()["note"]
     assert ctx == {"noteId": world["B_note"], "exists": False, "publishable": False,
-                   "folderId": None, "folderName": None}
+                   "folderId": None, "folderName": None, "folderNoteCount": None}
 
 
 def test_1_M3_an_archived_note_gets_no_share_link_and_answers_like_a_trashed_one(app, client, world):

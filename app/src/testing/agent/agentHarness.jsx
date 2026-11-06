@@ -35,6 +35,9 @@ const root = document.documentElement
 if (THEME.startsWith('uct:') && APP_THEME_BY_ID[THEME.slice(4)]) applyAppTheme(root, APP_THEME_BY_ID[THEME.slice(4)])
 else root.dataset.theme = THEME === 'light' ? 'light' : THEME === 'oled' ? 'oled' : 'dark'
 
+// made-up readings, for layout and read-back only
+const SNAPSHOT_FIXTURE = { etfs: { SPY: { price: '1.00', chg: '+1.00%' }, QQQ: { price: '2.00', chg: '-1.00%' }, DIA: { price: '3.00', chg: '+1.00%' }, IWM: { price: '4.00', chg: '+1.00%' }, VIX: { price: '5.00', chg: '-1.00%' } }, futures: { BTC: { price: '6.00', chg: '+1.00%' } } }
+
 // ── fixture board ──
 const BOARD = params.get('board') || ''
 const widgets = BOARD === 'rail'
@@ -45,6 +48,20 @@ const widgets = BOARD === 'rail'
   ? [
       { id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 18, h: 20, opts: { tf: 'D' } },
       { id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { watchKey: 'user:m1', watchName: 'Momentum' } },
+    ]
+  : BOARD === 'widgets'
+  // one of each widget with a control or a Journal door, on the fixture data below (`data-widget-type` finds each)
+  ? [
+      { id: 'w-chart-a', type: 'chart', color: 'A', x: 0, y: 0, w: 6, h: 7, opts: { tf: 'D' } },
+      { id: 'w-themes', type: 'themes', color: 'A', x: 6, y: 0, w: 6, h: 10, opts: {} },
+      { id: 'w-cal', type: 'calendar', color: 'A', x: 12, y: 0, w: 6, h: 10, opts: {} },
+      { id: 'w-flow', type: 'optionsflow', color: 'A', x: 18, y: 0, w: 6, h: 10, opts: {} },
+      { id: 'w-br', type: 'breadth', color: 'A', x: 0, y: 7, w: 6, h: 7, opts: {} },
+      { id: 'w-idx', type: 'indexes', color: 'A', x: 6, y: 10, w: 6, h: 5, opts: {} },
+      { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 10, w: 6, h: 10, opts: { scanKey: 'ipo-1y', scanName: 'IPOs' } },
+      { id: 'w-map', type: 'scatter', color: 'A', x: 18, y: 10, w: 6, h: 10, opts: {} },
+      { id: 'w-nh', type: 'nhnl', color: 'A', x: 0, y: 14, w: 6, h: 6, opts: {} },
+      { id: 'w-vol', type: 'volumescan', color: 'A', x: 6, y: 15, w: 6, h: 5, opts: {} },
     ]
   : BOARD === 'gap'
   // half the board empty, so widget.add has somewhere to land without resizing anything
@@ -73,6 +90,7 @@ const LIB = LAYOUTS ? {
     { id: 13, scope: 'user', name: 'Momentum', layout: { version: 1, cols: 24, widgets: [lw('m-one', 'chart', 'A', 0, 0, 24, 20)] } },
     { id: 14, scope: 'user', name: 'Momentum 2', layout: { version: 1, cols: 24, widgets: [lw('m2-one', 'chart', 'A', 0, 0, 24, 20)] } },
     { id: 15, scope: 'user', name: 'Momentum Swing', layout: { version: 1, cols: 24, widgets: [lw('ms-one', 'chart', 'A', 0, 0, 24, 20)] } },
+    ...(params.has('multichart') ? [{ id: 17, scope: 'user', name: 'Fixture Grid', layout: { kind: 'multichart', version: 1, layout: '2x2', cells: [] } }] : []),
     { id: 16, scope: 'user', name: 'Main Trading', layout: { version: 1, cols: 24, widgets: [lw('mt-one', 'chart', 'A', 0, 0, 18, 20), lw('mt-watch', 'watchlist', 'A', 18, 0, 6, 20)] } },
   ],
 } : { global: [], mine: [] }
@@ -92,6 +110,11 @@ const PREFS = {
   charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: 'AAPL', D: 'MSFT' }),
   theme: THEME,
   ...(LAYOUTS ? { charts_active_template: JSON.stringify({ id: 11, name: 'Agent Test', scope: 'user' }) } : {}),
+  // ?multichart=1 — the workspace opens in Multi Chart: a 2×2 grid, one cell empty (=sync: time-range sync on)
+  ...(params.has('multichart') ? { multichart_state: JSON.stringify({
+    mode: 'grid', layout: '2x2', syncTimeRange: params.get('multichart') === 'sync',
+    cells: [{ id: 'g0', sym: 'NVDA', tf: 'D' }, { id: 'g1', sym: 'AMD', tf: 'D' }, { id: 'g2', sym: 'TSLA', tf: 'D' }, { id: 'g3', sym: null, tf: 'D' }],
+  }) } : {}),
 }
 
 const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [], wl: WL, wlWrites: [] })
@@ -240,6 +263,30 @@ window.fetch = async (input, init) => {
     if (path.startsWith('/api/charts/layouts')) return json({ global: [], mine: [] })
     return json({}, 404)
   }
+  // ?board=widgets — made-up data for each widget's own fetch, and the Journal's inbox, kept in H.inbox and never sent
+  if (BOARD === 'widgets') {
+    const r = (d, w) => ({ '1d': d, '1w': w, '1m': w * 2, '3m': w * 3, '1y': w * 4, ytd: w * 5, open: d / 2 })
+    const hold = (sym, d, w) => ({ sym, name: sym, returns: r(d, w) })
+    const route = path.split('?')[0]
+    if (route.endsWith('/j2/inbox') && method === 'POST') { ;(H.inbox = H.inbox || []).push(JSON.parse(init.body)); return json({ ok: true }) }
+    if (path.startsWith('/api/theme-performance')) return json({ themes: [
+      { ticker: 'SMH', name: 'Semiconductors', id: 1, group_return: r(1, 5), holdings: [hold('NVDA', 2, 6), hold('AMD', 1, 4)] },
+      { ticker: 'IGV', name: 'Software', id: 2, group_return: r(2, 1), holdings: [hold('MSFT', 2, 1)] },
+    ] })
+    if (route === '/api/agent/config') return json({ conversations: [], routing_v2: true })   // the live router
+    if (route === '/api/theme-rotation') return json({})
+    if (path.startsWith('/api/calendar/')) return json({})
+    if (route === '/api/calendar') return json({ days: {}, econ: {} })
+    if (route === '/api/snapshot') return json(SNAPSHOT_FIXTURE)
+    if (path.startsWith('/api/scans/')) return json({ results: [{ sym: 'AAA' }, { sym: 'BBB' }], as_of: '2026-11-05T15:00:00Z' })
+    if (route === '/api/scatter/metrics') return json({ metrics: [
+      { key: 'rvol', label: 'RVOL', group: 'Volume', unit: 'x', live: true }, { key: 'chg_today', label: 'Change', group: 'Price', unit: 'pct', live: true },
+      { key: 'adr', label: 'ADR %', group: 'Price', unit: 'pct' },
+    ] })
+    if (route === '/api/scatter/universes') return json({ groups: [{ group: 'Index', items: [{ source: 'index', value: 'sp500', label: 'S&P 500' }, { source: 'index', value: 'ndx', label: 'Nasdaq 100' }] }] })
+    if (route === '/api/scatter/data') return json({ tickers: [{ sym: 'AAA', m: { rvol: 2, chg_today: 1, adr: 3 } }, { sym: 'BBB', m: { rvol: 1, chg_today: -1, adr: 4 } }] })
+    if (route === '/api/breadth-monitor') return json({ rows: [{ date: '2026-11-04', pct_above_20: 40, pct_above_50: 45 }] })
+  }
   // /api/user-definitions/converse — the indicator conversation, SCRIPTED (no model): "EMA <n>" or
   // "RSI <n>" builds that one line; anything else is an honest "unsupported". Logged in H.converse.
   // ?bars=ramp — every bars request answered with the SYNTHETIC 200-bar ramp (no market data) and
@@ -301,6 +348,16 @@ window.fetch = async (input, init) => {
   if (path.startsWith('/api/')) {
     // Everything else (bars, quotes, widgets' data): try the local backend if one
     // is running; an error just leaves that widget empty. Never a write.
+    // ?defs=1 — an in-page definitions store (nothing leaves this page), so a formula saved in the real builder is listed
+    if (params.get('defs') === '1' && path === '/api/user-definitions') {
+      H.defs = H.defs || []
+      if (method === 'GET') return json(H.defs)
+      if (method === 'POST') {
+        const row = { def_id: `u_fixture${String(H.defs.length + 1).padStart(4, '0')}`, version: 1, rev: 1 }
+        H.defs.push({ ...row, definition: { ...JSON.parse(init.body).definition, id: row.def_id, version: 1 } })
+        return json(row)
+      }
+    }
     if (method !== 'GET') { H.refused.push({ method, path, body: null, at: Date.now() }); return json({ ok: false }, 403) }
     try { return await realFetch(input, init) } catch { return json({}, 503) }
   }

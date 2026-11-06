@@ -8,10 +8,14 @@
 // the missing groups (`need_groups`, the bounded reroute — the real protocol); if they are still missing after the
 // reroute it plans nothing. So a capability the routing hides is a FAILURE here, never masked by a script that
 // answers regardless. No paid model call; no real market value (every figure below is synthetic).
+import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
-import { buildDrawingSource, buildIndicatorAlertSource } from '../../../host'
+import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource } from '../../../host'
+import { publishListView } from '../../../../pages/watchlist/watchlistViews'
+import { DEFAULT_COL_ORDER } from '../../../../pages/watchlist/watchlistColumns'
+import { readFlagged, writeFlagged } from '../../../../hooks/flaggedStore'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { setAuthoringSources } from '../../../capabilities/indicatorAuthoring'
 import { storeConversation } from '../../../../components/chart/builder/conversationSave'
@@ -22,6 +26,9 @@ import { mutate } from 'swr'
 import { USER_DEFINITIONS_KEY } from '../../../../hooks/useUserDefinitions'
 import { configFor, PROD_KINDS } from './registry'
 import { installStepServer } from '../../../testing/stepServer'
+import { captureIndicatorTemplate } from '../../../../components/chart/builder/indicatorTemplates'
+import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
@@ -62,6 +69,14 @@ export const BOARDS = {
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
+  // Agent Phase 1: a Watchlist widget showing the saved list Momentum, beside a chart, published through the REAL registry and
+  // read through the REAL host source (host.js buildListViewSource) and Flagged store. The widget itself is a stand-in with
+  // Watchlists.jsx's published shape: qa/chartsOutcome/listControl.outcome.test.jsx covers the real widget.
+  LISTVIEW: () => [[chart('c1', 0, 0, 16, 20), { id: 'wl', type: 'watchlist', x: 16, y: 0, w: 8, h: 20, color: 'N', opts: { watchKey: 'user:w1', watchName: 'Momentum' } }], { 'N:c1': 'NVDA' },
+    { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA', 'AMD'] }], listView: true }],
+  // Agent Phase 1: a chart with one indicator and the member's saved INDICATOR templates (seed.indicatorTemplates: names, each
+  // holding one MACD, built by the REAL capture; the surface's build flag is on for such a case only)
+  TEMPLATES: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { prefs: true }],
   ONE_DEFAULT_IA: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
@@ -167,11 +182,13 @@ export const nlm1Of = (seed = {}) => (seed.nlm1 != null ? !!seed.nlm1 : (globalT
 // v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
+let unpublishListView = null
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   // NLM-1 on (nlm1Of): BOTH switches on for this case (server config routing_v2 + the browser key); off: the browser kill
   // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
   const p = setupPanel()
   const nlm1 = nlm1Of(seed)
+  vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', seed.indicatorTemplates ? '1' : '0')     // the build flag, for this case only
   try { if (nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.setItem('uct.agent.routingV2', '0') } catch { /* */ }
   // NLM-1's third key (in-plan rules, nlm1/inplan.js): ON only for a case seeded nlm1Inplan, cleared otherwise
   try { if (seed.nlm1Inplan) localStorage.setItem('uct.agent.nlm1.inplan', '1'); else localStorage.removeItem('uct.agent.nlm1.inplan') } catch { /* */ }
@@ -225,7 +242,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u.startsWith('/api/watchlist-alerts')) {
       // the real routes' behaviour (agentAlerts.test.jsx): owner-scoped rows, a POST returns the row, a DELETE removes it
       if (method === 'POST') {
-        const row = { id: `new${st.alerts.length + 1}`, user_id: 'me', sym: String(body.sym).toUpperCase(), target_price: body.target_price, direction: body.direction, is_active: 1, triggered_at: null, created_at: '2026-11-04T13:00:00Z', alert_type: body.alert_type || 'price', drawing_id: null }
+        const row = { id: `new${st.alerts.length + 1}`, user_id: 'me', sym: String(body.sym).toUpperCase(), target_price: body.target_price, direction: body.direction, is_active: 1, triggered_at: null, created_at: '2026-11-04T13:00:00Z', alert_type: body.alert_type || 'price', drawing_id: body.drawing_id || null, anchor_t1: body.anchor_t1 ?? null, anchor_p1: body.anchor_p1 ?? null, anchor_t2: body.anchor_t2 ?? null, anchor_p2: body.anchor_p2 ?? null }
         st.alerts = [row, ...st.alerts]
         return json(row)
       }
@@ -289,9 +306,38 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  unpublishListView?.(); unpublishListView = null
+  if (extra.listView) {
+    // synthetic column values, only to order the rows; a sort on any other column keeps the saved order
+    const VALUES = { rvol: { NVDA: 1, TSLA: 3, AMD: 2 } }
+    const view = st.listView = { cfg: {}, selected: 'NVDA' }
+    const rows = () => {
+      const base = ['NVDA', 'TSLA', 'AMD']
+      const s = view.cfg.sort
+      const v = s && VALUES[s.key]
+      return v ? [...base].sort((a, b) => (s.dir === 'asc' ? v[a] - v[b] : v[b] - v[a])) : base
+    }
+    const columns = () => (view.cfg.order || DEFAULT_COL_ORDER).filter(k => !view.cfg.hidden?.[k])
+    unpublishListView = publishListView({ type: 'watchlist', color: 'N', key: 'user:w1' }, () => ({ name: 'Momentum', rows, cfg: view.cfg, sort: view.cfg.sort || null, columns: columns(),
+      fixedColumns: false, persisted: true, selected: view.selected, active: true, saveCols: (cfg) => { view.cfg = cfg }, select: (sym) => { view.selected = sym } }))
+    st.listViewNow = () => ({ rows: rows(), columns: columns(), sort: view.cfg.sort || null, selected: view.selected })
+    mounted.h.listViews = buildListViewSource({ getWidgets: () => mounted.board.state.widgets })
+    writeFlagged(seed.flagged || [])
+    mounted.h.flagged = buildFlaggedSource({ request: async (u, init) => {
+      p.st.calls.push(['POST', u, JSON.parse(init.body)])
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+    } })
+    st.flaggedNow = readFlagged
+  }
   if (extra.prefs) {
     if (!('chart_templates' in st.prefs)) st.prefs.chart_templates = JSON.stringify([{ name: 'Clean', settings: { ...bareSettings(), background: '#000000' } }])
-    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true } }
+    if (seed.indicatorTemplates) {
+      const cs = mergeChartSettings(JSON.stringify({ ...bareSettings(), indicatorInstances: [{ instanceId: 'inst:macd:t', defId: 'macd', inputs: {} }] }))
+      st.prefs.indicator_templates = JSON.stringify(seed.indicatorTemplates.map(name => captureIndicatorTemplate(cs, nativeRegistry, { name }).template))
+    }
+    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true },
+      // setPrefMerged's contract: `undefined` from the merge abandons the write
+      merge: async (k, fn) => { const next = fn(JSON.parse(st.prefs[k] ?? '[]')); if (next === undefined) return undefined; st.prefs = { ...st.prefs, [k]: JSON.stringify(next) }; return { ok: true } } }
   }
   if (extra.authoring) {
     try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
@@ -329,14 +375,25 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   }
   if (extra.timeNav) {
     // ChartsWorkspace's Time Navigator + Replay Mode, as host.buildChartSource exposes them: a per-chart VIEW read-out,
-    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff
+    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff;
+    // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
-    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true })
+    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
+      activeRange: null, atDefaultView: false, indicatorsHidden: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
     st.replay = null
     const charts = mounted.h.charts
     const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
+      // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
+      viewDo: (ref, op, arg) => {
+        const v = viewOf(ref)
+        if (op === 'applyRange') Object.assign(v, { activeRange: arg, atDefaultView: false, frame: { fromRight: 252, toRight: -8, activeRange: arg, locked: true, lock: { hLocked: true } } })
+        if (op === 'restoreView') Object.assign(v, { activeRange: arg.activeRange, atDefaultView: false, frame: { ...arg } })
+        if (op === 'resetView') Object.assign(v, { activeRange: null, atDefaultView: true, frame: { fromRight: 150, toRight: -8, activeRange: null, locked: false, lock: null } })
+        if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
+        return true
+      },
       setReplay: (iso) => { st.replay = iso ?? null; return true } }
     st.views = views
   }

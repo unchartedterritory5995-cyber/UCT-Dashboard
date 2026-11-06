@@ -461,7 +461,8 @@
    "label": "Ext-hrs %",
    "type": "range",
    "unit": "%",
-   "category": "technical"
+   "category": "technical",
+   "description": "Before the open (4:00\u20139:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it."
   },
   {
    "key": "base_pivot_px",
@@ -475,7 +476,8 @@
    "label": "Ext-hrs price",
    "type": "range",
    "unit": "$",
-   "category": "technical"
+   "category": "technical",
+   "description": "Before the open (4:00\u20139:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it."
   },
   {
    "key": "adr_pct",
@@ -510,7 +512,192 @@
    "label": "EMA20 Distance",
    "type": "range",
    "unit": "%",
-   "category": "technical"
+   "category": "technical",
+   "description": "Percent the price is above (+) or below (-) its 20-day exponential moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
+  },
+  {
+   "key": "pct_vs_sma50",
+   "label": "SMA50 Distance",
+   "type": "range",
+   "unit": "%",
+   "category": "technical",
+   "description": "Percent the price is above (+) or below (-) its 50-day simple moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
+  },
+  {
+   "key": "pct_vs_sma200",
+   "label": "SMA200 Distance",
+   "type": "range",
+   "unit": "%",
+   "category": "technical",
+   "description": "Percent the price is above (+) or below (-) its 200-day simple moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
+  },
+  {
+   "key": "pct_vs_ema9",
+   "label": "EMA9 Distance",
+   "type": "range",
+   "unit": "%",
+   "category": "technical",
+   "description": "Percent the close is above (+) or below (-) its 9-day exponential moving average. Measured at the last completed session."
+  },
+  {
+   "key": "pct_vs_ema10",
+   "label": "EMA10 Distance",
+   "type": "range",
+   "unit": "%",
+   "category": "technical",
+   "description": "Percent the close is above (+) or below (-) its 10-day exponential moving average. Measured at the last completed session."
+  },
+  {
+   "key": "run_close_ema20",
+   "label": "Sessions vs EMA20",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The close against its 20-day EMA. Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. Counted over the 400 stored sessions at most. Blank until both sides exist. Measured at the last completed session."
+  },
+  {
+   "key": "run_close_sma50",
+   "label": "Sessions vs SMA50",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The close against its 50-day SMA. Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. Counted over the 400 stored sessions at most. Blank until both sides exist. Measured at the last completed session."
+  },
+  {
+   "key": "run_close_sma200",
+   "label": "Sessions vs SMA200",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The close against its 200-day SMA. Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. Counted over the 400 stored sessions at most. Blank until both sides exist. Measured at the last completed session."
+  },
+  {
+   "key": "run_ema9_ema20",
+   "label": "EMA9 vs EMA20 Run",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The 9-day EMA against the 20-day EMA. Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. Counted over the 400 stored sessions at most. Blank until both sides exist. Measured at the last completed session."
+  },
+  {
+   "key": "run_sma20_sma50",
+   "label": "SMA20 vs SMA50 Run",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The 20-day SMA against the 50-day SMA. Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. Counted over the 400 stored sessions at most. Blank until both sides exist. Measured at the last completed session."
+  },
+  {
+   "key": "run_sma50_sma200",
+   "label": "SMA50 vs SMA200 Run",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The 50-day SMA against the 200-day SMA: +1 is a golden cross, -1 a death cross. Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. Counted over the 400 stored sessions at most. Blank until both sides exist. Measured at the last completed session."
+  },
+  {
+   "key": "sma20_rising",
+   "label": "SMA20 Rising",
+   "type": "bool",
+   "unit": null,
+   "category": "technical",
+   "description": "Yes when the average stands above its own value 20 sessions earlier. Blank until both values exist. Measured at the last completed session."
+  },
+  {
+   "key": "sma50_rising",
+   "label": "SMA50 Rising",
+   "type": "bool",
+   "unit": null,
+   "category": "technical",
+   "description": "Yes when the average stands above its own value 20 sessions earlier. Blank until both values exist. Measured at the last completed session."
+  },
+  {
+   "key": "sma200_rising",
+   "label": "SMA200 Rising",
+   "type": "bool",
+   "unit": null,
+   "category": "technical",
+   "description": "Yes when the average stands above its own value 20 sessions earlier. Blank until both values exist. Measured at the last completed session."
+  },
+  {
+   "key": "avg_volume_10d",
+   "label": "Avg Volume (10d)",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Mean daily volume of the last 10 sessions, the last one included. Blank if any of them has no volume. Measured at the last completed session."
+  },
+  {
+   "key": "avg_volume_50d",
+   "label": "Avg Volume (50d)",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Mean daily volume of the last 50 sessions, the last one included. Blank if any of them has no volume. Measured at the last completed session."
+  },
+  {
+   "key": "vol_trend_pct",
+   "label": "Volume Trend (5d vs 20d)",
+   "type": "range",
+   "unit": "%",
+   "category": "technical",
+   "description": "Percent the 5-session average volume stands above (+) or below (-) the 20-session average, both ending at the last session. Blank if any of those sessions has no volume or the 20-session average is zero. Measured at the last completed session."
+  },
+  {
+   "key": "vol_up_run",
+   "label": "Rising-Volume Run",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Consecutive sessions, ending at the last one, each on more volume than the session before. 0 when the last session did not rise. A session with no volume ends the run. Measured at the last completed session."
+  },
+  {
+   "key": "vol_down_run",
+   "label": "Falling-Volume Run",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Consecutive sessions, ending at the last one, each on less volume than the session before. 0 when the last session did not fall. A session with no volume ends the run. Measured at the last completed session."
+  },
+  {
+   "key": "new_high_lookback",
+   "label": "Close Above Prior Highs",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "How many consecutive prior sessions have a high below the last close, up to 252. At least N is a close above the N-session high, the last session excluded, so 20 is a 20-day breakout. A close that only equals a prior high does not count. A short history can only count the sessions it holds. Measured at the last completed session."
+  },
+  {
+   "key": "new_low_lookback",
+   "label": "Close Below Prior Lows",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "How many consecutive prior sessions have a low above the last close, up to 252. At least N is a close below the N-session low, the last session excluded. Measured at the last completed session."
+  },
+  {
+   "key": "breakout_20d_age",
+   "label": "20-Day Breakout Age",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Sessions since the latest close above the highest high of the 20 sessions before it. 0 is the last session. Blank when none happened in the last 63 sessions or with fewer than 21 sessions of history. Measured at the last completed session."
+  },
+  {
+   "key": "high_52w_age",
+   "label": "52W High Age",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Sessions since the highest high of the last 252 sessions was set. 0 is the last session. Blank without a full year, except a stock listed inside the year. Measured at the last completed session."
+  },
+  {
+   "key": "low_52w_age",
+   "label": "52W Low Age",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "Sessions since the lowest low of the last 252 sessions was set. 0 is the last session. Blank without a full year, except a stock listed inside the year. Measured at the last completed session."
   },
   {
    "key": "candle_type",
@@ -1203,7 +1390,8 @@
    "label": "Pattern Engine",
    "type": "enum",
    "unit": null,
-   "category": "pattern"
+   "category": "pattern",
+   "description": "Patterns flagged by the pattern-engine detector library (daily bars, last 7 days). This is a separate detector from Base Structure, the base read named on each row's setup line, so the two can disagree about the same stock: a stock the pattern engine flags as a VCP or flat base may show a different structure, or none, on its setup line."
   },
   {
    "key": "pattern_engine_conf",

@@ -34,7 +34,8 @@ import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import { mark } from '../trace'
 import { afterRender } from '../frames'
 import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
-import { isPronounToken } from '../nl/tickers'
+import { isPronounToken, isReservedWord } from '../nl/tickers'
+import { boardRefusalSentence } from '../../pages/charts/boardBound'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -84,11 +85,11 @@ export function newChartTicker(raw) {
 export function newChartRequest(raw) {
   const m = NEW_CHART_TICKER.exec(String(raw || '').trim())
   const w = m ? null : IN_NEW_CHART.exec(String(raw || '').trim())
-  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) ? { symbol: w[1], timeframe: null } : null
+  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) && !isReservedWord(String(raw).includes(`$${w[1]}`) ? `$${w[1]}` : w[1]) ? { symbol: w[1], timeframe: null } : null
   const t = m ? (m[2] || m[4]) : null
   // ⛔ a pronoun is never a ticker — "OPEN A CHART OF IT" typed in capitals is still "it"
   const typed = t && String(raw).includes(`$${t}`) ? `$${t}` : t       // "$IT" is explicitly a ticker
-  if (!(t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw))) return null
+  if (!(t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw) && !isReservedWord(typed))) return null
   const timeframe = TF_OF_WORD(m[1] || m[3])
   return timeframe === undefined ? null : { symbol: t, timeframe }
 }
@@ -127,8 +128,7 @@ function chartRoomProblem(st, snap, n) {
   if (!snap) return 'The workspace is not available.'
   const total = st.creates.length + n
   if (snap.count + total > snap.max) {
-    const free = Math.max(0, snap.max - snap.count - st.creates.length)
-    return `That needs ${n} new chart${n === 1 ? '' : 's'}, but the workspace has room for ${free} more widget${free === 1 ? '' : 's'} (it holds ${snap.max}). Close some first, or ask for fewer.`
+    return boardRefusalSentence(snap.count + total)
   }
   if (!snap.fitsSequence([...st.creates.map(c => c.type), ...Array(n).fill('chart')])) {
     const room = snap.capacity('chart', n)
@@ -277,7 +277,7 @@ export function registerWorkspaceCapabilities() {
       if (!snap) return 'The workspace is not available.'
       const n = st.creates.length + 1
       if (snap.count + n > snap.max) {
-        return `That would take the workspace to ${snap.count + n} widgets — it holds ${snap.max}. Close some first.`
+        return boardRefusalSentence(snap.count + n)
       }
       const seq = [...st.creates.map(c => c.type), type]
       if (!snap.fitsSequence(seq)) {

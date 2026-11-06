@@ -1192,3 +1192,26 @@ would leave most of that chunk in the closure anyway. Splitting it would mean re
   one dynamic import each).
 - Both new test files are their own files, so each module-load counter starts at 0 whatever else ran
   (the order-independence the 7.3 review required).
+
+## Tier 1a (audit 2026-11-05): four on-demand chunks, no budget change
+
+The Tier 1a branch read **2,263,916 B** in CI against the **2,260,793 B** budget, which is 3,123 B over. Master itself read 2,259,302 B, only 1,491 B under. The budget is unchanged. Following the wave 7 pattern, four member-action surfaces were taken off the Notebook's first open:
+
+| Moved | How | Rail |
+|---|---|---|
+| Version history (`NoteHistoryPanel`, plus `AiChangeSetHistory` and `lib/aiActions` with it) | `lazyChunk`, mounted on the first open from More, then stays mounted | `NoteEditorPage.historyLazy.test.jsx` |
+| The thesis review section (`ThesisReviewSection`) | `lazyChunk` inside `ThesisSection`, fetched only for a thesis | `ThesisSection.reviewLazy.test.jsx` |
+| The table view mode (`NotesTableView`) | `lazyView` like every other view mode | the `LAZY` list in `NotebookTab.lazyViews.test.js` |
+| The PNG and print doors (`lib/exportNote`) | imported on the press through `importWithOneRetry` | `NoteExportControls.lazy.test.jsx` |
+
+Each rail was mutation-checked: an eager import put back turns it red.
+
+**Local measurement:** a `vite build` with `three` stubbed, because it is not installed on the dev box and is not in this closure. It read 2,262,983 B before the change and **2,229,078 B** after: −33,905 B, about 31.7 KB under the budget. The CI figure is in the PR's "bytes" check.
+
+## The Today home is counted as first open (Tier 3b fix round 1, I1, 2026-11-05)
+
+The Today home (`components/notebook/TodayHome.jsx`) is the Notebook's default landing, so its lazy chunk loads on the
+first open for nearly every member. It is therefore a ROOT of `notebook_first_open` in `perf-budgets.json`: its chunk
+and its static imports are counted, though it stays a dynamic import (asked for in the Notebook's first render, beside
+the preferences read). The budget itself is unchanged. To make room, Research Home (now the opt-in landing,
+`?view=home`) became a `lazyView` and left the first-open closure. The figure is in the Tier 3b report.

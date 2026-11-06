@@ -1,0 +1,212 @@
+[
+ [
+  "control:noop-comment",
+  ".github/workflows/master-deploy-gate.yml",
+  "  # \u2500\u2500 PINE RUNTIME SERVICE (W5-T19, 2026-11-04)",
+  "  # (control) \u2500\u2500 PINE RUNTIME SERVICE (W5-T19, 2026-11-04)"
+ ],
+ [
+  "step2:drop-hp4-control",
+  ".github/workflows/master-deploy-gate.yml",
+  "          node tools/pine_runtime_host_parity.mjs --host node --mutation-control\n",
+  ""
+ ],
+ [
+  "step2:drop-check",
+  ".github/workflows/master-deploy-gate.yml",
+  "          node tools/pine_runtime_host_parity.mjs --host node --check\n",
+  ""
+ ],
+ [
+  "step2:add-chromium-half",
+  ".github/workflows/master-deploy-gate.yml",
+  "          node tools/pine_runtime_host_parity.mjs --host node --mutation-control\n",
+  "          node tools/pine_runtime_host_parity.mjs --host node --mutation-control\n          python tools/pine_runtime_host_parity.py --dist app/dist\n"
+ ],
+ [
+  "step1:drop-import",
+  ".github/workflows/master-deploy-gate.yml",
+  "          node -e \"import('./dist-server/pine-runtime.mjs').then(() => console.log('bundle imports'))\"\n",
+  ""
+ ],
+ [
+  "step1:wrong-working-dir",
+  ".github/workflows/master-deploy-gate.yml",
+  "        working-directory: app\n        run: |\n          node scripts/build-pine-runtime.mjs",
+  "        run: |\n          node scripts/build-pine-runtime.mjs"
+ ],
+ [
+  "step1:continue-on-error",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - name: Pine runtime - the server bundle builds and imports under bare Node\n",
+  "      - name: Pine runtime - the server bundle builds and imports under bare Node\n        continue-on-error: true\n"
+ ],
+ [
+  "step5:conditional",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - name: Pine runtime - service unit rails\n",
+  "      - name: Pine runtime - service unit rails\n        if: always()\n"
+ ],
+ [
+  "step5:dir-not-glob",
+  ".github/workflows/master-deploy-gate.yml",
+  "node --test services/pine_runtime/test/*.test.mjs",
+  "node --test services/pine_runtime/"
+ ],
+ [
+  "step3:swallowed",
+  ".github/workflows/master-deploy-gate.yml",
+  "tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider\n",
+  "tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider || true\n"
+ ],
+ [
+  "step3:wrong-python",
+  ".github/workflows/master-deploy-gate.yml",
+  "run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_engine_identity.py",
+  "run: python -m pytest tests/test_pine_runtime_engine_identity.py"
+ ],
+ [
+  "step6:drop-codec-file",
+  ".github/workflows/master-deploy-gate.yml",
+  " tests/test_pine_runtime_codec.py",
+  ""
+ ],
+ [
+  "step6:drop-own-rail",
+  ".github/workflows/master-deploy-gate.yml",
+  "composition.py tests/test_pine_runtime_deploy_gate.py",
+  "composition.py"
+ ],
+ [
+  "step7:renamed",
+  ".github/workflows/master-deploy-gate.yml",
+  "- name: Pine runtime - the image agrees with Dockerfile.web",
+  "- name: Pine runtime - image"
+ ],
+ [
+  "step7:drop-dockerfile-test",
+  ".github/workflows/master-deploy-gate.yml",
+  "tests/test_pine_runtime_dockerfile.py -q",
+  "tests/test_pine_runtime_client.py -q"
+ ],
+ [
+  "node:setup-pin-22",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n          cache: npm\n          cache-dependency-path: app/package-lock.json\n\n      - name: Install the app's dependencies (for the Pine runtime bundle)",
+  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n          cache: npm\n          cache-dependency-path: app/package-lock.json\n\n      - name: Install the app's dependencies (for the Pine runtime bundle)"
+ ],
+ [
+  "node:compare-dropped",
+  ".github/workflows/master-deploy-gate.yml",
+  "test -n \"$want\" && test \"$want\" = \"$have\"",
+  "test -n \"$want\""
+ ],
+ [
+  "node:reads-wrong-file",
+  ".github/workflows/master-deploy-gate.yml",
+  "services/pine_runtime/Dockerfile | head -n 1",
+  "Dockerfile.web | head -n 1"
+ ],
+ [
+  "node:step-before-install",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - name: Install the app's dependencies (for the Pine runtime bundle)",
+  "      - name: Pine runtime - this runner's Node is the image's Node\n        run: true\n      - name: Install the app's dependencies (for the Pine runtime bundle)"
+ ],
+ [
+  "node:second-setup-node",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - name: Pine runtime - the image agrees with Dockerfile.web\n",
+  "      - uses: actions/setup-node@v4\n        with:\n          node-version: '18'\n\n      - name: Pine runtime - the image agrees with Dockerfile.web\n"
+ ],
+ [
+  "job:conditional",
+  ".github/workflows/master-deploy-gate.yml",
+  "    name: Pine runtime service rails (section 8)\n",
+  "    name: Pine runtime service rails (section 8)\n    if: always()\n"
+ ],
+ [
+  "job:not-in-verdict-needs",
+  ".github/workflows/master-deploy-gate.yml",
+  "needs: [gate, agent-browser, agent-browser-union, pine-runtime]",
+  "needs: [gate, agent-browser, agent-browser-union]"
+ ],
+ [
+  "verdict:result-not-tested",
+  ".github/workflows/master-deploy-gate.yml",
+  " && [ \"${{ needs.pine-runtime.result }}\" = success ]; then",
+  "; then"
+ ],
+ [
+  "step6:drop-composition",
+  ".github/workflows/master-deploy-gate.yml",
+  " tests/test_pine_runtime_composition.py",
+  ""
+ ],
+ [
+  "deps:not-production-set",
+  ".github/workflows/master-deploy-gate.yml",
+  "-m pip install --quiet -r requirements.txt\n          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx",
+  "-m pip install --quiet pytest httpx"
+ ],
+ [
+  "other-job-node-pin-moved",
+  ".github/workflows/master-deploy-gate.yml",
+  "    needs: agent-browser\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'",
+  "    needs: agent-browser\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'"
+ ],
+ [
+  "order:step7-before-step6",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - name: Pine runtime - client, codec and composition rails",
+  "      - name: Pine runtime - the image agrees with Dockerfile.web\n        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q\n      - name: Pine runtime - client, codec and composition rails"
+ ],
+ [
+  "step4:dropped",
+  ".github/workflows/master-deploy-gate.yml",
+  "        run: node tools/pine_runtime_closure.mjs --check\n",
+  "        run: node --version\n"
+ ],
+ [
+  "step4:no-check-flag",
+  ".github/workflows/master-deploy-gate.yml",
+  "run: node tools/pine_runtime_closure.mjs --check",
+  "run: node tools/pine_runtime_closure.mjs"
+ ],
+ [
+  "step4:renamed",
+  ".github/workflows/master-deploy-gate.yml",
+  "- name: Pine runtime - the closure stays host-neutral",
+  "- name: Pine runtime - closure"
+ ],
+ [
+  "step4:moved-after-step5",
+  ".github/workflows/master-deploy-gate.yml",
+  "      - name: Pine runtime - service unit rails",
+  "      - name: Pine runtime - the closure stays host-neutral\n        run: node tools/pine_runtime_closure.mjs --check\n      - name: Pine runtime - service unit rails"
+ ],
+ [
+  "runbook:drop-a-watch-path",
+  "docs/runbooks/pine-runtime-service.md",
+  "`app/package*.json`, ",
+  ""
+ ],
+ [
+  "runbook:drop-never-built",
+  "docs/runbooks/pine-runtime-service.md",
+  "The image has never been built.",
+  "The image is fine."
+ ],
+ [
+  "runbook:drop-columnDigest",
+  "docs/runbooks/pine-runtime-service.md",
+  "`runtime/columnDigest.js`",
+  "`runtime/x.js`"
+ ],
+ [
+  "deploywindows:drop-pointer",
+  "docs/runbooks/deploy-windows.md",
+  "Runbook and gate: `docs/runbooks/pine-runtime-service.md`.",
+  "Runbook and gate: elsewhere."
+ ]
+]

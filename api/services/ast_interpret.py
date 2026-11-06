@@ -539,7 +539,7 @@ REFUSALS: Mapping[str, str] = {
 #: the JS constant; this file carries the number and not a second copy of the
 #: argument.
 #:
-#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``scan_evaluator._MAX_BARS`` caps a
+#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``bars_window.HISTORY_WINDOW_BARS`` caps a
 #: sweep at 5,000 bars, so the most this walker can ever be asked for is
 #: ``5000 x 960`` (the grammar's own ``maxLookback``) = 4,800,000 steps -- below
 #: this ceiling either way. The note above says the low number existed to bound
@@ -783,6 +783,12 @@ def _rolling(series: Sequence[float], n: int,
             filled.append(carry)
         src = filled
     inner = NA_PROPAGATE if policy == NA_FFILL else policy
+    # ⭐ A SERIES WITH NO `na` HAS NOTHING TO SKIP, so NA_SKIP's window IS the plain slice: the same operands in the same
+    # order, gathered once instead of bar by bar. Same reduce, same arithmetic, the same bits. It is the common case: a
+    # nightly build re-sums three windows over 400 bars for every symbol, and the gathering cost more than the sums.
+    # (`len` first: a series shorter than the window has no bar to reach, so nothing may read it, a None included.)
+    if inner == NA_SKIP and len(series) >= n and all(map(math.isfinite, src)):
+        inner = NA_PROPAGATE
     for i in range(n - 1, len(series)):
         # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is

@@ -361,27 +361,30 @@ def run_shadow_cycle() -> dict[str, Any]:
             # The live cycle's own sizing — a shadow run measured against a
             # NARROWER window than production reads would be comparing two
             # different evaluators and calling the difference a lane difference.
-            bars = ev._fetch_bars_for_alert(
-                sym, tf, max(ev.bars_needed_for_alert(a) for a in alerts_in_group))
+            bars, host_bars, runtime_ids = ev.group_bars(sym, tf, alerts_in_group)
         except Exception:
             _logger.exception("[alert-shadow] fetch failed for %s/%s", sym, tf)
             summary["errors"] += 1
             continue
         pending: list[tuple] = []
-        for alert in alerts_in_group:
-            try:
-                value, triggered, bar_index = ev._evaluate_one_closed(
-                    alert, bars=bars)
-                if value is None:
-                    continue
-                summary["evaluated"] += 1
-                if triggered:
-                    summary["would_trigger"] += 1
-                pending.append(_row_tuple(alert["id"], bar_index, value, triggered))
-            except Exception:
-                _logger.exception(
-                    "[alert-shadow] eval failed for alert %s", alert.get("id"))
-                summary["errors"] += 1
+        # ⭐ W5-T13 -- the live cycle's own grouping: one runtime request per group.
+        from api.services import alert_user_series as _aus
+        with _aus.runtime_cycle_batch([a for a in alerts_in_group if id(a) in runtime_ids],
+                                      bars, sym, tf):
+            for alert in alerts_in_group:
+                try:
+                    value, triggered, bar_index = ev._evaluate_one_closed(
+                        alert, bars=bars if id(alert) in runtime_ids else host_bars)
+                    if value is None:
+                        continue
+                    summary["evaluated"] += 1
+                    if triggered:
+                        summary["would_trigger"] += 1
+                    pending.append(_row_tuple(alert["id"], bar_index, value, triggered))
+                except Exception:
+                    _logger.exception(
+                        "[alert-shadow] eval failed for alert %s", alert.get("id"))
+                    summary["errors"] += 1
         if pending:
             try:
                 summary["written"] += shadow_record_many(pending)

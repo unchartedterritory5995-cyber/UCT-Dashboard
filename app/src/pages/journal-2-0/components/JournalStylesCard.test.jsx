@@ -12,7 +12,7 @@ describe('Settings > Journal styles card', () => {
   it('links to the Styles manager while the switch is on', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     show()
-    expect(screen.getByRole('link', { name: 'Open journal styles' })).toHaveAttribute('href', '/journal/notebook?styles=1')
+    expect(screen.getByRole('link', { name: 'Manage templates' })).toHaveAttribute('href', '/journal/notebook?styles=1')
   })
 
   it('renders nothing while the switch is off', () => {

@@ -1,0 +1,3014 @@
+{
+ "version": 1,
+ "owner": "agent-sc",
+ "about": "EXPRESSIBILITY corpus for scanner composition. It measures whether a VALID SPEC EXISTS for a request, run through the real validator. It does NOT measure whether any model produces that spec, and it says nothing about planner accuracy. No model runs here. A gold spec is one hand-written reading of a request; another trader could read the same words differently.",
+ "split_rule": "sha256(text) mod 3 == 0 is held_out, else design. Mechanical, so nobody chose which requests went where. The same author wrote both sets, so held_out is not blind: read it as a generalisation check on primitives chosen from design, not as independent evaluation.",
+ "reasons": {
+  "engine_primitive_missing": "no catalog field or combination says it",
+  "agent_schema_narrower": "the engine can say it; the Agent's screener.run schema cannot, or SC-1 refuses it by owner decision",
+  "f16_hidden": "F-16: refused by the real validator, never substituted"
+ },
+ "items": [
+  {
+   "id": "x001",
+   "split": "held_out",
+   "text": "stocks over $50 with RSI under 30",
+   "spec": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 50
+     },
+     {
+      "key": "rsi14",
+      "op": "lt",
+      "max": 30
+     }
+    ]
+   }
+  },
+  {
+   "id": "x002",
+   "split": "held_out",
+   "text": "oversold large caps",
+   "spec": {
+    "filters": [
+     {
+      "key": "rsi14",
+      "op": "lte",
+      "max": 30
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 10000000000.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x003",
+   "split": "design",
+   "text": "overbought mega caps",
+   "spec": {
+    "filters": [
+     {
+      "key": "rsi14",
+      "op": "gte",
+      "min": 70
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 200000000000.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x004",
+   "split": "held_out",
+   "text": "semis within 5% of their 52 week high",
+   "spec": {
+    "filters": [
+     {
+      "key": "industry",
+      "op": "in",
+      "values": [
+       "Semiconductors"
+      ]
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x005",
+   "split": "held_out",
+   "text": "tech stocks near highs up more than 2% today",
+   "spec": {
+    "filters": [
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Technology"
+      ]
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -5
+     },
+     {
+      "key": "chg_pct_1d",
+      "op": "gt",
+      "min": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x006",
+   "split": "design",
+   "text": "energy names under $20 trading over a million shares a day",
+   "spec": {
+    "filters": [
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Energy"
+      ]
+     },
+     {
+      "key": "price",
+      "op": "lt",
+      "max": 20
+     },
+     {
+      "key": "avg_volume_30d",
+      "op": "gte",
+      "min": 1000000.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x007",
+   "split": "design",
+   "text": "small caps gapping up more than 4%",
+   "spec": {
+    "filters": [
+     {
+      "key": "market_cap",
+      "op": "between",
+      "min": 300000000.0,
+      "max": 2000000000.0
+     },
+     {
+      "key": "gap_pct",
+      "op": "gt",
+      "min": 4
+     }
+    ]
+   }
+  },
+  {
+   "id": "x008",
+   "split": "design",
+   "text": "anything gapping down at least 5% with volume twice normal",
+   "spec": {
+    "filters": [
+     {
+      "key": "gap_pct",
+      "op": "lte",
+      "max": -5
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x009",
+   "split": "design",
+   "text": "new 52 week highs in financials",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_52w_high",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Financial Services"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x010",
+   "split": "design",
+   "text": "all time highs today with at least $50M dollar volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_ath",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dollar_vol_1d",
+      "op": "gte",
+      "min": 50000000.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x011",
+   "split": "held_out",
+   "text": "stocks that are up 50% in three months",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_3m",
+      "op": "gte",
+      "min": 50
+     }
+    ]
+   }
+  },
+  {
+   "id": "x012",
+   "split": "held_out",
+   "text": "names down more than 30% year to date",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_ytd",
+      "op": "lte",
+      "max": -30
+     }
+    ]
+   }
+  },
+  {
+   "id": "x013",
+   "split": "held_out",
+   "text": "high ADR momentum names above $10",
+   "spec": {
+    "filters": [
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 4
+     },
+     {
+      "key": "price",
+      "op": "gt",
+      "min": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x014",
+   "split": "design",
+   "text": "adr over 5 and within 10 percent of the high",
+   "spec": {
+    "filters": [
+     {
+      "key": "adr_pct",
+      "op": "gt",
+      "min": 5
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x015",
+   "split": "design",
+   "text": "stocks trading above their 50 day that are tight",
+   "spec": {
+    "filters": [
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "tight_consolidation",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x016",
+   "split": "design",
+   "text": "below the 50 day moving average and oversold",
+   "spec": {
+    "filters": [
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 0
+     },
+     {
+      "key": "rsi14",
+      "op": "lte",
+      "max": 30
+     }
+    ]
+   }
+  },
+  {
+   "id": "x017",
+   "split": "held_out",
+   "text": "full bullish moving average stack",
+   "spec": {
+    "filters": [
+     {
+      "key": "ma_stack",
+      "op": "eq",
+      "value": "full-bull"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x018",
+   "split": "held_out",
+   "text": "bearish MA stack in consumer cyclicals",
+   "spec": {
+    "filters": [
+     {
+      "key": "ma_stack",
+      "op": "eq",
+      "value": "bear"
+     },
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Consumer Cyclical"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x019",
+   "split": "held_out",
+   "text": "sitting on the 20 EMA",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema20",
+      "op": "between",
+      "min": -1,
+      "max": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x020",
+   "split": "design",
+   "text": "more than 10% extended above the 20 ema",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema20",
+      "op": "gt",
+      "min": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x021",
+   "split": "design",
+   "text": "within 2% of the 20 day simple moving average",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma20",
+      "op": "between",
+      "min": -2,
+      "max": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x022",
+   "split": "design",
+   "text": "NR7 stocks in an uptrend",
+   "spec": {
+    "filters": [
+     {
+      "key": "nr7",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "candle_trend",
+      "op": "eq",
+      "value": "up"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x023",
+   "split": "design",
+   "text": "inside day names above the 50",
+   "spec": {
+    "filters": [
+     {
+      "key": "inside_bar_run",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x024",
+   "split": "held_out",
+   "text": "three or more higher lows in a row",
+   "spec": {
+    "filters": [
+     {
+      "key": "higher_lows_run",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x025",
+   "split": "design",
+   "text": "five days up in a row",
+   "spec": {
+    "filters": [
+     {
+      "key": "consecutive_up",
+      "op": "gte",
+      "min": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x026",
+   "split": "held_out",
+   "text": "down four straight days but still above the 50",
+   "spec": {
+    "filters": [
+     {
+      "key": "consecutive_down",
+      "op": "gte",
+      "min": 4
+     },
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x027",
+   "split": "design",
+   "text": "shallow pullbacks under 5% in a stage 2",
+   "spec": {
+    "filters": [
+     {
+      "key": "pullback_depth_pct",
+      "op": "lte",
+      "max": 5
+     },
+     {
+      "key": "stage2",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x028",
+   "split": "held_out",
+   "text": "rising 20 ema with price within 3 percent of it",
+   "spec": {
+    "filters": [
+     {
+      "key": "ema20_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "pct_vs_ema20",
+      "op": "between",
+      "min": -3,
+      "max": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x029",
+   "split": "design",
+   "text": "10 ema rising and 20 ema rising",
+   "spec": {
+    "filters": [
+     {
+      "key": "ema10_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "ema20_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x030",
+   "split": "design",
+   "text": "volume dry up at a 4 week low",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_nweek_low",
+      "op": "eq",
+      "value": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "x031",
+   "split": "design",
+   "text": "accumulating on up/down volume above 1.5",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_updown_ratio",
+      "op": "gt",
+      "min": 1.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x032",
+   "split": "held_out",
+   "text": "relative volume at least 3x so far today",
+   "spec": {
+    "filters": [
+     {
+      "key": "rvol_live",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x033",
+   "split": "design",
+   "text": "closed in the top third of the day's range on 2x volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "close_position",
+      "op": "gte",
+      "min": 0.66
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x034",
+   "split": "design",
+   "text": "wide range bars closing strong",
+   "spec": {
+    "filters": [
+     {
+      "key": "wide_bar",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "close_position",
+      "op": "gte",
+      "min": 0.66
+     }
+    ]
+   }
+  },
+  {
+   "id": "x035",
+   "split": "held_out",
+   "text": "gap up and go candidates",
+   "spec": {
+    "filters": [
+     {
+      "key": "bar_character",
+      "op": "in",
+      "values": [
+       "gap-up-and-go"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x036",
+   "split": "design",
+   "text": "failed breakouts yesterday",
+   "spec": {
+    "filters": [
+     {
+      "key": "bar_character",
+      "op": "in",
+      "values": [
+       "failed-breakout"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x037",
+   "split": "held_out",
+   "text": "recent three white soldiers",
+   "spec": {
+    "filters": [
+     {
+      "key": "candle_recent",
+      "op": "in",
+      "values": [
+       "three-white-soldiers"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x038",
+   "split": "design",
+   "text": "rs line trending up",
+   "spec": {
+    "filters": [
+     {
+      "key": "rs_line_trend",
+      "op": "in",
+      "values": [
+       "up"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x039",
+   "split": "design",
+   "text": "rising RS line in semiconductors near highs",
+   "spec": {
+    "filters": [
+     {
+      "key": "rs_line_trend",
+      "op": "in",
+      "values": [
+       "up"
+      ]
+     },
+     {
+      "key": "industry",
+      "op": "in",
+      "values": [
+       "Semiconductors"
+      ]
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x040",
+   "split": "design",
+   "text": "earnings in the next 5 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "days_to_earnings",
+      "op": "between",
+      "min": 0,
+      "max": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x041",
+   "split": "held_out",
+   "text": "reporting after the close within a week, liquid names only",
+   "spec": {
+    "filters": [
+     {
+      "key": "days_to_earnings",
+      "op": "between",
+      "min": 0,
+      "max": 7
+     },
+     {
+      "key": "earnings_session",
+      "op": "eq",
+      "value": "amc"
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x042",
+   "split": "design",
+   "text": "implied move over 10% ahead of earnings",
+   "spec": {
+    "filters": [
+     {
+      "key": "implied_move_pct",
+      "op": "gt",
+      "min": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x043",
+   "split": "design",
+   "text": "stocks that moved more than 10% on their last report",
+   "spec": {
+    "filters": [
+     {
+      "key": "last_report_move_pct",
+      "op": "gte",
+      "min": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x044",
+   "split": "design",
+   "text": "short float above 20%",
+   "spec": {
+    "filters": [
+     {
+      "key": "short_float_pct",
+      "op": "gt",
+      "min": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "x045",
+   "split": "held_out",
+   "text": "low float under 20 million shares",
+   "spec": {
+    "filters": [
+     {
+      "key": "float_shares",
+      "op": "lt",
+      "max": 20000000.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x046",
+   "split": "design",
+   "text": "heavy insider buying clusters",
+   "spec": {
+    "filters": [
+     {
+      "key": "insider_cluster_days",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x047",
+   "split": "design",
+   "text": "forward PE under 15 and revenue growth over 20",
+   "spec": {
+    "filters": [
+     {
+      "key": "pe_fwd",
+      "op": "between",
+      "min": 0,
+      "max": 15
+     },
+     {
+      "key": "rev_growth",
+      "op": "gt",
+      "min": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "x048",
+   "split": "held_out",
+   "text": "profitable companies with EPS growth above 25%",
+   "spec": {
+    "filters": [
+     {
+      "key": "net_margin",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "eps_growth",
+      "op": "gt",
+      "min": 25
+     }
+    ]
+   }
+  },
+  {
+   "id": "x049",
+   "split": "design",
+   "text": "high gross margin software",
+   "spec": {
+    "filters": [
+     {
+      "key": "gross_margin",
+      "op": "gt",
+      "min": 70
+     },
+     {
+      "key": "industry",
+      "op": "in",
+      "values": [
+       "Software - Application",
+       "Software - Infrastructure"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x050",
+   "split": "design",
+   "text": "dividend payers yielding at least 4%",
+   "spec": {
+    "filters": [
+     {
+      "key": "dividend_yield",
+      "op": "gte",
+      "min": 4
+     }
+    ]
+   }
+  },
+  {
+   "id": "x051",
+   "split": "design",
+   "text": "debt free with positive free cash flow yield",
+   "spec": {
+    "filters": [
+     {
+      "key": "debt_to_equity",
+      "op": "eq",
+      "value": 0
+     },
+     {
+      "key": "fcf_yield",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x052",
+   "split": "held_out",
+   "text": "S&P 500 members near 52 week lows",
+   "spec": {
+    "filters": [
+     {
+      "key": "index_sp500",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_low_pct",
+      "op": "lte",
+      "max": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x053",
+   "split": "held_out",
+   "text": "Nasdaq 100 stocks with RSI over 60",
+   "spec": {
+    "filters": [
+     {
+      "key": "index_ndx",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rsi14",
+      "op": "gt",
+      "min": 60
+     }
+    ]
+   }
+  },
+  {
+   "id": "x054",
+   "split": "design",
+   "text": "recent IPOs less than a year old",
+   "spec": {
+    "filters": [
+     {
+      "key": "ipo_age_days",
+      "op": "lt",
+      "max": 365
+     }
+    ]
+   }
+  },
+  {
+   "id": "x055",
+   "split": "held_out",
+   "text": "no ETFs, biggest movers today",
+   "spec": {
+    "filters": [
+     {
+      "key": "is_etf",
+      "op": "eq",
+      "value": 0
+     }
+    ],
+    "sort": {
+     "key": "chg_pct_1d",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "x056",
+   "split": "design",
+   "text": "top gainers this week with price above 5",
+   "spec": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gt",
+      "min": 5
+     }
+    ],
+    "sort": {
+     "key": "chg_pct_1w",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "x057",
+   "split": "design",
+   "text": "sort large caps by 6 month performance",
+   "spec": {
+    "filters": [
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 10000000000.0
+     }
+    ],
+    "sort": {
+     "key": "chg_pct_6m",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "x058",
+   "split": "design",
+   "text": "biggest short interest names ordered highest first",
+   "spec": {
+    "filters": [
+     {
+      "key": "short_float_pct",
+      "op": "gt",
+      "min": 0
+     }
+    ],
+    "sort": {
+     "key": "short_float_pct",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "x059",
+   "split": "design",
+   "text": "analyst upgrades in the last 30 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "upgrades_30d",
+      "op": "gte",
+      "min": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x060",
+   "split": "design",
+   "text": "price target at least 30% above the current price",
+   "spec": {
+    "filters": [
+     {
+      "key": "pt_upside_pct",
+      "op": "gte",
+      "min": 30
+     }
+    ]
+   }
+  },
+  {
+   "id": "x061",
+   "split": "design",
+   "text": "beta under 1 and paying a dividend",
+   "spec": {
+    "filters": [
+     {
+      "key": "beta",
+      "op": "lt",
+      "max": 1
+     },
+     {
+      "key": "dividend_yield",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x062",
+   "split": "design",
+   "text": "up today but down this week",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_1d",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "chg_pct_1w",
+      "op": "lt",
+      "max": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x063",
+   "split": "design",
+   "text": "ATR over 5 percent",
+   "spec": {
+    "filters": [
+     {
+      "key": "atr_pct",
+      "op": "gt",
+      "min": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x064",
+   "split": "design",
+   "text": "more than 3 ATRs above the 50 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "atr_ext_sma50",
+      "op": "gt",
+      "min": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x065",
+   "split": "design",
+   "text": "within 5% of the 20 day high",
+   "spec": {
+    "filters": [
+     {
+      "key": "dist_20d_high_pct",
+      "op": "gte",
+      "min": -5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x066",
+   "split": "design",
+   "text": "big prior run with a pole over 40 percent",
+   "spec": {
+    "filters": [
+     {
+      "key": "pole_pct",
+      "op": "gt",
+      "min": 40
+     }
+    ]
+   }
+  },
+  {
+   "id": "x067",
+   "split": "design",
+   "text": "quiet tight closes, close CV below 1.2",
+   "spec": {
+    "filters": [
+     {
+      "key": "close_cv_pct",
+      "op": "lt",
+      "max": 1.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x068",
+   "split": "held_out",
+   "text": "china based names",
+   "spec": {
+    "filters": [
+     {
+      "key": "country",
+      "op": "in",
+      "values": [
+       "CN"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x069",
+   "split": "design",
+   "text": "weekly hammer candles",
+   "spec": {
+    "filters": [
+     {
+      "key": "candle_weekly",
+      "op": "in",
+      "values": [
+       "hammer"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x070",
+   "split": "design",
+   "text": "doji on the monthly",
+   "spec": {
+    "filters": [
+     {
+      "key": "candle_monthly",
+      "op": "in",
+      "values": [
+       "doji"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x071",
+   "split": "held_out",
+   "text": "tech or healthcare stocks above $20 with RSI over 50, but healthcare only if under 60",
+   "spec": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gt",
+      "min": 20
+     },
+     {
+      "key": "rsi14",
+      "op": "gt",
+      "min": 50
+     }
+    ],
+    "logic": {
+     "any": [
+      {
+       "key": "sector",
+       "op": "in",
+       "values": [
+        "Technology"
+       ]
+      },
+      {
+       "all": [
+        {
+         "key": "sector",
+         "op": "in",
+         "values": [
+          "Healthcare"
+         ]
+        },
+        {
+         "key": "rsi14",
+         "op": "lt",
+         "max": 60
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x072",
+   "split": "design",
+   "text": "up 5% today or up 15% on the week",
+   "spec": {
+    "filters": [],
+    "logic": {
+     "any": [
+      {
+       "key": "chg_pct_1d",
+       "op": "gte",
+       "min": 5
+      },
+      {
+       "key": "chg_pct_1w",
+       "op": "gte",
+       "min": 15
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x073",
+   "split": "design",
+   "text": "either oversold or overbought",
+   "spec": {
+    "filters": [],
+    "logic": {
+     "any": [
+      {
+       "key": "rsi14",
+       "op": "lte",
+       "max": 30
+      },
+      {
+       "key": "rsi14",
+       "op": "gte",
+       "min": 70
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x074",
+   "split": "design",
+   "text": "gapped more than 5% either way",
+   "spec": {
+    "filters": [],
+    "logic": {
+     "any": [
+      {
+       "key": "gap_pct",
+       "op": "gte",
+       "min": 5
+      },
+      {
+       "key": "gap_pct",
+       "op": "lte",
+       "max": -5
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x075",
+   "split": "design",
+   "text": "near the 52 week high or a new all time high, excluding ETFs",
+   "spec": {
+    "filters": [
+     {
+      "key": "is_etf",
+      "op": "eq",
+      "value": 0
+     }
+    ],
+    "logic": {
+     "any": [
+      {
+       "key": "dist_52w_high_pct",
+       "op": "gte",
+       "min": -3
+      },
+      {
+       "key": "new_ath",
+       "op": "eq",
+       "value": 1
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x076",
+   "split": "design",
+   "text": "exclude stocks with earnings in the next 5 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 10000000.0
+     }
+    ],
+    "logic": {
+     "none": [
+      {
+       "key": "days_to_earnings",
+       "op": "between",
+       "min": 0,
+       "max": 5
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x077",
+   "split": "design",
+   "text": "big volume but not gapping",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 2
+     }
+    ],
+    "logic": {
+     "none": [
+      {
+       "key": "gap_pct",
+       "op": "gte",
+       "min": 2
+      },
+      {
+       "key": "gap_pct",
+       "op": "lte",
+       "max": -2
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x078",
+   "split": "design",
+   "text": "momentum names that are not extended more than 10 percent from the 20 ema",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_3m",
+      "op": "gte",
+      "min": 30
+     }
+    ],
+    "logic": {
+     "none": [
+      {
+       "key": "pct_vs_ema20",
+       "op": "gt",
+       "min": 10
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x079",
+   "split": "design",
+   "text": "price target above the current price",
+   "spec": {
+    "filters": [
+     {
+      "key": "pt_target",
+      "op": "gt_col",
+      "other": "price"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x080",
+   "split": "design",
+   "text": "gross margin higher than ROE",
+   "spec": {
+    "filters": [
+     {
+      "key": "gross_margin",
+      "op": "gt_col",
+      "other": "roe"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x081",
+   "split": "held_out",
+   "text": "ADR bigger than ATR",
+   "spec": {
+    "filters": [
+     {
+      "key": "adr_pct",
+      "op": "gt_col",
+      "other": "atr_pct"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x082",
+   "split": "design",
+   "text": "today's change bigger than the implied earnings move",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_1d",
+      "op": "gt_col",
+      "other": "implied_move_pct"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x083",
+   "split": "held_out",
+   "text": "forward PE below trailing PE",
+   "spec": {
+    "filters": [
+     {
+      "key": "pe_fwd",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "pe_fwd",
+      "op": "lt_col",
+      "other": "pe_ttm"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x084",
+   "split": "design",
+   "text": "the 20 ema is above the 20 sma",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema20",
+      "op": "lt_col",
+      "other": "pct_vs_sma20"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x085",
+   "split": "design",
+   "text": "rank by half 3 month return and half 1 month return",
+   "spec": {
+    "filters": [
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000.0
+     }
+    ],
+    "rank": {
+     "criteria": [
+      {
+       "key": "chg_pct_3m",
+       "weight": 50
+      },
+      {
+       "key": "chg_pct_1m",
+       "weight": 50
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x086",
+   "split": "design",
+   "text": "weighted score of revenue growth and EPS growth for large caps",
+   "spec": {
+    "filters": [
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 10000000000.0
+     }
+    ],
+    "rank": {
+     "criteria": [
+      {
+       "key": "rev_growth",
+       "weight": 60
+      },
+      {
+       "key": "eps_growth",
+       "weight": 40
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "x087",
+   "split": "held_out",
+   "text": "hammer candles today above the 50 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "candle_type",
+      "op": "contains",
+      "value": ",hammer,"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x088",
+   "split": "design",
+   "text": "bullish engulfing on 1.5x volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     },
+     {
+      "key": "candle_type",
+      "op": "contains",
+      "value": ",bullish-engulfing,"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x089",
+   "split": "held_out",
+   "text": "RS rank above 90",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "rs_rank"
+  },
+  {
+   "id": "x090",
+   "split": "held_out",
+   "text": "liquid leaders with RS over 80 near highs",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "rs_rank"
+  },
+  {
+   "id": "x091",
+   "split": "design",
+   "text": "top UCT composite stocks",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "uct_composite"
+  },
+  {
+   "id": "x092",
+   "split": "held_out",
+   "text": "A rated accumulation names",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "accdis"
+  },
+  {
+   "id": "x093",
+   "split": "design",
+   "text": "best setup score right now",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "candle_score"
+  },
+  {
+   "id": "x094",
+   "split": "design",
+   "text": "stocks in the UCT 20",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "in_uct20"
+  },
+  {
+   "id": "x095",
+   "split": "held_out",
+   "text": "VCP patterns from the pattern engine",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "pattern_engine_vcp"
+  },
+  {
+   "id": "x096",
+   "split": "design",
+   "text": "high confidence pattern engine setups",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "pattern_engine_conf"
+  },
+  {
+   "id": "x097",
+   "split": "design",
+   "text": "flat bases flagged by the pattern engine near pivot",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "pattern_engine_flat_base"
+  },
+  {
+   "id": "x098",
+   "split": "held_out",
+   "text": "base structure is a cup with handle",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "base_structure"
+  },
+  {
+   "id": "x099",
+   "split": "held_out",
+   "text": "within 3% of the base pivot",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "base_pivot_px"
+  },
+  {
+   "id": "x100",
+   "split": "design",
+   "text": "hot UCT themes only",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "theme"
+  },
+  {
+   "id": "x101",
+   "split": "design",
+   "text": "names with big bullish options flow",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "opt_net_premium_1d"
+  },
+  {
+   "id": "x102",
+   "split": "design",
+   "text": "heavy dark pool prints this week",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "dp_notional_5d"
+  },
+  {
+   "id": "x103",
+   "split": "design",
+   "text": "high volume close in the last year",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "hvc_52w"
+  },
+  {
+   "id": "x104",
+   "split": "held_out",
+   "text": "sector RS above 80",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "sector_rs_pct"
+  },
+  {
+   "id": "x105",
+   "split": "design",
+   "text": "EPS rating over 90 and SMR rating A",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "rating_eps"
+  },
+  {
+   "id": "x106",
+   "split": "design",
+   "text": "earnings setup grade of A",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "earnings_setup_grade"
+  },
+  {
+   "id": "x107",
+   "split": "design",
+   "text": "price above the 9 EMA",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x108",
+   "split": "design",
+   "text": "pulling back to the 9 ema in an uptrend",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "between",
+      "min": -1,
+      "max": 2
+     },
+     {
+      "key": "candle_trend",
+      "op": "in",
+      "values": [
+       "up"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x109",
+   "split": "design",
+   "text": "within 1% of the 9 EMA and above the 50 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "between",
+      "min": -1,
+      "max": 1
+     },
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x110",
+   "split": "design",
+   "text": "more than 8% above the 9 ema",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "gt",
+      "min": 8
+     }
+    ]
+   }
+  },
+  {
+   "id": "x111",
+   "split": "design",
+   "text": "closed below the 9 ema with volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema9",
+      "op": "lt",
+      "max": 0
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x112",
+   "split": "held_out",
+   "text": "riding the 10 ema, within 2 percent",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema10",
+      "op": "between",
+      "min": -2,
+      "max": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x113",
+   "split": "design",
+   "text": "undercut the 10 EMA today",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_ema10",
+      "op": "lt",
+      "max": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x114",
+   "split": "design",
+   "text": "more than 25% above the 50 day moving average",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "gt",
+      "min": 25
+     }
+    ]
+   }
+  },
+  {
+   "id": "x115",
+   "split": "design",
+   "text": "within 3% of the 50 SMA",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "between",
+      "min": -3,
+      "max": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x116",
+   "split": "design",
+   "text": "below the 50 day by at least 15 percent",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "lte",
+      "max": -15
+     }
+    ]
+   }
+  },
+  {
+   "id": "x117",
+   "split": "design",
+   "text": "holding the 50 day, less than 2% above it",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "between",
+      "min": 0,
+      "max": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x118",
+   "split": "held_out",
+   "text": "above the 200 day moving average",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x119",
+   "split": "held_out",
+   "text": "price above both the 50 and 200 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma50",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x120",
+   "split": "design",
+   "text": "within 2% of the 200 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "between",
+      "min": -2,
+      "max": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x121",
+   "split": "design",
+   "text": "more than 50 percent above the 200 SMA",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 50
+     }
+    ]
+   }
+  },
+  {
+   "id": "x122",
+   "split": "design",
+   "text": "below the 200 day in the S&P 500",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "lt",
+      "max": 0
+     },
+     {
+      "key": "index_sp500",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x123",
+   "split": "design",
+   "text": "reclaiming the 200 from below, within 1% above it",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "between",
+      "min": 0,
+      "max": 1
+     },
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x124",
+   "split": "design",
+   "text": "the 50 day is above the 200 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x125",
+   "split": "held_out",
+   "text": "20 sma above the 50 sma",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma20_sma50",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x126",
+   "split": "design",
+   "text": "50 day below the 200 day in a downtrend",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "lt",
+      "max": 0
+     },
+     {
+      "key": "candle_trend",
+      "op": "in",
+      "values": [
+       "down"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "x127",
+   "split": "held_out",
+   "text": "golden cross in the last 10 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x128",
+   "split": "design",
+   "text": "death cross this week",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": -5,
+      "max": -1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x129",
+   "split": "design",
+   "text": "50 day crossed above the 200 day within the last month",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 21
+     }
+    ]
+   }
+  },
+  {
+   "id": "x130",
+   "split": "held_out",
+   "text": "9 ema crossed above the 20 ema in the last 3 bars",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_ema9_ema20",
+      "op": "between",
+      "min": 1,
+      "max": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x131",
+   "split": "design",
+   "text": "9 EMA crossing under the 20 EMA today",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_ema9_ema20",
+      "op": "eq",
+      "value": -1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x132",
+   "split": "design",
+   "text": "20 sma crossed over the 50 sma in the last 5 sessions",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma20_sma50",
+      "op": "between",
+      "min": 1,
+      "max": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x133",
+   "split": "design",
+   "text": "crossed back above the 50 day today",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x134",
+   "split": "held_out",
+   "text": "crossed above the 200 day in the last 2 weeks",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x135",
+   "split": "design",
+   "text": "price fell through the 50 day yesterday or today",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "between",
+      "min": -2,
+      "max": -1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x136",
+   "split": "design",
+   "text": "reclaimed the 20 ema within the last 3 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_ema20",
+      "op": "between",
+      "min": 1,
+      "max": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x137",
+   "split": "design",
+   "text": "lost the 200 day in the last 5 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": -5,
+      "max": -1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x138",
+   "split": "design",
+   "text": "bullish 9/20 cross on heavy volume above the 200 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_ema9_ema20",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x139",
+   "split": "design",
+   "text": "volume has been rising for three days",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x140",
+   "split": "held_out",
+   "text": "volume increasing over the last 5 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 4
+     }
+    ]
+   }
+  },
+  {
+   "id": "x141",
+   "split": "held_out",
+   "text": "volume picking up compared to last month",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_trend_pct",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x142",
+   "split": "design",
+   "text": "volume contraction over the last two weeks",
+   "spec": {
+    "filters": [
+     {
+      "key": "avg_volume_10d",
+      "op": "lt_col",
+      "other": "avg_volume_50d"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x143",
+   "split": "design",
+   "text": "volume declining into the pullback",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_down_run",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "pullback_depth_pct",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "x144",
+   "split": "design",
+   "text": "5 day average volume at least 50% over the 20 day average",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_trend_pct",
+      "op": "gte",
+      "min": 50
+     }
+    ]
+   }
+  },
+  {
+   "id": "x145",
+   "split": "held_out",
+   "text": "10 day average volume below the 50 day average volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "avg_volume_10d",
+      "op": "lt_col",
+      "other": "avg_volume_50d"
+     }
+    ]
+   }
+  },
+  {
+   "id": "x146",
+   "split": "design",
+   "text": "volume drying up while price is within 5% of the high",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_nweek_low",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x147",
+   "split": "held_out",
+   "text": "three days of rising volume and rising price",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "consecutive_up",
+      "op": "gte",
+      "min": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "x148",
+   "split": "design",
+   "text": "average volume trending higher, stock above 50 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_trend_pct",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x149",
+   "split": "design",
+   "text": "breaking out of a 20 day range today",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "x150",
+   "split": "design",
+   "text": "20 day breakout on 1.5x volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 1.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x151",
+   "split": "design",
+   "text": "closing above the 50 day high",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 50
+     }
+    ]
+   }
+  },
+  {
+   "id": "x152",
+   "split": "design",
+   "text": "breaking out to a 3 month high",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 63
+     }
+    ]
+   }
+  },
+  {
+   "id": "x153",
+   "split": "design",
+   "text": "broke out in the last 3 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "breakout_20d_age",
+      "op": "lte",
+      "max": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "x154",
+   "split": "design",
+   "text": "stocks that broke above their 20 day high this week and held",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "breakout_held"
+   ],
+   "note": "breakout_20d_age says when, but nothing says the close is still above the level it broke"
+  },
+  {
+   "id": "x155",
+   "split": "design",
+   "text": "55 day channel breakout",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 55
+     }
+    ]
+   }
+  },
+  {
+   "id": "x156",
+   "split": "design",
+   "text": "breaking down below the 20 day low",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_low_lookback",
+      "op": "gte",
+      "min": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "x157",
+   "split": "design",
+   "text": "closed at a new 52 week high on volume, first time in a month",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_52w_high_age"
+   ],
+   "note": "needs the age of the PREVIOUS 52-week high; high_52w_age is 0 on the day itself"
+  },
+  {
+   "id": "x158",
+   "split": "design",
+   "text": "high tight breakouts, 20 day high with ADR over 5",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     },
+     {
+      "key": "adr_pct",
+      "op": "gt",
+      "min": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x159",
+   "split": "design",
+   "text": "RSI was below 30 in the last 5 days and is now above 40",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_rsi"
+   ]
+  },
+  {
+   "id": "x160",
+   "split": "design",
+   "text": "RSI crossed above 50 this week",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_rsi"
+   ]
+  },
+  {
+   "id": "x161",
+   "split": "design",
+   "text": "gapped up more than 5% at some point in the last 10 days",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_gap"
+   ]
+  },
+  {
+   "id": "x162",
+   "split": "design",
+   "text": "had a 10% up day in the last month",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_big_move"
+   ]
+  },
+  {
+   "id": "x163",
+   "split": "design",
+   "text": "closed above the 50 day for 10 straight days",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "gte",
+      "min": 10
+     }
+    ]
+   }
+  },
+  {
+   "id": "x164",
+   "split": "held_out",
+   "text": "has held above the 200 day for 6 months",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "gte",
+      "min": 126
+     }
+    ]
+   }
+  },
+  {
+   "id": "x165",
+   "split": "design",
+   "text": "under the 20 ema for 5 days in a row",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_ema20",
+      "op": "lte",
+      "max": -5
+     }
+    ]
+   }
+  },
+  {
+   "id": "x166",
+   "split": "design",
+   "text": "first close above the 20 ema after 10 days below",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "days_above_ma"
+   ],
+   "note": "needs the length of the run BEFORE the current one"
+  },
+  {
+   "id": "x167",
+   "split": "held_out",
+   "text": "touched the 50 day in the last week",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_touch_ma"
+   ]
+  },
+  {
+   "id": "x168",
+   "split": "design",
+   "text": "made a new 52 week high in the last 10 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "high_52w_age",
+      "op": "lte",
+      "max": 9
+     }
+    ]
+   }
+  },
+  {
+   "id": "x169",
+   "split": "design",
+   "text": "hit a 52 week low within the past month",
+   "spec": {
+    "filters": [
+     {
+      "key": "low_52w_age",
+      "op": "lte",
+      "max": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "x170",
+   "split": "held_out",
+   "text": "up on above average volume 3 of the last 5 days",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_count_days"
+   ]
+  },
+  {
+   "id": "x171",
+   "split": "design",
+   "text": "three distribution days in the last 10",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "lookback_count_days"
+   ]
+  },
+  {
+   "id": "x172",
+   "split": "design",
+   "text": "ATR contracting over the last 3 weeks",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "atr_contraction"
+   ]
+  },
+  {
+   "id": "x173",
+   "split": "design",
+   "text": "range narrowing for 5 days",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "atr_contraction"
+   ]
+  },
+  {
+   "id": "x174",
+   "split": "design",
+   "text": "10 day range tighter than 8%",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "range_tightness"
+   ]
+  },
+  {
+   "id": "x175",
+   "split": "held_out",
+   "text": "20 sma is sloping up",
+   "spec": {
+    "filters": [
+     {
+      "key": "sma20_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x176",
+   "split": "design",
+   "text": "200 day is rising",
+   "spec": {
+    "filters": [
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x177",
+   "split": "design",
+   "text": "50 day has been rising for a month",
+   "spec": {
+    "filters": [
+     {
+      "key": "sma50_rising",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "x178",
+   "split": "held_out",
+   "text": "weekly RSI above 60",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "weekly_indicator"
+   ]
+  },
+  {
+   "id": "x179",
+   "split": "design",
+   "text": "above the 10 week moving average",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "weekly_indicator"
+   ]
+  },
+  {
+   "id": "x180",
+   "split": "design",
+   "text": "weekly close above last week's high",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "weekly_indicator"
+   ]
+  },
+  {
+   "id": "x181",
+   "split": "design",
+   "text": "monthly close at an all time high",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "weekly_indicator"
+   ]
+  },
+  {
+   "id": "x182",
+   "split": "design",
+   "text": "5 minute opening range breakout",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "intraday_bars"
+   ]
+  },
+  {
+   "id": "x183",
+   "split": "design",
+   "text": "above VWAP right now",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "intraday_bars"
+   ]
+  },
+  {
+   "id": "x184",
+   "split": "held_out",
+   "text": "first hour high broken today",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "intraday_bars"
+   ]
+  },
+  {
+   "id": "x185",
+   "split": "held_out",
+   "text": "up 3% in the last hour",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "intraday_bars"
+   ]
+  },
+  {
+   "id": "x186",
+   "split": "design",
+   "text": "MACD crossed above signal",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "macd"
+   ]
+  },
+  {
+   "id": "x187",
+   "split": "held_out",
+   "text": "MACD histogram rising",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "macd"
+   ]
+  },
+  {
+   "id": "x188",
+   "split": "design",
+   "text": "Bollinger Band squeeze",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "bollinger"
+   ]
+  },
+  {
+   "id": "x189",
+   "split": "held_out",
+   "text": "closed outside the upper Bollinger Band",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "bollinger"
+   ]
+  },
+  {
+   "id": "x190",
+   "split": "held_out",
+   "text": "stochastic below 20",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "stochastic"
+   ]
+  },
+  {
+   "id": "x191",
+   "split": "design",
+   "text": "ADX over 25",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "adx"
+   ]
+  },
+  {
+   "id": "x192",
+   "split": "held_out",
+   "text": "outperforming SPY by 10% over 3 months",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "relative_return_spy"
+   ]
+  },
+  {
+   "id": "x193",
+   "split": "design",
+   "text": "stronger than its sector this month",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "relative_return_sector"
+   ]
+  },
+  {
+   "id": "x194",
+   "split": "held_out",
+   "text": "RS line at a new high before price",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "rs_line_new_high"
+   ]
+  },
+  {
+   "id": "x195",
+   "split": "held_out",
+   "text": "my saved RSI divergence indicator fired today",
+   "spec": null,
+   "reason": "agent_schema_narrower",
+   "needs": [
+    "ic1_scan_definition_join"
+   ],
+   "note": "the screener's `scan` key joins nightly definition results; SC-1 refuses it, owner decision"
+  },
+  {
+   "id": "x196",
+   "split": "held_out",
+   "text": "stocks where my custom squeeze scan triggered",
+   "spec": null,
+   "reason": "agent_schema_narrower",
+   "needs": [
+    "ic1_scan_definition_join"
+   ],
+   "note": "the screener's `scan` key joins nightly definition results; SC-1 refuses it, owner decision"
+  },
+  {
+   "id": "x197",
+   "split": "design",
+   "text": "anything my EMA cross definition caught last night",
+   "spec": null,
+   "reason": "agent_schema_narrower",
+   "needs": [
+    "ic1_scan_definition_join"
+   ],
+   "note": "the screener's `scan` key joins nightly definition results; SC-1 refuses it, owner decision"
+  }
+ ]
+}

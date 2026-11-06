@@ -127,7 +127,7 @@ describe('NL-1 flag ON: the model reads every ordinary request', () => {
     await waitFor(() => expect(tf(b, 'L')).toBe('W'))
     expect(turns).toHaveLength(1)
     expect(turns[0].interpreter).toBe('nl1')
-    expect(turns[0].capabilities.length).toBeGreaterThan(30)
+    expect(turns[0].capabilities.length).toBeGreaterThan(25)          // the core on this bare fixture: 26, the 5 chart-tab actions ride outside it (NL1_MOVED_FROM_CORE)
     expect(turns[0].capabilities.length).toBeLessThanOrEqual(60)
     expect(turns[0].routing.selected).toEqual(expect.arrayContaining(['charts', 'indicators', 'screener', 'agent']))
     expect(turns[0].routing.groups.length).toBeGreaterThan(turns[0].routing.selected.length)

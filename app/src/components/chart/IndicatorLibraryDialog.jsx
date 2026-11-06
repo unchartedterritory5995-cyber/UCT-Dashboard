@@ -483,6 +483,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             type="button"
             className={styles.createRow}
             data-testid="library-new-formula"
+            data-guide="indicators.newFormula"
             onClick={() => onCreateFormula()}
           >
             <span className={styles.createPlus} aria-hidden="true">＋</span>

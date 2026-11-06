@@ -337,7 +337,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Notebook widget settings"
         ><UIcon name="gear" size={13} /></button>
       </div>
@@ -362,7 +362,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
         <>
           <div className={styles.toolbar}>
             <input className={styles.search} placeholder="Search notes…" aria-label="Search notes" value={q} onChange={e => setQ(e.target.value)} />
-            <button type="button" className={styles.newBtn} onClick={newNote} disabled={creating} title="New note">
+            <button type="button" className={styles.newBtn} data-guide="notebook.new" onClick={newNote} disabled={creating} title="New note">
               <UIcon name="plus" size={13} /> New
             </button>
           </div>

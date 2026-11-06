@@ -10,12 +10,13 @@
 //
 // ⛔ jsdom applies no CSS. The RENDERED half below proves the route decides the fold,
 // the disclosure is wired (aria-expanded / aria-controls to the element it reveals),
-// Log Trade stays outside the fold, and More still works inside it. The STRUCTURAL half
+// Log Trade folds inside it (S12, V4), and More still works inside it. The STRUCTURAL half
 // proves the phone-only rules exist where they apply at 390 and not at 820.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useLayoutEffect } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 
 vi.mock('../../context/AuthContext', () => ({
@@ -48,15 +49,22 @@ vi.mock('./components/AddTradeModal', () => ({ default: () => null }))
 
 import JournalLayout from './JournalLayout'
 import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
+import { isNotebookListAddress, openJournalTools, registerJournalToolsDoor } from './lib/journalToolsDoor'
 import { NOTEBOOK_PATH, NOTEBOOK_SEGMENT, NOTEBOOK_RESEARCH_SEGMENT } from './lib/journalRoutes'
 
-function renderAt(route) {
+/** A Notebook page that offers the list's "Journal tools" door, as the list toolbar does (in a layout effect). */
+function ListWithDoor() {
+  useLayoutEffect(() => registerJournalToolsDoor(), [])
+  return <div data-testid="notebook" />
+}
+
+function renderAt(route, { notebook = <div data-testid="notebook" /> } = {}) {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <Routes>
         <Route path="/journal" element={<JournalLayout />}>
           <Route index element={<div data-testid="today" />} />
-          <Route path="notebook" element={<div data-testid="notebook" />} />
+          <Route path="notebook" element={notebook} />
           <Route path="trades" element={<div data-testid="trades" />} />
         </Route>
       </Routes>
@@ -122,19 +130,21 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(root(container)).not.toHaveAttribute('data-tools-open')
   })
 
-  it('aria-controls names the element that holds ?, account, report, settings and More -- and NOT Log Trade', () => {
+  // S12 + VIS-4 (audit 2026-11-05, V4 / issue 14): "Log Trade" FOLDS into the disclosure on the Notebook, so the
+  // phone's first screen is notes (the first note card sat at y=603 of 844). ⚰️ D2 kept it outside the fold as
+  // "the primary write affordance"; on the Notebook the primary write is "+ New", and Log Trade is one tap away.
+  it('aria-controls names the element that holds Log Trade, Help (?), account, report, settings and More', () => {
     renderAt('/journal/notebook')
     const tools = document.getElementById(toggle().getAttribute('aria-controls'))
     expect(tools).not.toBeNull()
     const w = within(tools)
-    expect(w.getByRole('button', { name: 'Show keyboard shortcuts' })).toBeInTheDocument()
+    expect(w.getByRole('button', { name: 'Help' })).toBeInTheDocument()
     expect(w.getByTestId('account-selector')).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'Generate report' })).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'Open Portfolio Settings' })).toBeInTheDocument()
     expect(w.getByRole('button', { name: 'More' })).toBeInTheDocument()
-    // Log Trade is the primary write affordance: never folded away.
     const log = screen.getByRole('button', { name: /log trade/i })
-    expect(tools.contains(log)).toBe(false)
+    expect(tools.contains(log)).toBe(true)
   })
 
   it('tapping the disclosure opens and closes it (aria-expanded and the root marker move together)', () => {
@@ -156,8 +166,9 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(within(menu).getByRole('link', { name: /accounts/i })).toBeInTheDocument()
   })
 
-  it('the Log Trade split menu still opens on the folded header', () => {
+  it('the Log Trade split menu still opens from inside the fold', () => {
     renderAt('/journal/notebook')
+    fireEvent.click(toggle())
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
     const menu = screen.getByRole('menu', { name: 'Log a trade' })
     expect(within(menu).getAllByRole('menuitem').length).toBe(2)
@@ -172,10 +183,11 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(document.getElementById('journal-header-tools').contains(strip)).toBe(false)
   })
 
-  it('⭐ CONTROL -- off the Notebook there is no fold and no disclosure', () => {
+  it('⭐ CONTROL -- off the Notebook there is no fold and no disclosure, and Log Trade sits in the row', () => {
     const { container } = renderAt('/journal/trades')
     expect(root(container)).not.toHaveAttribute('data-compact-header')
     expect(toggle()).toBeNull()
+    expect(document.getElementById('journal-header-tools').contains(screen.getByRole('button', { name: /log trade/i }))).toBe(false)
   })
 })
 
@@ -333,5 +345,131 @@ describe('M-5 -- one authority for the Notebook route (lib/journalRoutes.js)', (
   it('⛔ NON-VACUITY -- the constants compose to the path members actually use', () => {
     expect(NOTEBOOK_SEGMENT).toBe('notebook')
     expect(NOTEBOOK_PATH).toBe('/journal/notebook')
+  })
+})
+
+// Tier 2 (production check of Tier 1b, 390 x 844), as corrected by its fix round 1 (review Important 1): the first
+// note sat at y=320. While the Notebook LIST offers "Journal tools" in its own ⋯ menu (lib/journalToolsDoor.js), the
+// folded phone header takes no row; that row opens the header's tools, focus on their toggle. NOTHING is laid over
+// the section strip (a tools icon over it hid Insights and Compass: the review), and D2's strip levers stand. jsdom
+// lays nothing out: the rendered half (the hooks, the door, focus) and the structural half (the rules) are railed
+// here; the 360 / 390 px "no tab overlapped" verdict is the browser measurement in the report.
+describe('the phone Notebook header takes no row of its own, and nothing covers the strip (Tier 2)', () => {
+  const css = (f) => readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const phoneBlocks = (text) => [...text.matchAll(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n')
+
+  it('rendered: the strip is compact on the Notebook only; the door marks the root and opens the tools, focus on their toggle', async () => {
+    const { container } = renderAt('/journal/notebook')
+    expect(screen.getByRole('navigation', { name: 'Journal sections (mobile)' })).toHaveAttribute('data-compact')
+    expect(root(container)).not.toHaveAttribute('data-tools-door')
+    let release
+    act(() => { release = registerJournalToolsDoor() })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    act(() => { openJournalTools() })
+    expect(root(container)).toHaveAttribute('data-tools-open', 'true')
+    await waitFor(() => expect(document.activeElement).toBe(toggle()))
+    act(() => release())
+    expect(root(container)).not.toHaveAttribute('data-tools-door')
+  })
+
+  it('CONTROL: another Journal page keeps the icon-over-label strip and never takes the door', () => {
+    const { container } = renderAt('/journal/trades')
+    expect(screen.getByRole('navigation', { name: 'Journal sections (mobile)' })).not.toHaveAttribute('data-compact')
+    let release
+    act(() => { release = registerJournalToolsDoor() })
+    expect(root(container)).not.toHaveAttribute('data-tools-door')
+    act(() => release())
+  })
+
+  it('structural: with the door and closed, the header is display: none on a phone; nothing is ever absolute over the strip', () => {
+    const jl = css('JournalLayout.module.css')
+    expect(phoneBlocks(jl)).toMatch(/\.root\[data-compact-header\]\[data-tools-door\]:not\(\[data-tools-open\]\) \.header \{ display: none; \}/)
+    expect(jl).not.toMatch(/\.header \{[^}]*position: absolute/)
+  })
+
+  it('structural: the compact strip is labels only and KEEPS D2 (the 8 px bleed, 3 px side padding, no reserved end)', () => {
+    const nav = css('JournalMobileNav.module.css')
+    const phone = phoneBlocks(nav)
+    expect(phone).toMatch(/\.mobileNav \{[^}]*margin-left: -8px;[^}]*margin-right: -8px;/)
+    expect(phone).toMatch(/\.item \{[^}]*padding-left: 3px;[^}]*padding-right: 3px;/)
+    expect(phone).toMatch(/\.compact \.icon \{ display: none; \}/)
+    const compact = [...phone.matchAll(/\.(?:mobileNav\.)?compact[^{]*\{([^}]*)\}/g)].map((m) => m[1]).join(';')
+    expect(compact, 'a compact rule overrides D2').not.toMatch(/padding-(left|right)|padding:|margin:|margin-(left|right)/)
+    expect(nav).toMatch(/\.item \{[^}]*min-height: var\(--tap-min\);/)
+  })
+})
+
+// Tier 2 fix round 1, measured (the debug layout-shift logger, lib/clsDebug.js, at 390 px): the header painted, then
+// folded when the list registered its door, moving the strip and the notes up 57 px (0.05). On the list's own address
+// it is folded from the FIRST paint; elsewhere it waits for a door.
+describe('the header folds from the first paint on the list address', () => {
+  it('?view=all folds with no door registered yet; Home and another page do not', () => {
+    const { container, unmount } = renderAt('/journal/notebook?view=all', { notebook: <ListWithDoor /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    unmount()
+    const home = renderAt('/journal/notebook')
+    expect(root(home.container)).not.toHaveAttribute('data-tools-door')
+  })
+
+  // Final polish (WebKit at 390 px, production): on an open note the "Journal tools" row and the Folders row both came
+  // back above the header. A note's ⋯ carries "Journal tools" now (NoteEditorPage's JournalToolsDoorMark), so a note
+  // address folds from the first paint too -- and releases the fold whenever its page offers no door.
+  it('a note address folds from the first paint, and stays folded while the note offers its door', () => {
+    const { container } = renderAt('/journal/notebook?note=n1', { notebook: <ListWithDoor /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+  })
+
+  it('a note address whose page offers no door (the missing-note page) releases the fold', async () => {
+    const { container } = renderAt('/journal/notebook?note=n1', {
+      notebook: <div role="alert" data-testid="notebook">This note is gone.</div> })
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+  })
+
+  it('a note whose door goes away AFTER it was there (its load failed) releases the fold too', async () => {
+    let release
+    function NoteThatFails() {
+      useLayoutEffect(() => { release = registerJournalToolsDoor(); return () => release?.() }, [])
+      return <div data-testid="notebook" />
+    }
+    const { container } = renderAt('/journal/notebook?note=n1', { notebook: <NoteThatFails /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    act(() => release())
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+  })
+
+  // Tier 2 re-review R1-1: the fold is released when the page under it renders with no list toolbar (an error state,
+  // a list that failed to load), so Log Trade, Help, account and settings are never stranded behind a ⋯ that is not
+  // there. The tools' disclosure is in the header again.
+  it('R1-1: a list address whose page offers no door releases the fold once the page has rendered', async () => {
+    const { container } = renderAt('/journal/notebook?view=all', {
+      notebook: <div role="alert" data-testid="notebook">Your notes could not be loaded.</div> })
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+    fireEvent.click(toggle())
+    expect(root(container)).toHaveAttribute('data-tools-open', 'true')
+  })
+
+  it('R1-1 CONTROL: a list that registers its door keeps the fold after it has rendered', async () => {
+    const { container } = renderAt('/journal/notebook?view=all', { notebook: <ListWithDoor /> })
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+  })
+
+  it('the address rule', () => {
+    const ids = ['list', 'board', 'calendar']
+    const f = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids)
+    expect(f('/journal/notebook', '?view=all')).toBe(true)
+    expect(f('/journal/notebook', '?view=board')).toBe(true)
+    expect(f('/journal/notebook', '?folder=f1')).toBe(true)
+    expect(f('/journal/notebook', '?tag=swing')).toBe(true)
+    expect(f('/journal/notebook', '')).toBe(false)                  // Home
+    expect(f('/journal/notebook', '?view=nope')).toBe(false)        // an unknown view opens Home
+    expect(f('/journal/notebook', '?view=all&note=n1')).toBe(false) // a note
+    expect(f('/journal/notebook/research/NVDA', '?view=all')).toBe(false)
+    // Tier 3b M10: the bare address is the list for a member whose chosen landing is All notes -- and only then.
+    const g = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids, { landingAll: true })
+    expect(g('/journal/notebook', '')).toBe(true)
+    expect(g('/journal/notebook', '?view=today')).toBe(false)
+    expect(g('/journal/notebook', '?view=home')).toBe(false)
+    expect(g('/journal/notebook', '?note=n1')).toBe(false)
   })
 })

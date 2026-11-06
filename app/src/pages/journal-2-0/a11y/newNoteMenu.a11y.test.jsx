@@ -11,7 +11,26 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axeSurface } from './surface'
 import { expectNoAxeViolations } from './axeHarness'
-import NewNoteMenu, { NewNoteCaret } from '../components/notebook/NewNoteMenu'
+import NewNoteMenu, { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
+
+// S11 (audit 2026-11-05): the notes list's caret (NewNoteCaret) was retired into the list toolbar's own
+// "+ New ▾", which runs the SAME engine (`useMenuButton` + `MenuRows`). This is that toolbar form, built
+// the way NotebookTab builds it, so axe and the keyboard read the engine the list actually renders.
+function ListNewMenu({ items }) {
+  const menu = useMenuButton()
+  return (
+    <div style={{ position: 'relative' }}>
+      <button {...menu.triggerProps} type="button" className="btn btn-primary btn-sm" aria-label="More ways to start a note">▾</button>
+      {menu.open && <div {...menu.menuProps} aria-label="Start a note"><MenuRows menu={menu} items={items} /></div>}
+    </div>
+  )
+}
+const LIST_ITEMS = [
+  { key: 'blank', label: 'Blank', run: () => {} },
+  { key: 'template', label: 'From a template', run: () => {} },
+  { key: 'voice', label: 'Voice note', run: () => {} },
+  { key: 'import', label: 'Import', run: () => {} },
+]
 
 function mount() {
   return render(
@@ -39,21 +58,21 @@ describe('Research Home\'s New note split button', () => {
     await expectNoAxeViolations(container, { level: 'component' })
   }, 30000)
 
-  // Fix round 1 (review M5): the notes list's form, the caret alone (NewNoteCaret), with the menu OPEN,
-  // inside a role="toolbar" as NotebookTab renders it.
-  it('the list form (NewNoteCaret) with the menu open: axe finds 0 violations', async () => {
+  // Fix round 1 (review M5): the notes list's form, with the menu OPEN, inside a role="toolbar" as
+  // NotebookTab renders it (S11: "+ New" and its ▾).
+  it('the list form ("+ New" ▾) with the menu open: axe finds 0 violations', async () => {
     const { container } = render(
       <main>
         <div role="toolbar" aria-label="Notes list tools">
-          <button type="button" className="btn btn-primary btn-sm">+ New note</button>
-          <NewNoteCaret onFromOutline={vi.fn()} onFromStyle={vi.fn()} onVoice={vi.fn()} onToday={vi.fn()} />
+          <button type="button" className="btn btn-primary btn-sm">+ New</button>
+          <ListNewMenu items={LIST_ITEMS} />
         </div>
       </main>,
     )
     expect(screen.queryByRole('button', { name: /^New note$/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
     const items = within(screen.getByRole('menu', { name: 'Start a note' })).getAllByRole('menuitem')
-    expect(items.map((b) => b.textContent.trim())).toEqual(['From an outline', 'From a style', 'Voice note', "Today's note"])
+    expect(items.map((b) => b.textContent.trim())).toEqual(['Blank', 'From a template', 'Voice note', 'Import'])
     await expectNoAxeViolations(container, { level: 'component' })
   }, 30000)
 
@@ -82,7 +101,7 @@ describe('Research Home\'s New note split button', () => {
     render(
       <main>
         <div role="toolbar" aria-label="Notes list tools">
-          <NewNoteCaret onFromOutline={vi.fn()} onToday={vi.fn()} />
+          <ListNewMenu items={LIST_ITEMS} />
         </div>
         <button type="button">After the menu</button>
       </main>,
