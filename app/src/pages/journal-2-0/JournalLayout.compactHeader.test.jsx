@@ -403,15 +403,38 @@ describe('the phone Notebook header takes no row of its own, and nothing covers 
 // folded when the list registered its door, moving the strip and the notes up 57 px (0.05). On the list's own address
 // it is folded from the FIRST paint; elsewhere it waits for a door.
 describe('the header folds from the first paint on the list address', () => {
-  it('?view=all folds with no door registered yet; a note, Home and another page do not', () => {
+  it('?view=all folds with no door registered yet; Home and another page do not', () => {
     const { container, unmount } = renderAt('/journal/notebook?view=all', { notebook: <ListWithDoor /> })
     expect(root(container)).toHaveAttribute('data-tools-door', 'true')
     unmount()
-    const second = renderAt('/journal/notebook?view=all&note=n1')
-    expect(root(second.container)).not.toHaveAttribute('data-tools-door')
-    second.unmount()
     const home = renderAt('/journal/notebook')
     expect(root(home.container)).not.toHaveAttribute('data-tools-door')
+  })
+
+  // Final polish (WebKit at 390 px, production): on an open note the "Journal tools" row and the Folders row both came
+  // back above the header. A note's ⋯ carries "Journal tools" now (NoteEditorPage's JournalToolsDoorMark), so a note
+  // address folds from the first paint too -- and releases the fold whenever its page offers no door.
+  it('a note address folds from the first paint, and stays folded while the note offers its door', () => {
+    const { container } = renderAt('/journal/notebook?note=n1', { notebook: <ListWithDoor /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+  })
+
+  it('a note address whose page offers no door (the missing-note page) releases the fold', async () => {
+    const { container } = renderAt('/journal/notebook?note=n1', {
+      notebook: <div role="alert" data-testid="notebook">This note is gone.</div> })
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
+  })
+
+  it('a note whose door goes away AFTER it was there (its load failed) releases the fold too', async () => {
+    let release
+    function NoteThatFails() {
+      useLayoutEffect(() => { release = registerJournalToolsDoor(); return () => release?.() }, [])
+      return <div data-testid="notebook" />
+    }
+    const { container } = renderAt('/journal/notebook?note=n1', { notebook: <NoteThatFails /> })
+    expect(root(container)).toHaveAttribute('data-tools-door', 'true')
+    act(() => release())
+    await waitFor(() => expect(root(container)).not.toHaveAttribute('data-tools-door'))
   })
 
   // Tier 2 re-review R1-1: the fold is released when the page under it renders with no list toolbar (an error state,

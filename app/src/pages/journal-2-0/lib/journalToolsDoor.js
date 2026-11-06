@@ -35,6 +35,13 @@ export function openJournalTools() {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_JOURNAL_TOOLS_EVENT))
 }
 
+/** Final polish: an OPEN NOTE's address on the Notebook route (`?note=`). The note's ⋯ carries the "Journal tools"
+ *  row too (NoteEditorPage), so the phone header folds there from the first paint, as on the list. */
+export function isNotebookNoteAddress(pathname, search, notebookPath) {
+  if (String(pathname || '').replace(/\/+$/, '').toLowerCase() !== notebookPath.toLowerCase()) return false
+  return Boolean(new URLSearchParams(search || '').get('note'))
+}
+
 /** The Notebook LIST's own address (the page that offers the door): the Notebook route itself, no note open, and a
  *  list asked for -- `?view=all` or a view mode, or a folder, tag or ticker filter. JournalLayout folds the header on
  *  it from the FIRST paint, before the list has mounted and registered (a header painted and then folded moved the
