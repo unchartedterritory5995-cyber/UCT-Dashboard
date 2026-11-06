@@ -6,7 +6,7 @@
 import { clausesOf, splitLesson } from './lesson'
 import s from './study.module.css'
 
-export default function LessonCard({ text, ticker = null, setup = null, tf = 'Daily', testId = 'hard-lesson' }) {
+export default function LessonCard({ text, ticker = null, setup = null, tf = 'Daily', testId = 'hard-lesson', plain = false }) {
   const L = splitLesson(text)
   const name = setup || L.setup
   const lead = L.here || L.ruleLead || L.rule
@@ -14,7 +14,7 @@ export default function LessonCard({ text, ticker = null, setup = null, tf = 'Da
   if (!lead) return null
   const clauses = clausesOf(lead)
   return (
-    <section className={s.lesson} data-testid={testId || undefined} aria-label="The lesson">
+    <section className={`${s.lesson} ${plain ? s.lessonPlain : ''}`} data-testid={testId || undefined} aria-label="The lesson">
       <div className={s.lessonHead}>
         <span className={s.eyebrow}>{L.here ? 'What happened here' : 'The lesson'}</span>
         {ticker ? <span className={s.tag}><b>{ticker}</b> · {tf}</span> : null}

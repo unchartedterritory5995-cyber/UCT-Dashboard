@@ -6,10 +6,10 @@ import s from './study.module.css'
 
 const LABEL = { hard: 'Hard mode' }
 
-export default function Hud({ mode = 'hard', step = 0, total = 1, results = [], live = false, hidden = [], right = null, stepTestId = 'hard-step' }) {
+export default function Hud({ mode = 'hard', step = 0, total = 1, results = [], live = false, hidden = [], right = null, stepTestId = 'hard-step', bare = false }) {
   const name = LABEL[mode] || mode
   return (
-    <div className={s.hud} role="group" aria-label={`${name}, ${step + 1} of ${total}`}>
+    <div className={`${s.hud} ${bare ? s.hudBare : ''}`} role="group" aria-label={`${name}, ${step + 1} of ${total}`}>
       <span className={`${s.modeTag} ${s[mode] || ''} ${live ? s.live : ''}`}><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="currentColor" /></svg>{name}</span>
       <div className={s.segs} aria-hidden="true">
         {Array.from({ length: total }, (_, i) => {

@@ -249,6 +249,42 @@
 .burst { position: absolute; inset: -40%; pointer-events: none; }
 .burst i { position: absolute; left: 50%; top: 50%; width: 3px; height: 38%; margin-left: -1.5px; border-radius: 2px; background: linear-gradient(180deg, rgba(255, 241, 194, .95), transparent); transform-origin: 50% 100%; transform: rotate(var(--a)) translateY(-120%) scaleY(0); animation: ray .9s var(--k-ease) .25s both; }
 
+/* ── ROUND 20 (the owner, before ranking round 19: "I can already tell it needs a revamp"): the chart is the hero and
+   nothing else is a box. One status line, the widget full width, one prompt line in display type beside the mark, four
+   pills, one action, the lesson as a plain block under a hairline. The start and the end are a full stage, not a card.
+   The references: a lesson screen with no containers around the question (Duolingo, Brilliant) and our own Charts tab. ── */
+.hudBare { border: 0; background: none; box-shadow: none; padding: 2px 2px 0; }
+.heroChart { width: 100%; }
+.prompt { display: flex; align-items: center; gap: 16px; padding: 6px 2px 2px; animation: riseIn .4s var(--k-ease) both; }
+.promptText { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.promptTitle { font-size: 27px; line-height: 1.12; font-weight: 800; letter-spacing: -.018em; color: var(--k-ink); }
+.promptTitle.ok { color: #9fe9bd; } .promptTitle.bad { color: #ffb3b3; }
+.promptSub { font-size: 15px; color: var(--k-ink-dim); font-weight: 500; }
+.promptSub b { color: var(--k-gold-bright); font-weight: 800; }
+.promptSeal { flex: none; }
+.stampInline { position: static; display: grid; place-items: center; pointer-events: none; }
+.stampInline .stamp { width: 72px; height: 72px; animation: stampIn .55s var(--k-ease) both; }
+.stampInline .stamp svg { width: 26px; height: 26px; }
+.stampInline .stampWord { font-size: 8px; }
+.cards.row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.card.pill { justify-content: center; text-align: center; min-height: 56px; padding: 10px 14px; border-radius: 999px; font-size: 16px; gap: 10px; }
+.card.pill .num { width: 24px; height: 24px; font-size: 11px; }
+.actionRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 2px; }
+.actionRow .actionNote { text-align: left; }
+.lessonPlain { border: 0; border-top: 1px solid rgba(220, 187, 94, .25); border-radius: 0; background: none; box-shadow: none; padding: 18px 2px 4px; }
+.stageFull { position: relative; min-height: min(78vh, 820px); display: flex; align-items: center; justify-content: center; padding: 40px 20px; overflow: hidden; border-radius: 22px; animation: fadeIn .4s ease both; }
+.stageFull .backdrop { opacity: .32; -webkit-mask: radial-gradient(75% 70% at 50% 42%, #000 15%, transparent 72%); mask: radial-gradient(75% 70% at 50% 42%, #000 15%, transparent 72%); }
+.stageFull .rays { -webkit-mask: radial-gradient(circle at 50% 42%, #000 0 22%, transparent 55%); mask: radial-gradient(circle at 50% 42%, #000 0 22%, transparent 55%); }
+.stageInner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; width: min(680px, 100%); }
+.heroBig { font-size: 66px; line-height: .95; font-weight: 900; letter-spacing: -.035em; background: linear-gradient(135deg, #c9a84c 0%, #f5d97a 45%, #c9a84c 100%); background-size: 200% 200%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 3.2s ease-in-out infinite; }
+.heroBigPlain { font-size: 60px; line-height: .95; font-weight: 900; letter-spacing: -.035em; color: var(--k-ink); font-variant-numeric: tabular-nums; }
+.heroBigPlain i { font-style: normal; color: var(--k-ink-dim); font-weight: 700; font-size: .4em; letter-spacing: .12em; text-transform: uppercase; margin-left: 12px; }
+.flash { position: fixed; inset: 0; z-index: 40; pointer-events: none; animation: flashOut .7s ease-out both; }
+.flash.ok { background: rgba(47, 175, 104, .16); } .flash.bad { background: rgba(223, 70, 70, .16); }
+@keyframes flashOut { from { opacity: 1; } to { opacity: 0; } }
+@media (max-width: 1024px) { .cards.row { grid-template-columns: 1fr 1fr; } .promptTitle { font-size: 23px; } .actionRow { flex-direction: column-reverse; align-items: stretch; } .actionRow .actionNote { display: none; } .heroBig { font-size: 48px; } .heroBigPlain { font-size: 46px; } .stageFull { min-height: min(70vh, 700px); padding: 28px 12px; } }
+@media (max-width: 640px) { .card.pill { min-height: 54px; font-size: 15px; } .promptTitle { font-size: 21px; } .prompt { gap: 12px; } }
+
 /* ── motion ──────────────────────────────────────────────────────────────────────────────────────────────── */
 @keyframes slideIn { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

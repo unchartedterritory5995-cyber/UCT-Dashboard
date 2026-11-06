@@ -5,16 +5,16 @@
 import UIcon from '../../../components/ui/UIcon'
 import s from './study.module.css'
 
-export function ChoiceGrid({ children, one = false, cascade = true, testId = null, label = null }) {
+export function ChoiceGrid({ children, one = false, row = false, cascade = true, testId = null, label = null }) {
   return (
-    <div className={`${s.cards} ${one ? s.one : ''} ${cascade ? s.cascade : ''}`} role="group" aria-label={label || undefined} data-testid={testId || undefined}>
+    <div className={`${s.cards} ${one ? s.one : ''} ${row ? s.row : ''} ${cascade ? s.cascade : ''}`} role="group" aria-label={label || undefined} data-testid={testId || undefined}>
       {children}
     </div>
   )
 }
 
-export default function Choice({ n, label, state = 'idle', onClick, disabled = false, i = 0 }) {
-  const cls = [s.card, state === 'sel' ? s.sel : '', state === 'right' ? s.right : '', state === 'wrong' ? s.wrong : '', state === 'quiet' ? s.quiet : ''].filter(Boolean).join(' ')
+export default function Choice({ n, label, state = 'idle', onClick, disabled = false, i = 0, pill = false }) {
+  const cls = [s.card, pill ? s.pill : '', state === 'sel' ? s.sel : '', state === 'right' ? s.right : '', state === 'wrong' ? s.wrong : '', state === 'quiet' ? s.quiet : ''].filter(Boolean).join(' ')
   return (
     <button type="button" className={cls} style={{ '--i': i }} disabled={disabled} onClick={onClick} aria-pressed={state === 'sel' ? true : undefined} data-state={state}>
       <span className={s.num} aria-hidden="true">

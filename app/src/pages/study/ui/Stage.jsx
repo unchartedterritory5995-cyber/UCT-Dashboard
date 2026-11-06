@@ -72,7 +72,26 @@ export function RunLog({ rows = [] }) {
   )
 }
 
-export default function Stage({ legend = false, rays = false, hero = false, eyebrow = null, title = null, titlePlain = false, titleNote = null, sub = null, art = null, children = null, actions = null, below = null, testId = null }) {
+export default function Stage({ legend = false, rays = false, hero = false, full = false, eyebrow = null, title = null, titlePlain = false, titleNote = null, sub = null, art = null, children = null, actions = null, below = null, testId = null }) {
+  if (full) {
+    return (
+      <div className={`${s.kit} ${s.stageFull} ${legend ? s.legend : ''}`} data-testid={testId || undefined}>
+        {hero ? <Backdrop n={64} /> : null}
+        {rays ? <span className={s.rays} aria-hidden="true" /> : null}
+        <div className={s.stageInner}>
+          {art ? <div className={s.art}>{art}</div> : null}
+          {eyebrow ? <span className={s.eyebrow}>{eyebrow}</span> : null}
+          {title ? (titlePlain
+            ? <div className={s.heroBigPlain}>{title}{titleNote ? <i>{titleNote}</i> : null}</div>
+            : <div className={s.heroBig}>{title}</div>) : null}
+          {sub ? <p className={s.heroSub}>{sub}</p> : null}
+          {children}
+          {actions ? <div className={s.actions}>{actions}</div> : null}
+          {below ? <div className={s.below}>{below}</div> : null}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className={`${s.kit} ${s.stageWrap}`} data-testid={testId || undefined}>
       <div className={`${s.stageCard} ${legend ? s.legend : ''} ${hero ? s.heroCard : ''}`}>
