@@ -20,6 +20,10 @@ const TF_CHART = /\b(?:the|my|this|that)\s+(\d{1,3}[- ]?(?:m|min|mins|minute|min
 // nor is a chart's own feature ("the UCT chart theme")
 const WORD_CHART = /\b(?:the|my|this|that)\s+([a-z0-9][a-z0-9.-]*)\s+chart\b(?!\s+(?:themes?|templates?|settings?|types?|grid|tabs?))/gi
 const BARE_TICKER = /\b(?:to|on|for|in)\s+(?:the\s+)?([A-Z][A-Z.-]{0,6})\b(?!\s+charts?\b)/g
+// "add rsi to nvda": the same place, typed in lowercase. Three letters or more, and only ever a question
+const BARE_LOWER = /\b(?:to|on|for|in)\s+(?:the\s+)?([a-z][a-z.-]{2,6})\b(?!\s+charts?\b)/g
+// a length of time, as a member says it or as a range button reads: unless a chart here is on it, it is the range buttons'
+const SPAN = /^\d+[- ]?(?:days?|weeks?|months?)$|^(?:3|6|12)M$/i
 // what comes between "the" and "chart" without naming one, by class. Add a class or a word here: never a sentence
 const NOT_A_NAME = new Set([
   // how it is drawn
@@ -33,7 +37,9 @@ const NOT_A_NAME = new Set([
   // the product's own words
   'uct multi grid price stock ticker symbol volume breadth market time timeframe trading own drawing indicator watchlist news dark light fullscreen full-screen',
   // keys and files: "set it to ALT", "export to CSV"
-  'alt ctrl shift esc enter tab pdf csv png',
+  'key keys file files alt ctrl shift esc enter tab pdf csv png',
+  // words of a market or a sentence that are also tickers: "on ALL my charts", "set alerts for EOD"
+  'all any low high now open close here am pm et est eod etf eps ipo usd us ai',
   // an order or a place: an ordinal and a position are read on their own
   'first second third fourth fifth sixth last middle center centre left right top bottom upper lower',
 ].join(' ').split(' '))
@@ -47,6 +53,7 @@ const TF_WORDS = { hourly: '60', daily: 'D', day: 'D', weekly: 'W', week: 'W', m
 function tfCode(word) {
   const raw = String(word)
   if (/^1?M$/.test(raw)) return 'M'
+  if (/^(?:3|6|12)M$/.test(raw)) return raw
   if (/^1?d$/i.test(raw)) return 'D'
   if (/^1?w$/i.test(raw)) return 'W'
   const w = raw.toLowerCase().replace('-', ' ')
@@ -75,6 +82,7 @@ function namesAnother(s, only) {
   for (const m of s.matchAll(BARE_TICKER)) if (m[1].length > 1 && other(m[1])) return true
   return false
 }
+const absent = (word, charts) => `There’s no ${word} chart on this board, so I can’t show that on it. Your charts are: ${listOf(charts)}.`
 const onlyNote = (c) => `This board only has ${c.symbol || 'one chart'}, so I’ll show it there.`
 
 /** → { chart, note? } | { say } | null (the words name no chart: the clicked one stands). */
@@ -97,8 +105,9 @@ export function namedChart(words, charts = []) {
   }
   const tf = TF_CHART.exec(s)
   const code = tf && !onBoard(tf[1], charts) ? tfCode(tf[1]) : null
-  if (code) {
-    const hits = charts.filter(c => chartTf(c) === String(code).toUpperCase())
+  // 3M is three months on a board that reads it so, and three minutes on one that reads 3
+  const hits = code ? charts.filter(c => [code.toUpperCase(), /^(\d+)M$/.exec(code)?.[1]].includes(chartTf(c))) : []
+  if (code && (hits.length || !SPAN.test(tf[1]))) {
     if (hits.length > 1) return { say: `More than one chart fits ${tf[1]}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) return { say: `No chart on this board is on ${tf[1]}, so I can’t show that on it. Your charts are: ${listOf(charts)}.` }
     names.add(hits[0].ref)
@@ -110,7 +119,7 @@ export function namedChart(words, charts = []) {
     if (hits.length > 1) return { say: `More than one chart shows ${word.toUpperCase()}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) {
       return { say: word === word.toUpperCase()
-        ? `There’s no ${word} chart on this board, so I can’t show that on it. Your charts are: ${listOf(charts)}.`
+        ? absent(word, charts)
         : `I can’t match “${word}” to a chart on this board. Your charts are: ${listOf(charts)}. Ask again with its ticker or its position.` }
     }
     names.add(hits[0].ref)
@@ -118,6 +127,16 @@ export function namedChart(words, charts = []) {
   for (const m of s.matchAll(BARE_TICKER)) {
     const hits = charts.filter(c => sameSymbol(c, m[1]))
     if (hits.length === 1) names.add(hits[0].ref)
+  }
+  // nothing on this board answers: a bare name is said too, never walked on the clicked chart
+  if (!names.size) {
+    for (const m of s.matchAll(BARE_TICKER)) {
+      if (m[1].length > 1 && !charts.some(c => sameSymbol(c, m[1])) && couldName(m[1])) return { say: absent(m[1], charts) }
+    }
+    for (const m of s.matchAll(BARE_LOWER)) {
+      const hit = charts.find(c => sameSymbol(c, m[1]))
+      if (hit && couldName(m[1])) return { say: `Did you mean the ${String(hit.symbol).toUpperCase()} chart?` }
+    }
   }
   if (names.size > 1) return { say: `You named more than one chart. Ask about one of them: ${listOf(charts.filter(c => names.has(c.ref)))}.` }
   return names.size ? { chart: charts.find(c => names.has(c.ref)) } : null
