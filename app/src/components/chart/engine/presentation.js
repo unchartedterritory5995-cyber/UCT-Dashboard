@@ -321,17 +321,26 @@ export const DOT_SIZE_CHOICES = Object.freeze([
   { value: 'large', label: 'Large' },
 ])
 
-/** The stored dot size for one output, with the same override→fallback shape as
- *  the style itself. */
-export function resolveDotSize(instance, plot) {
+/** The dot size the member STORED for one output — per output over the instance
+ *  level, the same shape as the style — as its name, or `null` when nothing is
+ *  stored. ⭐ Distinct from `resolveDotSize`, which answers the default when nothing
+ *  is: `presentedPlot` needs the difference, because an output DECLARED `markers`
+ *  (SAR's radius 3, UCT RS's new-high dots at 2) keeps its declared radius until a
+ *  member chooses one. */
+export function storedDotSize(instance, plot) {
   const pres = instance && instance.presentation
   const key = plot && plot.key
   const read = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(DOT_SIZES, v) ? v : null)
   const perOutput = pres && pres.plots && typeof key === 'string' && pres.plots[key]
     ? read(pres.plots[key].dotSize) : null
   if (perOutput) return perOutput
-  const instLevel = pres ? read(pres.dotSize) : null
-  return instLevel || DEFAULT_DOT_SIZE
+  return pres ? read(pres.dotSize) : null
+}
+
+/** The stored dot size for one output, with the same override→fallback shape as
+ *  the style itself. */
+export function resolveDotSize(instance, plot) {
+  return storedDotSize(instance, plot) || DEFAULT_DOT_SIZE
 }
 
 /** The two colours a candlestick wears. ⚠️ KEYS, NOT VALUES — the DEFAULTS are
@@ -406,7 +415,13 @@ export function presentedPlot(plot, instance, ctx) {
   // property is resolved here: a member turning sign colours on for an output that
   // was ALREADY a histogram would have been handed back the untouched plot and seen
   // nothing happen.
-  if (!styleChanged && !sign && !look && !bar && !levelOnly) return plot
+  // ⭐ A DOT'S SIZE IS A PRESENTATION TOO (2026-11-06, UCT RS unit 6). This returned
+  // the plot untouched when a member had stored ONLY `presentation.dotSize` on an
+  // output DECLARED `markers` — nothing else had changed, so "Dot size" did nothing
+  // for SAR or for the RS new-high dots. A STORED size is a change; the declared
+  // radius stands until one is.
+  const dotSized = effective === 'markers' && !styleChanged && storedDotSize(instance, plot) !== null
+  if (!styleChanged && !sign && !look && !bar && !levelOnly && !dotSized) return plot
   const next = { ...plot }
   // ⭐ A SIDE-BY-SIDE PARTICIPANT TAGS ITS OWN LATEST VALUE ON THE AXIS (owner,
   // 2026-09-30). In a COT pane the guests would otherwise defer to the host and the
@@ -418,7 +433,10 @@ export function presentedPlot(plot, instance, ctx) {
   if (look) Object.assign(next, look)
   // Dots carry their size in `width`, because that is the field the `markers`
   // branch of `seriesOptionsForPlot` already reads as the point radius.
-  if (defStyle === 'markers') next.width = DOT_SIZES[resolveDotSize(instance, plot)]
+  // ⛔ ONLY when the member restyled the output to dots or stored a size. A plot
+  // declared `markers` that reaches here for another reason (a `renderLook`, say)
+  // keeps the radius its author declared — this used to hand SAR 2.5 for 3.
+  if (defStyle === 'markers' && (styleChanged || dotSized)) next.width = DOT_SIZES[resolveDotSize(instance, plot)]
   if (sign) {
     next.colorMode = 'sign'
     next.colorUp = sign.up

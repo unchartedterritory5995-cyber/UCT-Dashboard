@@ -16,8 +16,9 @@
 //      fixture does not cover fails BY NAME, so a new dot cannot ship without
 //      an oracle;
 //   2. on the fixture itself, a dot column is finite EXACTLY where its event
-//      column is 1 and EQUALS `rsLine` there — the shape `position: 'inBar'`
-//      needs to sit on the line (`relative_strength.py` module header);
+//      column is 1 and EQUALS `rsLine` there — a dot sits ON the line, whether
+//      it is a glyph (`position: 'inBar'`) or the series' own point marker
+//      (`relative_strength.py` module header; unit 6 of the review fix plan);
 //   3. the wire path this lane actually runs — `columnsFromWire` then
 //      `alignColumns` — reproduces every fixture column on the chart's bars,
 //      `null` → NaN, joined BY TIME and not by index;
@@ -99,9 +100,22 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
         .toHaveProperty(p.key)
       expect(exp, `marker plot "${p.key}"'s event column "${DOT_TO_EVENT[p.key]}" is not in the fixture`)
         .toHaveProperty(DOT_TO_EVENT[p.key])
-      // …and a dot rides the line: `inBar` is what places it at the plotted value.
-      expect(p.marker && p.marker.position, `marker plot "${p.key}" must sit ON the line`).toBe('inBar')
+      // …and a dot rides the line. TWO renderers draw a `markers` plot (review fix
+      // unit 6): a GLYPH (`plots[].marker`) sits at the plotted value only as
+      // `inBar`; a plot WITHOUT a marker block draws the series' own point markers,
+      // which sit at the plotted value by construction — the column IS the series
+      // data (`pool.seriesOptionsForPlot`: `pointMarkersVisible`, radius = `width`).
+      if (p.marker) {
+        expect(p.marker.position, `glyph plot "${p.key}" must sit ON the line`).toBe('inBar')
+      } else {
+        expect(Number.isFinite(p.width) && p.width > 0,
+          `plain dot plot "${p.key}" needs a positive width — it is the point radius`).toBe(true)
+      }
     }
+    // The shape unit 6 landed: the two small dots are plain, the gold one a glyph.
+    expect(markers.map(p => [p.key, p.marker ? 'glyph' : 'point'])).toEqual([
+      ['dotNH', 'point'], ['dotNHbeforePx', 'glyph'], ['dotNHpartial', 'point'],
+    ])
   })
 
   it('every LINE plot of the definition names an expected column', () => {

@@ -3900,12 +3900,26 @@ const RS_LINE_RAW = {
     // precedent, field for field.
     { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
     { key: 'rsMa', label: 'MA', style: 'line', color: '$maColor', width: 1, lineStyle: 'dashed', role: 'context', legend: { hide: true } },
-    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+    // ⭐⭐ TWO RENDERERS FOR THE DOTS, AND WHY (review finding V1, 2026-11-06).
+    // lightweight-charts 5.2.0 clamps a series-marker GLYPH to a 12..30 px floor
+    // twice (`calculateShapeHeight` on the bar spacing, `shapeSize` on the
+    // multiplied size), so the "small" 0.6 and "large" 1.2 circles both drew 9 px
+    // at every normal zoom — a size channel that did not render. So:
+    //   · the two SMALL dots are plain `markers` plots with NO `marker` block: the
+    //     binder draws them as the series' own POINT MARKERS (`pool`:
+    //     `pointMarkersVisible`, radius = `width`, no floor — SAR's shape), at the
+    //     plotted value by construction, honouring the member's Dot size;
+    //   · the GOLD before-price dot keeps the glyph at size 2.0, which the floor
+    //     can only make LARGER (15 px at the floor, 23 px from bar spacing 15) and
+    //     which paints ABOVE every series.
+    // `__tests__/markerPixels.test.js` mirrors LWC's arithmetic and pins small < large
+    // at every bar spacing. ⛔ `width` here is the dot RADIUS, never the RS line's.
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      legend: { hide: true } },
     { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 1.2 }, legend: { hide: true } },
-    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+      marker: { shape: 'circle', position: 'inBar', size: 2.0 }, legend: { hide: true } },
+    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 2, role: 'context',
+      legend: { hide: true } },
   ],
   // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
   // declared event by running the definition's compute at registration and
