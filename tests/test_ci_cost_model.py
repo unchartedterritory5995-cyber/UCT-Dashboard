@@ -131,3 +131,27 @@ def test_gate_step_split_re_rounds_each_run():
 
 def test_no_eligible_rails_share_a_trigger_shape_today():
     assert steps.trigger_groups(ROOT)["any_identical"] is False
+
+
+import ci_cost_hosted as hosted  # noqa: E402
+
+
+def test_coalescing_covers_every_push_with_fewer_runs():
+    pushes = [0.0, 0.1, 0.2, 2.0]           # hours
+    every = hosted.coalesce(pushes, 0.0, 20.0)
+    hourly = hosted.coalesce(pushes, 60.0, 20.0)
+    assert every["runs"] == 3              # the first run is busy for 20 min, so pushes 2 and 3 share the next
+    assert hourly["runs"] == 3
+    assert hosted.coalesce(pushes, 120.0, 20.0)["runs"] == 2
+
+
+def test_reuse_needs_no_other_push_inside_the_window():
+    days = {"2026-11-01": [[1.0, "non-agent-pr"], [1.2, "agent-batchable"], [5.0, "agent-solo"]]}
+    assert hosted.reuse_rate(days, 30.0) == 0.5
+    assert hosted.reuse_rate(days, 5.0) == 1.0
+
+
+def test_hosted_only_cannot_reach_200_even_with_no_gates():
+    results = hosted.run()
+    assert results["rows"]["normal"]["floor: no gates at all"]["total"] > 190
+    assert min(row["total"] for row in results["rows"]["nov5"].values()) > hosted.TARGET

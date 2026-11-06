@@ -241,12 +241,29 @@ def gate_kinds(snapshot: dict, root: pathlib.Path) -> dict:
     for row in rows:
         by_day[row["created_at"][:10]][row["kind"]] += 1
     arrivals = []
+    every: dict[str, list] = collections.defaultdict(list)
     for row in rows:
+        at = ccr.parse_ts(row["created_at"])
+        assert at is not None
+        hour = at.hour + at.minute / 60 + at.second / 3600
+        every[row["created_at"][:10]].append([hour, row["kind"]])
         if row["created_at"].startswith("2026-11-05"):
-            at = ccr.parse_ts(row["created_at"])
-            assert at is not None
-            arrivals.append([at.hour + at.minute / 60 + at.second / 3600, row["kind"]])
-    return {"by_day": {day: dict(val) for day, val in sorted(by_day.items())}, "nov5_arrivals": arrivals}
+            arrivals.append([hour, row["kind"]])
+    return {"by_day": {day: dict(val) for day, val in sorted(by_day.items())}, "nov5_arrivals": arrivals,
+            "arrivals_by_day": dict(sorted(every.items()))}
+
+
+def wall_minutes(snapshot: dict) -> dict:
+    """Median wall time, run start to last update, for successful runs: what a merge or promotion waits for."""
+    out: dict[str, list[float]] = collections.defaultdict(list)
+    for run in snapshot["runs"]:
+        if run.get("conclusion") != "success" or run["name"] not in (GATE, AGENT, "promote to production"):
+            continue
+        start, end = ccr.parse_ts(run.get("run_started_at")), ccr.parse_ts(run.get("updated_at"))
+        if start and end:
+            out[f"{run['name']}|{run['event']}"].append((end - start).total_seconds() / 60)
+    return {key: {"n": len(val), "p50": statistics.median(val), "p90": sorted(val)[int(len(val) * 0.9)]}
+            for key, val in out.items()}
 
 
 def post_change(snapshot: dict) -> dict:
@@ -301,6 +318,7 @@ def main() -> int:
         "superseded": superseded_share(nov),
         "rails_nov5": rails_split(nov, "2026-11-05"),
         "gate_kinds": gate_kinds(nov, pathlib.Path(args.repo_root)),
+        "wall": wall_minutes(nov),
         "post_leg": post_leg_share(nov),
         "gate_arrivals_nov5": gate_arrivals(nov, "2026-11-05"),
         "storage": post.get("storage"),
