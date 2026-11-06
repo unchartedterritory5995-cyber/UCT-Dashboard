@@ -1,5 +1,7 @@
 # W6-T2 keyword and namespace honesty (lane w6-t2)
 
+FINAL-TIP r2 at 3dcd4f7c55 (runs/w6-t2/final-r2, full, no code change): READY-CHECK PASS; no timeouts; jsfail is the baseline set plus coverageAudit and usePreferences.additionsOnly (both fail on base).
+
 Base: origin/master 7f6dd3714d (engine 18, W6-T3a in). Spec: W6-BREAKDOWN T2, review GO-WITH-NOTES.
 
 ## Fixed
