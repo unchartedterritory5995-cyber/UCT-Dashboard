@@ -12,26 +12,31 @@ import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurf
 import useSessionChartSettings from '../../../components/chart/pane/useSessionChartSettings'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences from '../../../hooks/usePreferences'
+import useTickerMeta from '../../../hooks/useTickerMeta'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import brandMark from '../../../components/intro/assets/compass-mark.png'
 import ws from '../../charts/ChartsWorkspace.module.css'
 import { widgetSettingsOverride } from '../studyChartLook'
 import s from './study.module.css'
 
-/** The identity badge: masked (a lock and four dots) or the ticker with its company logo, the way the widget shows it. */
+/** The identity badge: masked (a lock and four dots) or, after the answer, the ticker and the company's name, the way the
+ *  widget shows a symbol (round 21; owner, batch 21: the reveal with a stray logo and a watermark across the candles Cut).
+ *  The logo shows only once it has actually loaded, so a missing or odd one never reads as a broken badge. */
 export function SymbolBadge({ symbol = null, masked = true }) {
-  const [logoOk, setLogoOk] = useState(true)
   const show = !masked && !!symbol
+  const [logo, setLogo] = useState('wait')          // wait | ok | none
+  const meta = useTickerMeta(show ? symbol : null)
   if (!show) return <span className={`${s.symBadge} ${s.masked}`} data-testid="sym-label" aria-label="ticker hidden"><UIcon name="lock" size={13} gold={false} />••••</span>
   return (
     <span className={`${s.symBadge} ${s.reveal}`} data-testid="sym-label">
-      {logoOk ? <img className={s.symLogo} src={`/api/ticker-logo/${encodeURIComponent(symbol)}`} alt="" onError={() => setLogoOk(false)} /> : null}
-      {symbol}
+      {logo !== 'none' ? <img className={`${s.symLogo} ${logo === 'ok' ? s.symLogoOn : ''}`} src={`/api/ticker-logo/${encodeURIComponent(symbol)}`} alt="" onLoad={() => setLogo('ok')} onError={() => setLogo('none')} /> : null}
+      <b className={s.symTicker}>{symbol}</b>
+      {meta?.name ? <span className={s.symCo}>{meta.name}</span> : null}
     </span>
   )
 }
 
-export default function StudyChart({ id, bars, view = null, height = 400, annotations = null, chartOpts = null, symbol = null, masked = true, watermark = null, extra = null }) {
+export default function StudyChart({ id, bars, view = null, height = 400, annotations = null, callouts = null, calloutLook = null, chartOpts = null, symbol = null, masked = true, watermark = null, extra = null }) {
   const { prefs } = usePreferences(true)
   const surface = useChartSurfaceSettings()        // read-only here: the session override below is what the chart persists to
   const own = surface.ownChartSource
@@ -65,8 +70,11 @@ export default function StudyChart({ id, bars, view = null, height = 400, annota
     annotations,
     annotationsVisible: !!annotations,
     annotationsTextVisible: !!annotations,
+    // round 21: the pointer is the chart's own callout layer (open space, never over a candle; ui/callout.js)
+    callouts: callouts && callouts.length ? callouts : null,
+    calloutLook,
     ...(extra || {}),
-  }), [bars, showWatermark, watermark, phone, shown, session.settingsOverride, session.onSettingsPersist, annotations, extra])
+  }), [bars, showWatermark, watermark, phone, shown, session.settingsOverride, session.onSettingsPersist, annotations, callouts, calloutLook, extra])
   if (!n) return null
   return (
     <div className={`${ws.widget} ${s.frame}`} style={{ height }} data-charts-theme={prefs?.charts_theme || 'default'} data-testid="study-chart" data-masked={showWatermark || (!masked && symbol) ? '0' : '1'}>

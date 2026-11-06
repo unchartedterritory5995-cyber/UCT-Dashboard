@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clausesOf, firstSentence, splitLesson } from './lesson'
+import { clausesOf, firstSentence, splitLesson, stepsOf } from './lesson'
 
 // Real bank lessons (docs/study/bank/spot.setups.json, 2026-11-05), shortened only where marked.
 const HVE = 'High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day\'s close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 18.23% on the heaviest volume of the lookback.'
@@ -27,7 +27,7 @@ describe('splitLesson: the chart\'s own sentence leads, the rule follows, the st
     expect(L.here).toBe('')
     expect(L.ruleLead).toBe('The day before closes red and weak.')
     expect(L.ruleRest).toBe('Then it gaps up.')
-    expect(splitLesson('')).toEqual({ setup: '', rule: '', ruleLead: '', ruleRest: '', here: '', nothing: false, reason: '', citations: [] })
+    expect(splitLesson('')).toEqual({ setup: '', rule: '', ruleLead: '', ruleRest: '', here: '', nothing: false, template: false, reason: '', citations: [] })
   })
   it('never rewrites a word: the halves re-join to the stamped-free original', () => {
     const L = splitLesson(HVE)
@@ -66,5 +66,25 @@ describe('firstSentence', () => {
   it('ends at a stop followed by a capital, never inside a number', () => {
     expect(firstSentence('It opened 0.48% lower. Then it ran.')).toEqual(['It opened 0.48% lower.', 'Then it ran.'])
     expect(firstSentence('One sentence only')).toEqual(['One sentence only', ''])
+  })
+})
+
+describe('round 21: the rule as steps, the fixture templates, the review notes', () => {
+  it('cuts the rule at the semicolons the bank wrote, and at the commas of a sentence that walks through a session', () => {
+    expect(stepsOf(splitLesson(OOPS).ruleLead)).toEqual([
+      'Opens below the prior close.', "Trades under the prior day's low.", 'Then reverses and closes above the prior close.'])
+    const sling = 'A drive first, usually an earnings gapper, sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions; THEN the trigger, the first close back above that average.'
+    expect(stepsOf(sling)).toEqual([
+      'A drive first, usually an earnings gapper, sometimes a strong rally.', 'Then a tight orderly pullback of three to seven sessions.',
+      'Then the trigger, the first close back above that average.'])
+    expect(stepsOf('One plain sentence, with a comma in it')).toEqual(['One plain sentence, with a comma in it.'])
+    expect(stepsOf('')).toEqual([])
+  })
+  it('reads a fixture positive as a template with no rule, and lifts the review notes out of a near-miss reason', () => {
+    const pos = splitLesson("Oops Reversal: the firm's detector fires on the last bar of this chart. real daily bars; the detector's rule holds on the last session")
+    expect(pos).toMatchObject({ setup: 'Oops Reversal', template: true, nothing: false, rule: '', here: '' })
+    const neg = splitLesson("Oops Reversal: the firm's detector does not fire on the last bar of this chart. open below prior close and close above it, but no undercut of the prior low (dropped by the blind review)")
+    expect(neg.reason).toBe('Open below prior close and close above it, but no undercut of the prior low.')
+    expect(neg.citations).toEqual(['dropped by the blind review'])
   })
 })
