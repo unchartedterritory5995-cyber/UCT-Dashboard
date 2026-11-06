@@ -123,6 +123,7 @@ describe('⭐ 4. `?:`, `if` and `switch` as values: the arms\' common type', () 
     'ifBad(x) =>\n    if x > 0\n        Foo.new()\n    else\n        1',
     'ifElif(x) =>\n    if x > 0\n        "a"\n    else if x < 0\n        "b"\n    else\n        "c"',
     'ifElifBad(x) =>\n    if x > 0\n        "a"\n    else if x < 0\n        Foo.new()\n    else\n        "c"',
+    'ifElifLastBad(x) =>\n    if x > 0\n        "a"\n    else if x < 0\n        "b"\n    else\n        1',
     'sw(k) =>\n    switch k\n        1 => Foo.new()\n        => na',
     'swBad(k) =>\n    switch k\n        1 => Foo.new()\n        2 => "x"\n        => na',
     'swBlock(k) =>\n    switch k\n        1 =>\n            y = Foo.new()\n            y\n        => Foo.new()',
@@ -147,7 +148,16 @@ describe('⭐ 4. `?:`, `if` and `switch` as values: the arms\' common type', () 
     expect(t('ifBad(1)')).toBe(null)
     expect(t('ifElifBad(1)')).toBe(null)
     expect(t('swBad(1)')).toBe(null)
+    // review B1(a): every return path must agree, the third arm and beyond included
+    expect(t('ifElifLastBad(1)')).toBe(null)
     expect(t('close > open ? na : na')).toBe(null)
+  })
+  it('operators: text + text is text, num op num is num, a comparison is bool, mixed is null', () => {
+    const t = typer()
+    expect(t('"a" + "b"')).toEqual(text)
+    expect(t('1 + 2')).toEqual(num)
+    expect(t('close > open')).toEqual({ kind: 'bool' })
+    expect(t('"a" + 1')).toBe(null)
   })
 })
 
@@ -179,6 +189,7 @@ describe('⭐⭐ 6. user function results, inferred PER CALL SITE', () => {
     'rec(n) => n > 0 ? rec(n - 1) : Foo.new()',
     'nonrec(n) => n > 0 ? Foo.new() : Foo.new()',
     'body(x) =>\n    y = x.get(0)\n    z = y.x\n    z',
+    'naPass(x) => close > open ? x : "a"',
     'loopy(x) =>\n    s = 0.0\n    for i = 0 to 2\n        s += i\n    s',
   ].join('\n')
   it('one definition, two answers: `firstOf(array<Foo>)` and `firstOf(array<float>)`', () => {
@@ -205,6 +216,9 @@ describe('⭐⭐ 6. user function results, inferred PER CALL SITE', () => {
     expect(t('nonrec(3)')).toEqual(foo)
     expect(t('rec(3)')).toBe(null)
     expect(t('loopy(obs)')).toBe(null)
+    // review B1(b): `na` handed to an UNTYPED parameter gives it no type, so it cannot join the typed arm
+    expect(t('naPass("b")')).toEqual(text)
+    expect(t('naPass(na)')).toBe(null)
   })
 })
 
