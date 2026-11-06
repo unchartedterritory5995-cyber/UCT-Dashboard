@@ -162,3 +162,75 @@ def test_the_rs_rank_weighting_is_read_from_the_formula(monkeypatch):
     monkeypatch.setattr(rsw, "RS_TERMS", (("3m", 63, 0.7), ("1w", 5, 0.3)))
     how = M.for_column("rs_rank")["how"]
     assert "70% 3m, 30% 1w" in how
+
+
+# ── 2026-11-06, Phase 2a unit 2a-08: the seventeen UCT Relative Strength columns
+
+def _rs_columns():
+    from api.services.screener import rs_columns, snapshot_builder
+    return [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS]
+
+
+def test_every_rs_column_publishes_a_method_with_a_stated_limit():
+    """Derived from the two writers: a column either gains tomorrow fails here
+    until it says what it is, on what scale, how, and what it is not."""
+    doc = M.all_methods()
+    published = {m["column"]: m for m in doc["methods"]}
+    cols = _rs_columns()
+    assert len(cols) == 17, cols
+    for col in cols:
+        m = published.get(col)
+        assert m is not None, f"{col} ships without a method"
+        assert m["family"] == M.RS_FAMILY, col
+        for field in ("one_line", "scale", "how", "caveat"):
+            assert m.get(field), (col, field)
+        assert "Blank" in m["how"] or "blank" in m["how"], (col, "the method must say when it is blank")
+        assert M.for_column(col)["column"] == col
+    section = doc["rs_columns"]
+    assert set(section["columns"]) == set(cols)
+    assert "03:00" in section["timing"] and "04:15" in section["timing"]
+    assert "lags" in section["timing"] and "intraday" in section["timing"]
+    notes = " ".join(section["notes"])
+    assert "DAILY" in notes and "never on weekly" in notes       # Mansfield's reading
+    assert "TWO-benchmark" in notes and "RSP" in notes            # the agree column's two legs
+    assert "not MarketSurge" in notes and "IBD-style" in notes    # whose number it is not
+    assert "Denominator" in notes                                 # map §2.5 risk: 3,640 vs 11,230
+    assert "not when to buy" in section["honesty"]
+    assert "04:15" in doc["as_of_note"] and "None of them is an intraday" in doc["as_of_note"]
+
+
+def test_the_rs_methods_are_read_from_the_collector(monkeypatch):
+    """⛔ THE ONE TEST THAT MATTERS, again: proven derived by MOVING the real
+    constants and watching the published words follow. A retyped copy would
+    not."""
+    from api.services import rs_weighted_return as rsw
+    from api.services.screener import rs_columns, rs_history
+    assert "200-session simple average" in M.for_column("mansfield")["how"]
+    monkeypatch.setattr(rs_columns, "MANSFIELD_LENGTH", 150)
+    assert "150-session simple average" in M.for_column("mansfield")["how"]
+    assert "150 DAILY bars" in " ".join(M.all_methods()["rs_columns"]["notes"])
+    monkeypatch.setattr(rs_columns, "GREEN_ON_RED_WINDOW", 15)
+    assert M.for_column("green_on_red_20")["scale"] == "0-15"
+    assert M.for_column("rs_rating_ibd")["scale"].startswith("1-99")
+    monkeypatch.setattr(rs_history, "RATING_MAX", 50)
+    assert M.for_column("rs_rating_ibd")["scale"].startswith("1-50")
+    assert M.for_column("rs_rating_chg_5")["scale"] == "-49 to +49 points"
+    monkeypatch.setattr(rsw, "IBD_TERMS", (("q1", 63, 0.7), ("q4", 252, 0.3)))
+    how = M.for_column("rs_rating_ibd")["how"]
+    assert "70% of the close over the close 63 sessions earlier" in how
+    assert "30% of the close over the close 252 sessions earlier" in how
+    assert "63-session term is required" in how
+
+
+def test_the_rs_rating_says_whose_number_it_is_NOT_and_claims_no_figure(monkeypatch):
+    """Plan §6.12 struck "±3-5 points vs MarketSurge" from member copy until
+    measured; §7 item 17 prints the measured difference once known. Until the
+    constant is set the prose says so, and quotes no number."""
+    cav = M.for_column("rs_rating_ibd")["caveat"]
+    assert "our own calculation" in cav and "not MarketSurge" in cav
+    assert M.RS_RATING_VS_MARKETSURGE is None
+    assert "not yet measured" in cav
+    assert "±" not in cav and "3-5" not in cav and "3–5" not in cav
+    monkeypatch.setattr(M, "RS_RATING_VS_MARKETSURGE", "median 2 points over 40 names, 2026-12-01")
+    cav = M.for_column("rs_rating_ibd")["caveat"]
+    assert "median 2 points over 40 names, 2026-12-01" in cav and "not yet measured" not in cav
