@@ -1,4 +1,4 @@
-NEXT STEP: WAITING FOR THE COORDINATOR'S GO for the heavy jobs: measure-pair (runtime 0 and 1, base = the tip's own master, shared lock heavy-mp2/mp3.lock), then final-tip (FULL scope) + ready-check. Light work (code, targeted rails, hand mutations) is done.
+NEXT STEP: WAITING FOR THE COORDINATOR'S GO for final-tip (FULL scope) + ready-check on the merged tree. Measure-pair is DONE (0 intended diffs, 0 unintended; see below). origin/master 91ddac8c61 (engine 21) is merged in at a7c451e15a.
 
 # W34-I4b: a v1/v2 self-reference's bar 0 from the listing is withheld, not guessed
 
@@ -90,9 +90,29 @@ the VM, not as a column; the host v4 rail kills it.)
 - v3 `x := nz(x[1], fill)` is also unmeasured, but out of this lane's scope (v1/v2 only per brief).
 - Unstamped documents (no `meta.doorVersion`) keep master's answer.
 
-## Heavy steps (not yet run; awaiting go)
-- measure-pair runtime 0 and 1 vs base at `merge-base HEAD origin/master`: expected **0 corpus diffs**
-  (no corpus script is v1/v2) and 0 C18 diffs (`!atObjectDoor`).
-- final-tip FULL + ready-check.
+## Measure-pair (DONE, 2026-11-06, lock heavy-mp3.lock, base pine-dsk-mpbase3)
+Command: `measure-pair.sh <out> tip:pine-dsk-w34i4b base:pine-dsk-mpbase3 <rt> 1`, runtime 0 then 1, in one lock hold.
+`== side` SHAs: tip `6e2457aa33`, base `bde38b0d69` (= tested-on-master, the merge-base). BASE_HEAD did not move. Both sides rc 0.
+The base side came from the base cache: `bde38b0d6940-rt0-cen1-base-0e6c6c6e7f4042c2` and `-rt1-cen1-base-3cffc42a58e7fc22`.
+Comparison: `runs/w34-i4b/cmp.py`; `ms` timing keys excluded.
+- runtime 0: C18 audit **0 diffs**; C18 probe byte-identical; harness byte-identical
+  (`TOTAL 336: MATCH 93, DIVERGE 103, INCONCLUSIVE 140` both sides). Census: 5 of 967 rows differ, all `pine:timeout`
+  (the 10 s whole-script translation deadline). They are wall-clock load against a cached base, and translation (`pine.js`)
+  is not touched. **Not ours**: mirage-liquidity-sweep-pro, volatility-coil-edge, halftrend-longshort-signal-engine,
+  adaptive-trend-following-suite-alpha-extract, ai-supertrend-x-pivot-percentile-strategy.
+- runtime 1: C18 audit **0 diffs**; C18 probe byte-identical. Census: 1 of 967 rows differs
+  (multi-timeframe-trend-indicator, the `pine:timeout` refusal count). That is wall-clock and **not ours**. Harness: tip
+  `MATCH 112, DIVERGE 107, INCONCLUSIVE 117`; base `111 / 107 / 118`. The only diff is `delta-rsi-oscillator-strategy`:
+  on the cached base, `computeFor` returned no column, and it MATCHes on the tip. This is the known delta-rsi wall-clock flake.
+  **Not ours.**
+- Classification: 0 intended diffs (no corpus script is v1/v2), 0 unintended diffs. This is as expected.
+Logs: `runs/w34-i4b/mp-rt0.log`, `mp-rt1.log`, `mp-wait.log`.
+
+## Merge of current origin/master
+`git merge origin/master` (91ddac8c61, SCRIPT_ENGINE_VERSION 21) merged cleanly at a7c451e15a. After the merge,
+`listingSeedV12.test.js` is 14/14.
+
+## Remaining heavy step (awaiting go)
+- final-tip FULL + ready-check on the merged tree.
 
 Logs: `C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/w34-i4b/` (t1.log, handmut.log, mut-*.log, nb1.log, nb2.log).
