@@ -48,7 +48,7 @@ concurrency:
 
 jobs:
   rails:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         with:

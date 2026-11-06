@@ -88,6 +88,12 @@ on:
     # 07:30 UTC = 03:30 ET - outside market hours, after joystick-device's 07:00 run.
     - cron: '30 7 * * *'
   workflow_dispatch:
+    inputs:
+      lane:
+        description: "MANUAL FALLBACK, owner (or AUDIT with owner OK) only. hosted-fallback runs the self-hosted jobs on GitHub-hosted runners, for this one run."
+        type: choice
+        default: vps
+        options: [vps, hosted-fallback]
 
 # ⛔ Never cancel a previous run: the whole value of this job is a complete record of
 # which tests were red on which commit, and a cancelled run leaves a hole that reads
@@ -161,7 +167,7 @@ jobs:
 
   vitest:
     name: vitest — all files (report-only)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     continue-on-error: true
     # ⛔⛔ A0 (2026-10-13) — 45 WAS BELOW THE SUITE'S OWN WALL TIME. The last complete run
     # (37123227661, 2026-10-03) took 2,475 s for 35,702 tests — 41 of the 45 minutes — and
@@ -236,7 +242,7 @@ jobs:
   pytest:
     name: pytest — ${{ matrix.shard }}
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     continue-on-error: true
     # ⛔ E CP6: 20, not 45. Run #4 ran the WHOLE tree for 2,671 s against a 45-minute cap
     # and never printed a totals line. A job that cannot print totals within its cap is
@@ -357,7 +363,7 @@ jobs:
   collect_profile:
     name: collect-profile — ${{ matrix.dir }}
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     continue-on-error: true
     timeout-minutes: 10
     strategy:

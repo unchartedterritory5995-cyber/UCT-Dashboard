@@ -1,0 +1,2 @@
+# Everything here runs on Linux. A CRLF shebang fails with a misleading "not found".
+* text eol=lf

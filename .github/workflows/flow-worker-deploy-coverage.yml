@@ -42,7 +42,7 @@ concurrency:
 
 jobs:
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && vars.UCT_PC_ADVISORY == 'on' && 'uct-pc' || 'ubuntu-latest' }}
     steps:
       # ⛔ fetch-depth 0: the check diffs against a merge-base, and a shallow
       # clone silently yields an empty diff — the vacuous pass this exists to avoid.

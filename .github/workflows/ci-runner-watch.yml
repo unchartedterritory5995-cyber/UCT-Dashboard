@@ -1,0 +1,32 @@
+# promotion-gate: no — DETECTION ONLY. It reads the job queue and turns red when a self-hosted job has been stuck,
+#   so an outage is seen rather than discovered. It decides nothing and promotion never reads it.
+# A job on an offline runner does not fail: it stays queued for up to 24 hours. The master gate bounds its own wait
+# with `runner-watchdog`; everything else on a self-hosted lane relies on this. Hosted, because a watch that runs on
+# the machine it watches cannot report that machine's death. A red scheduled run emails the workflow's last editor.
+# COST: one billed minute per run, so ~720 minutes a month at this cadence.
+name: ci runner watch
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-runner-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  queue:
+    name: no self-hosted job stuck in the queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Jobs queued 30 minutes or more on uct-vps or uct-pc
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/ci_runner_watchdog.py queue --labels uct-vps,uct-pc --minutes 30

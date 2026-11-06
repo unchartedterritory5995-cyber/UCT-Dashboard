@@ -1,0 +1,12 @@
+[Unit]
+Description=uct-ci: CI bridge and egress rules
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/srv/uct/kit/egress-firewall.sh
+
+[Install]
+WantedBy=multi-user.target

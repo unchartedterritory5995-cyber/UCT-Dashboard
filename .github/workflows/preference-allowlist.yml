@@ -45,7 +45,7 @@ concurrency:
 
 jobs:
   allowlist:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && vars.UCT_PC_ADVISORY == 'on' && 'uct-pc' || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

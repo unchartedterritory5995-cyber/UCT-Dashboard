@@ -61,6 +61,14 @@ name: master deploy gate
 on:
   push:
     branches: [master, main]
+  # The one way off the VPS: no automatic fallback exists. See infra/ci-runner/AUDIT-NOTES.md, 'Fallback'.
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "MANUAL FALLBACK, owner (or AUDIT with owner OK) only. hosted-fallback runs the self-hosted jobs on GitHub-hosted runners, for this one run."
+        type: choice
+        default: vps
+        options: [vps, hosted-fallback]
 
 # One queue for the whole repository. Runs execute strictly one at a time and an
 # older run is never cancelled by a newer one.
@@ -292,7 +300,7 @@ jobs:
       # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
       # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.
       - name: CI cost rails
-        run: python -m pytest tests/test_ci_cost_rails.py -q -p no:cacheprovider
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_ci_runner_routing.py -q -p no:cacheprovider
 
       - name: No module shadows its own definitions
         run: python -m pytest tests/test_no_shadowed_definitions.py -q
@@ -404,7 +412,7 @@ jobs:
   # is failure if ANY job fails; `verdict` additionally names the result in one place.
   agent-browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -445,7 +453,7 @@ jobs:
   agent-browser-union:
     name: Agent shards cover every Agent test file (equivalence rail)
     needs: agent-browser
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -502,7 +510,7 @@ jobs:
   # the live service. The image is not built here: section 8 does not ask for it.
   pine-runtime:
     name: Pine runtime service rails (section 8)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -583,19 +591,48 @@ jobs:
       - name: Pine runtime - the image agrees with Dockerfile.web
         run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q -p no:cacheprovider
 
+  # A job on an offline runner stays queued for up to 24 hours, and `timeout-minutes` does not count queue time, so
+  # a dead VPS would hold this workflow's serial queue for a day. This hosted job bounds that: no runner labelled
+  # uct-vps within 10 minutes fails the gate and cancels the run, so the heavy jobs report cancelled and `verdict`
+  # fails. It passes as soon as a runner is online. It never reads a result and never decides one.
+  runner-watchdog:
+    name: VPS runner online (hosted watchdog)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write   # only to cancel this run when the runner is absent
+    steps:
+      - uses: actions/checkout@v4
+      - name: A runner labelled uct-vps is online
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback') }}
+        env:
+          CI_RUNNER_READ_TOKEN: ${{ secrets.CI_RUNNER_READ_TOKEN }}
+        run: python3 tools/ci_runner_watchdog.py gate --label uct-vps --minutes 10
+      - name: Label a manual hosted fallback run
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback' }}
+        run: |
+          echo "::warning title=MANUAL HOSTED FALLBACK::The heavy gate jobs ran on GitHub-hosted runners, by manual dispatch from ${GITHUB_ACTOR}."
+          echo "## MANUAL HOSTED FALLBACK, dispatched by ${GITHUB_ACTOR}" >> "$GITHUB_STEP_SUMMARY"
+      - name: End the run instead of leaving it queued
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY"
+
   # One named verdict for the whole gate. Runs even when a dependency failed or was
   # cancelled, and passes ONLY if every job above succeeded.
   verdict:
     name: master deploy gate verdict
-    needs: [gate, agent-browser, agent-browser-union, pine-runtime]
+    needs: [gate, agent-browser, agent-browser-union, pine-runtime, runner-watchdog]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every gate job succeeded
         run: |
-          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }}"
-          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ]; then
+          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }} runner-watchdog=${{ needs.runner-watchdog.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ] && [ "${{ needs.runner-watchdog.result }}" = success ]; then
             echo "master deploy gate: ALL JOBS GREEN"; exit 0
           fi
           exit 1

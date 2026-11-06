@@ -1,0 +1,12 @@
+# Proposed C:\Users\blake\.wslconfig. NOT applied. This file applies to every WSL distro for this Windows user.
+# Sized for 2 slots of 4 CPUs and 10 GiB, plus Docker and the distro. Leaves 14 logical CPUs and 40 GB for Windows,
+# dev servers and Claude sessions.
+[wsl2]
+processors=10
+memory=24GB
+swap=4GB
+# Keep NAT. `networkingMode=mirrored` would share 127.0.0.1 with Windows and bypass the bridge reasoning in ISOLATION.md.
+networkingMode=nat
+guiApplications=false
+# Without this the VM stops when idle and takes Docker and the idle runners with it. UNTESTED across a reboot.
+vmIdleTimeout=-1

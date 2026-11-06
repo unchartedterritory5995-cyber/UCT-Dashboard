@@ -73,7 +73,7 @@ concurrency:
 
 jobs:
   bytes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

@@ -90,7 +90,7 @@ concurrency:
 
 jobs:
   ratio:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -123,7 +123,7 @@ jobs:
   # The Notebook's write protection (see the header's SECOND JOB note). Its own job so the
   # pytest load never lands on the ratio job's timings, and so each verdict reads by name.
   write-protection:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

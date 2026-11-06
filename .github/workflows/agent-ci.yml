@@ -68,6 +68,14 @@ on:
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
       - '.github/workflows/agent-ci.yml'
+  # The one way off the VPS: no automatic fallback exists. See infra/ci-runner/AUDIT-NOTES.md, 'Fallback'.
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "MANUAL FALLBACK, owner (or AUDIT with owner OK) only. hosted-fallback runs the self-hosted jobs on GitHub-hosted runners, for this one run."
+        type: choice
+        default: vps
+        options: [vps, hosted-fallback]
 
 concurrency:
   group: agent-ci-${{ github.ref }}
@@ -85,8 +93,8 @@ env:
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -110,8 +118,8 @@ jobs:
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -154,8 +162,8 @@ jobs:
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -205,7 +213,7 @@ jobs:
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -217,8 +225,8 @@ jobs:
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
