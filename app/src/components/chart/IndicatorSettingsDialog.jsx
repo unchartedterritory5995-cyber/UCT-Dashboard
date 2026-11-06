@@ -44,7 +44,13 @@ import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { effectiveColourFor } from './engine/pool'
 import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs } from './indicatorRegistry'
 import { findInstance, setInstanceInput, setInstanceHidden,
-         setInstanceDisplayTarget, applyPresetInputs } from './engine/instanceControls'
+         setInstanceDisplayTarget, applyPresetInputs, setInstanceDotSize,
+         presetsOf, detectPreset, CUSTOM_PRESET, dotPlotsOf, DOT_SIZE_OPTIONS } from './engine/instanceControls'
+import { storedDotSize, DEFAULT_DOT_SIZE } from './engine/presentation'
+// ⭐ 2a-12 — the preset readers moved into the engine (`presetsOf`, `detectPreset`,
+// `CUSTOM_PRESET`) so this dialog and the phone sheet read ONE copy. The id is
+// re-exported here for the callers that always imported it from the dialog.
+export { CUSTOM_PRESET } from './engine/instanceControls'
 import { PLACEMENT_TARGETS, isSessionString } from './engine/defSchema'
 import { chipsFrom } from './engine/readout'
 import styles from './IndicatorSettingsDialog.module.css'
@@ -111,34 +117,6 @@ function packRows(fields) {
     i = j
   }
   return out
-}
-
-/** The `<option>` value that stands for "no preset matches" in the picker. It is
- *  not a preset id and is never written anywhere — choosing it is a no-op. */
-export const CUSTOM_PRESET = '__custom'
-
-/** The definition's declared presets (`meta.presets`), shape-filtered so a
- *  malformed entry renders nothing rather than a broken row. `defSchema` already
- *  refuses the malformed shapes; this is the dialog's own guard against a
- *  registry that was not validated through it. */
-function presetsOf(def) {
-  const raw = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
-  return raw.filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id
-    && typeof p.label === 'string' && p.inputs && typeof p.inputs === 'object' && !Array.isArray(p.inputs))
-}
-
-/** The preset whose EVERY declared key equals the value the form shows — or
- *  `null` for Custom. Derived, never stored: the instance carries inputs, not a
- *  preset id, so this cannot drift from what the chart draws. Compared against
- *  the RESOLVED values (declared defaults under stored inputs), so a fresh
- *  instance whose defaults are a preset's values reads as that preset. */
-function detectPreset(presets, values) {
-  for (const p of presets) {
-    const keys = Object.keys(p.inputs)
-    if (!keys.length) continue
-    if (keys.every((k) => values[k] === p.inputs[k])) return p
-  }
-  return null
 }
 
 /** Sections by declared `group`, in first-appearance order. Ungrouped fields keep
@@ -342,6 +320,16 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     writeSettings(setInstanceDisplayTarget(settingsRef.current, instanceId, target, registry))
   }, [instanceId, registry, writeSettings])
 
+  // ⭐ 2a-12 — DOT SIZE, the Style tab's one control that is not an input. It writes
+  // the instance level (every dot output of this copy) through `setInstanceDotSize`,
+  // the writer the Chart Data row and the `setDotSize` agent op share; "Default"
+  // DELETES the key, so a copy nobody resized stores nothing. ⚠️ It lives in
+  // `presentation`, the nested object the Inspector's Plot style already writes —
+  // the same grid-cell-override caveat as that control, and no new one.
+  const setDotSize = useCallback((size) => {
+    writeSettings(setInstanceDotSize(settingsRef.current, instanceId, size, registry))
+  }, [instanceId, registry, writeSettings])
+
   // ── the preset picker (generic: `def.meta.presets`) ───────────────────────
   //
   // Rendered only when the definition declares presets. A preset is a named set
@@ -355,7 +343,13 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   // matched, so "Reset to preset" has a target after a tweak flips the select to
   // Custom. It is dialog-local UI state, reset per open and per instance.
   const presets = useMemo(() => presetsOf(def), [def])
-  const currentPreset = useMemo(() => detectPreset(presets, shown), [presets, shown])
+  // ⭐ 2a-12 — the instance rides along, so a preset that also declares a dot size,
+  // a visibility or a display target is "current" only while the instance carries
+  // them; a Dot size change away from the preset's word reads as Custom.
+  const currentPreset = useMemo(
+    () => detectPreset(presets, shown, { instance, def, cs: settings }),
+    [presets, shown, instance, def, settings],
+  )
   const [pickedPresetId, setPickedPresetId] = useState(null)
   // ⛔ ORDER MATTERS: effects run in declaration order, so the two RESETS come
   // first and the "remember the match" effect last. Reversed, a mount that
@@ -649,6 +643,10 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   })
 
   const placementTarget = instance.placement?.target || def.placement?.target || MOVE_TARGETS[0]
+  // ⭐ 2a-12 — the Dot size control's facts: which outputs draw dots (none ⇒ no
+  // control) and the word the instance level stores (nothing ⇒ "Default").
+  const dotPlots = dotPlotsOf(def)
+  const dotSize = storedDotSize(instance, null) || DEFAULT_DOT_SIZE
 
   return (
     <Sheet open={open} onClose={handleDone} variant="auto" title={title} maxWidth={520} className={sheetClassName}>
@@ -716,7 +714,32 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
           {tab === 'style' && (<>
             {model.style.length
               ? renderFields(model.style)
-              : <div className={styles.empty}>This indicator declares no styled inputs.</div>}
+              : (dotPlots.length ? null : <div className={styles.empty}>This indicator declares no styled inputs.</div>)}
+            {dotPlots.length > 0 && (
+              // ⭐ 2a-12 — shown only for a definition that draws dots (a `markers`
+              // output or a series `marker` glyph). One control for the copy: the
+              // three words `storedDotSize` reads, "Default" = the declared radius.
+              <div className={styles.group} data-style-group="dots">
+                <div className={styles.row} data-style-key="dotSize">
+                  <label className={styles.label} id={`${uid}-dot-lbl`} htmlFor={`${uid}-dot`}>
+                    Dot size
+                  </label>
+                  <span className={styles.control}>
+                    <select
+                      className={styles.sel} id={`${uid}-dot`}
+                      aria-labelledby={`${uid}-dot-lbl`} aria-describedby={`${uid}-dot-tip`}
+                      value={dotSize}
+                      onChange={(e) => setDotSize(e.target.value)}
+                    >
+                      {DOT_SIZE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </span>
+                  <span className={styles.tip} id={`${uid}-dot-tip`}>
+                    How large this copy&apos;s dots draw. Default keeps the size the indicator declares.
+                  </span>
+                </div>
+              </div>
+            )}
             <div className={styles.chipBox}>
               <div className={styles.chipRow}>
                 <span className={styles.chipKey}>Legend chip</span>
