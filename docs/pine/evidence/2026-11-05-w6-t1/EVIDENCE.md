@@ -1,4 +1,4 @@
-NEXT STEP (heavy, HELD until the coordinator says go): re-run `runs/w6-t1/mp.sh` (measure-pair runtime 0 then 1, census on, tip pine-dsk-w6t1 vs base pine-dsk-mpbase3 @ 2f40ee68c5) under the SHARED lock `_resume-2026-11-01/dsk/heavy-mp3.lock`, after ram_gate. Skip runtime 0 if the orphaned run in runs/w6-t1/mp0 completed (see 'Measure-pair status'). Then: classify the diffs, merge origin/master, run a FULL final-tip (`final-tip.sh pine-dsk-w6t1 w6-t1-final tests/test_pine_coverage_w6_t1_relabel.py` under LOCK_FINAL2), push, and run `ready-check.sh` on runs/w6-t1-final.
+NEXT STEP (heavy, HELD until the coordinator says go): run measure-pair with RUNTIME 1 ONLY (`bash $S/measure-pair.sh $UCT_RESUME/runs/w6-t1/mp1 tip:$UCT_WORKTREES/pine-dsk-w6t1 base:$UCT_WORKTREES/pine-dsk-mpbase3 1 1`, base asserted at 2f40ee68c5 inside the job; base cache 2f40ee68c5ec-rt1-cen1 exists) under ram_gate plus the SHARED `_resume-2026-11-01/dsk/heavy-mp3.lock`. Runtime 0 is done and usable (runs/w6-t1/mp0). Then: merge origin/master, run a FULL final-tip (`final-tip.sh pine-dsk-w6t1 w6-t1-final tests/test_pine_coverage_w6_t1_relabel.py` under LOCK_FINAL2), push, and run ready-check on runs/w6-t1-final.
 
 # W6-T1 evidence: re-wave the mis-labelled W6 guards (tooling only)
 
@@ -138,3 +138,19 @@ Runtime 0, tip side, was complete (`runs/w6-t1/mp0`): audit, probe, census (967 
 harness TOTAL 336, MATCH 93, DIVERGE 103, INCONCLUSIVE 140. The script flagged `BASE_HEAD MOVED on tip`
 (`983cfed110` → `69ce7380fa`). That change is docs only (this file): both commits carry code commit
 `4d8d6f3534`'s tree for every non-docs path. The base side was still running at the time of writing.
+
+**Runtime 0 completed after this was written, and is usable** (`runs/w6-t1/mp0`, log `runs/w6-t1/mp.log`).
+The base side was a cache hit (`2f40ee68c5ec-rt0-cen1-base-a26fa18cadeec562`): audit, probe, census and
+harness all rc=0. The script printed `MEASURE_FAILED base head moved` only because a docs-only evidence
+commit moved the tip during the run (`git diff --name-only 983cfed110 69ce7380fa` = this file).
+- C18 audit (`out-*.json`): **0 verdict diffs**. Every difference is a per-script `ms` timing field.
+- C18 probes (`probe-*.json`): byte-identical.
+- Harness: both sides TOTAL 336, MATCH 93, DIVERGE 103, INCONCLUSIVE 140. The per-capture files are
+  identical.
+- Production census: 7 of 967 rows differ in peel-step `refusals` / `dropHeads` / drop counters, on
+  ai-supertrend-x-pivot, multi-timeframe-trend-indicator, renderingnature-smc, volatility-coil-edge,
+  halftrend-longshort, luxy-momentum and mirage-liquidity-sweep. **Not caused by T1.** The tip differs from
+  master only in `tools/pine_coverage/coverage_map.py`, `w0/targets.py`, the rail and this doc.
+  `run_census.py` imports neither of the tools, and no engine file changed, so the census code is the
+  same on both sides. The base side is a cached run from another time, so these are run-to-run peel
+  variation (load and timing). Classified as noise, not as a T1 diff.
