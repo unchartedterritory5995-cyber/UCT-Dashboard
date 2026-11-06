@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run N slots of ephemeral, single-job GitHub Actions runners, one fresh container per job.
 
-    python3 launcher.py serve --image sha256:<id> --repo owner/name       # the VPS
+    python3 launcher.py serve --lane gate-vps --slots 3 --image sha256:<id>     # the VPS: reserved gate capacity
+    python3 launcher.py serve --lane shared-vps --slots 1 --image sha256:<id>   # the VPS: dispatch and nightly
     python3 launcher.py local --image sha256:<id> -- bash -c '...'    # same container, no runner
     python3 launcher.py print-args --image sha256:<id>                # the docker argv, for review
 
@@ -16,8 +17,11 @@ TOKEN APPROACH: JIT runner configs (POST /repos/{repo}/actions/runners/generate-
   * The config reaches the container on STDIN only, so it is absent from argv, `docker inspect`,
     image layers and logs. entrypoint.sh hands it to the runner.
 
-Lanes are a closed list, and a lane decides the label. Nothing passes a free-form label. The only lane is:
-  gate-vps  label uct-vps  refuses to start on WSL, on non-x86_64, or beside owner/worker credentials
+Lanes are a closed list, and a lane decides the label. Nothing passes a free-form label. A slot carries one lane's
+label only, so a job for one lane can never take the other's slot:
+  gate-vps    label uct-vps-gate  reserved for the master gate's heavy jobs
+  shared-vps  label uct-vps       dispatch runs and the nightly report
+Both refuse to start on WSL, on non-x86_64, or beside owner/worker credentials.
 The owner's PC is advisory only and uses `local`, which registers nothing: its results never appear on GitHub, so they
 can neither stop nor satisfy AUDIT's merge set, and the PC needs no token.
 """
@@ -43,10 +47,11 @@ import urllib.request
 
 API = "https://api.github.com"
 DEFAULT_REPO = "unchartedterritory5995-cyber/UCT-Dashboard"
-LANE_LABELS = {"gate-vps": "uct-vps"}
+LANE_LABELS = {"gate-vps": "uct-vps-gate", "shared-vps": "uct-vps"}
 NETWORK = "uct-ci"
 BRIDGE = "br-uctci"
 CONTAINER_LABEL = "uct.ci=1"
+LANE_KEY = "uct.ci.lane"
 #: Blanked in every container, so no test can reach a paid model even if a key leaked into a default.
 BLANK_ENV = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "PERPLEXITY_API_KEY", "GEMINI_API_KEY",
              "GOOGLE_API_KEY", "XAI_API_KEY", "MASSIVE_API_KEY", "POLYGON_API_KEY", "FINNHUB_API_KEY")
@@ -73,7 +78,11 @@ class Config:
     token_file: str = "~/.config/uct-ci/github-token"
     log_dir: str = "/var/log/uct-ci"
     min_free_gib: int = 30
+    max_disk_gib: int = 40       # one container's writable layer. Polled, so a fast writer can overshoot by one poll.
+    disk_poll_s: int = 30
+    command: tuple = ("run",)    # what the container runs: the runner, unless a test says otherwise
     recycle_idle_s: int = 6 * 3600
+    poll_s: int = 5
     max_job_s: int = 4 * 3600
     docker: tuple = ("docker",)
     api: str = API
@@ -114,7 +123,7 @@ def check_gate_host(*, machine=None, proc_version=None, home=None) -> None:
         raise Refused(f"gate lane refuses a host holding owner or worker credentials: {found}")
 
 
-def container_args(cfg: Config, name: str) -> list:
+def container_args(cfg: Config, name: str, lane: str | None = None) -> list:
     """The one definition of a CI container: `serve` and `local` both use exactly this.
 
     Deliberately absent: -v, --mount, --device, --privileged, --cap-add, --pid/--ipc/--network host,
@@ -123,6 +132,7 @@ def container_args(cfg: Config, name: str) -> list:
     check_image(cfg.image)
     args = ["run", "--rm", "--interactive", "--init", "--pull=never", "--name", name,
             "--label", CONTAINER_LABEL,
+            "--label", f"{LANE_KEY}={lane or cfg.lane}",
             "--hostname", name[:60],
             "--user", "1001:1001",
             "--network", cfg.network,
@@ -210,8 +220,9 @@ class Slots:
         return subprocess.run([*self.cfg.docker, *args], capture_output=True, text=True, **kw)
 
     def sweep(self) -> list:
-        """Remove anything a crashed launcher or daemon restart left behind."""
-        out = self.docker("ps", "-aq", "--filter", f"label={CONTAINER_LABEL}")
+        """Remove what a crash left, in this lane only: both lanes run side by side on the VPS, and a lane restarting
+        must not kill the other's jobs."""
+        out = self.docker("ps", "-aq", "--filter", f"label={LANE_KEY}={self.cfg.lane}")
         ids = out.stdout.split()
         for cid in ids:
             self.docker("rm", "-f", cid)
@@ -224,6 +235,14 @@ class Slots:
         self.docker("rm", "-f", name)
         return self.docker("inspect", name).returncode != 0
 
+    def container_disk_gib(self, name: str) -> float:
+        """The container's writable layer. Unknown reads as 0: the host-wide `disk_ok` check still stands behind it."""
+        out = self.docker("inspect", "--size", "--format", "{{.SizeRw}}", name)
+        try:
+            return int(out.stdout.strip()) / 2**30
+        except ValueError:
+            return 0.0
+
     def disk_ok(self) -> bool:
         root = self.docker("info", "--format", "{{.DockerRootDir}}").stdout.strip() or "/"
         try:
@@ -232,13 +251,13 @@ class Slots:
             return False
 
     def run_once(self, slot: int) -> dict:
-        name = f"uct-ci-{slot}-{secrets.token_hex(4)}"
+        name = f"uct-ci-{self.cfg.lane}-{slot}-{secrets.token_hex(4)}"
         runner_id, jit = self.gh.jit_config(name)
         log_path = pathlib.Path(self.cfg.log_dir) / f"{name}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         started = self.clock()
         with log_path.open("wb") as log:
-            proc = subprocess.Popen([*self.cfg.docker, *container_args(self.cfg, name), self.cfg.image, "run"],
+            proc = subprocess.Popen([*self.cfg.docker, *container_args(self.cfg, name), self.cfg.image, *self.cfg.command],
                                     stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT)
             try:
                 proc.stdin.write((jit + "\n").encode("utf-8"))
@@ -262,9 +281,18 @@ class Slots:
     def _supervise(self, proc, name, runner_id, started) -> None:
         """Recycle an idle runner so the slot does not hold a stale registration forever. A busy one is
         left to finish, up to a hard cap. A wrong call here only fails a job, it can never pass one."""
+        last_disk = started
         while proc.poll() is None:
-            self.sleep(5)
+            self.sleep(self.cfg.poll_s)
             age = self.clock() - started
+            if self.clock() - last_disk >= self.cfg.disk_poll_s:
+                last_disk = self.clock()
+                used = self.container_disk_gib(name)
+                if used > self.cfg.max_disk_gib or not self.disk_ok():
+                    # the job fails, which is the point: an out-of-disk host is a host every later job fails on
+                    self.event(event="disk-kill", name=name, used_gib=round(used, 1), max_disk_gib=self.cfg.max_disk_gib)
+                    self.docker("rm", "-f", name)
+                    continue
             if self.stopping.is_set():
                 self.docker("stop", "-t", "30", name)
             elif age > self.cfg.recycle_idle_s + self.cfg.max_job_s:
@@ -333,6 +361,7 @@ def _parser() -> argparse.ArgumentParser:
             s.add_argument("--slots", type=int, default=2)
             s.add_argument("--token-file", default=Config.token_file)
             s.add_argument("--log-dir", default=Config.log_dir)
+            s.add_argument("--max-disk-gib", type=int, default=Config.max_disk_gib)
         if name == "local":
             s.add_argument("--name", default="")
             s.add_argument("command", nargs=argparse.REMAINDER)
@@ -353,8 +382,9 @@ def main(argv=None) -> int:
             cmd = a.command[1:] if a.command[:1] == ["--"] else a.command
             if not cmd:
                 raise Refused("local needs a command after --")
-            return subprocess.call([*cfg.docker, *container_args(cfg, name), cfg.image, *cmd])
+            return subprocess.call([*cfg.docker, *container_args(cfg, name, lane="local"), cfg.image, *cmd])
         cfg.repo, cfg.slots, cfg.token_file, cfg.log_dir = a.repo, a.slots, a.token_file, a.log_dir
+        cfg.max_disk_gib = a.max_disk_gib
         return Slots(cfg).serve()
     except Refused as err:
         print(f"REFUSED: {err}", file=sys.stderr)

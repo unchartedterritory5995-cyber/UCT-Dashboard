@@ -22,8 +22,8 @@ sys.path.insert(0, str(ROOT / "tools"))
 import promotion_gate as pg  # noqa: E402
 
 HOSTED = "ubuntu-latest"
-GATE_LANE = ("${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' "
-             "&& inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}")
+GATE_LANE = ("${{ github.event_name == 'workflow_dispatch' && (github.ref != 'refs/heads/master' "
+             "|| inputs.lane == 'hosted-fallback') && 'ubuntu-latest' || 'uct-vps-gate' }}")
 DISPATCH_LANE = "${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}"
 SHADOW_LANE = ("${{ github.event_name == 'workflow_dispatch' && inputs.lane != 'hosted-fallback' && 'uct-vps' "
                "|| inputs.lane == 'vps' && 'uct-vps' || 'ubuntu-latest' }}")
@@ -66,6 +66,10 @@ def _gate():
     return yaml.safe_load(_text("master-deploy-gate.yml"))
 
 
+def _verdict_step():
+    return next(s for s in _gate()["jobs"]["verdict"]["steps"] if s.get("name") == "Every gate job succeeded")
+
+
 def _on(doc):
     return doc.get("on", doc.get(True))
 
@@ -86,7 +90,7 @@ def test_the_routing_table_names_only_real_jobs():
     assert set(ROUTED) <= real, sorted(set(ROUTED) - real)
 
 
-@pytest.mark.parametrize("job_id", ["gate", "verdict", "runner-watchdog"])
+@pytest.mark.parametrize("job_id", ["gate", "verdict"])
 def test_the_gate_core_stays_hosted_as_a_literal(job_id):
     assert _gate()["jobs"][job_id]["runs-on"] == HOSTED
 
@@ -173,10 +177,54 @@ def test_no_automatic_fallback_exists():
         assert not re.search(r"\b(needs|steps|job|runner|failure|cancelled)\b", expr.replace("github.event_name", "")), expr
 
 
-def test_the_fallback_input_defaults_to_the_vps_and_gates_only_master():
+def test_the_fallback_input_defaults_to_the_vps():
     lane = _on(_gate())["workflow_dispatch"]["inputs"]["lane"]
     assert lane["default"] == "vps" and lane["options"] == ["vps", "hosted-fallback"]
-    assert "github.ref == 'refs/heads/master'" in GATE_LANE
+
+
+# ---- AUDIT B3: reserved gate capacity
+
+def test_only_the_gate_can_use_the_reserved_label():
+    for name, job_id, job in _jobs():
+        if "uct-vps-gate" in str(job.get("runs-on")):
+            assert name == "master-deploy-gate.yml" and job_id in GATE_HEAVY, (name, job_id)
+
+
+def test_no_gate_job_uses_the_shared_label():
+    for job_id in GATE_HEAVY:
+        assert "'uct-vps'" not in _gate()["jobs"][job_id]["runs-on"], job_id
+
+
+def test_the_watch_covers_both_labels():
+    run = yaml.safe_load(_text("ci-queue-watch.yml"))["jobs"]["watch"]["steps"][-1]["run"]
+    assert "--labels uct-vps-gate,uct-vps " in run
+
+
+# ---- AUDIT B4: a branch dispatch is refused in the queue and in every job
+
+def test_a_branch_dispatch_cannot_join_the_master_queue():
+    conc = _gate()["concurrency"]
+    assert conc["cancel-in-progress"] is False
+    assert conc["group"] == ("${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/master' "
+                             "&& format('refused-dispatch-{0}', github.run_id) || 'master-deploy' }}")
+
+
+def test_every_gate_job_refuses_a_branch_dispatch():
+    for job_id, job in _gate()["jobs"].items():
+        step = next((s for s in job["steps"] if s.get("name") == "Refuse a dispatch that is not on master"), None)
+        assert step is not None, job_id
+        assert step["if"] == "github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/master'"
+        assert step["run"].rstrip().endswith("exit 1"), job_id
+
+
+def test_the_refusal_comes_first_in_every_job_that_runs_code():
+    for job_id, job in _gate()["jobs"].items():
+        if job_id != "verdict":
+            assert job["steps"][0].get("name") == "Refuse a dispatch that is not on master", job_id
+
+
+def test_a_branch_dispatch_never_reaches_the_reserved_slots():
+    assert "github.ref != 'refs/heads/master' || inputs.lane == 'hosted-fallback'" in GATE_LANE
 
 
 # ---- the named set runs once, by hand, at the exact SHA
@@ -227,6 +275,12 @@ def test_existing_timeouts_were_not_quietly_raised():
             jobs["pine-runtime"]["timeout-minutes"], jobs["agent-server"]["timeout-minutes"]) == (30, 15, 30, 20)
 
 
+def test_no_gate_job_is_longer_than_the_watch_limit():
+    """A running job resets the watch's clock, so a healthy lane stays clear only if every job ends within 45 minutes."""
+    jobs = _gate()["jobs"]
+    assert max(jobs[j]["timeout-minutes"] for j in GATE_HEAVY) < 45
+
+
 def test_the_server_step_left_gate_and_deploy_correctness_did_not():
     gate = [s.get("name") for s in _gate()["jobs"]["gate"]["steps"]]
     assert "UCT Agent server tests (production dependency set)" not in gate
@@ -246,7 +300,7 @@ def test_the_server_job_uses_no_secret_and_proves_its_commit():
 def test_the_server_job_has_full_history():
     """At depth 2 two F-16 rails skip on a missing commit and the job still reads green, so a shallower checkout is
     a silent loss of coverage. Measured 2026-11-06: 3652 passed, 2 skipped, against hosted's 3654 passed."""
-    checkout = _gate()["jobs"]["agent-server"]["steps"][0]
+    checkout = next(s for s in _gate()["jobs"]["agent-server"]["steps"] if "uses" in s)
     assert checkout["uses"].startswith("actions/checkout@") and checkout["with"]["fetch-depth"] == 0
 
 
@@ -256,27 +310,26 @@ def test_every_gate_job_is_in_the_verdict_by_exact_success():
     assert set(verdict["needs"]) == others
     assert verdict["if"] == "always()"
     for need in verdict["needs"]:
-        assert f'[ "${{{{ needs.{need}.result }}}}" = success ]' in verdict["steps"][0]["run"], need
+        assert f'[ "${{{{ needs.{need}.result }}}}" = success ]' in _verdict_step()["run"], need
 
 
 def test_job_names_are_as_reviewed():
-    """Check names are what AUDIT and promotion read. Two changes, both from ruling 1 and the watchdog."""
+    """Check names are what AUDIT and promotion read. Ruling 1 made both changes."""
     assert {k: v.get("name") for k, v in _gate()["jobs"].items()} == {
         "gate": "deploy-correctness checks",
         "agent-server": "UCT Agent server tests (production dependency set)",
         "agent-browser": "UCT Agent browser tests (shard ${{ matrix.shard }}/4)",
         "agent-browser-union": "Agent shards cover every Agent test file (equivalence rail)",
         "pine-runtime": "Pine runtime service rails (section 8)",
-        "runner-watchdog": "VPS runner online (hosted watchdog)",
         "verdict": "master deploy gate verdict",
     }
 
 
-def test_the_watchdog_is_one_shot_and_holds_no_write():
-    job = _gate()["jobs"]["runner-watchdog"]
-    assert job["permissions"] == {"contents": "read"}
-    step = next(s for s in job["steps"] if s.get("name") == "A runner labelled uct-vps is online")
-    assert step["run"] == "python3 tools/ci_queue_watch.py online --label uct-vps"
+def test_no_token_can_read_runners_and_the_gate_needs_no_watchdog():
+    """AUDIT Q2: reading runners needs admin, and a repo secret is readable from any branch's workflow."""
+    text = _text("master-deploy-gate.yml")
+    assert "CI_RUNNER_READ_TOKEN" not in text and "runner-watchdog" not in text
+    assert "secrets." not in text
 
 
 def test_the_queue_watch_is_scoped_to_the_gate():
@@ -296,7 +349,7 @@ def _verdict(results: dict) -> int:
     if not bash or sys.platform == "win32":
         pytest.skip("needs a POSIX shell; runs in the gate and in the image")
     verdict = _gate()["jobs"]["verdict"]
-    script = verdict["steps"][0]["run"]
+    script = _verdict_step()["run"]
     for need in verdict["needs"]:
         script = script.replace(f"${{{{ needs.{need}.result }}}}", results.get(need, ""))
     assert "${{" not in script
@@ -312,13 +365,13 @@ def test_the_verdict_passes_only_when_all_are_green():
 
 
 @pytest.mark.parametrize("result", ["failure", "cancelled", "skipped"])
-@pytest.mark.parametrize("job_id", ["gate", *GATE_HEAVY, "runner-watchdog"])
+@pytest.mark.parametrize("job_id", ["gate", *GATE_HEAVY])
 def test_any_other_result_turns_the_verdict_red(job_id, result):
     """A deliberately failing server test is `agent-server` = failure."""
     assert _verdict({**_all_green(), job_id: result}) == 1
 
 
-@pytest.mark.parametrize("job_id", ["gate", *GATE_HEAVY, "runner-watchdog"])
+@pytest.mark.parametrize("job_id", ["gate", *GATE_HEAVY])
 def test_a_missing_job_turns_the_verdict_red(job_id):
     results = _all_green()
     del results[job_id]

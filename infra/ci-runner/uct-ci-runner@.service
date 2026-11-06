@@ -1,0 +1,17 @@
+# Template: uct-ci-runner@gate-vps and uct-ci-runner@shared-vps, one per lane, so gate capacity stays reserved.
+# Installed by OWNER-SETUP.md only after AUDIT and the owner approve runner registration.
+# UCT_CI_IMAGE and UCT_CI_SLOTS live in /etc/uct-ci/%i.env, which holds no secret.
+[Unit]
+Description=uct-ci: ephemeral single-job runner slots (%i)
+After=uct-ci-firewall.service
+Requires=uct-ci-firewall.service
+
+[Service]
+EnvironmentFile=/etc/uct-ci/%i.env
+ExecStart=/usr/bin/python3 /srv/uct/kit/launcher.py serve --lane %i --image ${UCT_CI_IMAGE} --slots ${UCT_CI_SLOTS}
+Restart=always
+RestartSec=30
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

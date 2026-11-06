@@ -5,7 +5,11 @@
 **no runner registered**. Nothing ran through GitHub Actions. Every check must be repeated on the VPS through real Actions
 runs before the draft workflow merges, because **only those runs count for a merge decision**: the PC is advisory only.
 
-Evidence for the PC results is in the distro at `/srv/uct/results/r1`, `r2` and `r3`.
+**Merge-candidate requirement (AUDIT).** `tools/ci_equivalence.py` must exit 0 against a hosted run at the same SHA for the
+**first real VPS gate**, and for **every later move** of a job to another machine. Exit 1 or 2 stops the move. It is what
+caught the split losing two tests while staying green.
+
+Evidence for the PC results is in the distro at `/srv/uct/results/r1` to `r4`.
 
 | # | Check | On the PC | Still needed on the VPS, through Actions |
 |---|---|---|---|
@@ -59,6 +63,7 @@ gh api repos/<repo>/actions/jobs/<job-id>/logs > hosted/job.log
 |---|---|---|---|
 | Agent browser, 4 shards | 8722 tests, 8716 passed, 0 failed, 6 skipped, 269 files | Same | EQUIVALENT, per test |
 | Agent server | 3654 passed | 3654 passed | EQUIVALENT, totals only |
+| `agent-server`, the job's exact steps | 3654 passed | 3654 passed at full history; **3652 passed, 2 skipped at `fetch-depth: 2`** | Compared only at depth 2: DIFFERENT, which caught it |
 | Capreg @ post | 13 passed | 13 passed | EQUIVALENT, totals only |
 | Capreg @ rth | 3535 passed, 15 files | 3535 passed, 15 files | EQUIVALENT, totals only |
 
@@ -101,7 +106,8 @@ Hosted server and capreg results exist only as log totals, so those three compar
 - **Run**: `uct-ci-isolation-probe`, then `launcher_real_docker_check.py <image>`, as in ISOLATION.md.
 - **Evidence**: PASS and FAIL lines, exit code, `events.jsonl`.
 - **PC result**: probe 0 failures, control 9 failures. Firewall, sibling, limits, secret placement and no state between
-  containers all proved. Launcher against real Docker 10 of 10. 0 containers left after every batch. Details in ISOLATION.md.
+  containers all proved. The launcher passes every check against real Docker, including the disk-fill test and a sweep that
+  leaves the other lane alone. 0 containers left after every batch. Details in ISOLATION.md.
 - On the VPS, repeat this as a **job**, so the probe runs under a real runner. Set `PROBE_MAX_REPOS=1`.
 
 ## 8. Performance with workers active
@@ -119,9 +125,11 @@ These numbers are for an i7-13700KF and do not predict a VPS. See 'Sizing'.
 
 ## 9. Outage fails safe
 
-- **Run**: on the VPS, stop the runner service, push a harmless master commit in a quiet window, and watch. Expect
-  `runner-watchdog` red at once, `ci queue watch` to cancel the run 45-75 minutes in and go red itself, the verdict red, and
-  promotion refusing. Then restart it, `gh run rerun --failed`, and promote by hand. AUDIT owns this push.
+- **Run**: on the VPS, stop the runner service, push a harmless master commit in a quiet window, and watch. Expect `ci queue
+  watch` to print `RUNNER LOOKS OFFLINE`, cancel the run 45-75 minutes in and go red, the verdict red, and promotion
+  refusing. Then restart it, `gh run rerun --failed`, and promote by hand. AUDIT owns this push.
+- **Also on the VPS**: fill every `uct-vps` slot with dispatch runs, push to master, and confirm the gate starts at once on
+  `uct-vps-gate` and is not cancelled however long the queue. This is AUDIT's B3.
 - **PC result**: only the logic. The watch, promotion and verdict are unit-tested. **UNTESTED** against GitHub.
 
 ## 10. Master gates intact
@@ -149,7 +157,9 @@ bytes`, `Notebook accessibility`, `notebook budgets`, `preference allow-list`, `
 Measured on the PC, per full `agent ci` run: about 30 slot-minutes at 4 CPUs, against about 105 hosted job-minutes.
 
 - Each slot needs 4 CPUs and 10 GiB. Memory peaked at the 10 GiB cap including page cache, with no OOM kill. 8 GiB is untested.
-- 2 slots serve about 4 `agent ci` runs an hour. Recent volume was 253 runs in about 5 hours, around 50 an hour. Even with
-  ten times fewer pushes, 2 slots queue. The push rate has to fall, or the slot count has to rise.
+- The VPS runs two lanes. A starting point is 3 `gate-vps` slots and 1 `shared-vps` slot: 16 vCPU and 40 GiB. 2 and 1 is 12 and 30.
+- A gate is about 29 slot-minutes at the PC's speed and about 76 at hosted speed, so 3 gate slots is about 25 minutes at worst.
+- 1 shared slot serves about 2 `agent ci` runs an hour at the PC's speed. Dispatching once per merge candidate makes that
+  plausible. Hosted's old volume of 50 an hour does not fit, and is not meant to.
 - Disk: the image is 2.9 GB. Keep 30 GB free.
 - A VPS vCPU is usually a hyperthread on a busier, slower host. Measure there before relying on the speed-up above.

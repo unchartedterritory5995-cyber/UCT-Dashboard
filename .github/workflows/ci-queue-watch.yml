@@ -1,9 +1,11 @@
 # promotion-gate: no — DETECTION AND CLEAN-UP ONLY. It decides nothing and promotion never reads it. The one thing it
 #   writes is a cancel on a stuck `master deploy gate` run, so that run concludes and its verdict goes red.
-# A job on an offline runner does not fail: it stays queued for up to 24 hours and holds the serial gate queue. Hosted,
-# because a watch on the watched machine cannot report that machine's death. It goes red on anything stuck, and a red
-# scheduled run emails the workflow's last editor. tools/ci_queue_watch.py refuses to cancel promotion, in code.
-# COST: one billed minute per run, so ~1,440 minutes a month at this cadence. A stuck gate is cancelled 45-75 min in.
+# A job on an offline runner does not fail: it stays queued for up to 24 hours and holds the serial gate queue. This is
+# the ONLY offline detection (AUDIT Q2): it needs no token that can read runners, and no job in the gate depends on it.
+# Hosted, because a watch on the watched machine cannot report that machine's death. It goes red on anything stuck, and
+# a red scheduled run emails the workflow's last editor. tools/ci_queue_watch.py refuses to cancel promotion, in code.
+# A job counts as stuck only if NOTHING on its label moved for 45 minutes, so a busy, healthy lane is never cancelled.
+# COST: one billed minute per run, so ~1,440 minutes a month at this cadence. With the runner gone, a gate is cancelled 45-75 min after its heavy jobs queued.
 name: ci queue watch
 
 on:
@@ -29,4 +31,4 @@ jobs:
       - name: Report jobs queued 45 minutes or more, and cancel a stuck gate run
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 tools/ci_queue_watch.py watch --labels uct-vps --minutes 45 --cancel-workflow "master deploy gate"
+        run: python3 tools/ci_queue_watch.py watch --labels uct-vps-gate,uct-vps --minutes 45 --cancel-workflow "master deploy gate"

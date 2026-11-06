@@ -114,9 +114,16 @@ def test_a_digest_is_accepted(image):
 
 
 def test_lanes_are_a_closed_list_and_the_lane_picks_the_label():
-    assert launcher.runner_labels("gate-vps")[-1] == "uct-vps"
+    assert launcher.runner_labels("gate-vps")[-1] == "uct-vps-gate"
+    assert launcher.runner_labels("shared-vps")[-1] == "uct-vps"
     assert "ubuntu-latest" not in launcher.runner_labels("gate-vps")
-    assert set(launcher.LANE_LABELS) == {"gate-vps"}     # the PC has no lane: it registers nothing
+    assert set(launcher.LANE_LABELS) == {"gate-vps", "shared-vps"}     # the PC has no lane: it registers nothing
+
+
+def test_a_slot_carries_one_lanes_label_so_gate_capacity_stays_reserved():
+    """GitHub matches a job to a runner holding ALL of its labels, so `uct-vps` jobs must not fit a gate slot."""
+    gate, shared = set(launcher.runner_labels("gate-vps")), set(launcher.runner_labels("shared-vps"))
+    assert "uct-vps" not in gate and "uct-vps-gate" not in shared
     for lane in ("uct-vps", "advisory-pc"):
         with pytest.raises(launcher.Refused):
             launcher.runner_labels(lane)
@@ -176,6 +183,68 @@ def test_each_job_gets_a_fresh_container_and_is_verified_gone(rig):
     assert [c["argv"][0] for c in calls()].count("inspect") >= 2
 
 
+def test_a_sweep_is_limited_to_its_own_lane(rig):
+    slots, gh, calls, tmp = rig
+    slots.sweep()
+    assert ["ps", "-aq", "--filter", "label=uct.ci.lane=gate-vps"] in [c["argv"] for c in calls()]
+
+
+def test_a_container_is_labelled_with_its_lane():
+    args = launcher.container_args(launcher.Config(image=IMAGE, lane="shared-vps"), "x")
+    assert "uct.ci.lane=shared-vps" in args
+
+
+class SlowProc:
+    """A running container, as _supervise sees it, for a fixed number of polls."""
+
+    def __init__(self, polls):
+        self.polls, self.returncode = polls, None
+
+    def poll(self):
+        self.polls -= 1
+        if self.polls < 0:
+            self.returncode = 137
+        return self.returncode
+
+    def wait(self):
+        return self.returncode
+
+
+class FakeClock:
+    def __init__(self):
+        self.t = 0.0
+
+    def __call__(self):
+        return self.t
+
+    def sleep(self, s):
+        self.t += s
+
+
+def _supervised(tmp_path, used_gib, free_ok=True):
+    clock = FakeClock()
+    cfg = launcher.Config(image=IMAGE, log_dir=str(tmp_path / "l"), max_disk_gib=40, poll_s=5, disk_poll_s=30)
+    slots = launcher.Slots(cfg, github=FakeGitHub(), clock=clock, sleep=clock.sleep)
+    killed = []
+    slots.docker = lambda *a, **k: killed.append(a)
+    slots.container_disk_gib = lambda name: used_gib
+    slots.disk_ok = lambda: free_ok
+    slots._supervise(SlowProc(10), "c", 1, clock())
+    return killed
+
+
+def test_a_container_over_its_disk_bound_is_killed(tmp_path):
+    assert ("rm", "-f", "c") in _supervised(tmp_path, used_gib=41)
+
+
+def test_a_low_host_kills_the_container_even_under_its_own_bound(tmp_path):
+    assert ("rm", "-f", "c") in _supervised(tmp_path, used_gib=1, free_ok=False)
+
+
+def test_a_container_within_its_bound_is_left_alone(tmp_path):
+    assert _supervised(tmp_path, used_gib=39) == []
+
+
 def test_a_failing_container_reports_its_exit_code(rig, monkeypatch):
     slots, gh, calls, tmp = rig
     monkeypatch.setenv("FAKE_DOCKER_RUN_EXIT", "137")
@@ -224,7 +293,7 @@ def test_the_api_call_carries_the_token_only_in_a_header(tmp_path):
     assert req.get_header("Authorization") == "Bearer TOKENVALUE"
     body = json.loads(req.data)
     assert "TOKENVALUE" not in req.full_url and "TOKENVALUE" not in req.data.decode()
-    assert body["labels"][-1] == "uct-vps" and body["runner_group_id"] == 1
+    assert body["labels"][-1] == "uct-vps-gate" and body["runner_group_id"] == 1
 
 
 # ---- the sudo shim and the entrypoint are shell, so run them

@@ -1,18 +1,20 @@
-"""Hosted checks on the self-hosted lane. Runs on GitHub-hosted runners only.
+"""A hosted watch on the self-hosted lanes. Runs on GitHub-hosted runners only.
 
 A job on an offline runner does not fail: it stays queued for up to 24 hours, and `timeout-minutes` does not count
 queue time. Left alone that holds the serial `master-deploy` queue for a day.
 
-    python3 tools/ci_queue_watch.py online --label uct-vps
-        One-shot, for a step inside the gate. Asks once and exits; it never waits. Needs CI_RUNNER_READ_TOKEN, because
-        GITHUB_TOKEN cannot read runners.
+    python3 tools/ci_queue_watch.py watch --labels uct-vps-gate,uct-vps --minutes 45 --cancel-workflow "master deploy gate"
 
-    python3 tools/ci_queue_watch.py watch --labels uct-vps --minutes 45 --cancel-workflow "master deploy gate"
-        For a scheduled hosted job. Reports every job on those labels queued that long, and cancels the run if its
-        workflow is named by --cancel-workflow, so the run concludes and its verdict goes red. Writes nothing else.
-        Promotion is refused as a target in code, whatever the arguments say. Needs GH_TOKEN with `actions: write`.
+For a scheduled hosted job, with GH_TOKEN holding `actions: write`. It reports every stuck job, and cancels the run if its
+workflow is named by --cancel-workflow, so the run concludes and its verdict goes red. It writes nothing else. Promotion is
+refused as a target in code, whatever the arguments say.
 
-Exit 0 proved, 1 not proved. An API error or a missing token is exit 1, never a pass.
+STUCK means a job on a label has been queued that long AND nothing on that label moved in that time. So a job waiting behind
+a busy, healthy runner is not stuck, and a healthy gate cannot be cancelled however long its queue: the label's own running
+jobs reset the clock. It reads no runner state, deliberately (AUDIT Q2): a token that can read runners needs admin on the
+repo. An offline runner shows up as this silence, and the output says so.
+
+Exit 0 clear, 1 stuck or not proved. An API error or a missing token is exit 1, never a pass.
 """
 from __future__ import annotations
 
@@ -50,40 +52,36 @@ def post(url: str, token: str) -> dict:
     return _request("POST", url, token)
 
 
-def online_runners(doc: dict, label: str) -> list:
-    if not isinstance(doc.get("runners"), list):
-        raise Unproved("the runners API returned no runner list")
-    out = []
-    for r in doc["runners"]:
-        labels = {x.get("name") for x in r.get("labels") or []}
-        if label in labels and r.get("status") == "online":
-            out.append(r.get("name"))
-    return out
+def _stamp(value: str) -> dt.datetime:
+    return dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def check_online(*, repo: str, label: str, token: str, get=fetch) -> list:
-    """Exactly one API call. Online runners for `label`, or Unproved."""
-    if not token:
-        raise Unproved("CI_RUNNER_READ_TOKEN is not set, so nothing can prove a runner is online")
-    names = online_runners(get(f"{API}/repos/{repo}/actions/runners?per_page=100", token), label)
-    if not names:
-        raise Unproved(f"no runner labelled {label} is online, so this gate's heavy jobs would sit queued")
-    return names
-
-
-def _age_minutes(stamp: str, now: dt.datetime) -> float:
-    return (now - dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))).total_seconds() / 60
+def lane_activity(jobs: list, labels: set, now: dt.datetime) -> dict:
+    """The last moment each label moved: now if a job is running on it, else its latest job start or finish."""
+    latest: dict = {}
+    for job in jobs:
+        for label in labels & set(job.get("labels") or []):
+            moments = [now] if job.get("status") == "in_progress" else []
+            moments += [_stamp(job[k]) for k in ("started_at", "completed_at") if job.get(k)]
+            if moments:
+                latest[label] = max([*moments, *([latest[label]] if label in latest else [])])
+    return latest
 
 
 def stale_jobs(runs: list, jobs_for, labels: set, minutes: float, now: dt.datetime) -> list:
-    """`(run, job name, minutes queued)` for every job on these labels queued for at least `minutes`."""
+    """`(run, job name, minutes silent)` for each job queued at least `minutes` on a label that has not moved in as long."""
+    jobs_by_run = [(run, jobs_for(run["id"])) for run in runs]
+    activity = lane_activity([j for _, jobs in jobs_by_run for j in jobs], labels, now)
     stale = []
-    for run in runs:
-        for job in jobs_for(run["id"]):
-            if job.get("status") in ("queued", "waiting", "pending") and labels & set(job.get("labels") or []):
-                age = _age_minutes(job.get("created_at") or run["created_at"], now)
-                if age >= minutes:
-                    stale.append((run, job.get("name"), round(age)))
+    for run, jobs in jobs_by_run:
+        for job in jobs:
+            on = labels & set(job.get("labels") or [])
+            if job.get("status") not in ("queued", "waiting", "pending") or not on:
+                continue
+            since = [_stamp(job.get("created_at") or run["created_at"])] + [activity[x] for x in on if x in activity]
+            age = (now - max(since)).total_seconds() / 60
+            if age >= minutes:
+                stale.append((run, job.get("name"), round(age)))
     return stale
 
 
@@ -124,32 +122,27 @@ def watch(*, repo: str, labels: set, minutes: float, cancel: set, token: str, ge
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="mode", required=True)
-    o = sub.add_parser("online")
-    o.add_argument("--label", required=True)
     w = sub.add_parser("watch")
     w.add_argument("--labels", required=True)
     w.add_argument("--minutes", type=float, default=45)
     w.add_argument("--cancel-workflow", action="append", default=[])
-    for s in (o, w):
-        s.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
+    w.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
     a = p.parse_args(argv)
     try:
         if not a.repo:
             raise Unproved("no repository given")
-        if a.mode == "online":
-            names = check_online(repo=a.repo, label=a.label, token=os.environ.get("CI_RUNNER_READ_TOKEN", ""))
-            print(f"runner check: {len(names)} runner(s) labelled {a.label} online")
-            return 0
         out = watch(repo=a.repo, labels=set(a.labels.split(",")), minutes=a.minutes, cancel=set(a.cancel_workflow),
                     token=os.environ.get("GH_TOKEN", ""))
         for run, job, age in out["stale"]:
-            action = "cancelled" if run["id"] in out["cancelled"] else "not cancelled"
-            print(f"::error title=Self-hosted job stuck in queue::{job} in {run.get('name')} (run {run['id']}) queued "
-                  f"{age} min; run {action}. Is the runner up? See infra/ci-runner/AUDIT-NOTES.md, 'Outage'.")
-        print(f"queue watch: {len(out['stale'])} job(s) stuck, {len(out['cancelled'])} run(s) cancelled")
+            action = "run cancelled" if run["id"] in out["cancelled"] else "run left alone"
+            print(f"::error title=RUNNER LOOKS OFFLINE::{job} in {run.get('name')} (run {run['id']}) is queued and nothing on "
+                  f"its label has moved for {age} min; {action}. See infra/ci-runner/AUDIT-NOTES.md, 'Outage'.")
+        state = "RUNNER LOOKS OFFLINE" if out["stale"] else "no stuck job"
+        print(f"queue watch: {state}: {len(out['stale'])} job(s) stuck, {len(out['cancelled'])} run(s) cancelled "
+              f"(labels {a.labels}; runner state is inferred from the queue, not read)")
         return 1 if out["stale"] else 0
     except (Unproved, urllib.error.URLError, ValueError, OSError) as err:
-        print(f"::error title=Runner check not proved::{err}")
+        print(f"::error title=Queue watch not proved::{err}")
         return 1
 
 

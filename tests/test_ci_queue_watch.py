@@ -1,4 +1,4 @@
-"""The hosted queue checks cannot pass without proof, and cannot touch promotion. No network: the API is a fake."""
+"""The hosted queue watch cannot pass without proof, cannot touch promotion, and cannot cancel a healthy gate. No network."""
 from __future__ import annotations
 
 import datetime as dt
@@ -15,73 +15,22 @@ NOW = dt.datetime(2026, 11, 6, 12, 0, tzinfo=dt.timezone.utc)
 GATE = "master deploy gate"
 
 
-def runner(status="online", labels=("self-hosted", "uct-vps"), name="r1", busy=False):
-    return {"name": name, "status": status, "busy": busy, "labels": [{"name": n} for n in labels]}
-
-
-# ---- online: one shot
-
-def test_an_online_labelled_runner_passes():
-    assert qw.check_online(repo="o/r", label="uct-vps", token="t", get=lambda u, t: {"runners": [runner()]}) == ["r1"]
-
-
-def test_a_busy_runner_still_counts_as_online():
-    doc = {"runners": [runner(busy=True)]}
-    assert qw.check_online(repo="o/r", label="uct-vps", token="t", get=lambda u, t: doc) == ["r1"]
-
-
-def test_it_asks_exactly_once_and_never_waits():
-    calls = []
-
-    def get(url, token):
-        calls.append(url)
-        return {"runners": []}
-
-    with pytest.raises(qw.Unproved):
-        qw.check_online(repo="o/r", label="uct-vps", token="t", get=get)
-    assert len(calls) == 1
-
-
-@pytest.mark.parametrize("label,doc", [
-    ("no runners", {"runners": []}),
-    ("offline", {"runners": [runner(status="offline")]}),
-    ("another machine's label", {"runners": [runner(labels=("self-hosted", "uct-pc"))]}),
-    ("self-hosted without the label", {"runners": [runner(labels=("self-hosted",))]}),
-    ("a malformed answer", {"message": "Not Found"}),
-])
-def test_anything_else_is_not_proved(label, doc):
-    with pytest.raises(qw.Unproved):
-        qw.check_online(repo="o/r", label="uct-vps", token="t", get=lambda u, t: doc)
-
-
-def test_a_missing_token_is_not_proved():
-    with pytest.raises(qw.Unproved, match="CI_RUNNER_READ_TOKEN"):
-        qw.check_online(repo="o/r", label="uct-vps", token="", get=lambda u, t: {"runners": [runner()]})
-
-
-def test_an_api_error_is_exit_1_never_a_pass(monkeypatch, capsys):
-    def boom(url, token):
-        raise urllib.error.URLError("denied")
-
-    monkeypatch.setattr(qw, "fetch", boom)
-    monkeypatch.setattr(qw.check_online, "__kwdefaults__", {"get": boom})
-    monkeypatch.setenv("CI_RUNNER_READ_TOKEN", "t")
-    assert qw.main(["online", "--label", "uct-vps", "--repo", "o/r"]) == 1
-    assert "::error" in capsys.readouterr().out
-
-
 def test_the_cli_returns_1_without_a_token(monkeypatch, capsys):
-    monkeypatch.delenv("CI_RUNNER_READ_TOKEN", raising=False)
     monkeypatch.delenv("GH_TOKEN", raising=False)
-    assert qw.main(["online", "--label", "uct-vps", "--repo", "o/r"]) == 1
     assert qw.main(["watch", "--labels", "uct-vps", "--repo", "o/r"]) == 1
     assert "::error" in capsys.readouterr().out
 
 
+def test_it_has_no_way_to_read_runners():
+    """AUDIT Q2: a token that can read runners needs admin on the repo, so this tool must never want one."""
+    text = (pathlib.Path(qw.__file__)).read_text(encoding="utf-8")
+    assert "actions/runners" not in text and "CI_RUNNER_READ_TOKEN" not in text
+
+
 # ---- watch: finds stuck jobs, cancels only the gate
 
-def job(status="queued", labels=("uct-vps",), created="2026-11-06T11:00:00Z", name="shard"):
-    return {"name": name, "status": status, "labels": list(labels), "created_at": created}
+def job(status="queued", labels=("uct-vps",), created="2026-11-06T11:00:00Z", name="shard", **stamps):
+    return {"name": name, "status": status, "labels": list(labels), "created_at": created, **stamps}
 
 
 def world(runs, jobs):
@@ -105,7 +54,7 @@ def run(rid=1, name=GATE):
 
 def go(runs, jobs, cancel=(GATE,), minutes=45):
     get, send, sent = world(runs, jobs)
-    return qw.watch(repo="o/r", labels={"uct-vps"}, minutes=minutes, cancel=set(cancel), token="t", get=get, send=send,
+    return qw.watch(repo="o/r", labels={"uct-vps", "uct-vps-gate"}, minutes=minutes, cancel=set(cancel), token="t", get=get, send=send,
                     now=NOW), sent
 
 
@@ -113,6 +62,51 @@ def test_a_stuck_gate_is_reported_and_cancelled():
     out, sent = go([run()], {1: [job()]})
     assert len(out["stale"]) == 1 and out["cancelled"] == [1]
     assert sent == ["https://api.github.com/repos/o/r/actions/runs/1/cancel"]
+
+
+# ---- AUDIT B3: a healthy gate can never be cancelled, however long it waits
+
+def test_a_gate_job_waiting_behind_its_own_running_jobs_is_not_stuck():
+    gate = ("uct-vps-gate",)
+    out, sent = go([run()], {1: [job(labels=gate, name="union", created="2026-11-06T10:00:00Z"),
+                                 job(status="in_progress", labels=gate, created="2026-11-06T10:00:00Z")]})
+    assert out["stale"] == [] and sent == []
+
+
+def test_a_job_waiting_behind_another_runs_work_on_the_same_label_is_not_stuck():
+    out, sent = go([run(1), run(2, name="agent ci")],
+                   {1: [job(created="2026-11-06T10:00:00Z")], 2: [job(status="in_progress", created="2026-11-06T10:00:00Z")]})
+    assert out["stale"] == [] and sent == []
+
+
+def test_a_label_that_moved_recently_is_healthy_even_with_nothing_running_this_instant():
+    """Between two jobs nothing is in_progress for a moment. The clock runs from the last move, not from the queue time."""
+    done = job(status="completed", started_at="2026-11-06T10:00:00Z", completed_at="2026-11-06T11:50:00Z")
+    out, sent = go([run()], {1: [job(created="2026-11-06T10:00:00Z"), done]})
+    assert out["stale"] == [] and sent == []
+
+
+def test_a_busy_shared_lane_never_counts_for_the_gate_lane():
+    """The labels are separate clocks: dispatch work on uct-vps says nothing about the gate's slots."""
+    out, sent = go([run(1), run(2, name="agent ci")],
+                   {1: [job(labels=("uct-vps-gate",))], 2: [job(status="in_progress", labels=("uct-vps",))]})
+    assert len(out["stale"]) == 1 and out["cancelled"] == [1]
+
+
+def test_a_label_silent_past_the_limit_is_stuck_even_if_it_moved_earlier():
+    done = job(status="completed", started_at="2026-11-06T09:00:00Z", completed_at="2026-11-06T10:00:00Z")
+    out, sent = go([run()], {1: [job(created="2026-11-06T10:00:00Z"), done]})
+    assert len(out["stale"]) == 1 and sent
+
+
+def test_offline_is_obvious_in_the_output(monkeypatch, capsys):
+    get, send, sent = world([run()], {1: [job()]})
+    real_watch = qw.watch
+    monkeypatch.setattr(qw, "watch", lambda **kw: real_watch(**{**kw, "get": get, "send": send, "now": NOW}))
+    monkeypatch.setenv("GH_TOKEN", "t")
+    assert qw.main(["watch", "--labels", "uct-vps", "--repo", "o/r", "--cancel-workflow", GATE]) == 1
+    out = capsys.readouterr().out
+    assert "RUNNER LOOKS OFFLINE" in out and "run cancelled" in out
 
 
 def test_several_stuck_jobs_cancel_one_run_once():
