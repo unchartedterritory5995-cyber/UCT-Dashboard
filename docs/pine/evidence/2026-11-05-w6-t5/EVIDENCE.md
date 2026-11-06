@@ -1,4 +1,4 @@
-NEXT STEP: FULL final-tip into a fresh dir (runs/w6-t5-final3) once the coordinator signals (the oracle fix runs first); restore tools/lookback_agreement.json only if distinct_trees_walked alone differs (rows byte-identical to master, coordinator note on cc-yata timing drift); then ready-check.
+NEXT STEP: wait for the coordinator's go, then FULL final-tip into runs/w6-t5-final3 (restore tools/lookback_agreement.json only if distinct_trees_walked alone differs), then ready-check. measure-pair re-run after B1 is the coordinator's call.
 
 # W6-T5 `array.*` completion (lane w6-t5)
 
@@ -26,8 +26,9 @@ Logs: `C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/w6-t5/` (job1.*, j
   - `READS_ALL` (unmeasured-fill guard) covers every new reading member and every array argument; `ARRAY_WRITES` classifies
     the new members (fill/reverse/sort `elements`, insert `size`, the rest `none`).
   - `DOOR_GATED_ARRAY` (exported): the members master did not hold.
-- `ast/pineRuntimeFrontend.js`: one line in `admitArrayCall` (the one admitter for name, method and statement forms):
-  `if (DOOR_GATED_ARRAY.has(node.name)) objectDoorRefuses(...)`.
+- `ast/pineRuntimeFrontend.js`: `heldArray(name)` (review N2: this replaced the round-A `objectDoorRefuses` line): at the
+  object door a `DOOR_GATED_ARRAY` member is not held, and all 7 front-end sites that ask "is this array member held?"
+  use it, so the door refuses where master did with master's guard and sentence.
 - Queue: `docs/pine/capture-queue-2026-11-06-w6.md` (Q-W19R2a/b ported, W6-A1 new). Probes:
   `tools/visual_conformance/probes/vw-w19r2-collections.pine` (ported byte-identical from the w19 branch),
   `vw-w6-array-members.pine` (new). `evidence_engine.py queue` parses all three as QUEUED with their charts; the committed
@@ -167,3 +168,17 @@ for low system memory (`mpB-rt1-stopped*`), not failures.
 - Census 22 rows: exactly round A's set and classification (spec movers incl. the `range-filter-dw` attach, 7 reference
   examples attach, `luxy-super-duper` wall move, `binary_search` example line move; `multi-timeframe-trend-indicator`
   a `pine:timeout` reason: noise). 0 unintended.
+
+## r1 (review NO-GO @fd0f39664d)
+- B1: `array.median` over an even count, and `median` / `stdev` / `variance` over an array the run cannot prove is float
+  (no fractional element; the `array<int>` forms return `series int` with unstated rounding) stop by name (W6-A1). Queue
+  rows H01-H02, I01-I04 (I04 measures master's `array.avg`, which has the same int form but is a master member served at
+  the C18 door: flagged, not changed). Re-checked: sum/min/max/range/abs are exact on ints; covariance has no int form;
+  percentile_nearest_rank returns an element. Rails: w6ArrayMembers (49 tests; fixture bars made fractional).
+  Mutations (`runs/w6-t5/mut-b1.log`): control SURVIVED; even-count guard dropped KILLED; provablyFloat dropped KILLED.
+- B2: origin/master merged (0839080514), objectDoorGate conflict with W9-T1 resolved keeping both blocks; objectDoorGate,
+  w6ArrayMembers, c18WhileAndLastBar 220/220, runtimePaneSafety + w19r2 31/31 (--maxWorkers=1).
+- Census rows B1 may move (runtime-on): `example:functions:array.median/stdev/variance`, `auto-fibonacci-and-gann-fan…`,
+  `cobra039s-crypto-market-visualizer`, `liquidity-pools-pro-willyalgotrader`, `logistic-rsi-stoch-roc-ao-by-dgt`,
+  `luxy-super-duper-supertrend-predictor-engine` (the sources that call median/stdev/variance). C18 door unaffected
+  (MASTER_AT_DOOR).
