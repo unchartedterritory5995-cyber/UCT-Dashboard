@@ -666,6 +666,41 @@ export function lowerIrProgram(ir, opts = {}) {
           const store = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.STORE_PERSIST : OP.STORE_LOCAL, sl.index)
           const load = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.LOAD_PERSIST : OP.LOAD_LOCAL, sl.index)
 
+          // ⭐⭐ W6-T6 — A `for … in` WALK (`live`, `ir.js::forStmt`): the list's length is
+          // RE-READ before every pass and the walk only ever counts UP by `step`, so a body that
+          // shifts or pushes the list it walks changes the pass count as TradingView's does
+          // (C48, `vw-forin-collections` F03 / F04), and an empty list runs no pass.
+          //
+          //     i = from
+          //   top:
+          //     LOOP_TICK depth
+          //     to = <length>                 (re-read: the exclusive bound)
+          //     if not (i < to) → end
+          //     body
+          //     i = i + step                  (`continue` lands here)
+          //     jump top
+          //   end:                            (`break` lands here)
+          if (s.live === true) {
+            expr(s.from); store(i)
+            const top = here()
+            emit(OP.LOOP_TICK, loops.length + 1)
+            expr(s.to); store(toS)
+            load(i); load(toS); emit(OP.LT)
+            const exitJump = here()
+            emit(OP.JUMP_IF_FALSE, 0)
+            loops.push({ breaks: [], continues: [] })
+            stmts(s.body)
+            const frame = loops.pop()
+            const contTarget = here()
+            load(i); expr(s.step); emit(OP.ADD); store(i)
+            emit(OP.JUMP, top)
+            const endTarget = here()
+            patch(exitJump, 1, endTarget)
+            for (const at of frame.continues) patch(at, 1, contTarget)
+            for (const at of frame.breaks) patch(at, 1, endTarget)
+            break
+          }
+
           expr(s.from); store(i)          // i = from
           expr(s.to); store(toS)          // to = <evaluated once>
 
