@@ -18,6 +18,11 @@ ALL changes to the level and effect and magnitude that my feedback mandated."
 ## Where things stand
 - LIVE on production: the daily drill in round 17b (PR #800, merge caadddf14e, 2026-11-04 20:35 CT), the three
   challenges, the mark, the chart-tap snap, the signed-out card. The dev team is reviewing round 17b on the live site.
+- Hard mode (plan piece 43) is built as the fourth challenge (PR #874): candles only, no ticker, no averages, no volume,
+  "what fired?" scored on the server against the bank's key; on the shell as batch 18 (`?b=18&p=b18-hard`) for his ranks.
+  The same PR fixes a LIVE scorer bug: the exact scorer read a choice only from a one-key dict, so every Spot the Kicker
+  attempt since 2026-11-04 was stored as a miss. Once that merge serves, the owner runs with `!` the readback, then the
+  DRY, then the APPLY of docs/study/audits/2026-11-05/{pod_readback_challenge_attempts,rescore_challenge_attempts_pod}.py.
 - Round 17b applied the owner's batch-16 verdicts (50/100): live turning mark + hero question; a facts TABLE with
   gauges (off high, vs 20/50 MA, ADR) beside a 380px chart in the member's own Charts-tab look; a numbered journey
   bar the mark walks; gold-coin answer cards; the gold Check pill; a full-screen verdict with a slam stamp;
@@ -82,6 +87,12 @@ deployments API for this; read commit statuses and check-run annotations.
   (the 2026-10-25 definition refresh did this to 114 lessons; found and repaired 2026-11-05).
 - Predict an import's `kept` count from EVERY apply script's fix calls (each fix bumps the pod version), not from one
   script, and read the pod back (a read-only readback script, the owner's `!` command) before saying what changed.
+- The sandbox backend never restarts in place: `start_backend.sh` imports the repo's conftest, which mints FRESH, EMPTY
+  temp dirs (bank, bars, reviewer account gone). Restart on new code with `start_backend_pinned.sh` (rigs/). The capture
+  rig's fixed sleeps are too short for the sandbox after a restart (attempt writes take 1-15 s): `capture_hard.py` waits
+  on the page instead; copy that pattern for a new piece.
+- A challenge that posts record keys beside the choice (`picked_bar`, `picked_setup`) relies on the scorer unwrapping the
+  choice whatever rides beside it (fixed 2026-11-05; the 2026-10-21 rail asserted the opposite and hid a live defect).
 
 ## The owner's own words (calibrate on these)
 - 2026-11-04, on the live site before round 16: "it looks nothing like the work we did in the local host the charts
@@ -97,7 +108,8 @@ deployments API for this; read commit statuses and check-run annotations.
   After 17b: "This was good i have some feedback but want my peers to check out this version."
 
 ## Next
-1. The owner's batch-17 ranks + his team's notes → round 18 on a new branch off `origin/master`
+1. The owner's batch-17 ranks (the drill) and batch-18 ranks (Hard mode) + his team's notes → round 18 on a new branch off
+   `origin/master`
    (`feat/study-drill-round-18`), same loop, bigger moves where he says Weak.
 2. If he asks: the Study landing / start card in the same look; the end card to Great.
 3. Backlog as it stands 2026-11-05 evening (every line waits on him; nothing runs on the pod without his `!`):
