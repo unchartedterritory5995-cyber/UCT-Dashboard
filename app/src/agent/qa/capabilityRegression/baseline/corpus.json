@@ -10284,6 +10284,86 @@
         "hide all my moving averages",
         "turn off all the moving averages"
       ]
+    },
+    {
+      "id": "widget.readOptions",
+      "source": "Workspace widget controls: a chart has no controls and the fixture board mounts no widget door; agentWidgetControls.test.jsx and the browser run prove the mounted paths",
+      "capabilities": [
+        "widget.readOptions"
+      ],
+      "board": "ONE",
+      "needs": [
+        "widget.readOptions"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "widget.readOptions",
+            "args": {
+              "widget": "c1"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "widget.readOptions",
+            "target": "$board",
+            "args": {
+              "widget": "c1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+      ]
+    },
+    {
+      "id": "widget.sendToJournal.no-door",
+      "source": "Workspace widget controls: a chart has no controls and the fixture board mounts no widget door; agentWidgetControls.test.jsx and the browser run prove the mounted paths",
+      "capabilities": [
+        "widget.sendToJournal"
+      ],
+      "board": "ONE",
+      "needs": [
+        "widget.sendToJournal"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "widget.sendToJournal",
+            "args": {
+              "widget": "c1",
+              "where": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "widget.sendToJournal",
+            "target": "$board",
+            "args": {
+              "widget": "c1",
+              "where": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": true
+      },
+      "phrasings": [
+        "keep a copy of that one"
+      ]
     }
   ],
   "refusals": [

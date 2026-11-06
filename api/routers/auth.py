@@ -2936,8 +2936,14 @@ _PREFERENCE_KEYS = {
     # same commit as its writer, because an unlisted key answers 400 and the list would
     # reopen on every visit (the wave-8 `notebook_tour` defect recorded just below).
     "notebook_getting_started": _PREF_OPAQUE,
+    # S13 (audit 2026-11-05): the one-time Notebook tips a member has seen, {v, seen: [ids]} (lib/notebookTips.js).
+    # Tier 2 fix round 1 (review minors 5 and 7): a real schema (known ids only, bounded), MERGED on write.
+    "notebook_tips": "notebook_tips",
     # Notebook P1: the Research Type -> Kind of note offer's answer ("dismissed").
     "notebook_kind_mapping": _PREF_OPAQUE,
+    # Audit 2026-11-05, S15: where the Notebook opens for a member who CHOSE ('today', 'home' or 'all'), written by
+    # the Today home's "Open the Notebook on" choice (lib/todayHome.js LANDING_PREF). Unset means the Today home.
+    "notebook_landing": _PREF_OPAQUE,
     # Notebook P2a: Log Trade's pre-entry checklist opt-in ('off' / 'on' / 'on-warn'), written by
     # PortfolioSettingsModal. Added in the same commit as its writer.
     "notebook_log_trade_checklist": _PREF_OPAQUE,
@@ -3330,6 +3336,57 @@ def _validate_starter_pack(raw) -> None:
         refuse()
 
 
+# S13 + Tier 2 fix round 1: the one-time Notebook tips' seen state. Exactly {"v": 1, "seen": [ids]}, every id one of
+# the tips the client knows (`TIP_IDS` in app/src/pages/journal-2-0/lib/notebookTips.js; railed against it by
+# tests/test_notebook_tips_pref.py), no repeats, at most 512 bytes. Anything else is the one 400.
+NOTEBOOK_TIP_IDS = ("ticker", "chart",
+                    # Tier 3a (S16, S20): the first run's marks and the once-per-account first-live-widget mark.
+                    "first-run", "first-run-skipped", "first-run-built", "first-run-inline", "first-live-widget")
+_NOTEBOOK_TIPS_MAX_BYTES = 512
+_NOTEBOOK_TIPS_REFUSAL = "That tip could not be saved. Try again."
+
+
+def _parse_notebook_tips(raw) -> list[str]:
+    """The seen ids of a valid value; raises HTTPException(400) on anything else."""
+    def refuse():
+        raise HTTPException(status_code=400, detail=_NOTEBOOK_TIPS_REFUSAL)
+
+    def no_constant(name):
+        raise ValueError(name)
+
+    if not isinstance(raw, str):
+        refuse()
+    try:
+        if len(raw.encode("utf-8")) > _NOTEBOOK_TIPS_MAX_BYTES:
+            refuse()
+        blob = json.loads(raw, parse_constant=no_constant)
+    except (UnicodeEncodeError, ValueError, TypeError, RecursionError):
+        refuse()
+    if not isinstance(blob, dict) or set(blob) != {"v", "seen"}:
+        refuse()
+    if isinstance(blob["v"], bool) or blob["v"] != 1:
+        refuse()
+    seen = blob["seen"]
+    if not isinstance(seen, list) or len(seen) > len(NOTEBOOK_TIP_IDS) or len(set(map(str, seen))) != len(seen):
+        refuse()
+    if any(not isinstance(t, str) or t not in NOTEBOOK_TIP_IDS for t in seen):
+        refuse()
+    return seen
+
+
+def merge_notebook_tips(stored, incoming: str) -> str:
+    """A write of `notebook_tips` is the UNION with what is stored (review minor 7): two tabs, each recording a
+    different tip onto its own stale copy, never erase each other's. An unreadable stored value counts as none.
+    Ids keep the order they were first seen in."""
+    new = _parse_notebook_tips(incoming)
+    try:
+        old = _parse_notebook_tips(stored) if stored else []
+    except HTTPException:
+        old = []
+    seen = list(old) + [t for t in new if t not in old]
+    return json.dumps({"v": 1, "seen": seen}, separators=(",", ":"))
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -3346,6 +3403,8 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_page_layout(value)
     elif schema == "notebook_starter_pack":
         _validate_starter_pack(value)
+    elif schema == "notebook_tips":
+        _parse_notebook_tips(value)
     elif schema in _CLOSED_VALUES:
         _validate_closed_value(key, value)
 
@@ -3424,6 +3483,11 @@ def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_curren
     # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
     # default board, STATE-2) survives as the version before it. Both calls return without any
     # I/O while the flag is off, and neither can raise into this write.
+    if req.key == "notebook_tips":
+        # merged with the stored value, never replacing it (merge_notebook_tips)
+        merged = merge_notebook_tips(get_user_preferences(user["id"]).get(req.key), req.value)
+        set_user_preference(user["id"], req.key, merged)
+        return {"ok": True, "value": merged}
     ticket = workspace_doc_store.begin_pref_write(user["id"], req.key, get_user_preferences)
     set_user_preference(user["id"], req.key, req.value)
     workspace_doc_store.finish_pref_write(ticket, req.value)

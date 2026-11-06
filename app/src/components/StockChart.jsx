@@ -19005,6 +19005,7 @@ export default function StockChart({
           ]
           return (
             <ContextPopover
+              guide="chart.chipMenu"
               open
               onClose={close}
               anchor={chipMenu.anchor}
@@ -19086,6 +19087,7 @@ export default function StockChart({
               : it))
         return (
           <ContextPopover
+            guide="chart.chipMenu"
             open
             onClose={close}
             anchor={chipMenu.anchor}
@@ -19637,6 +19639,7 @@ export default function StockChart({
              current scale. `aria-pressed` carries what `.scaleToggleActive` paints. */
           role="group"
           aria-label="Price scale"
+          data-guide="chart.scale"
         >
           <button
             type="button"
@@ -20491,7 +20494,7 @@ export default function StockChart({
         </div>
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
-        <div ref={rangeBarRef} className={styles.rangeBar}>
+        <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}

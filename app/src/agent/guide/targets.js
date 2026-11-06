@@ -17,6 +17,8 @@
 //   { guide: '…' }                            a `data-guide` id
 //   { attr: 'data-x', value: '…' }            a stable data attribute the product already writes (never a CSS class)
 //   { label: '…' }                            the on-screen label with exactly these words (a settings section, a row)
+//   { cursor: 'row-resize' }                  the element the chart library itself marks with this cursor: a pane divider,
+//                                             which it draws and which carries no attribute of ours
 //   { text: '…' }                             …narrowed to the ones whose visible text holds these words, in any form
 //                                             (a per-indicator row: "RSI"), for controls that only exist per instance
 // and any target may add { on: true }: the control must be in its selected state (a tab selected, a toggle pressed, a
@@ -53,8 +55,11 @@ function inside(box, t) {
     : null
   if (t.label) {
     const want = String(t.label).toLowerCase()
-    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => el.children.length === 0 && String(el.textContent || '').trim().toLowerCase() === want)
+    // the element whose OWN words these are: a row with an icon beside its text has children, and the text is still its own
+    const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
+    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => own(el) === want)
   }
+  if (t.cursor) return [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
   const els = sel ? [...box.querySelectorAll(sel)] : [box]
   return t.text ? els.filter(el => hasWords(el, t.text)) : els
 }
@@ -84,7 +89,9 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
     return pick([...cells].flatMap(c => inside(c, target)), target)
   }
   if (typeof target === 'object' && target.within) {
-    const boxes = document.querySelectorAll(`[data-guide="${esc(target.within)}"]`)
+    // a box on a chart: the chart being talked about, when it has one (a menu it opened may be portalled)
+    const cell = /^chart\.(?!.*Menu$)/.test(String(target.within)) ? cellOf(chartRef) : null
+    const boxes = (cell || document).querySelectorAll(`[data-guide="${esc(target.within)}"]`)
     for (const box of boxes) {
       const hit = pick(inside(box, target), target)
       if (hit) return hit
@@ -93,16 +100,18 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   }
   const id = String(typeof target === 'object' ? target.id : target)
   const on = typeof target === 'object' && target.on
+  const words = typeof target === 'object' ? target.text : null
+  const said = (els) => (words ? els.filter(el => hasWords(el, words)) : els)
   const sel = `[data-guide="${esc(id)}"]`
   // ⭐ PHASE 3: a widget header's own controls (`widget.*` — the link dot) are scoped to the chart talked about, too
   if (id.startsWith('chart.') || id.startsWith('widget.')) {
     const cell = cellOf(chartRef)
-    const inChart = cell ? pick([...cell.querySelectorAll(sel)], { on }) : null
+    const inChart = cell ? pick(said([...cell.querySelectorAll(sel)]), { on }) : null
     if (inChart) return inChart
     // with a chart named, a control on ANOTHER chart is not this one — except what that chart opened (a menu)
     if (cell && !/Menu$/.test(id)) return null
   }
-  return pick([...document.querySelectorAll(sel)], { on })
+  return pick(said([...document.querySelectorAll(sel)]), { on })
 }
 
 // ── a control a narrow row has clipped ──
@@ -110,7 +119,28 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
 // its right end: the settings gear, among others. The member can neither see nor reach it, so the guide slides that row
 // sideways while the step needs it, and puts it back afterwards. It is a view of the same controls: nothing is stored.
 let slid = []
-const clips = (node) => { let o = ''; try { o = getComputedStyle(node).overflowX } catch { o = '' } return /hidden|clip/.test(o) && node.scrollWidth > node.clientWidth }
+const clips = (node) => { let o = ''; try { o = getComputedStyle(node).overflowX } catch { o = '' } return /hidden|clip|auto|scroll/.test(o) && node.scrollWidth > node.clientWidth }
+// a row squeezed to nothing: with two charts and the Agent open the drawing strip has no width at all, because the fixed
+// buttons beside it take the whole line. There is nothing to slide, so its neighbours step aside for the step
+const SQUEEZED_PX = 8
+const squeezed = (node) => node.getClientRects?.().length > 0 && node.getBoundingClientRect().width < SQUEEZED_PX
+function makeRoom(el) {
+  for (let p = el; p && p !== document.body; p = p.parentElement) {
+    // a row of controls, not one tool the member hid under Customize (a button collapsed to width 0)
+    if (!squeezed(p) || p.childElementCount < 2 || !p.parentElement) continue
+    for (const sib of p.parentElement.children) {
+      if (sib === p) continue
+      slid.push({ node: sib, display: sib.style.display })
+      sib.style.display = 'none'
+    }
+    return
+  }
+}
+/** The control is in the page with a box, whether or not a narrow row is showing it now. */
+export function exists(target, ctx) {
+  anyBox = true
+  try { return !!findTarget(target, ctx) } finally { anyBox = false }
+}
 /** Slide the clipping row so this target shows → it is now on screen. */
 export function unclip(target, ctx) {
   if (typeof document === 'undefined' || findTarget(target, ctx)) return false
@@ -118,6 +148,7 @@ export function unclip(target, ctx) {
   let el = null
   try { el = findTarget(target, ctx) } finally { anyBox = false }
   if (!el?.getBoundingClientRect || el.getClientRects?.().length === 0) return false
+  makeRoom(el)
   for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
     if (!clips(p)) continue
     const box = p.getBoundingClientRect()
@@ -125,11 +156,15 @@ export function unclip(target, ctx) {
     const by = r.right > box.right ? r.right - box.right + 6 : r.left < box.left ? r.left - box.left - 6 : 0
     if (by) { slid.push({ node: p, left: p.scrollLeft }); p.scrollLeft += by }
   }
+  // below the fold of a long window (the formula box in the builder): bring it up
+  if (!findTarget(target, ctx)) reveal(el)
   return !!findTarget(target, ctx)
 }
 /** Put back every row `unclip` slid. */
 export function restoreClipped() {
-  for (const { node, left } of slid.reverse()) { try { node.scrollLeft = left } catch { /* gone */ } }
+  for (const { node, left, display } of slid.reverse()) {
+    try { if (display != null) node.style.display = display; else node.scrollLeft = left } catch { /* gone */ }
+  }
   slid = []
 }
 

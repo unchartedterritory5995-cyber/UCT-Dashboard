@@ -224,7 +224,8 @@ describe('keyboard and focus', () => {
 describe('one publish helper, one set of sentences (ruling D-9D2)', () => {
   const J2 = join(cwd(), 'src', 'pages', 'journal-2-0')
   const read = (rel) => readFileSync(join(J2, rel), 'utf8')
-  const DOORS = ['components/notebook/NoteShareControls.jsx', 'components/notebook/PublishFolderSheet.jsx']
+  // S19 (audit 2026-11-05): the editor door's content moved to the lazy NoteSharePanel.jsx.
+  const DOORS = ['components/notebook/NoteSharePanel.jsx', 'components/notebook/PublishFolderSheet.jsx']
 
   it('both doors publish through publishTarget and neither builds the route or calls fetch itself', () => {
     for (const f of DOORS) {

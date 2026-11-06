@@ -150,7 +150,7 @@ describe('⛔ C47 — what a constant test does NOT fold', () => {
 })
 
 describe('C47 — volume-profile: past the dead arm, onto its next wall (by name)', () => {
-  it('the runtime lane no longer stops at `chart.left_visible_bar_time`@146; it stops at `ta.highest(lookback_bars)`@154', () => {
+  it('the runtime lane no longer stops at `chart.left_visible_bar_time`@146, nor (W4-T2) at `ta.highest(lookback_bars)`@154', () => {
     const cap = capture(VP)
     const built = buildRuntimeIr(cap.source.text, {
       bars: toProductBars(cap), inputs: {}, pane: true, basePeriod: 'D', tf: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
@@ -160,8 +160,12 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
     // length, given 1". The one-argument form now fills `high` (`PINE_SHORT_FORM`, the
     // columnar lane's measured default) and gets the explicit spelling's answer: the
     // length is a `var`, so the ring cannot be sized before bar 0. Same line, true wall.
-    expect(built.refusal.guard).toBe('runtime:history-dynamic-offset')
-    expect(built.refusal.line).toBe(154)
+    // ⭐ W4-T2 (2026-11-03): that `var` is never reassigned and its initialiser folds
+    // (the dead arm gone, C47), so it is `simple` and sizes the window
+    // (`w4SimpleFolding.test.js`). This build passes no drawing owner, so it now stops
+    // at the first `line.new`, by name.
+    expect(built.refusal.guard).toBe('runtime:object-op')
+    expect(built.refusal.line).toBe(236)
   }, 60000)
 
   it('⛔ with the member\'s knob ON it is `pine:builtin`@146 again — the arm they asked for', () => {

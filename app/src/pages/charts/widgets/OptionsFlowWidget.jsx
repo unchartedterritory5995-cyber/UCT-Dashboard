@@ -423,6 +423,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
         <span className={styles.seg}>
           <button
             type="button"
+            data-guide="flow.scope"
             className={`${styles.segBtn}${scope === 'market' ? ' ' + styles.segBtnOn : ''}`}
             onClick={() => patchOpts({ scope: 'market' })}
           >Market</button>
@@ -438,6 +439,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
             <button
               key={o.key}
               type="button"
+              data-guide="flow.lead"
               className={`${styles.segBtn}${lead === o.key ? ' ' + styles.segBtnOn : ''}`}
               onClick={() => patchOpts({ lead: o.key })}
             >{o.label}</button>
@@ -445,6 +447,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
         </span>
         <button
           type="button"
+          data-guide="flow.filters"
           className={`${styles.funnelBtn}${filtersOpen ? ' ' + styles.funnelBtnOn : ''}`}
           onClick={() => setFiltersOpen(o => !o)}
           title="Filters"

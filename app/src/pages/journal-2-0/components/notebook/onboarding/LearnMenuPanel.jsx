@@ -54,12 +54,31 @@ import {
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
 import { NOTEBOOK_ROOT } from './tourRegistry'
 import { PREVIEW_COPY, armedCapabilities } from './capabilityList'
+import usePreferences from '../../../../../hooks/usePreferences'
+import { TOUR_PROGRESS, tourProgress } from './tourProgress'
 import styles from './LearnMenu.module.css'
 
 // The same chunk Research Home loads for the welcome's "See what it can do" (one file, fetched on
 // the first open of either). ⛔ Never a static import: the preview and the capture doors it carries
 // stay out of the Notebook's first-open bytes.
 const CapabilityPreview = lazyChunk(() => import('./CapabilityPreview'))
+
+/** ✓ for a finished tour, "New" for one never taken, nothing in between. It is the item's DESCRIPTION, never part
+ *  of its name (aria-hidden here, referenced by the item's aria-describedby), so the item is still named by its tour. */
+function TourBadge({ id, progress }) {
+  if (progress === TOUR_PROGRESS.done) {
+    return (
+      <>
+        <span className={styles.doneBadge} data-learn-progress="done" aria-hidden="true">✓</span>
+        <span id={id} hidden>{LEARN_COPY.done}</span>
+      </>
+    )
+  }
+  if (progress === TOUR_PROGRESS.new) {
+    return <span id={id} className={styles.newBadge} data-learn-progress="new" aria-hidden="true">{LEARN_COPY.isNew}</span>
+  }
+  return null
+}
 
 export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOpenChange, onReady, hasAnyNotes = true }) {
   // Tell the button the menu's id now exists (LearnMenu.jsx names it in `aria-controls` only after
@@ -83,6 +102,8 @@ export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOp
   const navigate = useNavigate()
   const { mutate } = useSWRConfig()
   const isPaid = useIsPaid()
+  // S14: ✓ for a tour the member finished, "New" for one never taken (the existing tour-seen state).
+  const { prefs } = usePreferences()
 
   const enabled = learnMenuEnabled(notebookFlag)
   const tours = enabled ? learnMenuTours({ flag: notebookFlag, hasAnyNotes }) : []
@@ -237,9 +258,11 @@ export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOp
                 role="menuitem"
                 className={styles.item}
                 data-learn-tour={t.id}
+                aria-describedby={tourProgress(t.id, prefs) === TOUR_PROGRESS.taken ? undefined : `${menuId}-p-${t.id}`}
                 onClick={() => choose(t.id)}
               >
-                {LEARN_COPY.tour(t.title)}
+                <span className={styles.itemLabel}>{LEARN_COPY.tour(t.title)}</span>
+                <TourBadge id={`${menuId}-p-${t.id}`} progress={tourProgress(t.id, prefs)} />
               </button>
             ))}
           </div>

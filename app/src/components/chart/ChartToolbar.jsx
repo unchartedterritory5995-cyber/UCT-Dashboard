@@ -1778,6 +1778,7 @@ function ChartToolbar({
             className={styles.btn}
             onClick={onScreenshot}
             aria-label="Share chart"
+            data-guide="chart.share"
             title="Share chart — copy image, download PNG, or copy link"
           >
             {ICONS.share}
@@ -2156,6 +2157,7 @@ function ChartToolbar({
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
             aria-label="Undo"
+            data-guide="chart.drawUndo"
           >
             {ICONS.undo}
           </button>

@@ -85,7 +85,22 @@
  *  v6 unmatched bool, moved for-bound, continued switch arms). */
 /** 4 = the plot lane withholds a var filled from a ta.* call in a block that skips (C48);
  *  a function reading a var written later is refused; hiding colours withhold the whole output. */
-export const SCRIPT_ENGINE_VERSION = 5
+/** 5 = W1: Pine v4-v6 builtin names and lookback reads (#736). */
+/** 6 = W4 T4: a v6 root `?:` arm with sma/ema/rma/change runs only when chosen; a `?:` off the
+ *  column route no longer steps unchosen arms every bar (now refused by name). */
+/** 7 = W4-T3 (train): session/timeframe text fixed before bar 0 (own timeframe via a parameter, joined texts, an unreassigned var) is served on the runtime lane */
+/** 8 = W3 (train): refusals name their text shape; a {N} message number that rounds across a digit (999.9996 -> 1000) is withheld */
+/** 9 = W4-T7 (train): an expression's own series inside a function body (per call site) is served instead of refused */
+/** 10 = W4-T2 (train): simple-qualifier folding (reassignment under an invariant test, an unreassigned var, arithmetic over an input) serves values where it refused */
+/** 11 = W4-T9 (train): offsets bounded by simple values and frame parameters are served */
+/** 12 = W4-T8 (train): series int window lengths (v5 and v6) are served on the runtime lane */
+/** 13 = W4-T10 (train): state kernels over runtime values (ta.cum, 3-arg pivothigh/low, ta.stoch, ta.vwap(source)) are served */
+/** 14 = W4-T11 (train): runtime text values are served on the runtime lane */
+/** 15 = W4-T12 (train): paint typing: colours proven through blocks, functions and colour arrays; fill() over a ?:-chosen plot id */
+/** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
+/** 17 = W4-T15 (train): function and statement forms (named/default user args, one-line binding bodies, loop-end values, log.* statements) are served on the runtime lane */
+/** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
+export const SCRIPT_ENGINE_VERSION = 18
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

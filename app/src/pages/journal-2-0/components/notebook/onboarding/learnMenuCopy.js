@@ -8,14 +8,18 @@ import { checklistEnabled } from './gettingStartedPref'
 
 /** Help > Walkthroughs (Support.jsx `WALKTHROUGHS_ID`; arriving with this hash focuses it).
  *  learnTours.test.js holds the two together, so a rename there cannot strand this link. */
-export const HELP_WALKTHROUGHS_HREF = '/support#walkthroughs'
+export { HELP_WALKTHROUGHS_HREF } from '../../../../../components/helpAnchors'
 
 /** Every word the menu shows. */
 export const LEARN_COPY = Object.freeze({
   button: 'Learn',
   buttonTitle: 'Walkthroughs of what the Notebook can do',
   menuLabel: 'Learn: walkthroughs',
-  tour: (title) => `${title} tour`,
+  // S14 (audit 2026-11-05, detail #65): the item is the tour's name, with no "tour" suffix (22 items each ending in
+  // "tour"). Each item says what the member has done with it: a ✓ for done, "New" for never taken (tourProgress.js).
+  tour: (title) => title,
+  done: 'Done',
+  isNew: 'New',
   help: 'All walkthroughs in Help',
   // P0.15: the sample notebook, offered here to a member with NO notes yet (the server refuses it to
   // anyone who has one, active, archived or trashed: D-C6, so the menu does not offer what it will

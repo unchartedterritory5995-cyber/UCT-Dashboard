@@ -70,7 +70,7 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
         </div>
         <div className={styles.cfgActions}>
           {active
-            ? <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`} onClick={onExit}>Exit replay</button>
+            ? <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`} data-guide="replay.exit" onClick={onExit}>Exit replay</button>
             : <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`} onClick={onClose}>Cancel</button>}
           <button
             type="button"

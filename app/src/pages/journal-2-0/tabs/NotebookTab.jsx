@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -10,11 +10,11 @@ import NoteCard from '../components/notebook/NoteCard'
 import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
-import ResearchHome from '../components/notebook/ResearchHome'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../lib/notebookIcons'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplateAsync, preloadTemplates } from '../lib/templatesLoader'
 import { templateWantsTicker } from '../lib/templateWantsTicker'
@@ -49,9 +49,10 @@ import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
 import useToolbarRoving from '../lib/useToolbarRoving'
 import useGridRoving from '../lib/useGridRoving'
-import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { useIsDesktop, useIsPhone } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { openJournalTools, registerJournalToolsDoor } from '../lib/journalToolsDoor'
 import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
@@ -74,6 +75,11 @@ import { earningsFollowupEnabled } from '../lib/earningsFollowupFlag'
 import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
+import FirstRunGate from '../components/notebook/FirstRunGate'
+import { HOME_VIEW, LANDING_PREF, TODAY_VIEW, resolveLanding, todayLandingOn } from '../lib/todayHome'
+import { FIRST_RUN_MARKS, firstRunIsDue, useFirstRunShowing } from '../lib/firstRun'
+import { starterPacksEnabled } from '../lib/starterPacksFlag'
+import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
 // engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
 // lane W14-C1) so a tour can start on any page and survive the navigation to its start.
@@ -153,6 +159,23 @@ const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardVie
 const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
+// Audit 2026-11-05, S15: the Today home, fetched the first time it is shown (lib/todayHome.js is the eager half).
+// Tier 3b fix round 1 (I1): it is the DEFAULT landing, so its chunk is asked for in the Notebook's FIRST render, beside
+// the preferences read (`preloadTodayHome` below) -- never after the landing is known, which made three round trips
+// in a row (preferences, then this chunk, then /notes/today).
+// ONE import in flight for both callers (the preload and the view): a failed one is forgotten, so the view's own
+// retry (lazyChunk) asks again.
+let todayHomeImport = null
+const loadTodayHome = () => {
+  if (!todayHomeImport) {
+    todayHomeImport = import('../components/notebook/TodayHome')
+    todayHomeImport.catch(() => { todayHomeImport = null })
+  }
+  return todayHomeImport
+}
+const TodayHome = lazyView(loadTodayHome, 'today')
+// I1: Research Home is no longer the first view, so it is a chunk of its own too (the opt-in landing, ?view=home).
+const ResearchHome = lazyView(() => import('../components/notebook/ResearchHome'), 'research home')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 // Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
 // says there is one to show, so the first-open bytes are unchanged for everyone else.
@@ -279,6 +302,20 @@ const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'renameTag', 'trash', 'res
 // UNCAPPED preview (GET /notes/tag-members), unlike every other bulk op's ids
 // (the member's own, page-bounded, selection).
 const RENAME_TAG_CHUNK_SIZE = 500
+
+/** The phone fold rule (one authority for the seed and the effect): at <=640 px, on a list or Home (not a note, not
+ *  the `#search` door, which opens the panel on purpose), the folders panel is folded. Exported for its rail. */
+/** The sort select's choices: the full words, and the compact ones a phone shows (Tier 2). */
+export const SORT_OPTIONS = Object.freeze([
+  { value: 'updated', label: 'Recently updated', short: 'Updated' },
+  { value: 'created', label: 'Recently created', short: 'Created' },
+  { value: 'title', label: 'Title', short: 'Title' },
+])
+
+export function phoneArrivalFolds(noteId, hash) {
+  if (typeof window === 'undefined' || window.innerWidth > 640) return false
+  return !noteId && hash !== NOTEBOOK_SEARCH_HASH
+}
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -581,6 +618,11 @@ export default function NotebookTab() {
 
   // Folders panel: open/closed + width, persisted locally so it survives reloads.
   const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Tier 2 (production check of Tier 1b, phone CLS 0.30): on a phone the panel is a drawer that folds on arrival
+    // (the effect below). Seeded OPEN from the stored choice, it painted the whole folder tree above the notes for
+    // one frame and the fold then moved the notes pane up by the tree's height -- one layout shift of 0.3035, the
+    // whole phone CLS. It now STARTS folded wherever that effect would fold it, so no frame ever paints it open.
+    if (phoneArrivalFolds(noteId, location.hash)) return false
     try { return localStorage.getItem('uct.j2.nb.sidebarOpen') !== '0' } catch { return true }
   })
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -760,10 +802,7 @@ export default function NotebookTab() {
   // the labelled "Folders" button (`.sidebarToggle`, un-hidden at phone) reopens it. Never on the
   // `#search` door, which opens the panel on purpose for its search box.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.innerWidth > 640) return
-    if (noteId) return
-    if (location.hash === NOTEBOOK_SEARCH_HASH) return
+    if (!phoneArrivalFolds(noteId, location.hash)) return
     setSidebarOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, folderId, tag, noteId])
@@ -808,13 +847,18 @@ export default function NotebookTab() {
   // this same unfiltered fetch, handed to FolderSidebar for its "All notes"
   // badge instead of `allNotes.length`.
   const {
-    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal,
+    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal, error: allNotesError,
   } = useJ2Notes({ sort: 'title' })
   // Wave 8 seam S8-3: "is this member new?" is derived ONCE, here, and handed to both the
   // first-run screen (ResearchHome) and the tour, so the two can never disagree about it.
   // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
   const hasAnyNotes = allNotesTotal > 0
   const notesKnown = allNotesTotal !== undefined
+  // Tier 4 fix round 3 (R1): Research Home waits for the count (round 2's CLS fix), but a FAILED count read leaves
+  // `allNotesTotal` undefined forever, and Home would sit on its skeleton for good. A failure is an answer for Home:
+  // it renders (and says its own load failure if it has one). ⛔ Only Home reads this: the first-run and tour gates
+  // keep `notesKnown`, so a member whose list failed is never shown the new-member first run.
+  const homeNotesKnown = notesKnown || Boolean(allNotesError)
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -852,11 +896,58 @@ export default function NotebookTab() {
   // fix: a deep link into ANY real view mode is "I asked for a view", same as
   // `all`/`tasks` already were.
   const viewParam = searchParams.get('view')
+  // Audit 2026-11-05, S15: a bare Notebook (no note, no filter, no `?view=`) opens on the member's LANDING -- what
+  // they chose ("Open the Notebook on", the `notebook_landing` preference), else the Today home (lib/todayHome.js).
+  // `?view=today` is the Today home and `?view=home` Research Home, whatever the landing. Until the preferences
+  // answer, a bare Notebook shows neither home (`landingPending`): opening Today makes the day's note.
+  const { prefs: landingPrefs, loading: landingPrefsLoading, readFailed: landingReadFailed } = usePreferences()
+  const bareNotebook = !noteId && !hasActiveFilters && !viewParam && !isTrashView
+  // Fix round 1 (M11): a preferences read that FAILED cannot say what the member chose, so a bare Notebook falls
+  // back to Research Home, which makes nothing; the Today home would make the day's note for a member who may have
+  // opted out of it.
+  const landing = landingReadFailed ? 'home' : resolveLanding(landingPrefs?.[LANDING_PREF])
+  const landingPending = bareNotebook && todayLandingOn() && Boolean(landingPrefsLoading)
+  // I1: the Today chunk is asked for in this first render, in parallel with the preferences read above.
+  // N6: never on a folder or ticker address (that is the list, not a home).
+  useState(() => {
+    const filtered = ['folder', 'ticker'].some((k) => searchParams.get(k))   // the filters this tab reads from the address
+    if (todayLandingOn() && !noteId && !filtered && (!viewParam || viewParam === TODAY_VIEW)) loadTodayHome().catch(() => {})
+    return null
+  })
+  const isToday = !noteId && !hasActiveFilters && !isTrashView
+    && (viewParam === TODAY_VIEW || (bareNotebook && !landingPending && landing === 'today'))
   const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
-  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+    || (bareNotebook && !landingPending && landing === 'all')
+  // M4: never Research Home while the landing is still being read (the pane heading said "Research home", then
+  // "Today").
+  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView && !isToday && !landingPending
+  // I9 + fix round 2 (R1-B): what the Today home reads. `hold` (make=0, never make the day's note) only while the
+  // 60-second first run IS due or on screen -- Build makes the note, with the names the member typed. `wait` (no read
+  // at all; the skeletons stay up) while that cannot be decided yet: the preferences have not answered, or the notes
+  // count has not and the tips do not record the first run. A member whose tips record it can never get it again,
+  // so their read starts at once, as `make` -- one request, never a make=0 read and then a make=1 read.
+  const firstRunShowing = useFirstRunShowing()
+  const tipsRaw = landingPrefs?.[TIPS_PREF]
+  const firstRunSeen = seenTips(tipsRaw).has(FIRST_RUN_MARKS.shown)
+  const firstRunOn = starterPacksEnabled()
+  const firstRunUndecided = firstRunOn && (Boolean(landingPrefsLoading) || (!notesKnown && !firstRunSeen))
+  const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !landingReadFailed, tipsRaw, notesKnown, hasAnyNotes })
+  const todayRead = firstRunShowing || firstRunDue ? 'hold' : firstRunUndecided ? 'wait' : 'make'
+  // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
+  // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
+  // S15: the Today home and the landing's pending frame have no list toolbar either.
+  const listToolbarShown = !noteId && !isHome && !isToday && !landingPending
+  // the compact sort words, on a phone only (review minor 12)
+  const phoneSortWords = useIsPhone()
+  // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
+  // set `updated_asc` / `title_desc`). ONE authority for the select's value and its touch-tier face.
+  const sortField = sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort
+  // a LAYOUT effect: registered in the list's first commit, before the browser paints it (no fold after a paint)
+  useLayoutEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'
+      : isToday ? 'Today'
       : isHome ? 'Research home'
         : activeView?.name ? `Saved view: ${activeView.name}`
           : tag ? `Notes tagged ${tag}`
@@ -1176,6 +1267,22 @@ export default function NotebookTab() {
       return next
     }, { replace: false })
   }
+  // Audit 2026-11-05, S15: the Today home and Research Home, each one click away (`?view=today` / `?view=home`).
+  const openHomeView = (view) => {
+    setFolderId(null)
+    setTag(null)
+    setActiveView(null)
+    setTickerFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', view)
+      next.delete('note')
+      next.delete(SIDE_PARAM)
+      return next
+    }, { replace: false })
+  }
+  const openTodayHome = () => openHomeView(TODAY_VIEW)
+  const openResearchHome = () => openHomeView(HOME_VIEW)
   // Wave 6 item 7 — "open to the side". ⛔⛔ The main note is refused (focus
   // goes to it); the side note already there just takes focus. With no note
   // open there is no "beside" yet, so the note opens as the one note.
@@ -1377,7 +1484,7 @@ export default function NotebookTab() {
   // per row/card (list, table) and in the Trash. The board, calendar and graph
   // keep their own gestures — a checkbox there would be a second way to write
   // the same property the card's own control already writes.
-  const selectionOn = !noteId && !isHome && (isShelfView || viewMode === 'list' || viewMode === 'table')
+  const selectionOn = !noteId && !isHome && !isToday && (isShelfView || viewMode === 'list' || viewMode === 'table')
   const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
   const selection = useNoteSelection(visibleIds)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -2189,6 +2296,9 @@ export default function NotebookTab() {
     { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
     { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
+    // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
+    { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
@@ -2283,8 +2393,11 @@ export default function NotebookTab() {
     onRenameView: onRenameView,
     onDeleteView: onDeleteViewRequest,
     onAddStarterViews: addStarterThesisViews,
-    isHome: isHome,
+    isHome: isHome || isToday,
     onSelectAllNotes: selectAllNotes,
+    // Audit 2026-11-05, S15: the Today row, above All notes.
+    isToday: isToday,
+    onSelectToday: openTodayHome,
     onRenameTag: onRenameTag,
     extraFolderActions: extraFolderActions,
     // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
@@ -2298,7 +2411,7 @@ export default function NotebookTab() {
     <div
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
-      data-list-toolbar={!noteId && !isHome ? '' : undefined}
+      data-list-toolbar={!noteId && !isHome && !isToday ? '' : undefined}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
       // D2 (design finding D-1): a phone stacks the folder panel ABOVE the notes,
       // so a `?note=` link painted the folder panel first and put the note's title
@@ -2641,6 +2754,23 @@ export default function NotebookTab() {
             </div>
           )}
           </>
+        ) : landingPending ? (
+          <div role="status" aria-label="Opening the Notebook" className={styles.landingPending} />
+        ) : isToday ? (
+          // Audit 2026-11-05, S15 (M1): the Today home -- one read, the cards in the session's order.
+          <>
+          {repairNotice}
+          <TodayHome
+            onOpenNote={openNote}
+            onCreateNote={() => createNote()}
+            onSelectAllNotes={selectAllNotes}
+            onOpenResearchHome={openResearchHome}
+            onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
+            todayRead={todayRead}
+            dailyTemplateId={dailyTemplateId}
+            onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
+          />
+          </>
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
           // "All notes" itself is unchanged, one click away via the sidebar.
@@ -2654,6 +2784,7 @@ export default function NotebookTab() {
             onCreateThesis={createThesisNote}
             onImport={openImport}
             hasAnyNotes={hasAnyNotes}
+            notesKnown={homeNotesKnown}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
             titleOf={titleOfAnyNote}
@@ -2699,7 +2830,7 @@ export default function NotebookTab() {
             <button type="button" className={`btn btn-secondary btn-sm ${styles.phoneFolders}`} onClick={toggleSidebar}
               aria-expanded={sidebarOpen} aria-controls="notebook-folders-panel">
               <span className="sr-only">Folder: </span>{folderId ? activeFolderName : 'All notes'}
-              <UIcon name="chevronDown" size={12} gold={false} />
+              <UIcon name="chevronDown" {...TOOLBAR_ICON} />
             </button>
           )}
           {!isShelfView && (
@@ -2708,7 +2839,7 @@ export default function NotebookTab() {
                 disabled={Boolean(activeView)} data-tour="view-switcher">
                 {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
                 View: {currentView.short}
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </button>
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
@@ -2723,6 +2854,16 @@ export default function NotebookTab() {
             // for the active library, not a meaningful choice here.
             <span className={styles.trashLabel}>Trash</span>
           ) : (
+            // VIS-6 (live finding, 390 px): the touch tier's `select { font-size: 16px !important }` (tokens.css, it
+            // stops iOS zooming on focus) drew "Updated" far larger than Folders and View beside it. At <=1024 px the
+            // select stays 16 px but is a transparent layer over `.sortFace`, a face drawn with the SAME button classes
+            // as View. The select is still the control (its name, its keyboard, the native picker); the face is
+            // aria-hidden. Above 1024 px the face is not drawn and the select renders as before.
+            <span className={styles.sortWrap} data-sort-wrap="">
+            <span className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.sortFace}`} aria-hidden="true" data-sort-face="">
+              {SORT_OPTIONS.find((o) => o.value === sortField)?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
+              <UIcon name="chevronDown" {...TOOLBAR_ICON} />
+            </span>
             <select
               className={styles.sortSelect}
               // FX4 (wave 10, coordinator round 2): the Table view's header
@@ -2733,16 +2874,18 @@ export default function NotebookTab() {
               // much sorted. Show the FIELD regardless of direction; picking
               // an option here still resets to that field's natural
               // direction, which is the expected behavior either way.
-              value={sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort}
+              value={sortField}
               onChange={(e) => setSort(e.target.value)}
               // Wave 8 (8A, axe select-name): a select with no name is read as
               // "combo box, Recently updated" with nothing saying what it orders.
               aria-label="Sort notes"
             >
-              <option value="updated">Recently updated</option>
-              <option value="created">Recently created</option>
-              <option value="title">Title</option>
+              {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
+                  of its own. On a PHONE the words are compact (review minor 12: only there); the control's NAME
+                  ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
             </select>
+            </span>
           )}
           {tickerFilter && (
             <span className={styles.tickerFilterChip}>${tickerFilter}</span>
@@ -2768,7 +2911,7 @@ export default function NotebookTab() {
               title="Open today's daily note (Ctrl+Alt+D)"
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
-              <UIcon name="sun" size={14} gold={false} />
+              <UIcon name="sun" {...TOOLBAR_ICON} />
               Today
             </button>
             {/* "+ New" makes a blank note in one press; its ▾ lists every way in. The group carries the
@@ -2787,7 +2930,7 @@ export default function NotebookTab() {
               <button {...newMenu.triggerProps} type="button"
                 className={`btn btn-primary btn-sm ${styles.toolBtn} ${styles.newCaret}`}
                 aria-label="More ways to start a note" data-tour="templates">
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </button>
               {newMenu.open && (
                 <div {...newMenu.menuProps} aria-label="Start a note">
@@ -2797,8 +2940,9 @@ export default function NotebookTab() {
             </div>
             <div className={styles.menuSlot}>
               <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
-                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button">
-                <UIcon name="more" size={16} gold={false} />
+                aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button"
+                data-journal-tools-door="">
+                <UIcon name="more" {...TOOLBAR_ICON} />
               </button>
               {moreMenu.open && (
                 <div {...moreMenu.menuProps} aria-label="More notebook actions">
@@ -3166,6 +3310,10 @@ export default function NotebookTab() {
       {notebookFlag('notebook_onboarding_enabled') === true && (
         <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}
+      {/* S16 (audit 2026-11-05): the 60-second first run, on a member's first visit (no notes yet) and from Settings.
+          The gate is small; the sheet is a lazy leaf fetched only when it shows. */}
+      <FirstRunGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} onOpenNote={openNote}
+        onOpenToday={todayLandingOn() ? openTodayHome : undefined} />
       {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
           which the member has never seen. Never while a note is open (R4). */}
       <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />

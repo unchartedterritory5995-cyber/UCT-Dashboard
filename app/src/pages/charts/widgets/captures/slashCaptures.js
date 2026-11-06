@@ -11,3 +11,6 @@ export { slashCapture as alerts } from './alertsCapture'
 export { slashCapture as scanner } from './scannerCapture'
 export { slashCapture as watchlist } from './watchlistCapture'
 export { slashCapture as themes } from './themesCapture'
+// S13.6 remainder (audit 2026-11-05): two of the three embeds that lived only on their own pages.
+export { slashCapture as cot } from './cotCapture'
+export { slashCapture as modelbook } from './modelbookCapture'

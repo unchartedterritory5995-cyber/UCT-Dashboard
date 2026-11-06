@@ -1,0 +1,53 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_ARM_RUNS", overlay = false, max_bars_back = 5000)
+
+// --- 2026-11-03 W4 T4 - THE ARM SHAPES THE RUNTIME LANE STILL REFUSES ---
+//
+// `vw-arm-history` (2026-10-02) witnessed that a `ta.*` call written in one arm of
+// a `?:` runs only on the bars that arm is taken: `ta.sma`, `ta.ema` and the
+// one-argument `ta.change` count RUNS (T03 / T04 / T05 / K02 / K03). W4 T4 serves
+// exactly those in Pine v6, plus `ta.rma` (the block rule's member, inferred from
+// `ta.ema`'s recurrence, never captured in an arm or a block). Each row below is a
+// shape it still refuses by name, or the inferred one:
+//
+//   C*  `ta.change(x, n)` with n >= 2 in an arm: n RUNS back, or n BARS back?
+//   R*  `ta.rma` in an arm: seeded by the mean of its first n RUNS, alpha 1/n?
+//   N*  a `?:` inside an arm: does the inner arm count the runs of BOTH tests?
+//   W*  Pine's own carried built-ins in an arm (`ta.valuewhen`, `ta.barssince`,
+//       `fixnan`): do they step only on the arm's runs?
+//   E*  the every-bar answers, for comparison
+//
+// CAPTURE: NYSE:RDDT 1D from the listing (every run is on a loaded bar), inputs at
+// defaults; AMEX:SPY 1D as a second witness.
+// NEVER COMPILED ON TRADINGVIEW. If a row does not compile (a warning that a call
+// "should be called on each calculation" is fine; an error is not), the error names
+// the line: split that row out and capture the rest.
+
+up = close > open
+even = bar_index % 2 == 0
+src_na = even ? close : na
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_up_CONTROL")
+
+// ------------------------------------------------------------- E: every bar
+plot(ta.change(close, 2), "E01_change2_every_bar")
+plot(ta.rma(close, 4), "E02_rma4_every_bar")
+plot(ta.valuewhen(close > close[1], close, 1), "E03_valuewhen_every_bar")
+plot(ta.barssince(close > close[1]), "E04_barssince_every_bar")
+
+// ------------------------------------------------------------- C: ta.change(x, n)
+plot(up ? ta.change(close, 2) : 0.0, "C01_change2_in_true_arm")
+plot(even ? ta.change(close, 3) : na, "C02_change3_on_even_bars")
+
+// ------------------------------------------------------------- R: ta.rma
+plot(up ? ta.rma(close, 4) : close, "R01_rma4_in_true_arm")
+plot(even ? ta.rma(close, 3) : na, "R02_rma3_on_even_bars")
+
+// ------------------------------------------------------------- N: a ?: inside an arm
+plot(up ? (even ? ta.sma(close, 3) : close) : close, "N01_sma3_in_nested_arm")
+
+// ------------------------------------------------------------- W: carried built-ins
+plot(up ? ta.valuewhen(close > close[1], close, 1) : close, "W01_valuewhen_in_true_arm")
+plot(up ? ta.barssince(close > close[1]) : -1, "W02_barssince_in_true_arm")
+plot(up ? fixnan(src_na) : close, "W03_fixnan_in_true_arm")

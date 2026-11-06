@@ -436,7 +436,7 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
 
 describe('L2 — a branch ending in a loop: the refusal does not claim a loop has no value', () => {
   it('⛔ the sentence says the loop\'s value is not lowered (Pine yields its last pass)', () => {
-    const r = refusalOf(`${v5}x = if close > 103\n    for i = 0 to 2\n        0\nelse\n    0\nplot(x)\n`)
+    const r = refusalOf(`${v5}x = if close > 103\n    for i = 0 to 2\n        if i > 0\n            break\n        0\nelse\n    0\nplot(x)\n`)
     expect(r.guard).toBe('runtime:block-value')
     expect(r.message).toMatch(/last pass/)
     expect(r.message).not.toMatch(/no value to yield/)

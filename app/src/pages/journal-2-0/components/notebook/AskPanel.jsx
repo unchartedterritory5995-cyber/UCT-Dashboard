@@ -22,6 +22,7 @@ import { buildAskInsertNode } from '../../lib/askInsert'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { trackNotebookEvent, NOTEBOOK_EVENTS } from '../../lib/notebookTelemetry'
 import AskInsertPicker from './AskInsertPicker'
+import HelpAnswerLink from './HelpAnswerLink'
 import styles from './AskPanel.module.css'
 import { failureDetail } from '../../../../lib/responseBody'
 
@@ -368,6 +369,8 @@ export default function AskPanel({
                      style={{ verticalAlign: '-1px', marginRight: 4 }} />
               Asking: {scopeLabel}
             </span>
+            {/* S14: this feature's "?" opens its own Quick Answer. */}
+            <HelpAnswerLink faqId="notebook-ask" topic="What can Ask answer?" className={styles.helpLink} />
             <button type="button" className={styles.closeBtn}
                     onClick={closePanel}
                     aria-label="Close Ask"><UIcon name="x" size={11} gold={false} /></button>

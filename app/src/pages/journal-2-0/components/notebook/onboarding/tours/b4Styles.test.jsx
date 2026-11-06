@@ -71,8 +71,9 @@ describe('the B4 track is registered', () => {
     })
   })
 
-  it('R-P5-6: both sit under Writing and capture in the Learn menu', () => {
-    for (const t of TOURS) expect(learnTourGroup(t.id), t.id).toBe('Writing and capture')
+  // S14 (audit 2026-11-05): the Learn menu's five groups; the two template tours still sit together, under Write.
+  it('R-P5-6: both sit together, under Write, in the Learn menu', () => {
+    for (const t of TOURS) expect(learnTourGroup(t.id), t.id).toBe('Write')
   })
 
   it('both are replayable (Help and Learn list them)', () => {

@@ -7,6 +7,7 @@ import {
   PASSED_URL, passedSetupsEnabled, fetchPassedSetups, addPassedSetup, removePassedSetup,
   SOURCE_TEXT, HORIZON_TEXT, outcomeText, fmtDay,
 } from '../../lib/researchCapture'
+import { SUGGESTED_NAMES } from '../../lib/myNames'
 import styles from './PassedSetups.module.css'
 
 /** Today's date in New York, 'YYYY-MM-DD' -- the day the server dates a pass by. */
@@ -86,7 +87,12 @@ export default function PassedSetups() {
 
   const add = async (e) => {
     e.preventDefault()
-    const sym = symbol.trim().toUpperCase().replace(/^\$/, '')
+    await addOne(symbol)
+  }
+
+  // S17 (M7): the form's add, and each of the empty box's three suggestions.
+  const addOne = async (raw) => {
+    const sym = String(raw || '').trim().toUpperCase().replace(/^\$/, '')
     if (!sym || busy) return
     setBusy(true)
     setMessage('')
@@ -152,6 +158,14 @@ export default function PassedSetups() {
           Nothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on
           what they did next — or add one above.
         </p>
+      )}
+      {!error && data && items.length === 0 && (
+        <div className={styles.suggestions} role="group" aria-label="Suggestions">
+          {SUGGESTED_NAMES.map((s) => (
+            <button key={s} type="button" className={styles.action} aria-label={`Add ${s} to passed setups`}
+              disabled={busy} onClick={() => addOne(s)}>{`+ ${s}`}</button>
+          ))}
+        </div>
       )}
 
       {items.length > 0 && (

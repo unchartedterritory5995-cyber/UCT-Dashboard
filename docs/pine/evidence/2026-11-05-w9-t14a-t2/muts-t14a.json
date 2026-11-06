@@ -1,0 +1,74 @@
+[
+ [
+  "CONTROL no-op comment",
+  "api/services/screener/scan_evaluator.py",
+  "#: The bars window floor.",
+  "#: The bars window floor (control)."
+ ],
+ [
+  "M01 restore _MAX_BARS = 5000 in the sweep (R10)",
+  "api/services/screener/scan_evaluator.py",
+  "_MIN_BARS = 400\n",
+  "_MIN_BARS = 400\n_MAX_BARS = 5000\n"
+ ],
+ [
+  "M02 sweep sizes with a literal",
+  "api/services/screener/scan_evaluator.py",
+  "    want = HISTORY_WINDOW_BARS\n",
+  "    want = 5000\n"
+ ],
+ [
+  "M03 sweep drops the import",
+  "api/services/screener/scan_evaluator.py",
+  "from api.services.bars_window import HISTORY_WINDOW_BARS\n",
+  "HISTORY_WINDOW_BARS = 4999\n"
+ ],
+ [
+  "M04 backtest ceiling is a literal",
+  "api/routers/screener_backtest.py",
+  "MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS",
+  "MAX_BARS_PER_SYMBOL = 5000"
+ ],
+ [
+  "M05 backtest ceiling restated as an expression",
+  "api/routers/screener_backtest.py",
+  "MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS",
+  "MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS + 0"
+ ],
+ [
+  "M06 alert lane BARS_MAX literal",
+  "api/services/indicator_alert_evaluator.py",
+  "BARS_MAX = HISTORY_WINDOW_BARS",
+  "BARS_MAX = 5000"
+ ],
+ [
+  "M07 alert series RUNTIME_WINDOW_DATE literal",
+  "api/services/alert_user_series.py",
+  "RUNTIME_WINDOW_DATE = HISTORY_WINDOW_BARS",
+  "RUNTIME_WINDOW_DATE = 5000"
+ ],
+ [
+  "M08 alert series _SYMBOL_MAX_BARS literal",
+  "api/services/alert_user_series.py",
+  "_SYMBOL_MAX_BARS = HISTORY_WINDOW_BARS",
+  "_SYMBOL_MAX_BARS = 5000"
+ ],
+ [
+  "M09 fold DEEP_BARS into the window (R13)",
+  "api/services/screener/snapshot_builder.py",
+  "DEEP_BARS = 5000",
+  "DEEP_BARS = HISTORY_WINDOW_BARS"
+ ],
+ [
+  "M10 second assignment in bars_window",
+  "api/services/bars_window.py",
+  "HISTORY_WINDOW_BARS = 5000",
+  "HISTORY_WINDOW_BARS = 5000\nHISTORY_WINDOW_BARS_ALT = 5000"
+ ],
+ [
+  "M11 bars_window value moves",
+  "api/services/bars_window.py",
+  "HISTORY_WINDOW_BARS = 5000",
+  "HISTORY_WINDOW_BARS = 5001"
+ ]
+]

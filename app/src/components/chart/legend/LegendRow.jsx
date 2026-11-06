@@ -178,6 +178,7 @@ export default function LegendRow({
     tabIndex: 0,
     'aria-haspopup': 'menu',
     'aria-label': `${ctlName} options`,
+    'data-guide': 'chart.chip',
     title: `${ctlName} — click for options`,
     onClick: fire,
     onContextMenu: fire,

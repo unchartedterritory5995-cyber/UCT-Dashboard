@@ -118,6 +118,46 @@ A registry entry teaches a family. `slots` (`guide/slots.js`) read which one fro
 | `compare`, `replay`, `periodSort`, `goToDate`, `chartTab`, `chartThemes`, `chartTemplate`, `chartType`, `timeframeCustom`, `watchlistAddSymbol`, `widgetMerge` | One path each | |
 | `chartSetting` | Every row of `chartSettingsDescriptors` with a Chart Settings path | Gear, its tab, its section |
 
+### Action families (2026-11-05, coverage pass 2)
+
+`guide/actions.js` holds the small actions that share a surface. A family is one feature and a table of rows; a row is `{ id, label, re, steps }`, and the feature's `{ each: 'slot' }` step takes the chosen row's own steps. Adding an action on a surface a family already covers is one row, plus `data-guide` (or `data-menu-id`) on its control.
+
+| Family | Surface |
+|---|---|
+| `chartMenu` | The chart's right-click menu (`ChartWidget.jsx`) |
+| `legendChip` | A legend chip's menu (`legend/chipMenu.js`) |
+| `chartView` | Pane dividers, range and session buttons, Share, and the chart's keys |
+| `compareAction`, `panelAction` | Compare Symbols, the timeframe menu, Replay, theme scope, Restore Defaults |
+| `drawingEdit` | A drawing's own right-click menu and the toolbar's Undo |
+| `indicatorManage` | Chart settings → Indicators: templates, panes, Remove, Create Indicator |
+| `watchlistAction` | Watchlist rows, the row menu, column titles |
+| `layoutAction`, `tabAction` | The layout bar's menu, widget tabs and chart tabs |
+| `widgetAction` | One row per control of one widget, adding the widget first when it isn't on the board |
+
+A control that appears only on a right-click gets a step that asks for the right-click, on the real region, and moves on when the row it needs appears. A menu opened on the wrong region does not satisfy it: the step stays and repeats where to click.
+
+A pane divider is drawn by the chart library, so it carries no attribute of ours. `{ within: 'chart.plot', cursor: 'row-resize' }` finds the library's own handle, and the ring follows it while it is dragged.
+
+Status per action is in the coverage pass's `teach-status.md`, generated from recorded real-mouse runs.
+
+### What pass 2 found in the browser
+
+- The inventory read the right-click menu from `StockChart.jsx`. That menu is the app-wide one. On `/charts`, `ChartWidget.jsx` takes the right-click and shows its own, much shorter menu, so scale, chart type, extended hours, Add indicator and Draw line are not on it. Rows written from the inventory failed on the first real right-click and were rewritten against the real menu.
+- A list target's `altText` looked only at the first entry, so "Relative Strength Index" read as "RSI isn't on this chart" although the second entry had found it.
+- A `chart.*` id inside a portalled menu was searched for only inside the chart cell. Timeframe rows are now `timeframe.*`, and a `within` box ending in `Menu` is searched everywhere.
+- A watchlist row's menu opens only on the ticker symbol, not the whole row.
+- Words like "show me how" read as the Show row of a family. A family's row reader drops how the member asked before it reads what they asked for.
+
+### What pass 3 found in the browser
+
+- **The card disabled the keys it named.** `utils/modalOpen.js` reads any `role="dialog"` as a modal, so the chart ignored every chord while a card said "press Alt+Shift+A". The card is now `role="region"`, and each key row was re-run with the card on screen.
+- **The Formula Builder is reachable on `/charts`:** Alt+Shift+A opens the indicator library, and New formula opens the builder. Create Indicator is the other door, and goes to the Agent.
+- **Multi Chart walkthroughs run.** Each chart in the grid is a cell the guide can scope to. The session buttons do not fit on a narrow cell, so that row says so.
+- **"Do it for me" while the Agent is busy** used to drop the click. The card now says so in fixed words.
+- A target below the fold of a long window is scrolled up, rather than passed over for its fallback.
+- **Two charts with the Agent open squeeze the drawing strip to nothing:** the fixed buttons beside it take the whole line, and "where are the drawing tools" got a sentence instead of a walkthrough. While a step needs the strip, the buttons beside it step aside, and they come back when the step ends. Nothing is stored.
+- **The Canvas walkthrough ended on a step that repeated the last one,** so the card stayed on Skip. The tab is now its last step and the card offers Done.
+
 ### What the browser found that tests could not
 
 These were only visible on the real workspace (`agent-harness.html`, headless Chrome, real mouse):

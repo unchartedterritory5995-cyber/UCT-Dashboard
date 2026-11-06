@@ -825,7 +825,7 @@ export default function IndicatorAlertPopover({
                   </div>
                   <div className={styles.alertSub}>
                     {cannotFire && (
-                      <span className={styles.cannotFire}>
+                      <span className={styles.cannotFire} data-guide="alert.cannotFire">
                         Cannot fire — this alert type is no longer evaluated
                       </span>
                     )}
@@ -835,7 +835,7 @@ export default function IndicatorAlertPopover({
                         the inputs it recorded — and saying so is the whole
                         point: an orphaned binding used to be invisible. */}
                     {a.instance_missing && (
-                      <span className={styles.cannotFire}>
+                      <span className={styles.cannotFire} data-guide="alert.cannotFire">
                         The chart indicator this alert was armed from was removed
                         — still watching {indLbl}
                       </span>
@@ -860,6 +860,7 @@ export default function IndicatorAlertPopover({
                 </div>
                 <button
                   className={`${styles.toggle} ${a.active ? styles.on : ''}`}
+                  data-guide="alert.toggle"
                   onClick={() => toggleIndicatorAlert(a.id)}
                   title={a.active ? 'Disable' : 'Enable'}
                 >

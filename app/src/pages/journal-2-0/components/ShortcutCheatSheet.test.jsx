@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ShortcutCheatSheet from './ShortcutCheatSheet'
+import { pageSection } from '../lib/shortcutPage'
 
 describe('ShortcutCheatSheet', () => {
   it('renders nothing when closed', () => {
@@ -257,5 +258,43 @@ describe('ShortcutCheatSheet -- the graph canvas keys', () => {
     // the way out of a table, in the member's own keyboard's words
     expect(keysText('In a table: move to the table toolbar (Esc returns to the cell)'))
       .toBe(platform === 'MacIntel' ? 'Option + F10' : 'Alt + F10')
+  })
+})
+
+// S14 (audit 2026-11-05, detail #70): grouped by where the keys work, this page's group first.
+describe('ShortcutCheatSheet: this page first (S14)', () => {
+  const headings = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+
+  it('no page: the standing order', () => {
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(headings()).toEqual(['Navigation', 'General', 'Open Positions', 'Trade Journal', 'Notebook'])
+  })
+
+  it.each([
+    ['/journal/notebook', '', 'Notebook'],
+    ['/journal/notebook', '?note=n1', 'Notebook'],
+    ['/journal/trades', '', 'Open Positions'],
+    ['/journal/trades', '?seg=closed', 'Trade Journal'],
+    ['/journal/calendar', '', 'Navigation'],
+  ])('%s%s puts %s first, and every section is still there', (path, search, first) => {
+    render(<ShortcutCheatSheet open onClose={vi.fn()} page={pageSection(path, search)} />)
+    const h = headings()
+    expect(h[0]).toBe(first)
+    expect([...h].sort()).toEqual(['General', 'Navigation', 'Notebook', 'Open Positions', 'Trade Journal'])
+  })
+
+  it('the Notebook chords use this platform\'s modifier (Ctrl on Windows, never a Mac symbol)', () => {
+    const real = Object.getOwnPropertyDescriptor(Navigator.prototype, 'platform')
+    Object.defineProperty(navigator, 'platform', { value: 'Win32', configurable: true })
+    try {
+      render(<ShortcutCheatSheet open onClose={vi.fn()} page="notebook" />)
+      const notebook = screen.getAllByRole('heading', { level: 3 })[0].closest('section')
+      const keys = within(notebook).getAllByText((_, el) => el?.tagName === 'KBD').map((k) => k.textContent)
+      expect(keys).toContain('Ctrl')
+      expect(keys.join(' ')).not.toMatch(/⌘|Cmd/)
+    } finally {
+      delete navigator.platform
+      if (real) Object.defineProperty(Navigator.prototype, 'platform', real)
+    }
   })
 })

@@ -970,6 +970,7 @@ export default function ChartSettingsModal({
           <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
             <button
               type="button"
+              data-guide="chartSettings.reset"
               className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
               onClick={handleReset}
               title="Resets chart appearance. Your indicators stay."

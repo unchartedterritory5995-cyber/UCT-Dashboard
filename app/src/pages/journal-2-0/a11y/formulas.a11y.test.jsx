@@ -58,6 +58,14 @@ describe('lane 11B surfaces', () => {
     screen.getByRole('group', { name: 'Insert a property' })
   })
 
+  // S13 (audit 2026-11-05): a new formula opens on the trader formulas, the raw box closed behind "Write your own".
+  axeSurface('formula-editor:starters', async () => {
+    render(<FormulaEditor value="" onChange={() => {}} defs={DEFS} />)
+    screen.getByRole('group', { name: 'Start from a trader formula' })
+    screen.getByRole('button', { name: 'R-multiple' })
+    screen.getByRole('button', { name: 'Write your own' })
+  })
+
   axeSurface('rollup-editor', async () => {
     render(<RollupHarness />)
     screen.getByLabelText('Summarise')

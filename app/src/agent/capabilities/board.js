@@ -19,6 +19,10 @@
 //     declares (enum | boolean | number, never an identity key) — exactly as the widget's settings panel does
 //     (ChartsWorkspace.handleOptsChange: `{...w, opts}` + scheduleSave; the board writer's `set[id].opts` is
 //     that same write). Undo puts the previous opts object back, exactly.
+//     Family: EVERY control a person has on a widget is one registry row (widgets/registry.js widgetControls), not a
+//     capability. A control in `opts` goes through the board writer; a control the widget keeps itself, or one that is more
+//     than one key, goes through the widget's own writer (pages/charts/widgetDoors.js). widget.readOptions reads any of
+//     them back; widget.sendToJournal is the Journal door of any widget that offers one.
 // Before ANY write the resulting board must pass boardProblems (inside the grid, min sizes,
 // no overlap). Undo restores the exact widgets touched (a removed widget comes back with its
 // id, geometry, link colour, settings and tabs) and refuses if any of them changed since.
@@ -36,7 +40,9 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
+import { wordsSelect } from '../routing'
 import { labelMap, WIDGET_REGISTRY } from '../../widgets/registry'
+import { widgetControls } from '../../widgets/widgetControls'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
@@ -48,6 +54,8 @@ import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchCha
 import { CHART_TIMEFRAMES } from './chart'
 import { planChartGrid, GRID_PATTERNS, MAX_GRID_CHARTS } from '../chartGrid'
 import { unknownSymbols } from '../agentClient'
+import { dayOf } from './calendar'
+import { loadJournalCapture } from '../../components/journalCaptureLoader'
 import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs, addWidgetTab, WIDGET_TAB_TYPES } from '../../pages/charts/widgetTabs'
 // a slot holds a handful of widgets as tabs — the Agent stops adding at this many (the header scrolls beyond)
 const MAX_WIDGET_TABS = 8
@@ -102,8 +110,18 @@ function snapOf(host) {
   // (host `visible`) leaves them out. Nothing here may re-tile or edit one it cannot see.
   const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
+  const doorOf = (id) => { try { return host?.widgets?.door?.(id) || null } catch { return null } }
+  return { ref: 'board', label: 'Board', doorOf, doors: doorsOf(s.raw, doorOf), raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
     charts: chartsOf(host), maxWidgets: s.max }
+}
+// widget id → what its door reports for its `door` controls: the widget's own state, not stored anywhere
+function doorsOf(raw, doorOf) {
+  const out = {}
+  for (const w of raw) {
+    if (!widgetControls(w.type).some(f => f.door)) continue
+    try { const v = doorOf(w.id)?.read?.(); if (v) out[w.id] = v } catch { /* a door that cannot answer is not there */ }
+  }
+  return out
 }
 // widget id → { ref, symbol, tf } of each chart on the board (the chart a widget shows now: its own ref,
 // else its first tab's) — what chartGrid.set reuses. Read only.
@@ -139,14 +157,75 @@ const optionCandidates = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).f
 export const widgetOptionFields = (type) => optionCandidates(type).filter(bounded)
 export const widgetUnboundedFields = (type) => optionCandidates(type).filter(f => !bounded(f))
 
+// ── A control's value: the same read for the context, the plan, the receipt and widget.readOptions ──
+const pathOf = (f) => String(f.path || f.key).split('.')
+const atPath = (opts, f) => pathOf(f).reduce((o, k) => (o == null ? undefined : o[k]), opts)
+const withPath = (opts, f, value) => {
+  const [head, ...rest] = pathOf(f)
+  if (!rest.length) return { ...(opts || {}), [head]: value }
+  return { ...(opts || {}), [head]: withPath(opts?.[head], { path: rest.join('.') }, value) }
+}
+const valueOf = (f, w, doors) => {
+  const v = f.door ? doors?.[w.id]?.[f.key] : atPath(w.opts, f)
+  return v === undefined ? (f.default ?? null) : v
+}
+/** A control's choices right now, as { value, label }: the registry's, or the mounted widget's own. */
+const choicesOf = (f, door) => {
+  const raw = f.from === 'door' ? door?.options?.()?.[f.key] : f.options
+  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: String(o) }))
+}
+const says = (f, v, choices) => {
+  if (Array.isArray(v)) return v.length ? v.join(', ') : (f.all ? 'all' : 'none')
+  const hit = choices?.find(c => same(c.value, v))
+  return String(hit ? hit.label : v == null || v === '' ? 'none' : typeof v === 'boolean' ? (v ? 'on' : 'off') : v)
+}
+const controlWord = (f) => {
+  const list = (f.options || []).join('|')
+  if (f.type === 'set') return `${f.key}(+/-${list ? ` ${list}` : ' member'})`
+  if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
+  return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : `${f.min}–${f.max}`})`
+}
+// ── The `widgetControls` context section: sent only on a turn that may need it ──
+// Each type once, with its choices, and what a widget is set to where that differs from how it starts. It is sent when the
+// turn's routing carries boardEdit (the action group's own refresh arms it, on a reroute too), whole; and when the message
+// names a widget on this board AND one of the choices it offers ("annual" and "fundamentals"), for that type alone: routing
+// v2 can carry the group on a turn whose refresh list does not. Those words are the registry's, so there is no phrase list
+// here, and either word alone ("any news on TSLA") is no reason to pay. Otherwise the hint points at widget.readOptions.
+const MIN_WORD = 4
+const wordsOf = (v) => String(v).toLowerCase().split(/[^a-z0-9&]+/).filter(x => x.length >= MIN_WORD)
+function namedHere(type, said) {
+  const labels = Object.values(WIDGET_REGISTRY[type]?.labels || {}).flatMap(wordsOf)
+  const choices = widgetControls(type).flatMap(f => (f.options || []).flatMap(wordsOf)).filter(x => !labels.includes(x))
+  return labels.some(x => said.has(x)) && choices.some(x => said.has(x))
+}
+function widgetControlSection(s, message, whole) {
+  const said = new Set(wordsOf(message))
+  const types = [...new Set(s.raw.map(w => w.type))].filter(t => widgetControls(t).length)
+    .filter(t => whole || namedHere(t, said))
+  if (!types.length) return undefined
+  const controls = Object.fromEntries(types.map(t => [t, widgetControls(t).map(controlWord).join(', ')]))
+  const set = {}
+  for (const w of s.raw) {
+    if (!types.includes(w.type)) continue
+    for (const f of widgetControls(w.type)) {
+      const v = valueOf(f, w, s.doors)
+      if (v == null || v === '' || (Array.isArray(v) && !v.length) || same(v, f.default)) continue
+      set[w.id] = { ...set[w.id], [f.key]: v }
+    }
+  }
+  return [{ controls, ...(Object.keys(set).length ? { set } : {}) }]
+}
+
 export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [] }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
+    // widget.sendToJournal: nothing on the board changes
+    if ((after.sends || []).length) return { sends: clone(after.sends) }
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
     for (const w of after.board) {
@@ -160,6 +239,12 @@ export const boardKind = {
     if (removed.length) p.remove = removed
     if (Object.keys(set).length) p.set = set
     if (!same(before.layoutTheme, after.layoutTheme)) p.layoutTheme = after.layoutTheme
+    // what only the widget's own writer can set
+    for (const [id, vals] of Object.entries(after.doors || {})) {
+      for (const [k, v] of Object.entries(vals)) {
+        if (!same(v, before.doors?.[id]?.[k])) { p.doors ||= {}; p.doors[id] = { ...p.doors[id], [k]: clone(v) } }
+      }
+    }
     // A NEW widget (watchlist.open with none on the board): added through handleAddWidget, alone.
     if ((after.adds || []).length) return { add: clone(after.adds) }
     return Object.keys(p).length ? p : null
@@ -186,11 +271,15 @@ export const boardKind = {
       }
       return { undoData: { added } }
     }
-    host.widgets.applyBoard(patch)
+    if (patch.sends) return sendToJournal(host, patch.sends)
+    const { doors, ...rest } = patch
+    if (doors) await writeDoors(host, doors)
+    if (Object.keys(rest).length) host.widgets.applyBoard(rest)
     return true
   },
   landed(snap, patch) {
     if (!snap) return false
+    if (patch.sends) return true                   // nothing on the board to read: commit threw if the Journal refused
     if (patch.grid) return gridLanded(snap, patch.grid)
     if (patch.gridUndo) return gridUndone(snap, patch.gridUndo)
     if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
@@ -203,6 +292,7 @@ export const boardKind = {
       for (const [f, v] of Object.entries(d)) if (!same(w[f] ?? null, v)) return false
     }
     if ('layoutTheme' in patch && !same(snap.layoutTheme ?? null, patch.layoutTheme ?? null)) return false
+    for (const [id, vals] of Object.entries(patch.doors || {})) for (const [k, v] of Object.entries(vals)) if (!same(snap.doors?.[id]?.[k] ?? null, v ?? null)) return false
     return true
   },
   // Undo: the touched widgets exactly as they were — a removed one re-inserted whole.
@@ -211,6 +301,7 @@ export const boardKind = {
     const p = item.patch || {}
     // chartGrid.set: exactly what its commit recorded (the charts it added, the cells, links and tickers it changed)
     if (p.grid) return item.undoData?.grid ? { gridUndo: clone(item.undoData.grid) } : null
+    if (p.sends) return null                       // a capture stays until the member deletes it, as at the door
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
     const out = {}
@@ -221,6 +312,18 @@ export const boardKind = {
       const o = before.find(w => w.id === id)
       if (!o) continue
       set[id] = Object.fromEntries(Object.keys(p.set[id]).map(f => [f, o[f] === undefined ? null : clone(o[f])]))
+    }
+    // A door write may touch several opts at once: they go back whole. Its own state goes back through its own writer.
+    for (const [id, vals] of Object.entries(p.doors || {})) {
+      const o = before.find(w => w.id === id)
+      if (!o) continue
+      set[id] = { ...set[id], opts: o.opts === undefined ? null : clone(o.opts) }
+      const ctrl = widgetControls(o.type)
+      for (const k of Object.keys(vals)) {
+        if (ctrl.find(f => f.key === k)?.inOpts) continue
+        out.doors ||= {}
+        out.doors[id] = { ...out.doors[id], [k]: clone(item.before?.doors?.[id]?.[k] ?? null) }
+      }
     }
     if (Object.keys(set).length) out.set = set
     if ((p.restore || []).length) out.remove = p.restore.map(w => w.id)
@@ -243,10 +346,11 @@ export const boardKind = {
         return w ? [id, ...FIELDS.map(f => (f !== 'opts' ? JSON.stringify(w[f] ?? null) : added ? addedChartOpts(w) : reusedChartOpts(w))), sym] : [id, 'gone']
       }))
     }
-    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
+    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...Object.keys(p.doors || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
-      return w ? [id, ...FIELDS.map(f => fieldFp(w, f))] : [id, 'gone']
+      const own = Object.keys(p.doors?.[id] || {}).map(k => s.doors?.[id]?.[k] ?? null)
+      return w ? [id, ...FIELDS.map(f => fieldFp(w, f)), ...own] : [id, 'gone']
     }))
   },
 }
@@ -265,6 +369,31 @@ async function settle(pred, ms = 5000) {
   return pred()
 }
 const rawNow = (host) => host.widgets.snapshot().raw || []
+// The widget's own writer, one control at a time, each read back through its door before the next.
+async function writeDoors(host, doors) {
+  for (const [id, vals] of Object.entries(doors)) {
+    for (const [key, value] of Object.entries(vals)) {
+      const door = host.widgets.door?.(id)
+      if (!door?.write) throw new Error('that widget is no longer showing')
+      door.write(key, value)
+      if (!(await settle(() => same(host.widgets.door?.(id)?.read?.()?.[key] ?? null, value ?? null)))) throw new Error(`“${key}” did not change`)
+    }
+  }
+}
+// The door's own capture and the Journal's one send path. The receipt is the Journal's own line; a refusal fails the change.
+const SENT = /\b(?:sent to|captured|started)\b/
+async function sendToJournal(host, sends) {
+  const { sendCaptureToJournal } = await loadJournalCapture()
+  const lines = []
+  for (const { id, where } of sends) {
+    const c = host.widgets.door?.(id)?.capture?.()
+    if (!c) throw new Error(`${lines.length ? `${lines.join('; ')}, but a` : 'A'} widget had nothing to send`)
+    const text = await sendCaptureToJournal(c.kind, c.capture, { ...(c.label ? { label: c.label } : {}), target: where })
+    if (!SENT.test(text)) throw new Error(lines.length ? `${lines.join('; ')}, then: ${text}` : text)
+    lines.push(text)
+  }
+  return { lines }
+}
 async function commitGrid(host, g) {
   const raw0 = rawNow(host)
   const geom = {}
@@ -612,6 +741,21 @@ export function registerBoardCapabilities() {
     },
   })
 
+  // armed by this turn's routing (refreshContext), spent by the next build
+  let routedHere = false
+  registerContextProvider({
+    key: 'widgetControls',
+    refreshGroup: 'boardEdit',
+    refresh: ({ groups } = {}) => { if (groups) routedHere = true },
+    compact: () => [{ left: 'ask widget.readOptions' }],
+    build: (host, refFor, { message = '', nl1 = false } = {}) => {
+      const whole = routedHere || nl1 || wordsSelect('boardEdit', message)
+      routedHere = false
+      const s = snapOf(host)
+      return s ? widgetControlSection(s, message, whole) : undefined
+    },
+  })
+
   const common = { target: 'board', surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts' }
   // Every board action first passes the detached-widget rule: arranging (move / arrange / resize)
   // re-tiles the whole grid, so it waits while ANY widget floats or is popped out; an action aimed
@@ -896,29 +1040,54 @@ export function registerBoardCapabilities() {
     noop: () => 'It already shows that list',
   })
 
-  // ── widget.setOption (W1-B B-05): ONE option of ONE widget, validated against the registry's param schema ──
-  // The registry (widgets/registry.js paramsSchema) is the product's own description of each widget's options.
-  // Offered: the SCALAR ones (enum | boolean | number) that are not identity (`required`) keys and not capture-only
-  // bookkeeping (a notebook stamp's fields). A NUMBER only with a declared range (`min`/`max` on the schema entry — the
-  // product's own bound); an unbounded number is refused, never written. Everything else — lists, blobs, symbols, keys —
-  // has its own capability or none.
+  // ── widget.setOption (W1-B B-05): ONE control of ONE widget, validated against the widget registry ──
+  // widgetControls (widgets/registry.js) is the product's own description of what a person can set on each widget: the
+  // `live` paramsSchema fields, then its `controls`. A NUMBER only with a declared range; an unbounded number is refused,
+  // never written. Lists, blobs, symbols and keys that are no control have their own capability or none.
   // ⛔ A RECEIPT FOLLOWS A REAL CHANGE. paramsSchema describes what a Notebook stamp FREEZES, which is not what a live
-  // widget reads back from opts (a Theme Tracker's period is its own tab state). Offered ONLY when the field is marked
-  // `live: true` — default-deny, so a new schema field is never settable by accident — and settingsLiveness.test.js
-  // fails a `live` field whose widget does not read it from opts. A declared field that is not live refuses in words.
+  // widget reads back from opts. A row is offered only once it is in widgetControls — default-deny, so a new schema field is
+  // never settable by accident — and settingsLiveness.test.js fails a row its widget does not read. A declared field that
+  // is not a control refuses in words. A control the widget keeps itself is written by the widget's own door, and read back
+  // through that door before the receipt: with no door mounted there is nothing to write to, and it refuses.
   const scalarsOf = widgetOptionFields
-  const optionsOf = (type) => scalarsOf(type).filter(f => f.live === true)
   const TRUE_WORDS = ['true', 'on', 'yes', 'show', 'enabled'], FALSE_WORDS = ['false', 'off', 'no', 'hide', 'disabled']
-  /** The value in the option's own type, or a refusal. */
-  const coerceOption = (f, raw) => {
+  const norm = (v) => String(v ?? '').trim().toLowerCase()
+  const listed = (choices) => `${choices.slice(0, 12).map(c => c.label).join(', ')}${choices.length > 12 ? ` and ${choices.length - 12} more` : ''}`
+  /** The choice a word names: its value or label, or the one label that contains it. A widget's own list (themes, universes)
+   *  is not in front of the model, so a short name has to work; two that fit is a refusal, never a guess. */
+  const pick = (f, choices, raw) => {
+    const hit = choices.find(c => norm(c.value) === norm(raw) || norm(c.label) === norm(raw))
+    if (hit || f.from !== 'door' || !norm(raw)) return hit
+    const near = choices.filter(c => norm(c.label).includes(norm(raw)))
+    return near.length === 1 ? near[0] : undefined
+  }
+  /** The value in the control's own type, or a refusal. A `set` answers with its whole next list. */
+  const coerceOption = (f, raw, choices, current) => {
+    if (f.type === 'set') {
+      const m = /^\s*([+-])\s*(.+)$/.exec(String(raw))
+      if (!m) return { why: `“${f.key}” takes +member or -member.` }
+      const hit = pick(f, choices, m[2])
+      if (!hit) return { why: `“${m[2]}” isn't one of ${f.key}: ${listed(choices)}.` }
+      const on = (m[1] === '+') !== (f.inverse === true)
+      const base = Array.isArray(current) ? current : []
+      const start = f.all && !base.length && m[1] === '-' ? choices.map(c => c.value) : base
+      const next = on ? (start.includes(hit.value) ? start : [...start, hit.value]) : start.filter(v => v !== hit.value)
+      if (f.door && !next.length) return { why: `The widget keeps at least one of ${f.key}.` }
+      const ordered = f.all ? choices.map(c => c.value).filter(v => next.includes(v)) : next
+      return { value: f.all && ordered.length === choices.length ? [] : ordered }
+    }
     if (f.type === 'enum') {
-      const hit = (f.options || []).find(o => String(o).toLowerCase() === String(raw).trim().toLowerCase())
-      return hit !== undefined ? { value: hit } : { why: `“${f.key}” can be ${(f.options || []).join(', ')} — not “${raw}”.` }
+      const hit = pick(f, choices, raw)
+      return hit ? { value: hit.value } : { why: `“${f.key}” can be ${listed(choices)} — not “${raw}”.` }
     }
     if (f.type === 'boolean') {
       if (typeof raw === 'boolean') return { value: raw }
-      const s = String(raw).trim().toLowerCase()
+      const s = norm(raw)
       return TRUE_WORDS.includes(s) ? { value: true } : FALSE_WORDS.includes(s) ? { value: false } : { why: `“${f.key}” is on or off.` }
+    }
+    if (f.type === 'day') {
+      const d = dayOf(raw)
+      return d ? { value: d } : { why: `I couldn't read “${raw}” as a day — say it as YYYY-MM-DD, or “tomorrow”.` }
     }
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
     if (!Number.isFinite(n)) return { why: `“${f.key}” is a number from ${f.min} to ${f.max}.` }
@@ -926,39 +1095,101 @@ export function registerBoardCapabilities() {
     if (f.integer && !Number.isInteger(n)) return { why: `“${f.key}” is a whole number from ${f.min} to ${f.max}.` }
     return { value: n }
   }
-  const optionWord = (f) => `${f.key}${f.type === 'enum' ? ` (${(f.options || []).join('|')})` : f.type === 'boolean' ? ' (on/off)' : ` (${f.min}–${f.max})`}`
-  // every registered type, not only the Widgets menu's: News and a Period Sort reach the board by their own doors
-  const OPTION_HINT = Object.keys(WIDGET_REGISTRY).map(t => [t, optionsOf(t)]).filter(([, os]) => os.length).map(([t, os]) => `${t}: ${os.map(optionWord).join(', ')}`).join('; ')
+  const controlFor = (t, key) => widgetControls(t.type).find(o => o.key === String(key)) || null
+  const doorFor = (env, t) => env?.target?.doorOf?.(t.id) || null
+  const coerced = (st, t, f, value, env) => coerceOption(f, value, choicesOf(f, doorFor(env, t)), valueOf(f, { ...t }, st.doors))
   reg({
     ...common,
     name: 'widget.setOption',
-    summary: 'Change ONE option of a widget on the board — what its own settings control writes (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar\'s star filter, Volume Scan logos…). Undo puts the previous value back.',
-    hints: `target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — ${OPTION_HINT}. A widget type not listed has no options here.`,
+    summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
+    hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
-    check(st, { widget, key, value }) {
+    check(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
-      const opts = optionsOf(t.type)
-      if (scalarsOf(t.type).some(f => f.key === String(key) && !f.live)) return `I can't change “${key}” on the ${label(t.type)}: the widget doesn't read a saved value for it, so nothing would change. Use the control on the widget itself.`
+      const opts = widgetControls(t.type)
+      const f = controlFor(t, key)
+      if (!f && scalarsOf(t.type).some(x => x.key === String(key))) return `I can't change “${key}” on the ${label(t.type)}: the widget doesn't read a saved value for it, so nothing would change. Use the control on the widget itself.`
       if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
-      const f = opts.find(o => o.key === String(key))
       if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`
-      return coerceOption(f, value).why || null
+      const door = doorFor(env, t)
+      if ((f.door || f.from === 'door') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
+      if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
+      return coerced(st, t, f, value, env).why || null
     },
-    apply(st, { widget, key, value }) {
+    apply(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
-      const f = optionsOf(t.type).find(o => o.key === String(key))
-      const opts = { ...(t.opts || {}), [f.key]: coerceOption(f, value).value }
-      if (same(opts, t.opts)) return st
+      const f = controlFor(t, key)
+      const next = coerced(st, t, f, value, env).value
+      if (f.door) return same(next, valueOf(f, t, st.doors)) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [f.key]: next } } }
+      const opts = withPath(t.opts, f, next)
+      if (same(next, atPath(t.opts, f)) || same(opts, t.opts)) return st
       // what the widget's own control clears with it (`clears`: News's applied preset no longer describes the filters)
       for (const k of f.clears || []) if (opts[k] != null) opts[k] = null
       return { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
     },
-    describe(b, a, { widget, key }) {
+    describe(b, a, { widget, key }, env) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
-      return o && n && !same(o.opts, n.opts) ? `The ${nameOf(o, b.board)}: ${key} is now ${String(n.opts[key])}${o.opts && o.opts[key] !== undefined ? ` (was ${String(o.opts[key])})` : ''}` : null
+      if (!o || !n) return null
+      const f = controlFor(o, key)
+      const was = valueOf(f, o, b.doors), now = valueOf(f, n, a.doors)
+      if (same(was, now)) return null
+      const choices = choicesOf(f, doorFor(env, o))
+      const stated = f.door ? b.doors?.[o.id]?.[f.key] !== undefined : atPath(o.opts, f) !== undefined
+      return `The ${nameOf(o, b.board)}: ${key} is now ${says(f, now, choices)}${stated ? ` (was ${says(f, was, choices)})` : ''}`
     },
-    noop: (b, a, { key, value } = {}) => `${key} is already ${String(value)}`,
+    noop: (b, a, { key, value } = {}) => `${key} is already ${String(value).replace(/^[+-]\s*/, '')}`,
+  })
+
+  // ── widget.readOptions: how a widget is set right now, read the way a person reads it off the widget ──
+  registerCapability({
+    ...common,
+    name: 'widget.readOptions',
+    query: true,
+    summary: 'Say how a widget on the board is set right now: each control\'s value and its choices (the themes it can open, a map\'s axes, a Scanner\'s criteria…).',
+    hints: 'target = the board entry; widget = the widget id.',
+    args: { type: 'object', properties: { widget: widgetArg }, required: ['widget'], additionalProperties: false },
+    answer(s, { widget }) {
+      const w = s?.raw?.find(x => String(x.id) === String(widget))
+      if (!w) return notOnBoard(widget)
+      const door = s.doorOf?.(w.id) || null
+      const rows = widgetControls(w.type).filter(f => door || !(f.door || f.from === 'door')).map(f => ({ f, choices: choicesOf(f, door) }))
+      const now = rows.map(({ f, choices }) => `${f.key} ${says(f, valueOf(f, w, s.doors), choices)}`)
+      let about = null
+      try { about = door?.about?.() || null } catch { about = null }
+      if (about) now.push(about)
+      if (!now.length) return `The ${label(w.type)} has no settings I can read.`
+      // the first line is the answer; the panel folds what follows
+      const can = rows.filter(r => r.choices.length).map(({ f, choices }) => `${f.key}: ${listed(choices)}`)
+      return [`The ${label(w.type)}: ${now.join(', ')}.`, ...(can.length ? ['', 'Choices:', ...can] : [])].join('\n')
+    },
+  })
+
+  // ── widget.sendToJournal: the widget's own Send to Journal door. Offered when the door is (a widget that holds nothing,
+  // or a capture kind not released, has no door). The capture is the door's; the send is sendCaptureToJournal, the one path
+  // every door uses. The member approves it: it writes into their notes, and no door has a way back.
+  const SEND_WHERE = { note: 'your current note (or the Notebook inbox)', newNote: 'a new Notebook entry', inbox: 'your Notebook inbox' }
+  reg({
+    ...common,
+    name: 'widget.sendToJournal',
+    risk: 'confirm', reversible: false, undo: 'none',
+    absentAsNull: ['where'],
+    summary: 'Send a frozen capture of what a widget on the board shows now to the member\'s Journal, exactly as the widget\'s Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.',
+    hints: 'target = the board entry; widget = the widget id; where = note (their current note, else the inbox: the default), newNote or inbox.',
+    args: { type: 'object', properties: { widget: widgetArg, where: { type: ['string', 'null'], enum: ['note', 'newNote', 'inbox', null] } }, required: ['widget', 'where'], additionalProperties: false },
+    check(st, { widget }, env) {
+      const t = widgetOf(st, widget)
+      if (!t) return notOnBoard(widget)
+      if (st.sends.some(x => x.id === t.id)) return 'That widget is already going to your Journal in this request.'
+      let c = null
+      try { c = doorFor(env, t)?.capture?.() || null } catch { c = null }
+      return c ? null : `The ${label(t.type)} has nothing to send to your Journal right now.`
+    },
+    apply: (st, { widget, where }) => ({ ...st, sends: [...st.sends, { id: widgetOf(st, widget).id, where: where || 'note' }] }),
+    describe(b, a, { widget, where }) {
+      const o = b.board.find(w => w.id === String(widget))
+      return o ? `Send the ${nameOf(o, b.board)} to ${SEND_WHERE[where || 'note']}` : null
+    },
   })
 
   // ── watchlist.open: "open it in my workspace" (the product's ?openWatchlist= door) ──

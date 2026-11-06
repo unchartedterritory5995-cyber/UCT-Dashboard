@@ -1,0 +1,269 @@
+{
+ "chromium": {
+  "browser": "145.0.7632.6",
+  "node_vs_browser": "HP-3 RED: 164/166 cases equal (digest, guards, status, warmup)",
+  "committed_vs_browser": "HP-3 RED: 164/166 cases equal (digest, guards, status, warmup)",
+  "python_codec_red": [],
+  "record_status_counts": {
+   "withheld": 31,
+   "ok": 135
+  },
+  "column_diff": {
+   "transcendental@forming": {
+    "p3": {
+     "rows_differ": 78,
+     "rows": 2000,
+     "max_ulp": 512,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 17,
+      "node": "0.3228973665952936",
+      "other": "0.32289736659529356"
+     }
+    }
+   },
+   "transcendental@listing": {
+    "p3": {
+     "rows_differ": 72,
+     "rows": 1500,
+     "max_ulp": 128,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 6,
+      "node": "1.4558151025898136",
+      "other": "1.4558151025898134"
+     }
+    }
+   }
+  }
+ },
+ "webkit": {
+  "browser": "26.0",
+  "node_vs_browser": "HP-3 RED: 159/166 cases equal (digest, guards, status, warmup)",
+  "committed_vs_browser": "HP-3 RED: 159/166 cases equal (digest, guards, status, warmup)",
+  "python_codec_red": [],
+  "record_status_counts": {
+   "withheld": 31,
+   "ok": 135
+  },
+  "column_diff": {
+   "rma_alma_hma@calcbars": {
+    "p1": {
+     "rows_differ": 277,
+     "rows": 3000,
+     "max_ulp": 1,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 2608,
+      "node": "89.38481028692716",
+      "other": "89.38481028692718"
+     }
+    }
+   },
+   "rma_alma_hma@d5000": {
+    "p1": {
+     "rows_differ": 3299,
+     "rows": 5000,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 491,
+      "node": "33.99172893542556",
+      "other": "33.99172893542557"
+     }
+    }
+   },
+   "rma_alma_hma@forming": {
+    "p1": {
+     "rows_differ": 1389,
+     "rows": 2000,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 8,
+      "node": "91.68281110452958",
+      "other": "91.68281110452959"
+     }
+    }
+   },
+   "rma_alma_hma@listing": {
+    "p1": {
+     "rows_differ": 1065,
+     "rows": 1500,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 8,
+      "node": "25.175959971889334",
+      "other": "25.175959971889338"
+     }
+    }
+   },
+   "rma_alma_hma@m5_32768": {
+    "p1": {
+     "rows_differ": 24729,
+     "rows": 32768,
+     "max_ulp": 1,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 454,
+      "node": "177.0326128060978",
+      "other": "177.03261280609783"
+     }
+    }
+   },
+   "transcendental@forming": {
+    "p0": {
+     "rows_differ": 3,
+     "rows": 2000,
+     "max_ulp": 1,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 542,
+      "node": "0.0064386194873762605",
+      "other": "0.00643861948737626"
+     }
+    },
+    "p1": {
+     "rows_differ": 46,
+     "rows": 2000,
+     "max_ulp": 1,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 44,
+      "node": "1.0665764906682895",
+      "other": "1.0665764906682897"
+     }
+    },
+    "p3": {
+     "rows_differ": 73,
+     "rows": 2000,
+     "max_ulp": 64,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 63,
+      "node": "0.09999160358270648",
+      "other": "0.09999160358270645"
+     }
+    },
+    "p4": {
+     "rows_differ": 27,
+     "rows": 2000,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 124,
+      "node": "267.07868370231756",
+      "other": "267.0786837023175"
+     }
+    }
+   },
+   "transcendental@listing": {
+    "p0": {
+     "rows_differ": 5,
+     "rows": 1500,
+     "max_ulp": 1,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 505,
+      "node": "0.02070023949612158",
+      "other": "0.020700239496121577"
+     }
+    },
+    "p1": {
+     "rows_differ": 55,
+     "rows": 1500,
+     "max_ulp": 1,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 9,
+      "node": "1.22766595851868",
+      "other": "1.2276659585186798"
+     }
+    },
+    "p3": {
+     "rows_differ": 71,
+     "rows": 1500,
+     "max_ulp": 64,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 48,
+      "node": "0.14738397663841296",
+      "other": "0.1473839766384129"
+     }
+    },
+    "p4": {
+     "rows_differ": 13,
+     "rows": 1500,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 353,
+      "node": "297.7142388415683",
+      "other": "297.71423884156826"
+     }
+    }
+   }
+  }
+ },
+ "firefox": {
+  "browser": "146.0.1",
+  "node_vs_browser": "HP-3 RED: 164/166 cases equal (digest, guards, status, warmup)",
+  "committed_vs_browser": "HP-3 RED: 164/166 cases equal (digest, guards, status, warmup)",
+  "python_codec_red": [],
+  "record_status_counts": {
+   "withheld": 31,
+   "ok": 135
+  },
+  "column_diff": {
+   "transcendental@forming": {
+    "p3": {
+     "rows_differ": 54,
+     "rows": 2000,
+     "max_ulp": 64,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 103,
+      "node": "-0.07608840303483422",
+      "other": "-0.07608840303483416"
+     }
+    },
+    "p4": {
+     "rows_differ": 27,
+     "rows": 2000,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 124,
+      "node": "267.07868370231756",
+      "other": "267.0786837023175"
+     }
+    }
+   },
+   "transcendental@listing": {
+    "p3": {
+     "rows_differ": 64,
+     "rows": 1500,
+     "max_ulp": 64,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 71,
+      "node": "0.5603669444342344",
+      "other": "0.5603669444342345"
+     }
+    },
+    "p4": {
+     "rows_differ": 13,
+     "rows": 1500,
+     "max_ulp": 2,
+     "nan_vs_number": 0,
+     "first": {
+      "row": 353,
+      "node": "297.7142388415683",
+      "other": "297.71423884156826"
+     }
+    }
+   }
+  }
+ }
+}

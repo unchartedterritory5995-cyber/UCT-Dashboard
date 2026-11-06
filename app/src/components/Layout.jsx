@@ -194,8 +194,9 @@ export default function Layout({ children }) {
 
                   Rail: components/Layout.routeSuspense.test.jsx. */}
               {/* Wave 10 follow-up F5: the first-run slot. A one-time card (the voice orb's
-                  "Meet Compass") is portaled HERE, so it sits in the page flow and pushes the
-                  page down instead of floating over a control. Empty, it has no box at all.
+                  "Meet Compass", the "New in your Notebook" offer) is portaled HERE. Both cards are
+                  toasts (position: fixed, VIS-4 and its Tier 2 follow-up), so their arrival moves
+                  nothing on the page; the slot itself is empty and has no box at all.
                   components/firstRun/firstRunStage.js; rail Layout.firstRunSlot.test.jsx. */}
               <div ref={registerFirstRunSlot} data-first-run-slot="" />
               <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>

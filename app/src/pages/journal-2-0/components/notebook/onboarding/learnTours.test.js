@@ -152,10 +152,14 @@ describe('startTour -- the existing doors, nothing new', () => {
 })
 
 describe('the Help link', () => {
-  it('lands on Help > Walkthroughs: the hash is Support.jsx\'s own WALKTHROUGHS_ID', () => {
-    const src = readFileSync(join(process.cwd(), 'src', 'pages', 'Support.jsx'), 'utf8')
+  it('lands on Help > Walkthroughs: the hash is helpAnchors.js\'s WALKTHROUGHS_ID, the one Support.jsx renders', () => {
+    // S14: the anchor moved to components/helpAnchors.js (the Help menu links to it too); Support.jsx renders it.
+    const src = readFileSync(join(process.cwd(), 'src', 'components', 'helpAnchors.js'), 'utf8')
     const m = /export const WALKTHROUGHS_ID = '([^']+)'/.exec(src)
     expect(m).not.toBeNull()
+    const support = readFileSync(join(process.cwd(), 'src', 'pages', 'Support.jsx'), 'utf8')
+    expect(support).toMatch(/id=\{WALKTHROUGHS_ID\}/)
+    expect(support).toMatch(/import \{[^}]*WALKTHROUGHS_ID[^}]*\} from '\.\.\/components\/helpAnchors'/)
     expect(HELP_WALKTHROUGHS_HREF).toBe(`/support#${m[1]}`)
     // and /support is a real route
     const app = readFileSync(join(process.cwd(), 'src', 'App.jsx'), 'utf8')
@@ -164,7 +168,9 @@ describe('the Help link', () => {
 
   it('the copy is plain', () => {
     expect(LEARN_COPY.button).toBe('Learn')
-    expect(LEARN_COPY.tour('Formulas')).toBe('Formulas tour')
+    expect(LEARN_COPY.tour('Formulas')).toBe('Formulas')   // S14: no "tour" suffix
+    expect(LEARN_COPY.done).toBe('Done')
+    expect(LEARN_COPY.isNew).toBe('New')
   })
 })
 
@@ -173,8 +179,8 @@ describe('the Help link', () => {
 // makes that a red test instead of a quiet mis-filing. The ids come from TOUR_REGISTRY, never
 // from a list typed here.
 describe('learnTourGroup -- every replayable tour has a home', () => {
-  it('the four groups, in the order the menu shows them', () => {
-    expect(LEARN_GROUPS).toEqual(['Basics', 'Writing and capture', 'Trading', 'Research'])
+  it('the five groups (S14), in the order the menu shows them', () => {
+    expect(LEARN_GROUPS).toEqual(['Write', 'Organize', 'Live data', 'Trading tools', 'AI'])
     expect(Object.isFrozen(LEARN_GROUPS)).toBe(true)
     expect(Object.isFrozen(GROUP_OF)).toBe(true)
   })
@@ -196,11 +202,17 @@ describe('learnTourGroup -- every replayable tour has a home', () => {
     }
   })
 
-  it('the base tour is under Basics, and an id the map does not know falls back to Basics', () => {
-    expect(learnTourGroup(BASE_TOUR_ID)).toBe('Basics')
-    expect(learnTourGroup('chart-plan-basics')).toBe('Trading')
-    expect(learnTourGroup('voice-notes')).toBe('Writing and capture')
-    expect(learnTourGroup('transcript-capture')).toBe('Research')
-    expect(learnTourGroup('not-a-tour')).toBe('Basics')
+  it('the base tour is under Write, and an id the map does not know falls back to Write', () => {
+    expect(learnTourGroup(BASE_TOUR_ID)).toBe('Write')
+    expect(learnTourGroup('chart-plan-basics')).toBe('Trading tools')
+    expect(learnTourGroup('voice-notes')).toBe('Write')
+    expect(learnTourGroup('meaning-search')).toBe('Organize')
+    expect(learnTourGroup('transcript-capture')).toBe('Live data')
+    expect(learnTourGroup('writing-help')).toBe('AI')
+    expect(learnTourGroup('not-a-tour')).toBe('Write')
+  })
+
+  it('every one of the five groups holds at least one real tour (none is a heading with nothing under it)', () => {
+    for (const g of LEARN_GROUPS) expect(Object.values(GROUP_OF), g).toContain(g)
   })
 })
