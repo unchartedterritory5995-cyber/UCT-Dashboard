@@ -22,6 +22,25 @@ What W6-T5 serves (`runtime/collections.js` `W19R2_MEMBERS`, `W6T5_MEMBERS`): `f
 (0 < p <= 100), `sort` over real numbers, and v6 `every` / `some`. Everything below stops the run by name until its row
 is captured. All of it is the runtime pane only: the C18 object door keeps master's answer.
 
+## W6-K1: the `map.*` rules the reference and the manual do not state (W6-T8)
+
+Branch `feat/pine-w6-t8-map`. Authorities: the Pine v6 reference entries `map.new<type,type>` and siblings, read
+2026-11-06 through `tools/pine_survey/pine_reference_extract.js`, and the Pine user manual *Maps* page
+(`https://www.tradingview.com/pine-script-docs/language/maps/`, read 2026-11-06). Each served member's rail in
+`app/src/components/chart/engine/runtime/__tests__/w6Map.test.js` quotes the sentence it rests on.
+What W6-T8 serves (`runtime/maps.js`, in `collections.js`'s one table): `new` (keys int, float, bool, string, color),
+`put` (the previous value, or `na` for a new key), `get` (the value, or `na` for a missing key: the manual), `contains`,
+`remove` (the removed value, or `na`), `size`, `keys` / `values` (new arrays in insertion order), `copy` (shallow),
+`clear`, `put_all` (`id2`'s insertion order; a shared key keeps its place: the manual), and the method form. A re-put of
+a present key keeps its place (the reference: "the order does not change"); a key removed and then put again is a new
+key, at the end (the reference calls it new; the manual names removal as "the only exception"). A map holds at most
+50,000 pairs (the manual); the 50,001st stops by name. Runtime pane only: the C18 object door refuses the whole family
+as master did. `for [k, v] in` a map stays refused (W6-F1, T6).
+
+| id | probe | chart | question | engine today |
+|---|---|---|---|---|
+| W6-K1 | `tools/visual_conformance/probes/vw-w6-map.pine` rows K01-K10 (confirming), then N01-N04 one at a time | AMEX:SPY 1D | CONFIRM: `keys()` insertion order, after a re-put of a present key, after `remove` then `put`, after `put_all`; `put` / `get` / `remove` answers for new, present and missing keys. ASK: an `na` key in a `map<float, …>` on `put` (and the size after), `get`, `contains`, `remove` | K01-K10 are served as above; an `na` key stops the run by name (`… with an \`na\` key (W6-K1)`, guard `runtime:CollectionError`); an enum key waits for W6-T10. Moves `supply-demand-mtf-flux-charts`, `support-resistance-mtf-flux-charts`, `divergence-screener-trendoscope` (the last also needs W6-T10: its keys are an enum) |
+
 ## Q-W19R2a: `array.insert` / `array.fill` at the indices the manual does not settle (ported from W19-R2)
 
 | id | probe | chart | question | engine today |
@@ -49,22 +68,3 @@ Note for the reviewer: `array.mode`'s reference entry does state a tie rule ("it
 breakdown keeps it refused until W6-A1 (review B3), so M01 confirms the sentence before it is served.
 `array.sort_indices` on text, and its `na` ordering, are served on master (a pre-W6 choice: JavaScript string order,
 `na` sinks); T01-T08 and S03-S04 measure them, and W6-T5 does not change them (it would move the live C18 door).
-
-## W6-K1: the `map.*` rules the reference and the manual do not state (W6-T8)
-
-Branch `feat/pine-w6-t8-map`. Authorities: the Pine v6 reference entries `map.new<type,type>` and siblings, read
-2026-11-06 through `tools/pine_survey/pine_reference_extract.js`, and the Pine user manual *Maps* page
-(`https://www.tradingview.com/pine-script-docs/language/maps/`, read 2026-11-06). Each served member's rail in
-`app/src/components/chart/engine/runtime/__tests__/w6Map.test.js` quotes the sentence it rests on.
-What W6-T8 serves (`runtime/maps.js`, in `collections.js`'s one table): `new` (keys int, float, bool, string, color),
-`put` (the previous value, or `na` for a new key), `get` (the value, or `na` for a missing key: the manual), `contains`,
-`remove` (the removed value, or `na`), `size`, `keys` / `values` (new arrays in insertion order), `copy` (shallow),
-`clear`, `put_all` (`id2`'s insertion order; a shared key keeps its place: the manual), and the method form. A re-put of
-a present key keeps its place (the reference: "the order does not change"); a key removed and then put again is a new
-key, at the end (the reference calls it new; the manual names removal as "the only exception"). A map holds at most
-50,000 pairs (the manual); the 50,001st stops by name. Runtime pane only: the C18 object door refuses the whole family
-as master did. `for [k, v] in` a map stays refused (W6-F1, T6).
-
-| id | probe | chart | question | engine today |
-|---|---|---|---|---|
-| W6-K1 | `tools/visual_conformance/probes/vw-w6-map.pine` rows K01-K10 (confirming), then N01-N04 one at a time | AMEX:SPY 1D | CONFIRM: `keys()` insertion order, after a re-put of a present key, after `remove` then `put`, after `put_all`; `put` / `get` / `remove` answers for new, present and missing keys. ASK: an `na` key in a `map<float, …>` on `put` (and the size after), `get`, `contains`, `remove` | K01-K10 are served as above; an `na` key stops the run by name (`… with an \`na\` key (W6-K1)`, guard `runtime:CollectionError`); an enum key waits for W6-T10. Moves `supply-demand-mtf-flux-charts`, `support-resistance-mtf-flux-charts`, `divergence-screener-trendoscope` (the last also needs W6-T10: its keys are an enum) |
