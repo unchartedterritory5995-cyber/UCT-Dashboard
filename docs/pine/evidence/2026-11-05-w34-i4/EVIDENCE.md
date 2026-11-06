@@ -50,7 +50,13 @@ the four scope rails (export absent). Green on both (controls): bare read in a c
   (`pytest-parity.log`). No Python file touched.
 - Neighbours: `w1BareConditionalHistory` + `w4ClassifierHonesty` -> 28 passed.
 
-## Mutations (NOT YET RUN - waiting for the go). `docs/pine/evidence/2026-11-05-w34-i4/muts.json`
+## Hand self-check (light, coordinator request, before the batch)
+M1 applied by hand (`vm.js` READ_HIST_SLOT before bar 0 answers 0 instead of `na`), rail file run, `vm.js` restored
+byte-exact (`cmp` OK, tree clean): **1 failed | 13 passed**, killed by `nz(x[1], fill) takes the fill on bar 0`
+(`hand-m1.log`). The Laguerre refusal is reached by a rail: `a bare self read in a comparison refuses pine:state
+naming the variable` (the synthetic `col`-shaped read) passes on the tip and on master.
+
+## Mutations (batch NOT YET RUN - waiting for the go). `docs/pine/evidence/2026-11-05-w34-i4/muts.json`
 Command (from app/, under `lock_run LOCK_MUT`): `python $S/mutate.py ../docs/pine/evidence/2026-11-05-w34-i4/muts.json
 src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
 | mutation | expected killer |
