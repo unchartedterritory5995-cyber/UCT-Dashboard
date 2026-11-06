@@ -162,3 +162,12 @@ describe('W3W4-D1 - the capture gate (DRAWING_HISTORY_CAPTURED = false): no draw
     expect(b.refusal.guard).toBe(R4)
   })
 })
+
+describe('W3W4-D1 - gate off leaves the drawing build exactly as master (nothing member-visible moves)', () => {
+  const bars = barsOf(CAPS.rddt)
+  it('a block local [1] is NOT refused with the gate off (master behaviour, kept until W3N-D1 D04 MATCHes); it IS refused with the option', () => {
+    const body = ['if close > open', '    bx = bar_index', '    label.new(bar_index, bx[1], "x")']
+    expect(refusal(bars, body, false)).toBeNull()
+    expect(refusal(bars, body, true)).toBe(R4)
+  })
+})

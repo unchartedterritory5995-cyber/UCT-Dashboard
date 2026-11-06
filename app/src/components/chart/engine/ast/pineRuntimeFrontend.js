@@ -2436,8 +2436,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
   // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
   const DRAWING_HISTORY_CAPTURED = false
+  const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
-    if (objectsInRun && !(DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true)) return null
+    if (objectsInRun && !drawingHistoryServed) return null
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
@@ -6052,7 +6053,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
       // other shape is refused BY NAME below (never read from the every-bar column, which for a
       // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
-      const condHistory = (!objectsInRun || (owner === null && r4Level() > 0))
+      // ⛔ GATED (DRAWING_HISTORY_CAPTURED): with the gate off the drawing build is exactly master's, so
+      // every output, including a block local's `[1]`, is unchanged until W3N-D1 MATCHes.
+      const drawingHistory = objectsInRun && owner === null && r4Level() > 0
+        && drawingHistoryServed
+      const condHistory = (!objectsInRun || drawingHistory)
         && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
       if (condHistory && r4Level() > 0) {
