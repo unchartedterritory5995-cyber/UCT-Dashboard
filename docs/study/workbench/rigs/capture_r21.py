@@ -85,9 +85,10 @@ def run(b, vp_name, vp, dsf, touch, index):
     got_fired = got_none = False
     done = page.get_by_test_id("hard-done")
     for i in range(1, 17):          # until the end stage: a reload after a stall starts a fresh run of eight
-        # chart 1 names the first pill; charts 2-5 say "Nothing fired", so both kinds of lesson card come up
+        # chart 1 names the first pill; charts 2-5 (and later ones until a nothing-fired chart comes up) say "Nothing
+        # fired", so both kinds of lesson card come up
         pick = 0
-        if 2 <= i <= 5:
+        if i >= 2 and (i <= 5 or not got_none):   # keep saying it until a chart where nothing fired comes up
             texts = [cards.nth(k).inner_text() for k in range(cards.count())]
             pick = next((k for k, t in enumerate(texts) if "Nothing fired" in t), 0)
         act(cards.nth(pick)); time.sleep(0.6)
