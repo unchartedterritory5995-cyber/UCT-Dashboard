@@ -12,7 +12,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 
 import { memberPaneDefinition } from './memberPaneDefinition'
-import { valueBuildDefersToDrawing } from './runtimeObjectsDoor'
+import { valueBuildDefersToDrawing, runtimeOwnObjectsOf } from './runtimeObjectsDoor'
+import { translatePine } from '../../engine/ast/pine'
 import { probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
 import * as registry from '../../engine/nativeRegistry'
 
@@ -24,6 +25,13 @@ const MUT_CONV = `${H}var float acc = 0\nacc += close\nif bar_index % 50 == 0\n`
 const MUT_CONV_ARG = `${H}var float acc = 0\nacc += close\nif bar_index % 50 == 0\n`
   + '    label.new(bar_index, close, str.tostring(acc), size = bool(acc) ? size.large : size.small)\n'
 const HELD = `${H}var float acc = 0\nacc += close\nif bar_index % 50 == 0\n    label.new(bar_index, close, str.tostring(acc, "#"))\n`
+// the host program draws this label cleanly; the value build has nothing to plot
+const HOST_DRAWS = `${H}if bar_index % 50 == 0
+    label.new(bar_index, close, "x")
+`
+// the host program draws the label AND the script plots: the value build stands
+const HOST_DRAWS_AND_PLOTS = `${HOST_DRAWS}plot(close)
+`
 const NO_DRAWING = `${H}var float acc = 0\nacc += close\n`
 
 const door = (source) => {
@@ -73,5 +81,19 @@ describe('W3W4-D2 — the door names the drawing build\'s refusal, not the value
     expect(valueBuildDefersToDrawing('runtime:no-output')).toBe(true)
     expect(valueBuildDefersToDrawing('runtime:loop')).toBe(false)
     expect(valueBuildDefersToDrawing(undefined)).toBe(false)
+  })
+
+  it('runtimeOwnObjectsOf: a clean host drawing whose value build says no-output is asked of the drawing build', () => {
+    const t = translatePine(HOST_DRAWS, {})
+    expect(((t.objects || {}).ops || []).length).toBeGreaterThan(0)
+    const own = runtimeOwnObjectsOf({ source: HOST_DRAWS, t })
+    expect(own.probe).not.toBeNull()
+    expect(own.probe.objectOps).toBeGreaterThan(0)
+  })
+
+  it('control: the same host drawing with a plot (value build stands) keeps the host program', () => {
+    const t = translatePine(HOST_DRAWS_AND_PLOTS, {})
+    const own = runtimeOwnObjectsOf({ source: HOST_DRAWS_AND_PLOTS, t })
+    expect(own.probe).toBeNull()
   })
 })
