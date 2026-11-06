@@ -257,11 +257,16 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--repo-root", default=str(pathlib.Path(__file__).resolve().parents[1]))
     parser.add_argument("--stop", help="first budget stop instant; default the earliest stopped job")
+    parser.add_argument("--post", help="census snapshot from the #877 cutoff, with artifact totals")
     args = parser.parse_args()
     with open(args.nov, encoding="utf-8") as handle:
         nov = json.load(handle)
     with open(args.oct, encoding="utf-8") as handle:
         oct_snapshot = json.load(handle)
+    post = nov
+    if args.post:
+        with open(args.post, encoding="utf-8") as handle:
+            post = json.load(handle)
     stop_text = args.stop or first_stop(nov)
     stop = ccr.parse_day(stop_text) if stop_text else None
     out = {
@@ -272,12 +277,13 @@ def main() -> int:
         "per_run_nov": per_run(nov),
         "gate_shape": gate_shape(nov, ccr.parse_day("2026-11-05")),
         "filter_replay": replay_filter(nov, pathlib.Path(args.repo_root)),
-        "post_877": post_change(nov),
+        "post_877": post_change(post),
         "superseded": superseded_share(nov),
         "rails_nov5": rails_split(nov, "2026-11-05"),
         "post_leg": post_leg_share(nov),
         "gate_arrivals_nov5": gate_arrivals(nov, "2026-11-05"),
-        "storage": nov.get("storage"),
+        "storage": post.get("storage"),
+        "artifact_month_usd": ccr.artifact_month_usd(post.get("storage") or {}),
     }
     with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
         json.dump(out, handle, indent=1)

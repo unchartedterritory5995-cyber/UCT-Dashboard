@@ -582,62 +582,67 @@
   "skip_rate_upper_bound": 0.20652173913043478
  },
  "post_877": {
-  "hours": 1.1125,
+  "hours": 1.4572222222222222,
   "by_workflow": {
-   "flow-worker deploy coverage": {
-    "runs": 13,
-    "minutes": 8,
-    "with_jobs": 5
-   },
-   "vite build args": {
-    "runs": 14,
-    "minutes": 5,
-    "with_jobs": 6
-   },
-   "agent ci": {
-    "runs": 24,
-    "minutes": 1103,
-    "with_jobs": 24
-   },
-   "notebook bytes": {
-    "runs": 14,
-    "minutes": 12,
-    "with_jobs": 5
-   },
    "term018 guards": {
-    "runs": 19,
-    "minutes": 14,
-    "with_jobs": 6
-   },
-   "notebook budgets": {
-    "runs": 14,
-    "minutes": 10,
-    "with_jobs": 5
-   },
-   "preference allow-list": {
-    "runs": 14,
-    "minutes": 10,
-    "with_jobs": 6
+    "runs": 22,
+    "minutes": 51,
+    "with_jobs": 22
    },
    "wisdom rails": {
-    "runs": 19,
-    "minutes": 11,
-    "with_jobs": 6
+    "runs": 22,
+    "minutes": 48,
+    "with_jobs": 22
+   },
+   "notebook budgets": {
+    "runs": 17,
+    "minutes": 35,
+    "with_jobs": 17
+   },
+   "notebook bytes": {
+    "runs": 17,
+    "minutes": 41,
+    "with_jobs": 17
+   },
+   "indicators security suite": {
+    "runs": 1,
+    "minutes": 10,
+    "with_jobs": 1
+   },
+   "vite build args": {
+    "runs": 17,
+    "minutes": 15,
+    "with_jobs": 17
+   },
+   "preference allow-list": {
+    "runs": 17,
+    "minutes": 28,
+    "with_jobs": 17
    },
    "promote to production": {
-    "runs": 2,
-    "minutes": 4,
-    "with_jobs": 2
+    "runs": 3,
+    "minutes": 6,
+    "with_jobs": 3
    },
-   "master deploy gate": {
-    "runs": 1,
-    "minutes": 43,
-    "with_jobs": 1
+   "agent ci": {
+    "runs": 25,
+    "minutes": 1104,
+    "with_jobs": 25
+   },
+   "flow-worker deploy coverage": {
+    "runs": 14,
+    "minutes": 22,
+    "with_jobs": 14
    },
    "Notebook accessibility": {
+    "runs": 3,
+    "minutes": 23,
+    "with_jobs": 3
+   },
+   "master deploy gate": {
     "runs": 2,
-    "minutes": 8,
-    "with_jobs": 1
+    "minutes": 92,
+    "with_jobs": 2
    }
   }
  },
@@ -729,6 +734,10 @@
   23.590277777777775
  ],
  "storage": {
-  "cache_bytes": 10800087367
- }
+  "cache_bytes": 10800087367,
+  "artifact_bytes": 1806888609,
+  "artifact_count": 29937,
+  "artifact_partial": false
+ },
+ "artifact_month_usd": 0.32672215225
 }
