@@ -39,7 +39,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { translatePine } from './pine.js'
+import { translatePine, withTranslateClock } from './pine.js'
 import { TABLE } from './parse.js'
 import { maxLookback as interpretMax } from './interpret.js'
 import { maxLookback as lintMax } from './lint.js'
@@ -99,41 +99,109 @@ export function disagreements(rows) {
   return rows.filter((r) => r.interpret !== r.lint)
 }
 
-/** Every distinct tree the two corpora produce, in BOTH lanes. */
-function walk() {
+// ─── ⭐⭐ THE ORACLE IS A FUNCTION OF THE FIXTURES, NEVER OF THE MACHINE ───────────
+//
+// ⚰️ MEASURED 2026-11-06: with `budgetMs: 3000` this walk wrote 608, 607 and 605
+// distinct trees on three runs of one commit. `corpus/cc-yata__bd898a1af0.pine`
+// needs ~3,050-3,250 ms in the screener lane; the per-script clock expired part way
+// through its output loop, every later output was refused `pine:timeout`, and the
+// trees it HAD finished were kept: 23, 25 or 26 of them, by machine load. So every
+// full run could rewrite a tracked file. Widening the budget does not fix it, it
+// only moves which script sits on the edge (60,000 ms still ended four walks in
+// `pine:timeout`, all of them on the STEP CAP, not the clock).
+//
+// ⭐ TWO RULES, EACH WITH ONE AUTHORITY:
+//
+//   1. THE CLOCK NEVER DECIDES. `translateUnit` hands the translator a clock that
+//      never advances. Ruling R3 (design 9.1): a host that injects a clock that
+//      never advances keeps only the deterministic limbs, the step cap
+//      (`PINE_TRANSLATE_MAX_STEPS`) and the depth bound (`PINE_TRANSLATE_MAX_DEPTH`).
+//      Those count work, not time, so they stop on the same step on every host and
+//      under any load, and a script sitting right at the edge cannot flip between
+//      "finished" and "timed out" from run to run.
+//   2. A WALK THAT ENDS IN `pine:timeout` CONTRIBUTES NOTHING. All or nothing, per
+//      script and lane: a partial set is a function of where the translator
+//      stopped, not of what the script writes. The unit is recorded BY NAME in the
+//      oracle's `timed_out`, so the exclusion is visible rather than silent.
+const FROZEN_CLOCK = () => 0
+
+/** One script in one lane, on the frozen clock. The ONLY place this file translates
+ *  a corpus script. */
+export function translateUnit(src, strict) {
+  return translatePine(src, strict ? { strict: true, now: FROZEN_CLOCK } : { now: FROZEN_CLOCK })
+}
+
+/** The `pine:timeout` refusals a translation carries, wherever they sit: the
+ *  top-level verdict, the refusal list, or one output's own refusal (the screener
+ *  lane keeps going after an output times out and returns the rest, which is how
+ *  the partial sets reached the oracle unnoticed). */
+export function timeoutsIn(t) {
+  const all = [t && t.refusal, ...((t && t.refusals) || []),
+    ...((t && t.outputs) || []).map((o) => o && o.refusal)]
+  return all.filter((r) => r && r.guard === 'pine:timeout')
+}
+
+/** ⭐⭐ THE FOLD, AS A PURE FUNCTION, so the all-or-nothing rule can be shown to
+ *  hold on units built here. `units` = `[{ from, lane, timedOut, outputs }]` in
+ *  walk order; a timed-out unit adds no tree and is listed in `timedOut`. */
+export function collect(units) {
   const seen = new Map()
+  const timedOut = []
+  for (const u of units) {
+    if (u.timedOut) { timedOut.push({ from: u.from, lane: u.lane }); continue }
+    for (const o of (u.outputs || [])) {
+      if (!o || !o.ast) continue
+      const json = JSON.stringify(o.ast)
+      const hash = crypto.createHash('sha256').update(json).digest('hex').slice(0, 16)
+      if (seen.has(hash)) continue
+      seen.set(hash, {
+        hash,
+        from: u.from,
+        lane: u.lane,
+        title: o.title || null,
+        shapes: shapesIn(o.ast),
+        ...readBoth(o.ast),
+        ast: o.ast,
+      })
+    }
+  }
+  const key = (u) => `${u.from}\u0000${u.lane}`
+  timedOut.sort((x, y) => (key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0))
+  return { rows: [...seen.values()], timedOut }
+}
+
+/** Every script in the two corpora, in BOTH lanes. */
+function walk() {
+  const units = []
+  const timeoutMessages = []
   for (const [tag, dir] of SOURCES) {
     for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.pine')).sort()) {
       const src = fs.readFileSync(path.join(dir, f), 'utf8')
       for (const strict of [false, true]) {
+        const from = `${tag}/${f}`
+        const lane = strict ? 'host' : 'screener'
         let t
         try {
-          t = translatePine(src, strict
-            ? { strict: true, budgetMs: 3000 } : { budgetMs: 3000 })
-        } catch { continue }
-        for (const o of (t.outputs || [])) {
-          if (!o || !o.ast) continue
-          const json = JSON.stringify(o.ast)
-          const hash = crypto.createHash('sha256').update(json).digest('hex').slice(0, 16)
-          if (seen.has(hash)) continue
-          seen.set(hash, {
-            hash,
-            from: `${tag}/${f}`,
-            lane: strict ? 'host' : 'screener',
-            title: o.title || null,
-            shapes: shapesIn(o.ast),
-            ...readBoth(o.ast),
-            ast: o.ast,
-          })
+          t = translateUnit(src, strict)
+        } catch (err) {
+          // A thrown timeout is a timed-out unit like any other, and is listed.
+          if (err && err.guard === 'pine:timeout') {
+            units.push({ from, lane, timedOut: true, timeouts: 1, outputs: [] })
+            timeoutMessages.push(String(err.message || ''))
+          }
+          continue
         }
+        const tos = timeoutsIn(t)
+        for (const r of tos) timeoutMessages.push(String(r.message || ''))
+        units.push({ from, lane, timedOut: tos.length > 0, timeouts: tos.length, outputs: t.outputs || [] })
       }
     }
   }
-  return [...seen.values()]
+  return { units, timeoutMessages, ...collect(units) }
 }
 
 describe('⭐⭐ the lookback readers agree, and the rail can say when they do not', () => {
-  const rows = walk()
+  const { units, rows, timedOut, timeoutMessages } = walk()
 
   it('⛔ NON-VACUITY — it really read both corpora', () => {
     expect(rows.length).toBeGreaterThan(200)
@@ -168,6 +236,65 @@ describe('⭐⭐ the lookback readers agree, and the rail can say when they do n
     expect(disagreements([{ hash: 'x', interpret: null, lint: 50 }])).toHaveLength(1)
     // …and "both refuse" is agreement, not a finding.
     expect(disagreements([{ hash: 'x', interpret: null, lint: null }])).toEqual([])
+  })
+
+  it('⭐⭐ CONTROL — a timed-out unit contributes NO tree, and is listed by name', () => {
+    const tree = (n) => ({ title: `t${n}`, ast: { type: 'num', value: n } })
+    const got = collect([
+      { from: 'corpus/b.pine', lane: 'host', timedOut: false, outputs: [tree(1)] },
+      // ⛔ THE SHAPE THAT SHIPPED: the outputs it finished before it stopped.
+      { from: 'corpus/a.pine', lane: 'screener', timedOut: true, outputs: [tree(2), tree(3)] },
+      { from: 'corpus/a.pine', lane: 'host', timedOut: true, outputs: [tree(4)] },
+    ])
+    expect(got.rows.map((r) => r.title)).toEqual(['t1'])
+    expect(got.timedOut).toEqual([
+      { from: 'corpus/a.pine', lane: 'host' }, { from: 'corpus/a.pine', lane: 'screener' }])
+  })
+
+  it('⭐⭐ CONTROL — a timeout is found wherever the translation put it', () => {
+    const to = { guard: 'pine:timeout', message: 'x' }
+    expect(timeoutsIn({ refusal: to, outputs: [] })).toHaveLength(1)
+    expect(timeoutsIn({ refusals: [{ guard: 'pine:function' }, to] })).toHaveLength(1)
+    // ⛔ the screener lane's form: no top-level refusal, one output refused.
+    expect(timeoutsIn({ refusal: null, refusals: [], outputs: [{ ast: {} }, { refusal: to }] }))
+      .toHaveLength(1)
+    expect(timeoutsIn({ refusal: { guard: 'pine:function' }, outputs: [{ ast: {} }] })).toEqual([])
+  })
+
+  it('⭐⭐ CONTROL — the walk translates on a clock that never advances', () => {
+    // An outer clock that leaps a billion ms on every read: a translation that
+    // reads any clock but its own times out at once. The walk's unit must not.
+    const src = '//@version=5\nindicator("x")\nplot(ta.sma(close, 14))\n'
+    let t0 = 0
+    const leaping = () => (t0 += 1e9)
+    // the control can see: the same script on the leaping clock does time out...
+    expect(timeoutsIn(withTranslateClock(leaping, () => translatePine(src))).length)
+      .toBeGreaterThan(0)
+    // ...and the walk's unit does not, in either lane.
+    for (const strict of [false, true]) {
+      const t = withTranslateClock(leaping, () => translateUnit(src, strict))
+      expect(timeoutsIn(t), `lane strict=${strict}`).toEqual([])
+      expect((t.outputs || []).some((o) => o && o.ast)).toBe(true)
+    }
+  })
+
+  it('⛔⛔ NO TIMED-OUT SCRIPT CONTRIBUTES A TREE — the oracle is all or nothing', () => {
+    const out = new Set(timedOut.map((u) => `${u.from}\u0000${u.lane}`))
+    const leaked = rows.filter((r) => out.has(`${r.from}\u0000${r.lane}`))
+    expect(leaked.map((r) => `${r.from} [${r.lane}] ${r.hash}`),
+      'a script whose walk ended in `pine:timeout` contributed trees: its set is '
+      + 'where the translator stopped, not what the script writes').toEqual([])
+    // every unit that carried a timeout is classed timed out, and no other
+    expect(units.filter((u) => u.timedOut !== (u.timeouts > 0)).map((u) => `${u.from} [${u.lane}]`))
+      .toEqual([])
+    expect(timedOut).toHaveLength(units.filter((u) => u.timeouts > 0).length)
+  })
+
+  it('⛔⛔ AND NO TIMEOUT IN THE WALK WAS DECIDED BY THE CLOCK', () => {
+    // The limbs left are counts: the step cap ("resolution steps") and the depth
+    // bound ("levels"). The clock limb says "gave up after <N>ms"; seeing it here
+    // means the oracle depends on machine speed again.
+    expect(timeoutMessages.filter((m) => /gave up after \d+ms/.test(m))).toEqual([])
   })
 
   it('⛔⛔ every tree, both lanes, both readers, one answer', () => {
@@ -217,6 +344,9 @@ describe('⭐⭐ the lookback readers agree, and the rail can say when they do n
       // regenerates the oracle, so a hand-edit would vanish on the next run.
       version: 1,
       distinct_trees_walked: rows.length,
+      // ⭐ ADDITIVE (R12). The script+lane units whose walk ended in `pine:timeout`
+      // and so contributed no tree, sorted, so an exclusion is never silent.
+      timed_out: timedOut,
       rows: [...disc, ...plain].map((r) => ({
         hash: r.hash, from: r.from, lane: r.lane, title: r.title,
         shapes: r.shapes, interpret: r.interpret, lint: r.lint, ast: r.ast,

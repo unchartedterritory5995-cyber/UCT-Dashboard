@@ -612,6 +612,9 @@ export function validateIr(p) {
               throw new IrError(`${at}: for.${k} ${s[k]} outside ${nSlots} slots`)
             }
           }
+          if (s.live !== undefined && s.live !== true) {
+            throw new IrError(`${at}: for.live is either absent or true`)
+          }
           walkExpr(s.from, `${at}.from`)
           walkExpr(s.to, `${at}.to`)
           walkExpr(s.step, `${at}.step`)
@@ -934,9 +937,14 @@ export const fieldSet = (of, name, value) => (
  *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.
  *  Pine does not re-read them per iteration, and a runtime that did would
  *  make a body that grows the array it walks into a loop that never ends.
- *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
-export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
-  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+ *  `toSlot` and `stepSlot` are where those once-evaluated values live.
+ *
+ *  ⭐⭐ W6-T6 — `live: true` is a `for … in` walk (`forInRule.js`): `from` is 0, `step` is 1,
+ *  and `to` is the walked list's LENGTH, an EXCLUSIVE bound RE-READ before every pass (C48,
+ *  `vw-forin-collections` F03 / F04: a body that shifts or pushes changes the pass count). It
+ *  never counts down: an empty list runs no pass. */
+export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body, live = false }) => (
+  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body, ...(live ? { live: true } : {}) })
 /** `while test` — C18.
  *
  *  ⭐⭐ THE TEST IS RE-EVALUATED BEFORE EVERY PASS, and that is the whole
