@@ -1,0 +1,33 @@
+# promotion-gate: no -- a cost report. It reads run data and decides nothing.
+# DRAFT for AUDIT. Not active: it only runs if copied to .github/workflows/ci-cost-weekly.yml.
+# Target about one hosted minute, $0.006: stdlib Python, one job, sampled job data, no install, no checkout history.
+# It reads with GITHUB_TOKEN, so it cannot see the invoice (that needs the `user` scope). Figures are estimates.
+name: ci cost weekly
+
+on:
+  schedule:
+    - cron: '17 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ci-cost-weekly-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/ci_cost_report.py
+      - name: Cost report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/ci_cost_report.py report --live --sample-every 25 --census "master deploy gate" \
+            --workers 8 --reserve 100 --included-usd 12 | tee -a "$GITHUB_STEP_SUMMARY"

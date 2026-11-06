@@ -17,7 +17,13 @@ WHY NOT /actions/runs/{id}/timing. Its `billable` block returns total_ms 0 for e
 2026-11-06), so it is unusable, and a report that summed it would say the bill is zero.
 
 NOT BILLED, and excluded here: skipped jobs, and jobs that never got a runner (empty runner_name, zero
-steps). The second group is what a budget hard stop looks like: the job fails in seconds.
+steps). The second group is what a budget hard stop looks like: the job fails in seconds with the
+annotation "The job was not started because recent account payments have failed or your spending
+limit needs to be increased". Measured on run 42145747733, 2026-11-06.
+
+STORAGE. Artifacts are billed too ($0.25/GB-month over the plan's allowance) and count against the same
+budget. `fetch --artifacts` sums them (one call per 100 artifacts). Cache is only billed if the repo's
+cache limit was raised above the included 10 GB.
 
 SAMPLED JOB DATA. `fetch --sample-every N` reads jobs for every Nth run in each stratum
 (workflow|event|conclusion). `report` scales each stratum by runs_total / runs_sampled and labels the
@@ -48,6 +54,9 @@ DEFAULT_QUEUE_ALERT_MIN = 30.0
 DEFAULT_INCLUDED_USD = 0.0  # Free is $12 (2,000 min), Pro is $18 (3,000 min): pass --included-usd
 MIN_CONFIDENT_DAYS = 3.0
 SCHEMA = 1
+ARTIFACT_USD_PER_GB_MONTH = 0.25
+ARTIFACT_INCLUDED_GB = {"free": 0.5, "pro": 1.0}
+STOP_LOOKBACK_DAYS = 7
 
 # USD per minute, from GitHub's Actions runner pricing. Matched on labels; first hit wins.
 RATES: list[tuple[str, float]] = [
@@ -223,7 +232,7 @@ def fetch_jobs(gh: Gh, repo: str, run_id: int) -> list[dict]:
 def fetch_snapshot(gh: Gh, repo: str, since: dt.datetime, until: dt.datetime, sample_every: int = 1,
                    census: Iterable[str] = (), workers: int = 4, reserve: int = 1500,
                    progress: Callable[[str], None] = lambda _: None,
-                   prior: dict | None = None) -> dict:
+                   prior: dict | None = None, artifacts: bool = False) -> dict:
     runs = [trim(run, RUN_KEYS) for run in list_runs(gh, repo, since, until)]
     runs = list({run["id"]: run for run in runs}.values())
     progress(f"{len(runs)} runs listed")
@@ -254,7 +263,7 @@ def fetch_snapshot(gh: Gh, repo: str, since: dt.datetime, until: dt.datetime, sa
         for run, jobs in zip(batch, results):
             jobs_by_run[str(run["id"])] = jobs
         progress(f"jobs read for {min(offset + 100, len(todo))}/{len(todo)}")
-    storage = fetch_storage(gh, repo)
+    storage = fetch_storage(gh, repo, artifacts)
     return {
         "schema": SCHEMA,
         "repo": repo,
@@ -270,14 +279,41 @@ def fetch_snapshot(gh: Gh, repo: str, since: dt.datetime, until: dt.datetime, sa
     }
 
 
-def fetch_storage(gh: Gh, repo: str) -> dict:
+def fetch_storage(gh: Gh, repo: str, artifacts: bool = False) -> dict:
     out: dict[str, Any] = {}
     try:
         usage = gh(f"repos/{repo}/actions/cache/usage")
         out["cache_bytes"] = usage.get("active_caches_size_in_bytes")
     except RuntimeError:
         out["cache_bytes"] = None
+    if artifacts:
+        out.update(fetch_artifact_totals(gh, repo))
     return out
+
+
+def fetch_artifact_totals(gh: Gh, repo: str) -> dict:
+    """Live artifact bytes. Stops at the first failing page and says the total is partial."""
+    total, count, page, partial = 0, 0, 1, False
+    while True:
+        try:
+            got = gh(f"repos/{repo}/actions/artifacts?per_page=100&page={page}")
+        except RuntimeError:
+            partial = True
+            break
+        batch = got.get("artifacts") or []
+        for item in batch:
+            if not item.get("expired"):
+                total += int(item.get("size_in_bytes") or 0)
+                count += 1
+        if len(batch) < 100:
+            break
+        page += 1
+    return {"artifact_bytes": total, "artifact_count": count, "artifact_partial": partial}
+
+
+def artifact_month_usd(storage: dict, plan: str = "free") -> float:
+    size = float(storage.get("artifact_bytes") or 0) / 1e9
+    return max(0.0, size - ARTIFACT_INCLUDED_GB.get(plan, 0.5)) * ARTIFACT_USD_PER_GB_MONTH
 
 
 # ---------------------------------------------------------------------------------- analysis
@@ -309,7 +345,7 @@ def analyze(snapshot: dict, self_hosted_rate: float = 0.0, now: dt.datetime | No
     points: list[tuple[dt.datetime, float, float]] = []
     queues: dict[str, list[float]] = {"hosted": [], "self-hosted": []}
     queued_self: list[dict] = []
-    stopped = 0
+    stopped: list[dt.datetime] = []
     rounding = 0.0
     for run in runs.values():
         by_workflow[run.get("name") or "?"]["runs"] += 1
@@ -327,7 +363,7 @@ def analyze(snapshot: dict, self_hosted_rate: float = 0.0, now: dt.datetime | No
             if kind == "self-hosted" and job.get("status") in ("queued", "waiting", "pending"):
                 queued_self.append({"workflow": workflow, "job": job.get("name"), "minutes": wait or 0.0})
             if job.get("conclusion") == "failure" and not was_billable(job):
-                stopped += 1
+                stopped.append(parse_ts(job.get("completed_at")) or now)
             minutes = billed_minutes(job)
             if not minutes:
                 continue
@@ -357,7 +393,8 @@ def analyze(snapshot: dict, self_hosted_rate: float = 0.0, now: dt.datetime | No
         "points": points,
         "queues": queues,
         "queued_self": queued_self,
-        "stopped_jobs": stopped,
+        "stopped_jobs": sum(1 for at in stopped if (now - at).days < STOP_LOOKBACK_DAYS),
+        "first_stop": fmt_ts(min(stopped)) if stopped else None,
         "rounding_minutes": rounding,
         "total_usd": total_usd,
         "total_minutes": total_minutes,
@@ -420,8 +457,8 @@ def alerts(result: dict, cast: dict, budget: float, fraction: float, queue_limit
             lines.append(f"ALERT: self-hosted job queued {row['minutes']:.0f} min > {queue_limit:.0f}: "
                          f"{row['workflow']} / {row['job']}")
     if result["stopped_jobs"]:
-        lines.append(f"ALERT: {result['stopped_jobs']} failed job(s) never got a runner "
-                     "(budget stop or capacity, read the run annotation)")
+        lines.append(f"ALERT: {result['stopped_jobs']} failed job(s) in the last {STOP_LOOKBACK_DAYS} days "
+                     "never got a runner (budget stop or capacity, read the run annotation)")
     return lines
 
 
@@ -475,6 +512,10 @@ def render(snapshot: dict, result: dict, cast: dict, lines_alert: list[str], top
     storage = snapshot.get("storage") or {}
     if storage.get("cache_bytes"):
         out.append(f"Actions cache: {storage['cache_bytes'] / 1e9:.1f} GB")
+    if storage.get("artifact_count"):
+        partial = " PARTIAL" if storage.get("artifact_partial") else ""
+        out.append(f"Artifacts{partial}: {storage['artifact_count']:,}, {storage['artifact_bytes'] / 1e9:.1f} GB, "
+                   f"about ${artifact_month_usd(storage):.2f}/month if held all month (not in the forecast above)")
     out.extend(lines_alert or ["OK: no alert"])
     return "\n".join(out)
 
@@ -492,6 +533,7 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--workers", type=int, default=4)
         cmd.add_argument("--reserve", type=int, default=1500, help="stop at this many API calls left")
         cmd.add_argument("--resume", help="earlier snapshot; unchanged runs reuse its job data")
+        cmd.add_argument("--artifacts", action="store_true", help="also sum artifact storage")
 
     fetch_cmd = sub.add_parser("fetch", help="write a JSON snapshot")
     add_fetch_args(fetch_cmd)
@@ -529,7 +571,8 @@ def run_fetch(args: argparse.Namespace, gh: Gh) -> dict:
         with open(args.resume, encoding="utf-8") as handle:
             prior = json.load(handle)
     return fetch_snapshot(gh, args.repo, since, until, args.sample_every, args.census, args.workers,
-                          args.reserve, lambda msg: print(msg, file=sys.stderr, flush=True), prior)
+                          args.reserve, lambda msg: print(msg, file=sys.stderr, flush=True), prior,
+                          args.artifacts)
 
 
 def main(argv: list[str] | None = None, gh: Gh = gh_api) -> int:
