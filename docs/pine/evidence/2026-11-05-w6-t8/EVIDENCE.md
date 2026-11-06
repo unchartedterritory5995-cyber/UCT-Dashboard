@@ -1,4 +1,4 @@
-NEXT STEP: re-queue measure-pair (`runs/w6-t8/mp.sh`, runtimes 0 and 1, under dsk/heavy-mp2.lock; base mpbase2 switched to the merge-base f9651f47ee inside the job) when the coordinator says. The first queue was reaped by Claude Code for low system memory while it still WAITED on W6-T7's mp2 hold: nothing ran, base untouched. Then merge origin/master, push, hold for the final-tip go. mutate.py batch DONE.
+NEXT STEP: final-tip FULL + ready-check on the merged tree, on the coordinator's go (holding). measure-pair DONE (0 C18 diffs both runtimes); origin/master 61f49a2843 merged.
 
 # W6-T8 `map.*` on the runtime lane (lane w6-t8)
 
@@ -123,6 +123,32 @@ merge order is correct.
 10.8 GB). Test files: `w6Map.test.js`, `objectDoorGate.test.js`. 21 mutations (`runs/w6-t8/muts.json`, output
 `mutate.out`): M0 no-op control SURVIVED (correct); M1-M14 and B1-B6 all KILLED. Tree clean after (`git status` empty).
 
-## measure-pair: not run yet
-Queued under `dsk/heavy-mp2.lock` behind `w6-t7-mp` (pid 51844). Claude Code reaped the waiting job for low system memory
-before it got the lock: `mp-all.log` holds only the wait line, mpbase2 still at bde38b0d69 and clean, no `mp0/` / `mp1/`.
+## measure-pair (coordinator GO @85f954989f; `runs/w6-t8/mp.sh`, `mp-all.log`, `mp0/`, `mp1/`)
+Lane-owned base `C:/Users/Patrick/uct-worktrees/pine-dsk-w6t8-base` (detached at the merge-base f9651f47ee; node_modules
+junction to mpbase2's), lock `dsk/heavy-mp4.lock`, ram_gate 6 GB, `VITEST_MAX_WORKERS=1`, census sequential. Free RAM never
+fell below 5 GB (watched every 20 s). HEADs unmoved on both runtimes. The earlier queue on mp2 was reaped while waiting
+(nothing ran).
+- **C18: audit 395 rows / probes 69 rows, 0 diffs on runtime 0 AND runtime 1.**
+- `adx-and-di-for-v4`: identical harness verdicts on both runtimes (not in any diff).
+- Census runtime 1, 15 rows differ, all classified:
+  - INTENDED (11): the reference examples `map.clear`, `contains`, `copy`, `get`, `keys`, `new<type,type>`, `put`,
+    `put_all`, `size`, `values` and `types:map` now ATTACH (`attached`, `reachedAfterPeel` false -> true).
+  - INTENDED, first wall moves (3): `supply-demand-mtf-flux-charts` (step 0 `runtime:array` -> `runtime:block-value`, a W4
+    wall: the expected mover "with W4"), `support-resistance-mtf-flux-charts` (`runtime:array` -> `pine:builtin`),
+    `divergence-screener-trendoscope` (step 3 `runtime:array` -> `pine:statement`).
+  - NOISE (1): `multi-timeframe-trend-indicator` (refusal count 3 vs 2 at a host step; no `map.` in the script; the same
+    row moved the other way on runtime 0).
+- Census runtime 0, 16 rows differ: the same 11 examples (`runtime.attached`, INTENDED); NOISE (5, none uses `map.`):
+  `multi-timeframe-trend-indicator`, `volatility-coil-edge-bullbyte`, `halftrend-longshort-signal-engine-bigbeluga`,
+  `mirage-liquidity-sweep-pro-willyalgotrader` (host `pine:timeout` steps landing differently), and
+  `luxy-momentum-trend-and-breakout…` (host `pine:function` step `attemptedOps` 244 vs 0, the luxy timeout noise T5 named).
+- Harness: runtime 0 identical (93/103/140 both). Runtime 1 tip 111/107/118 vs base 112/107/117: the ONE moved capture is
+  `delta-rsi-oscillator-strategy-rddt-1d` (4 plots MATCH -> INCONCLUSIVE "computeFor returned no column"), the brief's
+  named wall-clock flake: re-run ALONE it is INCONCLUSIVE on BOTH the tip and the base (`runs/w6-t8/drsi-rerun*`,
+  `drsi-base*`), and the script has no `map.`. Not a lane effect.
+- 0 unintended diffs.
+
+## Merge
+origin/master 61f49a2843 merged (clean; master moved only with study and W6-T1 tooling; `SCRIPT_ENGINE_VERSION` still 21).
+Targeted rails after the merge: w6Map, objectDoorGate, w6TypeDescriptor, p3StatementsBlockValues, w6ForIn, w6ArrayMembers
+352/352. W6-T7 is not on master yet; when it lands, keep both sides in objectDoorGate.test.js and re-run the trial-merge rails.
