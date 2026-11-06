@@ -154,5 +154,5 @@ Command `runs/w6-t5/ft2.sh` = `final-tip.sh pine-dsk-w6t5 w6-t5-final2` + pytest
   median of an empty array, now `na`; it uses an `na` element now). Both green alone after the fix (50/50).
 
 ## ready-check
-`ready-check.sh pine-dsk-w6t5 runs/w6-t5-final2`: see the result line below. Expected FAIL on `integrity` (above); with the
+`ready-check.sh pine-dsk-w6t5 runs/w6-t5-final2` at bd8243d322: `READY-CHECK FAIL: final-tip integrity=tree-changed-during-run`. Expected FAIL on `integrity` (above); with the
 bump and digest regeneration done at landing, the only remaining reds are the named baselines.
