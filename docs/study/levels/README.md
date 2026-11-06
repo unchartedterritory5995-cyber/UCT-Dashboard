@@ -29,11 +29,11 @@ them without data would invent prices, so that waits on a data source, not a rul
 |---|---|---|
 | His rulings (`docs/study/audits/2026-10-24/owner_verdicts.jsonl`, the bank lessons) | the authority on every line | collected: levels ruled for the Kicker only |
 | The brain's setup templates (uct-intelligence `data/setup_templates_staging.json`, 34 templates) | entry triggers, stop methods, max stop %, profit targets, adds, invalidation, hold time, common mistakes, by trader (Kell, TSDR, Bracco, Minervini) | read: full templates for Kicker, Gap Support (Open Bull Gap Support), High Volume Edge (HVC), Oops Reversal; none for Slingshot, Launchpad, Bear gap |
-| The brain's knowledge base, worked examples and setup performance (on the web pod: `<DATA_DIR>/brain`) | trader passages on entries, stops, trims, adds; model examples with entry, stop, target, outcome; win rates and expectancy by regime | `pod_kb_levels.py` (read-only) is ready for the owner to run with `!` |
+| The brain's knowledge base, worked examples and setup performance (on the web pod: `<DATA_DIR>/brain`) | trader passages on entries, stops, trims, adds; model examples with entry, stop, target, outcome; win rates and expectancy by regime | `pod_kb_levels.py` (read-only) is ready for the owner to run with `!` (first try 2026-11-06: Railway's SSH timed out before it ran; retry) |
 | The video lesson library (#tsdr, #bracco) and the Trader Archive | the traders' own words; the knowledge base is distilled from them | reached through the knowledge base first; transcripts if a rule needs the original |
 | The pattern engine (`api/services/pattern_engine/detectors/uct/*`) | each detector's entry and stop | in the evidence below |
 | The bank's own examples (`docs/study/bank/spot.setups.json`, `spot.bear_gaps.json`) | how each candidate rule behaves on his chosen charts over 60 sessions | `measure_rules.py` → `evidence.md` |
-| Outside research (originators, educators, studies) | published entries, stops, trims, statistics, with citations | `external_research.md` |
+| Outside research (originators, educators, studies) | published entries, stops, trims, statistics, with citations | done 2026-11-06: `external_research.md` (38 sources, each tagged originator / educator / study / secondary; TraderLion pages were readable only as search excerpts and are marked so) |
 
 ## The method
 
@@ -48,3 +48,21 @@ them without data would invent prices, so that waits on a data source, not a rul
 
 Order: the Kicker first (his rulings exist; encode and show them), then Oops Reversal, Gap Support and High Volume Edge
 (the brain has full templates), then Slingshot, Launchpad and the Bear gap (the least material; his input matters most).
+
+## What the outside research changes (2026-11-06)
+
+- Several of his setup names match TraderLion's curriculum ("High Volume Edge", "Launch Pad", "Oops Reversal"); its
+  pages are the closest outside match but were readable only as excerpts.
+- **Oops Reversal**: his scanner version (open under the prior close) is not Williams' original (open under the prior
+  LOW); only his "Williams Oops" matches it. Williams' famous win rate comes mostly from his exit (the first
+  profitable open), and fell out of sample.
+- **Gap Support**: the best-supported setup. Morales/Kacher allow a small undercut of the gap day's low only in the
+  first five days; after that a break is a sell, which conflicts with his "weeks later" retest.
+- **Kicker**: nothing published names a 30-minute opening range; his 3.5% cap sits between Kell's 1-2% and O'Neil's
+  7-8%. Bulkowski's near-random "kicking" statistic is for a stricter candle and should not be attached to his.
+- **Launchpad**: published versions disagree on the averages and are mostly late-base continuations; his is a
+  bottoming setup near the 200-day.
+- **Bear gap**: no published short rule set for the exact setup; the nearest are O'Neil's sell signal and Bulkowski's
+  gap and dead-cat-bounce statistics.
+- Recurring across setups: stop at the entry day's low, capped by volatility (ADR/ATR) rather than a fixed %; trim a
+  third to a half after 3-5 days and move the stop to breakeven; trail the rest with the 10- or 20-day average.
