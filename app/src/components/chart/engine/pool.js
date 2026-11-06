@@ -988,6 +988,34 @@ function dataPlots(def) {
 }
 
 /** The static guides of a definition, in declaration order. */
+/**
+ * `plots[].activeWhen` (UCT RS visual round, 2026-11-07): a plot that declares
+ * the same condition grammar the settings form uses for inputs is bound only
+ * while the condition holds for THIS instance's inputs (stored value, else the
+ * declared default). Mirrors `indicatorRegistry.evalActiveWhen` exactly; it is
+ * repeated here because the engine must not import the settings registry (that
+ * module imports `engine/readout`, and the pool sits under both). A rail in
+ * `pool.plotActiveWhen.test.js` holds the two equal on every comparator.
+ */
+export function plotActiveFor(plot, def, inputs) {
+  const aw = plot && plot.activeWhen
+  if (!aw || typeof aw !== 'object' || typeof aw.key !== 'string') return true
+  let v = inputs && Object.prototype.hasOwnProperty.call(inputs, aw.key) ? inputs[aw.key] : undefined
+  if (v === undefined) {
+    const spec = ((def && def.inputs) || []).find(i => i && i.key === aw.key)
+    v = spec ? spec.default : undefined
+  }
+  if ('equals' in aw) return v === aw.equals
+  if ('notEquals' in aw) return v !== aw.notEquals
+  if ('in' in aw) return Array.isArray(aw.in) && aw.in.includes(v)
+  if ('gt' in aw) return Number(v) > Number(aw.gt)
+  if ('gte' in aw) return Number(v) >= Number(aw.gte)
+  if ('lt' in aw) return Number(v) < Number(aw.lt)
+  if ('lte' in aw) return Number(v) <= Number(aw.lte)
+  if (Object.keys(aw).some((k) => k !== 'key')) return true
+  return !!v
+}
+
 function guidePlots(def) {
   return (def.plots || []).filter(p => p && p.style === 'hlines' && typeof p.key === 'string')
 }
@@ -1055,7 +1083,9 @@ export function planBindings(instances, registry, prevBindings, opts) {
     // Every plot is resolved against THIS instance's inputs before anything
     // reads it, so nothing downstream can accidentally use a definition default
     // where the user set a value.
-    const guides = guidePlots(def).map(p => resolvePlotForInstance(p, inst.inputs))
+    const guides = guidePlots(def)
+      .filter(p => plotActiveFor(p, def, inst.inputs))
+      .map(p => resolvePlotForInstance(p, inst.inputs))
     const guideSig = guideSignature(guides)
     let first = true
 
