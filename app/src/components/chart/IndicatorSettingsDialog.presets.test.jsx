@@ -533,3 +533,76 @@ describe('a preset that declares a dot size (2a-12)', () => {
     expect(presetSelect().value).toBe('slow')
   })
 })
+
+// ─── UCT RS at v3: the six presets, their order, and the non-input fields (2a-14) ──
+
+describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, Trend weekly, Stress (2a-14)', () => {
+  const rs = () => engineRegistry.getDefinition('rsLine')
+  const rsBlob = () => setIndicatorEnabled(mergeChartSettings(null), 'rsLine', true, engineRegistry)
+  const RS_INST = () => legacyInstanceId('rsLine')
+  const declared = () => new Set(rs().inputs.map((i) => i.key))
+
+  it('declares exactly the six, Classic first (the member\'s default leads the picker), each on declared inputs only', () => {
+    expect(rs().meta.presets.map((p) => p.id)).toEqual(['classic', 'classicWeekly', 'phase', 'trend', 'trendWeekly', 'stress'])
+    for (const p of rs().meta.presets) {
+      for (const k of Object.keys(p.inputs)) expect(declared().has(k), `${p.id} sets undeclared ${k}`).toBe(true)
+      expect(typeof p.origin).toBe('string')
+      // every preset states the three v3 toggles, so detection can never read a
+      // Trend or Stress instance as Classic whatever the declaration order
+      for (const k of ['showMansfield', 'showRedDay', 'showNewLow']) expect(k in p.inputs, `${p.id} is silent on ${k}`).toBe(true)
+    }
+    mount({ settings: rsBlob(), instanceId: RS_INST() })
+    expect([...presetSelect().querySelectorAll('option')].map((o) => o.value))
+      .toEqual(['classic', 'classicWeekly', 'phase', 'trend', 'trendWeekly', 'stress', CUSTOM_PRESET])
+    expect(presetSelect().value, 'a fresh instance is Classic').toBe('classic')
+  })
+
+  it('Trend applies its inputs AND its fields: Mansfield on at 200, visibility daily-and-up, every dot small; the picker reads Trend', () => {
+    const { onChange } = mount({ settings: rsBlob(), instanceId: RS_INST() })
+    choosePreset('trend')
+    expect(onChange).toHaveBeenCalled()
+    const inst = findInstance(latest(), RS_INST())
+    expect(inst.inputs).toMatchObject({ showMansfield: true, mansfieldLength: 200, color: '#8a8574', lineDownColor: '#8a8574', dotColor: '#8a8574', mansfieldColor: '#6ba3be' })
+    expect(inst.visibility).toEqual({ preset: 'dailyUp' })
+    expect(inst.presentation.dotSize).toBe('small')
+    expect(presetSelect().value).toBe('trend')
+    expect(screen.getByTestId('preset-origin').textContent).toMatch(/Weinstein/)
+    // a Trend instance is never read as Classic: the toggle it turned on is the tell
+    expect(presetSelect().value).not.toBe('classic')
+  })
+
+  it('Trend weekly sets 52 bars on both the lookback and the Mansfield length', () => {
+    mount({ settings: rsBlob(), instanceId: RS_INST() })
+    choosePreset('trendWeekly')
+    const inst = findInstance(latest(), RS_INST())
+    expect(inst.inputs).toMatchObject({ showMansfield: true, mansfieldLength: 52, lookback: 52 })
+    expect(presetSelect().value).toBe('trendWeekly')
+  })
+
+  it('Stress applies the red-day dots, the before-price dot large, visibility daily-and-up; the picker reads Stress, not Classic', () => {
+    mount({ settings: rsBlob(), instanceId: RS_INST() })
+    choosePreset('stress')
+    const inst = findInstance(latest(), RS_INST())
+    expect(inst.inputs).toMatchObject({ showRedDay: true, showNewHighBeforePrice: true, showMansfield: false, color: '#6ba3be' })
+    expect(inst.visibility).toEqual({ preset: 'dailyUp' })
+    expect(inst.presentation).toEqual({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    expect(presetSelect().value).toBe('stress')
+    // back to Classic: the toggles come off, the fields stay as the member had them
+    choosePreset('classic')
+    expect(findInstance(latest(), RS_INST()).inputs).toMatchObject({ showRedDay: false, showMansfield: false })
+    expect(presetSelect().value).toBe('classic')
+  })
+
+  it('the Mansfield length control dims until the Mansfield line is on (activeWhen), on the Line tab', () => {
+    const f = rs().inputs.find((i) => i.key === 'mansfieldLength')
+    expect(f.activeWhen).toEqual({ key: 'showMansfield', equals: true })
+    expect(f.group).toBe('Line')
+    expect(rs().inputs.find((i) => i.key === 'showMansfield').group).toBe('Line')
+    for (const k of ['showRedDay', 'showNewLow', 'dotRedColor', 'dotLowColor']) {
+      expect(rs().inputs.find((i) => i.key === k).group, k).toBe('New highs')
+    }
+    // the groups and the hint are the Phase 1 three, so the phone sheet is untouched
+    expect([...new Set(rs().inputs.map((i) => i.group))]).toEqual(['Simple', 'Line', 'New highs'])
+    expect(rs().meta.groupsCollapsed).toEqual(['Line', 'New highs'])
+  })
+})

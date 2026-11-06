@@ -46,8 +46,8 @@ const V1_VERSIONED = Object.freeze({ ...V1, defVersion: 1, hidden: false })
 const DEFAULT_LINE_COLOUR = '#6ba3be'
 
 describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}', () => {
-  it('is the v2 definition it instantiates: version 2, `color` still declared, `lineColor` not', () => {
-    expect(def.version).toBe(2)
+  it('is the v3 definition it instantiates: version 3, `color` still declared, `lineColor` not', () => {
+    expect(def.version).toBe(3)
     const keys = new Set(def.inputs.map((i) => i.key))
     for (const k of Object.keys(V1.inputs)) expect(keys.has(k), `v1 key "${k}" must still be declared`).toBe(true)
     expect(keys.has('lineColor')).toBe(false)
@@ -88,6 +88,12 @@ describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}'
       showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true,
       lineDownColor: DEFAULT_LINE_COLOUR, maColor: '#8a8574',
       dotColor: DEFAULT_LINE_COLOUR, dotBeforePriceColor: '#c9a84c', dotPartialColor: '#8a8574',
+    })
+    // …and the v3 ones (2a-14): every new reading OFF, so the stored v1 layout
+    // still draws Classic — no Mansfield line, no red-day or new-low dots.
+    expect(values).toMatchObject({
+      showMansfield: false, mansfieldLength: 200, showRedDay: false, showNewLow: false,
+      mansfieldColor: DEFAULT_LINE_COLOUR, dotCrossColor: '#8a8574', dotRedColor: '#c9a84c', dotLowColor: '#8a8574',
     })
   })
 

@@ -24,7 +24,12 @@
 //      `null` → NaN, joined BY TIME and not by index;
 //   4. the single-symbol claim `rs_line_spy` names, on these bars: the one RS
 //      compute this lane does have (`computeRSLine`) is a flat 1.0 against
-//      itself, and agrees with the fixture's `rsLine` against the benchmark.
+//      itself, and agrees with the fixture's `rsLine` against the benchmark;
+//   5. (Phase 2a, unit 2a-14) the MANSFIELD plots read `rs_mansfield.json` the
+//      same way: the `mansfield` line names its column, the zero-cross dot is
+//      finite exactly where either cross fired and EQUALS the Mansfield value
+//      there — which may be at or BELOW zero, the reason it is a point-marker
+//      plot and not a glyph (`markerPrimitive.marks` is `> 0`).
 //
 // ⚠️ THE FIXTURE'S `expected` IS THE PYTHON LANE'S OUTPUT, HAND-VERIFIED IN ITS
 // `note` — asserting it HERE is what makes the two lanes meet on one file.
@@ -49,8 +54,8 @@ if (!FIX) {
 }
 const loadCase = (n) => JSON.parse(readFileSync(join(FIX, `${n}.json`), 'utf8'))
 
-/** The dot → event pairing the module header declares. A marker plot whose key
- *  is not here fails by name below. */
+/** The dot → event pairing the module header declares, per FIXTURE. A marker
+ *  plot whose key is in neither map fails by name below. */
 const DOT_TO_EVENT = Object.freeze({
   dotNH: 'rsNH',
   dotNHbeforePx: 'rsNHbeforePx',
@@ -58,11 +63,18 @@ const DOT_TO_EVENT = Object.freeze({
   dotNHred: 'rsNHred',
   dotNL: 'rsNL',
 })
+/** The Mansfield cross dot fires on EITHER cross; `rs_mansfield.json` carries both. */
+const MANSFIELD_DOT_TO_EVENTS = Object.freeze({
+  dotMansfieldCross: ['mansfieldCrossUp', 'mansfieldCrossDown'],
+})
+/** Which fixture each LINE plot's column lives in. */
+const LINE_FIXTURE = Object.freeze({ rsLine: 'rs_events_default', rsAbove: 'rs_events_default', rsMa: 'rs_events_default', mansfield: 'rs_mansfield' })
 
 const isEvent = (v) => v === null || v === 0 || v === 1
 
 describe('rs_events_default — the shared RS event fixture, read by the JS lane as a contract', () => {
   const c = loadCase('rs_events_default')
+  const m = loadCase('rs_mansfield')
   const def = getDefinition('rsLine')
   const bars = c.bars
   const exp = c.expected
@@ -93,13 +105,19 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     expect(markers.length, 'the definition draws no dots at all').toBeGreaterThan(0)
     for (const p of markers) {
       // 🔴 A new marker plot without a fixture column is a dot with no oracle.
-      expect(DOT_TO_EVENT[p.key],
+      const inMansfield = Object.prototype.hasOwnProperty.call(MANSFIELD_DOT_TO_EVENTS, p.key)
+      expect(DOT_TO_EVENT[p.key] || inMansfield,
         `marker plot "${p.key}" has no dot → event pairing in rsIndicator.golden.test.js — `
-        + 'add the pairing AND the fixture columns before shipping the dot').toBeDefined()
-      expect(exp, `marker plot "${p.key}" names a column rs_events_default.json does not carry`)
-        .toHaveProperty(p.key)
-      expect(exp, `marker plot "${p.key}"'s event column "${DOT_TO_EVENT[p.key]}" is not in the fixture`)
-        .toHaveProperty(DOT_TO_EVENT[p.key])
+        + 'add the pairing AND the fixture columns before shipping the dot').toBeTruthy()
+      if (inMansfield) {
+        expect(m.expected, `marker plot "${p.key}" names a column rs_mansfield.json does not carry`).toHaveProperty(p.key)
+        for (const ev of MANSFIELD_DOT_TO_EVENTS[p.key]) expect(m.expected, `event "${ev}" is not in rs_mansfield.json`).toHaveProperty(ev)
+      } else {
+        expect(exp, `marker plot "${p.key}" names a column rs_events_default.json does not carry`)
+          .toHaveProperty(p.key)
+        expect(exp, `marker plot "${p.key}"'s event column "${DOT_TO_EVENT[p.key]}" is not in the fixture`)
+          .toHaveProperty(DOT_TO_EVENT[p.key])
+      }
       // …and a dot rides the line. TWO renderers draw a `markers` plot (review fix
       // unit 6): a GLYPH (`plots[].marker`) sits at the plotted value only as
       // `inBar`; a plot WITHOUT a marker block draws the series' own point markers,
@@ -112,20 +130,28 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
           `plain dot plot "${p.key}" needs a positive width — it is the point radius`).toBe(true)
       }
     }
-    // The shape unit 6 landed: the two small dots are plain, the gold one a glyph.
+    // The shape unit 6 landed, grown by 2a-14: the small dots are plain, the two
+    // gold ones glyphs (the red-day glyph carries the text RED, plan §6.7), and
+    // the Mansfield cross dot is PLAIN because its value may be ≤ 0.
     expect(markers.map(p => [p.key, p.marker ? 'glyph' : 'point'])).toEqual([
       ['dotNH', 'point'], ['dotNHbeforePx', 'glyph'], ['dotNHpartial', 'point'],
+      ['dotNHred', 'glyph'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'],
     ])
+    expect(def.plots.find(p => p.key === 'dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0, text: 'RED' })
   })
 
   it('every LINE plot of the definition names an expected column', () => {
     const lines = def.plots.filter(p => p.style === 'line')
     // `rsAbove` is the HIDDEN 0/1 condition that colours the line (unit 5); it is
     // a line plot by declaration and a column in the fixture like the others.
-    expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa'])
+    // `mansfield` (2a-14) is the Trend preset's line and lives in rs_mansfield.json.
+    expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa', 'mansfield'])
     for (const p of lines) {
-      expect(exp, `line plot "${p.key}" is not in the fixture`).toHaveProperty(p.key)
-      expect(exp[p.key].some(Number.isFinite), `${p.key} is entirely null`).toBe(true)
+      const fx = LINE_FIXTURE[p.key]
+      expect(fx, `line plot "${p.key}" has no fixture in LINE_FIXTURE`).toBeDefined()
+      const e = fx === 'rs_mansfield' ? m.expected : exp
+      expect(e, `line plot "${p.key}" is not in ${fx}.json`).toHaveProperty(p.key)
+      expect(e[p.key].some(Number.isFinite), `${p.key} is entirely null`).toBe(true)
     }
     // No plot style this test does not know how to pair.
     for (const p of def.plots) expect(['line', 'markers'], `plot "${p.key}" style ${p.style}`).toContain(p.style)
@@ -269,5 +295,67 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     }
     expect(c.params.lookback).toBe(25)
     expect(c.params.red_day_pct).toBe(-0.5)
+  })
+})
+
+describe('rs_mansfield — the Mansfield fixture, read by the JS lane as the contract for the Trend plots (2a-14)', () => {
+  const m = loadCase('rs_mansfield')
+  const def = getDefinition('rsLine')
+  const exp = m.expected
+
+  it('carries the three wire columns the definition draws beside the three it does not', () => {
+    expect(m.kind).toBe('rs_mansfield')
+    for (const key of ['mansfield', 'mansfieldCrossUp', 'mansfieldCrossDown', 'dotMansfieldCross']) {
+      expect(exp, `fixture lacks ${key}`).toHaveProperty(key)
+      expect(exp[key].length, `${key} not aligned to bars`).toBe(m.bars.length)
+    }
+    // the two the chart does not draw stay in the file for the screener's rails
+    expect(exp).toHaveProperty('mansfieldState')
+    expect(exp).toHaveProperty('mansfieldCrossBarsAgo')
+  })
+
+  it('the cross dot is finite EXACTLY where either cross is 1, EQUALS the Mansfield value there, and sits at or below zero on a cross down', () => {
+    let fired = 0
+    let belowZero = 0
+    exp.dotMansfieldCross.forEach((d, i) => {
+      const either = exp.mansfieldCrossUp[i] === 1 || exp.mansfieldCrossDown[i] === 1
+      if (either) {
+        expect(d, `dotMansfieldCross[${i}] must be the Mansfield value`).toBe(exp.mansfield[i])
+        expect(Number.isFinite(d), `dotMansfieldCross[${i}] = ${d}`).toBe(true)
+        fired += 1
+        if (exp.mansfieldCrossDown[i] === 1) { expect(d).toBeLessThan(0); belowZero += 1 }
+      } else {
+        expect(d, `dotMansfieldCross[${i}] = ${d} where no cross fired`).toBeNull()
+      }
+    })
+    expect(fired).toBe(3)                       // bars 23, 43, 62 (the Python lane's pins)
+    expect(belowZero, 'a cross DOWN dot below zero is what rules the glyph renderer out').toBeGreaterThan(0)
+    // …and the dot plot is a PLAIN markers plot, so the binder draws it at that value.
+    const plot = def.plots.find(p => p.key === 'dotMansfieldCross')
+    expect(plot.marker).toBeUndefined()
+    expect(plot.style).toBe('markers')
+    expect(plot.width).toBe(2)
+  })
+
+  it('columnsFromWire + alignColumns reproduce the Mansfield columns on the chart\'s bars, null → NaN', () => {
+    const cols = { mansfield: exp.mansfield, mansfieldCrossUp: exp.mansfieldCrossUp,
+      mansfieldCrossDown: exp.mansfieldCrossDown, dotMansfieldCross: exp.dotMansfieldCross }
+    const parsed = columnsFromWire({ times: m.bars.map(b => b.t), columns: cols, rev: def.compute.rev })
+    expect(parsed.rev).toBe(3)
+    const aligned = alignColumns(parsed, m.bars)
+    for (const key of Object.keys(cols)) {
+      exp[key].forEach((e, i) => {
+        if (e === null) expect(Number.isNaN(aligned[key][i]), `${key}[${i}]`).toBe(true)
+        else expect(aligned[key][i], `${key}[${i}]`).toBe(e)
+      })
+    }
+  })
+
+  it('the fixture\'s length sits inside the definition\'s declared Mansfield range', () => {
+    const inp = def.inputs.find(i => i.key === 'mansfieldLength')
+    expect(m.params.length).toBeGreaterThanOrEqual(inp.min)
+    expect(m.params.length).toBeLessThanOrEqual(inp.max)
+    expect(def.meta.serverInputs).toContain('mansfieldLength')
+    expect(def.meta.serverInputs).toContain('showMansfield')
   })
 })

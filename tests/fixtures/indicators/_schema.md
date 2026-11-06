@@ -484,6 +484,52 @@ behaviour and not whatever the module did the day it was written.
 > at `lookback ≤ 20` the partial column (and `dotNHpartial`, a marker plot the
 > definition draws) is all-`null` and the fixture would cover that dot vacuously.
 
+### `rs_mansfield` — the MANSFIELD columns (UCT RS Phase 2a, unit 2a-02), and the cross DOT unit 2a-14 appended
+
+`kind: "rs_mansfield"`, `params: {length: 10}`, own `bars` (70 hand-designed
+WEEKLY bars, Friday-dated, `t = 1735862400 + i·604800`) **and `benchmarkBars`**
+(69: the benchmark has no bar at the stock's bar 40, the gap), exactly as
+`rs_events_default`. `expected` carries every key of
+`relative_strength.PHASE2A_COLUMNS` — `mansfield`, `mansfieldState` (ints
+−1/0/1), `mansfieldCrossUp`, `mansfieldCrossDown`, `mansfieldCrossBarsAgo` —
+aligned to `bars`, `null` for None. Eight rows are derived on paper in the
+fixture's `note` (bars 9, 20, 23, 28, 29, 41, 43, 64) and re-asserted as
+numbers in `test_rs_mansfield_the_eight_hand_derived_rows`, so the file pins the
+published formula (`RP = rs × 100`, `MRS = (RP / SMA(RP, n) − 1) × 100`) and
+not whatever the module did the day it was written. The crosses are bars 23
+(down), 43 (up) and 62 (down).
+
+**⛔ NO `rs_mansfield` ROW IN `_CASE_COLUMNS`**, for the same structural reason
+`rs_line` and `rs_events` have none (two series, one-series dispatch). The
+Python lane reads it through `test_rs_mansfield_*` in `test_indicator_golden.py`
+(recomputed with `compute_mansfield_columns` at rel-tol 1e-9, None ⇄ None).
+
+> ⚠️ **`dotMansfieldCross` WAS APPENDED ONCE, AT UNIT 2a-14 (2026-11-06), AND
+> NOTHING ELSE MOVED.** The `rsLine` definition went to v3 (`compute.rev` 3):
+> `mansfield`, `mansfieldCrossUp`, `mansfieldCrossDown` joined the wire and the
+> chart gained a zero-cross DOT, `dotMansfieldCross` — the MANSFIELD value on
+> the bar of a cross up or a cross down, `null` elsewhere. It is built by the
+> provider (`api/routers/signature._rs_dot_at`), not by `relative_strength`,
+> because `dot_column` refuses a value ≤ 0 (right for a ratio, wrong for an
+> oscillator) — and a cross DOWN dot is NEGATIVE by definition, which is also
+> why the chart draws it as the series' own point marker rather than a glyph
+> (`markerPrimitive.marks` is `> 0`). Column by column, the regeneration was:
+> `bars`, `benchmarkBars`, `params`, `note`, `relTol`, `mansfield`,
+> `mansfieldState`, `mansfieldCrossUp`, `mansfieldCrossDown`,
+> `mansfieldCrossBarsAgo` — **byte-identical** (the file was re-dumped with the
+> same `indent=2` serialiser that produced it, checked to reproduce the original
+> before the key was added); `dotMansfieldCross` — **new**, 70 entries, three of
+> them non-null: bar 23 = `mansfield[23]` (−0.3497, a cross down), bar 43 =
+> `mansfield[43]` (+1.4025, the cross up), bar 62 = `mansfield[62]` (−0.6174, a
+> cross down). The Python lane pins the RELATION (`test_rs_mansfield_cross_dot_is_the_mansfield_value_EXACTLY_where_either_cross_is_1`)
+> and the provider's own column against the file
+> (`tests/test_rs_columns_provider.py::test_provider_mansfield_columns_match_the_shared_fixture_in_the_python_lane`);
+> the JS lane reads it as the contract for the `mansfield` line plot and the
+> `dotMansfieldCross` marker plot (`rsIndicator.golden.test.js`). `mansfieldState`
+> and `mansfieldCrossBarsAgo` stay in the file for the screener's rails and are
+> NOT on the wire. `rs_events_default` did not change at 2a-14: the red-day and
+> new-low dots the v3 definition now draws were its columns since Phase 1.
+
 ### Regeneration is still banned
 
 None of these three came from `_generate.py`, and neither did `rs_events_default`

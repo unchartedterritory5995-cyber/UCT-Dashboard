@@ -203,13 +203,16 @@ const SHIPPED_COLUMNS = Object.freeze({
   // the DECLARATION, so a server-lane definition is covered by exactly the same
   // rail as a native. Where the two lanes differ is who FILLS the column, which
   // is `computeFor`'s business.
-  // ⭐ UCT RELATIVE STRENGTH v2 (2026-11-06): six declared columns — the line, the
-  // hidden `rsAbove` condition that colours it, its moving average, and three
-  // dot marker plots. The server sends twelve more (events for scans) that the
-  // definition does NOT declare, because `events[]` cannot be declared on the
-  // server lane (registration probes compute); `columnKeys` reads the declaration,
-  // so they are rightly absent here. Plan §8.2 lists the full wire set.
-  rsLine: ['rsLine', 'rsAbove', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial'],
+  // ⭐ UCT RELATIVE STRENGTH v3 (2026-11-06, Phase 2a unit 2a-14): ten declared
+  // columns — the line, the hidden `rsAbove` condition that colours it, its
+  // moving average, the Mansfield line, and six dot marker plots. The server
+  // sends twelve more (events for scans) that the definition does NOT declare,
+  // because `events[]` cannot be declared on the server lane (registration
+  // probes compute); `columnKeys` reads the declaration, so they are rightly
+  // absent here. `registry_defs._rs_line_row(True)["columns"]` is the full wire
+  // set (22), railed against the provider by `tests/test_rs_columns_provider.py`.
+  rsLine: ['rsLine', 'rsAbove', 'rsMa', 'mansfield', 'dotNH', 'dotNHbeforePx', 'dotNHpartial',
+    'dotNHred', 'dotNL', 'dotMansfieldCross'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who

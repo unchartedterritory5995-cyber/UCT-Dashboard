@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import threading
@@ -880,27 +881,41 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     decision A3 put it on this lane: spec §4's compute contract carries ONE
     `bars` and an RS line needs two, so the second symbol is fetched where a
     second symbol is reachable.
+
+    ⭐ PHASE 2a (unit 2a-14, `compute.rev` 3). Beside the Phase 1 columns the
+    v3 envelope carries the Mansfield line and its zero-cross events, and the
+    `payload` grows the Leadership readout's scalars (plan §6.6, §7 items 13,
+    21-23): `rating` (the nightly IBD-style rating from `rs_history`), `regime`,
+    `sensitivity` (the 20-bar RS slope against SPY, RSP and the sector ETF),
+    `checks` (the four UCT checks, each a boolean with its reason), `theme`
+    (the sector / industry label) and `mansfield`. Every scalar block is built
+    by one pure helper below, each of which answers ``None`` WITH A REASON when
+    the bars cannot support it, so the readout prints a muted fallback rather
+    than a number that was never computable. The flag-off v1 envelope is
+    byte-for-byte what Phase 1 shipped.
     """
     from api.services import relative_strength as rsmod
     from api.services import rs_benchmarks
     from api.services.indicator_compute import _round_series
 
     params = rsmod.resolve_phase1_inputs(inputs)
+    params["mansfieldLength"] = _rs_mansfield_length((inputs or {}).get("mansfieldLength"))
     requested = (inputs or {}).get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
-    toggles = {k: bool((inputs or {}).get(k, True)) for k in
-               ("showNewHigh", "showNewHighBeforePrice", "shortHistoryDots")}
+    toggles = {k: bool((inputs or {}).get(k, dflt)) for k, dflt in _RS_TOGGLE_DEFAULTS.items()}
     store = registry_defs.store_tf(tf)
     intraday = store not in ("D", "W", "M")
     count = _rs_bars_count(store, params["lookback"])
+    rev = int(registry_defs.definition("rsLine")["compute"]["rev"])
 
     # ⭐ CACHED PER ET SESSION DAY (plan §8.2). The key carries only COMPUTE inputs
     # (`resolve_inputs` already dropped the rest), the resolved timeframe and the
     # EASTERN calendar day — the day a session closes on, not UTC's, which rolls
     # over at 8 pm ET and would split one session's answer across two keys — so a
     # stale answer cannot outlive the session it describes. The TTL (below) runs
-    # to the next session close on D/W/M; the day in the key is the floor.
+    # to the next session close on D/W/M; the day in the key is the floor. The
+    # row's `compute.rev` leads the key, so a rev bump is a cold cache by itself.
     day = _et_session_day()
-    ck = _ck("rs2" if registry_defs.RS_V2_ENABLED else "rs1",
+    ck = _ck(f"rs{rev}",
              f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
              f"{json.dumps(toggles, sort_keys=True)}:{day}")
     try:
@@ -921,10 +936,11 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     same_symbol = str(bench.get("resolved", "")).upper() == sym.upper()
     no_bench = not bench.get("bars")
     short_history = bool(times) and len(times) < count
-    if same_symbol or no_bench:
-        cols = {k: [None] * len(times) for k in rsmod.PHASE1_COLUMNS}
-    else:
+    derived = not (same_symbol or no_bench)
+    if derived:
         cols = rsmod.compute_phase1_columns(bars, bench["bars"], params, short_history=short_history)
+    else:
+        cols = {k: [None] * len(times) for k in rsmod.PHASE1_COLUMNS}
     state = ("same-symbol" if same_symbol else "no-benchmark-bars" if no_bench
              else "no-bars" if not times else "intraday" if intraday
              else "short-history" if short_history else "ok")
@@ -933,26 +949,66 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
         envelope = {"columns": {"rsLine": _round_series(cols["rsLine"], 6)},
                     "times": times, "asOf": time.time()}
     else:
+        # ── Phase 2a columns: the Mansfield line and its zero crosses ──────────
+        if derived:
+            mans = rsmod.compute_mansfield_columns(bars, bench["bars"], params["mansfieldLength"])
+        else:
+            mans = {k: [None] * len(times) for k in rsmod.PHASE2A_COLUMNS}
+        cols["mansfield"] = mans["mansfield"]
+        cols["mansfieldCrossUp"] = mans["mansfieldCrossUp"]
+        cols["mansfieldCrossDown"] = mans["mansfieldCrossDown"]
+        # ⭐ THE CROSS DOT SITS AT THE MANSFIELD VALUE, WHICH MAY BE ≤ 0 — so it is
+        # NOT `relative_strength.dot_column` (that refuses a non-positive value,
+        # the right rule for a ratio) and the chart draws it as the series' own
+        # point marker, which paints at any finite value (`markerPrimitive`'s
+        # glyph rule is `> 0`, so a glyph would drop every cross DOWN).
+        cols["dotMansfieldCross"] = _rs_dot_at(
+            mans["mansfield"], rsmod.either(mans["mansfieldCrossUp"], mans["mansfieldCrossDown"]))
+        # The readout's Mansfield scalars are read BEFORE the toggle blanks the
+        # column: the reading is true whether or not the line is drawn.
+        mansfield_scalars = _rs_mansfield_scalars(mans, params["mansfieldLength"])
+
         # The data carries the timeframe rule (plan §6.5): on an intraday chart a
         # 252-bar "new high" is two days and means nothing, so events and dots are
         # blank there whatever the chart's visibility settings say.
         blank = [None] * len(times)
-        event_keys = ("rsNH", "rsNHpartial", "pxNH", "rsNHbeforePx", "rsNHred", "rsNL", "gor", "rog")
-        dot_keys = ("dotNH", "dotNHbeforePx", "dotNHred", "dotNHpartial", "dotNL")
+        event_keys = ("rsNH", "rsNHpartial", "pxNH", "rsNHbeforePx", "rsNHred", "rsNL", "gor", "rog",
+                      "mansfieldCrossUp", "mansfieldCrossDown")
+        dot_keys = ("dotNH", "dotNHbeforePx", "dotNHred", "dotNHpartial", "dotNL", "dotMansfieldCross")
         if intraday:
             for k in event_keys + dot_keys:
                 cols[k] = list(blank)
         # The dot toggles are compute inputs on purpose: the engine has no
         # per-plot visibility an input can drive, so "off" means the column is
-        # blank and the marker draws nothing (plan §4, audit A3).
-        if not toggles["showNewHigh"]:
-            cols["dotNH"] = list(blank)
-        if not toggles["showNewHighBeforePrice"]:
-            cols["dotNHbeforePx"] = list(blank)
-        if not toggles["shortHistoryDots"]:
-            cols["dotNHpartial"] = list(blank)
-        for k in ("rsLine", "rsMa") + dot_keys:
+        # blank and the marker draws nothing (plan §4, audit A3). The event
+        # columns beside them stay for the screener and the alert lane.
+        for toggle, keys in _RS_TOGGLE_BLANKS.items():
+            if not toggles[toggle]:
+                for k in keys:
+                    cols[k] = list(blank)
+        for k in ("rsLine", "rsMa") + dot_keys[:5]:
             cols[k] = _round_series(cols[k], 6)      # a RATIO: six places, not four
+        for k in ("mansfield", "dotMansfieldCross"):
+            cols[k] = _round_series(cols[k], 4)      # a PERCENT distance from its own average
+
+        # ── the Leadership scalars (plan §6.6; §7 items 21-23) ───────────────
+        groups = rs_benchmarks._groups_for(sym) or {}
+        daily = store == "D"
+        if not derived:
+            why = "benchmark is the symbol" if same_symbol else "no benchmark bars"
+            regime = _rs_regime_unavailable(why)
+            sensitivity = _rs_sensitivity_unavailable(why)
+            checks = _rs_checks_unavailable(why)
+        elif not daily:
+            why = "daily bars only"
+            regime = _rs_regime_unavailable(why)
+            sensitivity = _rs_sensitivity_unavailable(why)
+            checks = _rs_checks_unavailable(why)
+        else:
+            regime = _rs_regime([b.get("c") for b in bench["bars"]])
+            sensitivity = _rs_sensitivity(sym, bars, bench, tf, count, groups, _fetch_bars_for_tf)
+            checks = _rs_checks(bars, bench["bars"], str(bench.get("resolved") or "benchmark"),
+                                params["redDayThreshold"])
         payload = {
             "benchmark": dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
                               bars=len(bench.get("bars") or [])),
@@ -962,6 +1018,12 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
             "inputs": params,
             "intraday": intraday,
             "state": state,
+            "rating": _rs_rating(sym),
+            "mansfield": mansfield_scalars,
+            "regime": regime,
+            "sensitivity": sensitivity,
+            "checks": checks,
+            "theme": _rs_theme(groups),
         }
         envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
 
@@ -976,6 +1038,417 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
         logger.exception("signature: rs cache write failed for %s", sym)
     return envelope
 
+
+# ── UCT RS Phase 2a (unit 2a-14): the toggles, the dot builder, the scalars ──
+#
+# Every helper below is PURE over lists and dicts (the one I/O, `_rs_rating`,
+# wraps its read in a try and never raises), so `tests/test_rs_columns_provider.py`
+# exercises each on synthetic bars. The thresholds are stated once, here, and
+# every `reason` string carries the numbers it was decided on, so the readout
+# shows the member the fact and not only the verdict.
+
+#: The dot / line toggles and their defaults (JS: `RS_LINE_RAW.inputs`).
+_RS_TOGGLE_DEFAULTS: dict[str, bool] = {
+    "showNewHigh": True, "showNewHighBeforePrice": True, "shortHistoryDots": True,
+    "showRedDay": False, "showNewLow": False, "showMansfield": False,
+}
+#: Which columns a toggle blanks when OFF. Event columns are never blanked here.
+_RS_TOGGLE_BLANKS: dict[str, tuple[str, ...]] = {
+    "showNewHigh": ("dotNH",),
+    "showNewHighBeforePrice": ("dotNHbeforePx",),
+    "shortHistoryDots": ("dotNHpartial",),
+    "showRedDay": ("dotNHred",),
+    "showNewLow": ("dotNL",),
+    "showMansfield": ("mansfield", "dotMansfieldCross"),
+}
+_RS_SMA_LONG = 200            # the 200-day average (plan §7 item 21; v3 §7.20)
+_RS_SMA_SHORT = 50
+_RS_TREND_BARS = 504          # two trading years (item 21)
+_RS_VOL_WINDOW = 126          # realised-volatility window, sessions (item 21)
+_RS_VOL_DIST_MIN = 252        # a year of vol samples before a tercile is claimed
+_RS_VOL_DIST_MAX = 756        # three trading years — the distribution the tercile reads against
+_RS_ANCHOR_WINDOW = 20        # the anchor is the benchmark's lowest close of the last 20 sessions
+_RS_PIVOT_RED_DAYS = 10       # pivot speed counts over the last ten red days
+_RS_PIVOT_TOP_SHARE = 2.0 / 3.0
+_RS_PIVOT_PASS = 5            # at least half of them closed in the top third
+_RS_GREEN_ON_RED_WINDOW = 20
+_RS_GREEN_ON_RED_PASS = 6     # the screener starter's "Up on down days (6 of 20)"
+_RS_PULLBACK_EMA = 8          # pullback distance from the 8-day EMA (v3 §7.20)
+
+
+def _rs_num(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _rs_mansfield_length(raw) -> int:
+    from api.services import relative_strength as rsmod
+    lo, hi = rsmod.MANSFIELD_LENGTH_RANGE
+    try:
+        f = float(raw)
+    except (TypeError, ValueError):
+        f = float(rsmod.DEFAULT_MANSFIELD_LENGTH)
+    if not math.isfinite(f):
+        f = float(rsmod.DEFAULT_MANSFIELD_LENGTH)
+    return int(round(min(float(hi), max(float(lo), f))))
+
+
+def _rs_dot_at(values, events) -> list:
+    """``values[t]`` where ``events[t] == 1`` and the value is finite, else
+    ``None`` — the Mansfield cross dot, which (unlike an RS-ratio dot) may sit
+    at or below zero."""
+    out = [None] * len(values)
+    for i, (v, e) in enumerate(zip(values, events)):
+        if e == 1.0 and _rs_num(v):
+            out[i] = float(v)
+    return out
+
+
+def _rs_mansfield_scalars(mans: dict, length: int) -> dict:
+    """The last bar's Mansfield reading in words and numbers."""
+    value = (mans.get("mansfield") or [None])[-1]
+    state = (mans.get("mansfieldState") or [None])[-1]
+    age = (mans.get("mansfieldCrossBarsAgo") or [None])[-1]
+    labels = {1: "bull", -1: "bear", 0: "neutral"}
+    return {
+        "value": float(value) if _rs_num(value) else None,
+        "aboveZero": (value >= 0) if _rs_num(value) else None,
+        "state": int(state) if state is not None else None,
+        "stateLabel": labels.get(state) if state is not None else None,
+        "crossBarsAgo": int(age) if _rs_num(age) else None,
+        "length": int(length),
+    }
+
+
+def _rs_rating(sym: str) -> dict:
+    """``{ibd, fast, asof, d5, d20, source}`` from `rs_history.read_fields`.
+
+    ``source`` is ``row`` when the history table holds the symbol, ``dark`` when
+    `RS_HISTORY_ENABLED` is off (the table is never written on a dark pod) and
+    ``missing`` when it is on and the symbol has no row yet. Never raises and
+    never fabricates a number: every value is ``None`` until a row exists.
+    """
+    out = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "source": "missing"}
+    dark = os.environ.get("RS_HISTORY_ENABLED", "0") != "1"
+    row: dict = {}
+    try:
+        from api.services.screener import rs_history
+        row = (rs_history.read_fields([sym]) or {}).get(str(sym or "").upper()) or {}
+    except Exception:                                  # noqa: BLE001 — the rating is a garnish, never a 500
+        logger.exception("signature: rs rating read failed for %s", sym)
+        row = {}
+    if row and (row.get("ibd") is not None or row.get("fast") is not None):
+        for k in ("ibd", "fast", "d5", "d20"):
+            v = row.get(k)
+            out[k] = int(v) if _rs_num(v) else None
+        out["asof"] = row.get("asof")
+        out["source"] = "row"
+    else:
+        out["source"] = "dark" if dark else "missing"
+    return out
+
+
+def _rs_theme(groups: dict) -> dict | None:
+    """The symbol's sector / industry label from the same map `rs_benchmarks`
+    resolves SECTOR through; ``None`` when the map knows nothing. An ETF is
+    filed under industry ``Exchange Traded Fund`` by the map's source, so its
+    theme says so rather than printing the sector every ETF shares."""
+    from api.services import rs_benchmarks
+    sector = (groups or {}).get("sector")
+    industry = (groups or {}).get("industry")
+    if not sector and not industry:
+        return None
+    if (industry or "") == rs_benchmarks.ETF_INDUSTRY:
+        return {"sector": None, "industry": industry, "etf": None,
+                "label": "Exchange-traded fund", "note": "symbol is an ETF"}
+    etf = rs_benchmarks.SECTOR_ETF.get(sector or "")
+    label = industry or sector
+    if etf:
+        label = f"{label} ({etf})"
+    return {"sector": sector, "industry": industry, "etf": etf, "label": label, "note": None}
+
+
+def _rs_closes(bars) -> list:
+    return [float(b["c"]) for b in bars if _rs_num(b.get("c"))]
+
+
+def _rs_sma_last(values: list, n: int):
+    if len(values) < n or n <= 0:
+        return None
+    return sum(values[-n:]) / n
+
+
+def _rs_regime_unavailable(reason: str) -> dict:
+    return {"label": None, "above200": None, "trend2y": None, "volTercile": None,
+            "pctFrom200": None, "return2y": None, "bars": 0, "reason": reason}
+
+
+def _rs_regime(bench_closes: list) -> dict:
+    """Plan §7 item 21 over the BENCHMARK's own closes: above / below its
+    200-day average, the sign of the 504-bar return, and the 126-session
+    realised-volatility tercile against its own trailing three-year distribution.
+    ``persistence`` = above the 200-day with a positive two-year trend;
+    ``rebound-risk`` = negative two-year trend in the high-vol tercile (the
+    Daniel-Moskowitz panic state); ``mixed`` otherwise. ``label`` is ``None``
+    with a ``reason`` while the bars cannot decide it."""
+    closes = [float(c) for c in bench_closes if _rs_num(c)]
+    n = len(closes)
+    out = {"label": None, "above200": None, "trend2y": None, "volTercile": None,
+           "pctFrom200": None, "return2y": None, "bars": n, "reason": None}
+    reasons: list[str] = []
+    sma = _rs_sma_last(closes, _RS_SMA_LONG)
+    if sma:
+        out["above200"] = closes[-1] > sma
+        out["pctFrom200"] = (closes[-1] / sma - 1.0) * 100.0
+    else:
+        reasons.append(f"needs {_RS_SMA_LONG} bars for the 200-day average (have {n})")
+    if n > _RS_TREND_BARS and closes[-1 - _RS_TREND_BARS] > 0:
+        r = closes[-1] / closes[-1 - _RS_TREND_BARS] - 1.0
+        out["trend2y"] = 1 if r > 0 else (-1 if r < 0 else 0)
+        out["return2y"] = r * 100.0
+    else:
+        reasons.append(f"needs {_RS_TREND_BARS + 1} bars for the two-year trend (have {n})")
+    samples = _rs_realised_vol_series(closes, _RS_VOL_WINDOW)
+    if len(samples) >= _RS_VOL_DIST_MIN + 1:
+        current = samples[-1]
+        dist = samples[-1 - _RS_VOL_DIST_MAX:-1]
+        below = sum(1 for v in dist if v < current)
+        share = below / len(dist)
+        out["volTercile"] = "low" if share < 1.0 / 3.0 else ("high" if share >= 2.0 / 3.0 else "mid")
+        out["volPct"] = share * 100.0
+        out["volSamples"] = len(dist)
+    else:
+        reasons.append(f"needs {_RS_VOL_WINDOW + _RS_VOL_DIST_MIN + 1} bars for the volatility tercile (have {n})")
+    if out["above200"] is not None and out["trend2y"] is not None:
+        if out["above200"] and out["trend2y"] > 0:
+            out["label"] = "persistence"
+        elif out["trend2y"] < 0 and out["volTercile"] == "high":
+            out["label"] = "rebound-risk"
+        elif out["trend2y"] < 0 and out["volTercile"] is None:
+            pass                                       # rebound-risk or mixed: the tercile decides
+        else:
+            out["label"] = "mixed"
+    if out["label"] is None:
+        out["reason"] = "; ".join(reasons) if reasons else "the volatility tercile is needed to label a down trend"
+    return out
+
+
+def _rs_realised_vol_series(closes: list, window: int) -> list:
+    """Annualised realised volatility of log returns over a trailing ``window``,
+    one sample per bar once the window is full (population std, sqrt(252))."""
+    rets: list[float] = []
+    for a, b in zip(closes, closes[1:]):
+        rets.append(math.log(b / a) if a > 0 and b > 0 else 0.0)
+    if len(rets) < window:
+        return []
+    out: list[float] = []
+    s = sum(rets[:window])
+    s2 = sum(r * r for r in rets[:window])
+    for i in range(window, len(rets) + 1):
+        mean = s / window
+        var = max(s2 / window - mean * mean, 0.0)
+        out.append(math.sqrt(var) * math.sqrt(252.0))
+        if i < len(rets):
+            s += rets[i] - rets[i - window]
+            s2 += rets[i] * rets[i] - rets[i - window] * rets[i - window]
+    return out
+
+
+def _rs_sensitivity_unavailable(reason: str) -> dict:
+    from api.services import relative_strength as rsmod
+    return {"window": rsmod.DEFAULT_SENSITIVITY_WINDOW, "spy": None, "rsp": None, "sector": None,
+            "reasons": {"spy": reason, "rsp": reason, "sector": reason},
+            "agree": None, "summary": None}
+
+
+def _rs_slope_leg(bars, leg_bars, window: int, name: str):
+    from api.services import relative_strength as rsmod
+    rs = rsmod.rs_line(bars, leg_bars)
+    if len(rs) < window:
+        return None, f"needs {window} bars of RS against {name} (have {len(rs)})"
+    tail = rs[-window:]
+    if any(v is None for v in tail):
+        return None, f"a gap in the last {window} bars against {name}"
+    slope = rsmod._slope(tail)
+    if slope is None:
+        return None, f"no slope against {name}"
+    sign = 1 if slope > 0 else (-1 if slope < 0 else 0)
+    return {"sign": sign, "slope": slope, "word": {1: "rising", -1: "falling", 0: "flat"}[sign]}, None
+
+
+def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: dict, fetch_bars) -> dict:
+    """Plan §7 item 22: the sign of the 20-bar RS slope against SPY, RSP and the
+    sector ETF. A leg whose benchmark has no bars (or, for an ETF, no sector of
+    its own) is ``None`` with its reason; ``agree`` is `benchmark_agree`'s last
+    value when all three legs exist. The bars already fetched for the chart's
+    own benchmark are reused rather than read twice."""
+    from api.services import relative_strength as rsmod
+    from api.services import rs_benchmarks
+    window = rsmod.DEFAULT_SENSITIVITY_WINDOW
+    resolved = str(bench.get("resolved") or "").upper()
+    out = {"window": window, "spy": None, "rsp": None, "sector": None, "reasons": {},
+           "agree": None, "summary": None}
+
+    def leg_bars(ticker: str):
+        if ticker == resolved and bench.get("bars"):
+            return bench["bars"]
+        try:
+            return fetch_bars(ticker, tf, count) or []
+        except Exception:                              # noqa: BLE001 — one missing leg is a reason, not a 500
+            logger.exception("signature: rs sensitivity fetch failed for %s", ticker)
+            return []
+
+    legs: dict[str, tuple] = {}
+    for key, ticker in (("spy", "SPY"), ("rsp", "RSP")):
+        lb = leg_bars(ticker)
+        if not lb:
+            out["reasons"][key] = f"no {ticker} bars"
+            continue
+        legs[key] = (ticker, lb)
+    industry = (groups or {}).get("industry") or ""
+    sector = (groups or {}).get("sector")
+    etf = rs_benchmarks.SECTOR_ETF.get(sector or "")
+    if industry == rs_benchmarks.ETF_INDUSTRY:
+        out["reasons"]["sector"] = "symbol is an ETF"
+    elif not etf:
+        out["reasons"]["sector"] = "no sector" if not sector else f"sector not mapped: {sector}"
+    else:
+        lb = leg_bars(etf)
+        if not lb:
+            out["reasons"]["sector"] = f"no {etf} bars"
+        else:
+            legs["sector"] = (etf, lb)
+    series: dict[str, list] = {}
+    for key, (ticker, lb) in legs.items():
+        leg, why = _rs_slope_leg(bars, lb, window, ticker)
+        if leg is None:
+            out["reasons"][key] = why
+            continue
+        leg["ticker"] = ticker
+        out[key] = leg
+        series[key] = rsmod.rs_line(bars, lb)
+    if all(k in series for k in ("spy", "rsp", "sector")):
+        agree = rsmod.benchmark_agree(series["spy"], series["rsp"], series["sector"], window)[-1]
+        out["agree"] = (agree == 1.0) if agree is not None else None
+    present = [k for k in ("spy", "rsp", "sector") if out[k]]
+    if out["agree"] is True:
+        out["summary"] = "agree: " + ", ".join(f"{out[k]['ticker']} {out[k]['word']}" for k in present)
+    elif present:
+        out["summary"] = ", ".join(f"{out[k]['ticker']} {out[k]['word']}" for k in present)
+        missing = [k for k in ("spy", "rsp", "sector") if not out[k]]
+        if missing:
+            out["summary"] += "; " + "; ".join(out["reasons"][k] for k in missing)
+    else:
+        out["summary"] = "; ".join(out["reasons"].values()) or None
+    return out
+
+
+def _rs_checks_unavailable(reason: str) -> dict:
+    blank = {"pass": None, "reason": reason}
+    return {"ma": dict(blank), "anchor": dict(blank), "pivotSpeed": dict(blank), "greenOnRed": dict(blank),
+            "pullbackEma8": None, "passed": 0, "of": 0, "summary": None}
+
+
+def _rs_pct(v) -> str:
+    return f"{v:+.1f}%"
+
+
+def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
+    """Plan §7 item 23 (v3 §7.20), the four UCT checks as booleans with reasons:
+
+    * ``ma``         the stock's distance from its 200-day average beats the
+                     benchmark's (the 50-day pair is reported beside it);
+    * ``anchor``     from the benchmark's lowest close of the last 20 sessions,
+                     the stock has returned more than the benchmark;
+    * ``pivotSpeed`` at least 5 of the last 10 red days closed in the top
+                     third of their range;
+    * ``greenOnRed`` at least 6 of the last 20 sessions were up on a red day.
+
+    ``pullbackEma8`` (distance from the 8-day EMA) rides beside them as a number.
+    A check the bars cannot answer is ``pass: None`` with the reason.
+    """
+    from api.services import relative_strength as rsmod
+    from api.services.indicator_compute import compute_ema
+    out: dict = {}
+    c = _rs_closes(bars)
+    bc = _rs_closes(bench_bars)
+    n = len(c)
+
+    # ma
+    s200, b200 = _rs_sma_last(c, _RS_SMA_LONG), _rs_sma_last(bc, _RS_SMA_LONG)
+    s50, b50 = _rs_sma_last(c, _RS_SMA_SHORT), _rs_sma_last(bc, _RS_SMA_SHORT)
+    if s200 and b200:
+        sd, bd = (c[-1] / s200 - 1.0) * 100.0, (bc[-1] / b200 - 1.0) * 100.0
+        ma = {"pass": sd > bd, "stock200": sd, "bench200": bd,
+              "reason": f"stock {_rs_pct(sd)} vs its 200-day, {bench_name} {_rs_pct(bd)}"}
+        if s50 and b50:
+            ma["stock50"] = (c[-1] / s50 - 1.0) * 100.0
+            ma["bench50"] = (bc[-1] / b50 - 1.0) * 100.0
+    else:
+        ma = {"pass": None, "reason": f"needs {_RS_SMA_LONG} bars of both (have {n} and {len(bc)})"}
+    out["ma"] = ma
+
+    # anchor: the benchmark's lowest close of the last 20 sessions, on the stock's calendar
+    aligned = rsmod.benchmark_closes_aligned(bars, bench_bars)
+    window = [(i, aligned[i]) for i in range(max(0, len(bars) - _RS_ANCHOR_WINDOW), len(bars))
+              if aligned[i] is not None and _rs_num(bars[i].get("c"))]
+    if len(window) >= 2 and aligned[-1] is not None and _rs_num(bars[-1].get("c")):
+        a, _ = min(window, key=lambda p: p[1])
+        sr = (float(bars[-1]["c"]) / float(bars[a]["c"]) - 1.0) * 100.0
+        br = (aligned[-1] / aligned[a] - 1.0) * 100.0
+        ago = len(bars) - 1 - a
+        out["anchor"] = {"pass": sr > br, "stock": sr, "bench": br, "anchorTime": bars[a].get("t"),
+                         "barsAgo": ago,
+                         "reason": f"since {bench_name}'s low {ago} bars ago: stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)}"}
+    else:
+        out["anchor"] = {"pass": None, "reason": f"needs {_RS_ANCHOR_WINDOW} sessions of both"}
+
+    # pivot speed over the last ten red days
+    red = rsmod.red_day_column(rsmod.pct_change(aligned), red_day_pct)
+    hits = 0
+    seen = 0
+    for i in range(len(bars) - 1, -1, -1):
+        if red[i] != 1.0:
+            continue
+        b = bars[i]
+        h, l, cl = b.get("h"), b.get("l"), b.get("c")
+        if not (_rs_num(h) and _rs_num(l) and _rs_num(cl)):
+            continue
+        seen += 1
+        if h > l and (cl - l) / (h - l) >= _RS_PIVOT_TOP_SHARE:
+            hits += 1
+        if seen == _RS_PIVOT_RED_DAYS:
+            break
+    if seen == _RS_PIVOT_RED_DAYS:
+        out["pivotSpeed"] = {"pass": hits >= _RS_PIVOT_PASS, "count": hits, "of": seen,
+                             "reason": f"{hits} of the last {seen} red days closed in the top third of the range"}
+    else:
+        out["pivotSpeed"] = {"pass": None, "count": hits, "of": seen,
+                             "reason": f"only {seen} red days in the window (needs {_RS_PIVOT_RED_DAYS})"}
+
+    # green on red over the last twenty sessions
+    stock_chg = rsmod.pct_change([float(b["c"]) if _rs_num(b.get("c")) else None for b in bars])
+    gor = rsmod.both(red, rsmod.up_day_column(stock_chg))
+    cnt = rsmod.rolling_count(gor, _RS_GREEN_ON_RED_WINDOW)[-1] if gor else None
+    if cnt is not None:
+        k = int(cnt)
+        out["greenOnRed"] = {"pass": k >= _RS_GREEN_ON_RED_PASS, "count": k, "of": _RS_GREEN_ON_RED_WINDOW,
+                             "reason": f"up on {k} of the last {_RS_GREEN_ON_RED_WINDOW} red days"}
+    else:
+        out["greenOnRed"] = {"pass": None, "reason": f"needs {_RS_GREEN_ON_RED_WINDOW + 1} sessions of both"}
+
+    # pullback distance from the 8-day EMA
+    pull = None
+    if n >= _RS_PULLBACK_EMA:
+        e = compute_ema(c, _RS_PULLBACK_EMA)[-1]
+        if _rs_num(e) and e != 0:
+            pull = (c[-1] / e - 1.0) * 100.0
+    out["pullbackEma8"] = pull
+
+    decided = [out[k]["pass"] for k in ("ma", "anchor", "pivotSpeed", "greenOnRed") if out[k]["pass"] is not None]
+    out["passed"] = sum(1 for p in decided if p)
+    out["of"] = len(decided)
+    out["summary"] = f"{out['passed']} of {out['of']}" if decided else None
+    return out
 
 def _et_now():
     from datetime import datetime

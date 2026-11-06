@@ -465,10 +465,10 @@ describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () 
 
   it('⛔ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED — the flag-off (v1) envelope renders the line and never loops', async () => {
     const def = getDefinition('rsLine')
-    expect(def.compute.rev).toBe(2)
+    expect(def.compute.rev).toBe(3)   // v2 at Phase 1; v3 since 2a-14 (the Mansfield columns)
     const inputs = { benchmark: 'SPY' }
     const ctx = { sym: 'NVDA', tf: 'D' }
-    // the dark default: the server row is v1 (one column, rev 1) while the client definition is v2
+    // the dark default: the server row is v1 (one column, rev 1) while the client definition is v3
     const calls = []
     const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [0.5] }, times: [20260105], rev: 1 }) }
     const bars = [{ t: '2026-01-05', c: 1 }]

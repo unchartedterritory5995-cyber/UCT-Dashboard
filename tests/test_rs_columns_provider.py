@@ -1,10 +1,19 @@
 """Rails for the UCT Relative Strength server lane (plan §8, §12.3
 `tests/test_rs_columns_provider.py`): the Python row in both flag states, the
 clamping resolver, benchmark resolution, the provider's envelope, the intraday
-rule, the bar count, and the route end to end with the v2 row installed.
+rule, the bar count, and the route end to end with the v3 row installed.
+
+Phase 2a (unit 2a-14, `compute.rev` 3) adds: the Mansfield wire columns and the
+cross dot against the shared `rs_mansfield` fixture; the three new toggles; the
+`payload` blocks `rating`, `mansfield`, `regime`, `sensitivity`, `checks`,
+`theme` and their null-with-reason branches; the ETF special case; the cache key
+leading with the rev; and the READOUT-SOURCE RAIL, which parses every
+`readout[].source` / `when` path out of `nativeRegistry.js` and resolves it
+against a real provider payload, so a row can never name a scalar the server
+does not send.
 
 The flag is read ONCE at import (`registry_defs.RS_V2_ENABLED`), so these tests
-never reload the module: they build the v2 row with `_rs_line_row(True)` and
+never reload the module: they build the v3 row with `_rs_line_row(True)` and
 install it into the live registry for the duration of a test.
 """
 from __future__ import annotations
@@ -18,6 +27,7 @@ from api.middleware.auth_middleware import get_current_user_with_plan
 from api.routers import signature as sig
 from api.services import relative_strength as rsmod
 from api.services import rs_benchmarks as rb
+from api.services.screener import rs_history
 from api.services.signature import registry_defs as rd
 
 # Reuse the router test module's app + paid-user fixtures (pytest discovers
@@ -25,13 +35,38 @@ from api.services.signature import registry_defs as rd
 from tests.test_signature_router import client, _paid_user  # noqa: F401
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_reads(monkeypatch):
+    """The v3 provider reads the industry map (theme, the sector leg) and the
+    rating history table. Neither exists on a test box: both are stubbed to
+    "nothing known" here, and the tests that need a sector or a rating set
+    their own answer on top. `RS_HISTORY_ENABLED` is unset so a missing row
+    reads `dark`, the pod's own default."""
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {})
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
+    monkeypatch.delenv("RS_HISTORY_ENABLED", raising=False)
+
+
 @pytest.fixture
 def v2_row(monkeypatch):
-    """Install the v2 row and flag for one test, restoring the import-time state."""
+    """Install the v3 row (the shape `RS_V2_ENABLED` turns on) and the flag for
+    one test, restoring the import-time state. The fixture keeps its Phase 1
+    name: the flag did not change, only what it switches on."""
     row = rd._rs_line_row(True)
     monkeypatch.setitem(rd._BY_ID, "rsLine", row)
     monkeypatch.setattr(rd, "RS_V2_ENABLED", True)
     return row
+
+
+def _no_cache(monkeypatch):
+    monkeypatch.setattr(sig.cache, "get", lambda k: None)
+    monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: None)
+
+
+V3_COLUMNS = tuple(rsmod.PHASE1_COLUMNS) + tuple(rd.RS_PHASE2A_WIRE_COLUMNS)
+V3_INPUT_KEYS = {"benchmark", "maLength", "maType", "lookback", "priceTolerance", "redDayThreshold",
+                 "showNewHigh", "showNewHighBeforePrice", "shortHistoryDots",
+                 "mansfieldLength", "showMansfield", "showRedDay", "showNewLow"}
 
 
 def _bars(closes, start_t=1_000):
@@ -40,17 +75,36 @@ def _bars(closes, start_t=1_000):
 
 # ── the row ────────────────────────────────────────────────────────────────
 
-def test_v2_row_declares_the_phase1_columns_payload_and_clamped_inputs():
+def test_v3_row_declares_the_phase1_and_mansfield_columns_payload_and_clamped_inputs():
     row = rd._rs_line_row(True)
-    assert row["version"] == 2 and row["compute"]["rev"] == 2
-    assert row["columns"] == list(rsmod.PHASE1_COLUMNS)
+    assert row["version"] == 3 and row["compute"]["rev"] == 3
+    assert row["columns"] == list(V3_COLUMNS) and len(row["columns"]) == 22
+    assert row["columns"][:18] == list(rsmod.PHASE1_COLUMNS), "the Phase 1 set leads, in its order"
+    assert rd.RS_PHASE2A_WIRE_COLUMNS == ("mansfield", "mansfieldCrossUp", "mansfieldCrossDown", "dotMansfieldCross")
+    assert "mansfieldState" not in row["columns"] and "mansfieldCrossBarsAgo" not in row["columns"]
     assert row["payload_keys"] == ["payload"]
     by_key = {i["key"]: i for i in row["inputs"]}
-    assert set(by_key) == {"benchmark", "maLength", "maType", "lookback", "priceTolerance",
-                           "redDayThreshold", "showNewHigh", "showNewHighBeforePrice", "shortHistoryDots"}
-    for k in ("maLength", "lookback", "priceTolerance", "redDayThreshold"):
+    assert set(by_key) == V3_INPUT_KEYS
+    for k in ("maLength", "lookback", "priceTolerance", "redDayThreshold", "mansfieldLength"):
         assert "min" in by_key[k] and "max" in by_key[k], k
+    assert (by_key["mansfieldLength"]["min"], by_key["mansfieldLength"]["max"]) == rsmod.MANSFIELD_LENGTH_RANGE
+    assert by_key["mansfieldLength"]["default"] == rsmod.DEFAULT_MANSFIELD_LENGTH == 200
+    for k in ("showMansfield", "showRedDay", "showNewLow"):
+        assert by_key[k] == {"key": k, "type": "bool", "default": False}, k
     assert "lineColor" not in by_key, "style inputs never reach the server"
+
+
+def test_the_three_lanes_agree_on_rev_3():
+    """JS definition, Python row and the alert migration table: one revision."""
+    import pathlib
+    import re
+    from api.services import alert_rev_migration as rev
+    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    m = re.search(r"fn:\s*'rsLine'\s*,\s*rev:\s*(\d+)", src)
+    assert m and int(m.group(1)) == 3
+    assert re.search(r"id:\s*'rsLine',\s*\n\s*version:\s*3,", src), "the JS definition's version is 3"
+    assert rd._rs_line_row(True)["compute"]["rev"] == 3
+    assert rev.ADDRESS_REVS["rsLine"] == 3
 
 
 def test_v1_row_is_the_shape_master_shipped():
@@ -237,7 +291,7 @@ def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch)
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: None)
     env = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY", "lookback": 252, "lineColor": "#fff"})
-    assert set(env["columns"]) == set(rsmod.PHASE1_COLUMNS)
+    assert set(env["columns"]) == set(V3_COLUMNS)
     assert env["times"] == [1000 + i for i in range(n)]
     assert fetch.calls[0] == ("NVDA", "D", 852), "lookback + 600 bars on a daily chart"
     p = env["payload"]
@@ -247,7 +301,14 @@ def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch)
     assert p["history"] == {"bars": n, "requested": 852, "short": True} and p["intraday"] is False
     assert p["state"] == "short-history" and p["benchmark"]["bars"] == n
     assert p["inputs"]["lookback"] == 252 and "lineColor" not in p["inputs"]
+    assert p["inputs"]["mansfieldLength"] == 200
     assert p["legend"]["above"] is not None and p["lastRsHigh"]["barsAgo"] == 0
+    # the v3 blocks are all present, each either answered or null WITH a reason
+    for k in ("rating", "mansfield", "regime", "sensitivity", "checks", "theme"):
+        assert k in p, k
+    assert p["rating"] == {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "source": "dark"}
+    assert p["theme"] is None, "no industry map on a test box ⇒ no theme, never a guess"
+    assert p["mansfield"]["length"] == 200 and p["mansfield"]["value"] is not None, "330 bars clear the 200-bar average"
     # events are 0/1/None and dots sit on the line
     for k in ("rsNH", "rsNHbeforePx", "gor"):
         assert all(v in (0.0, 1.0, None) for v in env["columns"][k]), k
@@ -310,8 +371,10 @@ def test_columns_route_serves_the_v2_envelope(client, monkeypatch, v2_row):  # n
               + quote(json.dumps({"lookback": 20, "lineColor": "#abc"}), safe=""))
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["rev"] == 2 and body["inputs"]["lookback"] == 20 and "lineColor" not in body["inputs"]
-    assert set(body["columns"]) == set(rsmod.PHASE1_COLUMNS)
+    assert body["inputs"]["lookback"] == 20 and "lineColor" not in body["inputs"]
+    assert body["inputs"]["showMansfield"] is False and body["inputs"]["mansfieldLength"] == 200
+    assert set(body["columns"]) == set(V3_COLUMNS)
+    assert body["rev"] == 3
     assert body["payload"]["benchmark"]["resolved"] == "SPY"
     assert all(len(col) == n for col in body["columns"].values())
     assert all(v is None or isinstance(v, (int, float)) for v in body["columns"]["rsNH"])
@@ -354,6 +417,9 @@ def test_cache_key_carries_the_ET_session_day_and_ttl_runs_to_the_next_close(v2_
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.update({"key": k, "ttl": ttl}))
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
     assert seen["key"].endswith(":2026-11-06")
+    assert ":rs3:" in seen["key"] or seen["key"].startswith("rs3") or "rs3" in seen["key"], seen["key"]
+    assert "rs2" not in seen["key"], "the rev leads the key: a bump is a cold cache by itself"
+    assert '"showMansfield": false' in seen["key"] and '"mansfieldLength": 200' in seen["key"]
     assert 60 <= seen["ttl"] <= 3 * 24 * 3600
     assert 60 <= sig._seconds_to_next_et_close() <= 3 * 24 * 3600
 
@@ -583,3 +649,466 @@ def test_the_js_input_parser_reads_the_fields_it_claims_to():
     # style inputs are parsed too (they are dialog controls) but never server ones
     assert "lineWidth" in js and "lineWidth" not in {i["key"] for i in rd._rs_line_row(True)["inputs"]}
     assert "color" not in js, "colorInput() entries carry no key: of their own and are skipped"
+
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PHASE 2a (unit 2a-14): the Mansfield columns, the toggles, the payload blocks
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _load_fixture(name):
+    import pathlib
+    return json.loads(pathlib.Path(f"tests/fixtures/indicators/{name}.json").read_text(encoding="utf-8"))
+
+
+def _long_daily(n=900, seed=7):
+    """A synthetic daily store long enough for every payload block to answer:
+    the stock, SPY, RSP and the sector ETF, all with bars at the same times."""
+    import math
+    import random
+    rnd = random.Random(seed)
+
+    def series(start, drift, vol):
+        out, c = [], start
+        for i in range(n):
+            o = c
+            c = max(1.0, c * math.exp(rnd.gauss(drift, vol)))
+            h = max(o, c) * (1 + abs(rnd.gauss(0, 0.004)))
+            l = min(o, c) * (1 - abs(rnd.gauss(0, 0.004)))
+            out.append({"t": 1_000 + i, "o": o, "h": h, "l": l, "c": c, "v": 1000})
+        return out
+    return {"NVDA": series(100.0, 0.001, 0.02), "SPY": series(400.0, 0.0004, 0.01),
+            "RSP": series(150.0, 0.0003, 0.011), "XLK": series(200.0, 0.0006, 0.014)}
+
+
+def test_provider_mansfield_columns_match_the_shared_fixture_in_the_python_lane(v2_row, monkeypatch):
+    """Both lanes meet on `rs_mansfield.json`: the provider's four wire columns on
+    the fixture's weekly bars equal the fixture's (the chart rounds the percent
+    to four places), including the cross DOT the provider builds itself."""
+    case = _load_fixture("rs_mansfield")
+    store = {"XYZ": case["bars"], "SPY": case["benchmarkBars"]}
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    env = sig._rs_line_provider("XYZ", "W", {"benchmark": "SPY", "showMansfield": True,
+                                             "mansfieldLength": case["params"]["length"], "lookback": 20})
+    exp = case["expected"]
+    for col in ("mansfield", "dotMansfieldCross"):
+        got = env["columns"][col]
+        assert len(got) == len(exp[col])
+        for i, (g, e) in enumerate(zip(got, exp[col])):
+            assert (g is None) == (e is None), f"{col}[{i}]: {g!r} vs {e!r}"
+            if e is not None:
+                assert g == pytest.approx(round(e, 4), abs=5e-5), f"{col}[{i}]: {g!r} != {e!r}"
+    for col in ("mansfieldCrossUp", "mansfieldCrossDown"):
+        assert env["columns"][col] == exp[col], col
+    # the dot: three crosses, two of them BELOW zero — the reason it is a plain point marker
+    fired = [i for i, v in enumerate(env["columns"]["dotMansfieldCross"]) if v is not None]
+    assert fired == [23, 43, 62]
+    assert env["columns"]["dotMansfieldCross"][23] < 0 < env["columns"]["dotMansfieldCross"][43]
+    # the readout scalars read the same last bar
+    ms = env["payload"]["mansfield"]
+    assert ms["length"] == 10 and ms["value"] == pytest.approx(exp["mansfield"][-1])
+    assert ms["state"] in (-1, 0, 1) and ms["stateLabel"] in ("bull", "bear", "neutral")
+    assert ms["crossBarsAgo"] == int(exp["mansfieldCrossBarsAgo"][-1])
+    assert set(env["columns"]) == set(V3_COLUMNS)
+
+
+def test_mansfield_and_its_dot_are_blank_unless_shown_and_the_scalars_still_answer(v2_row, monkeypatch):
+    case = _load_fixture("rs_mansfield")
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher({"XYZ": case["bars"], "SPY": case["benchmarkBars"]}))
+    _no_cache(monkeypatch)
+    env = sig._rs_line_provider("XYZ", "W", {"benchmark": "SPY", "mansfieldLength": 10, "lookback": 20})
+    assert all(v is None for v in env["columns"]["mansfield"]), "showMansfield defaults OFF ⇒ the line is blank"
+    assert all(v is None for v in env["columns"]["dotMansfieldCross"])
+    assert any(v == 1.0 for v in env["columns"]["mansfieldCrossUp"]), "the EVENT columns stay for scans and alerts"
+    assert env["payload"]["mansfield"]["value"] is not None, "the reading is read before the toggle blanks the column"
+
+
+def test_the_red_day_and_new_low_dots_need_their_toggles_and_the_events_stay(v2_row, monkeypatch):
+    case = _load_fixture("rs_events_default")
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher({"XYZ": case["bars"], "SPY": case["benchmarkBars"]}))
+    _no_cache(monkeypatch)
+    inputs = {"benchmark": "SPY", "lookback": 25, "maLength": 5, "maType": "EMA", "priceTolerance": 2.0,
+              "redDayThreshold": -0.5}
+    off = sig._rs_line_provider("XYZ", "D", inputs)
+    assert all(v is None for v in off["columns"]["dotNHred"]) and all(v is None for v in off["columns"]["dotNL"])
+    assert off["columns"]["rsNHred"][30] == 1.0 and off["columns"]["rsNL"][57] == 1.0
+    on = sig._rs_line_provider("XYZ", "D", {**inputs, "showRedDay": True, "showNewLow": True})
+    assert on["columns"]["dotNHred"][30] == pytest.approx(case["expected"]["dotNHred"][30], abs=1e-6)
+    assert on["columns"]["dotNL"][57] == pytest.approx(case["expected"]["dotNL"][57], abs=1e-6)
+    assert sum(v is not None for v in on["columns"]["dotNHred"]) == 1
+    # the Phase 1 toggles are untouched by the new ones
+    assert on["columns"]["dotNH"][25] == pytest.approx(case["expected"]["dotNH"][25], abs=1e-6)
+
+
+def test_intraday_blanks_the_mansfield_crosses_and_dot_but_keeps_the_line(v2_row, monkeypatch):
+    n = 300
+    store = {"NVDA": _bars([100 + i for i in range(n)]), "SPY": _bars([400.0 + (i % 7) for i in range(n)])}
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    env = sig._rs_line_provider("NVDA", "5", {"lookback": 20, "showMansfield": True, "mansfieldLength": 10})
+    assert any(v is not None for v in env["columns"]["mansfield"]), "the Mansfield line draws intraday"
+    for k in ("mansfieldCrossUp", "mansfieldCrossDown", "dotMansfieldCross"):
+        assert all(v is None for v in env["columns"][k]), k
+    assert env["payload"]["regime"]["label"] is None and env["payload"]["regime"]["reason"] == "daily bars only"
+    assert env["payload"]["checks"]["summary"] is None and env["payload"]["checks"]["ma"]["reason"] == "daily bars only"
+    assert env["payload"]["sensitivity"]["summary"] is None
+    assert env["payload"]["sensitivity"]["reasons"] == {"spy": "daily bars only", "rsp": "daily bars only", "sector": "daily bars only"}
+
+
+def test_mansfield_length_is_clamped_like_every_other_number(v2_row):
+    assert sig._rs_mansfield_length(None) == 200
+    assert sig._rs_mansfield_length("abc") == 200
+    assert sig._rs_mansfield_length(99999) == rsmod.MANSFIELD_LENGTH_RANGE[1]
+    assert sig._rs_mansfield_length(0) == rsmod.MANSFIELD_LENGTH_RANGE[0]
+    assert sig._rs_mansfield_length(51.6) == 52
+    assert rd.resolve_inputs("rsLine", {"mansfieldLength": 99999})["mansfieldLength"] == 500
+
+
+def test_the_cross_dot_builder_keeps_negative_values_unlike_the_rs_dot_builder():
+    mrs = [None, -2.0, -0.5, 0.0, 0.7, None, 1.1]
+    ev = [None, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0]
+    assert sig._rs_dot_at(mrs, ev) == [None, -2.0, None, 0.0, 0.7, None, None]
+    assert rsmod.dot_column(mrs, ev) == [None, None, None, None, 0.7, None, None], "the RS builder refuses ≤ 0 (a ratio)"
+
+
+# ── rating ─────────────────────────────────────────────────────────────────
+
+def test_rating_reads_the_history_row_and_names_its_source(monkeypatch):
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
+        "NVDA": {"ibd": 94, "fast": 91, "m1": 90, "asof": "2026-11-05", "d5": 2, "d20": -7}})
+    assert sig._rs_rating("nvda") == {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": -7, "source": "row"}
+
+
+def test_rating_is_null_never_raises_and_says_dark_or_missing(monkeypatch):
+    blank = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None}
+    monkeypatch.delenv("RS_HISTORY_ENABLED", raising=False)
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
+    assert sig._rs_rating("NVDA") == {**blank, "source": "dark"}
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
+    assert sig._rs_rating("NVDA") == {**blank, "source": "missing"}
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {"NVDA": {}})
+    assert sig._rs_rating("NVDA") == {**blank, "source": "missing"}, "an empty row is a missing rating, never a fabricated one"
+
+    def boom(tickers, **kw):
+        raise RuntimeError("table gone")
+    monkeypatch.setattr(rs_history, "read_fields", boom)
+    assert sig._rs_rating("NVDA")["source"] == "missing"
+
+
+# ── regime, sensitivity, checks, theme on a long daily series ──────────────
+
+def test_payload_blocks_answer_on_a_long_daily_series_and_reuse_the_benchmark_bars(v2_row, monkeypatch):
+    store = _long_daily()
+    fetch = _fetcher(store)
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", fetch)
+    _no_cache(monkeypatch)
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
+    env = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})
+    p = env["payload"]
+    # regime: every leg decided, a label, no reason
+    r = p["regime"]
+    assert r["label"] in ("persistence", "rebound-risk", "mixed") and r["reason"] is None
+    assert isinstance(r["above200"], bool) and r["trend2y"] in (-1, 0, 1) and r["volTercile"] in ("low", "mid", "high")
+    assert r["bars"] == 900 and r["volSamples"] == 756
+    # sensitivity: three legs, SPY's from the benchmark bars already in hand (fetched ONCE)
+    s = p["sensitivity"]
+    assert s["window"] == 20 and s["reasons"] == {}
+    for leg, ticker in (("spy", "SPY"), ("rsp", "RSP"), ("sector", "XLK")):
+        assert s[leg]["ticker"] == ticker and s[leg]["sign"] in (-1, 0, 1) and s[leg]["word"] in ("rising", "falling", "flat")
+    assert isinstance(s["agree"], bool) and isinstance(s["summary"], str) and "SPY" in s["summary"]
+    assert [c for c in fetch.calls if c[0] == "SPY"] == [("SPY", "D", 852)], "the benchmark is read once"
+    assert ("RSP", "D", 852) in fetch.calls and ("XLK", "D", 852) in fetch.calls
+    # checks: four booleans with reasons that carry the numbers, a summary, the pullback
+    c = p["checks"]
+    for k in ("ma", "anchor", "pivotSpeed", "greenOnRed"):
+        assert isinstance(c[k]["pass"], bool), k
+        assert isinstance(c[k]["reason"], str) and any(ch.isdigit() for ch in c[k]["reason"]), k
+    assert c["of"] == 4 and 0 <= c["passed"] <= 4 and c["summary"] == f"{c['passed']} of 4"
+    assert c["pivotSpeed"]["of"] == 10 and c["greenOnRed"]["of"] == 20
+    assert c["ma"]["pass"] == (c["ma"]["stock200"] > c["ma"]["bench200"])
+    assert c["anchor"]["pass"] == (c["anchor"]["stock"] > c["anchor"]["bench"]) and 0 <= c["anchor"]["barsAgo"] < 20
+    assert c["greenOnRed"]["pass"] == (c["greenOnRed"]["count"] >= 6)
+    assert c["pivotSpeed"]["pass"] == (c["pivotSpeed"]["count"] >= 5)
+    assert isinstance(c["pullbackEma8"], float)
+    # theme from the same map the SECTOR benchmark resolves through
+    assert p["theme"] == {"sector": "Technology", "industry": "Semiconductors", "etf": "XLK",
+                          "label": "Semiconductors (XLK)", "note": None}
+
+
+def test_payload_blocks_are_null_with_a_reason_when_bars_are_short_or_a_leg_is_missing(v2_row, monkeypatch):
+    store = _long_daily(n=120)
+    del store["RSP"]
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
+    p = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    r = p["regime"]
+    assert r["label"] is None and r["above200"] is None and r["trend2y"] is None
+    assert "200-day" in r["reason"] and "two-year" in r["reason"], r["reason"]
+    s = p["sensitivity"]
+    assert s["rsp"] is None and s["reasons"]["rsp"] == "no RSP bars"
+    assert s["spy"] is not None and s["sector"] is not None, "the legs that have bars still answer"
+    assert s["agree"] is None, "agreement needs all three"
+    assert "no RSP bars" in s["summary"]
+    c = p["checks"]
+    assert c["ma"]["pass"] is None and "needs 200 bars" in c["ma"]["reason"]
+    assert c["anchor"]["pass"] is not None, "20 sessions suffice for the anchor"
+    assert c["greenOnRed"]["pass"] is not None
+    assert c["of"] < 4 and c["summary"] == f"{c['passed']} of {c['of']}"
+
+
+def test_an_etf_says_so_in_theme_and_has_no_sector_leg(v2_row, monkeypatch):
+    store = _long_daily()
+    store["QQQ"] = store.pop("NVDA")
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Financial", "industry": rb.ETF_INDUSTRY})
+    p = sig._rs_line_provider("QQQ", "D", {"benchmark": "SECTOR"})["payload"]
+    assert p["benchmark"]["resolved"] == "SPY" and p["benchmark"]["fallback"] == "symbol is an ETF"
+    assert p["theme"] == {"sector": None, "industry": rb.ETF_INDUSTRY, "etf": None,
+                          "label": "Exchange-traded fund", "note": "symbol is an ETF"}
+    s = p["sensitivity"]
+    assert s["sector"] is None and s["reasons"]["sector"] == "symbol is an ETF"
+    assert s["spy"] is not None and s["rsp"] is not None and s["agree"] is None
+    assert "symbol is an ETF" in s["summary"]
+
+
+def test_theme_and_sensitivity_name_an_unmapped_sector(v2_row, monkeypatch):
+    assert sig._rs_theme({}) is None
+    assert sig._rs_theme({"sector": "Cryptocurrency", "industry": None}) == {
+        "sector": "Cryptocurrency", "industry": None, "etf": None, "label": "Cryptocurrency", "note": None}
+    store = _long_daily()
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Cryptocurrency", "industry": None})
+    s = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]["sensitivity"]
+    assert s["sector"] is None and s["reasons"]["sector"] == "sector not mapped: Cryptocurrency"
+
+
+def test_same_symbol_and_no_benchmark_bars_blank_the_v3_blocks_with_the_state_as_reason(v2_row, monkeypatch):
+    n = 60
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher({"SPY": _bars([400.0 + i for i in range(n)])}))
+    _no_cache(monkeypatch)
+    env = sig._rs_line_provider("SPY", "D", {"benchmark": "SPY", "lookback": 20, "showMansfield": True})
+    assert env["payload"]["state"] == "same-symbol"
+    assert all(v is None for v in env["columns"]["mansfield"]) and all(v is None for v in env["columns"]["dotMansfieldCross"])
+    assert env["payload"]["regime"]["reason"] == "benchmark is the symbol"
+    assert env["payload"]["checks"]["ma"]["reason"] == "benchmark is the symbol"
+    assert env["payload"]["mansfield"]["value"] is None
+    env = sig._rs_line_provider("NVDA", "D", {"benchmark": "RSP", "lookback": 20})
+    assert env["payload"]["state"] == "no-benchmark-bars"
+    assert env["payload"]["sensitivity"]["reasons"]["spy"] == "no benchmark bars"
+
+
+def test_regime_rules_on_hand_built_series():
+    import math
+    up = [100.0 * (1.0 + 0.001) ** i for i in range(900)]        # steady climb: above its 200-day, +2y
+    r = sig._rs_regime(up)
+    assert r["above200"] is True and r["trend2y"] == 1 and r["label"] == "persistence"
+    down = [100.0 * (1.0 - 0.001) ** i for i in range(900)]
+    r = sig._rs_regime(down)
+    assert r["above200"] is False and r["trend2y"] == -1
+    assert r["label"] in ("rebound-risk", "mixed")             # the tercile decides between the two
+    # a down trend whose volatility just exploded is the panic state
+    calm = [100.0 * (1.0 - 0.0005) ** i for i in range(880)]
+    wild = [calm[-1] * (1.0 + (0.08 if i % 2 == 0 else -0.09)) ** (i + 1) for i in range(130)]
+    r = sig._rs_regime(calm + wild)
+    assert r["trend2y"] == -1 and r["volTercile"] == "high" and r["label"] == "rebound-risk"
+    # too short: null with the reasons, never a guess
+    r = sig._rs_regime(up[:150])
+    assert r["label"] is None and "200-day" in r["reason"] and "two-year" in r["reason"]
+    assert r["bars"] == 150
+    assert sig._rs_regime([])["label"] is None
+
+
+def test_checks_rules_on_hand_built_bars():
+    # a stock that doubles the benchmark's move every day, red days every third bar
+    stock, bench = [], []
+    c, b = 100.0, 400.0
+    for i in range(260):
+        bchg = -0.01 if i % 3 == 0 else 0.004
+        b *= 1 + bchg
+        c *= 1 + 2 * bchg if bchg > 0 else 1 + 0.002        # up on the benchmark's red days
+        stock.append({"t": 1000 + i, "o": c * 0.99, "h": c * 1.005, "l": c * 0.985, "c": c, "v": 1})
+        bench.append({"t": 1000 + i, "o": b, "h": b, "l": b, "c": b, "v": 1})
+    out = sig._rs_checks(stock, bench, "SPY", -0.5)
+    assert out["ma"]["pass"] is True and out["ma"]["stock200"] > out["ma"]["bench200"]
+    assert "SPY" in out["ma"]["reason"] and "%" in out["ma"]["reason"]
+    assert out["anchor"]["pass"] is True and out["anchor"]["anchorTime"] >= 1000 + 240
+    assert out["greenOnRed"]["count"] == 7 and out["greenOnRed"]["pass"] is True         # 20 sessions ⇒ 6 or 7 red days, all green
+    assert out["pivotSpeed"]["of"] == 10 and out["pivotSpeed"]["count"] == 10 and out["pivotSpeed"]["pass"] is True
+    assert out["passed"] == 4 and out["of"] == 4 and out["summary"] == "4 of 4"
+    assert isinstance(out["pullbackEma8"], float)
+    # a flat stock on the same benchmark fails the first two and the pivot (close mid-range)
+    flat = [{"t": 1000 + i, "o": 50.0, "h": 51.0, "l": 49.0, "c": 50.0, "v": 1} for i in range(260)]
+    out = sig._rs_checks(flat, bench, "SPY", -0.5)
+    assert out["ma"]["stock200"] == pytest.approx(0.0) and out["ma"]["pass"] is (0.0 > out["ma"]["bench200"])
+    assert out["anchor"]["stock"] == pytest.approx(0.0) and out["anchor"]["pass"] is False, "the benchmark rose off its own low"
+    assert out["pivotSpeed"]["count"] == 0 and out["pivotSpeed"]["pass"] is False, "a mid-range close is not the top third"
+    assert out["greenOnRed"]["count"] == 0 and out["greenOnRed"]["pass"] is False
+    assert out["summary"] == f"{1 if out['ma']['pass'] else 0} of 4"
+    # too short for the averages: null with the bar counts in the reason
+    out = sig._rs_checks(stock[:100], bench[:100], "SPY", -0.5)
+    assert out["ma"]["pass"] is None and "have 100 and 100" in out["ma"]["reason"]
+    assert out["of"] == 3
+
+
+def test_sensitivity_legs_reuse_the_resolved_benchmark_and_agree_on_three_rising_slopes():
+    bars = [{"t": 1000 + i, "c": 100.0 + i} for i in range(40)]
+    flat = [{"t": 1000 + i, "c": 100.0} for i in range(40)]
+    calls = []
+
+    def fetch(sym, tf, count):
+        calls.append(sym)
+        return flat
+    bench = {"resolved": "SPY", "bars": flat}
+    out = sig._rs_sensitivity("NVDA", bars, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
+    assert calls == ["RSP", "XLK"], "SPY came from the benchmark already in hand"
+    assert out["agree"] is True and out["summary"] == "agree: SPY rising, RSP rising, XLK rising"
+    assert out["spy"]["sign"] == out["rsp"]["sign"] == out["sector"]["sign"] == 1
+    # a flat leg disagrees (a flat slope is neither sign)
+    out = sig._rs_sensitivity("NVDA", flat, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
+    assert out["agree"] is False and out["summary"] == "SPY flat, RSP flat, XLK flat"
+    # a short series: null legs with the reason
+    out = sig._rs_sensitivity("NVDA", bars[:5], bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
+    assert out["spy"] is None and "needs 20 bars" in out["reasons"]["spy"]
+
+
+def test_the_v1_lane_never_touches_a_phase2a_helper(monkeypatch):
+    monkeypatch.setattr(rd, "RS_V2_ENABLED", False)
+    monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(False))
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher({"NVDA": _bars([100, 110]), "SPY": _bars([400, 400])}))
+    _no_cache(monkeypatch)
+
+    def boom(*a, **k):
+        raise AssertionError("a Phase 2a helper ran on the v1 lane")
+    for name in ("_rs_rating", "_rs_regime", "_rs_sensitivity", "_rs_checks", "_rs_theme"):
+        monkeypatch.setattr(sig, name, boom)
+    monkeypatch.setattr(rb, "_groups_for", boom)
+    env = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})
+    assert set(env["columns"]) == {"rsLine"} and "payload" not in env
+
+
+# ── THE READOUT-SOURCE RAIL ────────────────────────────────────────────────
+#
+# `RS_LINE_RAW.readout[]` (nativeRegistry.js) names the scalars the legend
+# prints as `scalar:<dotted.path>` / `payload:<path>` / `input:<key>`. Parsed
+# out of the source text the way the serverInputs rail parses that list, and
+# resolved against a REAL provider payload — long bars, a sector, a rating row —
+# so a row can never name a scalar the server does not send. An `input:` key
+# must be a declared input of the definition.
+
+def _js_rs_readout_sources() -> list:
+    import pathlib
+    import re
+    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    body = src.split("const RS_LINE_RAW = {", 1)[1]
+    block = body.split("\n  readout: [", 1)[1].split("\n  ],", 1)[0]
+    block = "\n".join(line for line in block.split("\n") if not line.lstrip().startswith("//"))
+    out = []
+    for entry in re.split(r"\n    \{", block)[1:]:
+        key = re.search(r"\bkey:\s*'([A-Za-z0-9_]+)'", entry).group(1)
+        for field in ("source", "when"):
+            m = re.search(rf"\b{field}:\s*'((?:scalar|payload|input):[A-Za-z0-9_.]+)'", entry)
+            if m:
+                out.append((key, field, m.group(1)))
+    return out
+
+
+def _resolve_path(payload: dict, path: str):
+    """``(resolved, value)``. A block that is ``None`` resolves to null (the
+    readout omits the row, or prints its fallback); a KEY that is absent from
+    a dict does not resolve — that is the drift this rail exists to catch."""
+    cur = payload
+    for seg in path.split("."):
+        if cur is None:
+            return True, None
+        if not isinstance(cur, dict) or seg not in cur:
+            return False, None
+        cur = cur[seg]
+    return True, cur
+
+
+def test_every_readout_source_resolves_in_a_real_provider_payload(v2_row, monkeypatch):
+    sources = _js_rs_readout_sources()
+    assert len(sources) >= 20, sources
+    store = _long_daily()
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
+        "NVDA": {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": 7}})
+    payload = sig._rs_line_provider("NVDA", "D", {"benchmark": "SECTOR", "showMansfield": True})["payload"]
+    declared = set(V3_INPUT_KEYS) | {k for k in _js_rs_line_inputs()}
+    missing = []
+    for key, field, src in sources:
+        kind, path = src.split(":", 1)
+        if kind == "input":
+            assert path in declared, f"readout[{key}].{field} names undeclared input {path!r}"
+            continue
+        ok, _ = _resolve_path(payload, path)
+        if not ok:
+            missing.append((key, field, src))
+    assert not missing, f"readout sources the provider payload does not carry: {missing}"
+    # every block is answered on this series, so every path resolved to a dict walk, not a null
+    for k in ("rating", "mansfield", "regime", "sensitivity", "checks", "theme", "lastRsHigh", "legend", "history"):
+        assert payload[k] is not None, k
+    # and the two chip rows print on this payload: the resolved benchmark and the rating
+    assert payload["benchmark"]["resolved"] == "XLK" and payload["rating"]["ibd"] == 94
+
+
+def test_the_readout_source_parser_reads_the_rows_it_claims_to():
+    sources = _js_rs_readout_sources()
+    by_key = {}
+    for key, field, src in sources:
+        by_key.setdefault(key, {})[field] = src
+    assert by_key["benchmark"]["source"] == "scalar:benchmark.resolved"
+    assert by_key["rating"]["source"] == "scalar:rating.ibd"
+    assert by_key["benchmarkNote"] == {"source": "scalar:benchmark.fallback", "when": "scalar:benchmark.fallback"}
+    assert by_key["regime"]["source"] == "scalar:regime.label"
+    assert by_key["checks"]["source"] == "scalar:checks.summary"
+    assert by_key["mansfield"]["source"] == "scalar:mansfield.value"
+    assert by_key["sensitivity"]["source"] == "scalar:sensitivity.summary"
+    assert by_key["theme"]["source"] == "scalar:theme.label"
+
+
+def test_the_short_history_payload_still_resolves_every_row_or_answers_null_with_a_reason(v2_row, monkeypatch):
+    """The fail-closed half: on a short series the paths the rows read still
+    EXIST (the surface prints a muted fallback for a null), so a null is never a
+    missing key, and every null block carries its reason."""
+    store = _long_daily(n=80)
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    _no_cache(monkeypatch)
+    payload = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    for key, field, src in _js_rs_readout_sources():
+        kind, path = src.split(":", 1)
+        if kind == "input":
+            continue
+        ok, _ = _resolve_path(payload, path)
+        assert ok, f"readout[{key}].{field} = {src} is MISSING (not null) on a short series"
+    assert payload["regime"]["label"] is None and payload["regime"]["reason"]
+    assert payload["checks"]["summary"] is not None or payload["checks"]["ma"]["reason"]
+    assert payload["rating"]["ibd"] is None and payload["rating"]["source"] in ("dark", "missing")
+
+
+# ── the alert lane reads rev 3 through the `rs_line` base (2b-05 finding) ────
+
+def test_a_bound_rs_alert_address_reads_rev_3_not_the_default():
+    """`compute_rev` keys `ADDRESS_REVS` on `plot_base(address)`, which for the
+    RS alert addresses is `rs_line` (`alert_rs_series.RS_BASE`) while the table
+    is keyed by the definition id `rsLine` (held equal to the JS registry by
+    `test_the_python_rev_table_matches_the_JS_registry`). Without the alias a
+    bound `rs_line.*` alert read DEFAULT_REV 1 against a rev-3 definition."""
+    from api.services import alert_rev_migration as rev
+    from api.services.indicator_alert_evaluator import plot_base, resolve_address
+    assert plot_base(resolve_address("rs_line.crossUp")) == "rs_line"
+    assert rev.ADDRESS_BASE_DEFINITION == {"rs_line": "rsLine"}
+    assert rev.compute_rev("rs_line.crossUp") == 3
+    assert rev.compute_rev("rs_line.newHigh") == 3
+    assert rev.compute_rev("RS_LINE.NEWHIGH") == 3, "resolution folds case like every other address"
+    # (`rsLine.<plot>` is NOT an alert address — the grammar is `rs_line.<plot>` —
+    # and `resolve_address` lowercases an unknown one, so no assertion on it.)
+    assert rev.compute_rev("vwap.vwap") == 2 and rev.compute_rev("rsi.rsi") == rev.DEFAULT_REV, "controls"
+    assert "rs_line" not in rev.ADDRESS_REVS, "one table, keyed by definition id — the alias is the map, not a second row"
+

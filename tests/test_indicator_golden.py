@@ -1572,6 +1572,13 @@ def test_compute_case_has_NO_rs_events_row_for_the_SAME_reason_rs_line_has_none(
 
 RS_MANSFIELD_COLUMNS = ("mansfield", "mansfieldState", "mansfieldCrossUp",
                         "mansfieldCrossDown", "mansfieldCrossBarsAgo")
+# ⭐ 2a-14 appended ONE column to the fixture, the chart's Mansfield cross DOT:
+# the Mansfield value where either cross fired, None elsewhere — built by the
+# provider (`api/routers/signature._rs_dot_at`), not by `relative_strength`, so
+# it is pinned here by its RELATION to the five and recomputed against the
+# provider in `tests/test_rs_columns_provider.py`. Every other byte of the file
+# is what 2a-02 wrote (`_schema.md` records the regeneration column by column).
+RS_MANSFIELD_DOT = "dotMansfieldCross"
 
 
 def _rs_mansfield_gap(case):
@@ -1593,14 +1600,36 @@ def test_rs_mansfield_python_lane_matches_every_golden_column(name):
     length = case["params"]["length"]
     assert rs_mod.MANSFIELD_LENGTH_RANGE[0] <= length <= rs_mod.MANSFIELD_LENGTH_RANGE[1], "a clamped fixture pins the clamp"
     got = rs_mod.compute_mansfield_columns(bars, bench, length)
-    assert set(got) == set(case["expected"]) == set(rs_mod.PHASE2A_COLUMNS) == set(RS_MANSFIELD_COLUMNS), (
-        f"{name}: column set drifted"
-    )
-    for col, exp in case["expected"].items():
+    assert set(got) == set(rs_mod.PHASE2A_COLUMNS) == set(RS_MANSFIELD_COLUMNS), f"{name}: column set drifted"
+    assert set(case["expected"]) == set(RS_MANSFIELD_COLUMNS) | {RS_MANSFIELD_DOT}, f"{name}: fixture column set drifted"
+    for col in RS_MANSFIELD_COLUMNS:
+        exp = case["expected"][col]
         assert len(got[col]) == len(bars), f"{name}.{col} not aligned to bars"
         assert len(exp) == len(bars), f"{name}.{col} fixture not aligned to bars"
         for i, (g, e) in enumerate(zip(got[col], exp)):
             assert _close(g, e, case["relTol"]), f"{name}.{col}[{i}]: {g!r} != {e!r}"
+
+
+@pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
+def test_rs_mansfield_cross_dot_is_the_mansfield_value_EXACTLY_where_either_cross_is_1(name):
+    """The dot the chart draws for a zero cross (2a-14): the Mansfield value on
+    the bar of a cross UP or a cross DOWN, None everywhere else — so a cross
+    DOWN dot is NEGATIVE, which is why the definition draws it as the series'
+    own point marker and not as a glyph (`markerPrimitive.marks` is `> 0`)."""
+    case = load_case(name)
+    exp = case["expected"]
+    dot, mrs, up, down = exp[RS_MANSFIELD_DOT], exp["mansfield"], exp["mansfieldCrossUp"], exp["mansfieldCrossDown"]
+    assert len(dot) == len(case["bars"])
+    fired = []
+    for i, (d, v, u, w) in enumerate(zip(dot, mrs, up, down)):
+        if u == 1.0 or w == 1.0:
+            assert d == v, f"{name}.{RS_MANSFIELD_DOT}[{i}] = {d!r} but mansfield is {v!r}"
+            assert type(d) is float, f"{name}.{RS_MANSFIELD_DOT}[{i}] is {type(d).__name__}"
+            fired.append(i)
+        else:
+            assert d is None, f"{name}.{RS_MANSFIELD_DOT}[{i}] = {d!r} where no cross fired"
+    assert fired == [23, 43, 62], fired            # the crosses the hand-derived rows pin
+    assert dot[23] < 0 and dot[62] < 0 and dot[43] > 0, "a cross down sits below zero; a cross up above"
 
 
 @pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
