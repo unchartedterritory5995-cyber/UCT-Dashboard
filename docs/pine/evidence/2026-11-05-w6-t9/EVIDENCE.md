@@ -5,7 +5,7 @@
 measure-pair runtime 0 and 1 against the tip's own master on a shared base (`heavy-mp2.lock` /
 `heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL scope, ready-check.**
 
-Branch `feat/pine-w6-t9-receivers`, tip `__TIP__`, tested on master `81a4665a5a` (engine 21).
+Branch `feat/pine-w6-t9-receivers`, code tip `73c59fc272`, tested on master `81a4665a5a` (engine 21).
 Spec: `docs/pine/W6-BREAKDOWN.md` @ `1889bbedd7`, section 4 T9 and section 1 rows 3, 4, 6.
 Engine bump: **yes** (refusals become served values on the runtime pane). Not edited here.
 
