@@ -96,11 +96,11 @@ def test_over_45_counts_gate_runs_only():
     assert model.simulate(arrivals, 20.0)["over_45"] == 1
 
 
-def test_limit_lands_on_the_budget():
+def test_limit_lands_on_the_target():
     day = model.Day(1.0, 0.0, 0.0, 0.0, 0.0)
     scale = model.limit_scale(day, UNIT, 3.0, "24-month")
     cost = model.month_cost("B1", model.Day(scale, 0, 0, 0, 0), UNIT, 3.0, "24-month")
-    assert cost["total"] == pytest.approx(100.0, abs=0.01)
+    assert cost["total"] == pytest.approx(200.0, abs=0.01)
 
 
 def test_saved_inputs_still_produce_every_scenario():

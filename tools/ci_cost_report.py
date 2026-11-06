@@ -48,8 +48,9 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Iterable
 
 DEFAULT_REPO = "unchartedterritory5995-cyber/UCT-Dashboard"
-DEFAULT_BUDGET = 100.0
-DEFAULT_ALERT_FRACTION = 0.75
+DEFAULT_TARGET = 200.0       # owner: under $200/month total, GitHub plus infrastructure
+TARGET_ALERTS = (0.75, 0.90)
+DEFAULT_INFRA_USD = 0.0      # pass --infra-usd: VPS plus PC power. GitHub cannot see this, so 0 understates the total
 DEFAULT_QUEUE_ALERT_MIN = 30.0
 DEFAULT_CEILING = 220.0      # the GitHub budget hard ceiling AUDIT set; a hit blocks gate, verdict and promote
 CEILING_ALERTS = (0.50, 0.80)
@@ -444,22 +445,25 @@ def forecast(result: dict, now: dt.datetime, rate_from: dt.datetime | None,
     }
 
 
-def alerts(result: dict, cast: dict, budget: float, fraction: float, queue_limit: float,
-           ceiling: float = DEFAULT_CEILING) -> list[str]:
-    limit = budget * fraction
+def alerts(result: dict, cast: dict, target: float, queue_limit: float, ceiling: float = DEFAULT_CEILING,
+           infra: float = 0.0) -> list[str]:
     lines = []
+    projected = cast["net"] + infra
+    note = " (LOW CONFIDENCE: short window)" if cast["low_confidence"] else ""
+    if projected > target:
+        lines.append(f"ALERT: projected total ${projected:.2f} exceeds the ${target:.0f} target{note}: "
+                     "investigate before more spending")
+    else:
+        for share in sorted(TARGET_ALERTS, reverse=True):
+            if projected >= target * share:
+                lines.append(f"ALERT: projected total ${projected:.2f} >= {share:.0%} of the ${target:.0f} target "
+                             f"(${target * share:.2f}){note}")
+                break
     for share in sorted(CEILING_ALERTS, reverse=True):
         if cast["spent_net"] >= ceiling * share:
-            lines.append(f"ALERT: spend ${cast['spent_net']:.2f} >= {share:.0%} of the ${ceiling:.0f} ceiling "
+            lines.append(f"ALERT: GitHub spend ${cast['spent_net']:.2f} >= {share:.0%} of the ${ceiling:.0f} ceiling "
                          f"(${ceiling * share:.2f}). A ceiling hit reads as fast zero-step job failures.")
             break
-    if cast["net"] >= limit:
-        note = " (LOW CONFIDENCE: short window)" if cast["low_confidence"] else ""
-        lines.append(f"ALERT: forecast ${cast['net']:.2f} >= ${limit:.2f} "
-                     f"({fraction:.0%} of ${budget:.0f}){note}")
-    if cast["spent_net"] >= limit:
-        lines.append(f"ALERT: spend ${cast['spent_net']:.2f} >= ${limit:.2f} "
-                     f"({fraction:.0%} of ${budget:.0f})")
     for row in result["queued_self"]:
         if row["minutes"] > queue_limit:
             lines.append(f"ALERT: self-hosted job queued {row['minutes']:.0f} min > {queue_limit:.0f}: "
@@ -481,7 +485,7 @@ def compare_invoice(billing: dict, result: dict, year: int, month: int) -> str:
     return f"invoice data: gross ${gross:.2f}, net ${net:.2f}; estimate/gross = {ratio:.2f}"
 
 
-def render(snapshot: dict, result: dict, cast: dict, lines_alert: list[str], top: int = 12) -> str:
+def render(snapshot: dict, result: dict, cast: dict, lines_alert: list[str], top: int = 12, infra: float = 0.0) -> str:
     out = [f"CI cost report  {snapshot.get('repo')}  {snapshot.get('since')} to {snapshot.get('until')}"]
     basis = "ESTIMATED from a sample of job data" if result["sampled"] else "census of job data"
     out.append(f"Basis: job timestamps, per-job round-up, list prices; {basis}. Not the invoice.")
@@ -517,6 +521,7 @@ def render(snapshot: dict, result: dict, cast: dict, lines_alert: list[str], top
     out.append(f"Month to date: ${cast['spent_gross']:,.2f} gross, ${cast['spent_net']:,.2f} after allowance")
     out.append(f"Forecast (run rate, not an actual): ${cast['net']:,.2f} net, ${cast['gross']:,.2f} gross, at "
                f"${cast['rate_per_day']:,.2f}/day from {cast['basis_days']:.2f} day(s) of data{conf}")
+    out.append(f"Projected total: ${cast['net'] + infra:,.2f} (GitHub ${cast['net']:,.2f} + infrastructure ${infra:,.2f})")
     storage = snapshot.get("storage") or {}
     if storage.get("cache_bytes"):
         out.append(f"Actions cache: {storage['cache_bytes'] / 1e9:.1f} GB")
@@ -552,8 +557,9 @@ def build_parser() -> argparse.ArgumentParser:
     report_cmd.add_argument("--snapshot", help="offline: read this JSON")
     report_cmd.add_argument("--live", action="store_true", help="fetch first")
     report_cmd.add_argument("--billing", help="owner's billing usage JSON, to compare")
-    report_cmd.add_argument("--budget", type=float, default=DEFAULT_BUDGET)
-    report_cmd.add_argument("--alert-fraction", type=float, default=DEFAULT_ALERT_FRACTION)
+    report_cmd.add_argument("--target", type=float, default=DEFAULT_TARGET, help="monthly total, alerts at 75%% and 90%%")
+    report_cmd.add_argument("--infra-usd", type=float, default=DEFAULT_INFRA_USD,
+                            help="monthly infrastructure added to the projection: VPS plus PC power")
     report_cmd.add_argument("--ceiling", type=float, default=DEFAULT_CEILING, help="alerts at 50%% and 80%% of this")
     report_cmd.add_argument("--queue-alert-min", type=float, default=DEFAULT_QUEUE_ALERT_MIN)
     report_cmd.add_argument("--included-usd", type=float, default=DEFAULT_INCLUDED_USD)
@@ -609,8 +615,8 @@ def main(argv: list[str] | None = None, gh: Gh = gh_api) -> int:
     month_start = dt.datetime(year, month, 1, tzinfo=dt.timezone.utc)
     rate_from = parse_day(args.rate_from) if args.rate_from else None
     cast = forecast(result, now, rate_from, month_start, args.included_usd)
-    lines = alerts(result, cast, args.budget, args.alert_fraction, args.queue_alert_min, args.ceiling)
-    print(render(snapshot, result, cast, lines))
+    lines = alerts(result, cast, args.target, args.queue_alert_min, args.ceiling, args.infra_usd)
+    print(render(snapshot, result, cast, lines, infra=args.infra_usd))
     if args.billing:
         with open(args.billing, encoding="utf-8") as handle:
             print(compare_invoice(json.load(handle), result, year, month))

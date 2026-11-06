@@ -123,15 +123,26 @@ def test_allowance_comes_off_the_net_only():
     assert cast["net"] == 0.0
 
 
-def alerts_for(net: float, spent: float, queued: list | None = None, stopped: int = 0) -> list[str]:
+def alerts_for(net: float, spent: float, queued: list | None = None, stopped: int = 0, infra: float = 0.0) -> list[str]:
     cast = {"net": net, "spent_net": spent, "low_confidence": False}
-    return ccr.alerts({"queued_self": queued or [], "stopped_jobs": stopped}, cast, 100, 0.75, 30)
+    return ccr.alerts({"queued_self": queued or [], "stopped_jobs": stopped}, cast, 200, 30, 220, infra)
 
 
-def test_threshold_is_75_percent_of_100_by_default():
-    assert alerts_for(74.99, 0) == []
-    assert any("forecast" in line for line in alerts_for(75.0, 0))
-    assert any("spend" in line for line in alerts_for(0, 75.0))
+@pytest.mark.parametrize("net,infra,expected", [
+    (149.99, 0.0, None), (150.0, 0.0, "75% of the $200 target"), (179.99, 0.0, "75% of the $200 target"),
+    (120.0, 60.0, "90% of the $200 target"), (200.0, 0.0, "90% of the $200 target"),
+])
+def test_projected_total_alerts_include_infrastructure(net, infra, expected):
+    lines = alerts_for(net, 0, infra=infra)
+    assert bool(lines) == (expected is not None)
+    assert expected is None or expected in lines[0]
+
+
+def test_over_target_says_investigate_before_more_spending():
+    lines = alerts_for(150.01, 0, infra=50.0)
+    assert len(lines) == 1
+    assert "exceeds the $200 target" in lines[0]
+    assert "investigate before more spending" in lines[0]
 
 
 @pytest.mark.parametrize("spent,share", [(110.0, "50%"), (175.99, "50%"), (176.0, "80%")])

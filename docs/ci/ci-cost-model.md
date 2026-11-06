@@ -3,16 +3,34 @@
 Reproduce: `python tools/ci_cost_model.py`. Inputs: `docs/ci/ci-cost-inputs.json`, from `tools/ci_cost_measure.py` and `tools/ci_cost_steps.py`.
 These are forecasts. No month's actual cost is claimed. All rulings are applied and none is relaxed.
 
-## Verdict
+## Target: under $200/month total
 
-**$100/month is not met at the current pace.**
+The owner set the target at **under $200/month total**: GitHub plus infrastructure (VPS and PC power). The earlier $100 analysis below is kept for reference only; no more work chases it.
 
-- **Cheapest compliant architecture:** one netcup VPS on a 24-month term, PC advisory, merge-candidate runs, Agent batches of 3, the `gate` split. **$131/month** at the Nov 1-5 pace, cash, before maintenance.
-- **Exact limit:** it stays at or under $100 at **17.1 gates a day**. That is 11.5 gates on a 1-month VPS and 14.3 on 12 months.
-- **The Nov 1-5 pace is 34.2 merges a day**, of which 25.4 are non-Agent gates that cannot be batched. Those alone cost about $120 with no Agent merges at all. Other teams adopting batching is not modelled as a saving.
-- **So $100 depends on master pushes falling by about 40% or more**, to about 17 gates a day across everyone, batches included.
-- **With maintenance, $100 is not reachable at any volume:** the $61 floor plus 3 h at the placeholder $25/h is $136.
-- **At Nov-5 pace every day:** $161 with perfect batches, $177 at the replay's real batch size of 1.64.
+**Recommended:** one netcup VPS on a **1-month term** (no commitment), batch 3, `gate` split.
+
+| Design | Normal (34.2 merges/day) | Every day Nov 5, batch 3 | Every day Nov 5, real batch 1.64 | Gates/day at $200 |
+|---|---|---|---|---|
+| **1 VPS, 1-month** | **$145** | **$175** | **$191** | 51.0 |
+| 1 VPS, 24-month | $131 | $161 | $177 | 56.5 |
+| 2 VPS, 1-month | **$205, over** | $235, over | $251, over | 27.4 |
+| 2 VPS, 12-month | $191 | $221, over | $237, over | 32.9 |
+| 2 VPS, 24-month | $177 | $207, over | $223, over | 38.5 |
+
+- **One VPS on a 1-month term fits at every modelled pace,** with $9 of headroom at Nov-5 pace with real batching. A 24-month term saves $14/month and is not needed to fit.
+- **Two VPS fit only at the normal pace, and only on a 12- or 24-month term.** On 1 month they are $205 at the normal pace. At Nov-5 pace no two-VPS term fits. Choose two VPS only if the measured VPS job time is near 20 min, where one VPS is marginal on a Nov-5 day, and then budget it as an exception, not as fitting.
+- **Outage:** a 3-day manual fallback at Nov-5 pace adds $78, which takes one VPS to $253-269 for that month.
+- **Maintenance** (3 h at the placeholder $25/h) is not in these totals; it adds $75.
+
+**Alerts in `tools/ci_cost_report.py`** (pass `--infra-usd`: about $78 for one 1-month VPS plus PC power, $138 for two):
+- Projected total (GitHub forecast plus `--infra-usd`) at **75% ($150)** and **90% ($180)** of the `--target`, default $200.
+- **Projected total over $200: "investigate before more spending".**
+- Separately, GitHub spend at 50% ($110) and 80% ($176) of the **$220 GitHub ceiling**. A ceiling hit reads as **fast zero-step job failures**.
+
+## Earlier $100 analysis
+
+- Cheapest compliant design: one VPS on 24 months, $131 at the normal pace. It reaches $100 at 17.1 gates a day.
+- With maintenance, $100 is not reachable at any volume.
 
 ## USD per month, cash, every ruling applied
 
@@ -105,7 +123,7 @@ A 3-day VPS outage at Nov-5 pace, switched by hand, adds $78.
 
 ## Budget ceiling
 
-**The hard ceiling is $220 net.** `tools/ci_cost_report.py` alerts at **50% ($110)** and **80% ($176)** of it, and separately at $75 against the $100 target.
+**The GitHub hard ceiling is $220 net.** `tools/ci_cost_report.py` alerts at **50% ($110)** and **80% ($176)** of it, and separately on the projected total against the $200 target.
 
 - **What a hit looks like: fast zero-step failures.** Jobs fail in seconds, with no runner and no steps, and the annotation says the spending limit needs to be increased. It is the budget, not the code. Do not re-push to retry.
 - **What it blocks:** gate, verdict and promote (run 42145747733). `web` deploys from `production` and five other services from `master`, so the back end can run ahead of `web`. Promote and verdict stay hosted, so a VPS does not avoid it.

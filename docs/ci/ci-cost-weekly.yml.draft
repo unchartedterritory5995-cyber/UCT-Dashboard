@@ -30,4 +30,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 tools/ci_cost_report.py report --live --sample-every 25 --census "master deploy gate" \
-            --workers 8 --reserve 100 --included-usd 12 | tee -a "$GITHUB_STEP_SUMMARY"
+            --workers 8 --reserve 100 --included-usd 12 --infra-usd 78 | tee -a "$GITHUB_STEP_SUMMARY"

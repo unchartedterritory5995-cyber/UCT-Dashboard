@@ -50,6 +50,7 @@ NIGHTLY_HOSTED_LEFT = 10.0   # E  full-suite plan and publish stay hosted; the r
 NIGHTLY_MOVED_MIN = 381.0    # M  Nov 5 nightly minutes, less the hosted part
 SCHEDULED_RAILS_MIN = 8.0    # M  Nov 5
 DAYS = 30.0
+TARGET_USD = 200.0           # owner: under $200/month total, GitHub plus infrastructure
 BATCH_HOLD_MIN = 60.0        # E  the longest AUDIT's queue holds an Agent PR to fill a batch
 QUEUE_CANCEL_MIN = 45.0      # AUDIT ruling 6
 
@@ -255,7 +256,7 @@ def simulate(arrivals: list, service: float, servers: int = 1, hold: float = 0.0
     }
 
 
-def limit_scale(day: Day, unit: dict, k: float, term: str, budget: float = 100.0, with_maint: bool = False,
+def limit_scale(day: Day, unit: dict, k: float, term: str, budget: float = TARGET_USD, with_maint: bool = False,
                 arch: str = "B1") -> float:
     """The multiple of `day` (merge counts scaled together) at which the month costs `budget`."""
     low, high = 0.0, 50.0
@@ -308,7 +309,12 @@ def run() -> dict:
     replay = simulate(data["gate_kinds"]["nov5_arrivals"], 20.0, 1, BATCH_HOLD_MIN)
     batched = replay["candidates"] - int(busy.a_solo)
     results["replay_k"] = busy.a_batch / batched
-    results["nov5_at_replay_k"] = month_cost("B1", busy, unit, results["replay_k"], "24-month", storage)["total"]
+    results["nov5_at_replay_k"] = {
+        f"{arch} {term}": month_cost(arch, busy, unit, results["replay_k"], term, storage)["total"]
+        for arch in ("B1", "B2") for term in VPS_TERMS}
+    results["limits_by_vps"] = {
+        f"{arch} {term}": limit_scale(normal, unit, 3.0, term, arch=arch) * normal.gates(3.0)
+        for arch in ("B1", "B2") for term in VPS_TERMS}
     share = normal.n_pr / (normal.n_pr + normal.n_direct)
     non_agent_only = Day(share, 1 - share, 0.0, 0.0, normal.agent_pushes)
     for term in VPS_TERMS:
@@ -343,19 +349,21 @@ def render(results: dict) -> str:
     out = ["Unit minutes: " + ", ".join(f"{key} {val:.2f}" for key, val in results["unit"].items()),
            "Days: " + json.dumps({key: {k: round(v, 1) for k, v in val.items()} for key, val in results["days"].items()}), ""]
     out += ["### USD per month, cash, every ruling applied", "",
-            "| Month | A today | C no VPS | D AWS spot | 1 VPS, no batching, 1-mo | 1 VPS, batch 3, 1-mo | 12-mo | 24-mo | 2 VPS, batch 3, 24-mo |",
-            "|---|---|---|---|---|---|---|---|---|"]
+            "| Month | A today | C no VPS | D AWS spot | 1 VPS, no batching, 1-mo | 1 VPS, batch 3, 1-mo | 12-mo | 24-mo "
+            "| 2 VPS, batch 3, 1-mo | 12-mo | 24-mo |",
+            "|---|---|---|---|---|---|---|---|---|---|---|"]
     for label, rows in results["months"].items():
         one = rows["B1"]
         out.append(f"| {label} | {rows['A']['today']['total']:,.0f} | {rows['C']['k3']['total']:,.0f} | {rows['D']['k3']['total']:,.0f} | "
                    f"{one['k1 1-month']['total']:,.0f} | {one['k3 1-month']['total']:,.0f} | {one['k3 12-month']['total']:,.0f} | "
-                   f"**{one['k3 24-month']['total']:,.0f}** | {rows['B2']['k3 24-month']['total']:,.0f} |")
+                   f"{one['k3 24-month']['total']:,.0f} | {rows['B2']['k3 1-month']['total']:,.0f} | "
+                   f"{rows['B2']['k3 12-month']['total']:,.0f} | {rows['B2']['k3 24-month']['total']:,.0f} |")
     out += ["", "### 1 VPS, batch 3, 24-month: USD by non-Agent gates and Agent PRs per day", "",
             "| Non-Agent gates/day | 0 Agent | 9 Agent | 18 Agent | 29 Agent |", "|---|---|---|---|---|"]
     for non_agent in (0, 5, 10, 15, 20, 25, 30):
         cells = " | ".join(f"{results['grid'][f'{non_agent}|{agent}']:,.0f}" for agent in (0, 9, 18, 29))
         out.append(f"| {non_agent} | {cells} |")
-    out += ["", "### Gates a day at or under $100, cash", "",
+    out += ["", "### Gates a day under the target, cash", "",
             "| VPS term, batching | All non-Agent | Nov mix: gates after batching | Nov mix: merges | Share of Nov 1-5 |", "|---|---|---|---|---|"]
     for name, row in results["limits"].items():
         out.append(f"| {name} | {row['all_non_agent']:.1f} | {row['nov_mix_gates']:.1f} | {row['nov_mix_merges']:.1f} | {row['nov_mix_scale']:.0%} |")
@@ -365,7 +373,9 @@ def render(results: dict) -> str:
     for name, row in results["queues"].items():
         out.append(f"| {name} | {row['gates']} | {row['candidates']} | {row['busy_hours']:.1f} | {row['drained_hours']:.1f} | "
                    f"{row['wait_p50']:.0f} | {row['wait_p95']:.0f} | {row['wait_max']:.0f} | {row['over_45']} | {row['agent_latency_p95']:.0f} |")
-    out += ["", f"Replay batch size at a 60-min hold: {results['replay_k']:.2f}; every-day-Nov-5 month at that size: ${results['nov5_at_replay_k']:.0f}"]
+    out += ["", f"Replay batch size at a 60-min hold: {results['replay_k']:.2f}; every-day-Nov-5 month at that size: "
+            + json.dumps({key: round(val) for key, val in results["nov5_at_replay_k"].items()})]
+    out += ["Gates a day at the target, batch 3: " + json.dumps({key: round(val, 1) for key, val in results["limits_by_vps"].items()})]
     out += ["", "Items: " + ", ".join(f"{key} ${val:.2f}" for key, val in results["items"].items())]
     out += ["Sensitivity, 1 VPS batch 3 24-mo: " + json.dumps(
         {key: {k: round(v) for k, v in row.items()} for key, row in results["sensitivity"].items()})]
