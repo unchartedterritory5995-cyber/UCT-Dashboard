@@ -117,6 +117,11 @@ describe('⭐ matrix.row / matrix.col — "creates a one-dimensional array from 
     expect(c0).toEqual(per((b) => b.h))
     expect(c1).toEqual(per(() => 2))
   })
+  it('a name bound to `matrix.row` / `matrix.col` holds an ARRAY: its method form is an `array.*` member', () => {
+    const [a, n] = runPine(`${M22}r = matrix.row(m, 1)\nplot(r.get(1))\nk = matrix.col(m, 0)\nk.push(close)\nplot(k.size())`)
+    expect(a).toEqual(per((b) => b.c))
+    expect(n).toEqual(per(() => 3))
+  })
   it('a write to the returned array does not reach the matrix (row and col)', () => {
     const [a, b] = runPine(`${M22}r = matrix.row(m, 0)\narray.set(r, 0, -1.0)\nplot(matrix.get(m, 0, 0))\n`
       + 'k = matrix.col(m, 1)\narray.set(k, 1, -1.0)\nplot(matrix.get(m, 1, 1))')
