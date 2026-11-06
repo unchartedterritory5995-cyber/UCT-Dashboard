@@ -372,7 +372,8 @@ export default function AgentPanel({ host, gridMode, onClose, request = null, su
   }, [searchOpen, historyOpen, agent.items])
 
   // the walkthrough card's "Do it for me": the same words, down the same path, as typing them here
-  useEffect(() => onGuideDoIt(() => { if (!agent.busy) agent.send('do it for me') }), [agent])
+  // (false: the Agent is busy, and the card says so rather than dropping the click)
+  useEffect(() => onGuideDoIt(() => { if (agent.busy) return false; agent.send('do it for me'); return true }), [agent])
 
   const submit = () => {
     const t = text.trim()
