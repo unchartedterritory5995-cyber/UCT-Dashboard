@@ -248,6 +248,40 @@ describe('the duplicate attribute', () => {
   })
 })
 
+describe('only a ticker’s shape counts for a bare name', () => {
+  const one = [chart('a', 'AAPL', 'left', 0)]
+  const two = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '5')]
+  const noNote = (q) => { expect(namedChart(q, one)).toBeNull() }
+  // never a chart, on any board: the same three boards every time
+  const stands = (q) => { noNote(q); expect(namedChart(q, two)).toBeNull(); expect(namedChart(q, FOUR)).toBeNull() }
+  it.each([
+    'how do I switch to Renko', 'how do I change to Line', 'how do I show earnings on Monday', 'how do I set it to Extended', 'how do I open Replay in Settings', 'how do I get to Multi Chart',
+    // held out
+    'how do I move it to Tuesday', 'how do I go to Heikin Ashi', 'how do I switch to Logarithmic', 'how do I get to Breadth', 'how do I add it to Favourites', 'how do I save it in Layouts', 'how do I set alerts for Friday', 'how do I go to Watchlists', 'how do I turn on Volume', 'how do I jump to Today',
+  ])('a title-case word: %s', stands)
+  it.each([
+    'how do I add it on RTH', 'how do I price it in USD',
+    // held out: all capitals, and no ticker
+    'how do I show earnings on MONDAY', 'how do I switch to NASDAQ', 'how do I switch to NYSE', 'how do I set the time to UTC', 'how do I see it in GMT', 'how do I mark it on FOMC', 'how do I open it in SETTINGS', 'how do I change it to EXTENDED', 'how do I move it to PRE-MKT', 'how do I switch to AMEX',
+    'how do I go to WATCHLISTS', 'how do I look for EARNINGS',
+  ])('capitals that are no ticker: %s', stands)
+  it.each(['how do I change the timeframe on MSFT', 'how do I change the timeframe for BRK.B', 'how do I change the timeframe in GOOGL', 'how do I add RSI to BF.B'])('a ticker’s shape is still said, and still draws the note: %s', (q) => {
+    expect(namedChart(q, two)?.say).toMatch(/^There’s no [A-Z.]+ chart on this board/)
+    expect(namedChart(q, FOUR)?.say).toMatch(/^There’s no [A-Z.]+ chart on this board/)
+    expect(namedChart(q, one)?.note).toBe('This board only has AAPL, so I’ll show it there.')
+  })
+  it('one letter alone is left alone', () => { stands('how do I set it to L') })
+  it('a symbol the board shows is that chart, whatever its shape', () => {
+    expect(namedChart('how do I add RSI to GOOGLE', [chart('a', 'AAPL', 'left', 0), chart('b', 'GOOGLE', 'right', 1)])?.chart?.ref).toBe('b')
+  })
+  it('the X chart form is unchanged', () => {
+    expect(namedChart('how do I add RSI to the Renko chart', two)).toBeNull()
+    expect(namedChart('how do I add RSI to the Tesla chart', two)?.say).toMatch(/can’t match “Tesla”/)
+    expect(namedChart('how do I add RSI to the Tesla chart', one)?.note).toBeTruthy()
+    expect(namedChart('how do I add RSI to the MONDAY chart', two)?.say).toMatch(/no MONDAY chart/)
+  })
+})
+
 describe('a bare name on a board of several', () => {
   const two = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '5')]
   const host = { surface: 'charts', charts: { list: () => two, selected: () => 'a' } }
