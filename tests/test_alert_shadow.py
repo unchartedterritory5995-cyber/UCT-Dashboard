@@ -244,7 +244,7 @@ def test_the_diff_covers_EVERY_address_in_the_catalog(measured):
     # carry). The exclusion is declared there, not omitted here — the set the
     # diff's catalog leaves out is exactly that set, in both directions.
     assert set(ev.all_addresses()) - set(catalog) == set(ev.CLOSED_ONLY_ADDRESSES)
-    assert len(ev.all_addresses()) == 43
+    assert len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +rs_line.rating
     assert measured["addresses_covered"] == len(catalog), (
         f"the diff drove {measured['addresses_covered']} of {len(catalog)} "
         "addresses — an address nobody drove is an address whose cutover "

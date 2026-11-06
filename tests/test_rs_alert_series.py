@@ -8,6 +8,12 @@ Modelled on `test_alert_ma_cross.py`: every expected column comes from
 THEMSELVES, never from a formula typed here; the benchmark is an injected,
 counting fetcher; no server, no store. The evaluator partition, catalog rows and
 labels are unit 2b-05's and are not asserted here.
+
+2026-11-07 (RS 2b-06): the last section rails `rs_line.rating` — the twelfth
+address, read from the `rs_rating_history` side table (a real `screener.db` in
+`tmp_path`, the 2a-03 fixture idiom) and aligned to daily bars by session date;
+daily only; one history read per ticker per pass; the probe seam's injected /
+derived history.
 """
 from __future__ import annotations
 
@@ -72,6 +78,35 @@ class _Store:
         return bars[-int(want):] if int(want) < len(bars) else list(bars)
 
 
+# ─── 2026-11-07 (RS 2b-06): the rating's side-table shapes ──────────────────
+
+RATING = "rs_line.rating"
+FAR = _dt.datetime(2030, 1, 1, tzinfo=_dt.timezone.utc).timestamp()
+
+
+def _iso(t):
+    """``20240102`` → ``"2024-01-02"``, the side table's session key."""
+    return f"{t // 10000:04d}-{(t // 100) % 100:02d}-{t % 100:02d}"
+
+
+class _Ratings:
+    """A counting `(ticker, limit) -> rows` reader — the injected rating history."""
+
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.calls = []
+
+    def __call__(self, ticker, limit):
+        self.calls.append((str(ticker).upper(), int(limit)))
+        return self.rows[:int(limit)]
+
+
+def _rating_rows(bars, rating):
+    """`rs_history.ticker_history`'s shape (newest session first): one row per bar,
+    ``ibd = rating(i)`` (``None`` is a stored-but-unrated row)."""
+    return [{"session": _iso(int(b["t"])), "ibd": rating(i)} for i, b in enumerate(bars)][::-1]
+
+
 @pytest.fixture(autouse=True, scope="module")
 def _rs_registered():
     """⭐ 2026-11-06 (RS 2b-05): THE ENTRIES ARE REGISTERED BY THE EVALUATOR AT ITS
@@ -133,8 +168,11 @@ def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
     keys = list(alert_series.SERIES_FUNCS)
     assert keys[31] == "ma_cross", "the 32 pre-RS entries are unmoved"
     assert keys[32:] == list(ars.RS_ADDRESSES) == list(ars.RS_SERIES)
-    assert len(ars.RS_ADDRESSES) == 11 and all(a.startswith("rs_line.") for a in ars.RS_ADDRESSES)
-    assert "rs_line.rating" not in ars.RS_ADDRESSES, "2b-06, not this unit"
+    assert len(ars.RS_ADDRESSES) == 12 and all(a.startswith("rs_line.") for a in ars.RS_ADDRESSES)  # 2026-11-07 (RS 2b-06): +rs_line.rating
+    assert ars.RS_ADDRESSES[-1] == "rs_line.rating" == ars.RS_RATING_ADDRESS, "2b-06: the rating, LAST"
+    assert len(ars.RS_ADDRESS_SPECS) == 11 and "rs_line.rating" not in ars.RS_ADDRESS_SPECS, \
+        "the eleven COMPUTE-backed specs; the rating is read, not computed"
+    assert set(ars.RS_ADDRESSES) == set(ars.RS_ADDRESS_SPECS) | {"rs_line.rating"}
     for address, spec in ars.RS_ADDRESS_SPECS.items():
         fn = alert_series.SERIES_FUNCS[address]
         assert alert_series.series_function(address) is fn
@@ -168,7 +206,9 @@ def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
 
 # ─── bar-for-bar equality with the chart's compute ──────────────────────────
 
-@pytest.mark.parametrize("address", ars.RS_ADDRESSES)
+# 2026-11-07 (RS 2b-06): the eleven COMPUTE-backed addresses — the rating has no
+# chart compute to equal (its own section, at the end of this file).
+@pytest.mark.parametrize("address", tuple(ars.RS_ADDRESS_SPECS))
 @pytest.mark.parametrize("params", [{}, {"benchmark": "SPY"}, CUSTOM], ids=["defaults", "spy", "custom"])
 def test_every_rs_series_equals_the_chart_compute_column_bar_for_bar(address, params):
     store = _Store()
@@ -374,6 +414,8 @@ def test_daily_and_weekly_are_the_offered_timeframes_in_either_spelling():
 def test_without_a_timeframe_and_symbol_the_column_has_no_value(address, monkeypatch):
     store = _Store()
     monkeypatch.setattr(ars, "default_fetch_bars", store)
+    ratings = _Ratings([])                                          # 2026-11-07 (RS 2b-06): nor the history
+    monkeypatch.setattr(ars, "default_read_ratings", ratings)
     fn = alert_series.SERIES_FUNCS[address]
     blank = [None] * len(STOCK)
     assert fn(STOCK, {}) == blank                                   # the forming lane's call shape
@@ -381,7 +423,7 @@ def test_without_a_timeframe_and_symbol_the_column_has_no_value(address, monkeyp
     assert aus.call_series(fn, STOCK, {}, tf="D") == blank          # a timeframe alone is not enough
     assert alert_series.series_for(address, STOCK, {}) == blank     # a right-hand operand's read
     assert ev._value_of(address)(STOCK, {}) is None                 # the forming-lane value function
-    assert store.calls == [], "nothing was fetched"
+    assert store.calls == [] and ratings.calls == [], "nothing was fetched, nothing was read"
     assert fn([], {}, tf="D", sym="TEST") == []
 
 
@@ -578,3 +620,235 @@ def test_the_probe_seam_is_injectable_and_leaves_no_pass_behind(monkeypatch):
     assert [b["t"] for b in served] == [b["t"] for b in calendar]
     assert len({round(s["c"] / b["c"], 9) for s, b in zip(served, calendar)}) > 1
     assert fetch("SPY", "D", 10) == served[-10:]
+
+
+# ─── 2026-11-07 (RS 2b-06): the rating — read from the side table, daily only ──
+
+import sqlite3  # noqa: E402
+
+from api.services.screener import rs_history as rh  # noqa: E402
+from api.services.screener import snapshot_db as _snapshot_db  # noqa: E402
+
+
+@pytest.fixture
+def side_table(tmp_path, monkeypatch):
+    """A `screener.db` in tmp, the 2a-03 fixture idiom: `SCREENER_DB_PATH` →
+    `snapshot_db.connect()` → `rs_history`. Rows go in through
+    `rh.store_rows` (which runs `ensure_schema`); the alert lane only reads."""
+    path = tmp_path / "screener.db"
+    monkeypatch.setenv("SCREENER_DB_PATH", str(path))
+    assert _snapshot_db.get_db_path() == str(path)
+    return path
+
+
+def test_the_rating_spec_declares_its_shape():
+    fn = alert_series.SERIES_FUNCS[RATING]
+    assert fn is ars.RS_SERIES[RATING] and alert_series.series_function(RATING) is fn
+    assert fn.reads_benchmark is True, "the (tf, sym) call shape `call_series` routes on"
+    assert fn.reads_rating is True, "what it actually reads"
+    assert fn.timeframes == ("D",) == ars.RS_RATING_TFS
+    assert fn.inputs == {} and fn.input_options == {} and alert_series.address_inputs(RATING) == {}
+    assert fn.instance_defs == ["rsLine"]
+    assert fn.lookback({}) == 0 and alert_series.address_lookback(RATING, {}) == 0
+    assert fn.describe({}) == "" and fn.rs_kind == "rating" and fn.rs_column == "ibd"
+    assert fn.validate({"benchmark": "INDUSTRY"}) is None, "no knobs: nothing to refuse"
+    assert fn.validate({}, "cross_above") is None and fn.normalize({"x": 1}) == {"x": 1}
+    assert ars.RATING_READ_PAD == 40
+    assert ars.address_timeframes(RATING) == ("D",)
+    assert ars.address_timeframes("rs_line.newHigh") == ars.address_timeframes(None) == ("D", "W")
+    # no declared lookback: the evaluator's window is the lane's floor
+    assert ev.bars_needed_for_alert({"indicator": RATING, "sym": "TEST", "tf": "D",
+                                     "params_json": None}) == ev.BARS_MIN
+    # the compute-side helpers do not know it: it is not an `RsSpec`
+    with pytest.raises(KeyError):
+        ars.build_rs_series(RATING, STOCK, SPY, {})
+
+
+def test_the_rating_series_is_the_stored_row_for_the_bars_own_session(side_table):
+    """Aligned by calendar date to a REAL side table: a gap session is None, an
+    unrated row is None, and a later session never leaks backwards."""
+    window = STOCK[-30:]
+    gap, unrated = 10, 20
+    for i, b in enumerate(window):
+        if i == gap:
+            continue
+        rh.store_rows(_iso(b["t"]), {"TEST": {"ibd": None if i == unrated else 40 + i, "bars": 253}})
+    # …and a session AFTER the window's newest bar, which must reach no bar
+    rh.store_rows(_iso(_weekdays(N + 1)[-1]), {"TEST": {"ibd": 99, "bars": 253}})
+    fn = alert_series.SERIES_FUNCS[RATING]
+    with ars.rs_pass(fetch_bars=_Store()) as p:
+        got = aus.call_series(fn, window, {}, tf="D", sym="TEST")      # the DEFAULT reader: the table
+        assert p.rating_calls == 1
+    assert len(got) == len(window)
+    assert got[gap] is None and got[unrated] is None
+    assert got[gap - 1] == 40 + gap - 1 and got[gap + 1] == 40 + gap + 1, "no fill across the gap"
+    assert got[-1] == 40 + len(window) - 1 and 99 not in got, "a later session never leaks backwards"
+    assert all(v is None or (isinstance(v, int) and 1 <= v <= 99) for v in got)
+    assert [v for v in got if v is not None] == [40 + i for i in range(len(window)) if i not in (gap, unrated)]
+    # the pure builder with the rows in hand gives the same column; an instant
+    # encoding is never aligned by guesswork; an empty window is empty
+    rows = rh.ticker_history("TEST", limit=100)
+    assert ars.build_rs_rating_series(window, rows) == got
+    assert ars.build_rs_rating_series([{"t": 1_700_000_000, "c": 1.0}], rows) == [None]
+    assert ars.build_rs_rating_series([], rows) == [] and fn([], {}, tf="D", sym="TEST") == []
+    assert ars.default_read_ratings("TEST", 5) == rows[:5]
+    # the lower-case symbol reads the same rows (the table stores upper-case)
+    with ars.rs_pass(fetch_bars=_Store()):
+        assert aus.call_series(fn, window, {}, tf="D", sym="test") == got
+    # the evaluator's closed lane reads the stored value at the judged bar
+    alert = {"id": 1, "user_id": "u", "sym": "TEST", "tf": "D", "indicator": RATING,
+             "condition": "above", "threshold": 50.0, "params_json": None, "last_value": None}
+    with ars.rs_pass(fetch_bars=_Store()):
+        assert ev._evaluate_one_closed(alert, window, now_epoch=FAR) == (got[-1], True, len(window) - 1)
+        assert ias.diagnose(alert, window) == (False, None)
+
+
+def test_without_a_table_the_rating_is_none_everywhere_and_the_table_is_never_created(side_table):
+    """The web pod's nightly creates the table on first WRITE; the alert lane
+    only reads — on a box without it (the worker, a fresh volume) the column is
+    None everywhere, nothing raises, and nothing is created."""
+    fn = alert_series.SERIES_FUNCS[RATING]
+    with ars.rs_pass(fetch_bars=_Store()):
+        assert aus.call_series(fn, STOCK, {}, tf="D", sym="TEST") == [None] * len(STOCK)
+    assert ars.default_read_ratings("TEST", 10) == []
+    tables = set()
+    if side_table.exists():
+        with sqlite3.connect(str(side_table)) as conn:
+            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert rh.TABLE not in tables, "the alert lane must never create the side table"
+    # the closed lane reads None as "no fire"; `diagnose` names the missing session
+    alert = {"id": 1, "user_id": "u", "sym": "TEST", "tf": "D", "indicator": RATING,
+             "condition": "above", "threshold": 50.0, "params_json": None, "last_value": None}
+    with ars.rs_pass(fetch_bars=_Store()):
+        assert ev._evaluate_one_closed(alert, STOCK, now_epoch=FAR) == (None, False, len(STOCK) - 1)
+        is_fault, detail = ias.diagnose(alert, STOCK)
+    assert is_fault is False and "no stored rating for TEST on " + _iso(TIMES[-1]) in detail
+
+
+def test_the_rating_is_daily_only_and_the_eleven_stay_daily_or_weekly():
+    fn = alert_series.SERIES_FUNCS[RATING]
+    ratings = _Ratings(_rating_rows(STOCK, lambda i: 50))
+    for tf in ("D", "1D", "d"):
+        assert ars.timeframe_refusal(tf, RATING) is None, tf
+        assert ias.refusal_for(RATING, "cross_above", tf, 90.0) is None, tf
+        with ars.rs_pass(fetch_bars=_Store(), read_ratings=ratings):
+            assert aus.call_series(fn, STOCK[-5:], {}, tf=tf, sym="TEST") == [50] * 5
+    untouched = _Ratings([])
+    for tf in ("W", "1W", "w", "5", "60", "M", "1M", "H", ""):
+        why = ars.timeframe_refusal(tf, RATING)
+        assert why is not None and "closed daily bars only" in why, tf
+        assert "Arm it on D." in why and "or weekly" not in why, tf
+        assert ias.REFUSAL_RS_TIMEFRAME in why, "the service's one anchor"
+        assert ias.refusal_for(RATING, "cross_above", tf, 90.0) == why, tf
+        with ars.rs_pass(fetch_bars=_Store(), read_ratings=untouched):
+            with pytest.raises(ars.RsTimeframeRefused) as ei:
+                aus.call_series(fn, STOCK, {}, tf=tf, sym="TEST")
+        assert str(ei.value) == why and ei.value.address == RATING and ei.value.tf == tf
+    assert untouched.calls == [], "refused BEFORE the history is read"
+    assert "daily closes" in ars.timeframe_refusal("W", RATING)
+    assert "weekly bar has no rating of its own" in ars.timeframe_refusal("W", RATING)
+    assert "5-minute bar" in ars.timeframe_refusal("5", RATING)
+    assert "monthly" in ars.timeframe_refusal("M", RATING)
+    # the eleven are unmoved: W offered, the daily-or-weekly sentence otherwise
+    for a in ars.RS_ADDRESS_SPECS:
+        assert ars.timeframe_refusal("W", a) is None and ars.timeframe_refusal("D", a) is None
+        assert "daily or weekly bars only" in ars.timeframe_refusal("5", a)
+        assert ias.REFUSAL_RS_TIMEFRAME in ars.timeframe_refusal("5", a)
+        assert ias.refusal_for(a, ev.ALERT_CONDITIONS[a][0]["value"], "W", 0.0) is None
+
+
+def test_the_history_is_read_once_per_pass_for_three_alerts_on_one_ticker():
+    fn = alert_series.SERIES_FUNCS[RATING]
+    ratings = _Ratings(_rating_rows(STOCK, lambda i: 1 + (i * 7) % 99))
+    want = ars.build_rs_rating_series(STOCK, ratings.rows)
+    assert len(set(want)) > 1 and None not in want
+    store = _Store()
+    with ars.rs_pass(fetch_bars=store, read_ratings=ratings) as p:
+        for params in ({}, {"benchmark": "QQQ"}, {"anything": 1}):      # three alerts, one ticker
+            assert aus.call_series(fn, STOCK, params, tf="D", sym="TEST") == want
+        assert ratings.calls == [("TEST", N + ars.RATING_READ_PAD)] and p.rating_calls == 1
+        assert store.calls == [], "the rating reads no benchmark"
+        # a smaller window on the same ticker is served from the read already made
+        assert aus.call_series(fn, STOCK[-100:], {}, tf="D", sym="TEST") == want[-100:]
+        assert p.rating_calls == 1
+        # another ticker is its own read; a compute column beside it reads no history
+        aus.call_series(fn, OTHER, {}, tf="D", sym="ABC")
+        aus.call_series(alert_series.SERIES_FUNCS["rs_line.value"], STOCK, {}, tf="D", sym="TEST")
+        assert [c[0] for c in ratings.calls] == ["TEST", "ABC"] and p.rating_calls == 2
+        assert store.calls == [("SPY", "D", N)]
+    # a NEW pass reads again (no stale row outlives the pass it was read in)
+    with ars.rs_pass(fetch_bars=store, read_ratings=ratings):
+        aus.call_series(fn, STOCK, {}, tf="D", sym="TEST")
+    assert len(ratings.calls) == 3
+    # the memo's serve-or-reread rule, on the pass directly (the `fetch` rule)
+    short = _Ratings(ratings.rows[:50])
+    p = ars.RsPass(store, short)
+    assert p.ratings("TEST", 30) == short.rows[:30] and short.calls == [("TEST", 30)]
+    assert p.ratings("test", 20) == short.rows[:30] and len(short.calls) == 1, "smaller: served"
+    assert p.ratings("TEST", 80) == short.rows[:50] and len(short.calls) == 2, "larger: re-read"
+    assert p.ratings("TEST", 200) == short.rows[:50] and len(short.calls) == 2, "the table has no more"
+    assert ars.RsPass(store).read_ratings is ars.default_read_ratings
+    # nested without a reader of its own a pass joins the outer one; a reader names a new one
+    with ars.rs_pass(fetch_bars=store, read_ratings=ratings) as outer:
+        with ars.rs_pass() as inner:
+            assert inner is outer
+        with ars.rs_pass(read_ratings=_Ratings([])) as fresh:
+            assert fresh is not outer and fresh.fetch_bars is ars.default_fetch_bars
+        with ars.rs_pass(fetch_bars=store) as fresh2:
+            assert fresh2 is not outer and fresh2.read_ratings is ars.default_read_ratings
+    assert ars.current_pass() is None
+
+
+def test_the_catalog_offers_the_rating_as_a_level_with_default_90_printed_as_an_integer():
+    entry = {e["indicator"]: e for e in ev.alert_catalog()}["rs_line"]      # renders: no KeyError
+    plot = entry["plots"][-1]
+    assert plot["value"] == RATING and plot["label"] == "RS rating (IBD-style)" == ev.ALERT_LABELS[RATING]
+    assert [c["value"] for c in plot["conditions"]] == ["above", "below", "cross_above", "cross_below"]
+    assert all(c["needs_threshold"] for c in plot["conditions"])
+    assert plot["default_threshold"] == 90.0 == ev._DEFAULT_THRESHOLDS[RATING]
+    assert plot["inputs"] == {} and "input_options" not in plot and plot["instance_defs"] == ["rsLine"]
+    assert plot["instance_label"] == ev.instance_label(RATING) == "RS rating (IBD-style)", "no knobs, no suffix"
+    assert ev.instance_label("rs_line.ma") == "RS line average (vs SPY · EMA(21))", "the eleven keep theirs"
+    assert ev.value_decimals(RATING) == 0 == ev.ALERT_VALUE_DECIMALS[RATING]
+    assert ev.format_alert_value(RATING, 91) == "91" and ev.format_alert_value(RATING, 90.0) == "90"
+    assert RATING in ev.RS_FUNCS and RATING in ev.CLOSED_ONLY_ADDRESSES and RATING not in ev.INDICATOR_FUNCS
+    assert ev.resolve_address("RS_LINE.RATING") == RATING and ev._lane_for(RATING, "forming") == "closed"
+    assert ev.params_refusal(RATING, "cross_above", {}) is None
+    assert "offers above, below, cross_above, cross_below" in ev.params_refusal(RATING, "cross_zero", {})
+    assert not any((RATING, c) in ev.THRESHOLD_OPERAND for c in ("above", "below", "cross_above", "cross_below"))
+    # the soak matrix arms it at its default, through the catalog
+    from tools import alert_soak_matrix as soak
+    assert [s for s in soak.catalog_addresses() if s["address"] == RATING] == \
+        [{"address": RATING, "condition": "above", "threshold": 90.0}]
+
+
+def test_the_probe_seam_carries_a_rating_history_injected_or_derived(monkeypatch):
+    instant, calendar = ias._probe_series()
+    fn = alert_series.SERIES_FUNCS[RATING]
+    # derived: one row per calendar bar, so the probe measures the column's own alignment
+    monkeypatch.setattr(ias, "_PROBE_RATING_READ", None)
+    col = ias._probe_column(fn, calendar, {})
+    assert len(col) == len(calendar) and all(isinstance(v, int) and 1 <= v <= 99 for v in col)
+    assert len(set(col)) > 1 and col[-1] is not None and ias.closed_lane_pad(RATING, calendar, {}) == 0
+    read = ias._probe_rating_reader(calendar)
+    rows = read("PROBE", len(calendar) + ars.RATING_READ_PAD)
+    assert [r["session"] for r in rows] == [_iso(b["t"]) for b in calendar][::-1], "newest first"
+    assert col == ars.build_rs_rating_series(calendar, rows)
+    assert read("PROBE", 10) == rows[:10]
+    assert ias._probe_rating_reader(instant)("PROBE", 10) == [], "no calendar, no rows"
+    with pytest.raises(ars.RsTimeframeRefused):
+        ias._probe_column(fn, instant, {})
+    assert ias.closed_lane_pad(RATING, instant, {}) == 0, "a refusal is 'could not tell'"
+    assert ars.current_pass() is None
+    # injected: a test's own history wins, and the eleven do not read it
+    ratings = _Ratings(_rating_rows(calendar, lambda i: 42))
+    monkeypatch.setattr(ias, "_PROBE_RATING_READ", ratings)
+    assert ias._probe_column(fn, calendar, {}) == [42] * len(calendar)
+    assert ratings.calls == [("PROBE", len(calendar) + ars.RATING_READ_PAD)]
+    ias._probe_column(alert_series.SERIES_FUNCS["rs_line.value"], calendar, {})
+    assert len(ratings.calls) == 1
+    # the two measured sets did not move, and every address still resolves on its probe
+    monkeypatch.setattr(ias, "_INSTANT_ONLY_CACHE", None)
+    monkeypatch.setattr(ias, "_CLOSED_LANE_DEAD_CACHE", None)
+    assert ias.instant_only_addresses() == frozenset({"vwap"})
+    assert ias.closed_lane_dead_addresses() == frozenset({"ichimoku.chikou"})

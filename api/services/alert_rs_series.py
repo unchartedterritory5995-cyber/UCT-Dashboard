@@ -27,6 +27,27 @@ module is that lane (engineering map §2.6, unit 2b-04):
   offered on. Plan §6.5: an RS event is a daily / weekly closed-bar fact; on an
   intraday chart the provider blanks the event columns, and an intraday ALERT on
   them is refused outright rather than armed mute.
+* `rs_line.rating` (unit 2b-06) — the twelfth address, and the ONE column here
+  that reads no benchmark: the IBD-style RS rating (1–99) the web pod's nightly
+  job stores per session in `screener.db`'s `rs_rating_history` side table
+  (`api/services/screener/rs_history.py`, unit 2a-03). The column is the stored
+  row for the bar's OWN session, aligned by calendar date — a session with no
+  row is ``None``, and a later session never leaks backwards. DAILY only
+  (``fn.timeframes == ("D",)``): the rating is computed from daily closes, one
+  row per session, so a weekly bar has no rating of its own. The history is
+  read ONCE per ticker per pass (`RsPass.ratings`), through an injectable reader
+  (the service's probe, a test); the default is `rs_history.ticker_history`,
+  which never raises and never creates the table — absent or dark, the column
+  is ``[None] * len(bars)``.
+
+  ⚠️ IT DECLARES ``fn.reads_benchmark = True`` AND ``fn.reads_rating = True``.
+  `alert_user_series.call_series` (outside this unit's file limit) hands a
+  builtin column its ``tf`` and ``sym`` on exactly one flag, `reads_benchmark`
+  — that flag IS the name of the two-symbol call shape, not a claim about a
+  second series — and without the symbol the rating cannot name its row, so a
+  column that left the flag off would be offered and never fire (the `vwap`
+  class). `reads_rating` says what the column actually reads: the probe seam
+  injects a history for it, and a reader of either flag gets a true answer.
 
 ⛔ NOTHING HERE IS A SECOND FORMULA. Inputs go through
 `relative_strength.resolve_phase1_inputs` (the chart's clamp), the benchmark
@@ -62,6 +83,8 @@ from api.services.signature import registry_defs
 
 Series = list[Optional[float]]
 FetchBars = Callable[[str, str, int], list]
+#: ``(ticker, limit) -> rows`` — `rs_history.ticker_history`'s shape (newest session first).
+ReadRatings = Callable[[str, int], list]
 
 #: The address base; `plot_base("rs_line.newHigh") == "rs_line"`, and
 #: `alertSets.idKey('rs_line') == idKey('rsLine')` binds it to the chart definition.
@@ -75,6 +98,17 @@ RS_BASE = "rs_line"
 RS_ALERT_TFS: tuple[str, ...] = ("D", "W")
 _TF_ALIASES: dict[str, str] = {"1D": "D", "1W": "W", "1M": "M"}
 _INTRADAY_TFS: tuple[str, ...] = ("1", "5", "15", "30", "60")
+
+#: 2026-11-07 (RS 2b-06) — the rating address and ITS timeframes. The IBD-style
+#: rating is a nightly, per-SESSION number computed from daily closes
+#: (`rs_history.compute_ratings`), so it is offered on closed DAILY bars only:
+#: a weekly bar has no rating of its own and an intraday bar never will.
+RS_RATING_ADDRESS = f"{RS_BASE}.rating"
+RS_RATING_TFS: tuple[str, ...] = ("D",)
+#: Sessions read beyond the bar window: the table may hold sessions the bar
+#: store lacks (or the reverse), and the join is by date, so a little slack
+#: keeps the window's oldest bar inside the rows read. Extra rows cost nothing.
+RATING_READ_PAD = 40
 
 #: Benchmarks an ALERT may name: the chart's menu minus INDUSTRY (engineering map
 #: §2.6 "Benchmark load": a composite costs up to 60 member reads against the
@@ -124,13 +158,46 @@ def normalize_tf(tf: Any) -> str:
     return _TF_ALIASES.get(code, code)
 
 
+def address_timeframes(address: Optional[str]) -> tuple[str, ...]:
+    """The timeframes ``address`` is offered on: the column's OWN declaration
+    (``fn.timeframes``) when the address is one of this module's, else the
+    lane-wide daily / weekly. 2026-11-07 (RS 2b-06): the rating declares
+    ``("D",)``; every other RS column declares `RS_ALERT_TFS`."""
+    fn = RS_SERIES.get(address) if address else None
+    return tuple(getattr(fn, "timeframes", None) or RS_ALERT_TFS)
+
+
 def timeframe_refusal(tf: Any, address: Optional[str] = None) -> Optional[str]:
     """Why an RS address cannot be armed on ``tf``, as a member sentence — or
-    ``None`` (daily / weekly). The evaluator's create door (2b-05) prints this;
-    the column raises `RsTimeframeRefused` carrying the same sentence."""
+    ``None`` (offered). The evaluator's create door (2b-05) prints this; the
+    column raises `RsTimeframeRefused` carrying the same sentence.
+
+    Per ADDRESS since 2b-06: the rating is daily-only and says so in its own
+    sentence ("closed daily bars only", naming the nightly daily-close table);
+    the eleven compute-backed addresses keep the daily / weekly sentences.
+    ⚠️ Every sentence here carries the phrase the service anchors on
+    (`indicator_alert_service.REFUSAL_RS_TIMEFRAME`, "are judged on closed
+    daily"); the two families diverge only AFTER it.
+    """
     code = normalize_tf(tf)
-    if code in RS_ALERT_TFS:
+    offered = address_timeframes(address)
+    if code in offered:
         return None
+    if offered == RS_RATING_TFS:
+        what = "IBD-style RS rating alerts"
+        why = ("the rating is computed nightly from daily closes, one row per "
+               "session (`rs_rating_history`), so")
+        if code == "W":
+            return (f"{what} are judged on closed daily bars only — {why} a weekly "
+                    f"bar has no rating of its own. Arm it on D.")
+        if code in _INTRADAY_TFS:
+            return (f"{what} are judged on closed daily bars only — {why} a "
+                    f"{code}-minute bar has no rating of its own. Arm it on D.")
+        if code == "M":
+            return (f"{what} are judged on closed daily bars only — {why} a monthly "
+                    f"bar has no rating of its own. Arm it on D.")
+        return (f"{what} are judged on closed daily bars only — got timeframe "
+                f"{tf!r}. Arm it on D.")
     what = "UCT Relative Strength alerts"
     if code in _INTRADAY_TFS:
         return (f"{what} are judged on closed daily or weekly bars only — a "
@@ -182,7 +249,10 @@ _MANSFIELD_INPUTS: tuple[str, ...] = ("benchmark", "mansfieldLength")
 #: `mansfieldCrossDown` are this unit's additions (the line, its average, the
 #: above-average STATE a member can hold an `above` rule on, and the two signed
 #: Mansfield zero crosses beside the `cross_zero` rule on the line itself).
-#: `rs_line.rating` is unit 2b-06 and is NOT here.
+#: ⚠️ THESE ARE THE ELEVEN COMPUTE-BACKED ADDRESSES ONLY. `rs_line.rating`
+#: (2026-11-07, unit 2b-06) is the twelfth entry of `RS_SERIES` and is NOT a row
+#: here: an `RsSpec` names a `relative_strength` column and its family, and the
+#: rating has neither — it is read, not computed (`_rs_rating_column` below).
 RS_ADDRESS_SPECS: dict[str, RsSpec] = {
     f"{RS_BASE}.value": RsSpec("rsLine", "phase1", ("benchmark",), "line", True),
     f"{RS_BASE}.ma": RsSpec("rsMa", "phase1", _MA_INPUTS, "line", True),
@@ -341,18 +411,51 @@ def default_fetch_bars(ticker: str, tf: str, want: int) -> list:
     return alert_user_series._symbol_bars(ticker, tf, want)
 
 
+def default_read_ratings(ticker: str, limit: int) -> list:
+    """The lane's own rating-history loader (2026-11-07, RS 2b-06):
+    `rs_history.ticker_history`, newest session first, the web pod's
+    `screener.db` side table. It never raises and never creates the table —
+    without one (the worker pod, a box the nightly has not run on) it is ``[]``
+    and the column is ``None`` everywhere, never a guessed number."""
+    from api.services.screener import rs_history
+    return rs_history.ticker_history(ticker, limit=int(limit))
+
+
 class RsPass:
     """The memo of one evaluation pass (see `rs_pass`)."""
 
-    __slots__ = ("fetch_bars", "_bench", "_resolved", "_columns", "fetch_calls", "compute_calls")
+    __slots__ = ("fetch_bars", "read_ratings", "_bench", "_resolved", "_columns", "_ratings",
+                 "fetch_calls", "compute_calls", "rating_calls")
 
-    def __init__(self, fetch_bars: FetchBars) -> None:
+    def __init__(self, fetch_bars: FetchBars, read_ratings: Optional[ReadRatings] = None) -> None:
         self.fetch_bars = fetch_bars
+        self.read_ratings = read_ratings or default_read_ratings
         self._bench: dict[tuple, tuple[int, list]] = {}
         self._resolved: dict[tuple, dict] = {}
         self._columns: dict[tuple, dict] = {}
+        self._ratings: dict[str, tuple[int, list]] = {}
         self.fetch_calls = 0
         self.compute_calls = 0
+        self.rating_calls = 0
+
+    def ratings(self, ticker: str, limit: int) -> list:
+        """The newest ``limit`` stored rating rows of ``ticker`` (newest first) —
+        read ONCE per ticker in this pass, however many rating alerts name it
+        (2026-11-07, RS 2b-06). The same serve-or-reread rule as `fetch`: a
+        smaller ``limit`` is served from the read already made (the rows are
+        joined by date, so extra rows cost nothing); a larger one re-reads
+        unless the first read already returned fewer rows than it asked for."""
+        key = str(ticker or "").upper()
+        limit = max(1, int(limit))
+        hit = self._ratings.get(key)
+        if hit is not None:
+            had_limit, rows = hit
+            if had_limit >= limit or len(rows) < had_limit:
+                return rows
+        rows = list(self.read_ratings(ticker, limit) or [])
+        self.rating_calls += 1
+        self._ratings[key] = (limit, rows)
+        return rows
 
     def fetch(self, ticker: str, tf: str, want: int) -> list:
         """Latest ``want`` bars of ``ticker`` at ``tf`` — read ONCE per ``(ticker, tf)``
@@ -403,24 +506,27 @@ def current_pass() -> Optional[RsPass]:
 
 
 @contextlib.contextmanager
-def rs_pass(fetch_bars: Optional[FetchBars] = None):
+def rs_pass(fetch_bars: Optional[FetchBars] = None, read_ratings: Optional[ReadRatings] = None):
     """One evaluation pass. Every RS column evaluated inside shares one benchmark
-    read per ``(ticker, tf)`` and one compute per column family and window.
+    read per ``(ticker, tf)``, one compute per column family and window, and
+    (2026-11-07, RS 2b-06) one rating-history read per ticker.
 
-    Nested without a fetcher of its own, a pass joins the outer one (a cycle
-    that wraps a group that wraps an alert still reads once). A fetcher names
-    a NEW pass — the way a test or the service's probe injects its benchmark.
+    Nested without a reader of its own, a pass joins the outer one (a cycle
+    that wraps a group that wraps an alert still reads once). A fetcher or a
+    rating reader names a NEW pass — the way a test or the service's probe
+    injects its benchmark and its history; whichever is not named is the
+    default loader.
 
-    ⚠️ The evaluator's cycle does not enter this yet (unit 2b-05 wraps
-    `_run_one_cycle`'s group loop in it). Outside a pass each column call makes
-    a pass of its own, and the store is still read once per ``(ticker, tf,
-    want)`` per 20 s through `_symbol_bars`' TTL cache.
+    The evaluator's cycle wraps `_run_one_cycle`'s group loop in this (2b-05).
+    Outside a pass each column call makes a pass of its own, and the bar store
+    is still read once per ``(ticker, tf, want)`` per 20 s through
+    `_symbol_bars`' TTL cache.
     """
     outer = _PASS.get()
-    if outer is not None and fetch_bars is None:
+    if outer is not None and fetch_bars is None and read_ratings is None:
         yield outer
         return
-    p = RsPass(fetch_bars or default_fetch_bars)
+    p = RsPass(fetch_bars or default_fetch_bars, read_ratings)
     token = _PASS.set(p)
     try:
         yield p
@@ -522,8 +628,98 @@ def _rs_column(address: str) -> Callable[..., Series]:
     return fn
 
 
-#: ⭐ THE ENTRIES `register_rs_series` APPENDS to `alert_series.SERIES_FUNCS`, in catalog order.
-RS_SERIES: dict[str, Callable[..., Series]] = {a: _rs_column(a) for a in RS_ADDRESS_SPECS}
+# ─── 2026-11-07 (RS 2b-06): the rating — read from the side table, not computed ──
+
+def _session_ymd(session: Any) -> Optional[int]:
+    """``"2026-01-22"`` (the table's session key, `rs_history.session_key`) →
+    ``20260122``, the daily bar's ``t`` shape; ``None`` for anything else."""
+    digits = str(session or "").strip().replace("-", "")[:8]
+    if len(digits) != 8 or not digits.isdigit():
+        return None
+    return int(digits)
+
+
+def _bar_ymd(bar: Mapping) -> Optional[int]:
+    """A daily bar's calendar ``t`` (``YYYYMMDD`` int, what `bars_sqlite` stores
+    for D), or ``None`` for an instant encoding — which is never aligned to a
+    session by guesswork."""
+    try:
+        t = int(bar.get("t"))
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return t if 10_000_000 <= t < 100_000_000 else None
+
+
+def build_rs_rating_series(bars: Sequence[Mapping], rows: Sequence[Mapping]) -> Series:
+    """The rating column: for each bar, the stored ``ibd`` of the row whose
+    session IS the bar's date — an int 1–99 — or ``None``.
+
+    Pure. The join is by calendar date and exact: a session with no stored row
+    is ``None`` (never forward-filled from the session before, never
+    back-filled from the one after), and an unrated row (``ibd`` NULL — fewer
+    than 64 closes that night) is ``None`` too. ``rows`` is `ticker_history`'s
+    shape, newest first; order does not matter here.
+    """
+    by_day: dict[int, Optional[int]] = {}
+    for row in rows or ():
+        day = _session_ymd(row.get("session"))
+        if day is None or day in by_day:
+            continue
+        ibd = row.get("ibd")
+        by_day[day] = None if ibd is None else int(ibd)
+    out: Series = []
+    for bar in bars:
+        day = _bar_ymd(bar)
+        out.append(by_day.get(day) if day is not None else None)
+    return out
+
+
+def _rs_rating_column() -> Callable[..., Series]:
+    """The SERIES function for `rs_line.rating` — the same call shape as the
+    eleven (`_rs_column`), reading the pass's rating memo instead of a benchmark.
+    """
+    address = RS_RATING_ADDRESS
+
+    def fn(bars: list, params: Mapping, tf: Optional[str] = None, sym: Optional[str] = None) -> Series:
+        n = len(bars)
+        if tf is None or not sym:
+            # The forming lane, a right-hand operand, a probe without a symbol:
+            # no symbol names no row, so no value — never a guessed one.
+            return [None] * n
+        code = normalize_tf(tf)
+        if code not in RS_RATING_TFS:
+            raise RsTimeframeRefused(tf, address)
+        if n == 0:
+            return []
+        p = current_pass() or RsPass(default_fetch_bars)
+        return build_rs_rating_series(bars, p.ratings(sym, n + RATING_READ_PAD))
+
+    fn.__name__ = "_series_rs_rating"
+    fn.inputs = {}                                                      # type: ignore[attr-defined]
+    fn.input_options = {}                                               # type: ignore[attr-defined]
+    fn.instance_defs = ["rsLine"]                                       # type: ignore[attr-defined]
+    # No knobs: nothing to refuse, nothing to respell. A knob this address does
+    # not read passes through, the house rule (`normalize_rs_params`).
+    fn.validate = lambda params, condition=None: None                   # type: ignore[attr-defined]
+    fn.normalize = lambda params: dict(params or {})                    # type: ignore[attr-defined]
+    fn.lookback = lambda params: 0                                      # type: ignore[attr-defined]
+    # The instance IS the plot — no suffix. `instance_label` prints the label
+    # alone for an empty RS suffix rather than "RS rating (IBD-style) ()".
+    fn.describe = lambda params: ""                                     # type: ignore[attr-defined]
+    fn.reads_benchmark = True      # the (tf, sym) CALL SHAPE `call_series` routes on — see the module docstring
+    fn.reads_rating = True         # what it actually reads: the `rs_rating_history` side table
+    fn.timeframes = RS_RATING_TFS                                       # type: ignore[attr-defined]
+    fn.rs_column = "ibd"                                                # type: ignore[attr-defined]
+    fn.rs_kind = "rating"                                               # type: ignore[attr-defined]
+    return fn
+
+
+#: ⭐ THE ENTRIES `register_rs_series` APPENDS to `alert_series.SERIES_FUNCS`, in catalog order:
+#: the eleven compute-backed addresses, then (2026-11-07, RS 2b-06) the rating, LAST.
+RS_SERIES: dict[str, Callable[..., Series]] = {
+    **{a: _rs_column(a) for a in RS_ADDRESS_SPECS},
+    RS_RATING_ADDRESS: _rs_rating_column(),
+}
 RS_ADDRESSES: tuple[str, ...] = tuple(RS_SERIES)
 
 

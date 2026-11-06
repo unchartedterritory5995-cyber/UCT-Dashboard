@@ -794,9 +794,9 @@ def test_the_validator_refuses_EXACTLY_TWO_addresses_on_the_closed_lane(
     assert refused == set(ias.instant_only_addresses()) | set(
         ias.closed_lane_dead_addresses())
     assert refused == {"vwap", "ichimoku.chikou"}, refused
-    # …and the rail is not a rail over everything: 41 of 43 stay armable on D
+    # …and the rail is not a rail over everything: 42 of 44 stay armable on D
     # (2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`).
-    assert len(soak.catalog_addresses()) - len(refused) == 41
+    assert len(soak.catalog_addresses()) - len(refused) == 42  # 2026-11-07 (RS 2b-06): +rs_line.rating
 
 
 def test_the_probe_resolves_every_catalog_address():
@@ -815,7 +815,7 @@ def test_the_probe_resolves_every_catalog_address():
                                  alert_series.SERIES_FUNCS[a],
                                  calendar if a in ev.RS_ADDRESSES else instant, {}))]
     assert unresolved == []
-    assert len(ev.all_addresses()) == 43  # 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert len(instant) == len(calendar) == ias._PROBE_BARS
     # the two probe series differ in `t` and in NOTHING else
     assert [{k: v for k, v in b.items() if k != "t"} for b in instant] == \
@@ -1034,23 +1034,23 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     """
     from tools import alert_soak_matrix as soak
 
-    # 2026-11-06 (RS 2b-05): 43 = 32 + the eleven `rs_line.*` rows the matrix
+    # 2026-11-06 (RS 2b-05): 44 = 32 + the twelve (2026-11-07, RS 2b-06: +rs_line.rating) `rs_line.*` rows the matrix
     # now arms (its `arm()` writes through the UNGATED `create`; at its
     # DEFAULT_TF "5" those eleven are refused every cycle by the lane — one
     # warning line, no fire — and flagged by the silence sweep. That is the
     # matrix's own concern, recorded in the 2b-05 hand-off, not this rail's).
     first = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert len(first["created"]) == 43 and first["kept"] == []
+    assert len(first["created"]) == 44 and first["kept"] == []
 
     second = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert second["created"] == [] and len(second["kept"]) == 43
+    assert second["created"] == [] and len(second["kept"]) == 44
 
     out = soak.verify()
-    assert out["armed"] == 43
-    assert out["visible_to_shadow"] == 43
+    assert out["armed"] == 44
+    assert out["visible_to_shadow"] == 44
     assert out["deliverable_now"] == 0
     assert out["missing"] == []
-    assert out["addresses_covered"] == out["addresses_expected"] == 43
+    assert out["addresses_covered"] == out["addresses_expected"] == 44
 
 
 def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
@@ -1077,17 +1077,17 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
     from api.services import indicator_alert_evaluator as _ev
 
     specs = soak.catalog_addresses()
-    assert len(specs) == 43  # 2026-11-06 (RS 2b-05): 32 + 11 `rs_line.*`
+    assert len(specs) == 44  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): 32 + 11 `rs_line.*`
 
     monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "closed")
     refused_addresses = set(ias.closed_lane_dead_addresses())
     assert refused_addresses == {"ichimoku.chikou"}, refused_addresses
-    # 2026-11-06 (RS 2b-05) — and the eleven RS addresses, at the matrix's own
+    # 2026-11-06 (RS 2b-05) — and the twelve RS addresses (2026-11-07, RS 2b-06: +rating), at the matrix's own
     # DEFAULT_TF ("5"): an RS alert is judged on closed daily / weekly bars only
     # and the door says so in the lane's sentence (`REFUSAL_RS_TIMEFRAME`). A
     # different refusal, a different anchor — the two are asserted apart.
     rs_refused = set(_ev.RS_ADDRESSES)
-    assert len(rs_refused) == 11 and not (rs_refused & refused_addresses)
+    assert len(rs_refused) == 12 and not (rs_refused & refused_addresses)
 
     refused = []
     for spec in specs:
@@ -1107,9 +1107,9 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
         else:
             assert r.status_code == 200, (spec, r.text)
     assert sorted(refused) == sorted(refused_addresses | rs_refused)
-    # STILL 31: 43 specs minus chikou minus the eleven RS rows refused on "5"
+    # STILL 31: 44 specs minus chikou minus the twelve RS rows refused on "5"
     # (2026-11-04: 32 specs (+ma_cross) minus chikou; 2026-11-06 (RS 2b-05):
-    # +11 specs and +11 door refusals, so the armed count does not move).
+    # +11 specs and +11 door refusals, so the armed count does not move; 2026-11-07 (RS 2b-06): +1 spec, +1 refusal, still 31).
     assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
 
     # …and on the ROLLBACK lane the whole catalog is armable again, with no
@@ -1248,7 +1248,7 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
         ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
 
     out = soak.verify()
-    assert out["armed"] == 43 and out["deliverable_now"] == 0   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert out["armed"] == 44 and out["deliverable_now"] == 0   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`  (2026-11-07, RS 2b-06: +rs_line.rating)
     assert out["expiring_soon"] == 0
     assert out["muzzle_expires_in_days"] > soak.EXPIRY_WARN_DAYS
     assert soak.main(["--verify"]) == 0
@@ -1261,14 +1261,14 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
     warned = soak.verify()
     assert all(a["state"] == ias.STATE_SNOOZED for a in soak.soak_rows())
     assert warned["deliverable_now"] == 0        # still muzzled …
-    assert warned["expiring_soon"] == 43         # … and it says the clock is running (43 since RS 2b-05)
+    assert warned["expiring_soon"] == 44         # … and it says the clock is running (44 since RS 2b-06, 2026-11-07)
     assert soak.main(["--verify"]) == 1
 
     # past the window: deliverable, and still red
     gone = _time.time() + 31 * _DAY
     monkeypatch.setattr(soak.time, "time", lambda: gone)
     monkeypatch.setattr(ias.time, "time", lambda: gone)
-    assert soak.verify()["deliverable_now"] == 43   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert soak.verify()["deliverable_now"] == 44   # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert soak.main(["--verify"]) == 1
 
 
@@ -1280,7 +1280,7 @@ def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
     from tools import alert_soak_matrix as soak
     soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
     ids = {a["id"] for a in soak.soak_rows()}
-    assert len(ids) == 43   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(ids) == 44   # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert ids <= {a["id"] for a in ias.list_active()}
 
     # even after the sweep rewrites every state, they stay visible AND muzzled

@@ -338,7 +338,7 @@ def test_the_CATALOG_half_of_the_response_is_BYTE_UNMOVED(client):
     body = served(client)
     assert body["catalog"] == ev.alert_catalog()
     assert len(ev.alert_catalog()) == 18  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
-    assert len(ev.all_addresses()) == 43  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 

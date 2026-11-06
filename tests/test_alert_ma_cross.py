@@ -93,7 +93,7 @@ def test_the_frozen_grid_and_every_existing_entry_are_unmoved():
     assert len(ev.INDICATOR_FUNCS) == 28 and "ma_cross" not in ev.INDICATOR_FUNCS
     assert "ma_cross" not in ev.THRESHOLD_ADDRESSES
     # 2026-11-06 (RS 2b-05): the eleven `rs_line.*` addresses are appended AFTER `ma_cross`.
-    assert ev.all_addresses()[31] == "ma_cross" and len(ev.all_addresses()) == 43
+    assert ev.all_addresses()[31] == "ma_cross" and len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +rs_line.rating
     # …every group BEFORE `ma_cross`. 2026-11-06 (RS 2b-05): `rs_line`, after it,
     # declares both keys on every plot too (its columns carry `input_options` and
     # `instance_defs`), by the same rule — only where the column declares them.
