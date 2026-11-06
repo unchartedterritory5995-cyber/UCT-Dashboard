@@ -40,12 +40,18 @@ const NOT_A_NAME = new Set([
   'key keys file files alt ctrl shift esc enter tab pdf csv png',
   // words of a market or a sentence that are also tickers: "on ALL my charts", "set alerts for EOD"
   'all any low high now open close here am pm et est eod etf eps ipo usd us ai',
+  // an exchange, a clock or a report in capitals: "switch to NYSE", "set it to UTC", "show me CPI on the calendar"
+  'nyse nasdaq amex otc utc gmt cst pst mst fomc cpi ppi pce gdp',
   // an order or a place: an ordinal and a position are read on their own
   'first second third fourth fifth sixth last middle center centre left right top bottom upper lower',
 ].join(' ').split(' '))
 const isNotAName = (word) => { const w = word.toLowerCase(); return NOT_A_NAME.has(w) || NOT_A_NAME.has(w.replace(/s$/, '')) }
 // could this word be a chart's name at all? Tickers have letters; a timeframe or an indicator between "the" and "chart" is neither
 const couldName = (word) => /[a-z]/i.test(word) && !isNotAName(word) && !tfCode(word) && !readIndicator(word)
+// ⛔ a bare word carries no "chart" to say it means one, so only a ticker's shape counts: capitals, up to five letters, perhaps
+// dotted (BRK.B). "switch to Renko" and "on MONDAY" are not that shape. One letter alone is a key or a scale more often than not
+const TICKER_SHAPE = /^[A-Z]{2,5}(?:\.[A-Z]{1,2})?$/
+const bareName = (word) => TICKER_SHAPE.test(word) && couldName(word)
 const listOf = (charts) => charts.map(c => c.label).join(', ')
 
 const TF_WORDS = { hourly: '60', daily: 'D', day: 'D', weekly: 'W', week: 'W', monthly: 'M', month: 'M' }
@@ -79,7 +85,7 @@ function namesAnother(s, only) {
   if (ord?.ask && /chart/i.test(ord.match[0]) && !/middle|cent(?:er|re)/i.test(ord.match[0])) return true
   const other = (word) => !sameSymbol(only, word) && couldName(word)
   for (const m of s.matchAll(WORD_CHART)) if (other(m[1])) return true
-  for (const m of s.matchAll(BARE_TICKER)) if (m[1].length > 1 && other(m[1])) return true
+  for (const m of s.matchAll(BARE_TICKER)) if (!sameSymbol(only, m[1]) && bareName(m[1])) return true
   return false
 }
 const absent = (word, charts) => `There’s no ${word} chart on this board, so I can’t show that on it. Your charts are: ${listOf(charts)}.`
@@ -131,7 +137,7 @@ export function namedChart(words, charts = []) {
   // nothing on this board answers: a bare name is said too, never walked on the clicked chart
   if (!names.size) {
     for (const m of s.matchAll(BARE_TICKER)) {
-      if (m[1].length > 1 && !charts.some(c => sameSymbol(c, m[1])) && couldName(m[1])) return { say: absent(m[1], charts) }
+      if (!charts.some(c => sameSymbol(c, m[1])) && bareName(m[1])) return { say: absent(m[1], charts) }
     }
     for (const m of s.matchAll(BARE_LOWER)) {
       const hit = charts.find(c => sameSymbol(c, m[1]))
