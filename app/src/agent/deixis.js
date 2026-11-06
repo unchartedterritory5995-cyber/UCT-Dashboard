@@ -244,6 +244,12 @@ export function chartsNamedBy(text, charts = []) {
  *   several charts changed → { propose } the change is shown for approval, never applied at once
  * → null when every changed chart is identified (or the board has one chart).
  */
+function clickFits(words, charts, sel) {
+  const said = [...String(words || '').matchAll(POS_WORDS)].map(m => m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom'))
+  if (!said.length) return true
+  return said.some(w => { const parts = w.split('-'); return charts.some(c => c.ref === sel && c.position && parts.every(p => c.position.split('-').includes(p))) })
+}
+
 export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
   if (pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   // an ANSWER to the model's question is read with the words that question was about (`context`)
@@ -279,8 +285,11 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const named = chartsNamedBy(words, charts)
   // a picked choice may be the chart itself or a chart-backed entry of it (`ixe:<chart>`)
   for (const r of pickedRefs || []) if (r) { named.add(r); named.add(String(r).replace(/^[a-z]+:/i, '')) }
+  // ⛔ The click answers for a request that names no chart. Words that name one are not overruled by it: a plan on the clicked
+  // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
+  // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
-  if (sel) named.add(sel)
+  if (sel && (/\bthis\b/i.test(words) || (!named.size && clickFits(words, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
