@@ -131,13 +131,14 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
       }
     }
     // The shape unit 6 landed, grown by 2a-14: the small dots are plain, the two
-    // gold ones glyphs (the red-day glyph carries the text RED, plan §6.7), and
-    // the Mansfield cross dot is PLAIN because its value may be ≤ 0.
+    // large ones glyphs, and the Mansfield cross dot is PLAIN because its value
+    // may be ≤ 0. Visual round A3: the red-day glyph carries NO text (platform §7)
+    // and is declared before the before-price glyph, so gold paints on top.
     expect(markers.map(p => [p.key, p.marker ? 'glyph' : 'point'])).toEqual([
-      ['dotNH', 'point'], ['dotNHbeforePx', 'glyph'], ['dotNHpartial', 'point'],
-      ['dotNHred', 'glyph'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'],
+      ['dotNH', 'point'], ['dotNHred', 'glyph'], ['dotNHbeforePx', 'glyph'],
+      ['dotNHpartial', 'point'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'],
     ])
-    expect(def.plots.find(p => p.key === 'dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0, text: 'RED' })
+    expect(def.plots.find(p => p.key === 'dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0 })
   })
 
   it('every LINE plot of the definition names an expected column', () => {
@@ -153,8 +154,10 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
       expect(e, `line plot "${p.key}" is not in ${fx}.json`).toHaveProperty(p.key)
       expect(e[p.key].some(Number.isFinite), `${p.key} is entirely null`).toBe(true)
     }
-    // No plot style this test does not know how to pair.
-    for (const p of def.plots) expect(['line', 'markers'], `plot "${p.key}" style ${p.style}`).toContain(p.style)
+    // No plot style this test does not know how to pair. The one `hlines` plot is
+    // the Mansfield zero guide (visual round A2): static, so it returns no column.
+    for (const p of def.plots) expect(['line', 'markers', 'hlines'], `plot "${p.key}" style ${p.style}`).toContain(p.style)
+    expect(def.plots.filter(p => p.style === 'hlines').map(p => [p.key, p.levels])).toEqual([['mansfieldZero', [0]]])
   })
 
   it('events are {0, 1, null} and each one FIRES; dots are finite EXACTLY where their event is 1 and equal rsLine there', () => {

@@ -1108,7 +1108,17 @@ def test_the_readout_source_parser_reads_the_rows_it_claims_to():
     assert by_key["benchmarkNote"] == {"source": "scalar:benchmark.fallback", "when": "scalar:benchmark.fallback"}
     assert by_key["regime"]["source"] == "scalar:regime.label"
     assert by_key["checks"]["source"] == "scalar:checks.summary"
-    assert by_key["mansfield"]["source"] == "scalar:mansfield.value"
+    # visual round A1: the glance rows read the server's summary strings; the
+    # numbers move into the cards (the detail rows keep the raw scalars)
+    assert by_key["mansfield"] == {"source": "scalar:mansfield.summary", "when": "input:showMansfield",
+                                  "evidenceSource": "scalar:evidence.sentence.mansfield"}
+    assert by_key["mansfieldValue"]["source"] == "scalar:mansfield.value"
+    assert by_key["ratingSummary"]["source"] == "scalar:rating.summary"
+    assert by_key["phase"]["source"] == "scalar:legend.summary"
+    assert by_key["rsHigh"]["source"] == "scalar:lastRsHigh.summary"
+    for key, check in (("checkMa", "ma"), ("checkAnchor", "anchor"), ("checkPivot", "pivotSpeed"),
+                       ("checkGreenOnRed", "greenOnRed")):
+        assert by_key[key]["source"] == f"scalar:checks.{check}.line", key
     assert by_key["sensitivity"]["source"] == "scalar:sensitivity.summary"
     assert by_key["theme"]["source"] == "scalar:theme.label"
     # 2b-09: the five measured signals' cards read the provider's evidence sentence

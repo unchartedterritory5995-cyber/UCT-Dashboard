@@ -31,9 +31,9 @@ const pres = (cs) => (findInstance(cs, RS) || {}).presentation
 const drawn = (cs) => dotPlotsOf(rsDef).map((p) => [p.key, storedDotSize(findInstance(cs, RS), p) || 'medium'])
 
 describe('U8 #11 — the instance-level Dot size write clears per-dot sizes', () => {
-  it('the premise: Stress stores a per-dot Large on the before-price dot', () => {
+  it('the premise: Stress stores a per-dot Large on the red-day dot (visual round A3)', () => {
     const s = applyPresetInputs(fresh(), RS, rsDef, preset('stress'), registry)
-    expect(pres(s)).toEqual({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    expect(pres(s)).toEqual({ plots: { dotNHred: { dotSize: 'large' } } })
   })
 
   it('after Stress, Small sizes EVERY dot small: the per-dot Large is deleted', () => {
@@ -50,10 +50,12 @@ describe('U8 #11 — the instance-level Dot size write clears per-dot sizes', ()
     expect('presentation' in findInstance(next, RS)).toBe(false)
   })
 
-  it('Stress then Trend, then Default: no per-dot size survives (the gold dot is no longer stuck small)', () => {
+  it('Stress then Trend, then Default: no per-dot size survives (the red-day dot is no longer stuck large)', () => {
     let cs = applyPresetInputs(fresh(), RS, rsDef, preset('stress'), registry)
     cs = applyPresetInputs(cs, RS, rsDef, preset('trend'), registry)
-    for (const [k, w] of drawn(cs)) expect(w, k).toBe('small')
+    // visual round A2: Trend names only its zero-cross dot (medium), so Stress's
+    // per-dot Large stays stored until a whole-indicator word clears it
+    for (const [k, w] of drawn(cs)) expect(w, k).toBe(k === 'dotNHred' ? 'large' : 'medium')
     cs = setInstanceDotSize(cs, RS, 'medium', registry)
     expect('presentation' in findInstance(cs, RS)).toBe(false)
   })

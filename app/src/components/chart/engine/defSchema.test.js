@@ -1571,11 +1571,13 @@ describe('meta.presets[] non-input fields — validated exactly as applyPresetFi
     const rs = getDefinition('rsLine')
     expect(rs, 'rsLine refused at registration').toBeTruthy()
     const by = Object.fromEntries(rs.meta.presets.map((p) => [p.id, p]))
-    expect(by.trend).toMatchObject({ dotSize: 'small', visibility: { preset: 'dailyUp' } })
-    expect(by.trendWeekly).toMatchObject({ dotSize: 'small', visibility: { preset: 'dailyUp' } })
-    expect(by.stress).toMatchObject({ dotSize: { dotNHbeforePx: 'large' }, visibility: { preset: 'dailyUp' } })
-    // …and `dotNHbeforePx` is a glyph plot, which is why the object form must accept one
-    expect(rs.plots.find((p) => p.key === 'dotNHbeforePx').marker).toBeTruthy()
+    // visual round A2/A3: Trend sizes its zero-cross dot medium, Stress makes the
+    // red-day glyph its large gold mark
+    expect(by.trend).toMatchObject({ dotSize: { dotMansfieldCross: 'medium' }, visibility: { preset: 'dailyUp' } })
+    expect(by.trendWeekly).toMatchObject({ dotSize: { dotMansfieldCross: 'medium' }, visibility: { preset: 'dailyUp' } })
+    expect(by.stress).toMatchObject({ dotSize: { dotNHred: 'large' }, visibility: { preset: 'dailyUp' } })
+    // …and `dotNHred` is a glyph plot, which is why the object form must accept one
+    expect(rs.plots.find((p) => p.key === 'dotNHred').marker).toBeTruthy()
   })
 
   it('⛔ refuses an unknown preset key BY NAME — the field set is closed because the writer reads by name', () => {
