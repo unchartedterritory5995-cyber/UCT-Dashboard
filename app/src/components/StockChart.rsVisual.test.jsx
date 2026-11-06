@@ -417,7 +417,7 @@ describe('⛔ the control — RSI and MACD are untouched', () => {
 })
 
 describe('the stylesheet — one type scale, one grid, the host inks', () => {
-  const css = readFileSync(join(process.cwd(), 'src/components/StockChart.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const css = readFileSync(join(process.cwd(), 'src/components/StockChart.module.css'), 'utf8').replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '')
   const base = css.replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
   const rule = (src, sel) => {
     const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -441,7 +441,7 @@ describe('the stylesheet — one type scale, one grid, the host inks', () => {
 
   it('light theme: every ink the readout surface uses measures ≥ 4.5:1 against the host\'s --bg-elevated', () => {
     // the SHIPPED token values, read from tokens.css — never retyped here
-    const tokens = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+    const tokens = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8').replace(/\r\n/g, '\n')
     const light = tokens.slice(tokens.indexOf('[data-theme="light"] {'))
     const block = light.slice(0, light.indexOf('\n}'))
     const tok = (name) => {
