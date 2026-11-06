@@ -401,6 +401,26 @@ describe('⭐ the lane is GENERIC — a fourth tenant needs no code in it', () =
       expect(code.includes(word), `serverCompute.js decides entitlement (${word})`).toBe(false)
     }
   })
+
+  it('⭐ 2a-09 — and neither does the READOUT resolver: `readoutSchema.js` names no tenant', () => {
+    // The scalars a tenant sends beside its columns are turned into rows by
+    // `engine/readoutSchema.js` from the definition's own `readout[]`. A format
+    // or a row keyed on a definition id there would be the fourth tenant's
+    // code in the lane by another door, so the same scan reads that file.
+    const schemaSrc = readFileSync(
+      resolve(process.cwd(), 'src/components/chart/engine/readoutSchema.js'), 'utf8')
+    const code = schemaSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(code.length, 'the resolver is empty — the scan is vacuous').toBeGreaterThan(500)
+    for (const id of listDefinitions().map(d => d.id)) {
+      expect(code.includes(`'${id}'`), `readoutSchema.js hardcodes the definition id ${id}`).toBe(false)
+      expect(code.includes(`"${id}"`), `readoutSchema.js hardcodes the definition id ${id}`).toBe(false)
+    }
+    // …nor a tenant's PAYLOAD KEYS: a resolver that knew `benchmark` or
+    // `lastRsHigh` by name would print one tenant's rows and nobody else's.
+    for (const key of ['benchmark', 'lastRsHigh', 'pctFromMa', 'rsLine']) {
+      expect(code.includes(key), `readoutSchema.js knows the payload key ${key}`).toBe(false)
+    }
+  })
 })
 
 // ─── UCT Relative Strength v2: the envelope's scalars, the server-only key, rev gating ─
