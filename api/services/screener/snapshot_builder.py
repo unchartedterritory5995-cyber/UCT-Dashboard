@@ -62,7 +62,7 @@ import time
 from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow,
-              archive_join)
+              archive_join, rs_columns)
 
 log = logging.getLogger(__name__)
 
@@ -384,7 +384,8 @@ def rs_fields(rs_row) -> dict:
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
-              market_row=None, failures=None, identity_state=None) -> dict:
+              market_row=None, failures=None, identity_state=None,
+              spy_bars=None, rsp_bars=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -425,6 +426,13 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     (breadth/uct20/index/etf) — classification flags, disjoint from every other
     source by construction (each reader owns its own columns; see the module
     docstring). Merged BEFORE ``rs_fields``, which stays last/authoritative.
+
+    ``spy_bars`` / ``rsp_bars`` are the benchmark BAR DICTS ``_run_build_locked``
+    reads ONCE per build at ``DEEP_BARS`` (``_read_benchmark_bars``), joined to
+    this ticker's window by bar TIME inside ``rs_columns`` for the ten
+    bar-derived UCT RS columns (Phase 2a, unit 2a-05). ``spy_closes`` stays the
+    60-close FLOAT list ``rs_line_trend`` zips positionally — the pre-2a shape,
+    now DERIVED from the same SPY read (``spy_closes_from_bars``).
 
     ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
     every ``_read_*`` in this file already reports into; ``run_build`` passes
@@ -523,6 +531,23 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         row.update(_step("bars_technicals",
                          lambda: technicals.compute_technicals(
                              bars, ipo_date=row.get("ipo_date"))))
+        # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). The ten
+        # RS columns come from the SAME `relative_strength` functions the
+        # chart's rsLine draws (plan §2.3 principle 5), over this row's 400-bar
+        # window against the SPY / RSP bar dicts `_run_build_locked` read ONCE
+        # at DEEP_BARS, joined by bar TIME — never the positional zip
+        # `rs_line_trend` below still does. Gated exactly like `rs_line_trend`:
+        # no SPY bars this build ⇒ the columns stay NULL and the build-level
+        # `sources["spy_bars"]["none"]` says why, once. Per-row outcomes
+        # (rated / short / no_bench) are counted under the step's own label, in
+        # the same census a raise from it would land in.
+        if spy_bars:
+            _rs_stats = (failures.setdefault("bars_rs", {})
+                         if failures is not None else None)
+            row.update(_step("bars_rs",
+                             lambda: rs_columns.collect_one(
+                                 bars, spy_bars, rsp_bars,
+                                 session=_asof_of(bars), stats=_rs_stats)))
         row.update(_step("bars_ath_fields",
                          lambda: technicals.ath_fields(
                              bars_full, ipo_date=row.get("ipo_date"))))
@@ -682,28 +707,58 @@ def _read_daily_bars(ticker):
     return out
 
 
-def _read_spy_closes():
-    """The benchmark series for rs_line_trend — ONE read per build.
+#: The benchmark symbols the bar-derived RS columns read, ONCE per build each
+#: (`rs_columns`: SPY is the ratio's denominator, RSP the equal-weight leg of
+#: `rs_benchmark_agree`).
+RS_BENCHMARKS = ("SPY", "RSP")
+#: How many trailing SPY closes the `rs_line_trend` float list carries — what
+#: the pre-2a `_read_spy_closes` always fetched (the trend itself reads 20).
+RS_LINE_TREND_SPY_BARS = 60
 
-    Alignment note: the trend zips the positional tails of both series,
-    exactly as the scanner did — a ticker with recent halts pairs slightly
-    offset sessions. Accepted deviation carried over from the ported
-    definition; date-alignment would be a definition CHANGE and belongs to
-    the owner.
+
+def _read_benchmark_bars(symbol):
+    """A benchmark's daily BAR DICTS at ``DEEP_BARS`` — ONE read per build per
+    benchmark, through the SAME reader every ticker's own bars come from
+    (``_read_daily_bars``), so both sides of the time-join are one shape.
+
+    ⭐ DEEP, not 400: a ticker's window is the last 400 of its OWN sessions,
+    and a halted name's 400 reach further back than SPY's last 400 calendar
+    sessions — one unmatched time inside a 252-bar lookback voids that window
+    (`relative_strength.rolling_extreme_event`). Guarded like every other
+    reader in this file: a dead/uninitialized bars store must cost only the
+    RS columns, never the whole build, and the caller counts an empty result
+    (`sources["spy_bars"]["none"]` / `["rsp_bars"]["none"]`) — that path has
+    to be reachable without an exception ever getting there first.
     """
-    # Guarded like every other reader in this file: a dead/uninitialized
-    # bars store must cost only rs_line_trend, never the whole build. The
-    # caller already treats an empty result as a countable miss
-    # (`sources["spy_bars"]["none"]`) — that path has to be reachable
-    # without an exception ever getting there first.
     try:
-        from api.services import bars_sqlite
-        rows = bars_sqlite.get_bars("SPY", "D", 60) or []
-    except Exception:
-        log.warning("[screener] SPY bars unavailable; rs_line_trend will be "
-                    "NULL for this build", exc_info=True)
+        return _read_daily_bars(symbol) or []
+    except Exception:                                      # noqa: BLE001
+        log.warning("[screener] %s bars unavailable; the bar-derived RS "
+                    "columns are NULL for this build", symbol, exc_info=True)
         return []
-    return [r[4] for r in rows if r[4] is not None]
+
+
+def spy_closes_from_bars(spy_bars):
+    """The 60-close FLOAT list ``rs_line_trend`` zips positionally, DERIVED
+    from the bar-dict read above so SPY is read once per build. Pure.
+
+    Alignment note (unchanged from the pre-2a reader): the trend zips the
+    positional tails of both series, exactly as the scanner did — a ticker
+    with recent halts pairs slightly offset sessions. Accepted deviation
+    carried over from the ported definition; date-alignment would be a
+    definition CHANGE and belongs to the owner. The ten RS columns in
+    `rs_columns` do NOT share it: they join by bar time.
+    """
+    tail = (spy_bars or [])[-RS_LINE_TREND_SPY_BARS:]
+    return [b.get("c") for b in tail if b.get("c") is not None]
+
+
+def _read_spy_closes():
+    """The pre-2a seam, kept for its callers (the wave smoke tools, tests that
+    stub it by name): the same float list the build derives, from one SPY read.
+    The build itself no longer calls this — it reads the bar dicts once and
+    derives the list (`_run_build_locked`)."""
+    return spy_closes_from_bars(_read_benchmark_bars("SPY"))
 
 
 def _read_fundamentals(ticker, price=None, failures=None):
@@ -1371,9 +1426,17 @@ def _run_build_locked(max_tickers=None) -> dict:
     sources: dict = {}
     identity_state: dict = {}
     rs_map = _read_rs_map()
-    spy_closes = _read_spy_closes()
-    if not spy_closes:
+    # ⭐ SPY and RSP, ONE read each per build, as bar dicts at DEEP_BARS: the
+    # bar-derived RS columns join them by time per ticker (`rs_columns`), and
+    # `rs_line_trend`'s positional float list is DERIVED from the SPY read so
+    # nothing reads SPY twice. An empty read is COUNTED once, never fatal.
+    spy_bars = _read_benchmark_bars("SPY")
+    rsp_bars = _read_benchmark_bars("RSP")
+    spy_closes = spy_closes_from_bars(spy_bars)
+    if not spy_bars:
         sources.setdefault("spy_bars", {})["none"] = 1
+    if not rsp_bars:
+        sources.setdefault("rsp_bars", {})["none"] = 1
     # ⭐ ONE bulk pull, scoped to the symbols this run will actually build, so
     # the 71,370-row provider file is never materialised beyond our universe.
     bulk_map = _read_bulk_fundamentals(targets, failures=sources)
@@ -1567,7 +1630,8 @@ def _run_build_locked(max_tickers=None) -> dict:
                             _read_fundamentals(t, mc_price, failures=sources),
                             rs_row, bulk_row, spy_closes=spy_closes,
                             context_row=context_row, market_row=market_row,
-                            failures=sources, identity_state=identity_state)
+                            failures=sources, identity_state=identity_state,
+                            spy_bars=spy_bars, rsp_bars=rsp_bars)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1

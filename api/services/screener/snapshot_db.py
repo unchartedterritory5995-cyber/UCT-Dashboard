@@ -177,6 +177,18 @@ COLUMNS = [
     "sma200_rising", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run",
     "vol_down_run", "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age",
     "low_52w_age",
+    # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). ONE writer,
+    # `rs_columns.collect_one` (the builder's `_step("bars_rs")`), from the same
+    # `relative_strength` functions the chart's rsLine draws, so a scan and a
+    # chart dot never disagree. Five 0/1 flags, three ages and one count are
+    # INTEGER (`_INT` below); `mansfield` is REAL — percent above or below its
+    # own 200-bar average. NULL when the window is short, the benchmark has no
+    # bar at the row's date, or a hole sits inside the lookback (never a
+    # guessed 0). Additive: ALTER-added on init, NULL on every row until the
+    # next build. The seven history-derived rating columns are unit 2a-06's.
+    "rs_new_high", "rs_nh_before_price", "rs_nh_red_day", "rs_nh_bars_ago",
+    "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
+    "mansfield", "mansfield_cross_bars_ago", "rs_benchmark_agree",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -239,7 +251,12 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "run_close_ema20", "run_close_sma50", "run_close_sma200", "run_ema9_ema20",
         "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
         "sma200_rising", "vol_up_run", "vol_down_run", "new_high_lookback",
-        "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age"}
+        "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age",
+        # UCT RS, bar-derived (2a-05): five flags 0/1, three ages, the 20-bar
+        # count. `mansfield` is deliberately NOT here — it is REAL.
+        "rs_new_high", "rs_nh_before_price", "rs_nh_red_day", "rs_nh_bars_ago",
+        "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
+        "mansfield_cross_bars_ago", "rs_benchmark_agree"}
 
 
 # ---------------------------------------------------------------------------
