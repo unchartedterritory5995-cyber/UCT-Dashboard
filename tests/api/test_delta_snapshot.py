@@ -106,6 +106,56 @@ def test_export_delta_only_includes_recent_rows(tmp_path, monkeypatch):
     assert got == [("AAPL", "5", 1_699_999_000)]
 
 
+def _old_fetchall_export(src_path, out_path, cutoffs):
+    """The pre-2026-11-06 shape (one fetchall per tf), kept as the reference the streamed export must equal."""
+    src = sqlite3.connect(src_path)
+    out = sqlite3.connect(out_path)
+    out.execute("CREATE TABLE IF NOT EXISTS ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
+                "o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))")
+    total = 0
+    for tf, cut in cutoffs.items():
+        rows = src.execute("SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv WHERE tf=? AND ts>=?", (tf, cut)).fetchall()
+        if rows:
+            out.executemany("INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows)
+            total += len(rows)
+    out.commit(); out.close(); src.close()
+    return total
+
+
+def test_streamed_export_equals_the_old_fetchall_export_across_batch_boundaries(tmp_path, monkeypatch):
+    """MEMORY (2026-11-06): the export streams in batches instead of fetchall. Same rows, byte for byte --
+    including when a tf's window spans several batches and when a batch boundary lands exactly on the end."""
+    now = 1_700_000_000
+    cuts = data_sync._delta_cutoffs(now=now)
+    rows = []
+    for i in range(23):                                   # 23 tickers x a few tfs, mixed in/out of window
+        for tf in ("1", "5", "60", "D"):
+            for k in range(7):
+                ts = cuts[tf] - 3 + k * 5                 # some before the cutoff, most after
+                rows.append((f"T{i:02d}", tf, ts, 1.0 + k, 2.0, 0.5, 1.5 + i, 100 * k))
+    src = str(tmp_path / "bars.db")
+    _seed_db(src, rows)
+    monkeypatch.setattr(data_sync, "_DATA_DIR", str(tmp_path))
+    ref_db = str(tmp_path / "ref.db")
+    ref_n = _old_fetchall_export(src, ref_db, cuts)
+    assert ref_n > 100
+    q = "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv ORDER BY ticker,tf,ts"
+    ref = sqlite3.connect(ref_db).execute(q).fetchall()
+    for batch in (1, 7, 23, ref_n, ref_n + 1, 50_000):    # tiny, uneven, exact-end, one-past, default
+        monkeypatch.setattr(data_sync, "_DELTA_EXPORT_BATCH", batch)
+        out_db = str(tmp_path / f"delta_{batch}.db")
+        n = data_sync._export_delta_db(out_db, now=now)
+        assert n == ref_n, batch
+        assert sqlite3.connect(out_db).execute(q).fetchall() == ref, batch
+
+
+def test_the_export_never_calls_fetchall():
+    """A rail on the shape: fetchall here is the multi-GB worker peak this replaced."""
+    import inspect
+    src = inspect.getsource(data_sync._export_delta_db)
+    assert ".fetchall()" not in src and "fetchmany(_DELTA_EXPORT_BATCH)" in src
+
+
 def test_upload_delta_writes_tarball_and_index(tmp_path, monkeypatch):
     fake = _FakeS3()
     monkeypatch.setattr(data_sync, "_DATA_DIR", str(tmp_path))

@@ -1103,6 +1103,9 @@ def sync_if_newer_merge() -> Optional[str]:
 
 # ── Delta export / upload (worker side) ─────────────────────────────────────
 
+_DELTA_EXPORT_BATCH = 50_000   # rows per fetchmany batch in _export_delta_db
+
+
 def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
     """Build a small SQLite at out_path holding only the ohlcv rows newer
     than the per-tf cutoff. Returns ohlcv rows exported. Reads the
@@ -1123,12 +1126,19 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
             # filled from a source table that was always empty) until
             # 2026-08-09. See the note in `_merge_snapshot_db` above.
             total = 0
+            # MEMORY (2026-11-06): stream in fixed-size batches. This used to fetch-ALL, pulling every row
+            # of the window (millions on the 1m/5m tfs) into Python at once on every delta cycle -- a multi-GB
+            # peak on the worker that the allocator does not hand back. Same query, same rows, same order, same
+            # INSERT; tests/api/test_delta_snapshot.py pins byte-equal output against the old shape.
             for tf, cut in cutoffs.items():
-                rows = src.execute(
+                cur = src.execute(
                     "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv WHERE tf=? AND ts>=?",
                     (tf, cut),
-                ).fetchall()
-                if rows:
+                )
+                while True:
+                    rows = cur.fetchmany(_DELTA_EXPORT_BATCH)
+                    if not rows:
+                        break
                     out.executemany(
                         "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
                     )
