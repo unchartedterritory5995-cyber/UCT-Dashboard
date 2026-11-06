@@ -100,7 +100,8 @@
 /** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
 /** 17 = W4-T15 (train): function and statement forms (named/default user args, one-line binding bodies, loop-end values, log.* statements) are served on the runtime lane */
 /** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
-export const SCRIPT_ENGINE_VERSION = 18
+/** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
+export const SCRIPT_ENGINE_VERSION = 19
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

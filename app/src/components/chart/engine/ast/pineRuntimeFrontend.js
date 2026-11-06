@@ -2238,7 +2238,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!t || t.kind !== 'ident') continue
       const v = String(t.value)
       if (STATE_HEAD.has(v)) return true
-      if (HELD_WORDS.has(v) || declared.has(v)) continue
+      // ⛔ W6-T2 r1: before v5 `method` is not a keyword, so a call to a v3/v4 user function named
+      // `method` is a call like any other and must not be skipped as a word (it would count a held
+      // body that calls it as pure and serve a wrong value).
+      if ((HELD_WORDS.has(v) && !(v === 'method' && pineVersion !== null && pineVersion < 5))
+        || declared.has(v)) continue
       // a named argument's name (`length = 3`) is not a read
       if (isPunct(toks[k + 1], '=')) continue
       if (isPunct(toks[k + 1], '(')) {
@@ -2437,8 +2441,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
+  // ⛔⛔ W3W4-D1 capture gate (queue row W3N-D1, capture-queue-2026-11-05-w3w4-d1.md): the C48 witnesses
+  // pin sma/ema as PLOT values and nothing pins rma at all, so no capture shows a DRAWING reading the
+  // per-call-site set. Until W3N-D1 MATCHes, the drawing build keeps the named refusal
+  // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
+  // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
+  const DRAWING_HISTORY_CAPTURED = false
+  // ONE gate: only the drawing build's `condHistory` (below, at the lowering of a pure subtree) reads it;
+  // `servedCondCall` is reached from there alone, so it needs no second copy.
+  const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
-    if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
+    if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
@@ -6379,13 +6392,34 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // form is reached operator by operator (`splitForArms`), never as one column
       const splitForArms = armHistoryGuard(node, scope, true)
       lexForeign = false
-      const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
+      // ⭐ W3W4-D1 — THE DRAWING BUILD ASKS THE SAME QUESTION AS THE PLOT LANE, in a block
+      // of the main body only (a function body keeps its refusal): history WRITTEN in a block that
+      // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
+      // other shape is refused BY NAME below (never read from the every-bar column, which for a
+      // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
+      // ⛔ GATED (DRAWING_HISTORY_CAPTURED): with the gate off the drawing build is exactly master's, so
+      // every output, including a block local's `[1]`, is unchanged until W3N-D1 MATCHes.
+      const drawingHistory = objectsInRun && owner === null && r4Level() > 0
+        && drawingHistoryServed
+      const condHistory = (!objectsInRun || drawingHistory)
+        && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
       if (condHistory && r4Level() > 0) {
-        if (lexForeign) r4Guard('a series with history bound in another branch', locate(node.tok))
+        // the drawing build's refusal, by name (`r4Guard` itself stays the plot lane's)
+        const drawRefuse = (what) => {
+          note('runtime:conditional-history')
+          throw new RuntimeRefusal('runtime:conditional-history',
+            `${what} inside a block that does not run on every bar — `
+            + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', locate(node.tok))
+        }
+        if (lexForeign) {
+          if (objectsInRun) drawRefuse('a series with history bound in another branch')
+          r4Guard('a series with history bound in another branch', locate(node.tok))
+        }
         const served = servedCondCall(node, scope)
         if (served) return served
         if (!condTransparent(node)) {
+          if (objectsInRun) drawRefuse(node.type === 'call' ? `\`${node.name}\`` : 'a series with history')
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
         }
       } else if (!splitForArms && !mbbDynamicColumn(node, scope)) try {
@@ -10322,13 +10356,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ AN OVERLOADED NAME STILL REFUSES. Pine picks among same-named methods
       // by the receiver's TYPE, and this lane does not type a receiver — binding
       // whichever came last would run a method the member did not call.
-      if (word === 'method') {
+      // ⭐⭐ W6-T2 — `method` IS A KEYWORD ONLY IN THE SHAPE `method <ident>`, AND ONLY FROM v5.
+      // `method` arrived in Pine v5, so in a v3/v4 script `method = input(…)`, `method := …` and
+      // `method` as an argument are an ordinary name (the same test `collectUdtTypes` applies to
+      // `type`, and `scanDefs` already applies to the declaration count). ⛔ In v5+ (or an
+      // unversioned script) `method = …` is a keyword misuse TradingView rejects: no capture shows
+      // what it would answer, so it keeps refusing by name below rather than serving a value.
+      const methodIsName = word === 'method' && !(toks[1] && toks[1].kind === 'ident')
+        && pineVersion !== null && pineVersion < 5
+      if (word === 'method' && !methodIsName) {
         const mName = toks[1] && toks[1].kind === 'ident' ? String(toks[1].value) : null
         if (!mName || !bindableMethod(mName)) {
           note('runtime:udt-method')
           throw new RuntimeRefusal('runtime:udt-method',
             mName ? `\`${mName}\` is declared more than once (or also as a plain function), and Pine `
-              + 'chooses among them by the receiver\'s type, which this lane does not resolve' : null,
+              + 'chooses among them by the receiver\'s type, which this lane does not resolve'
+              : '`method` is a keyword from Pine v5 and is not a declaration here (no `method <name>(`); '
+                + 'only a v3/v4 script may use it as a name',
             locate(first))
         }
         toks = toks.slice(1)
