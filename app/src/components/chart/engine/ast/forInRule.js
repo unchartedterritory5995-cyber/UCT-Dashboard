@@ -50,6 +50,28 @@ export const forInMutationRefusal = (src) => (
  *    · `isDefined(name)` — the script defines a function of that name (a defined method
  *      shadows the collection member, `ufcs.js`);
  *    · `fnDefs` — `readFunctionDefs` (`objectFnInline.js`): name → `{ body }`. */
+/** ⛔ W6-T6 review N1 — a COLLECTION HELD IN A FIELD changed by a mutating member
+ *  (`array.push(p.arr, x)`, `p.arr.push(x)`): the call at `toks[i]` changes the list named by a
+ *  DOTTED path, and this answers that path, else null. Inside a walk over `p` that is a write
+ *  through the element, which no capture shows (W6-F1), so the runtime lane refuses it by name
+ *  (`forInHeldListRefusal`). Every mutating member counts, the witnessed three included: the
+ *  capture shows them on the walked list, not on a list an element holds. */
+export function heldListMutation(toks, i, { isPunct, isDefined }) {
+  const tk = toks[i]
+  if (!tk || tk.kind !== 'ident' || !isPunct(toks[i + 1], '(')) return null
+  const v = String(tk.value)
+  if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6))) {
+    const t = toks[i + 2]
+    return t && t.kind === 'ident' && String(t.value).includes('.') ? String(t.value) : null
+  }
+  const m = splitMethodName(v)
+  return m && m.recv.includes('.') && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method) ? m.recv : null
+}
+
+/** The refusal for a list held by the loop element and changed in the body (or by a helper). */
+export const forInHeldListRefusal = (elem) => (
+  `the body changes a list the element \`${elem}\` holds (a write through the loop variable), not yet captured (W6-F1)`)
+
 /** The index closing the bracket opened at `open`, or -1. */
 const closeOf = (toks, open) => {
   let depth = 0

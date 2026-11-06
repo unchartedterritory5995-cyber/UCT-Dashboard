@@ -78,7 +78,7 @@ import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, ele
 // table, read by this lane and the host object lane (`pineObjects.js`) alike.
 import {
   FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
-  bodyMayWriteList, forInMutationRefusal,
+  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal,
 } from './forInRule.js'
 import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
@@ -10276,6 +10276,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
     // ⭐ C48 — a body that changes its own list walks it LIVE, by push / shift / set only.
     if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
+    // ⛔ (review N1) …a list the element holds, changed in the body (`array.push(x.arr, v)`).
+    if (forInChangesHeldList(st.sub, elem, rule)) refuse(forInHeldListRefusal(elem))
     // ⛔ …and a change by anything else to a list that MAY be the walked one under another name
     // (an alias holds the same array): another list of the same type, one this lane cannot
     // type, or any list a called function changes. A list of another type cannot be it, and
@@ -10296,7 +10298,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     for (const v of [elem, idx]) {
       if (v !== null && forInWrites(st.sub, v)) refuse(`the body writes the loop variable \`${v}\` or through it, not yet captured (W6-F1)`)
     }
-    // …and handing the element to a function that writes a field (at any depth of its calls):
+    // …and handing the element to a function that writes a field or changes a list held in one
+    // (at any depth of its calls):
     // the element is a reference, so that is a write through `x` too.
     if (forInHandsOn(st.sub, elem, rule)) {
       refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
@@ -10401,7 +10404,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
     return hit || tuple || forInWrites(s2.sub, name)
   })
-  /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`)? */
+  /** ⛔ (review N1) Does a statement change a list held by `name` (`array.push(name.arr, v)`,
+   *  `name.arr.push(v)`, at any depth)? The call shape is `forInRule.js::heldListMutation`. */
+  const forInChangesHeldList = (list, name, rule) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    return ts.some((_, i) => {
+      const t = heldListMutation(ts, i, rule)
+      return t !== null && (t === name || t.startsWith(`${name}.`))
+    }) || forInChangesHeldList(s2.sub, name, rule)
+  })
+  /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
+   *  change a list held in one (`array.push(p.arr, v)`)? */
   const forInFnWritesField = (fn, rule, seen = new Set()) => {
     if (seen.has(fn) || !rule.fnDefs.has(fn)) return false
     seen.add(fn)
@@ -10411,6 +10424,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!tk || tk.kind !== 'ident') return false
         const v = String(tk.value)
         if (v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value)) return true
+        if (heldListMutation(ts, i, rule) !== null) return true
         if (!isPunct(ts[i + 1], '(')) return false
         const m = splitMethodName(v)
         const callee = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)

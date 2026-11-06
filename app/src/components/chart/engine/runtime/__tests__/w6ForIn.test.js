@@ -21,7 +21,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
-import { FOR_IN_LIVE_WITNESSED, FOR_IN_SNAPSHOT_SOURCES, forInMutationRefusal } from '../../ast/forInRule.js'
+import { FOR_IN_LIVE_WITNESSED, FOR_IN_SNAPSHOT_SOURCES, forInMutationRefusal, forInHeldListRefusal } from '../../ast/forInRule.js'
 import { translatePine } from '../../ast/pine.js'
 
 const N = 40
@@ -125,6 +125,15 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
     // …through a function that calls one that writes, too
     const deep = 'type P\n    float v\nbump(q) =>\n    q.v := 3\nouter(q) =>\n    bump(q)\nps = array.from(P.new(1))\nfor p in ps\n    outer(p)\nplot(close)\n'
     expect(refusal(deep).message).toMatch(/hands the element `p`/)
+    // ⛔ (review N1) a list the element HOLDS, changed in the body or by a helper (W6-F1)
+    const H2 = 'type Q\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(array.new_float()))\n'
+    for (const change of ['array.push(q.arr, 1.0)', 'q.arr.push(1.0)', 'array.clear(q.arr)']) {
+      expect(refusal(`${H2}for q in qs\n    ${change}\nplot(close)\n`).message, change)
+        .toBe(`a loop in a form this lane does not iterate — \`for … in\`: ${forInHeldListRefusal('q')}`)
+    }
+    expect(refusal(`${H2}fill1(Q z) =>\n    array.push(z.arr, 1.0)\nfor q in qs\n    fill1(q)\nplot(close)\n`).message).toMatch(/hands the element `q`/)
+    // CONTROL — READING a list the element holds is served
+    expect(lastValues(`${H2}n = 0\nfor q in qs\n    n += array.size(q.arr)\nplot(n)\n`)).toEqual([0])
     // CONTROL — a function that only READS the element is served
     const reads = 'type P\n    float v\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(4))\ntwice(P q) =>\n    q.v * 2\ns = 0.0\nfor p in ps\n    s += twice(p)\nplot(s)\n'
     expect(lastValues(reads)).toEqual([8])
