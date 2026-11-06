@@ -1,4 +1,4 @@
-NEXT STEP: re-run measure-pair round B runtime 1 alone (runs/w6-t5/mpB1.sh under dsk/heavy-mp2.lock, ram_gate; out runs/w6-t5/mpB-rt1), classify vs the spec movers; then FULL final-tip into a fresh dir; restore tools/lookback_agreement.json only if distinct_trees_walked alone differs (known cc-yata timing drift, coordinator note); then ready-check. The rt1 re-run was stopped twice by Claude Code for low system memory (06:56, 10:24) and waits for the coordinator. Oracle drift (605 vs 608): coordinator-confirmed benign (cc-yata 3000 ms timeout); the oracle walks only pine.js/parse/interpret/lint (37 files, none changed here) over corpus/committed + tests/fixtures/member (unchanged).
+NEXT STEP: FULL final-tip into a fresh dir (runs/w6-t5-final3) once the coordinator signals (the oracle fix runs first); restore tools/lookback_agreement.json only if distinct_trees_walked alone differs (rows byte-identical to master, coordinator note on cc-yata timing drift); then ready-check.
 
 # W6-T5 `array.*` completion (lane w6-t5)
 
@@ -156,3 +156,14 @@ Command `runs/w6-t5/ft2.sh` = `final-tip.sh pine-dsk-w6t5 w6-t5-final2` + pytest
 ## ready-check
 `ready-check.sh pine-dsk-w6t5 runs/w6-t5-final2` at bd8243d322: `READY-CHECK FAIL: final-tip integrity=tree-changed-during-run`. Expected FAIL on `integrity` (above); with the
 bump and digest regeneration done at landing, the only remaining reds are the named baselines.
+
+## measure-pair round B, runtime 1 (re-run, complete)
+`runs/w6-t5/mpB1.sh` (runtime 1 only), lock `dsk/heavy-mp2.lock` (shared), ram_gate 14.2 GB free; logs
+`runs/w6-t5/mpB1-all.log`, `mpB-rt1.log`, out `runs/w6-t5/mpB-rt1/`. `== side tip a0ea54286b` (code tree ad9425772b) /
+`== side base 2f40ee68c5` (base side reused from the measure-pair cache). Two earlier attempts were stopped by Claude Code
+for low system memory (`mpB-rt1-stopped*`), not failures.
+- C18 audit 395 rows / probes 69: **0 diffs**. Harness: **identical** (110/107/119 both sides; round A's delta-rsi flip
+  did not recur, confirming it as the wall-clock flake).
+- Census 22 rows: exactly round A's set and classification (spec movers incl. the `range-filter-dw` attach, 7 reference
+  examples attach, `luxy-super-duper` wall move, `binary_search` example line move; `multi-timeframe-trend-indicator`
+  a `pine:timeout` reason: noise). 0 unintended.
