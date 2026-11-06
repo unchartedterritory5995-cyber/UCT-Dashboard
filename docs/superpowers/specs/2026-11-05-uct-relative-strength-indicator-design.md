@@ -1,380 +1,480 @@
-# UCT Relative Strength — the indicator, the rating, and the Chartmaster rules
+# UCT Relative Strength — design plan v3
 
-**Status:** 🟡 PLAN v2, for owner review (2026-11-05). No implementation alongside it.
-**Owner ask (2026-11-05):** "Make the charts widget RS indicator elite to an extreme level — MarketSmith / MarketSurge / Deepvue / TradingView and beyond. Combine that with Chartmaster's Discord library and the RS indicator he uses, and make a plan for a UCT-specific Relative Strength indicator." Follow-up the same evening: "If it does not reach a 99/100 level of quality then get it there" — v2 is that pass.
-**Base:** `origin/master` `3e11e6bf63`. **Branch:** `docs/uct-rs-indicator`.
-**Relationship to prior work:** extends the shipped server-lane RS line (Phase C Tasks 13/14, `nativeRegistry.RS_LINE_RAW`, `signature._rs_line_provider`) and the universal-indicator ecosystem (`docs/superpowers/specs/universal-indicator-ecosystem/`). It does not touch the Pine parity waves, but §9 names the one capability both programmes need.
+**Status:** 🟡 PLAN v3, for owner review (2026-11-05, evening). No implementation alongside it.
+**Base:** `origin/master` `3e11e6bf63`. **Branch:** `docs/uct-rs-indicator`. **PR:** #875 (draft).
+**Owner asks, in order:** (1) make the chart widget's RS indicator "elite to an extreme level", MarketSmith / MarketSurge / Deepvue / TradingView and beyond; (2) combine that with Chartmaster's library and the RS indicator he uses; (3) get the plan to 99/100; (4) **"far too much emphasis on Chartmaster posts vs relative strength indicators and studies of public indicators"** — spend significant time on the knowledge, understanding and usefulness of RS indicators, and put a huge emphasis on **user friendliness, customization and the Uncharted Territory brand**, designing for the members who will use it; (5) be extremely detailed and thorough throughout, with reliability from research and observation.
 
-**What v2 added over v1 (self-review, recorded so the next reader knows what was missing):** v1 had the gap analysis, Chartmaster's rules and the feature list, but no description of what a member actually sees and touches (§4), no exact formulas (§5), no server contract (§6), no definition of done or named tests per phase (§11), no rollout/rollback/telemetry (§12), no risks (§13), no member glossary (§16), and it did not know the server lane fetches only 400 bars (§8.6). Those are the sections that turn a brief into a plan someone can build and a product a member can use without reading a manual.
+**How this document is sourced.** Every claim carries one of three kinds of backing. **Research** claims cite the knowledge base at `docs/research/relative-strength/` by file and section (`01 §2` = `01-methodologies.md`, section 2), where each fact is tagged [V] verified in the primary source, [S] secondary source, or [U] unverified. **Code** claims cite a file on master and were read for this plan, not recalled. **Decisions** are marked as such and listed in §16 for the owner. Anything we could not verify is tagged [U] inline and never becomes member-facing copy until it is.
+
+**What changed from v2.** v2 was a Chartmaster-framed feature plan. v3 reframes the indicator around the field (seven published methods, the forty-year evidence base, how eleven products present RS, how the best educators teach it), around the member (four personas, a settings model built on what members actually change, a phone mode, honest tooltips), and around the brand (name, voice, colour roles, type, vocabulary, and what the indicator must never do). Chartmaster and Manrav remain as two of seven presets, as the voice of the UCT-specific tooltips, and as one validation fixture. Several v2 engineering assumptions were corrected after reading the engine: inputs already support `group`, `tooltip` and `activeWhen`, so Simple/Pro needs no schema change; indicator templates already exist (behind a flag) and are additive; the settings dialog is already a three-tab Inputs / Style / Visibility form.
 
 ---
 
 ## 0. The one-paragraph version
 
-A member opens the indicator library, types "RS", and turns on **UCT Relative Strength**. One pane appears under the price: the RS line against the S&P 500 with its 21-day EMA, coloured turquoise when leading and red when lagging, blue dots where the RS line makes a 52-week high, a bigger dark dot where it does so **before** price (Chartmaster's "beach ball underwater"), and a gold dot where it happens on a red market day (his favourite tell). The legend shows the RS Rating — the same 1–99 number MarketSurge and Deepvue print — beside UCT's faster rating. Hovering any dot explains it in one plain sentence. Switching to Pro mode exposes every knob the pros have: any benchmark (sector ETF, industry group, any symbol), lookback, thresholds, a rating-history line, a Relative Weakness mode, and the four manual checks from the workshop computed as numbers. The same columns run in the screener, fire alerts, build the leadership list, and post "RS New Highs" to Discord on down days. Nothing requires a setting to be useful on first click.
+A member types "RS" in the indicator library and turns on **UCT Relative Strength**. The RS line appears under the price bars against the S&P 500, the way IBD draws it, with a 21-day moving average, light-blue dots where the line makes a 52-week high, a gold dot where it does so before price, and the IBD-style RS Rating in the legend beside the benchmark name. Hover anything and three lines appear: what it is, where the idea comes from, what the evidence says. A **Preset** menu offers seven ways to read the same line, each named for its method and its origin: Classic (O'Neil), Phase (21 EMA), Trend (Mansfield), Rotation (RRG-style), Quality (Clenow), Volatility-adjusted, and Stress test (UCT's down-day method). Simple mode shows the five settings members change; Advanced shows everything the pros expose; Style and Visibility tabs do the rest; presets save as the member's own templates without destroying anything. The same columns run in the screener, fire alerts, build the Leadership list and post to Discord. The phone gets a rating-only compact mode. Every number the indicator prints about edge comes from our own nightly backtest, with sample size and dates, or it is not printed.
 
-## 1. Where we are today (measured on master, 2026-11-05)
+## 1. The field: what forty years of relative-strength work settles (research summary)
 
-| Surface | What exists | Verdict |
+Full synthesis in `00-synthesis.md`; formulas in `01`; products in `02`; evidence in `03`; teaching in `04`.
+
+1. **Three primitives cover every method** (01 §Design implications). A ratio line (price ÷ benchmark), a trend-of-ratio measure (52-week SMA for Mansfield, 21 EMA for the "phase" schools, regression slope for Clenow, JdK RS-Ratio for RRG, a P&F column for Dorsey Wright) and a momentum-of-ratio measure (new highs, zero-line crosses, JdK RS-Momentum). One indicator that computes the primitives and exposes methods as presets covers the field.
+2. **Persistence is real at 6–12 months** (03 §2 [V]). Winners-minus-losers momentum earned 8.3%/yr (Sharpe 0.50) 1927–2013, positive in 81% of rolling one-year windows; the long side carries 73.6% of it. Dorsey Wright's point-in-time RS buy signals returned 13.9%/yr vs 9.3% for the S&P 1990–2015 and beat it in 85% of rolling three-year windows (03 §3 [V]).
+3. **The blue dot has no published hit rate** (03 §1, §4 [V]). IBD says RS new highs before price are "more bullish" and "not a precondition"; no percentages exist. The one measured study (Bulkowski, 15,763 patterns) found RS direction before a breakout barely matters (gains 29–34% across all combinations) and RS rising after it matters a lot (+41% vs +22%).
+4. **Crashes are the signature failure** (03 §2 [V]). All 15 worst momentum months since 1927 came after a negative two-year market return, during rebounds (1932, 2001, 2009; loser decile +156–163% in spring 2009). Volatility scaling roughly doubled the Sharpe (0.53 → 0.97, [S]).
+5. **The benchmark changes the answer** (03 §5 [V]). 78% of S&P 500 stocks lagged the cap-weighted index over 2023–24 because seven names carried it; Dorsey Wright benchmarks RS to the equal-weight S&P; StockCharts resolves `$SECTOR` / `$INDUSTRY` automatically (02 §1.4 [V]).
+6. **IBD's rating is approximated, never reproduced** (01 §1; 02 §1.3 [V]). The 40/20/20/20 quarter weighting comes from a 1999 column; replicas report ±3–5 points vs MarketSurge, worst in the 30–60 band; Deepvue and MarketInOut label theirs approximations.
+7. **Thresholds are heuristics** (03 §1 [V]). IBD says 80, 85 and 90 in different articles and warns that stocks from long bases break out at RS 50–70; the "87 average" has no published sample. Minervini's template says 70, "preferably 80s or 90s" (01 §8).
+8. **Members are pre-trained on three conventions** (02 §2c [V]): the RS line under price in the price pane (IBD, "the squiggly blue line found under the stock's price bars"); a settings dialog with Inputs / Style / Visibility tabs (TradingView); two dot intensities for RS new high vs RS new high before price (ChillLax light/dark, Deepvue green/pink).
+9. **Ten settings members actually change** (02 §2b), in order of how many products expose them: benchmark; pane placement; moving average on the line; new-high lookback; dot toggles and colours; line colour mode (static vs rising-green/falling-red); rating thresholds; label position and a "rating only" phone mode; interval visibility; save as default.
+10. **Dot history matters** (02 §2c [V]). MarketSurge shows only the latest blue dot; the most-liked TradingView clones exist because members wanted the history.
+11. **Templates must not destroy** (02 §2c [V]). TradingView's indicator templates remove existing indicators and delete pane drawings.
+12. **RS vs RSI is the first confusion to defuse** (04 §6 [V]); the best explanations are a question ("Is this stock beating the market, or just riding it?") and a picture (the beach ball under water), used by IBD, TraderLion, JC Parets and UCT's own workshops (04 §a–d).
+
+## 2. The member: who uses this and what they need
+
+### 2.1 Four personas (drawn from the Desk, the curriculum, the Pine programme's census and the product research)
+| Persona | Arrives from | Expects | Fails if |
+|---|---|---|---|
+| **The curriculum learner** | Study and the Desk videos (Manrav's RS lesson, video 59; Chartmaster's workshops) | The 21-EMA phase colouring they were taught; "Learn" links back to the lesson; plain words | They see a raw ratio with four decimals and no explanation |
+| **The IBD / MarketSurge migrant** | MarketSurge, Deepvue | RS line under price, blue dot, RS Rating 1–99 that roughly agrees with what they paid for; weekly chart first-class | Our rating disagrees by ten points with no explanation; no weekly dots |
+| **The TradingView power user** | TradingView scripts (ChillLax, Fred6724), Pine | Inputs / Style / Visibility; every knob; dot history; a custom benchmark; a saveable template; alerts | A fixed three-ETF benchmark menu; no Style tab; templates that wipe their chart |
+| **The phone-first member** | The mobile chart shell | A compact readout: rating, benchmark, last RS high; big tap targets; no text markers | Dots with text at 390 px; a pane too small to read |
+
+### 2.2 Jobs to be done (the questions a member asks the indicator)
+1. Is this stock beating the market, or just riding it? (the line's slope)
+2. Is it a leader right now? (RS new high, rating band)
+3. Did strength show up before price? (RS new high before price)
+4. Is it holding up on bad days? (stress test: red-day RS highs, green-on-red count)
+5. Versus the right thing? (benchmark: market, equal-weight, sector, group)
+6. Is the market regime one where leaders keep leading? (regime chip)
+7. Which names in my watchlist or theme lead? (Leadership list, rotation view)
+8. What should I do with this? (Learn links; honest edge card; never a verdict)
+
+### 2.3 Design principles
+1. **Useful on the first click with zero settings.** The default is what IBD, Deepvue and the curriculum teach, so a member recognises it.
+2. **Innovate on explanation, not on chrome** (the indicator platform's own rule, spec §1.5). Copy the three conventions members already know.
+3. **Three lines on everything**: what it is, where it comes from, what the evidence says.
+4. **Never invent a value.** NaN and a hollow marker when history is short, never a 0 that reads as "no signal" (the `rs_weighted_return` rule).
+5. **One answer everywhere.** Chart, screener, alert, Discord post and Leadership list read the same server columns.
+6. **Match the pros where a number already has a meaning**, and label approximations ("IBD-style, typically ±3–5 points").
+7. **Customization is layered, not hidden.** Simple shows what people change; Advanced shows everything; nothing is removed, only dimmed (the platform's `activeWhen` rule).
+8. **Nothing destructive.** Presets add; they never remove a member's other indicators or drawings.
+
+## 3. The brand: how Uncharted Territory shows up in an indicator
+
+Source: `docs/brand-design-system.md` §1–3, §16, §18, §22, `app/src/styles/tokens.css`, `app/src/components/chart/designTokens.js`, `app/src/components/ui/UIcon.jsx`.
+
+- **Name.** "UCT Relative Strength", short name "UCT RS". The product prefix is the brand's convention (UCT 20, UCT Terminal). Preset names use the field's own words plus the originator in brackets; the UCT-specific preset is "Stress test (UCT)". No invented cute names; the brand is "editorial, restrained, operator-grade".
+- **Voice.** Plain, declarative, no exclamation marks, no hype, no emojis anywhere including the Discord post (brand §22). Microcopy states facts and caveats in the same breath. The tagline is never paraphrased.
+- **Vocabulary.** "Leadership" and "Regime" are operator words the brand already owns; the Leadership list and the regime chip use them. "Navigate" appears once, in the tour's last card.
+- **Colour roles** (designTokens `IND_TOKENS`, per chart preset): `bull` / `bear` for the line above / below its MA (direction of relative performance is direction of money); `info` for the plain RS-new-high dot (the field's blue convention, and blue is "informational only" in the brand); **`premium` gold for the RS-new-high-before-price dot**, the brand's "look here" highlight exactly as HVC volume bars use it (brand §18.1); gold with a ring for the red-day high; `neutral` for a static-coloured line; `warn` amber (never gold, never red) for degraded states. Red is losses and errors only.
+- **Type.** Instrument Sans everywhere, tabular numerals via `font-variant-numeric`, never a monospace (designTokens rule 1; brand §22).
+- **Iconography.** `UIcon` glyphs only; the library row uses the existing `compass` glyph as its category mark. No emoji.
+- **Themes.** Colours come from the chart preset's token set so the indicator reads as part of Classic Dark, OLED, TradingView and Light; the member's UCT chart themes recolour it with everything else (`chartThemes.js`).
+- **Premium.** The Premium badge and lock use gold; the locked state shows a static preview (the platform's state 6, "Premium locked (lock + preview)").
+- **What the indicator must never do.** Use gold for a warning; use green for an "active" control; show a serif; show an emoji; print "buy" or "sell"; call itself IBD's rating.
+
+## 4. Where we are today (measured on master, 2026-11-05)
+
+| Surface | What exists (code read) | Verdict |
 |---|---|---|
-| Chart widget → "Relative Strength Line" | `close ÷ benchmark close`, benchmark enum **SPY / QQQ / IWM**, own pane (15 %), one line, 4-decimal legend ("0.0423"). Premium. Library description: *"This symbol's close divided by a benchmark's — is it leading or lagging the market?"* | Basic. No MA on the line, no markers, no overlay, no rating. The legend value is a raw ratio no member can read. |
-| Chart widget → "% From MA", "52-Week High/Low" | Filed under the Relative Strength heading. | Extension/level studies, not RS. |
-| RS Rating (1–99) | `api/services/rs_ranking.py` + `rs_weighted_return.py`. Universe = cap universe ($300M+, 3,742 tickers). Hourly in-memory cache, disk snapshot, **no history**. Shown as `RsBadge` on Research header, video dock, notebook — **never on the chart**. Route `api/routers/rs_ranking.py`. | Exists, but the formula is **not IBD's** (§5.8) and the chart never shows it. |
-| Screener | `rs_rank`, `rs_return`, `rs_line_trend` (20-bar slope of ticker/SPY → up/flat/down), `sector_rs_pct`. | Good raw material for scans; nothing visual. |
-| Indicator alerts | `IndicatorAlertPopover` reads `GET /api/indicator-alerts/catalog`, which is `indicator_alert_evaluator.INDICATOR_FUNCS` (rsi, macd, bb, price_vs_ma, ma_cross, …). | No RS entry. Adding RS alerts = adding rows to that one dict; the popover picks them up with no UI work. |
-| Compare Symbols panel | Overlays other tickers' normalised % performance; supports theme / sector / industry groups and per-item `scaleMode: 'new'`. | The overlay-with-own-scale mechanics already exist on the chart — reuse. |
-| Engine schema (`defSchema.js`) | `PLOT_STYLES` has `markers` (shape, position, size, text ≤ 24 chars) rendered by `markerPrimitive.js` from 0/1/NaN event columns; `line`, `histogram`, `area`, `baseline`, `hlines`, `band`. `PLACEMENT_TARGETS` = price / pane / volume. `symbol` is a **reserved** input type (decision A3). | Markers and pane are ready today. Price overlay with its own scale and a free-text benchmark are the two schema changes (§8). |
-| Server lane | `_rs_line_provider(sym, tf, inputs)` fetches `_fetch_bars_for_tf(sym, tf, count=400)` for both symbols, returns `{"columns": {"rsLine": [...]}, "times": [...], "asOf": ...}`. | **400 bars is not enough** for a 252-session new-high lookback with any history behind it (§8.6). |
-| Phone | `MobileIndicatorSheet` already edits int/float inputs with −/+ steppers, enums, colours (8 swatches) and switches. | The new inputs render on the phone with no new UI, if we keep input types inside the existing vocabulary. |
+| Chart → "Relative Strength Line" | `nativeRegistry.RS_LINE_RAW`: `close ÷ benchmark close`, enum **SPY / QQQ / IWM**, own pane (15 %), one line, legend 4 decimals, premium. Description: "This symbol's close divided by a benchmark's — is it leading or lagging the market?" | Basic. No MA, no markers, no overlay, no rating, no explanation. |
+| Server lane | `signature._rs_line_provider` fetches `_fetch_bars_for_tf(sym, tf, count=400)` for both symbols; returns `{columns:{rsLine}, times, asOf}`; `registry_defs.store_tf` maps chart timeframes to store keys. | **400 bars** leaves six months of dot history behind a 252-session lookback. |
+| RS Rating | `rs_ranking.py` + `rs_weighted_return.py`: `RS_TERMS` 3M 40% / 6M 20% / 1M 20% / 1W 20%, 3M required, missing terms dropped and renormalised; universe = cap universe (3,742); hourly cache; snapshot; **no history**; `RsBadge` tiers ≥80 / ≥60 / ≥40; never on the chart. | Not IBD's formula (01 §1); will be renamed "UCT fast". |
+| Screener | `rs_rank`, `rs_return`, `rs_line_trend` (20-bar slope vs SPY), `sector_rs_pct`. | Raw material; no events. |
+| Indicator alerts | `IndicatorAlertPopover` reads `GET /api/indicator-alerts/catalog` = `indicator_alert_evaluator.INDICATOR_FUNCS` (rsi, macd, bb, price_vs_ma, ma_cross, …). | No RS rows; adding rows is the whole front-end change. |
+| Engine inputs | `defSchema.js`: types int/float/bool/enum/string/color/source; modifiers **`group`, `inline`, `tooltip`, `disabled`, `activeWhen`** (spec: `activeWhen` dims, never removes; dialog has collapsible groups). | Simple/Advanced needs no schema change. |
+| Settings UI | `IndicatorSettingsDialog.jsx`: three tabs **Inputs / Style / Visibility** over one instance, live-apply, cancel-rollback, 250 ms debounce. | TradingView parity exists. |
+| Templates | `builder/indicatorTemplates.js`: capture/apply a named set of instances, **additive** (`addInstanceCopy`), skips duplicates, behind `indicatorTemplatesEnabled()`; `chartTemplateApply.js` for whole-chart templates; `chartThemes.js` visual skins. | Presets ride this; the flag must be on for members. |
+| Markers | `markerPrimitive.js`: event columns `{0,1,NaN}`; shapes `circle, square, arrowUp, arrowDown`; positions above/below/in bar; text ≤ 24 chars. | Ready. |
+| Phone | `MobileIndicatorSheet.jsx`: steppers for int/float (tap value to type), enum rows, 8 colour swatches, switches, history buttons. | New inputs render with no new UI if types stay in vocabulary. |
+| Compare panel | `CompareSymbolsPanel.jsx`: per-item `scaleMode: 'new'` drives a separate price scale. | Own-scale overlay mechanics exist. |
+| Education | Routes `/desk`, `/desk?section=videos`; `GET /api/education/by-youtube/{youtube_id}`. | Learn links can deep-link by video id. |
+| Brand tokens | `--ut-gold #c9a84c` (light `#7a5c16`), `--info #6ba3be`, `--gain #3cb868`, `--loss #e74c3c`; designTokens roles incl. amber `warn #ff8100`. | Colour roles are defined; we assign, not invent. |
 
-**What the elite tools have that we don't:** RS line on the price pane; RS-line new-high "blue dot"; RS new high *before* price; any benchmark (sector ETF, industry group, any symbol); a moving average on the RS line; the RS Rating printed on the chart with 1M/3M/6M components and a plottable rating history; industry-group RS; one-sentence explanations on hover (nobody has that — it is where "beyond" lives).
+## 5. Product definition: one indicator, seven presets
 
-## 2. What Chartmaster actually does (sources: his four UCT workshops)
+A **preset** is a named set of input values over one definition (`rsLine`, version 2). Choosing a preset writes those inputs; the member can then change anything. Presets are additive indicator templates (§11), so applying one never removes another indicator or a drawing.
 
-Transcripts pulled 2026-11-05 from the education library's YouTube ids: `mfswYu5UlX8` (RS & Weakness), `_0ZvKLYznLo` (Mastering RS), `QCTOJgCQmjw` (Options / RS / Pullbacks), `uugeU83Ns84` (8-Week EMA & PEG). Manrav's RS workshop `sM-aFdyOps4` is the firm's second RS source and matches the curriculum's anchor lesson (video 59, "The RS Line vs. SPY: Building the 21-EMA Cross").
-
-**His tool.** A MarketSurge-style **RS Rating indicator** ("likely based off Mike Webster's relative strength rating"), configured so it **flags relative-strength new highs on the day**. He says the rating relates the stock to the rest of the S&P 500 stocks. Lookback for "RS new high" in his words: "the last 200–250 sessions". He turns it on and "goes around and finds" the names.
-
-**His rules, verbatim where it matters:**
-
-| # | Rule | Where he said it |
-|---|---|---|
-| R1 | **Hunt RS new highs on red market days.** "The ones that show new relative strength highs specifically on red days are almost tipping their hand." | RS&W 5:41 |
-| R2 | **Rating floor.** "Most of the stocks we trade are over 90 RS rating. I like them pushing 95 or higher." | RS&W 21:38 |
-| R3 | **RS new high *before* price** on the **weekly** chart: "they all showed the relative strength high on the weekly before breaking out … before putting in new highs." The "beach ball underwater." | Mastering 30:14, 47:35 |
-| R4 | **Rising RS line, never declining.** A declining RS line + rounding top = avoid / short candidate. A red candle on a day everything else is up "is a sign of not having relative strength." | RS&W 8:22, Mastering 75:47 |
-| R5 | **Buy RS names on weakness:** gap-down → reclaim, pullback to the **8-day EMA** (daily) or **8-week EMA** (weekly), 30-minute pivot, first pullback after an all-time high. | Mastering 12:18–20:03, Opt 25:16 |
-| R6 | **Right theme matters.** "Relative strength in the wrong theme or wrong sector is a killer." | Mastering 77:27 |
-| R7 | **200-day rule.** No longs below the 200-day, no shorts above it. | Opt 62:54 |
-| R8 | **Three lists:** RS/leadership list (5–30 names), emerging setups, catalyst / PEG gappers. | Mastering 48:25 |
-
-**The four manual RS checks (owner's framing in the same workshop, 12:06–18:15):**
-1. **Relationship to the moving averages vs the index** — e.g. QQQ 16 % *below* its 200-day while PLTR bottomed 15 % *above* its own.
-2. **Anchoring to key dates** — how the stock behaved from a named market pivot (e.g. Nov 14) versus the index.
-3. **Ability to move quickly away from pivots** — opened at the lows and closed at the highs while QQQ was down 1.6 %.
-4. **Green on red days**, plus the RS Rating indicator as the mechanical check.
-
-**Manrav's indicator (what the curriculum's anchor lesson teaches):** 3-month RS line vs SPY (switchable to QQQ for tech), coloured turquoise above / red below its **21-day EMA**; long signal = RS line crosses above the 21 EMA; watch for RS new highs diverging from a correcting market; combine with a Launchpad (8/21/50 stacked).
-
-**Still to fold in (Phase 0):** his Discord posts in `#1chartmaster` (wisdom.db on the web pod). The read-only query is written; the owner runs it. Every dated "RS new highs" post becomes a fixture (§11.1).
-
-## 3. Design principles
-
-1. **Everything Chartmaster does by eye becomes a column, a marker, or a number.** One definition, several plots, so a member turns on "UCT RS" and gets his whole method, and the screener runs the same columns across the universe.
-2. **Useful on the first click, with zero settings.** Simple mode is the product; Pro mode is for the ten percent who want the knobs. No default needs changing to trade the way the workshops teach.
-3. **Every dot and number explains itself in one sentence**, in Chartmaster's words where we have them. Hover on desktop, long-press on phone.
-4. **Never invent a value.** Not enough history → NaN and a hollow marker, never a 0 that reads as "no signal". Same rule as `rs_weighted_return` ("an absent period is dropped, it never becomes a value").
-5. **One answer everywhere.** The chart, the screener, the alert, the Discord post and the leadership list read the same server columns, so a member never sees a dot on the chart that the scan would not have found.
-6. **Match the pros where a number already has a meaning** (RS Rating 1–99, 52-week blue dot) and name our own things differently ("UCT RS (fast)") so nobody confuses the two.
-
-## 4. What the member sees (user-friendliness spec)
-
-### 4.1 Finding it
-- **Library row:** name **"UCT Relative Strength"**, short name **"UCT RS"**, category Relative Strength, **Premium** badge (as today). The current "Relative Strength Line" row is replaced, not duplicated — saved layouts with `rsLine` keep working (§12.1).
-- **Description (shown in the library):** *"Is this stock leading or lagging the market? The RS line vs a benchmark, with Chartmaster's signals: RS new highs, RS new highs before price, RS new highs on red days, and the 1–99 RS Rating."*
-- **Search aliases** (library search is search-first, TradingView-style): "RS", "relative strength", "RS rating", "blue dot", "leader", "Chartmaster", "Mansfield", "comparative".
-- The two mislabelled studies ("% From MA", "52-Week High/Low") move out of the Relative Strength category to Price Levels, so the category contains only RS.
-
-### 4.2 First turn-on (Simple mode)
-What appears with no settings touched:
-- A **pane under price (18 % height)** with the RS line vs **SPY** and its **21 EMA**. Line turquoise above the EMA, red below (Manrav/curriculum colours; both are also distinguishable by the EMA being dashed, §4.9).
-- **Blue dots** under the RS line on RS 52-week highs. **Large dark-blue dot with "RS>P"** when the RS high comes before a price high. **Gold dot "NH/RED"** when it comes on a red market day.
-- **Legend chip:** `UCT RS · vs SPY · +2.1% vs 21 EMA ↑ · 52-wk high ✓ 3d ago · RS 94`.
-- **No axis numbers on the RS pane** (decision D6). The raw ratio is meaningless to a member; what matters is slope, the EMA relationship and the highs, which the legend states in words.
-- A one-time **three-card tour** the first time any member turns it on (dismissable, never shown again, stored in preferences): *1. The line: up = beating the market. 2. The dots: blue = RS at a 52-week high; dark blue = before price did; gold = on a red day (the tell). 3. The number: RS Rating 1–99, Chartmaster trades 90+.* Each card has a "Watch the lesson" link (§4.10).
-
-### 4.3 Simple vs Pro settings
-The settings row (desktop) and `MobileIndicatorSheet` (phone) render inputs from the definition. Simple mode shows the first six; Pro shows all. Implemented as an `advanced: true` flag on an input, rendered as a collapsed "Advanced" group by both surfaces (one small schema addition, §8.4; fallback if refused: order the inputs so the six Simple ones come first).
-
-| Group | Input | Type | Default | Plain-English help text |
+| Preset | What the member sees | Origin (research) | Evidence line shown | Timeframe default |
 |---|---|---|---|---|
-| **Simple** | Benchmark | enum | S&P 500 (SPY) | "What are we comparing against? Sector and Industry pick the right group for this stock automatically." Options: S&P 500 (SPY) · Nasdaq 100 (QQQ) · Russell 2000 (IWM) · Equal-weight S&P (RSP) · **Sector ETF (auto)** · **Industry group (auto)** · Custom symbol (Phase 3) |
-| | Show RS new highs | bool | on | "Blue dot when the RS line hits its highest level in the lookback." |
-| | Show RS new high before price | bool | on | "Big dark dot: the RS line made a new high while price has not yet. Chartmaster's 'beach ball underwater'." |
-| | Show RS new high on red day | bool | on | "Gold dot: an RS new high on a day the market closed down. 'They're almost tipping their hand.'" |
-| | Show RS Rating | bool | on | "The 1–99 rating in the legend. 99 = top 1% of the market over the last year." |
-| | Moving average on RS line | int | 21 | "Turquoise above, red below. 21 is the lesson default; 8 for fast, 50 for slow." (min 2, max 200) |
-| **Advanced** | MA type | enum | EMA | EMA / SMA |
-| | New-high lookback | int | 252 | "Sessions. 252 ≈ one trading year (what MarketSurge calls 52-week). Weekly charts use weeks." (min 20, max 500) |
-| | Price-high tolerance | float | 2.0 % | "Price counts as 'not at its high' when it is more than this far below its own lookback high." |
-| | Red-day threshold | float | −0.5 % | "The benchmark must close at least this much down for a 'red day'." |
-| | Short-history dots | bool | on | "Hollow dot when the stock has fewer bars than the lookback (new IPOs)." |
-| | Green-on-red markers | bool | off | "Small green triangle on days the stock closed up while the market closed down." |
-| | RS line / MA cross arrows | bool | off | "Arrow when the RS line crosses its moving average (the curriculum's long signal)." |
-| | Headline rating | enum | IBD 12-month | IBD 12-month (matches MarketSurge/Deepvue) / UCT fast (reacts in days) / Both |
-| | Rating history line | bool | off | "Plot the RS Rating as a line in its own pane with the 90 and 80 bands." (Phase 2) |
-| | Relative Weakness mode | bool | off | "Flip everything: RS new lows, red-on-green days, declining-MA colouring. Chartmaster's short-side read." |
-| | Scorecard | bool | on | "Show the four workshop checks in the detail readout." |
-| | Placement | enum | Pane | Pane / On price (own scale) (Phase 3) |
-| | Colours & widths | color / int | see §4.9 | line up, line down, MA, dot colours, line width 1–4 |
+| **Classic (O'Neil)** — default | RS line under price vs SPY, 21 EMA, light-blue dots on 52-week RS highs, gold dot when before price, "RS 94 · vs SPY" label | IBD / MarketSurge, 01 §1, 02 §1.1 | "Stocks that led over 6–12 months kept leading on average (academic momentum, 8.3%/yr long-short 1927–2013). No published hit rate exists for the blue dot; ours will come from our nightly test." | Daily |
+| **Phase (21 EMA)** | Line coloured bull above / bear below its 21 EMA; cross arrows; shading between | Manrav video 59, TraderLion RS Phase, Deepvue Webby RS, 04 §7, 02 §1.2 | "A moving average on the ratio is the field's standard trend read (StockCharts 150-day, Deepvue 21/50). It lags turns by design." | Daily |
+| **Trend (Mansfield)** | Oscillator around zero: ratio vs its 52-week SMA; bull / bear / neutral background | Weinstein, Mansfield charts, 01 §2 | "Stage Analysis practitioners require RS above zero or crossing it on a Stage 2 breakout. The 52-week average lags badly at turns." | Weekly |
+| **Rotation (RRG-style)** | RS-Ratio and RS-Momentum around 100, quadrant label (Leading / Weakening / Lagging / Improving); mini rotation plot for a watchlist | de Kempenaer, 01 §6 (UCT normalisation, "inspired by") | "RRG shows trend and its momentum for a whole group. It is a map, not a trading system; RS-Momentum crosses 100 often." | Weekly |
+| **Quality (Clenow)** | Annualised regression slope × R² as a score; gap flag when any 90-day move > 15% | *Stocks on the Move*, 01 §4, 03 §3 | "Ranks steady climbers above gappers. Out of sample it lagged the S&P 2015–2025 (7.5% vs 13.4%, Quanterlab)." | Daily |
+| **Volatility-adjusted** | ATR-normalised RS vs its 50 MA, four states (strong gaining / strong fading / weak improving / weak) | OANDA VARS, Daniel–Moskowitz, 01 §9 | "Volatility scaling roughly doubled momentum's Sharpe in academic tests. It dampens genuine breakouts." | Daily |
+| **Stress test (UCT)** | RS new highs on red market days, green-on-red count (last 20), pivot speed, pullback-to-8-EMA distance | UCT workshops (Chartmaster RS&W 5:41, Mastering 12:06–18:15; Kell; TraderLion "down days"), 04 §7 | "Watching leaders on down days is taught by O'Neil, Kell and UCT's mentors. No published forward-return study exists; ours will." | Daily |
 
-Rules: every input has a `label` and a one-line `help`; no abbreviation appears without its expansion in the help text; every numeric input has a min/max so the stepper on the phone cannot produce nonsense.
+Every preset carries the regime chip (§6.6) and the Leadership readout; the presets differ in which plots and markers are on and which inputs are foregrounded.
 
-### 4.4 Legend and hover
-- **Legend chip (always):** benchmark name, % distance from the RS MA with ↑/↓ slope arrow, "52-wk high ✓ N d ago" or "— below high by X%", the rating(s). Rating coloured by the `RsBadge` tiers (≥80 lead / ≥60 strong / ≥40 neutral) so the colour language matches the rest of the site.
-- **Crosshair:** moving the cursor shows that bar's values (ratio hidden, the words shown) and the rating on that date once history exists (Phase 2).
-- **Marker hover / long-press:** a tooltip with the marker's name, the date, and its sentence (§4.5). On the phone the tooltip is a small sheet with a "Learn" link.
+## 6. The member experience
 
-### 4.5 The markers, in the member's words
+### 6.1 Finding it
+- **Library row.** Name **UCT Relative Strength**, short name **UCT RS**, category Relative Strength (the two mislabelled studies "% From MA" and "52-Week High/Low" move to Price Levels so the category holds RS only), Premium badge, `compass` glyph.
+- **Description** (shown in `IndicatorLibraryDialog`, which already renders `meta.description`): *"Is this stock beating the market, or just riding it? The RS line against a benchmark, with new-high dots, the 1–99 RS Rating and seven ways to read it, from O'Neil's classic to Weinstein's Mansfield and UCT's stress test."*
+- **Search aliases** (the dialog is search-first): RS, relative strength, RS line, RS rating, blue dot, Mansfield, RRG, rotation, leader, leadership, comparative, price relative, momentum.
+- **Disambiguation.** Searching "RSI" shows the RSI row first and, beneath it, one line: "Looking for strength versus the market? That is UCT Relative Strength." (04 §6: the field's first confusion.)
 
-| Marker | Looks like | Tooltip sentence |
-|---|---|---|
-| RS New High | small blue dot under the RS line | "The RS line closed at its highest level of the last 52 weeks. The stock is beating the market by the most in a year." |
-| RS New High before Price ("RS>P") | large dark-blue dot, text "RS>P" | "RS made a new high while price has not. Chartmaster: 'they all showed the relative strength high before putting in new highs.'" |
-| RS New High on Red Day ("NH/RED") | gold dot, text "NH/RED" | "An RS new high on a day the market closed down. Chartmaster: 'they're almost tipping their hand.'" |
-| Short-history RS high | hollow blue dot | "RS high over all available history (fewer than 252 sessions trade). Treat with care." |
-| Green on Red | small green triangle under price | "Stock closed up while the benchmark closed down." |
-| RS / MA cross | up or down arrow on the RS pane | "RS line crossed above/below its 21 EMA. The curriculum's long signal (above)." |
-| RS New Low (weakness mode) | red dot | "The RS line closed at its lowest level of the lookback. Chartmaster treats this as an avoid or a short candidate." |
-| Red on Green (weakness mode) | small red triangle | "Stock closed down while the benchmark closed up." |
+### 6.2 First turn-on (Classic preset, nothing touched)
+1. The RS line draws **in the price pane, under the bars, with its own hidden scale** once Phase 3 lands; until then in a pane under price at 18 % height (phones 22 %). Deepvue's own docs admit the pane-first default sends every new user hunting for "Move to" (02 §2c mistake 1), so the Phase 3 overlay is the end state and the pane is the interim.
+2. A 21-day EMA on the line, dashed, `neutral`. The line itself coloured `bull` above the EMA, `bear` below (Phase colouring is on in Classic because the curriculum teaches it; a Style toggle makes it static).
+3. **Light-blue dots** (`info`) under the line on 52-week RS highs, history kept. **Gold dots** (`premium`) when the RS high comes while price is more than 2 % below its own 52-week high. Gold-ringed when it also falls on a red market day.
+4. **Legend chip:** `UCT RS · vs SPY · RS 94 (IBD-style) · above 21 EMA +2.1% · 52-wk high 3d ago`.
+5. **Tour**, five cards, once per member, dismissable, stored in preferences (copy in §6.11).
+6. No input needs changing to trade the way IBD, Deepvue or the curriculum teach.
 
-Density rule: when more than 600 bars are visible, plain RS New High dots shrink to 1px ticks and the RS>P / NH/RED dots stay full size, so a five-year weekly chart is readable.
+### 6.3 The settings dialog: Inputs tab (every input, with its tooltip)
+Rendered by `IndicatorSettingsDialog` from the definition; groups collapse; `activeWhen` dims an input that does not apply to the chosen preset instead of hiding it (platform rule). Types stay inside the existing vocabulary so `MobileIndicatorSheet` renders them unchanged.
 
-### 4.6 The RS Scorecard (readout)
-In the indicator's detail readout (where the engine shows per-indicator rows today), and in the crosshair legend's expanded form, a compact card:
+**Group: Preset**
+| key | type | default | options / range | tooltip |
+|---|---|---|---|---|
+| `preset` | enum | `classic` | classic · phase · mansfield · rotation · clenow · volAdj · stress | "Seven ways to read the same line. Choosing one sets the inputs below; change anything after." |
+
+**Group: Simple** (always expanded)
+| key | type | default | options / range | tooltip |
+|---|---|---|---|---|
+| `benchmark` | enum | `SPY` | SPY · **RSP (equal-weight S&P)** · **SECTOR (auto)** · QQQ · IWM · INDUSTRY (auto) · CUSTOM (Phase 3) | "What we compare against. Change the benchmark and the question changes. In 2023–24 most S&P stocks lagged the cap-weighted index; equal-weight or sector isolates the stock's own strength." |
+| `placement` | enum | `price` (Phase 3) / `pane` (interim) | price · pane above · pane below | "Under the price bars is how IBD draws it and makes divergences easy to see. A pane gives it room." |
+| `maLength` | int | 21 | 2–200 | "Moving average on the RS line. 21 days is the curriculum default; 50 is Deepvue's second line; Mansfield uses 52 weeks." |
+| `showNewHigh` | bool | on | | "Light dot when the RS line is at its highest level of the lookback." |
+| `showNewHighBeforePrice` | bool | on | | "Gold dot when the RS line makes a new high while price is still below its own high. IBD calls this more bullish; it is not a precondition." |
+| `showRating` | bool | on | | "The 1–99 RS Rating in the legend. 90 means the stock beat 90 % of the universe over the past year." |
+
+**Group: Line** (Style-adjacent inputs that change computation)
+| key | type | default | options / range | tooltip |
+|---|---|---|---|---|
+| `maType` | enum | EMA | EMA · SMA | "EMA reacts faster; SMA is what Mansfield and StockCharts use." |
+| `colorMode` | enum | `phase` | phase (above/below MA) · slope (rising/falling) · static | "How the line is coloured. Phase and slope use the chart's gain and loss colours." |
+| `showMaFill` | bool | off | | "Shade between the line and its average, the way Fred6724's RS Rating script does." |
+
+**Group: New highs and lows**
+| key | type | default | options / range | tooltip |
+|---|---|---|---|---|
+| `lookback` | int | 252 | 20–500 | "Sessions for a 'new high'. 252 is one trading year, what MarketSurge calls 52-week; ChillLax's script defaults to 50 for a faster read. Weekly charts count weeks." |
+| `priceTolerance` | float | 2.0 | 0–10 (%) | "Price counts as 'not at its high' when it is more than this far below its lookback high." |
+| `showNewLow` | bool | off | | "Red dot on RS new lows. Relative weakness, the short side's read." |
+| `shortHistoryDots` | bool | on | | "Hollow dot when the stock has fewer bars than the lookback (new listings). Treat with care." |
+| `dotHistory` | bool | on | | "Keep every dot. MarketSurge shows only the latest; members asked for the history." |
+
+**Group: Rating**
+| key | type | default | options / range | tooltip |
+|---|---|---|---|---|
+| `headlineRating` | enum | `ibd` | ibd · fast · both | "IBD-style weights the past year by quarter (40/20/20/20) and matches MarketSurge within about ±3–5 points. UCT fast weights the last three months and moves within days." |
+| `showComponents` | bool | off | | "1M / 3M / 6M / 12M ratings in the readout, Deepvue's layout." |
+| `ratingBands` | bool | on | | "Legend colour by band: 90+, 80–89, 60–79, below. Bands are the field's heuristics, not tested cut-offs." |
+| `showRatingHistory` | bool | off | | "Plot the rating as a line in its own pane with the 90 and 80 bands (Phase 2)." |
+
+**Group: Stress test** (dims unless preset = stress or `showStress` on)
+| key | type | default | options / range | tooltip |
+|---|---|---|---|---|
+| `showStress` | bool | off (on in Stress preset) | | "Red-day RS highs, green-on-red days and pivot speed. UCT's down-day method." |
+| `redDayThreshold` | float | −0.5 | −3.0–0 (%) | "The benchmark must close at least this much down for a 'red day'." |
+| `showGreenOnRed` | bool | off | | "Small green triangle on days the stock closed up while the market closed down." |
+
+**Group: Method inputs** (each dims unless its preset is chosen)
+| key | type | default | options / range | applies to | tooltip |
+|---|---|---|---|---|---|
+| `mansfieldLength` | int | 52 (weekly) / 200 (daily) | 20–300 | Trend | "The average the ratio is measured against. Weinstein's charts used 52 weeks; do not shorten it on weekly charts." |
+| `rrgWindow` | int | 14 | 5–60 | Rotation | "Bars used to normalise the ratio's trend and momentum. StockCharts needs at least 50 bars of history." |
+| `rrgTail` | int | 12 | 3–30 | Rotation | "Points of trail on the rotation plot." |
+| `clenowWindow` | int | 90 | 30–250 | Quality | "Regression window. Clenow's book uses 90 trading days." |
+| `clenowGapPct` | float | 15 | 5–50 (%) | Quality | "Flag any move larger than this inside the window. Clenow disqualifies them." |
+| `atrLength` | int | 20 | 5–50 | Volatility-adjusted | "ATR length used to normalise daily changes." |
+| `varsLookback` | int | 60 | 20–250 | Volatility-adjusted | "Sessions summed into the volatility-adjusted score." |
+
+**Group: Readout**
+| key | type | default | tooltip |
+|---|---|---|---|
+| `showLeadership` | bool | on | "The Leadership readout: checks, regime, theme, pullback distance." |
+| `showRegime` | bool | on | "Regime chip: benchmark vs its 200-day, two-year trend, volatility. Leaders reverse hardest in rebounds after bear markets." |
+| `showEvidence` | bool | on | "Evidence lines on hover. Our own backtest numbers once they exist; the field's published findings until then." |
+| `compactMode` | bool | off (on by default on phones) | "Rating only: a one-line legend and no markers with text. Fred6724's phone mode." |
+
+Rules: every numeric input has `min`/`max`/`step` so phone steppers cannot produce nonsense; every input has `label` and `tooltip`; abbreviations are expanded in the tooltip; `activeWhen` references only declared keys (the schema validates this).
+
+### 6.4 Style tab
+Generated from the plots (platform: "ONE formatting pipeline drives Style-tab precision, chip values, and crosshair readout"). Per plot: colour, width 1–4, visibility; dot size Tiny / Small / Normal (NNenov's three sizes, 02 §1.3) via marker `size`; label position (legend / top-right / bottom-right). Colours default to the chart preset's `IND_TOKENS` roles so a member on OLED or Light sees the right palette without touching anything; a UCT chart theme recolours them with the rest of the chart.
+
+### 6.5 Visibility tab
+Per-interval display (TradingView's convention, 02 §1.3). Defaults: Classic, Phase, Quality, Volatility-adjusted and Stress on daily; Trend and Rotation on weekly; the RS line and MA on every interval; new-high markers off on intraday (a 252-bar lookback on 5-minute bars is two days and means nothing); the rating label on every interval, since it is a daily number.
+
+### 6.6 Legend, crosshair and the Leadership readout
+- **Legend chip (always):** benchmark name resolved (never the code alone; "vs Semiconductors (SMH)"), rating with method tag, % distance from the MA with slope arrow, last RS high age, and, in Rotation preset, the quadrant. Rating coloured by `RsBadge` tiers so the colour language matches the rest of the site.
+- **Crosshair:** that bar's values in words (ratio hidden by default, decision D6) and, once history exists, the rating on that date.
+- **Leadership readout** (the engine's per-indicator readout rows; a sheet on phones):
 
 ```
-RS SCORECARD · NVDA vs SPY · Daily
-Rating        IBD 96  ·  UCT fast 98  ·  Δ5d +2  ·  Δ20d +7
-Components    1M 91 · 3M 97 · 6M 95 · 12M 96
-RS line       +2.1% above 21 EMA, rising · 52-wk high 3 days ago (before price ✓, red day ✓)
-Check 1 MAs   Stock +15% vs 200d  |  SPY −3% vs 200d          ✓
-Check 2 Anchor Since SPY low 10/15: Stock +18%  |  SPY +6%      ✓
-Check 3 Pivots 7 of last 10 market-down days closed in top third ✓
-Check 4 Green-on-red  6 of last 20 sessions                    ✓
-Theme         Semiconductors · sector RS 88 · group RS pct 92  ✓
-200-day       Stock above · SPY above                          ✓
-Pullback      1.8% above 8-day EMA (buy-the-8 zone < 1%)
+LEADERSHIP · NVDA vs SPY · Daily · as of Nov 5 close
+Rating         IBD-style 96 (±3–5 vs MarketSurge) · UCT fast 98 · 5d +2 · 20d +7
+Components     1M 91 · 3M 97 · 6M 95 · 12M 96
+RS line        +2.1 % above 21 EMA, rising · 52-wk high 3 days ago · before price: yes · red day: yes
+Benchmarks     vs SPY rising · vs RSP rising · vs SMH flat        (sensitivity: agree)
+Regime         SPY above 200d · 2-yr trend positive · volatility low tercile  → persistence regime
+Theme          Semiconductors · sector RS 88 · group percentile 92
+Checks         MAs: stock +15 % vs 200d, SPY −3 %  ·  Anchor Oct 15: stock +18 %, SPY +6 %
+               Pivot speed: 7 of last 10 market-down days closed in top third  ·  Green on red: 6 of 20
+Pullback       1.8 % above 8-day EMA
+Evidence       Our test: after an RS 52-wk high while price < high, median +3.1 % vs SPY at 60 sessions,
+               hit 56 %, n = 2,410 events on 310 dates, 2016–2026. Field: no published hit rate. (Phase 2)
 ```
-Ticks are informational, never a verdict. Every row has the same hover explanation as its marker. A member clicks any row to jump to the relevant lesson (§4.10).
+No aggregate score, no verdict, no tick marks (v2's ticks read as a buy signal; the research says RS is a filter, not timing, 04 §e).
 
-### 4.7 Phone
-- Turn-on, toggles and numeric inputs use the existing `MobileIndicatorSheet` steppers, switches and swatches — nothing new to learn.
-- The pane height is 22 % on phones (the 15 % pane is unreadable at 390 px wide).
-- Long-press a dot → the tooltip sheet. The Scorecard is a sheet reached from the legend chip.
-- Markers with text ("RS>P", "NH/RED") drop their text below 420 px width and keep shape + colour.
+### 6.7 Markers and their three-line cards
+Each marker's hover (long-press on phones) shows **What · Origin · Evidence**.
 
-### 4.8 Timeframes
+| Marker | Looks like | What | Origin | Evidence (launch copy; replaced by our numbers in Phase 2) |
+|---|---|---|---|---|
+| RS new high | small `info` dot under the line | "The RS line closed at its highest level of the last 52 weeks. The stock is beating the market by the most in a year." | IBD's RS line new high; MarketSurge's blue dot | "Leaders over 6–12 months kept leading on average in forty years of data. No published hit rate for the dot itself." |
+| RS new high before price | `premium` gold dot, larger | "RS made a new high while price has not. IBD: 'even more bullish… not a precondition.' UCT's workshops call it the beach ball under water." | IBD; Deepvue pink dot; ChillLax dark dot; UCT workshops | "Not measured anywhere public. Bulkowski found RS before a breakout barely changed outcomes; RS rising after it did (+41 % vs +22 %)." |
+| RS new high on a red day | gold dot with ring | "An RS new high on a day the market closed down." | UCT workshops ("almost tipping their hand"); Kell; TraderLion "down days" | "Taught widely, never measured publicly. Our nightly test will publish it." |
+| Short-history RS high | hollow `info` dot | "Highest RS over all available history (fewer bars than the lookback)." | IBD rates young stocks on available data | "Treat with care: fewer than 252 sessions." |
+| Green on red | small `bull` triangle under price | "Stock closed up while the benchmark closed down." | Deepvue "Up On Down Days"; UCT workshops | "A count, not a signal: 6 of 20 is unusual; 1 of 20 is noise." |
+| RS / MA cross | arrow on the RS pane | "RS line crossed its moving average." | Curriculum video 59; TraderLion RS Phase; Deepvue crossover icon | "A trend read with lag by design." |
+| Mansfield zero cross | small marker at the zero line | "The ratio crossed its 52-week average." | Weinstein | "Most Stage 2A breakouts occur above zero or the week it crosses." |
+| RS new low | `bear` dot | "The RS line closed at its lowest level of the lookback." | ChillLax orange/red dots; Weinstein "don't buy negative RS" | "Relative weakness. In a bear market a leader just falls less; a laggard falls more." |
+
+Density rule: past 600 visible bars, plain new-high dots shrink to ticks; gold dots stay full size. Text markers drop their text below 420 px width.
+
+### 6.8 Presets, templates and sharing
+- **Choosing a preset** writes its inputs through the one writer (`instanceControls.setInstanceInput`), so the toolbar, right-click, chords and the dialog stay in step.
+- **Save as my default**: the member's current inputs become the definition's default for them (preference key, same persist path as chart settings).
+- **Save as template**: the existing `captureIndicatorTemplate` / `applyIndicatorTemplate` (additive, duplicate-skipping). The seven shipped presets are read-only templates in the same list; a member's saved ones follow. Requires `indicatorTemplatesEnabled()` on for members (decision D10).
+- **Share**: the existing share link carries the instance; a member can paste "my RS setup" to a teammate.
+- **Reset to preset** restores the preset's inputs; **Reset to UCT default** restores Classic.
+
+### 6.9 Phone
+- All inputs edit in `MobileIndicatorSheet` (steppers, enums, swatches, switches); nothing new to learn.
+- `compactMode` on by default: a one-line legend `RS 94 · vs SPY · 52-wk high 3d`, markers without text, pane 22 %.
+- Long-press a dot: the three-line card as a sheet with a Learn row.
+- The Leadership readout is a sheet from the legend chip; rows are 44 px.
+
+### 6.10 Timeframes
 - **Daily:** everything.
-- **Weekly:** identical, with the lookback in weeks (52), the MA default 21 weeks, the pullback row reading the 8-week EMA (R5), and the rating still the daily rating as of that week's last session. Chartmaster's R3 is a weekly rule, so the weekly chart is first-class, not a port.
-- **Monthly:** RS line + MA + highs only; markers that depend on daily red days are hidden with a legend note "red-day markers are daily/weekly".
-- **Intraday (1m–1h):** RS line vs the benchmark's intraday bars, MA, cross arrows; new-high markers off by default (a 252-bar lookback on 5-minute bars is two days and means nothing). The legend still shows the daily rating. The pane note says "RS highs are a daily/weekly signal".
+- **Weekly:** lookback in weeks (52), `maLength` 21 weeks (Fred6724 uses a 10-week SMA; offered as a tooltip hint), Mansfield 52, pullback row reads the 8-week EMA; the rating is the daily rating as of that week's last session; computed on the site's Friday-dated weekly bars, never resampled on the client.
+- **Monthly:** line, MA, Mansfield, new highs only.
+- **Intraday:** RS line vs the benchmark's intraday bars, MA, cross arrows; new-high and stress markers off (Visibility defaults); the legend still shows the daily rating with "(daily)".
 
-### 4.9 Colour, shape and accessibility
-- Defaults: line up `#4ECDC4` (the current turquoise), line down `#F87171`, MA `#E0DAC8` dashed, RS NH `#38BDF8`, RS>P `#1D4ED8`, NH/RED `#C9A84C` (the site's gold), green-on-red `#4ADE80`, weakness `#F87171`.
-- **Never colour-only:** up/down is also dashed-vs-solid MA relationship and the arrow glyph; the three NH markers differ by size and text, not only hue. The palette is checked against deuteranopia and protanopia simulations before Phase 1 ships (acceptance item, §11.4).
-- Text ≥ 11 px on markers; tooltips readable at 200 % browser zoom; animations none (the tour cards fade only, respecting `prefers-reduced-motion`).
+### 6.11 Tour and Learn links
+Five cards (from 04 §d, edited to the brand voice), shown once:
+1. **Beating the market, or just riding it?** RS compares the stock to the S&P 500. A stock can go up and still lose the race.
+2. **Read the slope, not the level.** The line rises when the stock outperforms and falls when it lags. Whether it sits above or below price means nothing; it is not a moving average.
+3. **Watch for RS new highs.** When the line tops its old high before price does, demand may be building early. IBD's winners averaged a rating of 87 before their runs; IBD publishes no sample for that figure.
+4. **Strong on a weak day.** Stocks that close green while the market sells off are showing real demand. Like a beach ball held under water, they tend to pop first when selling stops.
+5. **RS says where to look, not when to buy.** Combine it with a base, volume and your own stop. Navigate the market with it; do not let it steer alone.
 
-### 4.10 Learn links
-- Each tooltip, tour card and Scorecard row carries a "Learn" link into the Desk's education library: Manrav video 59 (RS line & 21 EMA), video 61/63 (leadership & rotation), and Chartmaster's four workshops at the timestamps in §2. Links use the existing education routes; no new pages.
-- The Study module (`docs/study`) gets one new drill family in Phase 4: "Which of these two RS lines is the leader?" using real charts with the indicator on.
+Learn links (every card, every marker card, every readout row): deep links into the Desk videos by YouTube id (`/desk?section=videos` + the `by-youtube` endpoint): Manrav video 59 for the line and 21 EMA, Chartmaster RS&W 5:41 for red-day highs, Mastering RS 30:14 for before-price, 12:06 for the checks; plus three external references in the glossary (ChartSchool Price Relative, IBD's RS line article, Stage Analysis Mansfield page).
 
-### 4.11 Empty, error and edge states (copy)
+### 6.12 States (mapped to the platform's ten-state inventory)
 | State | What the member sees |
 |---|---|
-| Free member | The library row with the Premium badge and "Unlock with UCT Pro" (the server answers 402; nothing half-renders). |
-| Benchmark has no bars for this timeframe | Pane shows "No SPY bars for this timeframe yet" and the line is hidden; never a flat 1.0 line. |
-| Stock has < 63 sessions | Line and MA draw; rating chip says "RS — (needs 3 months)"; dots hollow. |
-| Stock has 63–251 sessions | Everything draws; new-high dots hollow with the short-history sentence. |
-| Benchmark = the stock itself (SPY vs SPY) | Pane note "Pick a different benchmark"; line hidden (single-symbol RS is 1.0, an existing golden test). |
-| Sector/Industry auto cannot resolve (no GICS for the ticker) | Falls back to SPY and the legend says "vs SPY (no sector found)". |
-| Server slow | Pane shows the last cached columns with a "updating…" chip; after 8 s "RS unavailable right now" — price chart never waits on RS. |
+| Loading | Skeleton line, never a flashed error. |
+| Refreshing | Last columns kept, subtle activity on the chip. |
+| Warm-up / short history | Grey, "needs N more bars"; line and MA draw when they can; dots hollow; rating "— (needs 3 months)". Never error-styled. |
+| Compute error | Red dot on the chip, message on click, Retry, copy diagnostic; plots removed, chip stays. |
+| Server unavailable | Amber chip, last-good ghosted with as-of time; the price chart never waits on RS. |
+| Premium locked | Gold lock and a static preview image of Classic on a leader. |
+| Hidden / hidden on this timeframe | Greyed chip with tooltip "RS highs are a daily and weekly signal". |
+| Benchmark has no bars | "No SPY bars for this timeframe yet"; line hidden; never a flat 1.0. |
+| Benchmark = the symbol | "Pick a different benchmark"; line hidden (single-symbol RS is 1.0, an existing golden test). |
+| Sector / Industry unresolved | Falls back to SPY; legend says "vs SPY (no sector found)". |
+| Repaint badge | Not shown: every column is non-repainting (closed bars only). |
+| Version migrated | Toast once: "Relative Strength Line is now UCT Relative Strength. Your benchmark and colours were kept." |
 
-## 5. Exact definitions (the formulas the build implements and the tests pin)
+### 6.13 Copy guide (voice)
+- Declarative sentences, present tense, no exclamation marks, no emoji, no "buy"/"sell", no "guarantee", no "signal" without "read" or "tendency" nearby.
+- Numbers carry their source and date: "8.3 %/yr, 1927–2013 (Asness et al.)"; our own: "n = 2,410 events on 310 dates, 2016–2026".
+- Approximations are labelled where they appear: "IBD-style (±3–5 vs MarketSurge)".
+- Banned: "elite", "powerful", "unlock alpha", "institutional accumulation" (unmeasured, 03 §1), "leading indicator" (Bulkowski says otherwise), "crystal ball".
+- Allowed brand lines: "Navigate the market" (once, tour card 5); "Leadership"; "Regime".
 
-Notation: `C[t]` stock close, `B[t]` benchmark close, joined by bar time; `N` lookback (252 daily / 52 weekly); `rs[t] = C[t] / B[t]`. Any bar where either close is missing → `rs[t] = NaN` and every derived column is NaN at `t`.
+## 7. Exact definitions (what the tests pin)
 
-1. **RS line:** `rs[t]` as above. Displayed raw (decision D6). Legend shows `(rs[t]/rsMA[t] − 1) × 100` and the slope sign of `rsMA[t] − rsMA[t−1]`.
-2. **RS MA:** EMA (default) or SMA of `rs`, length `L` (default 21), NaN for the first `L−1` bars. Colour column `rsAbove[t] = rs[t] ≥ rsMA[t]`.
-3. **RS New High:** `rsNH[t] = 1` iff `rs[t] ≥ max(rs[t−N … t−1])` with all N prior values present; `0` otherwise; NaN when fewer than N prior bars exist **unless** short-history dots are on, in which case `rsNHpartial[t]` is the same test over all available bars (minimum 20) and renders hollow. Ties (equal to the prior max) count as a new high (matches the TradingView open-source convention).
-4. **Price New High:** `pxNH[t] = 1` iff `C[t] ≥ max(C[t−N … t−1]) × (1 − tol)`, `tol` default 0.02. (A price within 2 % of its high is "at its high" for this purpose.)
-5. **RS NH before Price:** `rsNHbeforePx[t] = rsNH[t] ∧ ¬pxNH[t]`.
-6. **Red day:** `red[t] = (B[t]/B[t−1] − 1) ≤ −0.005` (threshold input). **Green on red:** `gor[t] = red[t] ∧ C[t] > C[t−1]`. **Red on green:** mirror.
-7. **RS NH on Red Day:** `rsNHred[t] = rsNH[t] ∧ red[t]`.
-8. **RS Rating (IBD-standard):** for each ticker in the cap universe with ≥ 63 daily closes, `score = 0.40·(C/C₋₆₃) + 0.20·(C/C₋₁₂₆) + 0.20·(C/C₋₁₈₉) + 0.20·(C/C₋₂₅₂)`; a missing term is dropped and the weights renormalised (the `rs_weighted_return` rule; the 63-day term is required). Rating = percentile rank of `score` across the universe, mapped to 1–99 (`ceil(pct × 99)`, floor 1). ETFs and the benchmarks themselves are excluded from the ranked universe but still receive a rating. IBD's exact proprietary weighting is not public; the parity target is ±2 against MarketSurge on the same date (§11.2), not identity.
-9. **UCT RS (fast):** today's `rs_ranking` number unchanged (3M 40 % / 6M 20 % / 1M 20 % / 1W 20 %), renamed in the UI.
-10. **Components:** 1M / 3M / 6M / 12M = percentile rank (1–99) of the plain period return over 21 / 63 / 126 / 252 sessions.
-11. **Rating change:** `Δ5 = rating[t] − rating[t−5]`, `Δ20` likewise, from the history table (Phase 2); "—" before history exists.
-12. **Scorecard rows:** Check 1 = `(C/SMA200(C) − 1)` vs `(B/SMA200(B) − 1)`, also for 50; Check 2 = `C[t]/C[a] − 1` vs `B[t]/B[a] − 1` from anchor `a` (default: the benchmark's lowest close of the last 20 sessions; user-clickable date in Phase 3); Check 3 = over the last 10 `red` days, count where `(C − L)/(H − L) ≥ 2/3`; Check 4 = `Σ gor` over the last 20 sessions; Theme = sector ETF's IBD rating and `sector_rs_pct`; 200-day flags = `C > SMA200(C)`, `B > SMA200(B)`; Pullback = `(C/EMA8(C) − 1)` daily, `EMA8` of weekly closes on weekly.
-13. **Weakness mode:** `rsNL`, `rsNLpartial`, `rog` (red on green), colouring by `rs < rsMA ∧ rsMA falling`; rounding-top helper = three successive lower RS highs among the last 20 bars' local maxima.
-14. **Weekly:** computed on weekly bars (Friday-dated, the site's convention), N = 52, L = 21 weeks, EMA8 of weekly closes. **Never** resampled from daily on the client.
+Notation: `C[t]` stock close, `B[t]` benchmark close, joined by bar time; `N` lookback (252 daily / 52 weekly); `rs[t] = C[t] / B[t]`. Any bar where either close is missing → `rs[t] = NaN` and every derived column is NaN at `t`. All event columns are `{0, 1, NaN}`.
 
-## 6. Server contract
+1. **RS line.** `rs[t]`. Displayed raw on a hidden scale (D6); legend shows `(rs/rsMA − 1) × 100` and the slope sign of `rsMA`.
+2. **RS MA.** EMA (default) or SMA of `rs`, length `L`, NaN for the first `L − 1` bars. `rsAbove[t] = rs[t] ≥ rsMA[t]`.
+3. **RS new high.** `rsNH[t] = 1` iff `rs[t] ≥ max(rs[t−N … t−1])` with all N prior values present (ties count, ChillLax convention); `0` otherwise; NaN before N bars unless `shortHistoryDots`, then `rsNHpartial` over all available bars (minimum 20), rendered hollow.
+4. **Price new high.** `pxNH[t] = 1` iff `C[t] ≥ max(C[t−N … t−1]) × (1 − tol)`, `tol` default 0.02.
+5. **RS NH before price.** `rsNHbeforePx = rsNH ∧ ¬pxNH`.
+6. **Red day.** `red[t] = (B[t]/B[t−1] − 1) ≤ threshold` (default −0.005). **Green on red** `gor = red ∧ C[t] > C[t−1]`. **Red on green** mirror.
+7. **RS NH on red day.** `rsNHred = rsNH ∧ red`.
+8. **RS new low.** Mirror of 3.
+9. **RS / MA cross.** `crossUp[t] = rsAbove[t] ∧ ¬rsAbove[t−1]`; `crossDown` mirror.
+10. **Mansfield (Trend preset).** `RP = rs × 100`; `MRS = ((RP / SMA(RP, n)) − 1) × 100`, `n` 52 weekly / 200 daily (01 §2). Background: bull when `MRS > 0 ∧ MRS rising`, bear when `< 0 ∧ falling`, neutral otherwise (stageanalysis script convention, 02 §1.3). Zero-cross marker.
+11. **Rotation (RRG-style, UCT normalisation).** JdK's formula is proprietary (01 §6), so we publish ours and label the preset "RRG-style": `trend[t] = (rs[t] / EMA(rs, W) − 1) × 100` with `W = rrgWindow × 3`; `rsRatio = 100 + 100 × trend[t] / σ(trend, 252)` clipped to [80, 120]; `rsMomentum = 100 + 100 × (rsRatio[t] − rsRatio[t − rrgWindow]) / σ(Δ, 252)` clipped the same. Quadrant: Leading (≥100, ≥100), Weakening (≥100, <100), Lagging (<100, <100), Improving (<100, ≥100). Needs ≥ 252 + W bars; else NaN with the warm-up state.
+12. **Quality (Clenow).** Over `clenowWindow` bars: OLS of `ln C` on bar index → slope `b`, `R²`; `annual = (1 + b)^252 − 1`; `score = annual × R²`; `gapFlag = 1` if any `|C[i]/C[i−1] − 1| > clenowGapPct` inside the window (01 §4; sources differ 250/260 trading days, we use 252 and say so in the tooltip).
+13. **Volatility-adjusted (VARS).** `ΔS[t] = (C[t] − C[t−1]) / ATR_C(atrLength)`; `ΔI[t] = (B[t] − B[t−1]) / ATR_B(atrLength)`; `vars[t] = Σ_{varsLookback} (ΔS − ΔI)`; state from sign of `vars` and `vars − SMA(vars, 50)` (01 §9).
+14. **RS Rating (IBD-style).** For each ticker in the cap universe with ≥ 63 daily closes: `score = 0.40·C/C₋₆₃ + 0.20·C/C₋₁₂₆ + 0.20·C/C₋₁₈₉ + 0.20·C/C₋₂₅₂`; a missing term is dropped and weights renormalised (`rs_weighted_return` rule); the 63-day term required. Rating = percentile rank across the universe → `max(1, ceil(pct × 99))`. ETFs and the benchmarks are excluded from the ranked universe but still receive a rating. Labelled "IBD-style"; parity target ±3 against MarketSurge on the same date (02 §1.3 replicas report ±3–5; we aim one point tighter and report what we get).
+15. **UCT RS (fast).** Today's `rs_ranking` number unchanged.
+16. **Components.** 1M / 3M / 6M / 12M = percentile rank of the plain 21 / 63 / 126 / 252-session return (Deepvue's layout).
+17. **Rating change.** `Δ5`, `Δ20` from `rs_rating_history`; "—" before history exists.
+18. **Regime chip.** `above200 = B > SMA(B, 200)`; `trend2y = sign(B[t]/B[t−504] − 1)`; `volTercile` of 126-session realised volatility of `B` against its own trailing three-year distribution. "Persistence regime" when above200 ∧ trend2y > 0; "Rebound-risk regime" (Daniel–Moskowitz panic state) when trend2y < 0 ∧ volTercile = high; "Mixed" otherwise.
+19. **Benchmark sensitivity.** Sign of the 20-session slope of `rs` vs SPY, RSP and the sector ETF; "agree" when all three signs match, else the disagreeing pair is named.
+20. **Checks (Stress preset / readout).** MA relationship `(C/SMA200(C) − 1)` vs `(B/SMA200(B) − 1)` (also 50); anchor `C[t]/C[a] − 1` vs `B[t]/B[a] − 1` from the benchmark's lowest close of the last 20 sessions (clickable date, Phase 3); pivot speed = count over the last 10 red days where `(C − L)/(H − L) ≥ 2/3`; green-on-red count over 20 sessions; pullback `(C/EMA8(C) − 1)` daily, EMA8 of weekly closes on weekly.
+21. **Weekly.** All of the above on Friday-dated weekly bars with N = 52, L = 21 weeks, Mansfield 52, EMA8 weekly.
 
-- **Endpoint:** unchanged, `GET /api/signature/columns?defId=rsLine&sym=&tf=&inputs=` (premium, `require_paid`). Only the inputs JSON and the response grow.
-- **Response:**
-  ```json
-  {
-    "columns": {
-      "rsLine": [...], "rsMa": [...], "rsAbove": [...],
-      "rsNH": [...], "rsNHpartial": [...], "rsNHbeforePx": [...], "rsNHred": [...],
-      "gor": [...], "rog": [...], "rsCrossUp": [...], "rsCrossDown": [...],
-      "rsNL": [...], "rsNLpartial": [...],
-      "rsRatingHist": [...]            // Phase 2, NaN before history
-    },
-    "times": [...],
-    "payload": {
-      "benchmark": {"requested": "SECTOR", "resolved": "SMH", "label": "Semiconductors (SMH)"},
-      "rating": {"ibd": 96, "fast": 98, "d5": 2, "d20": 7, "m1": 91, "m3": 97, "m6": 95, "m12": 96, "asOf": "2026-11-05"},
-      "scorecard": {"ma50": [..], "ma200": [..], "anchor": {"date": "2026-10-15", "stock": 18.0, "bench": 6.0},
-                    "pivotSpeed": [7, 10], "greenOnRed20": 6, "sector": {"etf": "SMH", "ibd": 88, "groupPct": 92},
-                    "above200": [true, true], "distEma8": 1.8},
-      "lastRsHigh": {"date": "2026-11-02", "beforePrice": true, "redDay": true},
-      "history": {"bars": 1400, "short": false}
-    },
-    "asOf": 1762387200.0,
-    "rev": 2
-  }
-  ```
-- **Event columns** are `{0, 1, NaN}` exactly as `markerPrimitive.js` requires; the golden test asserts no other value appears.
-- **Bars fetched:** daily `count = N + 600` (default 852) so a member sees two and a half years of dots behind the current one; weekly `N + 200`; intraday 400 as today. Benchmark fetched with the same count.
-- **Benchmark resolution on the server:** `SPY/QQQ/IWM/RSP` literal; `SECTOR` → the ticker's GICS sector ETF from `ticker_meta` (XLK, XLF, …, fallback SPY with `payload.benchmark.fallback: "no sector"`); `INDUSTRY` → the UCT industry composite the Compare panel uses (equal-weight index of the group's closes, computed server-side and cached per session); `CUSTOM:<SYM>` (Phase 3) → `_sym_or_422`.
-- **Caching:** key `(defId, sym, tf, canonical inputs JSON, session date)`; TTL 15 min intraday, until next session close for D/W/M; the rating block comes from the hourly `rs_ranking` cache and the nightly history table, never recomputed per request.
-- **Performance budget:** warm response ≤ 150 ms p95 on the web pod; payload ≤ 80 KB gzipped for 852 bars × 14 columns; universe-wide nightly job ≤ 5 min. Measured in Phase 1's final review and recorded in the PR.
-- **Errors:** unknown benchmark → 422 with `{"error": "unknown benchmark", "allowed": [...]}`; no bars → 200 with empty columns and `payload.history.bars = 0` (the client renders the §4.11 state); free member → 402 (unchanged).
-- **Versioning:** `compute.rev: 2`. The client treats a `rev` mismatch as a cache miss, so a deploy never shows new plots over old columns.
+## 8. Server contract
 
-## 7. Beyond the chart — the same columns everywhere
+- **Endpoint** unchanged: `GET /api/signature/columns?defId=rsLine&sym=&tf=&inputs=` (premium, `require_paid`). Inputs JSON and response grow.
+- **Columns**, all aligned to `times`: `rsLine, rsMa, rsAbove, rsNH, rsNHpartial, pxNH, rsNHbeforePx, rsNHred, rsNL, gor, rog, crossUp, crossDown, mansfield, mansfieldState, rsRatio, rsMomentum, clenowScore, clenowGap, vars, varsState, rsRatingHist (Phase 2)`. Line columns are floats; event columns `{0,1,NaN}`; state columns small ints with a published legend.
+- **Payload** (scalars for the legend and readout): `benchmark {requested, resolved, label, fallback}`, `rating {ibd, fast, d5, d20, m1, m3, m6, m12, asOf, universeSize, method: "ibd-style"}`, `regime {above200, trend2y, volTercile, label}`, `sensitivity {spy, rsp, sector, agree}`, `checks {ma50, ma200, anchor, pivotSpeed, greenOnRed20, pullbackEma8}`, `theme {sectorEtf, sectorRating, groupPct}`, `lastRsHigh {date, beforePrice, redDay}`, `quadrant`, `history {bars, short}`, `evidence [{marker, horizon, median, mean, hit, n, dates, from, to}]` (Phase 2, from the nightly table).
+- **Bars fetched:** daily `N + 600` (default 852); weekly `N + 200`; intraday 400 as today; benchmark and the two sensitivity benchmarks the same count (three extra SQLite reads of ~850 rows; negligible). Fixes the measured 400-bar gap.
+- **Benchmark resolution on the server:** `SPY / QQQ / IWM / RSP` literal; `SECTOR` → GICS sector ETF from `ticker_meta` (XLK, XLF, …; coverage to be measured, §17.2) with SPY fallback and `payload.benchmark.fallback = "no sector"`; `INDUSTRY` → equal-weight composite of the UCT industry group's closes, computed server-side and cached per session (reachability to be confirmed, §17.3); `CUSTOM:<SYM>` (Phase 3) → `_sym_or_422`.
+- **Caching:** key `(defId, sym, tf, canonical inputs JSON, session date)`; TTL 15 min intraday, until next close for D/W/M; the rating block from the hourly `rs_ranking` cache and the nightly history table, never recomputed per request.
+- **Budget:** warm p95 ≤ 150 ms on the web pod; payload ≤ 100 KB gzipped for 852 bars × 22 columns; nightly universe job ≤ 8 min. Measured in Phase 1's final review and written into the PR.
+- **Errors:** unknown benchmark → 422 `{"error": "unknown benchmark", "allowed": [...]}`; no bars → 200 with empty columns and `history.bars = 0`; free member → 402 (unchanged).
+- **Versioning:** `compute.rev: 2`; the client treats a `rev` mismatch as a cache miss.
 
-1. **Screener columns** (built from the same functions in the nightly screener snapshot): `rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`, `rs_nh_days_ago`, `green_on_red_20`, `rs_line_above_ma`, `rs_rating_ibd`, `rs_rating_chg_5`, `rs_rating_chg_20`, `rs_rating_1m/3m/6m/12m`, `rs_vs_sector_pct`. Presets published for the concept vocabulary: **"RS 90+"**, **"RS new high before price (weekly)"**, **"RS new highs on a red day"**, **"Emerging RS (crossed 21 EMA ≤ 5 days)"**.
-2. **Alerts:** three rows added to `indicator_alert_evaluator.INDICATOR_FUNCS` (`rs_new_high` with conditions *any / before price / on red day*, `rs_ma_cross` *above / below*, `rs_rating` *crosses above 90 / 80 / falls below 80*). The popover and the alert evaluator pick them up with no UI change; alert copy: *"NVDA: RS new high before price (weekly) vs SPY — Chartmaster's beach-ball signal."*
-3. **Discord "RS New Highs" post** on any session where the benchmark closes ≤ −0.5 %, routed through the existing screener-alert routing (`screen_alerts.py` / `alert_routing.py`) to the premium scanners channel, attributed to the rule, never to him. Template:
+## 9. The honesty layer and the nightly backtest
+
+**Why.** The research found no public hit rate for the dot everyone sells (03 §4). Printing our own, with sample size and dates, is the one claim to "beyond MarketSurge" that cannot be copied by adding a feature, and it fits a brand that calls itself operator-grade.
+
+**What we say at launch (Phase 1), verbatim from 03 §b:** the six defensible statements (persistence over 6–12 months with the 8.3 %/yr figure and 81 % of rolling years; "a tendency, not a guarantee… loses roughly one year in five and reverses hardest at bear-market bottoms (2003, 2009)"; the line can rise while the stock falls; the benchmark matters with the 2023–24 figure; RS confirmed after a breakout associated with larger follow-through, Bulkowski +41 % vs +22 %). **What we never say:** the seven items in 03 §b "must not claim".
+
+**The nightly job (Phase 2),** specified in 03 §c and summarised here: five tagged signals (rating crosses 80/90 and deciles; RS line 63/126/252-day highs; RS high while price ≥ 5 % below its high; price high without RS high; post-breakout RS confirmation within 10 sessions) × three benchmarks (SPY, RSP, sector) × three horizons (20/60/120 sessions) × regime splits (benchmark vs 200-day; Daniel–Moskowitz panic state; breadth terciles). Measures median and mean excess return, quartiles, hit rate, baseline lift, N and effective N (first event per non-overlapping window for display; block bootstrap internally), distinct event dates with a date-bootstrap CI, median max adverse excursion. Rules: point-in-time universe including delisted names with delisting returns; no lookahead (signals use closes through t, forward returns from t+1 and say so); index total-return series as benchmark; gross and net (0.2 % round trip, ADV floor); definitions frozen in advance, six months out of sample before any variant; shrinkage toward baseline with weight N/(N+200); display suppressed under effective N 100. Outputs: per-signal table, drift check (last 250 sessions vs history), benchmark-sensitivity panel (rank correlation of RS vs SPY / RSP / sector). Every tooltip number carries computation date, window and universe size.
+
+## 10. Beyond the chart: the same columns everywhere
+
+1. **Screener columns** (from the same functions in the nightly screener snapshot): `rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`, `rs_nh_days_ago`, `green_on_red_20`, `rs_line_above_ma`, `rs_rating_ibd`, `rs_rating_fast`, `rs_rating_chg_5`, `rs_rating_chg_20`, `rs_rating_1m/3m/6m/12m`, `mansfield`, `rrg_quadrant`, `clenow_score`, `vars_state`, `rs_vs_sector_pct`, `rs_benchmark_agree`. **Presets in plain English** (Deepvue's naming lesson, 02 §2c): "RS 90+", "RS new highs (52-week)", "RS new high before price (weekly)", "RS new highs on a red day", "Up on down days (6 of 20)", "Crossed above 21 EMA within 5 days", "Mansfield crossed zero (weekly)", "Rotation: Improving quadrant", "Leaders vs equal-weight too".
+2. **Alerts:** rows added to `indicator_alert_evaluator.INDICATOR_FUNCS`: `rs_new_high` (conditions: any / before price / on red day), `rs_ma_cross` (above / below), `rs_rating` (crosses above 90 / 80, falls below 80; NNenov ships 85/70, 02 §1.3), `mansfield_zero` (above / below), `rrg_quadrant` (enters Leading / Improving). Alert copy: "NVDA: RS new high before price (weekly) vs SPY."
+3. **Discord "RS leaders on a red day" post** on any session where SPY closes ≤ −0.5 %, through the screener alert routing that already posts to Discord (`screen_alerts.py`, `alert_routing.py`; exact hook verified at build), premium scanners channel, suppressed under three names, attributed to the rule and the method, never to a person. Template, no emoji:
    ```
-   📈 RS New Highs on a red day — SPY −0.8% · Wed Nov 5
-   14 names made a relative-strength 52-week high today while the market fell.
-   Before price too (RS>P): NVDA · CRWD · AXON · …
-   Also: APP · HOOD · …
-   Rating 90+ in bold. Open the chart → UCT RS to see the dots. Rule: Chartmaster RS&W workshop, 5:41.
+   RS leaders on a red day · SPY −0.8 % · Wed Nov 5
+   14 names made a relative-strength 52-week high while the market fell.
+   Before price too: NVDA · CRWD · AXON · HOOD
+   Also: APP · ANET · VRT · …
+   Rating 90+ in bold. Chart → UCT RS → Stress test preset. Method: UCT RS & Weakness workshop, 5:41.
    ```
-   Owner-approved or automatic is decision D5. Posts are suppressed when fewer than 3 names qualify (noise rule).
-4. **Leadership list (R8):** an auto-built watchlist in the Watchlists widget, refreshed nightly: `rs_rating_ibd ≥ 90 ∧ rs_nh_days_ago ≤ 10 ∧ above 200d`, grouped by theme, capped at 30 (his own range is 5–30). **Emerging list:** `rs_line_above_ma` turned true within 5 sessions ∧ rating ≥ 80. Each row shows the rating badge and the last-dot date.
-5. **Study / Compass:** each marker's sentence (§4.5) is the explanation Compass gives when asked "what does the gold dot mean"; the Study drill family from §4.10.
+4. **Leadership list (brand vocabulary):** an auto-built watchlist, refreshed nightly: `rs_rating_ibd ≥ 90 ∧ rs_nh_days_ago ≤ 10 ∧ above 200-day ∧ rs_benchmark_agree`, grouped by theme, capped at 30. **Emerging:** crossed above the 21 EMA within 5 sessions ∧ rating ≥ 80. **Rotation view** (Phase 3): the Compare panel gains a rotation plot of the watchlist's or theme's RS-Ratio / RS-Momentum with tails, quadrant-coloured.
+5. **Study and Compass:** each marker's three lines are what Compass says when asked "what does the gold dot mean"; Study gains a drill family "Which of these two RS lines is the leader?" and, in Phase 4, a replay drill over rating history.
 
-## 8. Engineering notes — what has to change in the engine
+## 11. Engineering: what exists, what changes
 
-### 8.1 Price overlay with its own scale (Phase 3)
-`placement.target: 'price'` shares the price scale today; an RS ratio near 1.0 on a $400 stock would be a flat line at the bottom. Add `placement.scale: 'own'` (hidden right-side scale, autoscaled) — the Compare panel already drives lightweight-charts' per-series price scale (`scaleMode: 'new'`), so the binder change is small. Schema change → `defSchema` vocabulary + golden tests + `registrySizes` manifest.
+| Need | Exists today (verified) | Change |
+|---|---|---|
+| Simple / Advanced inputs | `group`, `tooltip`, `activeWhen` in `defSchema`; collapsible groups and dimming in the dialog | None. Author the definition. |
+| Inputs / Style / Visibility | `IndicatorSettingsDialog` three tabs | None. |
+| Presets | `indicatorTemplates.js` additive templates behind `indicatorTemplatesEnabled()` | Ship the seven presets as read-only templates; turn the flag on for members (D10); a `preset` enum input that writes a template's inputs. |
+| Markers | `markerPrimitive.js`, `{0,1,NaN}`, four shapes, text ≤ 24 | None. |
+| Phone editing | `MobileIndicatorSheet` | None if types stay in vocabulary. |
+| Several columns + payload | Provider returns one column | Extend `_rs_line_provider` to §8; `serverCompute.js` passes `payload` through. The lane stays generic (no `if defId`; the AST test enforces it). |
+| Legend reads payload scalars | `readout.js` reads series values only | Small addition: a definition-level `readout: [{key, label, source, format}]` the chip and readout rows render. If refused, a hand-written RS legend block (the pattern the engine is retiring, so the schema route is preferred). |
+| Three-line marker cards | Plots have `legend`; no tooltip text | Small addition: `plots[].card: {what, origin, evidence}` strings; the evidence string is replaced at runtime by `payload.evidence` when present. |
+| Bar count | `_fetch_bars_for_tf(…, count=400)` | Pass `N + 600` daily, `N + 200` weekly from the provider. |
+| Benchmark macros | Enum SPY/QQQ/IWM | Enum grows: RSP, SECTOR, INDUSTRY, CUSTOM (Phase 3); server resolves. `symbol` stays reserved for natives; un-reserved for server-lane definitions only in Phase 3 (A3 preserved for natives). |
+| Price overlay with own scale | Compare panel `scaleMode: 'new'` | `placement.scale: 'own'` in `defSchema` + binder (Phase 3). |
+| Rating history | None | Worker job after the screener build: `rs_rating_history(session, ticker, ibd, fast, m1, m3, m6, m12)`, PK `(session, ticker)`, backfill from `bars.db` behind a `.rs_history_backfill_v1` flag file, snapshot to R2 (Phase 2). |
+| Nightly backtest | None | Worker job writing `rs_evidence(signal, benchmark, horizon, regime, median, mean, hit, n, effN, dates, ciLo, ciHi, from, to, computedAt)` (Phase 2). |
+| Alerts | `INDICATOR_FUNCS` dict | Add the §10.2 rows; the popover needs no change. |
+| Tier | `require_paid` on the lane | Unchanged; premium. |
 
-### 8.2 Benchmark as a free symbol (Phase 3)
-`symbol` is a reserved input type (A3). Sector (auto), Industry (auto) and RSP **do not need it** — they are enum values the server resolves. Custom symbol does. Un-reserve `symbol` for **server-lane definitions only** (the server already validates `_sym_or_422`), keep it reserved for natives. The picker reuses `SymbolSearch`.
+## 12. Validation and definition of done
 
-### 8.3 Server lane carries several columns and a payload (Phase 1)
-`_rs_line_provider` returns one column today. Extend to the §6 column set + `payload`. The lane is generic; no `if defId` anywhere (the AST test enforces it). `serverCompute.js` already time-joins columns; it learns to pass `payload` through to the readout.
+### 12.1 Fixture sets (all four, no single frame)
+1. **Public method parity.** Mansfield vs the stageanalysis TradingView script on five tickers over two years (weekly), within rounding; Clenow score vs the quant-investing worked example; VARS vs the OANDA case study shape; RRG quadrant agreement with StockCharts' RRG on a sector ETF set for the last 12 weeks ≥ 85 % (our normalisation differs, so agreement, not identity).
+2. **MarketSurge / Deepvue parity.** 20 owner screenshots (10 daily, 10 weekly, dates visible): IBD-style rating within ±3 (report the distribution; replicas report ±3–5); blue-dot days within ±1 bar; before-price agrees; Deepvue components within ±3.
+3. **Curriculum parity.** Manrav's GS, D and MARA crosses (video 59) within ±1 bar; Chartmaster's dated Discord "RS new highs" posts (once the owner runs the pod query): ≥ 90 % flagged by `rsNHred` that session, misses listed by name with reason.
+4. **Literature replication.** On our universe 2016–2026 with point-in-time rules: reproduce the direction of Bulkowski's finding (post-breakout RS confirmation beats pre-breakout RS) and the DWA shape (top RS decile beats the equal-weight universe in most rolling 3-year windows). Publish whichever way it comes out.
 
-### 8.4 Two small client-schema additions (Phase 1)
-- `inputs[].advanced: true` → collapsed "Advanced" group in the settings row and `MobileIndicatorSheet`.
-- `inputs[].help: string` (≤ 160 chars) → the help line under each control and the tooltip on hover. Today only `label` exists.
-- `readout: [{key, label, source: 'payload.rating.ibd', format}]` on a definition → the legend chip and Scorecard read payload scalars (today `readout.js` reads only series values). Marker tooltips come from `plots[].tooltip`.
-If any of these is refused, the fallback is a hand-written RS legend block — the pattern the engine has been removing, so the schema route is strongly preferred.
+### 12.2 Usability acceptance (Phase 1 gate)
+Five members the owner picks, never having seen the indicator, on their own devices, two on phones, no coaching. Within 60 seconds each: turn it on; say which benchmark it compares to; point to the most recent RS new high; read the rating and say what 90 means; change the benchmark to the sector. **Pass = 4 of 5 on all five tasks.** One session recorded for the Phase 4 walkthrough. Separately: the default palette passed through deuteranopia and protanopia simulation with markers distinguishable by size and ring, screenshots in the PR; every control reachable by keyboard with the gold focus ring; no text under 11 px.
 
-### 8.5 Nightly RS rating history (Phase 2)
-Worker job (`WORKER_ENABLED`) after the screener build: compute IBD + fast ratings + components for the universe, write `rs_rating_history(session, ticker, ibd, fast, m1, m3, m6, m12)` with a primary key on `(session, ticker)`. Backfill from `bars.db` daily closes (~3.7k tickers × ~500 sessions — minutes, not hours) on first run, guarded by a `.rs_history_backfill_v1` flag file in `DATA_DIR` like the other one-shot heals. Snapshot to R2 beside `bars.db`. The hourly warmer stays for the live number; the history row for today is written at the close.
+### 12.3 Named tests
+- `app/src/components/chart/engine/__tests__/rsIndicator.golden.test.js`: single-symbol RS = 1.0; every event column ∈ {0,1,NaN}; warm-up NaN lengths exactly `L − 1`, `N`, `252 + W`; time-joined never index-joined (benchmark missing a holiday bar); weekly N = 52; tie counts as new high; `tol` boundary; Mansfield zero at `RP = SMA`; RRG quadrant boundaries at exactly 100; Clenow `R² = 1` on a perfect exponential; VARS = 0 when stock and benchmark move equal ATR multiples.
+- `tests/test_rs_columns_provider.py`: payload shape §8; benchmark resolution incl. SECTOR fallback and INDUSTRY composite; 422 unknown benchmark; `rev = 2`; bar count ≥ `N + 600`; p95 latency under budget on a warm cache; no `if def_id` (existing AST rail).
+- `tests/test_rs_rating_ibd.py`: §7.14 on a synthetic universe; renormalisation; `None` when the 63-day term is missing; percentile edges 1 and 99; ETFs excluded from the ranked set but rated.
+- `tests/test_rs_rating_history.py`: idempotent backfill; one row per (session, ticker); today's row written at the close.
+- `tests/test_rs_evidence_job.py`: point-in-time universe used; first-event de-overlap; shrinkage; suppression under effective N 100; no forward return begins before t+1.
+- `tests/test_indicator_alert_catalog_rs.py`: the §10.2 rows exist and evaluate on fixtures.
+- `app/src/components/chart/__tests__/rsPresets.test.js`: each preset applies additively; applying twice adds nothing; dims the right inputs; Reset restores.
+- Existing rails that must stay green: `registrySizes`, the AST rail, the free-user-refused-on-every-route rail, `singleWriterIndex`, `designTokens.test.js` (warn ≠ premium).
 
-### 8.6 Bar count
-`_fetch_bars_for_tf` defaults to 400 bars. A 252-session lookback leaves 148 bars of dots — six months. Raise per §6 (`N + 600` daily). Cost: two extra SQLite reads of ~450 rows; negligible.
-
-### 8.7 Tier and gating
-Stays **premium** (the lane's handler is `require_paid`). The rating badge already is. The library shows the row to free members with the badge (as the other premium rows do today).
-
-## 9. Tie-in to the Pine parity programme
-The one capability every Pine RS script needs is `request.security(benchmark, …)` — a second symbol. §8.2/8.3 build exactly that door on the server lane. When the W-waves reach `request.security`, they should route it through this provider rather than a new one. The Pine programme is paused (2026-11-03); this plan does not depend on it.
-
-## 10. Research still open (Phase 0)
-1. **Chartmaster's Discord posts.** The owner runs the ready query (`scratchpad/rs/run.sh`, read-only) → `out.json`. From it: every dated "RS new highs" list → fixture rows `(date, tickers)`; any screenshots of his indicator settings → confirm lookback and benchmark; any tweet with a rating threshold → confirm R2.
-2. **Sector ETF map.** Confirm `ticker_meta` carries GICS sector for ≥ 95 % of the cap universe; otherwise the Sector (auto) option ships with the SPY fallback visible in the legend.
-3. **Industry composite.** Confirm the Compare panel's industry groups are reachable server-side (they are built client-side today from the theme taxonomy; the server needs the same list).
-
-## 11. Validation and definition of done
-
-### 11.1 Chartmaster fixture set (the best use of the message library)
-From `#1chartmaster`: every post naming RS new highs on a dated red day. Replay our columns on those dates. **Target: ≥ 90 % of his names flagged by `rsNHred` that session; ≥ 95 % flagged by `rsNH` within ±1 session.** Misses are listed by name in the PR with the reason (different benchmark, data gap, his judgement). Test: `tests/test_rs_chartmaster_fixtures.py`, fixture file `tests/fixtures/rs/chartmaster_posts.json`.
-
-### 11.2 MarketSurge / Deepvue parity
-Owner supplies 20 screenshots (10 daily, 10 weekly) with the date visible. Targets: RS Rating within ±2 on the same date; blue-dot days match ±1 bar; RS-NH-before-price agrees on every screenshot. Recorded in `docs/superpowers/specs/rs-parity/` with the screenshot, our capture and the diff. Deepvue's 1M/3M/6M components within ±3.
-
-### 11.3 Manrav lesson parity
-The 21-EMA crosses he walks through (GS, D, MARA in `sM-aFdyOps4`) reproduce as cross arrows on our chart within ±1 bar.
-
-### 11.4 Usability acceptance (before Phase 1 is called done)
-Five members the owner picks, who have never seen the indicator, on their own machine, no coaching. Within 60 seconds each must: turn it on; say which benchmark it is comparing against; point to the most recent RS new high; read the rating. **Pass = 4 of 5 on all four tasks.** Two of the five on a phone. One session recorded for the Phase 4 education copy. Colour-blind check: the default palette passed through deuteranopia and protanopia simulation, markers still distinguishable (screenshots in the PR).
-
-### 11.5 Golden and unit tests (named)
-- `app/src/components/chart/engine/__tests__/rsIndicator.golden.test.js`: single-symbol RS stays 1.0; every event column ∈ {0,1,NaN}; NaN warm-up lengths exactly `L−1` and `N`; time-joined never index-joined (a benchmark with a missing holiday bar); weekly lookback = 52; tie counts as new high; `tol` boundary.
-- `tests/test_rs_columns_provider.py`: payload shape of §6; benchmark resolution incl. `SECTOR` fallback; 422 on unknown benchmark; `rev` = 2; bar count ≥ `N + 600`; p95 latency under budget on a warm cache.
-- `tests/test_rs_rating_ibd.py`: formula of §5.8 on a synthetic universe; renormalisation when the 252-day term is missing; `None` when the 63-day term is missing; percentile → 1–99 mapping edges.
-- `tests/test_rs_rating_history.py`: idempotent backfill; one row per (session, ticker); today's row written at close.
-- `tests/test_indicator_alert_catalog_rs.py`: the three RS rows exist and evaluate on a fixture bar series.
-- Existing rails that must stay green: `registrySizes`, the AST "no `if def_id`" test, the free-user-refused-on-every-route test, `singleWriterIndex`.
-
-### 11.6 Definition of done, per phase
+### 12.4 Definition of done per phase
 | Phase | Done when |
 |---|---|
-| 0 | Fixture set exists with ≥ 10 dated posts; D1–D8 ruled; §10.2–10.3 confirmed. |
-| 1 | §4.2 first turn-on exactly as written; §4.3 Simple inputs; §4.5 markers (daily + weekly); §4.6 Scorecard minus rating history; §4.11 states; §11.1, 11.3, 11.4, 11.5 green; performance budget met and recorded. |
-| 2 | Rating in legend (both formulas), components, Δ5/Δ20, history line + bands; screener columns + presets; alerts; Discord post (behind D5); §11.2 parity recorded. |
-| 3 | Price overlay with own scale; custom benchmark; clickable anchor date; intraday behaviour of §4.8. |
-| 4 | Leadership + Emerging lists; tour cards; Learn links; Study drill; Compass sentences; a 90-second walkthrough video for the Desk. |
+| 0 | Owner rules D1–D12; sector-map coverage and industry-composite reachability measured (§17); Chartmaster posts pulled; parity screenshots collected. |
+| 1 | Classic, Phase and Stress presets as written in §5–6; all §6.3 inputs with tooltips; markers and three-line cards with launch evidence copy; Leadership readout minus rating history and evidence rows; states §6.12; §12.1 sets 1 (Mansfield excluded), 3 and §12.2 green; budgets met and recorded. |
+| 2 | IBD-style rating, components, Δ5/Δ20, history line and bands; nightly evidence job and the evidence rows live; Trend (Mansfield) preset; screener columns and presets; alerts; Discord post behind its flag; §12.1 sets 2 and 4 recorded. |
+| 3 | Price overlay with own scale; CUSTOM benchmark; Rotation, Quality and Volatility-adjusted presets; rotation view in the Compare panel; clickable anchor date; intraday polish. |
+| 4 | Leadership and Emerging lists; tour; Learn links; Study drills; Compass sentences; a 90-second walkthrough video on the Desk; glossary page. |
 
-## 12. Rollout, rollback, telemetry
+## 13. Rollout, rollback, telemetry, success
 
-### 12.1 Saved layouts keep working
-The definition keeps `id: 'rsLine'` and bumps `version: 2`; every new input has a default, so an existing instance with `{benchmark: 'QQQ'}` renders the v2 indicator against QQQ with nothing else changed. No migration of member preferences.
+- **Saved layouts keep working.** Definition keeps `id: 'rsLine'`, bumps `version: 2`; every new input has a default; an existing `{benchmark: 'QQQ'}` instance renders Classic against QQQ. One migration toast (§6.12).
+- **Flags.** `RS_V2_ENABLED` on the web pod (server returns the v1 single column when off; the client hides new plots on `rev: 1`); `admin` first, then all. `RS_HISTORY_ENABLED` and `RS_EVIDENCE_ENABLED` on the worker. `RS_DISCORD_POST_ENABLED`. Indicator templates flag on for members (D10).
+- **Rollback.** Unset the flag and `railway redeploy --service web --yes` (a variable delete alone does not restart the process; the deploy runbook's measured rule). Code rollback = revert; the history and evidence tables are additive and may stay.
+- **Telemetry** (counts only, the chart's existing telemetry pattern): `rs_on`, `rs_off_within_60s`, `rs_preset{name}`, `rs_benchmark{value}`, `rs_advanced_opened`, `rs_style_opened`, `rs_template_saved`, `rs_marker_card{kind}`, `rs_learn{target}`, `rs_tour{card}`, `rs_compact_mode`.
+- **Success after 30 days:** ≥ 25 % of active chart members have it on; `rs_off_within_60s / rs_on` < 10 %; ≥ 3 presets each used by ≥ 5 % of users; ≥ 20 % of users open a marker card; Learn clicks on every marker kind; zero support tickets about "wrong rating" that the ±3 label does not answer.
 
-### 12.2 Flags
-Phase 1 ships behind `RS_V2_ENABLED` on the web pod (server returns the v1 single column when off, and the client definition hides the new plots when the response has `rev: 1`). Flip for admins first (`RS_V2_ENABLED=admin`), then everyone. Phase 2's nightly job gates on `WORKER_ENABLED` + `RS_HISTORY_ENABLED`. The Discord post gates on `RS_DISCORD_POST_ENABLED` and D5.
-
-### 12.3 Rollback
-Unset the flag and `railway redeploy --service web --yes` (a delete alone does not restart the process — the deploy runbook's measured rule). Code rollback = revert the PR; the history table is additive and can stay.
-
-### 12.4 Telemetry (small, counts only)
-Events via the chart's existing telemetry pattern (`studioTelemetry.js` is the model): `rs_on`, `rs_off_within_60s` (the confusion signal), `rs_pro_opened`, `rs_benchmark_changed{value}`, `rs_marker_hover{kind}`, `rs_learn_click{target}`, `rs_tour_dismissed{card}`. Success after 30 days: ≥ 25 % of active chart users have it on; `rs_off_within_60s / rs_on` < 10 %; Learn clicks > 0 on every marker kind.
-
-## 13. Risks and mitigations
+## 14. Risks and mitigations
 | Risk | Mitigation |
 |---|---|
-| Our IBD-style rating disagrees with MarketSurge by more than ±2 for many names | Universe differences are the usual cause. Record the parity set first; expose "universe: UCT cap universe (3,742)" in the Scorecard hover so the difference is explained, not hidden. |
-| Marker clutter on long charts | Density rule §4.5; Simple mode shows three marker kinds only. |
-| Sector/industry auto resolves wrong for conglomerates | Legend always prints the resolved benchmark; one click to override. |
-| Server cost per chart open rises (14 columns, 852 bars) | Cache per session; budget measured; the price chart never waits on RS. |
-| Members read ticks in the Scorecard as buy signals | Copy says "checks", never "score"; no aggregate; Compass sentences repeat Chartmaster's "RS in the wrong theme is a killer" caveat. |
-| Pine programme later wants a different second-symbol door | §9: route `request.security` through this provider; the lane is generic. |
-| The Discord post looks like Chartmaster's own call | Attributed to the rule and the workshop timestamp, posted by Uncharted Scanners, suppressed under 3 names. |
-| Fixture set small if his Discord history is short | Fall back to his dated workshop examples (PLTR, HOOD, APP, CRWD names and dates from §2) as fixtures. |
+| Our IBD-style rating disagrees with MarketSurge for many names | Label the deviation on the number; readout shows universe size and method; parity distribution published in the PR. |
+| Seven presets confuse a beginner | Classic is the default and the tour never mentions the others; presets live behind one menu with one line each; telemetry on preset use decides whether to trim. |
+| The honest evidence lines dampen enthusiasm | They are what makes the "beyond" claim true; the copy pairs each caveat with the positive finding; members who want hype have other tools. |
+| Nightly backtest produces an unflattering number for the before-price dot | Publish it. The design principle is honesty; the marker stays because members expect it and it is a confirmation read (Bulkowski). |
+| Momentum-crash regime arrives and leaders reverse | The regime chip names the state in one line, as the research says it is forecastable in state, not timing. |
+| Sector / industry auto resolves wrong for conglomerates | Legend always prints the resolved benchmark; one click to override; coverage measured before launch. |
+| Marker clutter on long charts | Density rule; compact mode; Visibility defaults. |
+| Server cost rises (22 columns, three benchmarks, 852 bars) | Session caching; measured budget; the price chart never waits on RS. |
+| Templates flag is dark for members | Decision D10; fallback is a `preset` enum alone (less convenient, same inputs). |
+| The Discord post reads as a person's call | Attributed to the method and timestamp; posted by Uncharted Scanners; suppressed under three names; no emoji, no adjectives. |
 
-## 14. Phases and sizing
-
+## 15. Phases and sizing
 | Phase | Scope | Size |
 |---|---|---|
-| **0 — Close the research** | §10; owner rules D1–D8. | 1–2 days |
-| **1 — RS line elite** | §4.1–4.5, 4.7–4.9, 4.11; §5.1–5.7, 5.12 (minus rating rows), 5.13–5.14; §6; §8.3, 8.4, 8.6; §11.1, 11.3–11.6. All inside the existing server lane and pane. | ~2.5 weeks |
-| **2 — RS Rating on the chart** | §5.8–5.11; §8.5; §7.1–7.3; §4.6 complete; §11.2. | ~2 weeks |
-| **3 — Schema changes** | §8.1, 8.2; anchor-date click; §4.8 intraday polish. | ~1–2 weeks |
-| **4 — Teach it** | §4.10 tour and Learn links; §7.4–7.5; walkthrough video; Study drill. | ~1 week |
+| **0 — Close the research** | §17; D1–D12; screenshots; pod query. | 2–3 days |
+| **1 — Classic, Phase, Stress** | §6 complete except rating history, evidence rows, overlay and three later presets; §7.1–9, 18–21; §8; §11 rows marked "none" plus provider, readout and card additions, bar count; §12.1 (1, 3), 12.2, 12.3 (golden, provider, presets, alerts). | ~3 weeks |
+| **2 — Rating, evidence, Trend** | §7.10, 14–17; §9 nightly job; §10.1–10.3; §12.1 (2, 4). | ~2.5 weeks |
+| **3 — Overlay, custom benchmark, Rotation / Quality / Volatility-adjusted** | §7.11–13; §11 overlay and symbol rows; rotation view; anchor click. | ~2 weeks |
+| **4 — Teach it** | §6.11 tour and Learn; §10.4–10.5; walkthrough video; glossary page. | ~1.5 weeks |
 
-Phases 1 and 2 are independent and can run on two build machines under the existing desktop/laptop channel. Phase 1 grew by half a week over v1 for the help text, states, tour and usability test — the parts that make it usable, not just complete.
+Phases 1 and 2 are independent and run on both build machines under the existing channel. Sizing grew from v2 because three more presets, the evidence job and the usability gate are in scope; they are what make it the field's indicator rather than one shop's.
 
-## 15. Owner decisions needed before Phase 1 (recommendation first)
-1. **Default benchmark:** SPY (Chartmaster, IBD) or QQQ (Manrav for tech)? **Recommend SPY, with Sector (auto) one click away.**
-2. **RS-new-high lookback:** 250 sessions (his words) or 252 (one trading year)? **Recommend 252 and call it "52-week".**
-3. **"Red day" threshold:** −0.5 % or −1.0 % on the benchmark? **Recommend −0.5 %, adjustable in Advanced.**
-4. **Headline rating:** IBD 12-month (matches the pros) or UCT fast? **Recommend IBD as headline, fast beside it; "Both" is the legend default.**
-5. **Discord "RS New Highs" post:** every qualifying down day automatically, or owner-approved? **Recommend automatic, premium channel only, ≥ 3 names.**
-6. **RS pane axis:** hide the ratio numbers and say it in words (legend), or show the raw ratio like TradingView? **Recommend hide; the ratio is not a number anyone trades.**
-7. **Simple mode default:** six inputs visible, the rest under Advanced? **Recommend yes; Pro users find Advanced in one click.**
-8. **Free members:** see the row with the Premium badge (today's behaviour) or also a static preview image of the indicator? **Recommend badge only for Phase 1; preview image in Phase 4 if conversion data wants it.**
+## 16. Owner decisions (recommendation first)
+1. **Default benchmark.** SPY (IBD, Deepvue, the curriculum) **[recommend]**; or RSP given the 2023–24 evidence. RSP and Sector sit on the Simple menu either way.
+2. **New-high lookback.** 252 sessions, called "52-week" **[recommend]**; or 250 (Fred6724, Chartmaster's "200–250").
+3. **Red-day threshold.** −0.5 % **[recommend]**, adjustable; or −1.0 %.
+4. **Headline rating.** IBD-style with the ±3–5 label, UCT fast beside it **[recommend]**; or UCT fast as headline.
+5. **Discord post.** Automatic on qualifying down days, premium channel, ≥ 3 names **[recommend]**; or owner-approved.
+6. **RS pane axis.** Hidden numbers, words in the legend **[recommend]**; or the raw ratio as TradingView shows it.
+7. **Default placement at launch.** Pane under price until the Phase 3 overlay ships **[recommend]**; or hold launch for the overlay.
+8. **Gold for the before-price dot.** Use the brand's premium gold as the "look here" mark, like HVC bars **[recommend]**; or keep the field's dark-blue convention and reserve gold for chrome.
+9. **Phase colouring on in Classic.** Line coloured above/below its 21 EMA by default **[recommend]**, since the curriculum teaches it; or a static line as IBD draws it.
+10. **Indicator templates flag.** Turn `indicatorTemplatesEnabled()` on for members so presets save and share **[recommend]**; or ship presets as a plain enum first.
+11. **Evidence lines at launch.** Show the field's published findings with sources until our numbers exist **[recommend]**; or show nothing until Phase 2.
+12. **Seven presets or four.** Ship all seven across Phases 1–3 **[recommend]**; or Classic, Phase, Trend, Stress only.
 
-## 16. Glossary (member-facing, used in tooltips and the Desk)
-- **RS line** — the stock's price divided by the market's. Rising = beating the market, falling = lagging. The level does not matter; the direction and the highs do.
-- **RS new high** — the RS line is at its highest point in a year. The stock is outperforming by the most it has in 52 weeks.
-- **RS new high before price** — the RS line made a new high while the stock's price has not yet. Chartmaster's "beach ball underwater": the price is being held down by a weak market and tends to pop when the market turns.
-- **RS new high on a red day** — the RS high happened while the market closed down. The stock went up when it had every excuse to go down.
-- **RS Rating** — a 1–99 rank of the stock's 12-month performance against every other stock (the most recent quarter counts double). 99 is the top 1 %. Chartmaster trades 90+ and likes 95+.
-- **UCT RS (fast)** — UCT's own version of the rating that weights the last three months heavily, so it moves within days when a stock starts leading.
-- **Green on red** — the stock closed up on a day the market closed down.
-- **Relative Weakness** — the mirror image: RS new lows, red on green, a falling RS line. Names to avoid or to short.
-- **Benchmark** — what we compare against: the S&P 500 (SPY) by default, or the Nasdaq 100, Russell 2000, equal-weight S&P, the stock's sector ETF, or its industry group.
+## 17. Open research items (Phase 0)
+1. **Chartmaster's Discord posts** (fixture set 3): owner runs the read-only pod query (`scratchpad/rs/run.sh`).
+2. **Sector ETF coverage:** measure the share of the cap universe with a GICS sector in `ticker_meta`; below 95 % the SPY fallback will be common and the legend must say so.
+3. **Industry composite reachability:** confirm the Compare panel's industry groups (built client-side from the theme taxonomy) are available server-side; otherwise ship INDUSTRY in Phase 3.
+4. **MarketSurge specifics** [U]: exact blue-dot lookback and whether the US product shows dot history; owner screenshots settle both.
+5. **IBD short-history handling** [U]: we compute on available data and flag; revisit if a primary source appears.
+6. **Weekly MA convention:** Fred6724 uses a 10-week SMA; the curriculum's 21-day EMA has no weekly analogue stated; D-minor, default 21 weeks with a tooltip hint.
 
-## 17. Sources
-- Education library (`api/services/education_seed.py`): `mfswYu5UlX8`, `_0ZvKLYznLo`, `QCTOJgCQmjw`, `uugeU83Ns84`, `sM-aFdyOps4`; curriculum `docs/curriculum/curriculum_final_v2.json` Module 4 / Leadership & Rotation (videos 59, 61, 63).
-- Code read for this plan: `app/src/components/chart/engine/{nativeRegistry,defSchema,serverCompute,markerPrimitive,readout}.js`, `app/src/components/chart/{IndicatorLibraryDialog,IndicatorAlertPopover}.jsx`, `app/src/pages/charts/mobile/MobileIndicatorSheet.jsx`, `app/src/pages/charts/CompareSymbolsPanel.jsx`, `api/routers/signature.py` (`_rs_line_provider`, `_fetch_bars_for_tf`), `api/services/signature/registry_defs.py`, `api/services/{rs_ranking,rs_weighted_return,indicator_alert_evaluator}.py`, `api/services/screener/{technicals,enrich,screen_alerts}.py`, `api/services/alert_routing.py`, `app/src/components/RsBadge.jsx`.
-- External, for parity targets: MarketSurge RS line blue dot (RS line at 52-week high while basing/breaking out; benchmark changeable); IBD RS Rating definition (12-month price performance, most recent quarter double-weighted, 1–99 percentile); Deepvue RS components (1M/3M/6M); ChillLax "Relative Strength Line with NewHigh/NewLow Blue Dot" (TradingView open source: light dot = RS NH over lookback, dark dot = RS NH before price).
+## 18. Glossary (member-facing; from 04 §c, brand voice)
+1. **RS line** — The stock's price divided by the market's, drawn as a line. Up means beating the market; down means lagging it. Only its direction and its own prior highs matter.
+2. **RS Rating** — A 1–99 rank of the stock's price change over roughly the past year against every other stock in the universe. 90 means it beat 90 % of them. Ours is IBD-style, typically within ±3–5 points of MarketSurge.
+3. **RS new high** — The RS line is higher than at any point in the lookback.
+4. **RS new high before price** — The RS line hits a new high while price is still below its own high. IBD calls it more bullish and not a precondition.
+5. **Benchmark** — What we compare against: the S&P 500, the equal-weight S&P, the Nasdaq 100, the Russell 2000, the stock's sector or industry group. Change it and the question changes.
+6. **Mansfield RS** — Weinstein's version: the ratio measured against its own 52-week average so it swings around zero.
+7. **Rotation quadrant** — Leading, Weakening, Lagging, Improving, from the ratio's trend and that trend's momentum. A map, not a system.
+8. **Momentum** — How fast a price, or an RS line, is moving. The academic name for relative strength.
+9. **Relative weakness** — The stock is losing ground to the market, even if its price is rising.
+10. **Leader vs laggard** — A leader beats the market and its group; a laggard trails them.
+11. **Defensive RS** — RS that rises only because the stock fell less than a falling market. It can fade when the market recovers.
+12. **Lookback** — The window for a rating or a new high. Shorter reacts faster and flips more often.
+13. **Percentile rank** — "Beat X % of the group."
+14. **Divergence** — Price and the RS line disagree. Price at a new high without RS is a warning; RS rising while price falls is hidden strength.
+15. **Regime** — The market state the signal lives in. Leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.
+
+## 19. Sources
+- **Knowledge base:** `docs/research/relative-strength/00-synthesis.md`, `01-methodologies.md`, `02-products-and-ux.md`, `03-evidence.md`, `04-how-rs-is-taught.md` (each with URLs and verification tags).
+- **Code read for this plan (master `3e11e6bf63`):** `app/src/components/chart/engine/{nativeRegistry,defSchema,serverCompute,markerPrimitive,readout,instanceControls}.js`, `app/src/components/chart/{IndicatorLibraryDialog,IndicatorSettingsDialog,IndicatorAlertPopover}.jsx`, `app/src/components/chart/builder/indicatorTemplates.js`, `app/src/components/chart/{chartTemplateApply,chartThemes,designTokens,chartDefaults,discoveryCatalog}.js`, `app/src/pages/charts/mobile/MobileIndicatorSheet.jsx`, `app/src/pages/charts/CompareSymbolsPanel.jsx`, `app/src/components/ui/UIcon.jsx`, `app/src/styles/tokens.css`, `app/src/App.jsx`, `api/routers/{signature,education}.py`, `api/services/signature/registry_defs.py`, `api/services/{rs_ranking,rs_weighted_return,indicator_alert_evaluator}.py`, `api/services/screener/{technicals,enrich,screen_alerts}.py`, `api/services/alert_routing.py`, `app/src/components/RsBadge.jsx`.
+- **Brand:** `docs/brand-design-system.md` §1–3, §16, §18, §22; `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §1.5, §3.1, §6 (settings form, state inventory).
+- **Education library:** Manrav `sM-aFdyOps4` (video 59); Chartmaster `mfswYu5UlX8`, `_0ZvKLYznLo`, `QCTOJgCQmjw`, `uugeU83Ns84`; curriculum videos 59, 61, 63.
