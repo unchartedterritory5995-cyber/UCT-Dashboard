@@ -3119,6 +3119,11 @@
       "where": ["web"],
       "note": "P4b. Gates sharing a Today or trade page layout to the community library, the Page layouts chip, previewing and adopting a layout. Server-only (no payload key), so it carries no member_facing label: the feature strip would list it as not measured to every member while it is dark; give it a payload key that says False before declaring one. Needs JOURNAL_PAGE_LAYOUTS_ENABLED too (the style library it also needed was retired as always on, 2026-11-04). Off: layout items read like ones that do not exist and every layout route answers 404. Arm: railway variables --service web --set NOTEBOOK_LAYOUT_SHARING_ENABLED=1 (the owner's). Rollback: 0; adopted layouts stay in members' own preferences."
     },
+    "RS_HISTORY_ENABLED": {
+      "status": "dark",
+      "where": ["web"],
+      "note": "UCT Relative Strength rating history (engineering map docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md, unit 2a-04). Read PER CALL by api.main.rs_history_enabled: the rs_history_nightly job (web pod, 04:15 ET, its own cron after the 03:00 screener build; registered unconditionally) and the rs_history block on /api/screener/snapshot-status. Off (default): the job returns before touching the DB; the rs_rating_history and rs_history_runs side tables in screener.db are created on first write only, so a dark pod carries no table. On: each fire rates the cap universe for the settled session into rs_rating_history, records a receipt row in rs_history_runs, and raises the rs_history_short:{session} warning through chart_health_alerts when more than 20% of targets go unrated or nothing is rated. Arm: railway variables --service web --set RS_HISTORY_ENABLED=1 (the owner's); no redeploy, the next 04:15 ET fire reads it. Rollback: set 0 or unset; no redeploy. The table is ADDITIVE: a flip-off leaves every stored row untouched and nothing reads the rows while it is off (the screener columns arrive with unit 2a-06)."
+    },
     "RS_V2_ENABLED": {
       "status": "dark",
       "where": ["web"],
