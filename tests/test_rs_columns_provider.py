@@ -27,6 +27,7 @@ from api.middleware.auth_middleware import get_current_user_with_plan
 from api.routers import signature as sig
 from api.services import relative_strength as rsmod
 from api.services import rs_benchmarks as rb
+from api.services import rs_evidence_pull as ep
 from api.services.screener import rs_history
 from api.services.signature import registry_defs as rd
 
@@ -36,15 +37,18 @@ from tests.test_signature_router import client, _paid_user  # noqa: F401
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_reads(monkeypatch):
+def _hermetic_reads(monkeypatch, tmp_path):
     """The v3 provider reads the industry map (theme, the sector leg) and the
     rating history table. Neither exists on a test box: both are stubbed to
     "nothing known" here, and the tests that need a sector or a rating set
     their own answer on top. `RS_HISTORY_ENABLED` is unset so a missing row
-    reads `dark`, the pod's own default."""
+    reads `dark`, the pod's own default. The evidence artifact (unit 2b-03) is
+    read from an EMPTY temp data dir, so no test here can see a real
+    `rs_evidence.json`; the evidence tests at the end write their fixture into it."""
     monkeypatch.setattr(rb, "_groups_for", lambda s: {})
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
     monkeypatch.delenv("RS_HISTORY_ENABLED", raising=False)
+    monkeypatch.setattr(ep, "_default_data_dir", lambda: str(tmp_path))
 
 
 @pytest.fixture
@@ -1111,4 +1115,93 @@ def test_a_bound_rs_alert_address_reads_rev_3_not_the_default():
     # and `resolve_address` lowercases an unknown one, so no assertion on it.)
     assert rev.compute_rev("vwap.vwap") == 2 and rev.compute_rev("rsi.rsi") == rev.DEFAULT_REV, "controls"
     assert "rs_line" not in rev.ADDRESS_REVS, "one table, keyed by definition id — the alias is the map, not a second row"
+
+
+# ── payload.evidence: the 2b-03 artifact behind the cards ──────────────────
+#
+# `_rs_evidence` reads the artifact the 04:30 ET pull lands in DATA_DIR into
+# `payload.evidence`, keyed by the readout rows' own keys (`CARD_SIGNALS`), so
+# unit 2b-09 can point a card at `scalar:evidence.sentence.<key>`. The fixture
+# is built by the 2b-01 builder (tests/test_rs_evidence_pull.py), never retyped.
+
+from tests.test_rs_evidence_pull import fixture_artifact, write_artifact  # noqa: E402
+
+EVIDENCE_KEYS = ("rsHigh", "beforePrice", "redDay", "phase", "mansfield")
+BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher "
+                         "than SPY 63 bars later (median +2.1%). Universe as held, survivorship not yet corrected.")
+
+
+def test_the_evidence_block_reads_the_local_artifact_into_every_card_key(v2_row, monkeypatch, tmp_path):
+    write_artifact(tmp_path, fixture_artifact())
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    ev = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]["evidence"]
+    assert ev["source"] == "artifact" and ev["asof"] == "2026-11-04" and ev["horizon"] == 63
+    assert set(ev["signals"]) == set(EVIDENCE_KEYS) == set(ev["sentence"]) == set(ep.CARD_SIGNALS)
+    bp = ev["signals"]["beforePrice"]
+    assert bp["signal"] == "rs_new_high_before_price" and bp["horizon_bars"] == 63
+    assert bp["hit_rate_pct"] == 58.3 and bp["n"] == 1284 and bp["median_excess_pct"] == 2.1
+    assert bp["displayable"] is True
+    assert ev["sentence"]["beforePrice"] == BEFORE_PRICE_SENTENCE
+    # the red-day signal sits under the artifact's display floor in the fixture:
+    # its numbers are carried, its sentence is the honest one
+    rd = ev["signals"]["redDay"]
+    assert rd["n"] == 40 and rd["displayable"] is False
+    assert ev["sentence"]["redDay"] == ep.HONESTY_SENTENCE
+    # the Mansfield cross has no complete 63-bar window yet: null, not invented
+    mc = ev["signals"]["mansfield"]
+    assert mc["hit_rate_pct"] is None and mc["displayable"] is False
+    assert ev["sentence"]["mansfield"] == ep.HONESTY_SENTENCE
+    assert ev["baseline"] == {"n": 590000, "hit_rate_pct": 50.2, "median_excess_pct": 0.05, "horizon_bars": 63}
+    # every card key maps to a signal the artifact carries
+    assert set(ep.CARD_SIGNALS.values()) <= set(fixture_artifact()["per_signal"])
+
+
+def test_the_evidence_block_is_honest_when_no_artifact_has_been_pulled(v2_row, monkeypatch):
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    ev = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]["evidence"]
+    assert ev["source"] == "none" and ev["asof"] is None and ev["baseline"] is None and ev["horizon"] == 63
+    assert all(ev["signals"][k] is None for k in EVIDENCE_KEYS)
+    assert all(ev["sentence"][k] == ep.HONESTY_SENTENCE for k in EVIDENCE_KEYS)
+    assert ep.HONESTY_SENTENCE == "No published hit rate exists for this signal and UCT has not measured one yet."
+
+
+def test_a_failing_artifact_read_never_costs_the_envelope(v2_row, monkeypatch):
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    monkeypatch.setattr(ep, "load_local", lambda data_dir=None: (_ for _ in ()).throw(RuntimeError("disk")))
+    env = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})
+    assert env["payload"]["evidence"]["source"] == "none"
+    assert env["payload"]["evidence"]["sentence"]["rsHigh"] == ep.HONESTY_SENTENCE
+    assert "rsLine" in env["columns"]
+
+
+def test_an_evidence_readout_source_WOULD_resolve_for_unit_2b_09(v2_row, monkeypatch, tmp_path):
+    """The registry's rows do not name `evidence.*` yet (unit 2b-09 points the
+    cards at it). Both halves of the readout rail already hold for those paths:
+    without the artifact they walk to the honesty sentence or a null block,
+    never a missing key; with it they walk to the measured value."""
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    paths = (["evidence.sentence." + k for k in EVIDENCE_KEYS]
+             + ["evidence.signals." + k for k in EVIDENCE_KEYS]
+             + ["evidence.signals.beforePrice.hit_rate_pct", "evidence.asof", "evidence.source", "evidence.horizon"])
+    absent = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    for path in paths:
+        ok, _ = _resolve_path(absent, path)
+        assert ok, f"scalar:{path} is MISSING (not null) without the artifact"
+    assert _resolve_path(absent, "evidence.sentence.beforePrice") == (True, ep.HONESTY_SENTENCE)
+    assert _resolve_path(absent, "evidence.signals.beforePrice.hit_rate_pct") == (True, None)
+    write_artifact(tmp_path, fixture_artifact())
+    present = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    for path in paths:
+        ok, _ = _resolve_path(present, path)
+        assert ok, f"scalar:{path} is MISSING with the artifact"
+    assert _resolve_path(present, "evidence.signals.beforePrice.hit_rate_pct") == (True, 58.3)
+    assert _resolve_path(present, "evidence.sentence.beforePrice") == (True, BEFORE_PRICE_SENTENCE)
+    # and the card keys ARE readout row keys the registry already carries, so
+    # 2b-09 adds a source to an existing row rather than a new row
+    row_keys = {key for key, _, _ in _js_rs_readout_sources()}
+    assert set(ep.CARD_SIGNALS) <= row_keys, set(ep.CARD_SIGNALS) - row_keys
 

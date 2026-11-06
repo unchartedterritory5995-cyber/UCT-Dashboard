@@ -2226,6 +2226,32 @@ def _run_rs_history() -> None:
         _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
 
 
+def _run_rs_evidence_pull() -> None:
+    """The `rs_evidence_pull` job (engineering map unit 2b-03). Never raises.
+
+    One `rs_evidence_pull.pull_once()` with its defaults: `data_sync.get_bytes`
+    on `rs_evidence.ARTIFACT_KEY` (`rs/evidence.json`, published by the worker's
+    evidence job after its 21:30 ET run), landed atomically at
+    `<DATA_DIR>/rs_evidence.json`; then ONE log line with the receipt.
+
+    NO FEATURE FLAG, on purpose, so this is the one job in the family with no
+    per-call switch. A missing R2 object is a refused pull (`reason=no_r2_object`,
+    nothing written, the prior file kept) and the chart's readout cards print the
+    honesty sentence from `payload.evidence` instead of a number -- so a dark
+    worker (`RS_EVIDENCE_ENABLED` off, unit 2b-02) makes this a no-op, and the
+    worker's flag is the only switch there is. A gate here would be a second
+    switch over one fact, and the ledger would owe an entry for a flag that can
+    change nothing the worker's flag does not already decide.
+    """
+    try:
+        from api.services import rs_evidence_pull
+        r = rs_evidence_pull.pull_once()
+        print(f"[scheduler] rs evidence pull: pulled={r.get('pulled')} reason={r.get('reason')} "
+              f"bytes={r.get('bytes')} asof={r.get('asof')} path={r.get('path')}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs evidence pull error: {e}")
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -2325,6 +2351,23 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run_rs_history,
                       trigger=CronTrigger(hour=4, minute=15, timezone=_ET),
                       id="rs_history_nightly", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
+    #
+    # 04:30 ET (unit 2b-03): after the worker's 21:30 ET evidence run has
+    # published `rs/evidence.json` and after the 04:15 rating job above, so the
+    # first chart of the morning reads last night's numbers. Same `coalesce` and
+    # grace as its siblings, for the same reason (a restart spanning 04:30 would
+    # otherwise skip the day under apscheduler's 1-second default); a late start
+    # is safe because the pull is idempotent and refuses rather than overwrites
+    # on anything but a full, well-formed artifact (`rs_evidence_pull.pull_once`).
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`) and with
+    # NO flag of its own: `_run_rs_evidence_pull` says why.
+    scheduler.add_job(_run_rs_evidence_pull,
+                      trigger=CronTrigger(hour=4, minute=30, timezone=_ET),
+                      id="rs_evidence_pull", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
