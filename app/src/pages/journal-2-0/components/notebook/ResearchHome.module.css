@@ -67,7 +67,7 @@
   flex: 1;
 }
 .rowTitle {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-bright);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -89,7 +89,7 @@
   color: var(--text-muted);
 }
 .chip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.2px;
   text-transform: uppercase;
@@ -112,7 +112,7 @@
 }
 .firstRunTitle {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: 17px;
   color: var(--text-bright);
 }
 .firstRunHint {
@@ -339,7 +339,7 @@
   background: var(--bg-surface);
   color: var(--text-bright);
   font: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   text-align: left;
   cursor: text;
 }
@@ -480,4 +480,18 @@
   .homeHeader .searchWrap {
     flex-basis: 100%;
   }
+}
+
+/* Tier 4 fix round 2 (live CLS): the heights two lazy Home pieces hold while their chunks load. They equal what
+   arrives: the setups box (SetupsBox.module.css; measured on production: one row, 47 px at 1440 and 58 px on the
+   touch tier with its 44 px link; two rows, 81 px, on a phone) and the closed AI-actions door (AiActionsPanel.module.css .wrap: the 32 / 44 px toggle + 12 px margin).
+   Rail: ResearchHome.cls.test.jsx. */
+.setupsReserve { height: 47px; margin-bottom: var(--space-md); max-width: 820px; }
+.aiActionsReserve { height: 32px; margin-bottom: var(--space-md); }
+@media (max-width: 1024px) {
+  .setupsReserve { height: 58px; }
+  .aiActionsReserve { height: var(--tap-min, 44px); }
+}
+@media (max-width: 640px) {
+  .setupsReserve { height: 81px; } /* the phone box is two rows (SetupsBox.module.css) */
 }

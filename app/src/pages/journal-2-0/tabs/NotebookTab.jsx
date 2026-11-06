@@ -14,6 +14,7 @@ import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../lib/notebookIcons'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplateAsync, preloadTemplates } from '../lib/templatesLoader'
 import { templateWantsTicker } from '../lib/templateWantsTicker'
@@ -846,13 +847,18 @@ export default function NotebookTab() {
   // this same unfiltered fetch, handed to FolderSidebar for its "All notes"
   // badge instead of `allNotes.length`.
   const {
-    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal,
+    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal, error: allNotesError,
   } = useJ2Notes({ sort: 'title' })
   // Wave 8 seam S8-3: "is this member new?" is derived ONCE, here, and handed to both the
   // first-run screen (ResearchHome) and the tour, so the two can never disagree about it.
   // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
   const hasAnyNotes = allNotesTotal > 0
   const notesKnown = allNotesTotal !== undefined
+  // Tier 4 fix round 3 (R1): Research Home waits for the count (round 2's CLS fix), but a FAILED count read leaves
+  // `allNotesTotal` undefined forever, and Home would sit on its skeleton for good. A failure is an answer for Home:
+  // it renders (and says its own load failure if it has one). ⛔ Only Home reads this: the first-run and tour gates
+  // keep `notesKnown`, so a member whose list failed is never shown the new-member first run.
+  const homeNotesKnown = notesKnown || Boolean(allNotesError)
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -933,6 +939,9 @@ export default function NotebookTab() {
   const listToolbarShown = !noteId && !isHome && !isToday && !landingPending
   // the compact sort words, on a phone only (review minor 12)
   const phoneSortWords = useIsPhone()
+  // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
+  // set `updated_asc` / `title_desc`). ONE authority for the select's value and its touch-tier face.
+  const sortField = sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort
   // a LAYOUT effect: registered in the list's first commit, before the browser paints it (no fold after a paint)
   useLayoutEffect(() => (listToolbarShown ? registerJournalToolsDoor() : undefined), [listToolbarShown])
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
@@ -2775,6 +2784,7 @@ export default function NotebookTab() {
             onCreateThesis={createThesisNote}
             onImport={openImport}
             hasAnyNotes={hasAnyNotes}
+            notesKnown={homeNotesKnown}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
             titleOf={titleOfAnyNote}
@@ -2820,7 +2830,7 @@ export default function NotebookTab() {
             <button type="button" className={`btn btn-secondary btn-sm ${styles.phoneFolders}`} onClick={toggleSidebar}
               aria-expanded={sidebarOpen} aria-controls="notebook-folders-panel">
               <span className="sr-only">Folder: </span>{folderId ? activeFolderName : 'All notes'}
-              <UIcon name="chevronDown" size={12} gold={false} />
+              <UIcon name="chevronDown" {...TOOLBAR_ICON} />
             </button>
           )}
           {!isShelfView && (
@@ -2829,7 +2839,7 @@ export default function NotebookTab() {
                 disabled={Boolean(activeView)} data-tour="view-switcher">
                 {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
                 View: {currentView.short}
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </button>
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
@@ -2844,6 +2854,16 @@ export default function NotebookTab() {
             // for the active library, not a meaningful choice here.
             <span className={styles.trashLabel}>Trash</span>
           ) : (
+            // VIS-6 (live finding, 390 px): the touch tier's `select { font-size: 16px !important }` (tokens.css, it
+            // stops iOS zooming on focus) drew "Updated" far larger than Folders and View beside it. At <=1024 px the
+            // select stays 16 px but is a transparent layer over `.sortFace`, a face drawn with the SAME button classes
+            // as View. The select is still the control (its name, its keyboard, the native picker); the face is
+            // aria-hidden. Above 1024 px the face is not drawn and the select renders as before.
+            <span className={styles.sortWrap} data-sort-wrap="">
+            <span className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.sortFace}`} aria-hidden="true" data-sort-face="">
+              {SORT_OPTIONS.find((o) => o.value === sortField)?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
+              <UIcon name="chevronDown" {...TOOLBAR_ICON} />
+            </span>
             <select
               className={styles.sortSelect}
               // FX4 (wave 10, coordinator round 2): the Table view's header
@@ -2854,7 +2874,7 @@ export default function NotebookTab() {
               // much sorted. Show the FIELD regardless of direction; picking
               // an option here still resets to that field's natural
               // direction, which is the expected behavior either way.
-              value={sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort}
+              value={sortField}
               onChange={(e) => setSort(e.target.value)}
               // Wave 8 (8A, axe select-name): a select with no name is read as
               // "combo box, Recently updated" with nothing saying what it orders.
@@ -2865,6 +2885,7 @@ export default function NotebookTab() {
                   ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
               {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
             </select>
+            </span>
           )}
           {tickerFilter && (
             <span className={styles.tickerFilterChip}>${tickerFilter}</span>
@@ -2890,7 +2911,7 @@ export default function NotebookTab() {
               title="Open today's daily note (Ctrl+Alt+D)"
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
-              <UIcon name="sun" size={14} gold={false} />
+              <UIcon name="sun" {...TOOLBAR_ICON} />
               Today
             </button>
             {/* "+ New" makes a blank note in one press; its ▾ lists every way in. The group carries the
@@ -2909,7 +2930,7 @@ export default function NotebookTab() {
               <button {...newMenu.triggerProps} type="button"
                 className={`btn btn-primary btn-sm ${styles.toolBtn} ${styles.newCaret}`}
                 aria-label="More ways to start a note" data-tour="templates">
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </button>
               {newMenu.open && (
                 <div {...newMenu.menuProps} aria-label="Start a note">
@@ -2921,7 +2942,7 @@ export default function NotebookTab() {
               <button {...moreMenu.triggerProps} type="button" className={`btn btn-ghost btn-sm btn-icon ${styles.toolBtn}`}
                 aria-label="More notebook actions" title="More notebook actions" data-tour="styles-button"
                 data-journal-tools-door="">
-                <UIcon name="more" size={16} gold={false} />
+                <UIcon name="more" {...TOOLBAR_ICON} />
               </button>
               {moreMenu.open && (
                 <div {...moreMenu.menuProps} aria-label="More notebook actions">
