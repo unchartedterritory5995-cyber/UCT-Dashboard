@@ -203,12 +203,18 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // leader line is a diagonal (offset in both x and y). The box is always fully
     // offset from the candle on both axes, so the nearest-point leader can't fall
     // vertical or horizontal.
-    const DIRS = [
+    const BASE_DIRS = [
       { dx: -1, dy: -1 },  // up-left (preferred via dirBias)
       { dx: -1, dy: 1 },   // down-left
       { dx: 1, dy: -1 },   // up-right
       { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
+    // With a `look` (Study) the search also tries steeper and shallower diagonals: on a dense phone chart the open space
+    // is often straight above the candles, which a 45-degree step never reaches without crossing them.
+    const DIRS = look ? [...BASE_DIRS,
+      { dx: -0.45, dy: -1 }, { dx: -1, dy: -0.45 }, { dx: 0.45, dy: -1 },
+      { dx: -0.45, dy: 1 }, { dx: -1, dy: 0.45 }, { dx: 0.45, dy: 1 },
+    ] : BASE_DIRS
     // Min ~20px breathing room. Distance dominates the cost so the NEAREST spot
     // wins, but the range reaches ~210px so that — in a dense cluster — a clean,
     // READABLE gap is always reachable instead of being forced onto candles
@@ -265,7 +271,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // Distance DOMINATES so every label lands at its nearest clear gap, keeping
     // leader lengths short and roughly UNIFORM across catalysts. (No strong
     // directional bonus — that previously dragged some labels far up-left.)
-    const bias = (d) => (d.dy < 0 ? -10 : 0) + (d.dx < 0 ? -10 : 0)
+    // (the steeper Study diagonals cost a little more, so a clean 45-degree spot up-left still wins)
+    const bias = (d) => (d.dy < 0 ? -10 : 0) + (d.dx < 0 ? -10 : 0) + (Math.abs(d.dx) !== Math.abs(d.dy) ? 14 : 0)
     const placeOne = (it) => {
       let best = null, bestCost = Infinity
       for (const dist of DISTS) {
