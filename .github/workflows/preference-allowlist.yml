@@ -19,6 +19,15 @@
 name: preference allow-list
 
 on:
+  # Only ci-vps-shadow.yml calls this: the same steps on the VPS beside the deciding run, under another workflow's name.
+  workflow_call:
+    inputs:
+      lane:
+        type: string
+        default: ''
+      tag:
+        type: string
+        default: ''
   push:
     branches: [master]
     paths:
@@ -40,12 +49,12 @@ permissions:
 # workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
 # is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}-${{ inputs.tag }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   allowlist:
-    runs-on: ${{ github.event_name == 'push' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.lane == 'vps' && 'uct-vps' || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
