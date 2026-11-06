@@ -97,10 +97,11 @@ def _name_of(text: str) -> str | None:
 
 
 def _superseded(runs: list[dict]) -> list[dict]:
-    """`runs` for the always-runs gate, minus any `cancelled` run a LATER fully green run on this SHA supersedes.
+    """One gating workflow's runs, minus any `cancelled` run a LATER fully green run of that same workflow supersedes.
 
-    A cancelled gate proved nothing either way, so a later green run on the same commit answers what it left open. That is
-    the manual fallback's only way to rescue a commit whose push run was cancelled during a runner outage.
+    A cancelled run proved nothing either way, so a later green run on the same commit answers what it left open. That is
+    the manual fallback's only way to rescue a commit whose runs were cancelled during a runner outage. Every gating
+    workflow gets the rule, because the queue watch can cancel any of them: one left out would refuse forever.
 
     ⛔ NEVER A FAILURE. A failure is evidence about this commit, so any other non-success conclusion stays and refuses.
     ⛔ ORDER IS NOT GUESSED. A run with no `created_at` supersedes nothing and is superseded by nothing, so an unreadable
@@ -160,8 +161,7 @@ def decide(*, gating: list[str], runs: list[dict], workflows: list[dict]) -> tup
 
     pending, failed = [], []
     for name in gating:
-        considered = _superseded(by_name.get(name, [])) if name == ALWAYS_RUNS else by_name.get(name, [])
-        for r in considered:
+        for r in _superseded(by_name.get(name, [])):
             if (r.get("status") or "") != "completed":
                 pending.append(name)
             elif (r.get("conclusion") or "") != "success":
