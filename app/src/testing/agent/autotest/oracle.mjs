@@ -4,7 +4,10 @@
 // Snapshot: { charts: { <role>: {...} }, widgets: [{id,type}], wl: {name:[syms]}, drawings: {SYM:[...]}, alerts:[...],
 //             ialerts:[...], layouts:[names], written:{prefKey:value}, unreadable:[key,...] }
 // `unreadable` lists keys this mode cannot read (jsdom has no pixels): a check on one grades n/a, never pass.
-export const OUTCOMES = ['change', 'read', 'refuse', 'clarify', 'answer', 'walkthrough']
+import { gradeTarget, targetRecord } from './selectionOracle.mjs'
+import { BOARDS } from './boards.mjs'
+
+export const OUTCOMES = ['change', 'read', 'refuse', 'clarify', 'answer', 'walkthrough', 'guarded']
 export const OPS = ['eq', 'ne', 'has', 'lacks', 'len', 'lenGte', 're', 'notRe', 'gt', 'lt', 'changed', 'same', 'delta', 'exists']
 
 export function getPath(snap, path) {
@@ -66,7 +69,9 @@ export function grade(request, ev) {
   const o = request.oracle
   const C = []
   const push = (name, pass, detail, tag) => C.push({ name, pass: !!pass, detail: pass ? undefined : detail, tag })
-  const { before, after } = ev
+  // a target case clicks between its first snapshot and its last sentence, so its board starts at that sentence
+  const before = o.target && ev.beforeLast ? ev.beforeLast : ev.before
+  const { after } = ev
   const last = ev.turns.at(-1) || {}
   const anyReceipt = ev.turns.some(t => t.newReceipt)
   const saidAll = ev.turns.map(t => t.last || '').join(' // ')
@@ -98,12 +103,20 @@ export function grade(request, ev) {
     if (g?.started && g.clean !== undefined) push('nothing on screen after it ended', g.clean, g.leftovers, 'guide')
     stateChecks('guide')
     if (!o.expect) push('showing it changed nothing', stateOnly(before) === stateOnly(after), 'the board changed', 'guide')
+  } else if (o.outcome === 'guarded') {
+    // a deliberately wrong plan: the target checks below are the whole of the grade
   } else {
     // read / refuse / clarify / answer: the board stays exactly as it was
     push('nothing changed', worldPrint(before) === worldPrint(after), `${worldPrint(before).slice(0, 200)} -> ${worldPrint(after).slice(0, 200)}`, 'unchanged')
     if (o.outcome === 'refuse' || o.outcome === 'clarify') push('no success receipt', !anyReceipt, last.receiptText, 'receipt')
     if (o.outcome === 'clarify') push('it asked', /\?|which/i.test(saidAll), saidAll.slice(0, 200), 'clarify')
     stateChecks('state')
+  }
+  if (o.target) {
+    const roles = BOARDS[request.board]?.roles || {}
+    const asked = /\?|which|check this first/i.test(saidAll) || ev.turns.some(t => t.card)
+    ev.target = targetRecord(o.target, ev, roles, chartPrint)
+    C.push(...gradeTarget(o.target, ev.target, { roles, before, asked }))
   }
   if (o.says) push(`it says /${o.says}/`, new RegExp(o.says, 'i').test(saidAll), saidAll.slice(0, 240), 'says')
   if (o.saysNot) push(`it does not say /${o.saysNot}/`, !new RegExp(o.saysNot, 'i').test(saidAll), saidAll.slice(0, 240), 'says')

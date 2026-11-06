@@ -2,13 +2,20 @@
 //
 // Tokens are resolved from `body.context` (never from a value the test already knows), exactly as a planner has to:
 //   target  $chart:A | $ie:A | $dr:A | $list:board | $wl:Momentum | $view
-//   args    $inst:A:RSI (an indicator id, by its name on that chart) | $drawing:A:0 | $widget:news | $layout:Name
+//           a role may be `sel` (the chart the context marks selected, as a planner reads it) or `notSel` (any other: a bad guess)
+//   args    $sym:sel (a chart's symbol) | $inst:A:RSI (an indicator id, by its name on that chart) | $drawing:A:0 | $widget:news | $layout:Name
 // A token the request cannot satisfy becomes `missing:<token>`, so the plan fails where a planner would.
 import { BOARDS } from './boards.mjs'
 
 const byRole = (body, boardName, role, list) => {
   const r = BOARDS[boardName].roles[role]
   const rows = body?.context?.[list] || []
+  if (role === 'sel' || role === 'notSel') {
+    const all = body?.context?.charts || []
+    const c = role === 'sel' ? all.find(x => x.selected) : (all.find(x => !x.selected) || all[0])
+    if (!c) return null
+    return rows.find(x => x.ref === c.ref) || rows.find(x => c.position && x.position === c.position) || rows.find(x => x.symbol === c.symbol) || null
+  }
   if (!r) return null
   if (r.position) { const hit = rows.find(x => x.position === r.position); if (hit) return hit }
   const charts = body?.context?.charts || []
@@ -24,6 +31,7 @@ export function resolveToken(v, body, boardName) {
   const miss = `missing:${v}`
   switch (kind) {
     case 'chart': return byRole(body, boardName, a, 'charts')?.ref ?? miss
+    case 'sym': return byRole(body, boardName, a, 'charts')?.symbol ?? miss
     case 'ie': return byRole(body, boardName, a, 'indicatorEdits')?.ref ?? miss
     case 'dr': return byRole(body, boardName, a, 'drawings')?.ref ?? miss
     case 'list': return (ctx[a] || [])[0]?.ref ?? miss
