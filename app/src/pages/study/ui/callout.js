@@ -21,7 +21,7 @@ const BASE = {
 /** The look on a desktop and on a phone (a phone packs ~4 px per bar, so everything is a size smaller). */
 export function calloutLook(phone = false) {
   return phone
-    ? { ...BASE, font: '800 10px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.2px', textH: 12, padX: 9, padY: 5, ringPad: 3, arrowSize: 7, gap: 4, glow: 8, distances: [22, 30, 40, 52, 66, 84, 104, 130, 160] }
+    ? { ...BASE, font: '800 10px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.2px', textH: 12, padX: 9, padY: 5, ringPad: 3, arrowSize: 7, gap: 4, glow: 8, bottomFrac: 0.74, distances: [22, 30, 40, 52, 66, 84, 104, 130, 160] }
     : { ...BASE, font: '800 12px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.6px', textH: 14, padX: 12, padY: 6, ringPad: 4, arrowSize: 9, gap: 5, glow: 12, distances: [34, 44, 56, 70, 88, 110, 136, 168, 206, 250, 300] }
 }
 

@@ -24,7 +24,7 @@ function roundRectPath(ctx, x, y, w, h, r) {
 // `look` (Study, round 21; the owner on the pointer: "an arrow that is logically spaced to the left and pointing at
 // the candle", "ensure that it doesnt interfere with candles"): the same blank-space search, drawn as a pill with
 // a border, a leader with an arrowhead that stops short of the candle, and a ring around the candle itself:
-//   { font, textH, padX, padY, pill, fill, radius, borderWidth, textColor, uppercase, letterSpacing, distances,
+//   { font, textH, padX, padY, pill, fill, radius, borderWidth, textColor, uppercase, letterSpacing, distances, bottomFrac,
 //     ring, ringPad, ringWidth, arrow, arrowSize, gap, lineWidth, glow }
 // A callout may carry `index` (a bar index) instead of `time`, and its own `color`, `textColor`, `ring: false`, `arrow: false`.
 // Without a look, nothing about the Model Book's catalysts changes.
@@ -110,7 +110,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // (Model Book, index pane present → bottomFrac≈0.96) labels can use almost
     // the whole pane, so a low candle's down-right spot is reachable. When the
     // canvas spans the volume pane too (bottomFrac≈0.82) the bottom is reserved.
-    const priceBottom = h * bottomFrac
+    // a `look` may keep its labels higher still (a phone's volume pane takes more of the canvas)
+    const priceBottom = h * Math.min(bottomFrac, look?.bottomFrac ?? 1)
     const hitsCandles = (r) => {
       for (const s of segs) {
         if (s.x < r.x - 2 || s.x > r.x + r.w + 2) continue
