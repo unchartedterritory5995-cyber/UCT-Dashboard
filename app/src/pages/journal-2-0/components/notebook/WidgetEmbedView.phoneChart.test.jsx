@@ -103,7 +103,9 @@ describe('S12: phone chart mode (390 px)', () => {
     const root = await mount(chartAttrs({ symbol: 'AMD', tf: '15' }))
     const link = within(root).getByRole('link', { name: 'Open AMD 15m full screen' })
     expect(link).toHaveAttribute('href', '/charts?sym=AMD&tf=15')
-    expect(link.textContent).toBe('Tap to open full screen')
+    // Final polish: the link is the transparent plot (it covers no data with words); the words are a caption under it.
+    expect(link.textContent).toBe('')
+    expect(root.querySelector('[data-phone-chart-caption]').textContent).toBe('Tap the chart to open it full screen')
     // The width is read again AT the tap: on a phone the link is followed...
     expect(fireEvent.click(link)).toBe(true)
     // ...and on a screen that grew past 640 since, it is not.
@@ -237,5 +239,38 @@ describe('fix round 1: the full-screen hop', () => {
   it('the link suppresses the long-press callout', () => {
     const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/WidgetEmbedView.module.css'), 'utf8')
     expect(/\.phoneOpen\s*\{([^}]*)\}/.exec(css)[1]).toMatch(/-webkit-touch-callout:\s*none/)
+  })
+})
+// Final polish (WebKit at 390 px, production): the compact header was laid OVER the price area, the tap pill over the
+// volume pane, and the keyboard hint pushed below. The header is a row above the plot; the words are under it.
+describe('final polish: the phone chart chrome never covers the plot', () => {
+  const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/WidgetEmbedView.module.css'), 'utf8')
+
+  it('the frame says it is a phone chart, and the stylesheet puts its toolbar in flow (static), always shown', async () => {
+    setWidth(390)
+    const root = await mount()
+    expect(root).toHaveAttribute('data-phone-chart', 'true')
+    const rule = /\.frame\[data-phone-chart\] \.toolbar\s*\{([^}]*)\}/.exec(css)
+    expect(rule, 'the phone-chart toolbar rule').toBeTruthy()
+    expect(rule[1]).toMatch(/position:\s*static/)
+    expect(rule[1]).toMatch(/opacity:\s*1/)
+  })
+
+  it('the caption sits after the plot body, not inside it, and the keyboard hint is not drawn', async () => {
+    setWidth(390)
+    const root = await mount()
+    const body = root.querySelector('[data-widget-embed-body]')
+    const caption = root.querySelector('[data-phone-chart-caption]')
+    expect(body.contains(caption)).toBe(false)
+    expect(body.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(root.querySelector('[data-chart-hint]')).toBeNull()
+  })
+
+  it('CONTROL: on a desktop the frame is not a phone chart and the hint region is there', async () => {
+    setWidth(1200)
+    const root = await mount()
+    expect(root).not.toHaveAttribute('data-phone-chart')
+    expect(root.querySelector('[data-phone-chart-caption]')).toBeNull()
+    expect(root.querySelector('[data-chart-hint]')).not.toBeNull()
   })
 })

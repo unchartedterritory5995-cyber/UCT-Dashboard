@@ -868,7 +868,6 @@
  },
  "pages/journal-2-0/components/notebook/TodayHome.module.css": {
   "border-radius 3px": 2,
-  "font-size 22px": 1,
   "spacing 10px": 2,
   "spacing 14px": 1,
   "spacing 18px": 1,
@@ -1294,6 +1293,10 @@
   "spacing 6px": 5,
   "spacing 7px": 2,
   "spacing 9px": 1
+ },
+ "pages/journal-2-0/surfaces/today/panels/panels.module.css": {
+  "spacing 14px": 1,
+  "spacing 6px": 1
  },
  "pages/journal-2-0/tabs/NotebookTab.jsx": {
   "icon-size 12px": 4,

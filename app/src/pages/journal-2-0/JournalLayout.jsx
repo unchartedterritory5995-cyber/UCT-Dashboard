@@ -31,7 +31,7 @@ import {
 } from '../../components/feedbackDoor'
 import { SUPPORT_PATH } from '../../components/helpAnchors'
 import {
-  OPEN_JOURNAL_TOOLS_EVENT, isNotebookListAddress, journalToolsDoorMounted, subscribeJournalToolsDoor,
+  OPEN_JOURNAL_TOOLS_EVENT, isNotebookListAddress, isNotebookNoteAddress, journalToolsDoorMounted, subscribeJournalToolsDoor,
 } from './lib/journalToolsDoor'
 import { VIEW_MODES } from './lib/savedViewModes'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
@@ -175,7 +175,16 @@ export default function JournalLayout() {
   // page under it has rendered and offers no door (an error state, a missing list, anything without the list
   // toolbar), the promise is released for this address, so the tools are never stranded (ListDoorProbe, below).
   const [doorlessAt, setDoorlessAt] = useState(null)
-  const holdListFold = onListAddress && doorlessAt !== location.key
+  // Final polish (WebKit at 390 px): an open note folds the header too -- its ⋯ carries "Journal tools" (NoteEditorPage).
+  const onNoteAddress = isNotebookNoteAddress(pathname, location.search, NOTEBOOK_PATH)
+  const holdListFold = (onListAddress || onNoteAddress) && doorlessAt !== location.key
+  // A note whose door went away after it was there (its load failed: the missing-note and failure pages have no ⋯)
+  // releases the fold for this address, so the tools are never stranded.
+  const hadDoorRef = useRef(false)
+  useEffect(() => {
+    if (toolsDoor) { hadDoorRef.current = true; return }
+    if (hadDoorRef.current && onNoteAddress) { hadDoorRef.current = false; setDoorlessAt(location.key) }
+  }, [toolsDoor, onNoteAddress, location.key])
   useEffect(() => {
     const onOpen = () => {
       setToolsOpen(true)
@@ -472,7 +481,7 @@ export default function JournalLayout() {
           <RouteFocusTarget />
           <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
             <Outlet context={{ settings }} />
-            {onListAddress && <ListDoorProbe at={location.key} onDoorless={setDoorlessAt} />}
+            {(onListAddress || onNoteAddress) && <ListDoorProbe at={location.key} onDoorless={setDoorlessAt} />}
           </Suspense>
         </div>
       </J2PriceProvider>
