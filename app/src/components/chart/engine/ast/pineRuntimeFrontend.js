@@ -3775,11 +3775,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  read; T7 / T8 replace the namespace with each member's declared result. */
   const collectionKindOf = (node, scope, depth = 0) => {
     if (!node || depth > 24) return 'array'
+    // ⭐ W6-T8 — a HELD `map.*` member's declared result: `map.new` / `copy` a map,
+    // `map.keys` / `values` an array (a copy, the reference says). Asked FIRST, before any
+    // other family's held-member answer, so `map.new` is never read as an array.
+    if (node.type === 'call' && /^map\./.test(String(node.name || '')) && heldArray(node.name)) {
+      return ARRAY_FNS[node.name].returns === 'map' ? 'map' : 'array'
+    }
     if (node.type === 'call') {
       const ns = String(node.name || '').split('.')[0]
-      // ⭐ W6-T8 — a HELD `map.*` member's declared result: `map.new` / `copy` a map,
-      // `map.keys` / `values` an array (a copy, the reference says)
-      if (ns === 'map' && heldArray(node.name)) return ARRAY_FNS[node.name].returns === 'map' ? 'map' : 'array'
       return ns === 'matrix' || ns === 'map' ? ns : 'array'
     }
     if (node.type === 'name') {
