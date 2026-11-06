@@ -217,6 +217,7 @@ from api.routers import workspace_doc as workspace_doc_router
 from api.routers import artifact_versions as artifact_versions_router
 from api.routers import charts_list_sources as charts_list_sources_router
 from api.routers import discord_interactions as discord_interactions_router
+from api.routers import rs_discord as rs_discord_router  # UCT RS nightly Discord post: admin door + status (2b-08)
 from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
@@ -2252,6 +2253,181 @@ def _run_rs_evidence_pull() -> None:
         print(f"[scheduler] rs evidence pull error: {e}")
 
 
+# -- UCT Relative Strength: the nightly Discord leaders post (engineering map ----
+# docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md, unit 2b-08;
+# the poster itself is `api.services.rs_discord_post`, unit 2b-07)
+#
+# Two cron registrations of ONE function (`rs_discord_post` 04:45 ET and
+# `rs_discord_post_retry` 05:15 ET, both in `register_screener_jobs` below), the
+# real readers behind the poster's two seams, the session resolver, and the boot
+# line. The module's own `enabled()` (`RS_DISCORD_POST_ENABLED`, read per call)
+# is the ONLY switch: nothing here reads the flag or the webhook variable, so the
+# flag ledger has one gate and the channel census one member-room variable.
+
+#: The job ids, in fire order (`api.routers.rs_discord.JOB_IDS` is the same
+#: tuple; the status readback lists them and a test pins the two equal).
+RS_DISCORD_POST_JOBS = ("rs_discord_post", "rs_discord_post_retry")
+
+#: The signals the post's evidence line reports, in print order: the headline RS
+#: new high and the two sub-signals the post lists names for. The rating list
+#: has no signal in the v1 artifact (`rs_evidence_pull.CARD_SIGNALS`).
+RS_DISCORD_EVIDENCE_SIGNALS = ("rs_new_high", "rs_new_high_before_price", "rs_new_high_red_day")
+
+#: Receipt reasons the retry pass acts on: the first pass built a valid post and
+#: the TRANSPORT refused it (`rs_discord_post._deliver`). Every other reason --
+#: not enabled, no webhook, already posted, no leaders, below the floor, refused
+#: by the validator -- is a judgement the retry must not overturn.
+RS_DISCORD_TRANSPORT_REASONS = ("rate-limited", "http ", "send failed")
+
+
+def _rs_leaders_for(session) -> list[dict]:
+    """`leaders_fn` for `rs_discord_post.post_rs_summary`: the nightly screener
+    rows of ONE settled session, in the seam's row shape (`normalise_leaders`).
+
+    Selects `screener_rows` whose `bars_asof` is the session -- the builder
+    stamps a row's price date as YYYYMMDD (`snapshot_builder._asof_of`), and
+    `rs_history.session_ymd` turns the YYYY-MM-DD session key into that shape,
+    so a row whose bars never caught up to the session is left out rather than
+    reported as that session's leader -- AND (`rs_new_high = 1` OR
+    `rs_rating_ibd >= LIMITS["rating_min"]`). The RS flags are the 2a-05
+    columns (`rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`,
+    `rs_line_above_ma`), the rating is the 2a-06 column `rs_rating_ibd` (NULL
+    while the rating job is dark or the name is unrated: the seam renders
+    "(unrated)", never a number), the sector is the screener's own `sector`
+    column and the name its `company`. Raises on a missing DB or table: the
+    poster reports `leaders_fn failed: <Error>` and posts nothing.
+    """
+    from api.services import rs_discord_post as rp
+    from api.services.screener import rs_history, snapshot_db
+    ymd = str(rs_history.session_ymd(session))
+    rating_min = int(rp.LIMITS["rating_min"])
+    sql = ("SELECT ticker, company, sector, rs_rating_ibd, rs_new_high, rs_nh_before_price, "
+           "rs_nh_red_day, rs_line_above_ma FROM screener_rows "
+           "WHERE bars_asof = ? AND (rs_new_high = 1 OR rs_rating_ibd >= ?)")
+    conn = snapshot_db.connect()
+    try:
+        rows = conn.execute(sql, (ymd, rating_min)).fetchall()
+    finally:
+        conn.close()
+    return [{
+        "ticker": r["ticker"],
+        "name": r["company"],
+        "sector": r["sector"],
+        "rating": r["rs_rating_ibd"],
+        "new_high": r["rs_new_high"] == 1,
+        "before_price": r["rs_nh_before_price"] == 1,
+        "red_day": r["rs_nh_red_day"] == 1,
+        "rs_line_above": r["rs_line_above_ma"] == 1,
+    } for r in rows]
+
+
+def _rs_evidence_for(session) -> list[dict] | None:
+    """`evidence_fn` for the poster: the measured numbers of the signals the post
+    names (`RS_DISCORD_EVIDENCE_SIGNALS`) at the card's horizon
+    (`rs_evidence_pull.DEFAULT_HORIZON`, 63 bars), read from the artifact the
+    04:30 pull landed. One dict per DISPLAYABLE signal (2b-03's floor and
+    completeness rule), with `signal` set to the artifact's plural label (the
+    noun phrase `evidence_line` prints) and `outcome` naming the benchmark,
+    because the artifact's hit rate is the share that closed higher than the
+    benchmark, not simply higher. None when nothing is displayable, which
+    prints the honesty line. `session` is unused on purpose: the artifact is
+    one measured window, refreshed nightly, and the sentence states its dates.
+    """
+    from api.services import rs_evidence_pull as ep
+    out = []
+    for sig in RS_DISCORD_EVIDENCE_SIGNALS:
+        ev = ep.evidence_for(sig, ep.DEFAULT_HORIZON)
+        if not ev or not ev.get("displayable"):
+            continue
+        bench = ev.get("benchmark") or "the benchmark"
+        out.append({**ev, "signal": ev["label"],
+                    "outcome": f"closed higher than {bench} {int(ev['horizon_bars'])} bars later"})
+    return out or None
+
+
+def _rs_discord_session() -> str:
+    """The settled session the way `rs_history` resolves it (its `session_fn`
+    default, `snapshot_builder.settled_session` through the module's lazy
+    import), as the YYYY-MM-DD key the poster and its marker use. "" when the
+    calendar does not cover the date: the poster answers `no session`."""
+    from api.services.screener import rs_history
+    d = rs_history.settled_session()
+    return rs_history.session_key(d) if d else ""
+
+
+def _rs_discord_transport_failure(receipt) -> bool:
+    """Did a first pass build a valid post that the transport then refused?
+    Only such a receipt is worth a retry; a landed post, a dry run and every
+    judgement reason are not."""
+    if not isinstance(receipt, dict) or receipt.get("posted") or receipt.get("dry_run"):
+        return False
+    return str(receipt.get("reason") or "").startswith(RS_DISCORD_TRANSPORT_REASONS)
+
+
+def _run_rs_discord_post(retry: bool = False) -> None:
+    """The `rs_discord_post` (04:45 ET) and `rs_discord_post_retry` (05:15 ET)
+    jobs: ONE function, two registrations. Never raises.
+
+    First pass: resolve the settled session, call `post_rs_summary` with the
+    real readers above -- every gate (the flag, the webhook, the marker, the
+    floor, the validator) is the module's -- record the receipt where the admin
+    door's status readback and the retry pass read it, and print one line.
+
+    Retry pass (`retry=True`): posts ONLY when this process's scheduled receipt
+    for the SAME session says the first pass was refused by the transport
+    (`RS_DISCORD_TRANSPORT_REASONS`: `rate-limited`, `http NNN`, `send failed`).
+    A first pass that was not enabled, had no webhook, found the session marked,
+    fell under the floor or was refused by the validator is a judgement the
+    retry does not overturn; a first pass that landed is in the marker and the
+    module would refuse it as already posted anyway. No scheduled receipt for
+    the session (the pod restarted in between, or the first pass has not run)
+    is "nothing to retry": the first pass's own `misfire_grace_time` covers a
+    restart that spans 04:45, and a retry that posted on an unknown first pass
+    would be a second judgement over the same session.
+    """
+    label = "rs discord post retry" if retry else "rs discord post"
+    try:
+        from api.routers import rs_discord as door
+        session = _rs_discord_session()
+        if retry:
+            first = door.last_receipt("scheduled")
+            if not first or first.get("session") != session:
+                print(f"[scheduler] {label}: session={session} nothing to retry "
+                      "(no scheduled receipt for this session)")
+                return
+            if not _rs_discord_transport_failure(first):
+                print(f"[scheduler] {label}: session={session} nothing to retry "
+                      f"(first pass: {first.get('reason')})")
+                return
+        from api.services import rs_discord_post as rp
+        receipt = rp.post_rs_summary(session, leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence_for)
+        door.record_receipt(receipt, "retry" if retry else "scheduled")
+        print(f"[scheduler] {label}: session={receipt.get('session')} posted={receipt.get('posted')} "
+              f"reason={receipt.get('reason')} leaders={receipt.get('leaders')} "
+              f"chars={receipt.get('chars')} attempts={receipt.get('attempts')} "
+              f"marked={receipt.get('marked')}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] {label} error: {e}")
+
+
+def _rs_discord_post_boot_line(scheduler=None) -> str:
+    """`[startup] rs-discord-post: enabled=<0|1> webhook=<set|unset>
+    last_posted=<date|none> jobs=<ids read back out of the scheduler>`. The URL
+    is NEVER printed: a webhook in a boot log is a webhook in a log aggregator.
+    Never raises (it sits inside the screener registration's try)."""
+    try:
+        from api.services import rs_discord_post as rp
+        jobs = ""
+        if scheduler is not None:
+            present = [jid for jid in RS_DISCORD_POST_JOBS if scheduler.get_job(jid) is not None]
+            jobs = " jobs=" + (",".join(present) if present else "NONE REGISTERED")
+        return (f"[startup] rs-discord-post: enabled={1 if rp.enabled() else 0} "
+                f"webhook={'set' if rp.configured_webhook() else 'unset'} "
+                f"last_posted={rp.last_posted() or 'none'}{jobs}")
+    except Exception as e:  # noqa: BLE001
+        return f"[startup] rs-discord-post: status unavailable ({type(e).__name__})"
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -2368,6 +2544,29 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run_rs_evidence_pull,
                       trigger=CronTrigger(hour=4, minute=30, timezone=_ET),
                       id="rs_evidence_pull", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength: the nightly Discord leaders post (unit 2b-08) --
+    #
+    # 04:45 ET: after the 04:15 rating job and the 04:30 evidence pull above, so
+    # the post carries the session's ratings (once the rating job is armed) and
+    # last night's measured evidence. A retry pass at 05:15 ET re-posts ONLY a
+    # transport refusal (`_run_rs_discord_post`: rate-limited, http NNN, send
+    # failed); it is the SAME function, told apart by `kwargs`. Same `coalesce`
+    # and grace as the siblings, for the same reason (a restart spanning the
+    # minute would otherwise skip the day). A late or doubled fire is safe: the
+    # module's marker records a landed session and its lock refuses an overlap.
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the
+    # switch is the module's own `enabled()` (`RS_DISCORD_POST_ENABLED`, read
+    # per call), so arming and rollback are one Railway variable with no deploy.
+    scheduler.add_job(_run_rs_discord_post,
+                      trigger=CronTrigger(hour=4, minute=45, timezone=_ET),
+                      id="rs_discord_post", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_run_rs_discord_post, kwargs={"retry": True},
+                      trigger=CronTrigger(hour=5, minute=15, timezone=_ET),
+                      id="rs_discord_post_retry", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
@@ -7613,6 +7812,8 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            # UCT RS Discord post (2b-08): one fingerprint, never the URL.
+            print(_rs_discord_post_boot_line(_scheduler))
             if register_chart_iq_pack_jobs(_scheduler):
                 logging.getLogger(__name__).info("[startup] chart-iq pack: R2 sync every 15 min; fallback build 23:00 / 06:30 ET if behind")
             if register_chart_iq_prewarm_jobs(_scheduler):
@@ -10378,6 +10579,12 @@ app.include_router(push.router)
 app.include_router(quote_of_the_day_router.router)   # public: the day's quote, same for site + letter
 app.include_router(charts.router, dependencies=_OPEN_READS)
 app.include_router(discord_interactions_router.router)
+# UCT RS nightly Discord post: the admin door + status readback (unit 2b-08). The
+# door posts through the SAME readers and session resolver the 04:45 job uses,
+# injected here so a hand-fired post cannot differ from the scheduled one.
+rs_discord_router.configure(leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence_for,
+                            session_fn=_rs_discord_session)
+app.include_router(rs_discord_router.router)
 app.include_router(bars_router.router, dependencies=_OPEN_READS)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router, dependencies=_OPEN_READS)
