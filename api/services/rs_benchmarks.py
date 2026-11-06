@@ -212,6 +212,16 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
     req = str(requested or DEFAULT_BENCHMARK).upper()
     sym_u = str(sym or "").upper()
 
+    # ⛔ AN UNKNOWN VALUE IS AN ERROR, NOT SPY. The definition's enum vocabulary
+    # (`registry_defs.RS_LINE_BENCHMARKS`, derived from the two tuples above)
+    # refuses it upstream in `resolve_inputs`, so this is unreachable from the
+    # route; a direct caller that reaches it gets a ValueError rather than an RS
+    # line against SPY under a chip that names something else (review B10).
+    if req not in LITERAL_BENCHMARKS and req not in AUTO_BENCHMARKS:
+        raise ValueError(
+            f"unknown benchmark {req!r}; the vocabulary is "
+            f"{LITERAL_BENCHMARKS + AUTO_BENCHMARKS}")
+
     if req in LITERAL_BENCHMARKS:
         return {"requested": req, "resolved": req, "label": LABELS.get(req, req),
                 "fallback": None, "bars": fetch_bars(req, tf, count)}
@@ -235,39 +245,34 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
         return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
                 "fallback": None, "bars": fetch_bars(etf, tf, count)}
 
-    if req == "INDUSTRY":
-        groups = _groups_for(sym_u) or {}
-        industry = groups.get("industry")
-        if (industry or "") == ETF_INDUSTRY:
-            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-                    "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-        members = (order_industry_members(_members_of(industry), tf, fetch_bars, has_bars)
-                   if industry else [])
-        # Fetch first, then count: a member without bars in the store contributes
-        # nothing, so the floor is on CONTRIBUTING names and the label says how
-        # many actually carried the composite (review finding). The fetch cap
-        # keeps a 200-name group from costing 200 full reads per chart open, and
-        # `order_industry_members` puts the names that HAVE bars (and are in the
-        # cap universe) ahead of the slice so the cap never excludes them.
-        series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
-        contributing = {m: s for m, s in series.items() if s}
-        if len(contributing) >= MIN_INDUSTRY_MEMBERS:
-            composite = equal_weight_composite(contributing)
-            if composite:
-                return {"requested": req, "resolved": f"INDUSTRY:{industry}",
-                        "label": f"{industry} (equal-weight, {len(contributing)} names)",
-                        "fallback": None, "bars": composite}
-        # Not enough of a group: fall to the sector, then the market, and say so.
-        sector = groups.get("sector")
-        etf = SECTOR_ETF.get(sector or "")
-        if etf:
-            return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
-                    "fallback": "industry group too small" if industry else "no industry",
-                    "bars": fetch_bars(etf, tf, count)}
+    # req == "INDUSTRY" — the last value in the vocabulary checked above.
+    groups = _groups_for(sym_u) or {}
+    industry = groups.get("industry")
+    if (industry or "") == ETF_INDUSTRY:
         return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-                "fallback": "no industry or sector", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-
-    # Unknown value: the definition's enum vocabulary refuses it upstream
-    # (`registry_defs.resolve_inputs`); this is the belt to that brace.
+                "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+    members = (order_industry_members(_members_of(industry), tf, fetch_bars, has_bars)
+               if industry else [])
+    # Fetch first, then count: a member without bars in the store contributes
+    # nothing, so the floor is on CONTRIBUTING names and the label says how
+    # many actually carried the composite (review finding). The fetch cap
+    # keeps a 200-name group from costing 200 full reads per chart open, and
+    # `order_industry_members` puts the names that HAVE bars (and are in the
+    # cap universe) ahead of the slice so the cap never excludes them.
+    series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
+    contributing = {m: s for m, s in series.items() if s}
+    if len(contributing) >= MIN_INDUSTRY_MEMBERS:
+        composite = equal_weight_composite(contributing)
+        if composite:
+            return {"requested": req, "resolved": f"INDUSTRY:{industry}",
+                    "label": f"{industry} (equal-weight, {len(contributing)} names)",
+                    "fallback": None, "bars": composite}
+    # Not enough of a group: fall to the sector, then the market, and say so.
+    sector = groups.get("sector")
+    etf = SECTOR_ETF.get(sector or "")
+    if etf:
+        return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
+                "fallback": "industry group too small" if industry else "no industry",
+                "bars": fetch_bars(etf, tf, count)}
     return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-            "fallback": f"unknown benchmark {req}", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+            "fallback": "no industry or sector", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}

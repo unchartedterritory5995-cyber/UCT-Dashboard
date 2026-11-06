@@ -428,6 +428,27 @@ def test_the_two_python_benchmark_vocabularies_are_one_set():
     assert set(rd.RS_LINE_BENCHMARKS) == set(rb.LITERAL_BENCHMARKS) | set(rb.AUTO_BENCHMARKS)
 
 
+def test_the_python_vocabulary_is_derived_from_the_resolver_not_retyped():
+    """Review finding B10: one derivation, not two tuples a test holds equal."""
+    assert rd.RS_LINE_BENCHMARKS == rd.rs_benchmark_menu(
+        rd._RS_MENU_ORDER, rb.LITERAL_BENCHMARKS + rb.AUTO_BENCHMARKS)
+    # The derivation DROPS a menu name the resolver does not know and APPENDS a
+    # resolver name the menu does not mention, so the tuple can never offer a
+    # benchmark `resolve_benchmark` would refuse.
+    assert rd.rs_benchmark_menu(("SPY", "DIA", "SECTOR"), ("SPY", "QQQ", "SECTOR")) == ("SPY", "SECTOR", "QQQ")
+    assert rd.rs_benchmark_menu((), ("A", "B", "A")) == ("A", "B")
+
+
+def test_resolve_benchmark_raises_on_a_value_outside_the_vocabulary():
+    """Unreachable from the route (`resolve_inputs` refuses first); a direct
+    caller gets an error, never an RS line against SPY under another name."""
+    fetch = _fetcher({"SPY": _bars([1, 2])})
+    with pytest.raises(ValueError, match="DIA"):
+        rb.resolve_benchmark("NVDA", "DIA", "D", 10, fetch)
+    assert fetch.calls == [], "nothing was fetched in its place"
+    assert rb.resolve_benchmark("NVDA", None, "D", 10, fetch)["resolved"] == "SPY", "blank still means the default"
+
+
 def test_the_python_row_reads_its_ranges_from_the_compute_module():
     by_key = {i["key"]: i for i in rd._rs_line_row(True)["inputs"]}
     assert (by_key["lookback"]["min"], by_key["lookback"]["max"]) == rsmod.LOOKBACK_RANGE

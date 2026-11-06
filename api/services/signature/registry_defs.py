@@ -94,7 +94,27 @@ STORE_TF_FOR: dict[str, str] = {
 # options (`nativeRegistry.RS_LINE_RAW`). `test_the_rs_line_benchmarks_are_ONE_
 # list_across_BOTH_LANES` diffs them, so a benchmark added on one side alone is
 # a red test rather than an option that resolves to nothing.
-RS_LINE_BENCHMARKS: tuple[str, ...] = ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "INDUSTRY")
+#
+# ⭐ DERIVED FROM THE RESOLVER, NEVER RE-TYPED (review finding B10). The names
+# are `rs_benchmarks.LITERAL_BENCHMARKS + AUTO_BENCHMARKS` — the only values
+# `resolve_benchmark` accepts — arranged in the Simple menu's order below. A
+# name typed in the order but absent from the resolver is DROPPED, and a name
+# the resolver grew but the order does not mention is APPENDED, so this tuple
+# can never offer the chart a benchmark the server would then refuse (or
+# silently swap for SPY), and the JS diff above is what flags the menu drift.
+from api.services import rs_benchmarks as _rs_benchmarks  # noqa: E402 — imports only logging/typing
+
+
+def rs_benchmark_menu(order: Sequence[str], vocab: Sequence[str]) -> tuple[str, ...]:
+    """`vocab` arranged by `order`: ordered names the vocabulary knows, then the
+    vocabulary's remaining names in their own order. Pure, so it is railed."""
+    known = tuple(dict.fromkeys(vocab))
+    return tuple(b for b in order if b in known) + tuple(b for b in known if b not in order)
+
+
+_RS_MENU_ORDER: tuple[str, ...] = ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "INDUSTRY")
+RS_LINE_BENCHMARKS: tuple[str, ...] = rs_benchmark_menu(
+    _RS_MENU_ORDER, _rs_benchmarks.LITERAL_BENCHMARKS + _rs_benchmarks.AUTO_BENCHMARKS)
 
 # ⭐ UCT RELATIVE STRENGTH v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-
 # strength-indicator-design.md §8.1, §13). `wire_columns` requires the provider's
