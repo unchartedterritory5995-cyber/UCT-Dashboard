@@ -141,6 +141,7 @@ from zoneinfo import ZoneInfo
 from api.services import ast_freshness
 from api.services import ast_interpret
 from api.services import ast_table
+from api.services.bars_window import HISTORY_WINDOW_BARS
 from api.services import block_runs
 from api.services import definition_record
 from api.services import pine_runtime_client
@@ -223,11 +224,12 @@ UNSWEPT_REASON = "budget:market-open"
 #: that fills the disk.
 _DROPPED_LISTED_MAX = 200
 
-#: The bars window, matching `snapshot_builder._read_daily_bars`. Widened only
-#: when the TREE says it needs more -- `max_lookback` is the tree's own
-#: declaration and the same number the repaint linter and the budget read.
+#: The bars window floor. The CEILING is `bars_window.HISTORY_WINDOW_BARS`, the
+#: one history window every server lane reads (design 3.4, R10); this module no
+#: longer declares its own. Widened only when the TREE says it needs more --
+#: `max_lookback` is the tree's own declaration and the same number the repaint
+#: linter and the budget read.
 _MIN_BARS = 400
-_MAX_BARS = 5000
 
 #: ⏳ OWNER -- design §8.5, and it is LESS OPEN THAN IT LOOKS. The sweep lands at a
 #: fixed hour AFTER the 03:00 ET snapshot build; WHICH hour is the owner's.
@@ -1562,7 +1564,7 @@ def _evaluate_runtime(definition: Any, tf: str, *, universe: Optional[Sequence[s
             "the sweep was handed no symbols. An empty universe produces an empty "
             "hit list that is indistinguishable from a quiet market.")
     kept, limit_withheld, limit_reason = _apply_limits(universe, limits)
-    want = _MAX_BARS
+    want = HISTORY_WINDOW_BARS
     history_withheld = _history_withheld(want, limits)
     if history_withheld:
         kept, limit_withheld, limit_reason = [], len(universe), HISTORY_WITHHELD
@@ -1921,7 +1923,7 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         lookback = ast_interpret.max_lookback(tree)
     except ast_interpret.TableRefusal as exc:
         raise ScanRunRefused("not-scannable", str(exc)) from exc
-    want = min(_MAX_BARS, max(_MIN_BARS, lookback + _MIN_BARS))
+    want = min(HISTORY_WINDOW_BARS, max(_MIN_BARS, lookback + _MIN_BARS))
     pad = max(0, lookback - 1)
 
     # 🔴 THE HISTORY AXIS, AND IT STOPS THE WHOLE DEFINITION RATHER THAN TRIMMING
