@@ -81,6 +81,9 @@ LEGACY_WEBHOOKS: dict[str, tuple[str, str]] = {
     "DISCORD_EVENT_CALENDAR_WEBHOOK_URL": ("event_calendar", "api/services/calendar_week_poster.py"),
     "DISCORD_EVENT_CALENDAR_TEST_WEBHOOK_URL": ("event_calendar_test", "api/services/calendar_week_poster.py"),
     "DISCORD_RENDER_ALERT_WEBHOOK": ("render_ops", "api/services/discord_render/observe.py"),
+    # UCT RS nightly leaders post (engineering map unit 2b-07; template docs/alerts/RS-DISCORD-POST.md).
+    # Member-facing, blank posts nowhere; dark until the owner approves the template.
+    "DISCORD_RS_WEBHOOK_URL": ("rs_leaders", "api/services/rs_discord_post.py (dark behind RS_DISCORD_POST_ENABLED)"),
 }
 
 _BY_PURPOSE = {purpose: name for name, (purpose, _owner) in LEGACY_WEBHOOKS.items()}
