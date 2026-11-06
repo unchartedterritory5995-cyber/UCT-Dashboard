@@ -65,7 +65,7 @@ export function buildCase(spec) {
   })
   const post = (spec.post || []).map(p => ({ act: p.act, role: p.role }))
   const last = spec.read ? say(spec.say, { ops: [], disposition: 'answer', reply: spec.read }) : say(spec.say, planOf(spec), spec.plan === 'adversary' ? { approve: false } : {})
-  const lastClick = clicks.at(-1)?.role ?? [...(spec.pre || [])].reverse().find(p => p.click)?.click ?? null
+  const lastClick = [...(spec.pre || [])].reverse().find(p => p.click)?.click ?? clicks.at(-1)?.role ?? null
   const target = { intended: spec.intended, ...(spec.expectClick !== undefined ? { click: spec.expectClick } : { click: lastClick }), ...(spec.plan === 'adversary' ? { guarded: true } : {}), ...(spec.ring ? { ring: true } : {}) }
   const roles = spec.intended === 'clicked' ? (lastClick ? [lastClick] : []) : spec.intended === 'ask' ? [] : spec.intended
   const expect = spec.plan === 'adversary' || spec.ring || spec.undone ? [] : roles.flatMap(r => c?.check(r) || []).filter((e, i, all) => all.findIndex(x => JSON.stringify(x) === JSON.stringify(e)) === i)
@@ -150,11 +150,13 @@ export const FLOWS = [
   { id: 'flow-linked-symbol-reaches-partner', board: 'LINKED', cap: 'symbol', clicks: ['L'], say: 'put AVGO on this chart', intended: ['L', 'M'] },
   { id: 'flow-linked-timeframe-stays', board: 'LINKED', cap: 'timeframe', clicks: ['M'], say: 'make this chart weekly', intended: 'clicked' },
   { id: 'flow-middle', board: 'THREE', cap: 'timeframe', clicks: ['L'], say: 'make the middle chart weekly', intended: ['M'] },
+  { id: 'flow-left-of-three', board: 'THREE', cap: 'timeframe', clicks: ['R'], say: 'make the left chart weekly', intended: ['L'] },
+  { id: 'flow-right-of-three', board: 'THREE', cap: 'timeframe', clicks: ['L'], say: 'make the right chart weekly', intended: ['R'] },
   { id: 'flow-last-of-three', board: 'THREE', cap: 'timeframe', clicks: ['L'], say: 'make the last chart weekly', intended: ['R'] },
   { id: 'flow-chart-number', board: 'THREE', cap: 'indicator', clicks: ['R'], say: 'add rsi to chart 2', intended: ['M'] },
   { id: 'flow-answer-picks-chart', board: 'FOUR', cap: 'volume', pre: [{ say: 'hide volume on this chart', plan: { disposition: 'clarify', question: { text: 'Which chart?', choices: ['Top-left chart (SPY)', 'Top-right chart (QQQ)', 'Bottom-left chart (NVDA)', 'Bottom-right chart (TSLA)'] }, ops: [] } }], say: 'the top right one', intended: ['TR'] },
   { id: 'flow-mc-last-click-wins', board: 'MC', cap: 'timeframe', clicks: ['A', 'C'], say: 'make this chart weekly', intended: 'clicked' },
-  { id: 'flow-mc-empty-cell', board: 'MC', cap: 'timeframe', clicks: ['D'], say: 'make this chart weekly', intended: 'ask' },
+  { id: 'flow-mc-empty-cell', board: 'MC', cap: 'timeframe', clicks: [{ role: 'D', where: 'edge' }], say: 'make this chart weekly', intended: 'clicked' },
   { id: 'flow-mc-position-beats-click', board: 'MC', cap: 'timeframe', clicks: ['C'], say: 'make the top-right chart weekly', intended: ['B'] },
   { id: 'flow-mc-it-after-a-new-click', board: 'MC', cap: 'scale', clicks: ['A'], pre: [{ say: 'make this chart weekly', cap: 'timeframe', on: ['sel'] }, { click: 'C' }], say: 'make it logarithmic', intended: 'clicked' },
   { id: 'flow-read-symbol', board: 'FOUR', clicks: ['BR'], say: 'what symbol is this chart', intended: [], read: 'TSLA', says: 'TSLA', saysNot: 'SPY' },
