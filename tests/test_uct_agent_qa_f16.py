@@ -110,7 +110,10 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 #: MOVED 2026-11-05 to be5fd05ea2, PR #857 (the Pine landing train): its reviewed W5-T14 (scans) and W5-T15 (backtest)
 #: lanes change backtest.py, scan_evaluator.py, scan_run.py and scan_runtime.py on purpose (reviews W5-T14 ab034f0d28,
 #: W5-T15 8550ef036b, train review 1eb3ba53e5). The pin is the merge commit that brought that reviewed change to master, and it also holds #834's ab52621501.
-SCREENER_PIN = "be5fd05ea27367bd46ee00a0474e5203550b6c63"
+#: MOVED 2026-11-06 to 3ca4b0d358, PR #869 (Pine W9 landing): its reviewed W9-T14a lane (review GO-WITH-NOTES, dsk/reviews/W9-T2.md)
+#: changes scan_evaluator.py and snapshot_builder.py on purpose (b6115e9b4d: one history window, bars_window.HISTORY_WINDOW_BARS;
+#: value still 5000, behaviour identical). The pin is the merge commit that brought it to master; it also holds be5fd05ea2.
+SCREENER_PIN = "3ca4b0d358232aaa8afc7f7b084361372740a3ca"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
