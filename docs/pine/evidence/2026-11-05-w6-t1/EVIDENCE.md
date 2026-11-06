@@ -1,10 +1,10 @@
-NEXT STEP (heavy, HELD until the coordinator says go): run measure-pair with RUNTIME 1 ONLY (`bash $S/measure-pair.sh $UCT_RESUME/runs/w6-t1/mp1 tip:$UCT_WORKTREES/pine-dsk-w6t1 base:$UCT_WORKTREES/pine-dsk-mpbase3 1 1`, base asserted at 2f40ee68c5 inside the job; base cache 2f40ee68c5ec-rt1-cen1 exists) under ram_gate plus the SHARED `_resume-2026-11-01/dsk/heavy-mp3.lock`. Runtime 0 is done and usable (runs/w6-t1/mp0). Then: merge origin/master, run a FULL final-tip (`final-tip.sh pine-dsk-w6t1 w6-t1-final tests/test_pine_coverage_w6_t1_relabel.py` under LOCK_FINAL2), push, and run ready-check on runs/w6-t1-final.
+NEXT STEP: FULL final-tip on the merged tree under the final3 lock: `final-tip.sh pine-dsk-w6t1 w6-t1-final tests/test_pine_coverage_w6_t1_relabel.py` (fresh dir runs/w6-t1-final), then push and run `ready-check.sh $UCT_WORKTREES/pine-dsk-w6t1 $UCT_RESUME/runs/w6-t1-final`. Every heavy step before that is done.
 
 # W6-T1 evidence: re-wave the mis-labelled W6 guards (tooling only)
 
 Branch `feat/pine-w6-t1-relabel`. Spec: `docs/pine/W6-BREAKDOWN.md` section 4 T1, with section 3 and
 section 0 finding 3 (branch `origin/docs/pine-w6-breakdown` @ `1889bbedd7`).
-Code commit `4d8d6f3534`; tested-on-master `2f40ee68c5` (= merge-base; W6-T2 engine 19 and W3W4-T0 are in it).
+Code commit `4d8d6f3534`. Master merged in again before the final-tip: **tested-on-master `bde38b0d69`** (the final merge-base, named again in the final-tip section). Earlier measurements name their own master: runtime-0 measure-pair `2f40ee68c5`, runtime-1 `3e8dc3fae5`. (Review N2.)
 
 ## What T1 still had to do after W6-T2 and W3W4-T0
 
@@ -152,5 +152,39 @@ commit moved the tip during the run (`git diff --name-only 983cfed110 69ce7380fa
   halftrend-longshort, luxy-momentum and mirage-liquidity-sweep. **Not caused by T1.** The tip differs from
   master only in `tools/pine_coverage/coverage_map.py`, `w0/targets.py`, the rail and this doc.
   `run_census.py` imports neither of the tools, and no engine file changed, so the census code is the
-  same on both sides. The base side is a cached run from another time, so these are run-to-run peel
-  variation (load and timing). Classified as noise, not as a T1 diff.
+  same on both sides. **Cause: `pine:timeout` budget behaviour under load** (review N3). Every non-timing
+  diff sits on "gave up after 10000ms", "nested past 400 levels" or dropHeads `…: pine:timeout`, and the tip
+  side ran about 2-3x slower per row (`ms`). Noise, not a T1 diff.
+
+## Measure-pair runtime 1 (`runs/w6-t1/mp1`, log `runs/w6-t1/mp1.log`)
+
+Tip `0eeaf862a8` against base `3e8dc3fae5` (pine-dsk-mpbase3, asserted before and after the run; the base
+was a cache miss and its cache was filled). Every step rc=0; `mp1 rc=0`, MEASURE_DONE.
+- C18 audit: **0 diffs** apart from `ms` timing. C18 probes: byte-identical.
+- Harness: tip MATCH 110 / DIVERGE 107 / INCONCLUSIVE 119; base 111 / 107 / 118. The one verdict diff is
+  `delta-rsi-oscillator-strategy-rddt-1d`, tip INCONCLUSIVE ("computeFor returned no column") against base
+  MATCH. That is the known delta-rsi wall-clock budget flake under load (ready-check's baseline note,
+  `vendorHarness.coverageAudit` delta-rsi 1000 ms). Noise.
+- Runtime-on census: 1 of 967 rows differs (`multi-timeframe-trend-indicator`), a `pine:timeout` budget diff. Noise.
+
+**What measure-pair can and cannot show for this lane (review N3).** `run_census.py` imports only stdlib
+and shells out to vitest/census_peel.mjs and the engine; `measure-pair.sh` does not reference
+`coverage_map.py` or `w0/targets.py`. The census imports neither changed file, so measure-pair cannot see a
+tooling-only lane. Its job here is only the no-engine-diff check, which holds: 0 C18 verdict diffs and
+harness equal up to the named flake. **The lane's effect evidence is `maps.sh`** (both tools over the same
+W34-T0 census caches, "Census effect" above).
+
+## Review notes (`_resume-2026-11-01/dsk/reviews/W6-T1.md`, GO-WITH-NOTES @0eeaf862a8)
+
+- **N1 (rail gap) fixed.** The fixture's `reqFP` is now the ternary form `footprint reqFP = useFP ? request.footprint(100, 70) : na`
+  (synthetic, no script text). Only its declared type says footprint, because the rhs check anchors at the
+  start. Re-run through mutate.py (`runs/w6-t1/muts-n1.json`, log `runs/w6-t1/mut-n1.log`):
+  - N0 no-op control: SURVIVED.
+  - N1 `ty in ("footprint", "volume_row")` → `ty in ("volume_row",)`: **KILLED** by `test_a_footprint_value_is_w7`.
+  - Rails: 13 passed.
+- **N2** base SHA updated (top of this file).
+- **N3** cause of the peel diffs named (`pine:timeout`), and the census imports neither changed file (above).
+- **N4 follow-up (not done here):** the spec lives on `docs/pine-w6-breakdown`, which is not this lane's branch.
+  Its owner should update `W6-BREAKDOWN.md` section 0 finding 3, the section 1 table row 5 and the T1 text:
+  `inside-bar-strategy-w-sl` W9 → W4 (`tuple`), and `lorentzian-…`'s `pocRow` W8 library → W7 (`footprint`),
+  so the spec matches the shipped tags.

@@ -150,7 +150,8 @@ def test_without_the_source_no_source_tag_is_set():
 
 FP_SRC = """//@version=6
 indicator("fp")
-footprint reqFP = request.footprint(100, 70)
+useFP = input.bool(true)
+footprint reqFP = useFP ? request.footprint(100, 70) : na
 fp2 = request.footprint(50, 70)
 volume_row pocRow = reqFP.poc()
 plot(pocRow.up_price())
@@ -158,6 +159,7 @@ plot(pocRow.up_price())
 
 
 def test_a_footprint_value_is_w7():
+    # reqFP is the ternary form (`footprint x = c ? request.footprint(..) : na`): only its DECLARED type says footprint
     for tok in ("pocRow.up_price", "reqFP.poc", "fp2.poc"):
         st = _step("pine:type", "plot(%s())" % tok, tok, TYPE_MSG % tok)
         assert _steps(st, FP_SRC) == [("pine:type", [cm.TAG_FOOTPRINT])], tok
