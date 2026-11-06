@@ -55,3 +55,8 @@ is red before and green after); methodIsName forced false KILLED; version gate r
 N3 (fnDefName) deliberately NOT changed: it is type inference, the result stays unknown (conservative), and changing it
 would need a new measure-pair. Measure-pair numbers above stand for the one-line HELD change since it only affects
 scripts with a v3/v4 user function named `method`, which refused before. Engine bump: yes.
+
+## r1 final-tip (full, heavy-final2.lock) at fb955cc2d1, master merged
+gate=0 hyg=0 js=1, totals ok, integrity ok. Failing: the five baselines, coverageAudit and usePreferences.additionsOnly
+(both fail identically on base), plus pineBoxImportVerdict and vendorHarness.b1Paints, which timed out at 120 s under
+full-run load and pass alone (11/11 and 52/52).
