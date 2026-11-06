@@ -41,10 +41,11 @@ const HANDLE_TAG = Symbol.for('uct.pine.drawingHandle')
 /** The most cells one encoded state may hold; past it the state is not encoded. */
 export const STATE_CELL_CAP = 65536
 
-// ⭐ W6-T8 — `maps.js`'s tag: a map is encoded and checkpointed by its key type and its
-// pairs IN INSERTION ORDER (the order is part of the value: `map.keys()` reads it)
+// ⭐ W6-T8 — a map (`maps.js`, the one authority for its tag and shape) is encoded and
+// checkpointed by its key and value types and its pairs IN INSERTION ORDER (the order is
+// part of the value: `map.keys()` reads it)
+import { isMap, mapFromParts } from './maps.js'
 const MAP_MARK = Object.freeze({ mark: 'map' })
-const MAP_TAG = Symbol.for('uct.pine.map')
 
 /**
  * Encode the parts of a run's state into one flat array, or `null` when a value
@@ -82,8 +83,8 @@ export function encodeState(parts, cap = STATE_CELL_CAP) {
       for (let i = 0; i < v.length && ok; i += 1) put(v[i])
       return
     }
-    if (v[MAP_TAG] === true) {
-      out.push(MAP_MARK, v.kt, v.m.size)
+    if (isMap(v)) {
+      out.push(MAP_MARK, v.kt, v.vt, v.m.size)
       for (const [k, x] of v.m) { if (!ok) return; out.push(k); put(x) }
       return
     }
@@ -139,8 +140,8 @@ export function cloneValues(parts) {
       return out
     }
     if (ArrayBuffer.isView(v)) { const out = v.slice(); seen.set(v, out); return out }
-    if (v[MAP_TAG] === true) {
-      const out = { [MAP_TAG]: true, kt: v.kt, m: new Map() }
+    if (isMap(v)) {
+      const out = mapFromParts(v.kt, null, v.vt)
       seen.set(v, out)
       for (const [k, x] of v.m) out.m.set(k, copy(x))
       return out

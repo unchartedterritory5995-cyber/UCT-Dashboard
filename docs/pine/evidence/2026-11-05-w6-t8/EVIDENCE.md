@@ -1,4 +1,4 @@
-NEXT STEP: heavy jobs, in the coordinator's order: (1) mutate.py batch, (2) measure-pair runtime-on (0 C18 verdict diffs, `adx-and-di-for-v4` unmoved, classify every diff), (3) merge origin/master again, then final-tip FULL + ready-check. None of them has run yet (heavy-job rule: stopped for the coordinator).
+NEXT STEP: heavy jobs, in the coordinator's order: (1) mutate.py batch, (2) measure-pair runtime-on (0 C18 verdict diffs, `adx-and-di-for-v4` unmoved, classify every diff), (3) merge origin/master again + re-run the T7 trial-merge rails (T7 is now f2445b11e1), then final-tip FULL + ready-check. r1 (review B1) is done; no heavy job has run.
 
 # W6-T8 `map.*` on the runtime lane (lane w6-t8)
 
@@ -95,3 +95,24 @@ merge order is correct.
 ## Capture queue
 `docs/pine/capture-queue-2026-11-06-w6.md` section W6-K1 (placed before Q-W19R2a so T7's EOF append merges cleanly), probe
 `tools/visual_conformance/probes/vw-w6-map.pine` (K01-K10 confirm the served rules, N01-N04 ask the `na` key).
+
+## r1 — review B1 (NO-GO @acfbbeba50, `dsk/reviews/W6-T8.md`)
+- B1: a v6 bool-valued map answered `na` for a missing key (a v6 bool is never `na`). Fix:
+  - the map carries its VALUE type: `map.new<K, V>` hands `K,V` to the run (`pineRuntimeFrontend.js::mapTypeArg`,
+    `maps.js::MAP_TYPE_SEP`); `vt` survives `map.copy`, `cloneValues` and is part of `encodeState`; `vmState.js` now
+    imports `isMap` / `mapFromParts` from `maps.js` (note N3: one authority for the tag);
+  - `maps.js::naAnswerable`: a missing-key answer is `na` only where the value type can hold it (every v6 type but
+    `bool`) or the script is v5 or older (MAN's answer stands there). Otherwise the run STOPS by name: a `get` of a
+    missing key, and a `put` of a new key / `remove` of a missing key whose answer is READ (the FE marks a value use
+    `MAP_ANSWER_READ`; as a statement the answer is dropped and the call is served). An unknown value type or version
+    fails closed;
+  - other value types checked: int, float, string, color, a user type and a drawing all hold `na` in v6; only `bool`
+    cannot. Rails cover int, string and color in v6 and bool in v5;
+  - queue row W6-K1 gains N05 (probe rows N05a-c, a v6 `map<string, bool>`).
+- Remove-then-put rail now also quotes MAN: "Pine Script internally maintains the insertion order of a map's key-value pairs."
+- Rails: `w6Map.test.js` 44 tests (6 new). Targeted batch on the r1 tree: 22 files, 682 tests pass (`runs/w6-t8/targeted-r1.txt`).
+- Hand mutations (`runs/w6-t8/handmut-b1.py`, `handmut-b1.log`): B0 no-op control GREEN (44/44); killed: B1 guard dropped (3 red),
+  B2 FE read flag dropped (1), B3 value type not carried (9), B4 v5 exemption dropped (2), B5 copy drops the value type (1),
+  B6 checkpoint drops the value type (1).
+- Not changed (non-blocking notes): N1 a missing string-valued key answers `na` (representable in v6; a later `str.*`
+  stops with the VM kind sentence, fail-closed); N2 colour keys compare packed RGBA.

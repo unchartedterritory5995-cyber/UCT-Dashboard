@@ -106,7 +106,10 @@ describe('⭐ insertion order — REF: "Maps maintain insertion order. Note that
     expect(val).toEqual(per((b) => b.l))
     expect(last).toEqual(per(() => 1))
   })
-  it('a key REMOVED and put again is a new key, at the end (REF put: "na if the key is new"; MAN: "The only exception is if the script completely removes the key beforehand.")', () => {
+  // MAN: "Pine Script internally maintains the insertion order of a map's key-value pairs." With the old slot
+  // excluded ("The only exception is if the script completely removes the key beforehand.") and the key "new"
+  // (REF put), the end is the only position consistent with all three.
+  it('a key REMOVED and put again is a new key, at the end (MAN: "Pine Script internally maintains the insertion order of a map’s key-value pairs."; REF put: "na if the key is new"; MAN: "The only exception is if the script completely removes the key beforehand.")', () => {
     const [r, last, first] = runPine(`${BAC}m.remove("b")\nplot(m.put("b", low))\nk = m.keys()\nplot(array.get(k, 2) == "b" ? 1 : 0)\nplot(array.get(k, 0) == "a" ? 1 : 0)`)
     expect(r).toEqual(per(nan))
     expect(last).toEqual(per(() => 1))
@@ -210,6 +213,53 @@ describe('⭐ map.put_all — MAN: "This function puts all key-value pairs from 
   })
 })
 
+describe('⛔ W6-T8 r1 (review B1) — a v6 `bool` is never `na`: a missing key on a bool-valued map STOPS by name (W6-K1, N05)', () => {
+  // MAN map.get: "Otherwise, it returns na."  REF `bool`: "\"Bool\" variables can have values true or false."
+  // In v6 the two conflict for a `map<_, bool>`; what TradingView answers is unstated, so the run stops.
+  const BM = 'm = map.new<string, bool>()\nm.put("t", close > open)\n'
+  it('get of a missing key stops; get of a present key and contains are served', () => {
+    expect(() => runPine(`${BM}x = m.get("zz")\nplot(x ? 1 : 2)`)).toThrow(/`map\.get` answers `na` for a missing key, and a v6 `map<string, bool>` value cannot be `na`.*W6-K1/)
+    const [p, c] = runPine(`${BM}plot(m.get("t") ? 1 : 2)\nplot(m.contains("zz") ? 1 : 0)`)
+    expect(p).toEqual(per((b) => (b.c > b.o ? 1 : 2)))
+    expect(c).toEqual(per(() => 0))
+  })
+  it('put of a NEW key and remove of a missing key stop when their answer is READ', () => {
+    expect(() => runPine(`${BM}x = m.put("q", true)\nplot(x ? 1 : 2)`)).toThrow(/`map\.put` answers `na`.*W6-K1/)
+    expect(() => runPine(`${BM}x = map.remove(m, "zz")\nplot(x ? 1 : 2)`)).toThrow(/`map\.remove` answers `na`.*W6-K1/)
+  })
+  it('as STATEMENTS (the answer dropped) put and remove are served; a READ put of a PRESENT key answers the previous value', () => {
+    const [s, prev] = runPine(`${BM}m.put("q", true)\nmap.remove(m, "zz")\nm.remove("q")\nplot(m.size())\nplot(m.put("t", false) ? 1 : 2)`)
+    expect(s).toEqual(per(() => 1))
+    expect(prev).toEqual(per((b) => (b.c > b.o ? 1 : 2)))
+  })
+  it('in v5 a bool holds na, so MAN\'s answer stands: get of a missing key is na', () => {
+    const [x] = runPine(`${BM}plot(na(m.get("zz")) ? 1 : 0)`, 5)
+    expect(x).toEqual(per(() => 1))
+  })
+  it('every other v6 value type holds na: int, string, color answer na for a missing key', () => {
+    const [i, s, c] = runPine('mi = map.new<string, int>()\nplot(na(mi.get("z")) ? 1 : 0)\n'
+      + 'ms = map.new<string, string>()\nplot(na(ms.get("z")) ? 1 : 0)\n'
+      + 'mc = map.new<string, color>()\nplot(na(mc.get("z")) ? 1 : 0)')
+    expect(i).toEqual(per(() => 1))
+    expect(s).toEqual(per(() => 1))
+    expect(c).toEqual(per(() => 1))
+  })
+  it('an UNKNOWN value type fails closed in v6 (and answers na in v5); a copy keeps the value type', () => {
+    const b6 = new Budget()
+    const m = ARRAY_FNS['map.new'].fn([], b6, 'string')
+    expect(m.vt).toBe(null)
+    expect(() => ARRAY_FNS['map.get'].fn([m, 'z'], b6)).toThrow(/W6-K1/)
+    const b5 = new Budget()
+    b5.pineVersion = 5
+    expect(ARRAY_FNS['map.get'].fn([m, 'z'], b5)).toBeNaN()
+    const mb = ARRAY_FNS['map.new'].fn([], b6, 'string,bool')
+    expect(mb.vt).toBe('bool')
+    expect(ARRAY_FNS['map.copy'].fn([mb], b6).vt).toBe('bool')
+    const mf = ARRAY_FNS['map.new'].fn([], b6, 'string,float')
+    expect(ARRAY_FNS['map.get'].fn([mf, 'z'], b6)).toBeNaN()
+  })
+})
+
 describe('⛔ what the texts do not settle stops BY NAME (W6-K1); a runtime error is a stop, never na', () => {
   it('an `na` key, on put / get / contains / remove', () => {
     for (const call of ['m.put(na, close)', 'v = m.get(na)', 'v = m.contains(na)', 'v = m.remove(na)']) {
@@ -292,6 +342,11 @@ describe('⭐ a map in a run\'s state: encoded by key type and pairs in order, c
     expect(encodeState([[mk([['b', 1.5], ['a', 2.5]])]])).toEqual(a)
     expect(encodeState([[mk([['b', 1.5], ['a', 9.5]])]])).not.toEqual(a)
     expect(encodeState([[mk([['a', 2.5], ['b', 1.5]])]])).not.toEqual(a)
+    // the value type is part of the value (it decides what a missing key answers)
+    const mb = ARRAY_FNS['map.new'].fn([], budget, 'string,bool')
+    const mf = ARRAY_FNS['map.new'].fn([], budget, 'string,float')
+    expect(encodeState([[mb]])).not.toEqual(encodeState([[mf]]))
+    expect(cloneValues([[mb]])[0][0].vt).toBe('bool')
     const m = mk([['a', 1]])
     expect(encodeState([[m, m]])).not.toEqual(encodeState([[mk([['a', 1]]), mk([['a', 1]])]]))
   })

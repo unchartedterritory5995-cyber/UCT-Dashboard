@@ -17,6 +17,8 @@
 //   K09      remove of a missing key: na(result); remove of a present key: its value (3.0)
 //   K10      put_all of ("e", "b", "d") into ("b", "a", "c"): index of "e" and "d" (3, 4) and of "b" (0)
 //   N01-N04  map<float, float>: put(na, 1.0) then size; get(na); contains(na); remove(na)
+//   N05a-c   v6 map<string, bool>: get of a missing key, put of a new key, remove of a missing key
+//            (a v6 bool is never na: false, or a runtime error? the texts conflict)
 //@version=6
 indicator("vw-w6-map", overlay = false)
 m = map.new<string, float>()
@@ -58,3 +60,8 @@ plot(f.size(), "N01 size after put(na)")
 plot(f.get(na), "N02 get(na)")
 plot(f.contains(na) ? 1 : 0, "N03 contains(na)")
 plot(f.remove(na), "N04 remove(na)")
+bm = map.new<string, bool>()
+bm.put("t", true)
+plot(bm.get("zz") ? 1 : 2, "N05a bool get missing (1 = true, 2 = false)")
+plot(bm.put("q", true) ? 1 : 2, "N05b bool put new key answer")
+plot(bm.remove("zz") ? 1 : 2, "N05c bool remove missing answer")

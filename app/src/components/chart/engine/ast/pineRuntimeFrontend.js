@@ -75,6 +75,7 @@ import {
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
 import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY } from '../runtime/collections.js'
+import { MAP_TYPE_SEP, MAP_ANSWER_READ } from '../runtime/maps.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
 // so a method-form call is admitted or refused by the same table, with the same
@@ -4189,6 +4190,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return ty === NA_TY ? null : plainTy(ty)
   }
 
+  /** ⭐ W6-T8 — what a `map.*` call tells the run beyond its arguments, or `null`:
+   *  `map.new<K, V>` hands over BOTH type words (`K,V`: the value type decides whether a
+   *  missing key may answer `na`, `maps.js::naAnswerable`); a `map.put` / `map.remove` used
+   *  as a VALUE says its answer is read (a statement drops it, so its `na` is never seen). */
+  const mapTypeArg = (node, asStatement) => {
+    if (node.name === 'map.new') {
+      const ta = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs : []
+      return ta.length === 2 ? ta.join(MAP_TYPE_SEP) : null
+    }
+    if ((node.name === 'map.put' || node.name === 'map.remove') && !asStatement) return MAP_ANSWER_READ
+    return null
+  }
+
   /** Lower an `array.*` call.
    *
    *  ⭐⭐ ONE ADMISSION, TWO CALLERS, AND THAT IS THE POINT. A collection call
@@ -4222,7 +4236,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         `\`${node.name}\` returns nothing, so it cannot be used as a value`,
         locate(node.tok))
     }
-    const typeArg = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
+    const typeArg = mapTypeArg(node, asStatement)
+      ?? (node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null)
     return arrayCall(
       node.name,
       given.map((x, i) => (nestedCreateHandle(node.name, i, x) || lowerExpr(x, scope))),

@@ -32,11 +32,20 @@ const MAP_TAG = Symbol.for('uct.pine.map')
 /** Is this runtime value a map? A Symbol tag, never the shape of the object. */
 export const isMap = (v) => !!(v && typeof v === 'object' && v[MAP_TAG] === true)
 
-/** A map value: its declared key type and a JS `Map`, whose iteration order IS
- *  insertion order and whose `set` of a present key keeps that key's place — the
- *  two rules REF states (see `map.put`). ⛔ Not frozen: `vmState.cloneValues` shares
- *  frozen values, and a map is mutable. */
-export const mapFromParts = (keyType, entries) => ({ [MAP_TAG]: true, kt: keyType, m: new Map(entries || []) })
+/** A map value: its declared key type (`kt`), its declared VALUE type (`vt`, `null` when the
+ *  run was not told) and a JS `Map`, whose iteration order IS insertion order and whose `set`
+ *  of a present key keeps that key's place — the two rules REF states (see `map.put`).
+ *  ⛔ Not frozen: `vmState.cloneValues` shares frozen values, and a map is mutable. */
+export const mapFromParts = (keyType, entries, valueType = null) => (
+  { [MAP_TAG]: true, kt: keyType, vt: valueType, m: new Map(entries || []) })
+
+/** The front end's `typeArg` for `map.new<K, V>` carries both type words, `K,V`
+ *  (`pineRuntimeFrontend.js::admitArrayCall`). */
+export const MAP_TYPE_SEP = ','
+/** The front end's `typeArg` on a `map.put` / `map.remove` whose ANSWER the script reads (a
+ *  value, not a statement). A statement drops the answer, so a missing key's `na` is never
+ *  seen there and nothing need stop. */
+export const MAP_ANSWER_READ = 'read'
 
 /** MAN: "Similar to arrays and matrices, maps can contain up to 100,000 elements in
  *  total. However, because each key-value pair in a map consists of two elements (a
@@ -50,6 +59,20 @@ export const MAP_MAX_PAIRS = 50000
  *  or string, compared by value. ⛔ An enum key is not held until W6-T10. */
 const KEY_TYPES = Object.freeze({ int: 'number', float: 'number', bool: 'number', color: 'number', string: 'string' })
 
+/** ⛔⛔ W6-T8 r1 (review B1) — A PINE 6 `bool` IS NEVER `na`. MAN says a missing key's `get`
+ *  "returns na", and REF says `put` / `remove` answer "na" for a new / missing key; but REF's
+ *  `bool` type says "Bool" variables can have values true or false. For a bool-valued map in
+ *  v6 the two texts conflict, and what TradingView answers (`false`? a runtime error?) is
+ *  unstated, so the run STOPS BY NAME there (W6-K1, probe row N05): the same fail-closed rule
+ *  as `pineRuntimeFrontend.js` ("A PINE 6 `bool` IS NEVER `na`") and the unmeasured bool array
+ *  fill (`collections.js::UNMEASURED_FILL`). Every other value type holds `na` in v6 (int,
+ *  float, string, color, a user type, a drawing), and a v5-or-older `bool` holds `na` (MAN's
+ *  answer stands there). ⛔ An unknown value type (`vt` null) or an unknown version is treated
+ *  as the case that can fail: it stops. */
+const naAnswerable = (map, budget) => (
+  (map.vt !== null && map.vt !== undefined && map.vt !== 'bool')
+  || !!(budget && Number.isFinite(budget.pineVersion) && budget.pineVersion < 6))
+
 const W6K1 = 'the Pine reference and manual do not settle it, so the run stops here rather than '
   + 'serving a guessed convention (W6-K1)'
 
@@ -57,6 +80,14 @@ const W6K1 = 'the Pine reference and manual do not settle it, so the run stops h
  *  @param {{ CollectionError: Function }} deps */
 export function buildMapFns({ CollectionError }) {
   const unpinned = (what) => new CollectionError(`${what} — ${W6K1}`)
+
+  /** The `na` a missing / new key answers — or a stop by name where the map's value type
+   *  cannot hold `na` (`naAnswerable`). */
+  const naAnswer = (map, budget, what) => {
+    if (naAnswerable(map, budget)) return NaN
+    throw unpinned(`\`${what}\` answers \`na\` for a missing key, and a v6 \`map<${map.kt}, ${map.vt || '?'}>\` value `
+      + 'cannot be `na` (REF: "Bool" variables can have values true or false)')
+  }
 
   /** The map argument. ⛔ An `na` map id is a runtime error in Pine: a NAMED stop, never
    *  the VM's kind sentence (the arguments are declared `any` so this is the one check). */
@@ -104,11 +135,12 @@ export function buildMapFns({ CollectionError }) {
     'map.new': {
       args: [], returns: 'map', generic: true, minArgs: 0, maxArgs: 0,
       fn: (a, budget, typeArg) => {
-        if (!Object.prototype.hasOwnProperty.call(KEY_TYPES, typeArg)) {
-          throw new CollectionError(`map.new<${typeArg || '?'}, …>: this runtime holds a map keyed by int, float, `
+        const [kt, vt] = String(typeArg || '').split(MAP_TYPE_SEP)
+        if (!Object.prototype.hasOwnProperty.call(KEY_TYPES, kt)) {
+          throw new CollectionError(`map.new<${kt || '?'}, …>: this runtime holds a map keyed by int, float, `
             + 'bool, string or color (the reference\'s primitive key types); an enum key waits for W6-T10')
         }
-        return mapFromParts(typeArg)
+        return mapFromParts(kt, null, vt || null)
       },
     },
     // REF: "Returns the number of key-value pairs in the `id` map."
@@ -120,10 +152,10 @@ export function buildMapFns({ CollectionError }) {
     // Otherwise, it returns na."
     'map.get': {
       args: ['any', 'any'], returns: 'any',
-      fn: (a) => {
+      fn: (a, budget) => {
         const map = mapArg(a[0], 'map.get')
         const k = keyArg(map, a[1], 'map.get')
-        return map.m.has(k) ? map.m.get(k) : NaN
+        return map.m.has(k) ? map.m.get(k) : naAnswer(map, budget, 'map.get')
       },
     },
     // REF: "Returns true if the `key` was found in the `id` map, false otherwise."
@@ -144,13 +176,14 @@ export function buildMapFns({ CollectionError }) {
     // removes the key beforehand." So it is inserted where a new key is, at the end.
     'map.put': {
       args: ['any', 'any', 'any'], returns: 'any',
-      fn: (a, budget) => {
+      fn: (a, budget, typeArg) => {
         const map = mapArg(a[0], 'map.put')
         const k = keyArg(map, a[1], 'map.put')
         const v = valueArg(a[2], 'map.put')
         budget.charge('ARRAY_OPERATIONS', 1)
         const had = map.m.has(k)
-        const prev = had ? map.m.get(k) : NaN
+        // a READ answer for a new key is `na` (or a stop: `naAnswer`); a statement drops it
+        const prev = had ? map.m.get(k) : (typeArg === MAP_ANSWER_READ ? naAnswer(map, budget, 'map.put') : NaN)
         if (!had) roomFor(map, 1, 'map.put', budget)
         map.m.set(k, v)
         return prev
@@ -181,11 +214,11 @@ export function buildMapFns({ CollectionError }) {
     // value from the map while preserving the insertion order of other key-value pairs."
     'map.remove': {
       args: ['any', 'any'], returns: 'any',
-      fn: (a, budget) => {
+      fn: (a, budget, typeArg) => {
         const map = mapArg(a[0], 'map.remove')
         const k = keyArg(map, a[1], 'map.remove')
         budget.charge('ARRAY_OPERATIONS', 1)
-        if (!map.m.has(k)) return NaN
+        if (!map.m.has(k)) return typeArg === MAP_ANSWER_READ ? naAnswer(map, budget, 'map.remove') : NaN
         const prev = map.m.get(k)
         map.m.delete(k)
         return prev
@@ -225,7 +258,7 @@ export function buildMapFns({ CollectionError }) {
         const map = mapArg(a[0], 'map.copy')
         budget.peak('ARRAY_ELEMENTS', 2 * map.m.size)
         budget.charge('ARRAY_OPERATIONS', map.m.size)
-        return mapFromParts(map.kt, map.m)
+        return mapFromParts(map.kt, map.m, map.vt)
       },
     },
     // REF: "Clears the map, removing all key-value pairs from it."
