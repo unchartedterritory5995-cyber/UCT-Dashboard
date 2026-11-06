@@ -89,16 +89,17 @@ def run(b, vp_name, vp, dsf, touch, index):
     ctx.close()
 
 
-idx_path = os.path.join(R.WT, "parts", "index.json")
-index = json.load(open(idx_path, encoding="utf-8"))
-with sync_playwright() as p:
-    b = p.chromium.launch(args=R.A)
-    for vp_name, vp, dsf, touch in (("desk", {"width": 1366, "height": 960}, 1, False), ("phone", {"width": 390, "height": 844}, 2, True)):
-        if ONLY and ONLY != vp_name:
-            continue
-        run(b, vp_name, vp, dsf, touch, index)
-    b.close()
-with open(idx_path, "w", encoding="utf-8") as fh:
-    json.dump(index, fh, ensure_ascii=False, indent=1)
-missing = [f"{k}:{v2}" for k, v in index[PID].items() for v2 in ("desk", "phone") if not v.get(v2)]
-print("missing:", missing or "none")
+if __name__ == "__main__":
+    idx_path = os.path.join(R.WT, "parts", "index.json")
+    index = json.load(open(idx_path, encoding="utf-8"))
+    with sync_playwright() as p:
+        b = p.chromium.launch(args=R.A)
+        for vp_name, vp, dsf, touch in (("desk", {"width": 1366, "height": 960}, 1, False), ("phone", {"width": 390, "height": 844}, 2, True)):
+            if ONLY and ONLY != vp_name:
+                continue
+            run(b, vp_name, vp, dsf, touch, index)
+        b.close()
+    with open(idx_path, "w", encoding="utf-8") as fh:
+        json.dump(index, fh, ensure_ascii=False, indent=1)
+    missing = [f"{k}:{v2}" for k, v in index[PID].items() for v2 in ("desk", "phone") if not v.get(v2)]
+    print("missing:", missing or "none")
