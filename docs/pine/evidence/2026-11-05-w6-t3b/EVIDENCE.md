@@ -58,3 +58,27 @@ M14 tenv ignored, M15 public answer keeps declaredOnly, M16/M17 ufcs value/state
 SURVIVED, named: M18 (re-throw of non-refusal errors; no reachable input raises one), M19 (depth bound 48; a backstop
 for env-macro cycles, as `udtTypeOf`'s, no finite input reaches it).
 The missing-`else`/no-default NA arm was removed before mutation: `na` joins to the other arms, so it could not be proved.
+
+# Round 2 (review NO-GO @a01eec7203, B1 rail gap; review `dsk/reviews/W6-T3b.md`)
+
+Code tip `c0d9bce75c`: rail commit `dbc39fdc19` (test only) + merge of origin/master (test files only under engine/; no FE
+source change, so the round-1 measure-pair stands). Engine bump: still **no**.
+
+## B1 fix (rail only, `w6ExprType.test.js`, now 29 tests, green)
+- (a) `ifElifLastBad`: a 3-arm `if / else if / else` whose LAST arm disagrees answers null.
+- (b) `naPass(x) => close > open ? x : "a"`: `naPass("b")` is text, `naPass(na)` is null (an `na` argument gives an
+  untyped parameter no type).
+- N1: operators rail: `"a" + "b"` text, `1 + 2` num, comparison bool, `"a" + 1` null.
+Mutations (`runs/w6t3b/muts-b1.json`, log `runs/w6t3b/job-b1.log`, heavy-mut.lock): C0 control SURVIVED; reviewer's
+X12 (else-if continuation -> break) KILLED; X10 (na argument bound as NA_TY) KILLED; X3 (text + text dropped) KILLED.
+N2/N3 accepted as equivalent and kept documented; N4 (cache vs a later overload) is handed to T9.
+
+## final-tip (`runs/w6t3b/ft3.sh`, heavy-final2.lock, FULL, 2 parallel shards, Node 20.20.2; logs `runs/w6t3b-final3/`)
+`TIP c0d9bce75c done`, `scope=full shards=2`, `rc gate=0 hyg=0 py=0 js=1`, `totals=ok errors=0 integrity=ok`.
+jsfail: the same seven as round 1 (4 baselines + `controlDoorCensus`, `usePreferences.additionsOnly`,
+`vendorHarness.coverageAudit`, red on master `7f6dd3714d`).
+A first attempt (`runs/w6t3b-final2-void/`) is VOID, integrity=tree-changed-during-run: `ast/lookbackAgreement.test.js`
+regenerates `tools/lookback_agreement.json`, translating each corpus script under `budgetMs: 3000`. Under full-suite
+load 3 trees timed out (`distinct_trees_walked` 608 -> 605, the 146 rows identical), and two load-sensitive harness files
+(`b1Paints`, `wseCalcBars`) went red. This is host-lane `translatePine` wall-clock noise, outside this lane's diff. The
+file was restored byte-exact from HEAD, and the rerun was clean.
