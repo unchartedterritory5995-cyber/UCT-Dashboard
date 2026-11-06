@@ -10,7 +10,7 @@
         "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal",
         "api/services/breadth_metrics.py :: the _ROWS catalogue literal"
       ],
-      "count": 196,
+      "count": 197,
       "note": "a bars or breadth metric is table-qualified (ohlcv.c, breadth_snapshot_numeric.pct_above_50sma) so a short column/key name cannot shadow a screener scalar"
     },
     "entity": {
@@ -48,7 +48,7 @@
     "screener_rows": {
       "declared_in": "app/src/components/chart/engine/ast/closedTable.json",
       "authority": "authoritative",
-      "metric_count": 138
+      "metric_count": 139
     },
     "bars_sqlite": {
       "declared_in": "api/services/bars_sqlite.py",
@@ -151,29 +151,29 @@
     }
   },
   "axis_report": {
-    "metric_count": 196,
+    "metric_count": 197,
     "stores": {
       "bars_sqlite": 5,
       "breadth_snapshot_numeric": 53,
-      "screener_rows": 138
+      "screener_rows": 139
     },
     "cadences": {
       "(undeclared)": 58,
-      "nightly": 138
+      "nightly": 139
     },
     "grains": {
       "(undeclared)": 58,
-      "date": 138
+      "date": 139
     },
     "as_of_columns": {
-      "bars_asof": 59,
+      "bars_asof": 60,
       "date": 53,
       "snapshot_date": 79,
       "ts": 5
     },
     "yields": {
       "bool": 22,
-      "num": 174
+      "num": 175
     }
   },
   "metrics": {
@@ -266,6 +266,16 @@
       "yields": "num",
       "authority": "authoritative",
       "sentence": "the 30-day average volume"
+    },
+    "base_pivot_px": {
+      "store": "screener_rows",
+      "column": "base_pivot_px",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the pivot price the symbol's HEAD base structure's own detection computed (the entry a Flat Base or Base-on-Base names, in dollars); blank when the head structure has no pivot -- never invented"
     },
     "base_relation_count": {
       "store": "screener_rows",

@@ -194,7 +194,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     assert declared | excluded == columns, (
         f"unpartitioned: {sorted(columns - declared - excluded)} is a screener "
         f"column that is neither granted nor refused, and "
-        f"{sorted(declared | excluded - columns)} is named here and not a column")
+        f"{sorted((declared | excluded) - columns)} is named here and not a column")
     assert not (declared & excluded), sorted(declared & excluded)
     # 52 -> 54 (2026-08-23): the two per-pattern engine flags
     # (`pattern_engine_vcp`, `pattern_engine_flat_base`) land EXCLUDED, which
@@ -288,7 +288,35 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # ⭐ 67 → 68 (2026-10-15): `rvol_live` (volume vs usual by now) joined snapshot_db
     # COLUMNS as LIVE-ONLY — NULL in every nightly row by design — so it is EXCLUDED: a
     # scalar over it would be a hole at every hour. JS mirror: freshness.test.js.
-    assert (len(declared), len(excluded)) == (138, 68)
+    # ⭐ 68 → 77 (2026-10-16): the nine `archive_*` columns joined snapshot_db COLUMNS as
+    # DISPLAY-ONLY trader-archive context and are EXCLUDED (owner decision 3: archive
+    # context is never an input to what fires or how it scores, and blank with the
+    # archive off). ⭐ 77 → 98 (2026-11-05): the twenty-one scan primitives
+    # (`technicals.scan_primitives`) joined COLUMNS and are EXCLUDED as NOT GRANTED
+    # YET -- filterable through the catalog; a formula scalar over them is a separate
+    # decision. ⚰️ NEITHER MOVE REACHED THIS LINE. The partition assertion above
+    # fails first and this one never runs: `base_pivot_px` joined COLUMNS on 2026-10-14
+    # (b5f182d6ab) and `premarket_price`/`premarket_chg_pct` on 2026-10-16 (bed620ff48),
+    # none of the three with a decision here, so the pin sat at (138, 68) against a
+    # live (138, 98) that nothing measured. The JS mirror (freshness.test.js) recorded
+    # both moves as they happened.
+    # ⭐ (138, 98) → (139, 100) on 2026-11-06 (UCT RS Phase 2a, unit 2a-01): the three
+    # columns the partition rail named as neither granted nor refused, decided:
+    #   declared   138 + 1 = 139  `base_pivot_px` DECLARED -- REAL, the pivot the HEAD
+    #                             base structure's own detection computed, written by
+    #                             the shipped `bases.classify` (R8 met on arrival)
+    #                             beside `base_relation_count`, so it rides `bars_asof`
+    #                             like every column that producer emits.
+    #   excluded    98 + 2 = 100  `premarket_price` and `premarket_chg_pct` EXCLUDED for
+    #                             `rvol_live`'s reason -- LIVE-ONLY
+    #                             (`snapshot_db.LIVE_ONLY_COLUMNS`): written only to
+    #                             `screener_premarket` and served through query.py's
+    #                             `pm` join, NULL in every nightly `screener_rows` row,
+    #                             so a scalar over them would be a hole on every symbol
+    #                             at every hour.
+    # The pair is what `closedTable.json` holds -- `len(scalars)` and
+    # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 100.
+    assert (len(declared), len(excluded)) == (139, 100)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -828,7 +856,10 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # (2026-10-30) 131 -> 138: Pine coverage Phase 1's `acos`, `alma`,
     # `percentileNearestRank`, `rci`, each with its own bar-corpus case, plus
     # `accum2`, `accum3`, `accum4` (the multi-state recurrence).
-    assert len(parts["bar"]) == 138 and len(parts["scalar"]) == 138
+    # ⭐ scalar half 138 -> 139 (2026-11-06, UCT RS Phase 2a unit 2a-01): `base_pivot_px`
+    # DECLARED (see the partition pin). The bar half is untouched at 138 -- the two halves
+    # are equal by coincidence, not by construction, which is why each is asserted alone.
+    assert len(parts["bar"]) == 138 and len(parts["scalar"]) == 139
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])
