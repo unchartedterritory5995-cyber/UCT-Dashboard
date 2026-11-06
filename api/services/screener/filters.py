@@ -734,7 +734,7 @@ FILTERS = dict([
     _open_range("rs_cross_up_bars_ago", "RS Line Cross-Up Age (bars)",
                 "relative_strength", "rs_cross_up_bars_ago"),
     _open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield", unit="%"),
-    _open_range("mansfield_cross_bars_ago", "Mansfield Zero-Cross Age (bars)",
+    _open_range("mansfield_cross_bars_ago", "Mansfield Cross Age (bars)",
                 "relative_strength", "mansfield_cross_bars_ago"),
     _bool("rs_benchmark_agree", "RS Agrees vs SPY and RSP", "relative_strength",
           "rs_benchmark_agree"),

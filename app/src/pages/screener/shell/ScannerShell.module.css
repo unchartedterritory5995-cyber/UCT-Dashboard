@@ -440,6 +440,13 @@
 }
 @media (max-width: 640px) {
   .shell { padding: 12px; }
+  /* Spec A7: the Columns picker is a viewport-pinned panel on the phone (placed
+     inline by `phonePanel.js`, 8px from each edge); its column names wrap in the
+     row rather than pushing the panel wider, and the head keeps Reset + Close. */
+  .pickerLabel { min-width: 0; overflow-wrap: anywhere; }
+  .pickerHead { flex-wrap: wrap; }
+  .pickerClose, .pickerReset { min-height: var(--tap-min, 44px); }
+  .pickerClose { min-width: var(--tap-min, 44px); }
 }
 
 /* Finish program, lane NAV (ruling P5 / Q7): "Skip to save results", the keyboard door to the
