@@ -74,7 +74,7 @@ import {
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
-import { ARRAY_FNS, producesArray, isVoid, argKind, DOOR_GATED_ARRAY } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
 // so a method-form call is admitted or refused by the same table, with the same
@@ -3463,6 +3463,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'call') {
       if (heldArray(node.name) && producesArray(node.name)) return true
+      // ⭐ W6-T8 — a held member that returns a MAP (`map.new`, `map.copy`)
+      if (heldArray(node.name) && producesMap(node.name)) return true
       // ⭐ AN UNSERVED COLLECTION CALL COUNTS AS ONE TOO, so the binding gets
       // a slot, the initialiser is LOWERED, and the refusal names the call the
       // member wrote. Left as an `env` macro it is never lowered at all, and
@@ -3775,6 +3777,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!node || depth > 24) return 'array'
     if (node.type === 'call') {
       const ns = String(node.name || '').split('.')[0]
+      // ⭐ W6-T8 — a HELD `map.*` member's declared result: `map.new` / `copy` a map,
+      // `map.keys` / `values` an array (a copy, the reference says)
+      if (ns === 'map' && heldArray(node.name)) return ARRAY_FNS[node.name].returns === 'map' ? 'map' : 'array'
       return ns === 'matrix' || ns === 'map' ? ns : 'array'
     }
     if (node.type === 'name') {

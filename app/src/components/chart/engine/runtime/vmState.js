@@ -41,6 +41,11 @@ const HANDLE_TAG = Symbol.for('uct.pine.drawingHandle')
 /** The most cells one encoded state may hold; past it the state is not encoded. */
 export const STATE_CELL_CAP = 65536
 
+// ⭐ W6-T8 — `maps.js`'s tag: a map is encoded and checkpointed by its key type and its
+// pairs IN INSERTION ORDER (the order is part of the value: `map.keys()` reads it)
+const MAP_MARK = Object.freeze({ mark: 'map' })
+const MAP_TAG = Symbol.for('uct.pine.map')
+
 /**
  * Encode the parts of a run's state into one flat array, or `null` when a value
  * cannot be encoded or the state is larger than `cap` cells.
@@ -75,6 +80,11 @@ export function encodeState(parts, cap = STATE_CELL_CAP) {
     if (ArrayBuffer.isView(v)) {
       out.push(PLAIN, v.length)
       for (let i = 0; i < v.length && ok; i += 1) put(v[i])
+      return
+    }
+    if (v[MAP_TAG] === true) {
+      out.push(MAP_MARK, v.kt, v.m.size)
+      for (const [k, x] of v.m) { if (!ok) return; out.push(k); put(x) }
       return
     }
     ok = false
@@ -129,6 +139,12 @@ export function cloneValues(parts) {
       return out
     }
     if (ArrayBuffer.isView(v)) { const out = v.slice(); seen.set(v, out); return out }
+    if (v[MAP_TAG] === true) {
+      const out = { [MAP_TAG]: true, kt: v.kt, m: new Map() }
+      seen.set(v, out)
+      for (const [k, x] of v.m) out.m.set(k, copy(x))
+      return out
+    }
     throw new Error('cloneValues: a value of an unknown shape cannot be checkpointed')
   }
   return parts.map((part) => Array.from(part, copy))

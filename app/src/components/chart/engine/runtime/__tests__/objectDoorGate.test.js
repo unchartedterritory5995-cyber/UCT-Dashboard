@@ -298,3 +298,47 @@ describe('W9-T1 the strategy broker is never reachable at the object door', () =
     expect(door.refusal.guard).toBe('pine:strategy-call')
   })
 })
+
+// ⭐⭐ W6-T8 — every `map.*` member is served after master f9651f47ee and is NOT held at the
+// door (`collections.js::DOOR_GATED_ARRAY` lists the whole family; `heldArray` answers false).
+// The host object lane holds no map either. MASTER_DOOR and MASTER_SENTENCE are pinned from
+// master f9651f47ee (this file's `doorRun` and `paneBuild`, run with master's engine sources in
+// place, 2026-11-06, `runs/w6-t8/door-master.txt`). The pane builds every shape.
+describe('⭐⭐ W6-T8 map members are gated at the object door', () => {
+  const MP = 'm = map.new<string, float>()\nm.put("b", close)\nmap.put(m, "a", open)\n'
+  const MASTER_DOOR = { ok: false, labels: null }
+  const MASTER_SENTENCE = 'a collection operation this lane does not implement — `matrix.*`, `map.*` or an '
+    + '`array.*` member it lacks — `map.new`'
+  const SHAPES_K = {
+    get: 'v = map.get(m, "a")\n',
+    size: 'v = map.size(m)\n',
+    contains: 'v = map.contains(m, "b") ? 1 : 0\n',
+    put: 'v = map.put(m, "b", high)\n',
+    remove: 'v = map.remove(m, "a")\n',
+    keys: 'v = array.size(map.keys(m))\n',
+    values: 'v = array.sum(map.values(m))\n',
+    copy: 'v = map.size(map.copy(m))\n',
+    clear: 'map.clear(m)\nv = map.size(m)\n',
+    put_all: 'm2 = map.new<string, float>()\nmap.put(m2, "z", low)\nmap.put_all(m, m2)\nv = map.size(m)\n',
+    method: 'v = m.size() + m.get("b")\n',
+  }
+  for (const [name, body] of Object.entries(SHAPES_K)) {
+    it(`${name}: the door draws what master drew (nothing: refused)`, () => {
+      expect(doorRun(H + MP + body + label('v'))).toEqual(MASTER_DOOR)
+    })
+    it(`${name}: the runtime pane builds it`, () => {
+      const b = paneBuild(H + MP + body + 'plot(v)\n')
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the same build at the object door refuses with master's guard and sentence`, () => {
+      const b = paneBuild(H + MP + body + 'plot(v)\n', { objectDoor: true })
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:array')
+      expect(b.refusal.message).toBe(MASTER_SENTENCE)
+    })
+  }
+  it('CONTROL: an array member master held still draws through the door beside the map shapes', () => {
+    expect(doorRun(H + 'a = array.from(open, high, low, close)\nv = array.sum(a)\n' + label('v')))
+      .toEqual({ ok: true, labels: ['586.915'] })
+  })
+})
