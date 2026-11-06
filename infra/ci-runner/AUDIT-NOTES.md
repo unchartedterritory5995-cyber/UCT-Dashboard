@@ -10,8 +10,9 @@ validation, 10 shadow gates, switch.
 
 | Commit | Content | State |
 |---|---|---|
-| Routing and fixes | B3, B4, Q2, disk, docs | For review |
-| `decide` supersede (Q4) | `tools/promotion_gate.py` and its tests only | Separable. Changes what promotion reads |
+| Routing and fixes | B3, B4, Q2, disk, slot capacity, docs | For review |
+| D1 | `decide` counts only master runs | Needed with routing: B4 creates the failing branch run |
+| `decide` supersede (Q4, D2) | Every gating workflow, cancelled only | Changes what promotion reads. Needed before the switch |
 | Switch | Eight workflows move to the VPS on master | **HOLD** for 10 shadow gates and the budgets re-baseline |
 | `ubuntu-26.04` pin (Q8) | `gate` and `verdict` only, not promote | **PENDING** until a real run proves the label |
 
@@ -45,6 +46,8 @@ In the switch commit, gating rails use `uct-vps-gate` on a master push too, so t
 
 The concurrency group becomes `refused-dispatch-<run id>` for a dispatch off master, so it never joins `master-deploy`. Every job
 starts with a refusal step (in `verdict`, after the fallback label), and `runs-on` sends such a run to hosted, so it never holds a reserved slot.
+
+**D1**: the runs query filters by commit, not branch, so a refused dispatch on a branch at master's tip used to read as a failed `master deploy gate` for master's SHA. `decide` now counts only runs with `head_branch == master`, and refuses if a gating run has no branch at all. That applies to every gating workflow. **Behaviour change**: a failed PR run on a commit that later becomes master's tip no longer refuses it, because it was not a run on master.
 
 **The limit**: a dispatch runs the workflow file **on that branch**. A branch that edits the file can remove all of this, or name
 `master-deploy` or `uct-vps-gate` in any other workflow. The rails only bind what merges. Removing the Workflows permission from
@@ -101,12 +104,20 @@ Removing `pull_request` from `agent ci` and the eight rails also removes their p
 - The dispatched `agent ci` adds about 30 slot-minutes per PR on the VPS (about 180 a day), no billed minutes.
 - It gives a signal only if someone acts on it.
 
+**Option D: Agent server tests under a separate name, advisory, for non-Agent PRs touching Agent paths.** A `pull_request` workflow with the old paths, whose one job has a name outside the named set, and which exits 0 whatever the tests say, as `flow-worker deploy coverage` does. The result is read from an annotation.
+- Cost on hosted: 5.9 job-minutes a run (measured), so about 3,200 billed minutes a month at the same assumptions, roughly $19.
+- Cost on `uct-vps`: nothing billed, about 8 slot-minutes a run, or about 140 slot-minutes a day, measured on the PC.
+- **No effect on your queue only if it finishes**: while queued or running it is not SUCCESS or SKIPPED, so today's queue stops on it. On the VPS an outage would hold it queued. Hosted avoids that. Either way B1 and B2 should ignore it by name.
+- It covers server tests only, so a browser-side regression is still found after merge.
+
 **Option C: keep `pull_request` on `agent ci`, limited to non-Agent branches.** Real pre-merge tests, automatically.
 - Cost on hosted: about 105 job-minutes per push, so about 57,000 billed minutes a month at the same rates. That breaks the $100 target alone.
 - Cost on `uct-vps`: nothing billed, but about 540 slot-minutes a day on a lane sized for far less.
 - **Hazard**: the job-level `if:` skips Agent branches, which reports SKIPPED under the named checks' own names, and your queue accepts SKIPPED. It would need separate check names.
 
-Options B and C are not in any commit. If the owner picks one, it is a small addition.
+Options B, C and D are not in any commit. If the owner picks one, it is a small addition.
+
+**Separate gap, logged, not fixed: Agent-relevant files outside `agent ci`'s filter.** Agent code depends on areas the filter does not name: 6 Agent server modules import from `api/services/screener` and related services, and 32 files under `app/src/agent` reference `components/chart/engine`. #869 changed files in both areas with no `agent ci` run. So "non-Agent PRs that touch Agent paths" undercounts what can break the Agent, today and under every option here. The master gate still runs the whole suite on each push.
 
 ## Proofs you required
 
@@ -129,16 +140,33 @@ Promotion claims are proved through the real `promotion_gate.decide`. GitHub's q
 
 **The watch** cancels only a run with a job actually queued on a silent label, so a run waiting in the concurrency queue is left alone. It refuses `promote to production` in code.
 
-**Fallback.** Never automatic. Meant for the owner, or AUDIT with the owner's OK:
+**Fallback.** Never automatic. Meant for the owner, or AUDIT with the owner's OK. For a stuck `agent ci`:
 
 ```sh
-gh workflow run master-deploy-gate.yml --ref master -f lane=hosted-fallback
 gh workflow run agent-ci.yml --ref <branch> -f lane=hosted-fallback
 ```
 
+For master, the sequence below. **Rails first, gate last**: a green gate triggers promotion by itself, and a rail still cancelled or running at that moment refuses it.
+
+```sh
+R=unchartedterritory5995-cyber/UCT-Dashboard
+SHA=<master tip>        # a dispatch runs the tip, so confirm: gh api repos/$R/commits/master --jq .sha
+# 1. Cancel whatever is stuck, unless ci-queue-watch already has. Only runs for this SHA.
+gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=100" --jq '.workflow_runs[]|select(.status!="completed")|"\(.id) \(.name)"'
+gh run cancel <id> --repo $R      # for each stuck run. Never one named "promote to production".
+# 2. Dispatch each rail that had a cancelled run, and wait for all of them to go green.
+for w in wisdom-rails term018-guards optionsflow-guard notebook-bytes notebook-a11y; do gh workflow run $w.yml --repo $R --ref master -f lane=hosted-fallback; done
+# 3. Then the gate.
+gh workflow run master-deploy-gate.yml --repo $R --ref master -f lane=hosted-fallback
+# 4. If the gate's own promotion refused, promote by hand once everything is green.
+gh workflow run promote-production.yml --repo $R -f sha=$SHA
+```
+
+Before the switch commit the rails are hosted on master, so only the gate needs steps 1, 3 and 4. A dispatch takes master's tip, so if master moves during this, stop and start again for the new tip. `test_the_full_fallback_promotes` proves this outage through the real `decide` and real gating list. A real failure during the outage survives it, and a fallback on a branch rescues nothing.
+
 **"Owner only" is not enforced today.** Everything is one GitHub account, so any session with a token holding Actions write can dispatch it. It is a rule people follow, plus a warning and a summary heading naming the actor. It spends real minutes, and the spending limit still applies.
 
-Without the `decide` commit, a commit whose push run was cancelled stays refused after a green fallback, so nothing promotes until the VPS returns. With it, a later green gate run may supersede a `cancelled` one, never a `failure`.
+The `decide` commit is what makes this work: a later green run of a gating workflow may supersede that workflow's own `cancelled` run, never a `failure`, and never from a branch. Without it nothing promotes until the VPS returns.
 
 **Recovery once the VPS is back.** `gh run rerun <id> --failed`, then `gh workflow run promote-production.yml -f sha=<sha>`.
 
@@ -157,4 +185,5 @@ Without the `decide` commit, a commit whose push run was cancelled stays refused
 1. **`queue: max` on `master-deploy`.** GitHub's concurrency supports keeping up to 100 pending runs instead of cancelling. It would close the dropped-commit hole, outage or not. It changes the gate's queueing, so it is not drafted. It may belong with your queue rewrite.
 2. **Dispatch runs on a PR's rollup.** I could not confirm a `workflow_dispatch` run appears there. If your queue reads the rollup, it may not see them. For B1 and B2.
 3. **`gh` reading the renamed job.** No tool in this repo reads the old `gate` name. Does your queue?
-4. **Gate slots.** At hosted speed a gate is about 76 job-minutes, so 3 reserved slots is about 25 minutes wall time. 2 is about 38, and slower gates only cost time, because B3's rule stops a cancel. Your call with the VPS size.
+
+Slot count and CPUs per slot are no longer an open question: they come from real VPS measurements under the capacity rule, in `VALIDATION-PLAN.md`, 'Sizing'.

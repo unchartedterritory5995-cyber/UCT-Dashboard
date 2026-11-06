@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run N slots of ephemeral, single-job GitHub Actions runners, one fresh container per job.
 
-    python3 launcher.py serve --lane gate-vps --slots 3 --image sha256:<id>     # the VPS: reserved gate capacity
-    python3 launcher.py serve --lane shared-vps --slots 1 --image sha256:<id>   # the VPS: dispatch and nightly
+    python3 launcher.py serve --lane gate-vps --slots <n> --cpus <n> --image sha256:<id>     # reserved gate capacity
+    python3 launcher.py serve --lane shared-vps --slots <n> --cpus <n> --image sha256:<id>   # dispatch and nightly
     python3 launcher.py local --image sha256:<id> -- bash -c '...'    # same container, no runner
     python3 launcher.py print-args --image sha256:<id>                # the docker argv, for review
 
@@ -22,6 +22,10 @@ label only, so a job for one lane can never take the other's slot:
   gate-vps    label uct-vps-gate  reserved for the master gate's heavy jobs
   shared-vps  label uct-vps       dispatch runs and the nightly report
 Both refuse to start on WSL, on non-x86_64, or beside owner/worker credentials.
+
+CAPACITY RULE: the CPUs of every slot in every lane, added up, must not exceed the machine's physical cores. There is no
+default slot count or CPU count for `serve`, because both come from measuring the real VPS (VALIDATION-PLAN.md, 'Sizing').
+Each lane checks the other's file in /etc/uct-ci, so whichever starts second refuses if the two do not fit.
 The owner's PC is advisory only and uses `local`, which registers nothing: its results never appear on GitHub, so they
 can neither stop nor satisfy AUDIT's merge set, and the PC needs no token.
 """
@@ -56,6 +60,7 @@ LANE_KEY = "uct.ci.lane"
 BLANK_ENV = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "PERPLEXITY_API_KEY", "GEMINI_API_KEY",
              "GOOGLE_API_KEY", "XAI_API_KEY", "MASSIVE_API_KEY", "POLYGON_API_KEY", "FINNHUB_API_KEY")
 _IMAGE_RE = re.compile(r"^(sha256:[0-9a-f]{64}|[^@\s]+@sha256:[0-9a-f]{64})$")
+CONFIG_DIR = "/etc/uct-ci"
 #: Credentials that must not exist on a gate host. The gate lane refuses to start beside any of them.
 _GATE_FORBIDDEN = (".config/gh", ".claude", ".git-credentials", ".ssh/id_rsa", ".ssh/id_ed25519")
 
@@ -69,7 +74,7 @@ class Config:
     image: str
     lane: str = "gate-vps"
     repo: str = DEFAULT_REPO
-    slots: int = 2
+    slots: int = 1
     cpus: int = 4
     memory_gib: int = 10
     pids: int = 4096
@@ -121,6 +126,64 @@ def check_gate_host(*, machine=None, proc_version=None, home=None) -> None:
     found = [p for p in _GATE_FORBIDDEN if (root / p).exists()]
     if found:
         raise Refused(f"gate lane refuses a host holding owner or worker credentials: {found}")
+
+
+def read_env(path: pathlib.Path) -> dict:
+    out = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        key, sep, value = line.strip().partition("=")
+        if sep and not key.startswith("#"):
+            out[key.strip()] = value.strip()
+    return out
+
+
+def _positive(env: dict, key: str, where) -> int:
+    try:
+        value = int(env.get(key, ""))
+    except ValueError:
+        value = 0
+    if value <= 0:
+        raise Refused(f"{where} has no positive {key}")
+    return value
+
+
+def physical_cores(root: str = "/sys/devices/system/cpu") -> int | None:
+    """Distinct (package, core) pairs, so hyperthreads count once. None if the machine does not say. A VM reports what
+    its hypervisor shows, which can overstate, so this only ever lowers the owner's declared figure."""
+    seen = set()
+    for cpu in pathlib.Path(root).glob("cpu[0-9]*/topology"):
+        try:
+            seen.add(((cpu / "physical_package_id").read_text().strip(), (cpu / "core_id").read_text().strip()))
+        except OSError:
+            continue
+    return len(seen) or None
+
+
+def check_capacity(cfg: Config, config_dir: str = CONFIG_DIR, detected=None) -> int:
+    """Refuse a layout whose CPUs, over every lane, exceed the physical cores. Returns the total.
+
+    `UCT_CI_CORES` in capacity.env is the owner's measured figure and is required: `nproc` on a VPS counts threads."""
+    root = pathlib.Path(config_dir)
+    capacity = root / "capacity.env"
+    if not capacity.is_file():
+        raise Refused(f"no {capacity}: set UCT_CI_CORES to the machine's measured physical cores")
+    cores = _positive(read_env(capacity), "UCT_CI_CORES", capacity)
+    detected = physical_cores() if detected is None else detected
+    if detected:
+        cores = min(cores, detected)
+    total = cfg.slots * cfg.cpus
+    parts = [f"{cfg.lane} {cfg.slots}x{cfg.cpus}"]
+    for lane in LANE_LABELS:
+        path = root / f"{lane}.env"
+        if lane == cfg.lane or not path.is_file():
+            continue
+        env = read_env(path)
+        slots, cpus = _positive(env, "UCT_CI_SLOTS", path), _positive(env, "UCT_CI_CPUS", path)
+        total += slots * cpus
+        parts.append(f"{lane} {slots}x{cpus}")
+    if total > cores:
+        raise Refused(f"{' + '.join(parts)} = {total} CPUs, more than the {cores} physical cores")
+    return total
 
 
 def container_args(cfg: Config, name: str, lane: str | None = None) -> list:
@@ -330,6 +393,7 @@ class Slots:
         check_lane(self.cfg.lane)
         check_image(self.cfg.image)
         check_gate_host()
+        check_capacity(self.cfg)
         if self.docker("network", "inspect", self.cfg.network).returncode != 0:
             raise Refused(f"network {self.cfg.network} is missing; run egress-firewall.sh first")
         self.event(event="start", lane=self.cfg.lane, label=LANE_LABELS[self.cfg.lane], slots=self.cfg.slots,
@@ -352,13 +416,13 @@ def _parser() -> argparse.ArgumentParser:
         s = sub.add_parser(name)
         s.add_argument("--image", required=True)
         s.add_argument("--lane", default="gate-vps")
-        s.add_argument("--cpus", type=int, default=4)
+        s.add_argument("--cpus", type=int, required=name == "serve", default=4 if name != "serve" else None)
         s.add_argument("--memory-gib", type=int, default=10)
         s.add_argument("--pids", type=int, default=4096)
         s.add_argument("--network", default=NETWORK)
         if name == "serve":
             s.add_argument("--repo", default=DEFAULT_REPO)
-            s.add_argument("--slots", type=int, default=2)
+            s.add_argument("--slots", type=int, required=True)
             s.add_argument("--token-file", default=Config.token_file)
             s.add_argument("--log-dir", default=Config.log_dir)
             s.add_argument("--max-disk-gib", type=int, default=Config.max_disk_gib)

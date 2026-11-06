@@ -154,6 +154,90 @@ def test_the_gate_lane_refuses_a_host_holding_credentials(tmp_path, cred):
         launcher.check_gate_host(machine="x86_64", proc_version="Linux", home=tmp_path)
 
 
+# ---- AUDIT: slots x CPUs across every lane must fit the physical cores
+
+def capacity(tmp_path, cores=8, gate=None, shared=None):
+    (tmp_path / "capacity.env").write_text(f"UCT_CI_CORES={cores}\n", encoding="utf-8")
+    for lane, layout in (("gate-vps", gate), ("shared-vps", shared)):
+        if layout:
+            (tmp_path / f"{lane}.env").write_text(f"UCT_CI_SLOTS={layout[0]}\nUCT_CI_CPUS={layout[1]}\n", encoding="utf-8")
+    return str(tmp_path)
+
+
+def layout(lane, slots, cpus):
+    return launcher.Config(image=IMAGE, lane=lane, slots=slots, cpus=cpus)
+
+
+def test_eight_cores_cannot_run_three_slots_at_four_cpus(tmp_path):
+    with pytest.raises(launcher.Refused, match="12 CPUs, more than the 8 physical cores"):
+        launcher.check_capacity(layout("gate-vps", 3, 4), capacity(tmp_path), detected=8)
+
+
+def test_a_layout_that_fits_exactly_passes(tmp_path):
+    assert launcher.check_capacity(layout("gate-vps", 3, 2), capacity(tmp_path, shared=(1, 2)), detected=8) == 8
+
+
+@pytest.mark.parametrize("starting,other", [("gate-vps", "shared"), ("shared-vps", "gate")])
+def test_whichever_lane_starts_second_counts_the_other(tmp_path, starting, other):
+    config = capacity(tmp_path, **{other: (2, 2)})
+    with pytest.raises(launcher.Refused, match="more than the 8 physical cores"):
+        launcher.check_capacity(layout(starting, 2, 3), config, detected=8)
+
+
+def test_the_detected_core_count_can_only_lower_the_declared_one(tmp_path):
+    with pytest.raises(launcher.Refused, match="more than the 4 physical cores"):
+        launcher.check_capacity(layout("gate-vps", 3, 2), capacity(tmp_path, cores=8), detected=4)
+    assert launcher.check_capacity(layout("gate-vps", 3, 2), capacity(tmp_path, cores=8), detected=64) == 6
+
+
+def test_threads_cannot_stand_in_for_cores(tmp_path):
+    """The declared figure is what binds: a VM may present 16 threads as 16 cores."""
+    with pytest.raises(launcher.Refused):
+        launcher.check_capacity(layout("gate-vps", 3, 4), capacity(tmp_path, cores=8), detected=16)
+
+
+def test_no_declared_core_count_refuses(tmp_path):
+    with pytest.raises(launcher.Refused, match="UCT_CI_CORES"):
+        launcher.check_capacity(layout("gate-vps", 1, 1), str(tmp_path), detected=8)
+
+
+@pytest.mark.parametrize("body", ["UCT_CI_CORES=\n", "UCT_CI_CORES=lots\n", "UCT_CI_CORES=0\n", "OTHER=8\n"])
+def test_an_unreadable_core_count_refuses(tmp_path, body):
+    (tmp_path / "capacity.env").write_text(body, encoding="utf-8")
+    with pytest.raises(launcher.Refused, match="UCT_CI_CORES"):
+        launcher.check_capacity(layout("gate-vps", 1, 1), str(tmp_path), detected=8)
+
+
+def test_an_unreadable_sibling_lane_refuses_rather_than_counting_as_zero(tmp_path):
+    config = capacity(tmp_path)
+    (tmp_path / "shared-vps.env").write_text("UCT_CI_SLOTS=two\nUCT_CI_CPUS=2\n", encoding="utf-8")
+    with pytest.raises(launcher.Refused, match="UCT_CI_SLOTS"):
+        launcher.check_capacity(layout("gate-vps", 1, 1), config, detected=8)
+
+
+def test_hyperthreads_count_once(tmp_path):
+    for cpu, core in enumerate((0, 0, 1, 1)):
+        d = tmp_path / f"cpu{cpu}" / "topology"
+        d.mkdir(parents=True)
+        (d / "physical_package_id").write_text("0", encoding="utf-8")
+        (d / "core_id").write_text(str(core), encoding="utf-8")
+    assert launcher.physical_cores(str(tmp_path)) == 2
+
+
+def test_serve_has_no_default_slots_or_cpus():
+    with pytest.raises(SystemExit):
+        launcher._parser().parse_args(["serve", "--image", IMAGE])
+    with pytest.raises(SystemExit):
+        launcher._parser().parse_args(["serve", "--image", IMAGE, "--slots", "1"])
+
+
+def test_serving_refuses_a_layout_that_does_not_fit(monkeypatch):
+    monkeypatch.setattr(launcher, "check_gate_host", lambda: None)
+    monkeypatch.setattr(launcher, "check_capacity", lambda cfg: (_ for _ in ()).throw(launcher.Refused("too big")))
+    with pytest.raises(launcher.Refused, match="too big"):
+        launcher.Slots(launcher.Config(image=IMAGE), github=FakeGitHub()).serve()
+
+
 def test_a_clean_x64_host_passes_the_gate_lane_check(tmp_path):
     launcher.check_gate_host(machine="x86_64", proc_version="Linux version 6.8 generic", home=tmp_path)
 

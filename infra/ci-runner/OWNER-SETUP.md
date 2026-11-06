@@ -166,18 +166,22 @@ No other token is needed: `ci-queue-watch` uses the workflow's own `GITHUB_TOKEN
 
 ### 4. Start the VPS's runners (only after AUDIT approves)
 
-Two lanes, one service each, so gate capacity stays reserved:
+Two lanes, one service each, so gate capacity stays reserved. Fill in `<cores>`, `<g-slots>`, `<g-cpus>`, `<s-slots>` and
+`<s-cpus>` from `VALIDATION-PLAN.md`, 'Sizing'. There are no defaults, because they come from measuring this machine:
 
 ```sh
 mkdir -p /etc/uct-ci
-printf 'UCT_CI_IMAGE=%s\nUCT_CI_SLOTS=3\n' "$(cat /srv/uct/image-id)" > /etc/uct-ci/gate-vps.env
-printf 'UCT_CI_IMAGE=%s\nUCT_CI_SLOTS=1\n' "$(cat /srv/uct/image-id)" > /etc/uct-ci/shared-vps.env
+echo 'UCT_CI_CORES=<cores>' > /etc/uct-ci/capacity.env
+printf 'UCT_CI_IMAGE=%s\nUCT_CI_SLOTS=<g-slots>\nUCT_CI_CPUS=<g-cpus>\n' "$(cat /srv/uct/image-id)" > /etc/uct-ci/gate-vps.env
+printf 'UCT_CI_IMAGE=%s\nUCT_CI_SLOTS=<s-slots>\nUCT_CI_CPUS=<s-cpus>\n' "$(cat /srv/uct/image-id)" > /etc/uct-ci/shared-vps.env
 cp /srv/uct/kit/uct-ci-runner@.service /etc/systemd/system/
 systemctl daemon-reload; systemctl enable --now uct-ci-runner@gate-vps uct-ci-runner@shared-vps
 ```
 
-Set the slot counts from `VALIDATION-PLAN.md`, 'Sizing'. Verify at github.com > repo > Settings > Actions > Runners: 3 idle
-runners labelled `uct-vps-gate` and 1 labelled `uct-vps`. Start-up refuses WSL, ARM and a host with owner credentials, and says why.
+Verify at github.com > repo > Settings > Actions > Runners: the right number of idle runners on `uct-vps-gate` and on
+`uct-vps`. Start-up refuses WSL, ARM, a host with owner credentials, and **any layout whose slots x CPUs, across both
+lanes, exceed the physical cores**. It says why. To read the real core count, use `lscpu`: cores per socket x sockets, not
+`nproc`. On a VPS, ask the provider whether a vCPU is a full core: if it is a hyperthread, use half the vCPU count.
 
 ## Rotation and updates
 

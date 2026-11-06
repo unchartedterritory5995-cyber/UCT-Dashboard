@@ -156,10 +156,27 @@ bytes`, `Notebook accessibility`, `notebook budgets`, `preference allow-list`, `
 
 Measured on the PC, per full `agent ci` run: about 30 slot-minutes at 4 CPUs, against about 105 hosted job-minutes.
 
-- Each slot needs 4 CPUs and 10 GiB. Memory peaked at the 10 GiB cap including page cache, with no OOM kill. 8 GiB is untested.
-- The VPS runs two lanes. A starting point is 3 `gate-vps` slots and 1 `shared-vps` slot: 16 vCPU and 40 GiB. 2 and 1 is 12 and 30.
-- A gate is about 29 slot-minutes at the PC's speed and about 76 at hosted speed, so 3 gate slots is about 25 minutes at worst.
-- 1 shared slot serves about 2 `agent ci` runs an hour at the PC's speed. Dispatching once per merge candidate makes that
-  plausible. Hosted's old volume of 50 an hour does not fit, and is not meant to.
+**The rule (AUDIT): the CPUs of every slot in both lanes, added up, must not exceed the VPS's physical cores.** The launcher
+enforces it at start-up, and has no default slot or CPU count for `serve`. 8 cores cannot run 3 slots at 4 CPUs.
+
+**Choose both from measurements on the real VPS, keeping every existing timeout:**
+1. Read the real cores: `lscpu`, and the provider's answer on whether a vCPU is a full core.
+2. Check fsync (`server-slow` prints it). Server tests were the slowest here, and disk is the suspect.
+3. Run `local_validate.sh` on the VPS at a candidate `CPUS=`, with `SLOTS=` set to the gate lane's slot count.
+4. A layout passes if each job, with both lanes busy, stays inside its timeout with margin. Check hardest against the near-limit jobs: browser shards (25 in `agent ci`, 30 in the gate) and capreg @ rth (20). Do not raise a timeout to make a layout fit. Weaker hardware that misses goes back to AUDIT as a finding.
+5. Run it twice, including once with the shared lane full, because the "booting" flake is load-dependent.
+
+**The dispatch lane must not take reserved capacity**: its slots are separate and count against the same total, so a small VPS means fewer dispatch slots, not smaller gate slots.
+
+| Physical cores | Layouts that fit the rule, to be measured | Note |
+|---|---|---|
+| 8 | 3 gate x 2 CPUs + 1 shared x 2, or 2 gate x 3 + 1 shared x 2 | Hosted standard runners are small, so 2 CPUs is not obviously too few, but it is **not measured** |
+| 12 | 3 gate x 3 + 1 shared x 3, or 2 gate x 4 + 1 shared x 4 | |
+| 16 | 3 gate x 4 + 1 shared x 4 | The layout the PC numbers were measured at, per slot |
+
+Other facts for choosing:
+- Memory: each slot was given 10 GiB. It peaked at that cap including page cache, with no OOM kill. 8 GiB is untested.
+- A gate is about 29 slot-minutes at the PC's speed at 4 CPUs, and about 76 at hosted speed. Dividing by gate slots gives its wall time. Fewer CPUs per slot makes each job slower, so these do not carry over to a smaller layout.
+- 1 shared slot served about 2 `agent ci` runs an hour at the PC's speed. Hosted's old volume of 50 an hour does not fit, and is not meant to.
 - Disk: the image is 2.9 GB. Keep 30 GB free.
 - A VPS vCPU is usually a hyperthread on a busier, slower host. Measure there before relying on the speed-up above.
