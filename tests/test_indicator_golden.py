@@ -1246,7 +1246,8 @@ def test_compute_case_has_NO_rs_line_row_because_it_carries_ONE_bars():
 # `rs_line_spy` is to `compute_rs_line_raw`: two series, one `benchmarkBars`
 # sibling, a dedicated test in each lane, and NO `_CASE_COLUMNS` row. Its 68
 # bars are HAND-DESIGNED and six rows are derived on paper in the fixture's own
-# `note` (bars 4, 20, 25, 29, 30, 57), so the file pins intended behaviour and
+# `note` (bars 4, 20, 25, 29, 30, 57) — plus two `rog` rows (33, 2) derived in
+# the test itself since f684c400b0 — so the file pins intended behaviour and
 # not merely whatever the module did the afternoon it was written.
 #
 # ⚠️ THE JS LANE CANNOT RECOMPUTE THIS. The chart has no RS compute (decision
@@ -1400,6 +1401,11 @@ def test_rs_events_default_the_six_hand_derived_rows():
     EMA(5): k = 1/3, seed = SMA of the first five valid rs values, then
     rsMa[t] = rsMa[t-1] + (rs[t] - rsMa[t-1]) / 3 — the previous value read
     from the PINNED column, so each step is one line of arithmetic.
+
+    Two further rows pin `rog` (bars 33 and 2), added when the column was
+    re-recorded at f684c400b0 for the mirror rule — the one regeneration the
+    fixture has had, and the reason it must not be the way a rog change lands
+    again (see `_schema.md`).
     """
     case = load_case("rs_events_default")
     bars, bench, exp = case["bars"], case["benchmarkBars"], case["expected"]
@@ -1463,6 +1469,27 @@ def test_rs_events_default_the_six_hand_derived_rows():
     assert ma[57] == pytest.approx(0.9665611432821958, rel=1e-12)
     assert exp["rsNL"][57] == 1.0 and exp["dotNL"][57] == 0.96
     assert exp["rsNH"][57] == 0.0 and exp["pxNH"][57] == 0.0 and exp["rsNHbeforePx"][57] == 0.0
+
+    # BAR 33 — RED ON GREEN, the mirror rule `rog` was re-pinned to at
+    # f684c400b0: the benchmark is UP by at least the red-day magnitude
+    # (|red_day_pct| = 0.5) AND the stock is strictly DOWN.
+    assert by_t[bars[32]["t"]] == 99.0 and by_t[bars[33]["t"]] == 100.0
+    assert (100.0 / 99.0 - 1) * 100 == pytest.approx(1.0101, abs=1e-4) and (100.0 / 99.0 - 1) * 100 >= 0.5, \
+        "benchmark 99 → 100 = +1.0101 % ≥ +0.5 %: a green day"
+    assert c[32] == 109 and c[33] == 108 and (108 / 109 - 1) * 100 == pytest.approx(-0.9174, abs=1e-4), \
+        "stock 109 → 108 = −0.917 %: strictly down"
+    assert exp["rog"][33] == 1.0, "green (+1.0101 % ≥ 0.5) ∧ down (108 < 109) ⇒ rog = 1"
+    assert exp["gor"][33] == 0.0, "+1.0101 % > −0.5 %: not a red day, so not green-on-red"
+    assert [i for i, v in enumerate(exp["rog"]) if v == 1.0] == [33], "the ONLY red-on-green bar in the series"
+
+    # BAR 2 — the FLAT-benchmark control. The pre-f684 shape ("not a red day"
+    # ∧ "not an up day") fired here: 0 % is not ≤ −0.5 % and 101 < 102 is not
+    # up. The mirror rule does not: 0 % is not ≥ +0.5 %.
+    assert by_t[bars[1]["t"]] == by_t[bars[2]["t"]] == 100.0, "benchmark 100 → 100 = 0 %"
+    assert c[1] == 102 and c[2] == 101, "stock 102 → 101 = −0.98 %, down"
+    assert not (0.0 <= -0.5) and c[2] < c[1], "the retired rule's two halves — not red, not up — BOTH hold here"
+    assert exp["rog"][2] == 0.0, "0 % < +0.5 % is not a green day ⇒ rog = 0 (the retired rule gave 1)"
+    assert exp["gor"][2] == 0.0
 
     # The crosses, by index — so a series edit cannot quietly move them.
     assert [i for i, v in enumerate(exp["crossDown"]) if v == 1.0] == [10, 16, 27, 33, 40, 46]
