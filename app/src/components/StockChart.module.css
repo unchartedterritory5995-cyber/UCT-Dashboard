@@ -1538,3 +1538,149 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ─── THE READOUT ROWS (Phase 2a, unit 2a-10) ──────────────────────────────
+   What the legend says IN WORDS about a server-lane indicator — which benchmark
+   was actually used, the rating, how many bars since the last RS high. They
+   ride the chip's popover under the header (`LegendMenuHeader rows`), above the
+   verbs, and come from `chip.readout` (`readout.legendChips` with a
+   `scalarsOf` reader → `readoutSchema.readoutRows`). A chip with no rows
+   renders none of this, so every other indicator's menu is unchanged.
+
+   ⛔ A MUTED ROW IS DIMMED, NEVER HIDDEN. `muted` is a declared `fallback`
+   standing in for a value the server has not sent ("not yet rated"), which is
+   the honest state and the member should see it.
+
+   Same fixed dark menu palette as the header above (`--menu-*`). Instrument
+   Sans only; tabular numerals on the value; gold is reserved for the one
+   look-here element on a card, the Learn link. */
+.legMenuRows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+}
+.legMenuRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 0;
+  font: 500 11px 'Instrument Sans', sans-serif;
+  color: var(--menu-text, #ededed);
+  cursor: default;
+}
+.legMenuRowMuted { color: var(--menu-text-faint, #93939a); }
+.legMenuRowMuted .legMenuRowVal { color: var(--menu-text-faint, #93939a); font-weight: 500; }
+.legMenuRowLabel {
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.legMenuRowVal {
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #f8f7f3;
+  white-space: nowrap;
+  text-align: right;
+}
+/* A row that carries a `card` is a BUTTON: it opens the three-line About page
+   in place of the menu body. Same look as an inert row plus a chevron, so a
+   member can tell which rows explain themselves. */
+.legMenuRowBtn {
+  appearance: none;
+  background: none;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  width: calc(100% + 8px);
+}
+.legMenuRowBtn:hover,
+.legMenuRowBtn:focus-visible { background: var(--menu-hover, rgba(255, 255, 255, 0.06)); outline: none; }
+.legMenuRowChev { display: inline-flex; color: var(--menu-text-faint, #93939a); flex: none; }
+
+/* ─── THE ABOUT CARD — one readout row, explained in three lines ───────────
+   Rendered through `ContextPopover`'s `children` branch, so it REPLACES the
+   menu body in the same popover; the back row at the top returns to the rows.
+   What it is / where it comes from / what the evidence says (design spec
+   2026-11-05 §6), then the lesson for this row and the definition's lessons. */
+.legCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-family: 'Instrument Sans', sans-serif;
+  color: var(--menu-text, #ededed);
+}
+.legCardBack {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 4px 8px;
+  font: 600 12px 'Instrument Sans', sans-serif;
+  color: var(--menu-text, #ededed);
+  text-align: left;
+  cursor: pointer;
+}
+.legCardBack:hover,
+.legCardBack:focus-visible { background: var(--menu-hover, rgba(255, 255, 255, 0.06)); outline: none; }
+.legCardBackChev { display: inline-flex; color: var(--menu-text-faint, #93939a); flex: none; }
+.legCardTitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legCardVal {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #f8f7f3;
+  white-space: nowrap;
+}
+.legCardBody { padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 7px; }
+.legCardLine { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.legCardKey {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+}
+.legCardText { font-size: 12px; line-height: 1.5; color: var(--menu-text, #ededed); }
+/* The one look-here element on a card: gold, the brand's single accent. */
+.legCardLearn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  min-height: var(--tap-min);
+  font: 600 12px 'Instrument Sans', sans-serif;
+  color: var(--ut-gold, #c9a84c);
+  text-decoration: none;
+}
+.legCardLearn:hover,
+.legCardLearn:focus-visible { text-decoration: underline; outline: none; }
+.legCardLearnSub { font-weight: 500; font-size: 11px; color: var(--menu-text-faint, #93939a); }
+.legCardLessons { display: flex; flex-direction: column; gap: 0; padding-top: 4px; border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06)); }
+.legCardLessonsKey { font-size: 10px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--menu-text-faint, #93939a); padding: 2px 0; }
+.legCardLesson {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  font: 500 12px 'Instrument Sans', sans-serif;
+  color: var(--menu-text, #ededed);
+  text-decoration: none;
+}
+.legCardLesson:hover,
+.legCardLesson:focus-visible { color: var(--ut-gold, #c9a84c); outline: none; }
+/* The About page's copy of the lessons list sits under the description. */
+.legAboutLessons { margin-top: 8px; }

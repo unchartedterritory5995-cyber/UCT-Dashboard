@@ -1087,6 +1087,49 @@ function validateTrees(compute, storedHash, errors, inputScope) {
   }
 }
 
+/** The closed set of fields a `meta.learn[]` entry may carry. */
+export const META_LEARN_FIELDS = Object.freeze(['key', 'label'])
+
+/**
+ * `meta.learn`: a NON-EMPTY array of `{key, label}` — both non-empty strings,
+ * keys unique, no other fields. Every refusal names the index and the field so
+ * the author fixes the entry rather than guessing. An empty array is refused
+ * too: a definition with no lessons declares no `learn` at all.
+ */
+function validateMetaLearn(learn, errors) {
+  if (!Array.isArray(learn)) {
+    errors.push(`meta.learn: expected an array of lessons [{key, label}], got ${fmt(learn)}`)
+    return
+  }
+  if (learn.length === 0) {
+    errors.push('meta.learn: expected at least one lesson {key, label} — a definition with no lessons declares no meta.learn')
+    return
+  }
+  const seen = new Set()
+  learn.forEach((entry, i) => {
+    const path = `meta.learn[${i}]`
+    if (!isPlainObject(entry)) {
+      errors.push(`${path}: expected an object {key, label}, got ${fmt(entry)}`)
+      return
+    }
+    for (const k of Object.keys(entry)) {
+      if (!META_LEARN_FIELDS.includes(k)) {
+        errors.push(`${path}.${k}: unknown lesson field — expected one of: ${list(META_LEARN_FIELDS)}`)
+      }
+    }
+    if (!isNonEmptyString(entry.key)) {
+      errors.push(`${path}.key: required non-empty string (a key the app's Learn map resolves), got ${fmt(entry.key)}`)
+    } else if (seen.has(entry.key)) {
+      errors.push(`${path}.key: duplicate lesson key ${fmt(entry.key)}`)
+    } else {
+      seen.add(entry.key)
+    }
+    if (!isNonEmptyString(entry.label)) {
+      errors.push(`${path}.label: required non-empty string (the member-facing link text), got ${fmt(entry.label)}`)
+    }
+  })
+}
+
 /**
  * @param {unknown} meta
  * @param {object} def the whole definition — `legendParams` names INPUT keys, so
@@ -1146,6 +1189,16 @@ function validateMeta(meta, def, errors) {
       errors.push('meta.semantics: a Pine translation keeps Pine semantics and carries no '
         + 'definition-semantics stamp')
     }
+  }
+  // `learn` (Phase 2a, unit 2a-10) is the lessons an indicator's About page
+  // links to: `[{key, label}]`, where `key` names an entry in the APP's Learn
+  // map (`lib/deskVideoHref.RS_LEARN_VIDEOS`) and `label` is the member-facing
+  // link text. BEHAVIOURAL — it renders links — so it is checked, not preserved:
+  // an entry shape nobody declared would render a link to nowhere. The key is
+  // NOT checked against the map: that map is app code and this is engine code;
+  // an unknown key renders no link (`learnHref` → null), never a broken one.
+  if (meta.learn !== undefined && meta.learn !== null) {
+    validateMetaLearn(meta.learn, errors)
   }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
   // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
@@ -1399,6 +1452,12 @@ function validateReadout(def, inputsByKey, errors) {
         }
         if (entry.card.evidence !== undefined && typeof entry.card.evidence !== 'string') {
           errors.push(`${path}.card.evidence: ${who} — expected a string, got ${fmt(entry.card.evidence)}`)
+        }
+        // `learn` names a lesson in the APP's Learn map (`lib/deskVideoHref`), not
+        // anything the engine holds — so the schema asks only that it is a key
+        // at all. A key the map does not know renders no link (`learnHref` → null).
+        if (entry.card.learn !== undefined && !isNonEmptyString(entry.card.learn)) {
+          errors.push(`${path}.card.learn: ${who} — expected a non-empty lesson key (a string the app's Learn map resolves), got ${fmt(entry.card.learn)}`)
         }
       }
     }
