@@ -314,9 +314,33 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     #                             `pm` join, NULL in every nightly `screener_rows` row,
     #                             so a scalar over them would be a hole on every symbol
     #                             at every hour.
+    # ⭐ (139, 100) → (149, 107) on 2026-11-06 (UCT RS Phase 2a, unit 2a-07): the
+    # seventeen RS screener columns units 2a-05 and 2a-06 added to COLUMNS, decided in
+    # one pass. The total moved when THEY landed; this commit moves only the split:
+    #   declared   139 + 10 = 149  the ten BAR-DERIVED columns DECLARED --
+    #                             `rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`,
+    #                             `rs_line_above_ma`, `rs_benchmark_agree` as `bool`
+    #                             (0/1 flags); `rs_nh_bars_ago`, `rs_cross_up_bars_ago`,
+    #                             `mansfield_cross_bars_ago` (ages), `green_on_red_20`
+    #                             (a count) and `mansfield` (REAL, percent) as `num`.
+    #                             Written by the shipped `rs_columns.collect_one` as the
+    #                             `bars_rs` step inside `build_row`'s `if bars:` block,
+    #                             so R8 is met on arrival and every one rides `bars_asof`;
+    #                             the as-of census below reads `rs_columns` too.
+    #   excluded   100 + 7 = 107  the seven RATING-HISTORY columns EXCLUDED under R8 --
+    #                             `rs_rating_ibd`, `rs_rating_chg_5`, `rs_rating_chg_20`,
+    #                             `rs_rating_1m`, `rs_rating_3m`, `rs_rating_6m`,
+    #                             `rs_rating_12m` are read from the `rs_rating_history`
+    #                             side table the 04:15 ET job writes only when
+    #                             RS_HISTORY_ENABLED=1, which is OFF in production, so
+    #                             every nightly row is NULL there. Each reason in
+    #                             closedTable.json is dated and names its re-admission:
+    #                             the flag armed AND the artifact showing the column
+    #                             filled (the pattern_engine_vcp precedent -- a promotion
+    #                             moves the split, never the total).
     # The pair is what `closedTable.json` holds -- `len(scalars)` and
-    # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 100.
-    assert (len(declared), len(excluded)) == (139, 100)
+    # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 107.
+    assert (len(declared), len(excluded)) == (149, 107)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -443,10 +467,16 @@ def _builder_bar_dated_columns() -> set:
     ``bars_asof`` inside the ``if bars:`` block and nowhere else, and that block
     is what merges the technical, candle and pattern groups. So "which family
     does this column belong to" is a fact about the builder's own dictionaries,
-    and this reads them out of the three modules that emit them.
+    and this reads them out of the modules that emit them.
+
+    ⭐ `rs_columns` joined the tuple on 2026-11-06 (UCT RS Phase 2a, unit 2a-07):
+    `build_row` calls `rs_columns.collect_one` as the `bars_rs` step INSIDE the
+    same `if bars:` block (unit 2a-05), so its ten keys are bar-dated by the
+    same `bars_asof` stamp -- and the census reads that module's own `_blank()`
+    dict rather than taking anybody's word for it.
     """
     names: set = set()
-    for module in ("technicals", "candles", "setup_score"):
+    for module in ("technicals", "candles", "setup_score", "rs_columns"):
         path = ROOT / "api" / "services" / "screener" / f"{module}.py"
         tree = pyast.parse(io.open(path, encoding="utf-8").read())
         for node in pyast.walk(tree):
@@ -859,7 +889,11 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # ⭐ scalar half 138 -> 139 (2026-11-06, UCT RS Phase 2a unit 2a-01): `base_pivot_px`
     # DECLARED (see the partition pin). The bar half is untouched at 138 -- the two halves
     # are equal by coincidence, not by construction, which is why each is asserted alone.
-    assert len(parts["bar"]) == 138 and len(parts["scalar"]) == 139
+    # ⭐ scalar half 139 -> 149 (2026-11-06, UCT RS Phase 2a unit 2a-07): the ten
+    # bar-derived RS columns DECLARED (see the partition pin for the names and the
+    # arithmetic), each with its own case in `tests/fixtures/ast/scalars.json`. The bar
+    # half is untouched at 138 -- a per-symbol column names no bar function.
+    assert len(parts["bar"]) == 138 and len(parts["scalar"]) == 149
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])
