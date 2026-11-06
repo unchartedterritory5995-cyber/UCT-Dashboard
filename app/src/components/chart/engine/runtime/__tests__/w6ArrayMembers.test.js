@@ -170,9 +170,9 @@ describe('⭐ array.percentile_nearest_rank — "the value for which the specifi
     close(p50, per((b) => sorted(b)[1]))
     close(p100, per((b) => sorted(b)[3]))
   })
-  it('a whole rank stays whole: 30% of 10 values is the 3rd, not the 4th', () => {
-    const [p] = runPine('a = array.new_float()\nfor k = 0 to 9\n    array.push(a, close + k)\nplot(array.percentile_nearest_rank(a, 30))')
-    close(p, per((b) => b.c + 2))
+  it('a whole rank stays whole: 7% of 100 values is the 7th, not the 8th (0.07 * 100 is 7.000000000000001)', () => {
+    const [p] = runPine('a = array.new_float()\nfor k = 0 to 99\n    array.push(a, close + k)\nplot(array.percentile_nearest_rank(a, 7))')
+    close(p, per((b) => b.c + 6))
   })
   it('`na` for an empty array; ⛔ p outside (0, 100] and an `na` element stop by name (W6-A1)', () => {
     const [e] = runPine('plot(array.percentile_nearest_rank(array.new_float(), 50))')

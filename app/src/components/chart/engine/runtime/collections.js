@@ -664,7 +664,7 @@ const W6T5_MEMBERS = {
       }
       // The nearest rank: the smallest value with at least p% of the values at or below
       // it — the ceil(p·n/100)-th of the sorted values. `p * n / 100`, not `p / 100 * n`,
-      // so a whole rank stays whole (30 / 100 * 10 is 3.0000000000000004).
+      // so a whole rank stays whole (7 / 100 * 100 is 7.000000000000001, whose ceil is 8).
       return xs[Math.ceil((p * n) / 100) - 1]
     },
   },
@@ -700,11 +700,6 @@ export const DOOR_GATED_ARRAY = Object.freeze(new Set([
   ...Object.keys(W19R2_MEMBERS),
   ...Object.keys(W6T5_MEMBERS).filter((n) => !Object.prototype.hasOwnProperty.call(MASTER_AT_DOOR, n)),
 ]))
-
-/** Does this array call RETURN TEXT? (`array.join`.) The front end's text reader
- *  (`holdsText`) asks, for the same reason `producesArray` exists. */
-export const producesArrayText = (name) => (
-  Object.prototype.hasOwnProperty.call(W6T5_MEMBERS, name) && W6T5_MEMBERS[name].returns === 'string')
 
 /** @type {Readonly<Record<string, ArrayFn>>} */
 const ARRAY_NEW = {
