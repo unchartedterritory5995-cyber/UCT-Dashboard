@@ -211,14 +211,22 @@ const READ = `(() => {
   }
 })()`
 
-export async function open(R, { query = '', prefs = null, fixtures = null, iaCatalog = null, width = 1500, height = 900, ls = null, dateShaped = false } = {}) {
-  const b = await launch({ width, height })
+export async function open(R, { query = '', prefs = null, fixtures = null, iaCatalog = null, width = 1500, height = 900, ls = null, dateShaped = false, profile = null } = {}) {
+  const b = await launch({ width, height, profile })
+  // one profile for a run, so nothing of the last page's may survive into this one
+  if (profile) await b.send('Storage.clearDataForOrigin', { origin: new URL(BASE).origin, storageTypes: 'all' })
   const cfg = { prefs, fixtures, iaCatalog, dateShaped }
   const init = `(${pageInit.toString()})(${JSON.stringify(cfg)});` + (ls ? Object.entries(ls).map(([k, v]) => `try{localStorage.setItem(${q(k)},${q(v)})}catch{}`).join(';') : '')
   await b.send('Page.addScriptToEvaluateOnNewDocument', { source: init })
   await b.open(`${BASE}/agent-harness.html?watchlists=1&bars=ramp&theme=dark&live=${R.port}&${query}`)
   const ready = await b.waitFor(`!!document.querySelector('[data-testid="agent-launch"]') || !!document.querySelector('[aria-label="Message UCT Agent"]')`, { timeout: 60000 })
-  if (!ready) { const t = await b.evaluate('document.body.innerText.slice(0,200)').catch(() => ''); b.close(); throw new Error(`harness did not load: ${t}`) }
+  if (!ready) { const t = await b.evaluate('document.body.innerText.slice(0,200)').catch(() => ''); await b.close(); throw new Error(`harness did not load: ${t}`) }
+  await b.evaluate(READ)
+  return mkPage(b, R)
+}
+
+/** The same page helpers on a page this rig did not open (the production target: no harness, no fixtures). */
+export async function attach(b, R) {
   await b.evaluate(READ)
   return mkPage(b, R)
 }
