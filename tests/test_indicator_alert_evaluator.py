@@ -644,8 +644,8 @@ def test_on_the_CLOSED_lane_exactly_one_offered_address_produces_nothing():
         "closed lane cannot answer — one of them is refusing the wrong thing")
     # the non-vacuity floor: the loop really did drive the whole catalog (minus
     # the eleven RS addresses it skips by declaration, counted here).
-    assert len(evaluator.all_addresses()) == 43  # 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
-    assert len(evaluator.RS_ADDRESSES) == 11
+    assert len(evaluator.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(evaluator.RS_ADDRESSES) == 12  # 2026-11-07 (RS 2b-06): +rs_line.rating
 
 
 def test_every_plot_address_resolves_to_the_column_it_names():
@@ -1904,6 +1904,29 @@ class _RsStore:
         return self.bench[-int(want):] if int(want) < len(self.bench) else list(self.bench)
 
 
+def _rs_session(t: int) -> str:
+    """``20240102`` → ``"2024-01-02"``, the side table's session key."""
+    return f"{t // 10000:04d}-{(t // 100) % 100:02d}-{t % 100:02d}"
+
+
+def _rs_rating_rows(bars, rating=lambda i: 1 + (i * 7) % 99):
+    """2026-11-07 (RS 2b-06): a stored rating history in `rs_history.ticker_history`'s
+    shape (newest session first), one row per bar of ``bars``."""
+    return [{"session": _rs_session(int(b["t"])), "ibd": rating(i)} for i, b in enumerate(bars)][::-1]
+
+
+class _RsRatings:
+    """The injected rating-history reader: `(ticker, limit) -> rows`, counting."""
+
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.calls = []
+
+    def __call__(self, ticker, limit):
+        self.calls.append((str(ticker).upper(), int(limit)))
+        return self.rows[:int(limit)]
+
+
 def _rs_alert(address: str, tf: str = "D") -> dict:
     cond = evaluator.ALERT_CONDITIONS[address][0]
     return {"id": 1, "user_id": "u", "sym": "TEST", "tf": tf, "indicator": address,
@@ -1912,12 +1935,12 @@ def _rs_alert(address: str, tf: str = "D") -> dict:
             "params_json": None, "last_value": None}
 
 
-def test_the_rs_partition_is_the_fifth_disjoint_from_the_other_four_and_exactly_eleven():
+def test_the_rs_partition_is_the_fifth_disjoint_from_the_other_four_and_exactly_twelve():
     ev = evaluator
     assert ev.ADDRESS_PARTITIONS[-1] is ev.RS_FUNCS
     assert len(ev.ADDRESS_PARTITIONS) == 5
     assert list(ev.RS_FUNCS) == list(ev.RS_ADDRESSES) == list(_ars.RS_ADDRESSES)
-    assert len(ev.RS_ADDRESSES) == 11
+    assert len(ev.RS_ADDRESSES) == 12  # 2026-11-07 (RS 2b-06): +rs_line.rating
     assert all(ev.plot_base(a) == "rs_line" for a in ev.RS_ADDRESSES)
     others = set().union(*(set(p) for p in ev.ADDRESS_PARTITIONS[:-1]))
     assert not (others & set(ev.RS_ADDRESSES)), "an RS address is in two partitions"
@@ -1942,12 +1965,20 @@ def test_every_rs_address_is_closed_only_by_its_columns_own_declaration():
     ev = evaluator
     for a in ev.RS_ADDRESSES:
         fn = _alert_series.series_function(a)
-        assert fn.reads_benchmark is True and fn.timeframes == ("D", "W"), a
+        # 2026-11-07 (RS 2b-06): `reads_benchmark` is the (tf, sym) CALL SHAPE
+        # `call_series` routes on and the one flag this set is derived from —
+        # every RS column declares it, the rating included; `reads_rating`
+        # names what the rating actually reads, and it is offered on D only.
+        assert fn.reads_benchmark is True, a
+        if a == "rs_line.rating":
+            assert fn.reads_rating is True and fn.timeframes == ("D",)
+        else:
+            assert not getattr(fn, "reads_rating", False) and fn.timeframes == ("D", "W"), a
         assert a in ev.CLOSED_ONLY_ADDRESSES, a
         # the rollback lever does not reach it
         assert ev._lane_for(a, "forming") == "closed"
     assert ev.CLOSED_ONLY_ADDRESSES == frozenset(ev.CROSS_ADDRESSES) | frozenset(ev.RS_ADDRESSES)
-    assert len(ev.CLOSED_ONLY_ADDRESSES) == 12
+    assert len(ev.CLOSED_ONLY_ADDRESSES) == 13  # 2026-11-07 (RS 2b-06): +rs_line.rating
 
 
 def test_resolve_address_folds_an_rs_address_to_its_camelcase_spelling():
@@ -1968,12 +1999,20 @@ def test_the_rs_catalog_rows_labels_decimals_and_declared_operands():
         assert ev.ALERT_LABELS[a].strip() and ev.ALERT_LABELS[a] != a
         assert p["label"] == ev.ALERT_LABELS[a]
         assert p["instance_defs"] == ["rsLine"]
-        assert "INDUSTRY" not in p["input_options"]["benchmark"]
-        assert p["default_threshold"] is None
-        assert p["inputs"] == _alert_series.address_inputs(a) and "benchmark" in p["inputs"]
-        # the instance label carries the PLOT name and the chip's suffix, as one string
+        assert p["inputs"] == _alert_series.address_inputs(a)
         assert p["instance_label"] == ev.instance_label(a)
-        assert p["instance_label"].startswith(f"{ev.ALERT_LABELS[a]} (vs SPY")
+        if a == "rs_line.rating":
+            # 2026-11-07 (RS 2b-06): no knobs — no benchmark, no options, no
+            # suffix — and the one RS plot with a default: 90, the plan's line.
+            assert p["inputs"] == {} and "input_options" not in p
+            assert p["default_threshold"] == 90.0 == ev._DEFAULT_THRESHOLDS[a]
+            assert p["instance_label"] == ev.ALERT_LABELS[a] == "RS rating (IBD-style)"
+        else:
+            assert "INDUSTRY" not in p["input_options"]["benchmark"]
+            assert p["default_threshold"] is None
+            assert "benchmark" in p["inputs"]
+            # the instance label carries the PLOT name and the chip's suffix, as one string
+            assert p["instance_label"].startswith(f"{ev.ALERT_LABELS[a]} (vs SPY")
         # every needs_threshold-False rule has a declared operand, or is `cross_zero`
         for c in p["conditions"]:
             if c["needs_threshold"] is False:
@@ -1995,6 +2034,14 @@ def test_the_rs_catalog_rows_labels_decimals_and_declared_operands():
     # Mansfield RS prints at the default (2) and is deliberately not a table row
     assert ev.value_decimals("rs_line.mansfield") == ev.NOTIFICATION_DEFAULT_DECIMALS == 2
     assert "rs_line.mansfield" not in ev.ALERT_VALUE_DECIMALS
+    # 2026-11-07 (RS 2b-06): the rating is a LEVEL with the four level rules,
+    # appended LAST, default 90, printed as the integer it is (1–99)
+    assert entry["plots"][-1]["value"] == "rs_line.rating"
+    assert [c["value"] for c in plots["rs_line.rating"]["conditions"]] == ["above", "below", "cross_above", "cross_below"]
+    assert all(c["needs_threshold"] for c in plots["rs_line.rating"]["conditions"])
+    assert ev.value_decimals("rs_line.rating") == 0 == ev.ALERT_VALUE_DECIMALS["rs_line.rating"]
+    assert ev.format_alert_value("rs_line.rating", 91) == "91"
+    assert ev.format_alert_value("rs_line.rating", 90.0) == "90"
     # "the line crossed its average" is NOT an operand row — the closed lane's
     # right-hand resolver cannot value a benchmark-reading column (measured here),
     # so the relation is offered only where it fires: the two cross EVENTS.
@@ -2014,11 +2061,22 @@ def test_the_door_refuses_an_intraday_rs_create_with_the_lanes_own_sentence():
         assert _ias.REFUSAL_RS_TIMEFRAME in why
         assert _ias.refusal_for(a, cond["value"], "M", thr) is not None
         assert _ias.refusal_for(a, cond["value"], "D", thr) is None, a
-        assert _ias.refusal_for(a, cond["value"], "W", thr) is None, a
         assert _ias.refusal_for(a, cond["value"], "1D", thr) is None, a
-    # the anchor is the lane's own phrase, in every refused spelling
+        weekly = _ias.refusal_for(a, cond["value"], "W", thr)
+        if a == "rs_line.rating":
+            # 2026-11-07 (RS 2b-06): DAILY only, in its own sentence — the rating
+            # is a nightly daily-close number, so a weekly create is refused at
+            # the door too, and the sentence says why.
+            assert weekly == _ars.timeframe_refusal("W", a) and "closed daily bars only" in weekly
+            assert "daily closes" in weekly and _ias.REFUSAL_RS_TIMEFRAME in weekly
+            assert _ias.refusal_for(a, cond["value"], "1W", thr) is not None
+        else:
+            assert weekly is None, a
+    # the anchor is the lane's own phrase, in every refused spelling, for BOTH
+    # sentence families (the eleven's "daily or weekly", the rating's "daily")
     for tf in ("1", "5", "15", "30", "60", "M", "1M", "H"):
         assert _ias.REFUSAL_RS_TIMEFRAME in _ars.timeframe_refusal(tf, "rs_line.newHigh")
+        assert _ias.REFUSAL_RS_TIMEFRAME in _ars.timeframe_refusal(tf, "rs_line.rating")
     # params still go through the column's own `validate` / `normalize`
     assert "INDUSTRY" in ev.params_refusal("rs_line.newHigh", "above", {"benchmark": "INDUSTRY"})
     assert ev.params_refusal("rs_line.newHigh", "cross_above", {}) is not None   # a rule it does not offer
@@ -2030,16 +2088,19 @@ def test_every_rs_address_answers_a_value_on_the_closed_lane_on_daily_bars():
     ev = evaluator
     stock, bench = _rs_daily_bars()
     store = _RsStore(bench)
-    with _ars.rs_pass(fetch_bars=store):
+    ratings = _RsRatings(_rs_rating_rows(stock))   # 2026-11-07 (RS 2b-06): the rating's side table
+    with _ars.rs_pass(fetch_bars=store, read_ratings=ratings):
         for a in ev.RS_ADDRESSES:
             value, _trig, i = ev._evaluate_one_closed(_rs_alert(a), stock, now_epoch=_RS_FAR)
             assert value is not None, f"{a} is offered and computes nothing on the closed lane"
             assert i == len(stock) - 1
             # …and the lever cannot move it to the forming lane: the same answer
             assert ev._evaluate_one(_rs_alert(a), stock, mode="forming", now_epoch=_RS_FAR)[0] == value
-        # one benchmark read per (ticker, tf) across all eleven, inside one pass
+        # one benchmark read per (ticker, tf) across all twelve, inside one pass —
+        # and (2b-06) ONE history read for the rating, the window plus its pad
         assert {c[:2] for c in store.calls} == {("SPY", "D")}
         assert len(store.calls) == 1
+        assert ratings.calls == [("TEST", len(stock) + _ars.RATING_READ_PAD)]
     # the forming shape answers nothing, by construction — which is why RS is
     # closed-only and why the forming-shaped census above skips it
     for a in ev.RS_ADDRESSES:
@@ -2084,6 +2145,49 @@ def test_diagnose_reaches_the_closed_lane_value_for_an_rs_alert(monkeypatch):
     # a row written AROUND the door on a 5-minute timeframe: a fault, in the lane's sentence
     is_fault, detail = _ias.diagnose(_rs_alert("rs_line.newHigh", tf="5"), _intraday_bars(160))
     assert is_fault is True and _ias.REFUSAL_RS_TIMEFRAME in detail
+    # 2026-11-07 (RS 2b-06): the rating diagnoses through the stored history —
+    # the stored value on daily, a NAMED missing session (not "not enough
+    # history": the rating has no warm-up), and the daily-only refusal on W
+    with _ars.rs_pass(fetch_bars=_RsStore(bench), read_ratings=_RsRatings(_rs_rating_rows(stock))):
+        assert _ias.diagnose(_rs_alert("rs_line.rating"), stock) == (False, None)
+    with _ars.rs_pass(fetch_bars=_RsStore(bench), read_ratings=_RsRatings([])):
+        is_fault, detail = _ias.diagnose(_rs_alert("rs_line.rating"), stock)
+        assert is_fault is False and "no stored rating" in detail and "rs_rating_history" in detail
+        assert _rs_session(int(stock[-1]["t"])) in detail and "not enough history" not in detail
+    is_fault, detail = _ias.diagnose(_rs_alert("rs_line.rating", tf="W"), stock)
+    assert is_fault is True and "closed daily bars only" in detail
+
+
+def test_the_rating_cross_above_90_fires_on_the_first_bar_above_90_and_not_the_next():
+    """2026-11-07 (RS 2b-06). The lane's own `check_condition` rule, applied to
+    the stored history: `cross_above` is ``prev <= 90 < current``, so the alert
+    fires on the FIRST session whose stored rating exceeds 90 with the one
+    before at or below it, and is quiet on the next (prev already above) and on
+    a later session that lands back ON 90 (90 is not above 90 — a member who
+    means "reaches 90" arms `above` at 89). The history handed to every call is
+    the FULL table, newest first; the truncated tape reads only its own dates,
+    which is the "a later session never leaks backwards" rule under the lane."""
+    ev = evaluator
+    stock, _bench = _rs_daily_bars()
+    n = len(stock)
+    k = n - 3
+    path = {k - 2: 85, k - 1: 88, k: 91, k + 1: 93, k + 2: 90}
+    rows = _rs_rating_rows(stock, rating=lambda i: path.get(i, 70))
+    alert = {**_rs_alert("rs_line.rating"), "condition": "cross_above", "threshold": 90.0}
+    with _ars.rs_pass(fetch_bars=_RsStore([]), read_ratings=_RsRatings(rows)):
+        column = _aus.call_series(_alert_series.series_function("rs_line.rating"), stock, {}, tf="D", sym="TEST")
+        assert column[k - 2:k + 3] == [85, 88, 91, 93, 90] and column[0] == 70
+        fired = [(last, ev._evaluate_one_closed(alert, stock[:last + 1], now_epoch=_RS_FAR))
+                 for last in (k - 1, k, k + 1, k + 2)]
+    assert fired == [(k - 1, (88, False, k - 1)), (k, (91, True, k)),
+                     (k + 1, (93, False, k + 1)), (k + 2, (90, False, k + 2))]
+    # the default threshold IS 90, and the member may type 80: fires where 80 is first exceeded
+    assert ev._DEFAULT_THRESHOLDS["rs_line.rating"] == 90.0
+    with _ars.rs_pass(fetch_bars=_RsStore([]), read_ratings=_RsRatings(rows)):
+        assert ev._evaluate_one_closed({**alert, "threshold": 80.0}, stock[:k - 1],
+                                       now_epoch=_RS_FAR) == (85, True, k - 2)
+        assert ev._evaluate_one_closed({**alert, "threshold": 80.0}, stock[:k],
+                                       now_epoch=_RS_FAR) == (88, False, k - 1)
 
 
 def test_the_cycle_wraps_its_group_loop_in_one_rs_pass():

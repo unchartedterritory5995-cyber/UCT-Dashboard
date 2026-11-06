@@ -464,10 +464,12 @@ CROSS_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in CROSS_ADDRESSES}
 
 # ─── 2026-11-06 (RS 2b-05): THE RS PARTITION — `rs_line.*` ───────────────────
 #
-# Eleven addresses: the line and its average (LEVELS on a ratio scale), the
+# Twelve addresses: the line and its average (LEVELS on a ratio scale), the
 # above-average STATE, five EVENT columns ({0, 1, None}) and the Mansfield RS
 # percent with its two signed zero crosses — `alert_rs_series.RS_ADDRESS_SPECS`,
-# engineering map §2.6. The value functions are the same `_last_non_none`
+# engineering map §2.6 — and (2026-11-07, RS 2b-06) the IBD-style RS RATING
+# (1–99, an integer level read from the web pod's nightly `rs_rating_history`
+# side table, daily only). The value functions are the same `_last_non_none`
 # composition every other partition gets, and for an RS column that composition
 # answers `None` BY CONSTRUCTION: called without a timeframe and a symbol (the
 # forming lane's `_value_of`, a right-hand operand's `series_for`) the column is
@@ -485,6 +487,15 @@ RS_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in RS_ADDRESSES}
 # DECLARATION rather than listed: a `reads_benchmark` column answers no value
 # without the timeframe and symbol only the closed lane passes (`call_series`),
 # so there is no forming-lane history for the rollback lever to return it to.
+# 2026-11-07 (RS 2b-06): the derivation is UNCHANGED and still honest for the
+# rating, because `reads_benchmark` is the name `alert_user_series.call_series`
+# gives the (tf, sym) CALL SHAPE — the one thing that decides whether the
+# forming lane can value a column — and not a claim about a second series. The
+# rating reads a side table, not a benchmark (`fn.reads_rating`), but it needs
+# the symbol to name its row, so it declares the shape and lands here by the
+# same rule. A derivation on `fn.timeframes` was considered and rejected: a
+# column may well declare the timeframes it is offered on and still value on
+# the forming lane, so that attribute does not say what this set means.
 CLOSED_ONLY_ADDRESSES: frozenset = frozenset(CROSS_ADDRESSES) | frozenset(
     address for address in RS_ADDRESSES
     if getattr(alert_series.SERIES_FUNCS[address], "reads_benchmark", False)
@@ -905,6 +916,14 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     "rs_line.mansfieldCrossDown": [
         {"value": "above", "label": "Mansfield RS crossed below zero this bar", "needs_threshold": False},
     ],
+    # ── 2026-11-07 (RS 2b-06): the IBD-style RS rating ──────────────────────
+    # A 1–99 integer LEVEL (plan §10.2, map §5 item 8: ONE address with the
+    # four level rules and a default of 90; "crossed 80" is the member typing
+    # 80). Read per session from the nightly `rs_rating_history` side table
+    # (web pod), aligned to the closed DAILY bar by date; a weekly create is
+    # refused at the door with the lane's daily-only sentence
+    # (`alert_rs_series.timeframe_refusal`, per address since 2b-06).
+    "rs_line.rating": _OSCILLATOR_CONDITIONS,
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -963,6 +982,9 @@ ALERT_LABELS: dict[str, str] = {
     "rs_line.mansfield": "Mansfield RS",
     "rs_line.mansfieldCrossUp": "Mansfield RS crossed above zero",
     "rs_line.mansfieldCrossDown": "Mansfield RS crossed below zero",
+    # 2026-11-07 (RS 2b-06). The notification reads "<sym> RS rating (IBD-style)
+    # cross above 90 — 91" through `_dispatch_delivery`'s one sentence.
+    "rs_line.rating": "RS rating (IBD-style)",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -993,6 +1015,10 @@ _DEFAULT_THRESHOLDS: dict[str, float] = {
     # meaningful default without knowing the symbol, and inventing one would put
     # a number in the box that is wrong for every ticker.
     "adx.adx": 25.0,
+    # 2026-11-07 (RS 2b-06): the IBD-style rating is a 1–99 percentile on one
+    # scale for every ticker, and 90 is the line the plan names (§10.2 "RS
+    # Rating crossed 90"); a member who wants 80 types 80.
+    "rs_line.rating": 90.0,
 }
 
 
@@ -1070,9 +1096,11 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
             # without the plot's label a member would read "SPY vs SPY · 252-bar
             # above 0.50". Composed here, once, so the two surfaces stay one
             # spelling (`test_the_notification_and_the_alert_ROW_name_the_
-            # instance_with_ONE_function`).
+            # instance_with_ONE_function`). 2026-11-07 (RS 2b-06): a knob-less
+            # RS column (`rs_line.rating`) describes itself as "" and prints
+            # its label alone — the `vwap` rule below, not "RS rating ()".
             if address in RS_ADDRESSES:
-                return f"{base} ({described})"
+                return f"{base} ({described})" if described else base
             return described
         except Exception:  # noqa: BLE001 - a label must never break a surface
             pass
@@ -2358,6 +2386,11 @@ ALERT_VALUE_DECIMALS: dict[str, int] = {
     # (`test_the_python_decimals_table_matches_the_JS_registry`).
     "rs_line.value": 4,
     "rs_line.ma": 4,
+    # 2026-11-07 (RS 2b-06) — the IBD-style rating is an INTEGER 1–99
+    # (`rs_history.rating_from_pct`: `max(1, ceil(pct * 99))`); "90 — 91", never
+    # "90.00 — 91.00". No chart plot declares it yet, so the number is this
+    # table's alone.
+    "rs_line.rating": 0,
 }
 
 

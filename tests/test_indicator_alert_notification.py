@@ -387,10 +387,15 @@ _ADDRESS_PLOT: dict[str, tuple[str, str]] = {
 # platform's entry/exit vocabulary"), and the Mansfield plot arrives with unit
 # 2a-14 — none of these six has a chart plot to name yet. Move each one to
 # `_ADDRESS_PLOT` the day its plot lands.
+# 2026-11-07 (RS 2b-06): `rs_line.rating` is read from the nightly
+# `rs_rating_history` side table, not drawn — the chart shows the rating as a
+# readout fact in the chip, not as a plot — so it has no chart plot either; its
+# Python decimals (0, an integer 1–99) are pinned by the RS section of
+# `test_indicator_alert_evaluator.py` and by `test_rs_alert_series.py`.
 _NO_CHART_PLOT = {"bb", "price_vs_ma", "close", "ma_cross",
                   "rs_line.crossUp", "rs_line.crossDown", "rs_line.newHighRed",
                   "rs_line.mansfield", "rs_line.mansfieldCrossUp",
-                  "rs_line.mansfieldCrossDown"}
+                  "rs_line.mansfieldCrossDown", "rs_line.rating"}
 
 
 def test_the_address_to_plot_map_covers_every_address_that_exists():

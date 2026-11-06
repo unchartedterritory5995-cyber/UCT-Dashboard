@@ -74,6 +74,8 @@ BASELINE_ADDRESSES = [
     "rs_line.value", "rs_line.ma", "rs_line.above", "rs_line.crossUp", "rs_line.crossDown",
     "rs_line.newHigh", "rs_line.newHighBeforePrice", "rs_line.newHighRed", "rs_line.mansfield",
     "rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown",
+    # 2026-11-07 (RS 2b-06): +rs_line.rating — the twelfth RS address, appended last.
+    "rs_line.rating",
 ]
 
 USER_A = "user-a"

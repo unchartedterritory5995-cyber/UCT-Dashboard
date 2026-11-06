@@ -893,12 +893,27 @@ CLOSED_LANE_TRAILING_PAD = "is displaced forward and has no value on a CLOSED ba
 # encoding the RS column RAISES its typed timeframe refusal (daily / weekly
 # only), which every probe already treats as "not measured": the honest answer
 # for a lane that is not offered there.
+#
+# ⭐ 2026-11-07 (RS 2b-06) — AND A RATING HISTORY, THE SAME WAY. `rs_line.rating`
+# reads no benchmark; it reads the nightly `rs_rating_history` side table by
+# ticker and session (`fn.reads_rating`). The probes run on a box with no such
+# table (a test, the worker), so the pass this seam opens also carries a
+# rating reader: `_PROBE_RATING_READ` when a test injects one, else a history
+# DERIVED from the probe bars themselves — one row per calendar bar, a rating
+# that moves — so the measurement is of the column's own alignment and not of
+# a store. The alternative (a stub returning no rows, the rating read as "no
+# value, by design") would have made `test_the_probe_resolves_every_catalog_
+# address` carry an exception for the one address whose alignment is the
+# thing worth probing; this keeps that rail total.
 _PROBE_SYM = "PROBE"
 _PROBE_TF_CALENDAR = "D"
 _PROBE_TF_INSTANT = "60"
 _PROBE_BENCHMARK_DRIFT = 0.0005
 #: ``(ticker, tf, want) -> bars``, or ``None`` ⇒ a drifted copy of the probe bars.
 _PROBE_BENCHMARK_FETCH: Optional[Callable[[str, str, int], list]] = None
+#: ``(ticker, limit) -> rows`` (`rs_history.ticker_history`'s shape), or ``None``
+#: ⇒ a rating history derived from the probe bars' own calendar dates.
+_PROBE_RATING_READ: Optional[Callable[[str, int], list]] = None
 
 
 def _is_calendar_encoded(bars: list) -> bool:
@@ -921,13 +936,38 @@ def _probe_benchmark_fetcher(bars: list) -> Callable[[str, str, int], list]:
     return fetch
 
 
+def _probe_rating_reader(bars: list) -> Callable[[str, int], list]:
+    """2026-11-07 (RS 2b-06): the probe's rating history — injected, or derived
+    from the probe bars: one row per CALENDAR bar (an instant encoding yields
+    none; the rating column refuses that timeframe before reading anyway), with
+    a rating that walks the 1–99 scale so a cross is there to be found."""
+    if _PROBE_RATING_READ is not None:
+        return _PROBE_RATING_READ
+    rows = []
+    for i, b in enumerate(bars):
+        try:
+            t = int(b["t"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if not 10_000_000 <= t < 100_000_000:
+            continue
+        rows.append({"session": f"{t // 10000:04d}-{(t // 100) % 100:02d}-{t % 100:02d}",
+                     "ibd": 1 + (i * 7) % 99})
+    rows.reverse()                                     # newest first, the table's order
+
+    def read(ticker: str, limit: int) -> list:
+        return rows[:int(limit)] if 0 < int(limit) < len(rows) else list(rows)
+    return read
+
+
 def _probe_column(column: Any, bars: list, params: dict) -> list:
     """Call a column the way the lane would (see the block above)."""
     if not getattr(column, "reads_benchmark", False):
         return column(bars, params)
     from api.services import alert_rs_series, alert_user_series
     tf = _PROBE_TF_CALENDAR if _is_calendar_encoded(bars) else _PROBE_TF_INSTANT
-    with alert_rs_series.rs_pass(fetch_bars=_probe_benchmark_fetcher(bars)):
+    with alert_rs_series.rs_pass(fetch_bars=_probe_benchmark_fetcher(bars),
+                                 read_ratings=_probe_rating_reader(bars)):
         return alert_user_series.call_series(column, bars, params, tf=tf, sym=_PROBE_SYM)
 
 
@@ -1116,6 +1156,25 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
         return True, f"{type(exc).__name__}: {exc}"
 
     if value is None:
+        # ⭐ 2026-11-07 (RS 2b-06) — the rating has no warm-up and no
+        # displacement: `None` at the judged bar means the nightly side table
+        # holds NO ROW for this ticker on that session (the job has not run for
+        # it, the table is not on this pod, or the name was unrated that
+        # night). Not a fault — it fills in with the next nightly — and not
+        # "not enough history", which is what the generic sentence below would
+        # have called it. Named by session so the operator can check the row.
+        from api.services import alert_series as _alert_series
+        if getattr(_alert_series.series_function(address), "reads_rating", False):
+            label = ev.ALERT_LABELS.get(address, address)
+            try:
+                day = int(judged[-1].get("t"))
+                when = f"{day // 10000:04d}-{(day // 100) % 100:02d}-{day % 100:02d}"
+            except (TypeError, ValueError, AttributeError):
+                when = "the judged session"
+            return False, (f"{label} has no stored rating for {alert.get('sym')} on "
+                           f"{when} — the nightly rs_rating_history table holds no row "
+                           f"for that session (web pod, written after the 03:00 ET "
+                           f"screener build), so there is nothing to compare yet")
         pad = closed_lane_pad(address, judged, params)
         if mode == "closed" and pad > 0:
             label = ev.ALERT_LABELS.get(address, address)
@@ -1395,7 +1454,12 @@ REFUSAL_NO_LEVEL = "compares against a level, and no level was given"
 #: by a different gate (the Task 9 lesson), and pinned to the lane's sentence by
 #: `test_the_door_refuses_an_intraday_rs_create_with_the_lanes_own_sentence` and
 #: `test_the_three_refusals_are_DISJOINT`.
-REFUSAL_RS_TIMEFRAME = "are judged on closed daily or weekly bars only"
+#: 2026-11-07 (RS 2b-06): shortened from "… daily or weekly bars only" to the
+#: prefix BOTH of the lane's sentence families carry — the eleven say "closed
+#: daily or weekly bars only", the rating (daily-only) says "closed daily bars
+#: only" — so one anchor still names the one gate, and no other gate's sentence
+#: contains it (the disjointness rail is unchanged).
+REFUSAL_RS_TIMEFRAME = "are judged on closed daily"
 
 #: How many bars the classification probe below runs on. Ichimoku needs 52 + a
 #: 26-bar displacement before it resolves at all, so a short probe would report
