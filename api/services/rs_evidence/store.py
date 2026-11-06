@@ -1,0 +1,205 @@
+"""The evidence store: measurement rows, the ``(session, signal)`` checkpoint
+and run receipts, in ONE SQLite file whose path is a REQUIRED argument.
+
+NO DEFAULT PATH, ON PURPOSE (map §2.1: "destination path REQUIRED from env",
+the `breadth_combined_pass.open_artifact` rule). The arming unit (2b-02)
+chooses the file under its data directory; nothing here can open a store by
+guessing one. Read-only opens (the dry run) never create the file.
+
+TABLES
+    rs_evidence_rows        (session, signal, ticker) -> ex_<h> REAL per horizon
+                            ``signal`` includes :data:`measure.BASELINE_KEY`.
+    rs_evidence_checkpoint  (session, signal) -> status 'done' | 'open', rows, at
+                            'done'  every horizon's window was complete when
+                                    measured: never measured again.
+                            'open'  the longest window ran past the held
+                                    history: re-measured on the next run.
+    rs_evidence_meta        version and horizons; a mismatch REBUILDS the two
+                            tables above (they are derived from bars.db and
+                            the method; nothing original is lost).
+    rs_evidence_runs        one JSON receipt per run.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+from .measure import BASELINE_KEY, HORIZONS, MaybeNum, Row, summarise_values
+
+SCHEMA_VERSION = 1
+ROWS_TABLE = "rs_evidence_rows"
+CHECKPOINT_TABLE = "rs_evidence_checkpoint"
+META_TABLE = "rs_evidence_meta"
+RUNS_TABLE = "rs_evidence_runs"
+DONE = "done"
+OPEN = "open"
+
+
+class StoreRefused(RuntimeError):
+    """The store could not be opened on the terms asked for."""
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _ex_cols(horizons: Sequence[int]) -> List[str]:
+    return [f"ex_{int(h)}" for h in horizons]
+
+
+def open_store(path: Optional[str], *, horizons: Sequence[int] = HORIZONS,
+               read_only: bool = False) -> Optional[sqlite3.Connection]:
+    """Open the store at ``path``. Refuses an empty path. ``read_only`` returns
+    ``None`` when the file does not exist and never creates or alters it."""
+    if not path or not str(path).strip():
+        raise StoreRefused("an explicit store path is REQUIRED - this job has no default "
+                           "destination on purpose, so forgetting one argument cannot write "
+                           "into a data directory by guesswork")
+    p = Path(str(path))
+    if read_only:
+        if not p.exists():
+            return None
+        conn = sqlite3.connect(p.resolve().as_uri() + "?mode=ro", uri=True, timeout=30.0)
+        _check_meta(conn, horizons, rebuild=False)
+        return conn
+    p.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(p), timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    ensure_schema(conn, horizons)
+    return conn
+
+
+def ensure_schema(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> None:
+    cols = ", ".join(f"{c} REAL" for c in _ex_cols(horizons))
+    conn.executescript(f"""
+        CREATE TABLE IF NOT EXISTS {META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS {ROWS_TABLE} (
+            session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
+            PRIMARY KEY (session, signal, ticker)
+        );
+        CREATE INDEX IF NOT EXISTS {ROWS_TABLE}_signal ON {ROWS_TABLE}(signal);
+        CREATE TABLE IF NOT EXISTS {CHECKPOINT_TABLE} (
+            session INTEGER NOT NULL, signal TEXT NOT NULL, status TEXT NOT NULL,
+            rows INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL,
+            PRIMARY KEY (session, signal)
+        );
+        CREATE TABLE IF NOT EXISTS {RUNS_TABLE} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, receipt TEXT NOT NULL
+        );
+    """)
+    _check_meta(conn, horizons, rebuild=True)
+    conn.commit()
+
+
+def _meta(conn: sqlite3.Connection) -> Dict[str, str]:
+    try:
+        return {k: v for k, v in conn.execute(f"SELECT key, value FROM {META_TABLE}")}
+    except sqlite3.Error:
+        return {}
+
+
+def _check_meta(conn: sqlite3.Connection, horizons: Sequence[int], *, rebuild: bool) -> None:
+    want = {"version": str(SCHEMA_VERSION), "horizons": json.dumps([int(h) for h in horizons])}
+    have = _meta(conn)
+    if have.get("version") == want["version"] and have.get("horizons") == want["horizons"]:
+        return
+    if not rebuild:
+        raise StoreRefused(f"store meta {have or '{}'} does not match version {want['version']} "
+                           f"horizons {want['horizons']}; open it for writing to rebuild")
+    if have:
+        conn.executescript(f"DROP TABLE IF EXISTS {ROWS_TABLE}; DROP TABLE IF EXISTS {CHECKPOINT_TABLE};")
+        cols = ", ".join(f"{c} REAL" for c in _ex_cols(horizons))
+        conn.executescript(f"""
+            CREATE TABLE {ROWS_TABLE} (
+                session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
+                PRIMARY KEY (session, signal, ticker)
+            );
+            CREATE INDEX {ROWS_TABLE}_signal ON {ROWS_TABLE}(signal);
+            CREATE TABLE {CHECKPOINT_TABLE} (
+                session INTEGER NOT NULL, signal TEXT NOT NULL, status TEXT NOT NULL,
+                rows INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL,
+                PRIMARY KEY (session, signal)
+            );
+        """)
+    conn.executemany(f"INSERT OR REPLACE INTO {META_TABLE}(key, value) VALUES (?, ?)", list(want.items()))
+    conn.commit()
+
+
+def checkpoints(conn: Optional[sqlite3.Connection]) -> Dict[Tuple[int, str], str]:
+    """``{(session, signal): status}``; empty for a missing store."""
+    if conn is None:
+        return {}
+    return {(int(s), str(k)): str(st) for s, k, st in
+            conn.execute(f"SELECT session, signal, status FROM {CHECKPOINT_TABLE}")}
+
+
+def clear(conn: sqlite3.Connection, pairs: Iterable[Tuple[int, str]]) -> None:
+    """Drop the rows AND the checkpoint of every ``(session, signal)`` pair -
+    the first thing a run does to the pairs it is about to (re)measure, so an
+    interrupted run leaves no checkpoint for a half-written pair."""
+    ps = [(int(s), str(k)) for s, k in pairs]
+    conn.executemany(f"DELETE FROM {ROWS_TABLE} WHERE session = ? AND signal = ?", ps)
+    conn.executemany(f"DELETE FROM {CHECKPOINT_TABLE} WHERE session = ? AND signal = ?", ps)
+    conn.commit()
+
+
+def write_rows(conn: sqlite3.Connection, rows: Iterable[Row], horizons: Sequence[int] = HORIZONS) -> int:
+    cols = _ex_cols(horizons)
+    sql = (f"INSERT OR REPLACE INTO {ROWS_TABLE}(session, signal, ticker, {', '.join(cols)}) "
+           f"VALUES ({', '.join('?' for _ in range(3 + len(cols)))})")
+    data = [(int(s), str(k), str(t)) + tuple(ex[i] if i < len(ex) else None for i in range(len(cols)))
+            for s, k, t, ex in rows]
+    conn.executemany(sql, data)
+    return len(data)
+
+
+def mark(conn: sqlite3.Connection, session: int, signal: str, status: str, rows: int) -> None:
+    conn.execute(f"INSERT OR REPLACE INTO {CHECKPOINT_TABLE}(session, signal, status, rows, at) "
+                 f"VALUES (?, ?, ?, ?, ?)", (int(session), str(signal), status, int(rows), _now()))
+
+
+def values(conn: sqlite3.Connection, signal: str, horizon: int) -> List[MaybeNum]:
+    col = f"ex_{int(horizon)}"
+    return [r[0] for r in conn.execute(f"SELECT {col} FROM {ROWS_TABLE} WHERE signal = ?", (str(signal),))]
+
+
+def summary(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> dict:
+    """The same shape as ``measure.summarise``, from the store."""
+    hs = [int(h) for h in horizons]
+    names = [r[0] for r in conn.execute(f"SELECT DISTINCT signal FROM {ROWS_TABLE} ORDER BY signal")]
+    per_signal = {}
+    for name in names:
+        if name == BASELINE_KEY:
+            continue
+        n_signals, dates, tickers = conn.execute(
+            f"SELECT COUNT(*), COUNT(DISTINCT session), COUNT(DISTINCT ticker) FROM {ROWS_TABLE} "
+            f"WHERE signal = ?", (name,)).fetchone()
+        per_signal[name] = {
+            "n_signals": int(n_signals), "dates": int(dates), "tickers": int(tickers),
+            "horizons": {str(h): summarise_values(values(conn, name, h)) for h in hs},
+        }
+    baseline = {str(h): summarise_values(values(conn, BASELINE_KEY, h)) for h in hs}
+    rows = conn.execute(f"SELECT COUNT(*) FROM {ROWS_TABLE} WHERE signal = ?", (BASELINE_KEY,)).fetchone()[0]
+    return {"per_signal": per_signal, "baseline": baseline, "rows": int(rows)}
+
+
+def window(conn: sqlite3.Connection) -> dict:
+    """``{from, to, sessions, sessions_open, universe}`` over the stored baseline rows
+    (``from``/``to`` are YYYYMMDD ints or ``None``)."""
+    lo, hi, sessions, universe = conn.execute(
+        f"SELECT MIN(session), MAX(session), COUNT(DISTINCT session), COUNT(DISTINCT ticker) "
+        f"FROM {ROWS_TABLE} WHERE signal = ?", (BASELINE_KEY,)).fetchone()
+    open_n = conn.execute(
+        f"SELECT COUNT(DISTINCT session) FROM {CHECKPOINT_TABLE} WHERE status = ?", (OPEN,)).fetchone()[0]
+    return {"from": lo, "to": hi, "sessions": int(sessions or 0), "sessions_open": int(open_n or 0),
+            "universe": int(universe or 0)}
+
+
+def record_run(conn: sqlite3.Connection, receipt: dict) -> None:
+    conn.execute(f"INSERT INTO {RUNS_TABLE}(at, receipt) VALUES (?, ?)",
+                 (_now(), json.dumps(receipt, sort_keys=True, default=str)))
+    conn.commit()
