@@ -113,13 +113,13 @@ const PHONE_ONLY = ['Insert']
 // Everything else the row carries.
 const MOVED = [
   'Font family', 'Text size', TEXT_COLOR_MENU_LABEL, 'H1', 'H2',
-  '• List', '1. List', '❝', '</>', 'Insert link', 'Insert image', 'Scan a document with the camera',
+  '• List', '1. List', 'Quote', '</>', 'Insert link', 'Insert image', 'Scan a document with the camera',
   'Attach a file', 'Horizontal rule', 'Insert widget',
 ]
 // The row BEFORE D3P, in its own (DOM = Tab = desktop visual) order, read off 11349f524.
 const ROW_BEFORE_D3P = [
   'Undo', 'Redo', 'Font family', 'Text size', 'B', 'I', TEXT_COLOR_MENU_LABEL, 'H1', 'H2',
-  '• List', '1. List', '❝', '</>', 'Insert link', 'Insert image', 'Scan a document with the camera',
+  '• List', '1. List', 'Quote', '</>', 'Insert link', 'Insert image', 'Scan a document with the camera',
   'Attach a file', 'Start voice input', 'Horizontal rule', 'Insert widget',
 ]
 

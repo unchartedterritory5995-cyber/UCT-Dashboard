@@ -23,7 +23,7 @@ const CHART = { note: 'sample:plan', embed: 'chart' }
 const EXPECTED = {
   'plan-grading': ['notebook_plan_grading_enabled', { trade: 'recent' }, '/journal/trades'],
   'entry-context': ['notebook_entry_context_enabled', { trade: 'recent' }, '/journal/trades'],
-  'review-drafts': ['notebook_review_drafts_enabled', '/journal/notebook', '/journal/notebook'],
+  'review-drafts': ['notebook_review_drafts_enabled', '/journal/notebook?view=home', '/journal/notebook?view=home'],
   'my-playbook': ['notebook_playbook_enabled', '/journal-2-0/playbook', '/journal-2-0/playbook'],
   'chart-plan-basics': ['notebook_chart_plan_enabled', CHART, NOTEBOOK_ROOT],
   'chart-plan-replay': ['notebook_chart_plan_enabled', CHART, NOTEBOOK_ROOT],
