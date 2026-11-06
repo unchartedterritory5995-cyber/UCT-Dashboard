@@ -410,9 +410,69 @@ Two claims only a two-series indicator can make, and both are in the fixture:
 > module. Measured in `test_the_rs_line_wrapper_rounds_at_SIX_because_it_
 > delivers_a_RATIO`.
 
+### `rs_events_default` — the RS EVENT columns, shared by two lanes that meet on the FILE (UCT RS Phase 1, unit 6)
+
+`kind: "rs_events"`, `params: {lookback: 25, ma_length: 5, ma_type: "EMA",
+price_tolerance_pct: 2.0, red_day_pct: -0.5}`, own `bars` (68 hand-designed
+daily bars) **and `benchmarkBars`**, exactly as `rs_line_spy`. `expected` carries
+one array per key of `relative_strength.PHASE1_COLUMNS` — 18 columns: the line,
+its MA, eleven `{0, 1, null}` event columns and five DOT columns.
+
+**⛔ NO `rs_events` ROW IN `_CASE_COLUMNS`, for the same structural reason
+`rs_line` has none** (two series, one-series dispatch). The Python lane reads it
+through a dedicated test family (`test_rs_events_*` in `test_indicator_golden.py`)
+that recomputes every column with `relative_strength.compute_phase1_columns` at
+rel-tol 1e-9, None ⇄ None exactly.
+
+**⚠️ THE JS LANE CANNOT RECOMPUTE IT AND DOES NOT PRETEND TO.** The chart has no
+RS compute (`rsLine` is `compute.kind: 'server'`), so
+`engine/__tests__/rsIndicator.golden.test.js` reads the same file as a
+**contract**: every `markers` plot of `getDefinition('rsLine')` must name a dot
+column the fixture carries (a new dot without an oracle fails BY NAME), every
+`line` plot an expected column; on the fixture itself each dot column is finite
+exactly where its event is `1` and equals `rsLine` there; and the lane's real wire
+path (`columnsFromWire` → `alignColumns`) reproduces every column on the chart's
+bars, by time, `null` → NaN.
+
+**The two shapes an event indicator adds to this directory:**
+
+* **Dot columns** carry the RS VALUE on event bars and `null` elsewhere —
+  `dotNH→rsNH`, `dotNHbeforePx→rsNHbeforePx`, `dotNHred→rsNHred`,
+  `dotNHpartial→rsNHpartial`, `dotNL→rsNL`. A marker plot with `position: 'inBar'`
+  is placed at the plotted value, so the dot sits ON the line.
+* **`null` has TWO meanings here and both are asserted**: the warm-up pad, and a
+  bar the gap rule refuses. Bar 31's `t` is absent from `benchmarkBars`, so
+  `rsLine` has one hole in the MIDDLE (as `rs_line_spy` does), every rs-derived
+  column is `null` there — and `pxNH`, which reads price alone, is NOT, which is
+  the control that the `null` is a gap and not a pad. The 25 bars whose window
+  holds the gap have no honest extreme, so `rsNH`/`rsNL`/`rsNHbeforePx`/`rsNHred`
+  stay `null` for bars 32–56 and resume at 57; the MA SKIPS the gap rather than
+  restarting.
+
+**What the series contains, by design (bar index):** a short-history (`partial`)
+RS high that is a TIE (20); a full-window RS high that is a TIE with the prior
+25-bar max (25 — ties count); an RS high BEFORE PRICE on a flat benchmark day (29:
+108.7 < 111 × 0.98 = 108.78); a RED benchmark day with the stock UP that is also
+an RS high (30: `gor = 1`, `rsNHred = 1`); the gap (31); an RS new low (57–58);
+six `crossDown` and six `crossUp` bars. **Six rows are derived on paper in the
+fixture's `note`** (4, 20, 25, 29, 30, 57 — `rsLine`, `rsMa`, `rsNH`,
+`rsNHbeforePx` with inputs and arithmetic) and re-asserted as numbers in
+`test_rs_events_default_the_six_hand_derived_rows`, so the file pins intended
+behaviour and not whatever the module did the day it was written.
+
+> ⚠️ **`lookback` IS 25, NOT THE 10 THE UNIT FIRST PROPOSED, AND THE REASON IS A
+> CLAMP.** `relative_strength.LOOKBACK_RANGE = (20, 500)` — a fixture declaring 10
+> would be computed at 20 and pin the clamp rather than its own params; the Python
+> test asserts `resolve_phase1_inputs(inputs) == inputs` for exactly this reason.
+> 25 is also what lets `rsNHpartial` fire at all: `MIN_PARTIAL_LOOKBACK` is 20, so
+> at `lookback ≤ 20` the partial column (and `dotNHpartial`, a marker plot the
+> definition draws) is all-`null` and the fixture would cover that dot vacuously.
+
 ### Regeneration is still banned
 
-None of these three came from `_generate.py`. They were written by a one-off
+None of these three came from `_generate.py`, and neither did `rs_events_default`
+— a one-off script asserted every claim in its `note` before writing a byte, and
+is not committed. They were written by a one-off
 script that asserted, **before writing a byte**: the AVWAP column equals the
 referent's `etSessionVwap`; the UTC split is still measurable on those bars;
 `anchor` changes the column; the ATR band columns equal `close ± mult × atr_14`'s
