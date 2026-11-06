@@ -149,7 +149,7 @@ def test_the_forward_strip_is_topped_up_from_the_servers_own_bars(paid_client, s
     def fake_rows(sym, tf, max_bars, to_key):
         asked.append((sym, tf, max_bars, to_key))
         # the server's own bars: some before the stored strip's end (never re-served), then plenty after
-        return [(20230720 + i, 3, 4, 2, 3.5, 100) for i in range(120)]
+        return [(20230720 + i, 1.5, 1.6, 1.4, 1.55, 100) for i in range(120)]   # continuing the stored strip's price
 
     from api.services import bars_sqlite
     monkeypatch.setattr(bars_sqlite, "get_bars_before", fake_rows)
@@ -200,3 +200,14 @@ def test_the_reveal_carries_the_setup_rule(paid_client, store):
     H.clear_rule_cache()
     rev = paid_client.post("/api/study/attempts", json={"item_id": "si_quiet", "answer": "no"}).json()["reveal"]
     assert "setup_rule" in rev          # None here: the seed's lessons are one word, not a definition
+
+
+def test_a_top_up_on_another_price_basis_is_dropped(paid_client, store, monkeypatch):
+    """A split adjusted after import would join the chart at a tenth of its price: the stored strip stands alone."""
+    _seed(store)
+    stored = [{"t": 20230724 + i, "o": 100, "h": 101, "l": 99, "c": 100, "v": 10} for i in range(5)]
+    store.upsert_bars("sb_si_quiet", "D", _bars(QUIET_AAPL), stored)
+    from api.services import bars_sqlite
+    monkeypatch.setattr(bars_sqlite, "get_bars_before", lambda *a: [(20230801 + i, 10, 10.2, 9.9, 10.1, 100) for i in range(60)])
+    rev = paid_client.post("/api/study/attempts", json={"item_id": "si_quiet", "answer": "no"}).json()["reveal"]
+    assert rev["forward_bars"] == stored and rev["forward_total"] == 5

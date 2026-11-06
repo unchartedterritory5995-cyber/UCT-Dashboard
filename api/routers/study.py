@@ -62,6 +62,8 @@ STEP_MAX = 60
 #: How far a chart's forward strip reaches (reveal + /step): the stored strip, topped up from the server's own
 #: bars. Owner, batch 21: the run-on "should do to the full culmination or maximization of the trade".
 FORWARD_WANT = 60
+#: The largest jump allowed where the server's own bars join the stored strip (a bigger one is another price basis).
+FORWARD_JOIN_MAX = 0.40
 
 
 def study_enabled() -> bool:
@@ -598,6 +600,14 @@ def _forward_bars(item: dict) -> list:
     except Exception:  # noqa: BLE001  the server's own bars are a top-up, never a dependency
         return stored
     extra = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows if int(r[0]) > last_t]
+    # the server's bars must CONTINUE the chart: a split adjusted after the item was imported would put the top-up on
+    # another price basis (a cliff in the run-on), so a first open more than 40% off the last close drops the top-up
+    try:
+        last_c = float(seq[-1]["c"])
+        if extra and last_c > 0 and abs(float(extra[0]["o"]) / last_c - 1.0) > FORWARD_JOIN_MAX:
+            return stored
+    except (KeyError, TypeError, ValueError):
+        return stored
     return stored + extra[:want]
 
 

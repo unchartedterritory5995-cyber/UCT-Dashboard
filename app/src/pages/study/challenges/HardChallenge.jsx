@@ -146,7 +146,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
       <Prompt mood={mood} tone={state} size={phone ? 40 : 48}
         title={state === 'ask' ? 'What fired on the last candle?' : headline}
         sub={state === 'ask' ? <>Your chart, without its name. <b>Name it</b>, or say nothing did.</> : detail}
-        seal={state !== 'ask' ? <Stamp ok={state === 'ok'} inline /> : null} />
+        seal={state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} inline /> : null} />
       <ChoiceGrid row testId="hard-cards" label="Your answer">
         {choices.map((c, i) => (
           <Choice key={c} pill n={i + 1} i={i} label={c} state={cardState(c, i)} disabled={state !== 'ask'} onClick={() => { setPick(i); tapFeedback(prefs) }} />
@@ -186,7 +186,7 @@ function Done({ right, total, xp, log, results, onBack, onAgain }) {
     <>
       {perfect ? <Confetti /> : null}
       <Stage full hero legend={perfect} rays={perfect} eyebrow="Hard mode · the run" title={VERDICT_WORD(right, total)} titleClass={perfect ? s.titleMetal : s.titleRun}
-        sub={perfect ? `${total} for ${total} without a ticker. Legendary, for this run.` : `${right} of ${total} named without a ticker. ${total} for ${total} is Legendary.`}
+        sub={perfect ? `${total} for ${total} without a ticker. Legendary, for this run.` : `${right} of ${total} named without a ticker.`}
         art={perfect ? <Medal lit ignite size={112} /> : <ScoreRing value={right} total={total} />} testId="hard-done"
         actions={<>
           <StudyButton kind="primary" size="xl" arrow hotkey="Enter" onClick={onAgain} testId="hard-again">Run it again</StudyButton>
