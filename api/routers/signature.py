@@ -914,10 +914,18 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     # stale answer cannot outlive the session it describes. The TTL (below) runs
     # to the next session close on D/W/M; the day in the key is the floor. The
     # row's `compute.rev` leads the key, so a rev bump is a cold cache by itself.
+    #
+    # ⭐ AND, ON V2, THE DATA GENERATION (review #16, 2026-11-07). The day alone let
+    # an envelope built between ET midnight and the 04:15 rating job / 04:30
+    # evidence pull pin the previous session's rating and artifact until 16:05.
+    # The newest stored rating session and the artifact's `asof` now sit in the
+    # key, so the first request after either job lands is a cold compute. The
+    # flag-off (v1) key is unchanged: v1 carries neither block.
     day = _et_session_day()
+    gen = f"{_rs_data_generation()}:" if registry_defs.RS_V2_ENABLED else ""
     ck = _ck(f"rs{rev}",
              f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
-             f"{json.dumps(toggles, sort_keys=True)}:{day}")
+             f"{json.dumps(toggles, sort_keys=True)}:{gen}{day}")
     try:
         hit = cache.get(ck)
     except Exception:                                  # noqa: BLE001 — a cache read is bookkeeping
@@ -1000,12 +1008,16 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
             sensitivity = _rs_sensitivity_unavailable(why)
             checks = _rs_checks_unavailable(why)
         elif not daily:
-            why = "daily bars only"
+            why = "daily charts only"
             regime = _rs_regime_unavailable(why)
             sensitivity = _rs_sensitivity_unavailable(why)
             checks = _rs_checks_unavailable(why)
         else:
-            regime = _rs_regime([b.get("c") for b in bench["bars"]])
+            # The regime reads the benchmark at a FIXED depth (review #19,
+            # 2026-11-07): read at the chart's `count` (lookback + 600) the
+            # volatility distribution held ~493 samples at lookback 20 and 756
+            # only near 500, so an unrelated new-high setting could flip the label.
+            regime = _rs_regime([b.get("c") for b in _rs_regime_bench_bars(sym, requested, tf, count, bench)])
             sensitivity = _rs_sensitivity(sym, bars, bench, tf, count, groups, _fetch_bars_for_tf)
             checks = _rs_checks(bars, bench["bars"], str(bench.get("resolved") or "benchmark"),
                                 params["redDayThreshold"])
@@ -1024,18 +1036,16 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
             "sensitivity": sensitivity,
             "checks": checks,
             "theme": _rs_theme(groups),
-            # THE EVIDENCE RIDES THE SESSION KEY, NOT ITS OWN (unit 2b-03). The
-            # artifact changes once a night (the worker publishes after 21:30 ET,
-            # the web pulls it at 04:30 ET) and the key above already turns over
-            # on the ET calendar day, so the morning's first compute reads the
-            # new file. A same-day refresh of the artifact is picked up at the
-            # next session key or on the 60 s degraded path below. The one lag:
-            # an envelope cached between the midnight key turnover and the 04:30
-            # pull carries the previous night's numbers until the next close --
-            # one session behind a statistic that moves by tenths per session.
-            # Deliberately NOT in the key: the file's `asof` would cost one stat
-            # per request for a second cold cache a day, and its `generated_at`
-            # would cold-cache every symbol on every re-publish.
+            # THE EVIDENCE'S `asof` IS IN THE KEY (review #16, 2026-11-07; it
+            # used to ride the day alone, which pinned the previous night's
+            # numbers for an envelope cached between ET midnight and the 04:30
+            # pull). `_rs_data_generation` reads it through a short in-process
+            # memo, so a request pays no stat of its own. `generated_at` is
+            # deliberately NOT in the key: it would cold-cache every symbol on
+            # every re-publish of the same measurement.
+            #
+            # The sentence is measured on DAILY bars and says so in sessions
+            # (review #7), so it is true on a weekly chart too.
             "evidence": _rs_evidence(),
         }
         envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
@@ -1080,12 +1090,20 @@ _RS_TREND_BARS = 504          # two trading years (item 21)
 _RS_VOL_WINDOW = 126          # realised-volatility window, sessions (item 21)
 _RS_VOL_DIST_MIN = 252        # a year of vol samples before a tercile is claimed
 _RS_VOL_DIST_MAX = 756        # three trading years — the distribution the tercile reads against
+#: The regime's own benchmark depth, independent of the RS lookback (review #19):
+#: the full 756-sample distribution needs 126 + 756 + 1 closes; any deeper read
+#: gives the same answer.
+_RS_REGIME_BARS = _RS_VOL_WINDOW + _RS_VOL_DIST_MAX + 1
 _RS_ANCHOR_WINDOW = 20        # the anchor is the benchmark's lowest close of the last 20 sessions
 _RS_PIVOT_RED_DAYS = 10       # pivot speed counts over the last ten red days
 _RS_PIVOT_TOP_SHARE = 2.0 / 3.0
 _RS_PIVOT_PASS = 5            # at least half of them closed in the top third
 _RS_GREEN_ON_RED_WINDOW = 20
-_RS_GREEN_ON_RED_PASS = 6     # the screener starter's "Up on down days (6 of 20)"
+#: UCT's chart threshold for the green-on-red check. No screener starter uses 6:
+#: the "Up on down days" starter is a looser 3+ scan (saved_screens.py), so a
+#: name it features can still fail this check. Unmeasured, like the other checks
+#: (review #21, 2026-11-07).
+_RS_GREEN_ON_RED_PASS = 6
 _RS_PULLBACK_EMA = 8          # pullback distance from the 8-day EMA (v3 §7.20)
 
 
@@ -1132,6 +1150,55 @@ def _rs_mansfield_scalars(mans: dict, length: int) -> dict:
     }
 
 
+#: How long one read of the data generation serves (`_rs_data_generation`).
+_RS_GEN_TTL_S = 30.0
+_RS_GEN_MEMO: dict = {"at": None, "value": None}
+_RS_GEN_LOCK = threading.Lock()
+
+
+def _rs_newest_rating_session():
+    """The newest session in `rs_history.TABLE`, by its own PRIMARY KEY read
+    (``MAX(session)`` over ``PRIMARY KEY (session, ticker)`` is one b-tree
+    seek). Read-only: never creates the table, so a dark pod stays without one;
+    a missing table or any failure is None. rs_history.py does not change."""
+    try:
+        from contextlib import closing
+        from api.services.screener import rs_history, snapshot_db
+        with closing(snapshot_db.connect()) as conn:
+            row = conn.execute(f"SELECT MAX(session) FROM {rs_history.TABLE}").fetchone()
+        return row[0] if row else None
+    except Exception:                                  # noqa: BLE001 — no table on a dark pod is the normal case
+        return None
+
+
+def _rs_evidence_asof():
+    try:
+        from api.services import rs_evidence_pull as ep
+        art = ep.load_local()
+        return art.get("asof") if isinstance(art, dict) else None
+    except Exception:                                  # noqa: BLE001
+        return None
+
+
+def _rs_data_generation(now: float | None = None) -> str:
+    """``r<newest rating session>|e<evidence asof>`` for the v2 cache key
+    (review #16). Memoised in-process for `_RS_GEN_TTL_S` seconds, so a chart
+    request pays one SQLite seek and one ``os.stat`` at most twice a minute,
+    and a new rating session or artifact is seen within that window. Never
+    raises; an unknown part is ``-``."""
+    t = time.monotonic() if now is None else float(now)
+    with _RS_GEN_LOCK:
+        at = _RS_GEN_MEMO["at"]
+        if at is not None and 0 <= t - at < _RS_GEN_TTL_S and _RS_GEN_MEMO["value"] is not None:
+            return _RS_GEN_MEMO["value"]
+    rating = _rs_newest_rating_session()
+    asof = _rs_evidence_asof()
+    value = f"r{rating if rating is not None else '-'}|e{asof if asof is not None else '-'}"
+    with _RS_GEN_LOCK:
+        _RS_GEN_MEMO.update(at=t, value=value)
+    return value
+
+
 def _rs_rating(sym: str) -> dict:
     """``{ibd, fast, asof, d5, d20, source}`` from `rs_history.read_fields`.
 
@@ -1173,8 +1240,11 @@ def _rs_evidence() -> dict:
     rs_new_high_red_day, phase -> rs_cross_up_21ema, mansfield ->
     mansfield_cross_up) at the 63-bar horizon, or None when the artifact is
     absent or carries no block for it. Each ``sentence[key]`` is the card's
-    evidence sentence: the measured one when ``n`` clears the artifact's own
-    display floor, `HONESTY_SENTENCE` otherwise. ``baseline`` is the all-bars
+    evidence sentence (`rs_evidence_pull.sentence_for`): the measured one, with
+    its baseline, when the EFFECTIVE n (events capped by the distinct sessions
+    they fell on) clears the artifact's own display floor; what was measured
+    and why it is withheld when it does not; `HONESTY_SENTENCE` when the
+    artifact has no block for the signal. ``baseline`` is the all-bars
     hit rate the signal is read against. ``source`` is ``artifact`` or ``none``.
     Never raises and never fabricates: absent means every signal None and every
     sentence the honesty line, so a card can point at
@@ -1234,8 +1304,35 @@ def _rs_sma_last(values: list, n: int):
 
 
 def _rs_regime_unavailable(reason: str) -> dict:
-    return {"label": None, "above200": None, "trend2y": None, "volTercile": None,
-            "pctFrom200": None, "return2y": None, "bars": 0, "reason": reason}
+    """The regime for a chart that cannot have one (a non-daily store, the
+    benchmark is the symbol, no benchmark bars). The reason IS the label
+    (review #24, 2026-11-07): left None, the readout printed its declared
+    "needs more history" fallback on AAPL weekly with 20 years of bars. The
+    ``reason`` is None, as on every labelled regime, so the readout does not
+    print the same words twice."""
+    return {"label": reason, "above200": None, "trend2y": None, "volTercile": None,
+            "pctFrom200": None, "return2y": None, "bars": 0, "reason": None}
+
+
+def _rs_regime_bench_bars(sym: str, requested: str, tf: str, count: int, bench: dict) -> list:
+    """The chart benchmark's bars at `_RS_REGIME_BARS` depth, whatever the RS
+    lookback (review #19). The bars already in hand serve when they were read at
+    least that deep; otherwise the same benchmark is resolved again at the fixed
+    depth. Either way the regime reads the last `_RS_REGIME_BARS` closes, so the
+    block is identical at every lookback. A failed or mismatched re-read falls
+    back to the bars in hand: a shorter regime with its reason, never a 500."""
+    have = bench.get("bars") or []
+    if count < _RS_REGIME_BARS:
+        try:
+            from api.services import rs_benchmarks
+            deep = rs_benchmarks.resolve_benchmark(sym, requested, tf, _RS_REGIME_BARS,
+                                                   fetch_bars=_fetch_bars_for_tf)
+            if (str(deep.get("resolved") or "").upper() == str(bench.get("resolved") or "").upper()
+                    and len(deep.get("bars") or []) > len(have)):
+                have = deep["bars"]
+        except Exception:                              # noqa: BLE001 — the regime is a garnish
+            logger.exception("signature: rs regime benchmark read failed for %s", sym)
+    return list(have[-_RS_REGIME_BARS:])
 
 
 def _rs_regime(bench_closes: list) -> dict:
@@ -1399,9 +1496,12 @@ def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: di
 
 
 def _rs_checks_unavailable(reason: str) -> dict:
+    """The checks for a chart that cannot run them. ``summary`` carries the
+    reason (review #24), so the readout never shows its "needs more history"
+    fallback for a known reason; each check keeps it too."""
     blank = {"pass": None, "reason": reason}
     return {"ma": dict(blank), "anchor": dict(blank), "pivotSpeed": dict(blank), "greenOnRed": dict(blank),
-            "pullbackEma8": None, "passed": 0, "of": 0, "summary": None}
+            "pullbackEma8": None, "passed": 0, "of": 0, "summary": reason}
 
 
 def _rs_pct(v) -> str:
@@ -1452,9 +1552,17 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
         sr = (float(bars[-1]["c"]) / float(bars[a]["c"]) - 1.0) * 100.0
         br = (aligned[-1] / aligned[a] - 1.0) * 100.0
         ago = len(bars) - 1 - a
-        out["anchor"] = {"pass": sr > br, "stock": sr, "bench": br, "anchorTime": bars[a].get("t"),
-                         "barsAgo": ago,
-                         "reason": f"since {bench_name}'s low {ago} bars ago: stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)}"}
+        if ago == 0:
+            # The low is TODAY (review #13, 2026-11-07): both returns are +0.0%,
+            # and `sr > br` would score a FAIL on exactly the selloff days the
+            # check is meant for. Undecided, with the reason, and out of the count.
+            out["anchor"] = {"pass": None, "stock": sr, "bench": br, "anchorTime": bars[a].get("t"),
+                             "barsAgo": 0,
+                             "reason": f"{bench_name}'s {_RS_ANCHOR_WINDOW}-session low is today"}
+        else:
+            out["anchor"] = {"pass": sr > br, "stock": sr, "bench": br, "anchorTime": bars[a].get("t"),
+                             "barsAgo": ago,
+                             "reason": f"since {bench_name}'s low {ago} bars ago: stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)}"}
     else:
         out["anchor"] = {"pass": None, "reason": f"needs {_RS_ANCHOR_WINDOW} sessions of both"}
 
@@ -1487,8 +1595,17 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
     cnt = rsmod.rolling_count(gor, _RS_GREEN_ON_RED_WINDOW)[-1] if gor else None
     if cnt is not None:
         k = int(cnt)
+        # The denominator is the RED DAYS in the window, counted on the same
+        # 20 sessions (review #8, 2026-11-07): "3 of the last 20 red days" read a
+        # true 3-of-4 as a weak 3-of-20. `of` stays the window, as the Checks card
+        # and `green_on_red_20` describe it.
+        reds = rsmod.rolling_count(red, _RS_GREEN_ON_RED_WINDOW)[-1]
+        red_days = int(reds) if reds is not None else None
+        where = f"in the last {_RS_GREEN_ON_RED_WINDOW} sessions"
+        reason = (f"up on {k} of {red_days} red days {where}" if red_days is not None
+                  else f"up on {k} red days {where}")
         out["greenOnRed"] = {"pass": k >= _RS_GREEN_ON_RED_PASS, "count": k, "of": _RS_GREEN_ON_RED_WINDOW,
-                             "reason": f"up on {k} of the last {_RS_GREEN_ON_RED_WINDOW} red days"}
+                             "redDays": red_days, "reason": reason}
     else:
         out["greenOnRed"] = {"pass": None, "reason": f"needs {_RS_GREEN_ON_RED_WINDOW + 1} sessions of both"}
 
