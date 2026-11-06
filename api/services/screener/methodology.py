@@ -469,15 +469,117 @@ def _rs_column_methods() -> list:
     return out
 
 
+# ── UCT Relative Strength evidence (Phase 2b, unit 2b-09) ────────────────────
+# ⛔ THE SAME RULE AGAIN. The display floor, the horizon, the honesty sentence,
+# the survivorship note and the card-to-signal map are READ from
+# `rs_evidence_pull` at call time (it carries the job's `DISPLAY_FLOOR_N` and
+# `SURVIVORSHIP_NOTE` and owns `DEFAULT_HORIZON`, `HONESTY_SENTENCE`,
+# `CARD_SIGNALS`), so the chart card and this page can never disagree about
+# when a measured number prints or what the card says until it does.
+# `test_the_measured_number_rule_is_read_from_the_pull_module` proves it by
+# MOVING them.
+
+#: The five defensible statements (research base
+#: `docs/research/relative-strength/03-evidence.md` §b), each with its source
+#: and the chart card that carries it. Prose, so it lives here; the card copy is
+#: `nativeRegistry.js`'s, and `tests/test_rs_columns_provider.py` holds the two
+#: files' honesty sentence equal.
+RS_EVIDENCE_STATEMENTS = (
+    {"claim": ("Stocks that have outperformed over the past 6 to 12 months have, on average, "
+               "kept outperforming for the next 3 to 12 months across many markets and decades: "
+               "about 8% a year long-short, positive in roughly four years of five."),
+     "source": ("Jegadeesh and Titman, Returns to Buying Winners and Selling Losers (1993); "
+                "Asness, Frazzini, Israel and Moskowitz, Fact, Fiction and Momentum Investing (2014)"),
+     "card": "rating"},
+    {"claim": ("Relative strength is a tendency, not a guarantee. In backtests it loses roughly "
+               "one year in five and reverses hardest at bear-market bottoms (2003, 2009)."),
+     "source": ("Daniel and Moskowitz, Momentum Crashes (2016); Dorsey Wright, Point and Figure "
+                "Relative Strength Signals (2016)"),
+     "card": "regime"},
+    {"claim": ("A rising RS line means the stock is beating the benchmark over this window. It can "
+               "rise while the stock is falling if the benchmark falls faster."),
+     "source": "IBD, Investor's Business Daily (the RS line will rise even if the stock falls)",
+     "card": "benchmark"},
+    {"claim": ("Which benchmark you compare to matters. In 2023 and 2024, 78% of S&P 500 stocks "
+               "underperformed the cap-weighted index; compare to equal-weight or the sector to "
+               "isolate stock-specific strength."),
+     "source": "Lyrical Asset Management, 2024 US value review letter",
+     "card": "sensitivity"},
+    {"claim": ("RS confirmed after a breakout has historically been associated with larger "
+               "follow-through (an average gain of 41% against 22%); the direction of RS before "
+               "the breakout barely mattered."),
+     "source": "Bulkowski, thepatternsite.com (15,763 chart patterns, 1,094 stocks from 1991)",
+     "card": "beforePrice"},
+)
+
+
+def _rs_evidence_params() -> dict:
+    from api.services import rs_evidence_pull as _ep                 # noqa: PLC0415
+    return {"floor": _ep.DISPLAY_FLOOR_N, "horizon": _ep.DEFAULT_HORIZON,
+            "honesty": _ep.HONESTY_SENTENCE, "survivorship": _ep.SURVIVORSHIP_NOTE,
+            "cards": dict(_ep.CARD_SIGNALS), "labels": dict(_ep.SIGNAL_LABELS),
+            "key": _ep.ARTIFACT_KEY}
+
+
+def rs_evidence_section() -> dict:
+    """The Evidence subsection of the RS section: the five defensible statements
+    with their sources, the rule a measured number must clear before it prints,
+    and the honesty sentence a card carries until then."""
+    p = _rs_evidence_params()
+    floor, h, surv = p["floor"], p["horizon"], p["survivorship"]
+    return {
+        "label": "Evidence",
+        "statements": [dict(s) for s in RS_EVIDENCE_STATEMENTS],
+        "measured": {
+            "signals": [{"card": card, "signal": name, "label": p["labels"].get(name, name)}
+                        for card, name in p["cards"].items()],
+            "horizon_bars": h,
+            "display_floor_n": floor,
+            "artifact": p["key"],
+            "survivorship": surv,
+            "rule": (
+                f"A measured number prints on a chart card only when the nightly backtest counted "
+                f"at least {floor} events for that signal, each with a complete {h}-bar window after "
+                f"it. The sentence carries the sample size, the window's dates, the share that closed "
+                f"higher than the benchmark {h} bars later (the hit rate), the median excess return "
+                f"and the caveat. Signals are read point-in-time, from the bars as held on each "
+                f"session, never from today's history; the forward return is measured from the "
+                f"signal bar's own close, a price a member who sees the dot after the close cannot "
+                f"get, so the hit rate reads as what the dot was worth, not as a trade result. The "
+                f"population is the {surv}: a name delisted since is counted only where its bars are "
+                f"still held, which flatters the numbers until the registry correction lands. Under "
+                f"the floor, with no complete window, or before the first artifact has been pulled, "
+                f"the card says: {p['honesty']}"),
+            "form": (
+                f"<count> <signal> from <first date> to <last date>; <hit rate>% closed higher than "
+                f"<benchmark> {h} bars later (median <excess>%). "
+                f"{surv[:1].upper()}{surv[1:]}."),
+        },
+        "honesty": p["honesty"],
+        "not_claimed": [
+            "A win rate or forward return for an RS new high, before price or on a red day: none is "
+            "published, and ours prints only once measured on our own bars, with its sample and dates.",
+            "That an RS Rating of 80, 85 or 90 is a validated threshold; IBD itself gives all three.",
+            "That IBD's average rating of 87 comes from a defined study with a known sample.",
+            "That RS predicts breakouts or is a leading indicator of institutional buying.",
+            "Published backtest returns (Clenow, Antonacci, Dorsey Wright, Faber) as live, net of "
+            "costs, or applicable to a single swing trade.",
+            "A seasonal or frog-in-the-pan edge as settled.",
+        ],
+    }
+
+
 def rs_columns_section() -> dict:
     """The shared notes for the seventeen UCT Relative Strength columns: what
-    runs when, the two readings that differ from the textbook, and the honesty
-    line. The per-column entries sit in `all_methods()["methods"]` beside the
-    composites; this is the paragraph a member reads once."""
+    runs when, the two readings that differ from the textbook, the honesty
+    line, and (2b-09) the Evidence subsection. The per-column entries sit in
+    `all_methods()["methods"]` beside the composites; this is the paragraph a
+    member reads once."""
     p = _rs_params()
     return {
         "label": "UCT Relative Strength columns",
         "columns": [m["column"] for m in _rs_column_methods()],
+        "evidence": rs_evidence_section(),
         "timing": (
             "The ten bar-derived columns (the RS new-high flags and age, the up-on-down-days "
             "count, the RS line against its average and the cross age, Mansfield RS and its "

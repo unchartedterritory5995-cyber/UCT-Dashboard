@@ -3845,6 +3845,14 @@ const RS_GOLD = '#c9a84c'
  *  turned it on. Classic can therefore stay FIRST — the member's default leads
  *  the picker — and the more specific presets still win on their own key. */
 const RS_CLASSIC_TOGGLES = Object.freeze({ showMansfield: false, showRedDay: false, showNewLow: false })
+/** ⭐ THE HONESTY SENTENCE (Phase 2b, unit 2b-09) — the static evidence line of
+ *  every card whose signal the nightly backtest measures, printed until the
+ *  measured sentence replaces it through `card.evidenceSource`. ⛔ ONE FACT IN
+ *  TWO FILES: `api/services/rs_evidence_pull.HONESTY_SENTENCE` is the
+ *  provider's copy (what `payload.evidence.sentence.<key>` carries while no
+ *  artifact has landed), and `tests/test_rs_columns_provider.py` pins the two
+ *  equal, so a rewording of one flags the other. */
+const RS_HONESTY_SENTENCE = 'No published hit rate exists for this signal and UCT has not measured one yet.'
 const RS_LINE_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
@@ -3855,7 +3863,7 @@ const RS_LINE_RAW = {
     // ⛔ THE DESCRIPTION PROMISES ONLY WHAT SHIPS (review finding). Rotation,
     // quality and the volatility-adjusted readings are Phase 3 and are added
     // here when they land, never before.
-    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark, its moving average, dots where the line makes a new high (before price, in gold; on a red market day, marked RED), Weinstein\'s Mansfield line with its zero crosses, and a readout in words: the nightly IBD-style rating, the market regime, how the reading holds against SPY, the equal-weight index and the sector, and the four UCT checks.',
+    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark, its moving average, dots where the line makes a new high (before price, in gold; on a red market day, marked RED), Weinstein\'s Mansfield line with its zero crosses, and a readout in words: the nightly IBD-style rating, the market regime, how the reading holds against SPY, the equal-weight index and the sector, and the four UCT checks. Once the nightly backtest reports, each card\'s evidence line carries our own measured number with its sample size and dates.',
     tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'blue dot',
       'leader', 'leadership', 'price relative', 'benchmark', 'mansfield', 'weinstein',
       'rs rating', 'stress test', 'red day', 'regime'],
@@ -4047,10 +4055,22 @@ const RS_LINE_RAW = {
   // `meta.learn` above. `tests/test_rs_columns_provider.py` resolves every
   // `scalar:` path here against a real provider payload, so a row can never
   // name a scalar the server does not send.
+  //
+  // ⭐ THE EVIDENCE LINES (unit 2b-09; research base 03-evidence.md §b). A card
+  // whose signal the nightly backtest measures (2b-01 → `rs/evidence.json` →
+  // 2b-03 `payload.evidence.sentence.<key>`) declares `evidenceSource`; the
+  // surface prints that sentence VERBATIM — "1,284 RS new highs before price
+  // from … ; 58.3% closed higher than SPY 63 bars later (median +2.1%).
+  // Universe as held, survivorship not yet corrected." — and the static
+  // `evidence` (the honesty sentence) only when no envelope has landed. The
+  // cards with no signal in the artifact carry the defensible literature
+  // statements, each with its source, never a win rate, a threshold or a
+  // forecast (the must-not-claim list, 03-evidence.md §b).
   readout: [
     { key: 'benchmark', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
       card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
         origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
+        evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Benchmarks row reads the same line against SPY, the equal-weight index and the sector.',
         learn: 'rsLine' } },
     { key: 'benchmarkName', label: 'Benchmark name', source: 'scalar:benchmark.label', format: 'text' },
     { key: 'benchmarkNote', label: 'Benchmark note', source: 'scalar:benchmark.fallback', format: 'text',
@@ -4058,7 +4078,7 @@ const RS_LINE_RAW = {
     { key: 'rating', label: 'Rating', source: 'scalar:rating.ibd', format: 'int', chip: true, fallback: 'not yet rated',
       card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated.',
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
-        evidence: 'Universe as held, survivorship not yet corrected. The measured difference to MarketSurge is printed here once the comparison fixture lands.' } },
+        evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.' } },
     { key: 'fastRating', label: 'Fast rating', source: 'scalar:rating.fast', format: 'int',
       card: { what: 'UCT fast rating, 1 to 99: the same idea read hourly from 200 days of vendor bars, so it moves during the session.',
         origin: 'The site\'s existing RS rank (rs_ranking). Thinner history than the nightly rating, so the two can differ by a few points.' } },
@@ -4066,46 +4086,52 @@ const RS_LINE_RAW = {
     { key: 'phase', label: 'RS line', source: 'scalar:legend.above', format: 'bool',
       words: ['above its average', 'below its average'],
       card: { what: 'Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read.',
-        origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS.',
-        evidence: 'A standard trend read that lags turns by design.',
+        origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.phase',
         learn: 'phase' } },
     { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct' },
     { key: 'rsHigh', label: 'RS high', source: 'scalar:lastRsHigh.barsAgo', format: 'barsAgo',
       card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
         origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',
-        evidence: 'Persistence over 6 to 12 months is documented in the field; no published hit rate for the dot itself.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.rsHigh',
         learn: 'newHigh' } },
     { key: 'beforePrice', label: 'Before price', source: 'scalar:lastRsHigh.beforePrice', format: 'bool',
       words: ['before price', ''],
       card: { what: 'That RS high came while price was still more than the tolerance below its own lookback high: relative strength led, price had not confirmed.',
         origin: 'IBD: more bullish, and not a precondition. Deepvue, ChillLax.',
-        evidence: 'Our test prints here once the nightly evidence job lands; until then, the field claim stands unmeasured.',
+        evidence: 'Bulkowski measured 15,763 chart patterns: the direction of RS before a breakout barely changed the result, while RS rising after the breakout did (an average gain of 41% against 22%). ' + RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.beforePrice',
         learn: 'beforePrice' } },
     { key: 'redDay', label: 'Red day', source: 'scalar:lastRsHigh.redDay', format: 'bool',
       words: ['on a red day', ''],
       card: { what: 'That RS high came on a day the benchmark closed down by at least the red-day threshold: strength while the market sold off.',
-        origin: 'UCT workshops; Kell; TraderLion on down days.',
-        evidence: 'Taught widely, never measured publicly; our test prints here once the nightly evidence job lands.',
+        origin: 'UCT workshops; Kell; TraderLion on down days. Taught widely, never measured publicly.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.redDay',
         learn: 'redDay' } },
     { key: 'mansfield', label: 'Mansfield', source: 'scalar:mansfield.value', format: 'pct',
       card: { what: 'Mansfield Relative Strength: the RS ratio as a percent above or below its own moving average (200 bars daily, 52 weekly). Above zero, the stock is outperforming its own trend against the benchmark.',
         origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
-        evidence: 'Weinstein: most Stage 2A breakouts occur above zero or in the week the line crosses it. Unmeasured here.' } },
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.mansfield' } },
     { key: 'mansfieldState', label: 'Mansfield read', source: 'scalar:mansfield.stateLabel', format: 'text' },
     { key: 'mansfieldCross', label: 'Zero cross', source: 'scalar:mansfield.crossBarsAgo', format: 'barsAgo' },
     { key: 'regime', label: 'Regime', source: 'scalar:regime.label', format: 'text', fallback: 'needs more history',
       card: { what: 'The market state the reading lives in, from the benchmark alone: above or below its 200-day average, the sign of its two-year return, and where its six-month realised volatility sits in its own three-year range. Persistence: above the 200-day with a positive two-year trend. Rebound-risk: a negative two-year trend in the high-volatility third. Mixed: anything else.',
-        origin: 'Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.' } },
+        origin: 'Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.',
+        evidence: 'Relative strength is a tendency, not a guarantee: in backtests it loses roughly one year in five and reverses hardest at bear-market bottoms. The fifteen worst momentum months since 1927 all came after a negative two-year market return, during rebounds (1932, 2001, 2009), and in 2003 and 2009 the laggards beat the leaders by 35 to 50 points (Daniel and Moskowitz 2016; Dorsey Wright 2016).' } },
     { key: 'regimeNote', label: 'Regime note', source: 'scalar:regime.reason', format: 'text', when: 'scalar:regime.reason' },
     { key: 'sensitivity', label: 'Benchmarks', source: 'scalar:sensitivity.summary', format: 'text',
       card: { what: 'Whether the last 20 bars of relative strength point the same way against SPY, the equal-weight index (RSP) and the sector ETF. Agree means all three slopes share a sign.',
         origin: 'UCT: a leader against the cap-weighted index alone may only be riding the giants that carry it.',
-        evidence: 'The nightly test will print the rank correlation of RS across the three benchmarks here.' } },
+        evidence: 'In 2023 and 2024, 78% of S&P 500 stocks underperformed the cap-weighted index (Lyrical, 2024), so a line falling against SPY while rising against the equal-weight index or the sector separates stock-specific strength from a few giants carrying the index. The nightly test will print the rank correlation of RS across the three benchmarks here.' } },
     { key: 'theme', label: 'Theme', source: 'scalar:theme.label', format: 'text' },
     { key: 'checks', label: 'Checks', source: 'scalar:checks.summary', format: 'text', fallback: 'needs more history',
       card: { what: 'The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark\'s; return since the benchmark\'s 20-session low against the benchmark\'s; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day.',
         origin: 'UCT workshops (Chartmaster, the four RS checks).',
-        evidence: 'Counts, not signals: six green-on-red days in twenty is unusual, one in twenty is noise. Unmeasured here until the nightly evidence job lands.',
+        evidence: 'Counts, not signals: six green-on-red days in twenty is unusual, one in twenty is noise. No published hit rate exists for these checks and UCT has not measured them yet.',
         learn: 'fourChecks' } },
     { key: 'checkMa', label: 'Averages', source: 'scalar:checks.ma.reason', format: 'text' },
     { key: 'checkAnchor', label: 'Since the low', source: 'scalar:checks.anchor.reason', format: 'text' },

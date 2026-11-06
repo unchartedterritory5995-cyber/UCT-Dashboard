@@ -1478,7 +1478,8 @@ describe('readout[] — validated fail-closed, by definition id and entry index'
 
   // ─ card.learn (2a-10) — a key into the APP's Learn map, checked as a key only ─
   it('accepts `card.learn` as a non-empty string, verbatim, and never checks it against the lesson map', () => {
-    expect(READOUT_CARD_FIELDS).toEqual(['what', 'origin', 'evidence', 'learn'])
+    // (`evidenceSource`, 2b-09, is the fifth card field; `readoutSchema.evidence.test.js` owns it)
+    expect(READOUT_CARD_FIELDS).toEqual(['what', 'origin', 'evidence', 'learn', 'evidenceSource'])
     const withLearn = { ...GOOD[0], card: { ...GOOD[0].card, learn: 'beforePrice' } }
     expect(ok(withReadout([withLearn])).readout[0].card.learn).toBe('beforePrice')
     // the map is app code; the schema is engine code — an unknown key is the

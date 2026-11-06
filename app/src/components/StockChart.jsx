@@ -152,6 +152,7 @@ import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipV
 // header, a row's `card` opens a three-line About page in the same popover,
 // and Learn links resolve through the app's one Desk-video builder.
 import { scalarsFor } from './chart/engine/serverCompute'
+import { cardEvidenceText } from './chart/engine/readoutSchema'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
 // mounted without one on several surfaces (popups, the Model Book, its own
@@ -628,9 +629,17 @@ function LegendLessons({ lessons, className }) {
  * The row's own lesson (`card.learn`, a key the app's Learn map resolves)
  * renders as "Watch the lesson" with the video's label; the definition's
  * `meta.learn` lessons follow, so every lesson is one tap from any card.
+ *
+ * ⭐ Phase 2b (unit 2b-09) — THE EVIDENCE LINE IS READ, NOT COPIED. `scalars`
+ * is the envelope payload the rows were built from; when the card declares
+ * `evidenceSource` and that path holds a sentence, it prints VERBATIM (the
+ * nightly backtest's measured number with its sample, dates and caveat, or
+ * the provider's honesty sentence), else the static `card.evidence` stands
+ * (`readoutSchema.cardEvidenceText`). Nothing here rewords either.
  */
-function LegendMenuCard({ row, def, onBack }) {
+function LegendMenuCard({ row, def, scalars, onBack }) {
   const card = row.card || {}
+  const evidenceText = cardEvidenceText(row, scalars)
   const learnKey = typeof card.learn === 'string' ? card.learn : null
   const lessonHref = learnKey ? learnHref(learnKey) : null
   const lesson = lessonHref && Object.prototype.hasOwnProperty.call(RS_LEARN_VIDEOS, learnKey)
@@ -652,10 +661,10 @@ function LegendMenuCard({ row, def, onBack }) {
           <span className={styles.legCardKey}>Where it comes from</span>
           <span className={styles.legCardText}>{card.origin}</span>
         </div>
-        {typeof card.evidence === 'string' && card.evidence ? (
+        {evidenceText ? (
           <div className={styles.legCardLine} data-card-line="evidence">
             <span className={styles.legCardKey}>What the evidence says</span>
-            <span className={styles.legCardText}>{card.evidence}</span>
+            <span className={styles.legCardText}>{evidenceText}</span>
           </div>
         ) : null}
         {lesson ? (
@@ -19298,6 +19307,15 @@ export default function StockChart({
           : EMPTY_READOUT_ROWS
         const cardKey = typeof chipPage === 'string' && chipPage.startsWith('card:') ? chipPage.slice(5) : null
         const cardRow = cardKey ? readoutRows.find((r) => r && r.key === cardKey && r.card) : null
+        // ⭐ Phase 2b (unit 2b-09) — THE EVIDENCE LINE READS THE SAME SCALARS THE
+        // ROWS WERE BUILT FROM: the one reader (`readoutChipOpts.scalarsOf`, bound
+        // to the chart's own sym and tf) over the instance's inputs as the compute
+        // reads them (`resolvedInputsOf`), exactly the call `readout.stampReadout`
+        // made for `c.readout`. `scalarsFor` is a cache read — one lookup, never a
+        // fetch — and "nothing landed" is `null`, which leaves the static line.
+        const cardScalars = cardRow
+          ? (() => { try { return readoutChipOpts.scalarsOf(def, resolvedInputsOf(def, (inst && inst.inputs) || {})) } catch { return null } })()
+          : null
         if (cardRow) {
           return (
             <ContextPopover
@@ -19309,7 +19327,7 @@ export default function StockChart({
               dense
               sheetClassName={sheetCls}
             >
-              <LegendMenuCard row={cardRow} def={def} onBack={() => setChipPage(null)} />
+              <LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack={() => setChipPage(null)} />
             </ContextPopover>
           )
         }

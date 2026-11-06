@@ -234,3 +234,92 @@ def test_the_rs_rating_says_whose_number_it_is_NOT_and_claims_no_figure(monkeypa
     monkeypatch.setattr(M, "RS_RATING_VS_MARKETSURGE", "median 2 points over 40 names, 2026-12-01")
     cav = M.for_column("rs_rating_ibd")["caveat"]
     assert "median 2 points over 40 names, 2026-12-01" in cav and "not yet measured" not in cav
+
+
+# ── 2026-11-07, Phase 2b unit 2b-09: the Evidence subsection of the RS section
+
+def _evidence():
+    return M.all_methods()["rs_columns"]["evidence"]
+
+
+def test_the_rs_section_publishes_the_five_statements_with_sources_and_cards():
+    """Research base 03-evidence.md §b: five defensible statements, each with
+    its source and the chart card that carries it."""
+    ev = _evidence()
+    assert ev["label"] == "Evidence"
+    assert len(ev["statements"]) == 5
+    for s in ev["statements"]:
+        assert s["claim"] and s["source"] and s["card"], s
+    assert {s["card"] for s in ev["statements"]} == {"rating", "regime", "benchmark", "sensitivity", "beforePrice"}
+    sources = " ".join(s["source"] for s in ev["statements"])
+    for name in ("Jegadeesh and Titman", "Asness, Frazzini, Israel and Moskowitz", "Daniel and Moskowitz",
+                 "Dorsey Wright", "IBD", "Lyrical", "Bulkowski"):
+        assert name in sources, name
+    claims = " ".join(s["claim"] for s in ev["statements"])
+    assert "not a guarantee" in claims and "falls faster" in claims and "78%" in claims and "41%" in claims
+
+
+def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
+    """⛔ THE ONE TEST THAT MATTERS, a third time: the floor, the horizon, the
+    honesty sentence and the survivorship note are the pull module's, proven by
+    MOVING them and watching the published words follow."""
+    from api.services import rs_evidence_pull as ep
+    ev = _evidence()
+    assert ev["measured"]["display_floor_n"] == ep.DISPLAY_FLOOR_N == 100
+    assert ev["measured"]["horizon_bars"] == ep.DEFAULT_HORIZON == 63
+    assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-bar window" in ev["measured"]["rule"]
+    assert "63 bars later" in ev["measured"]["rule"] and "63 bars later" in ev["measured"]["form"]
+    assert ev["honesty"] == ep.HONESTY_SENTENCE
+    assert ev["measured"]["rule"].endswith(ep.HONESTY_SENTENCE)
+    assert ev["measured"]["survivorship"] == ep.SURVIVORSHIP_NOTE
+    assert ev["measured"]["artifact"] == ep.ARTIFACT_KEY
+    assert {(s["card"], s["signal"]) for s in ev["measured"]["signals"]} == set(ep.CARD_SIGNALS.items())
+    assert all(s["label"] == ep.SIGNAL_LABELS[s["signal"]] for s in ev["measured"]["signals"])
+    monkeypatch.setattr(ep, "DISPLAY_FLOOR_N", 250)
+    monkeypatch.setattr(ep, "DEFAULT_HORIZON", 126)
+    monkeypatch.setattr(ep, "HONESTY_SENTENCE", "Nothing measured.")
+    monkeypatch.setattr(ep, "SURVIVORSHIP_NOTE", "universe as held, delistings restored")
+    ev = _evidence()
+    assert ev["measured"]["display_floor_n"] == 250 and "at least 250 events" in ev["measured"]["rule"]
+    assert ev["measured"]["horizon_bars"] == 126 and "complete 126-bar window" in ev["measured"]["rule"]
+    assert "126 bars later" in ev["measured"]["form"] and "63" not in ev["measured"]["form"]
+    assert ev["honesty"] == "Nothing measured." and ev["measured"]["rule"].endswith("Nothing measured.")
+    assert "universe as held, delistings restored" in ev["measured"]["rule"]
+    assert ev["measured"]["form"].endswith("Universe as held, delistings restored.")
+
+
+def test_the_rule_says_point_in_time_and_that_the_base_is_the_signal_close():
+    """`rs_evidence.measure`'s header: the window begins at t+1 but the base is
+    C[t], a price a member who sees the dot after the close cannot get — and it
+    hands the wording to this unit. The rule says so, in those terms."""
+    rule = _evidence()["measured"]["rule"]
+    assert "point-in-time" in rule
+    assert "signal bar's own close" in rule and "cannot get" in rule
+    assert "not as a trade result" in rule
+    assert "universe as held, survivorship not yet corrected" in rule
+    assert "sample size" in rule and "dates" in rule and "median excess" in rule
+
+
+def test_the_evidence_claims_none_of_the_forbidden_things():
+    """The must-not-claim list (03-evidence.md §b) as a rail over the claims and
+    the rule, and as a published `not_claimed` list that names what we refuse."""
+    import re
+    ev = _evidence()
+    text = " ".join(s["claim"] for s in ev["statements"]) + " " + ev["measured"]["rule"] + " " + ev["honesty"]
+    for pat in (r"\bpredicts?\b", "leading indicator", r"\b87\b", r"\b(80|85|90)\b", "validated", "win rate",
+                r"\bguaranteed\b", "institutional buying"):
+        assert not re.search(pat, text, re.I), pat
+    assert "!" not in text
+    assert len(ev["not_claimed"]) >= 5
+    assert any("87" in n for n in ev["not_claimed"])
+    assert any("validated threshold" in n for n in ev["not_claimed"])
+    assert any("predicts" in n for n in ev["not_claimed"])
+    assert any("net of" in n for n in ev["not_claimed"])
+
+
+def test_the_evidence_subsection_rides_the_published_document():
+    doc = M.all_methods()
+    assert "evidence" in doc["rs_columns"]
+    assert doc["rs_columns"]["evidence"]["honesty"]
+    # and the RS section's own honesty line still stands beside it
+    assert "not when to buy" in doc["rs_columns"]["honesty"]

@@ -1002,22 +1002,42 @@ def test_the_v1_lane_never_touches_a_phase2a_helper(monkeypatch):
 # resolved against a REAL provider payload — long bars, a sector, a rating row —
 # so a row can never name a scalar the server does not send. An `input:` key
 # must be a declared input of the definition.
+#
+# Since unit 2b-09 a row's `card` may carry `evidenceSource` (the same grammar;
+# `readoutSchema.cardEvidenceText` reads it): it is parsed as a third field of
+# the entry, so the evidence paths ride the same two rails — resolve on a real
+# payload, resolve (to the honesty sentence) on a short series.
+
+READOUT_SOURCE_FIELDS = ("source", "when", "evidenceSource")
+
+
+def _js_rs_line_source() -> str:
+    import pathlib
+    return pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+
 
 def _js_rs_readout_sources() -> list:
-    import pathlib
     import re
-    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
-    body = src.split("const RS_LINE_RAW = {", 1)[1]
+    body = _js_rs_line_source().split("const RS_LINE_RAW = {", 1)[1]
     block = body.split("\n  readout: [", 1)[1].split("\n  ],", 1)[0]
     block = "\n".join(line for line in block.split("\n") if not line.lstrip().startswith("//"))
     out = []
     for entry in re.split(r"\n    \{", block)[1:]:
         key = re.search(r"\bkey:\s*'([A-Za-z0-9_]+)'", entry).group(1)
-        for field in ("source", "when"):
+        for field in READOUT_SOURCE_FIELDS:
             m = re.search(rf"\b{field}:\s*'((?:scalar|payload|input):[A-Za-z0-9_.]+)'", entry)
             if m:
                 out.append((key, field, m.group(1)))
     return out
+
+
+def _js_rs_honesty_sentence() -> str:
+    """`RS_HONESTY_SENTENCE` as nativeRegistry.js declares it (the cards' static
+    evidence line), parsed out of the source text."""
+    import re
+    m = re.search(r"^const RS_HONESTY_SENTENCE = '([^']+)'$", _js_rs_line_source(), re.M)
+    assert m, "nativeRegistry.js declares RS_HONESTY_SENTENCE"
+    return m.group(1)
 
 
 def _resolve_path(payload: dict, path: str):
@@ -1075,6 +1095,10 @@ def test_the_readout_source_parser_reads_the_rows_it_claims_to():
     assert by_key["mansfield"]["source"] == "scalar:mansfield.value"
     assert by_key["sensitivity"]["source"] == "scalar:sensitivity.summary"
     assert by_key["theme"]["source"] == "scalar:theme.label"
+    # 2b-09: the five measured signals' cards read the provider's evidence sentence
+    for key in ep.CARD_SIGNALS:
+        assert by_key[key]["evidenceSource"] == f"scalar:evidence.sentence.{key}", key
+    assert "evidenceSource" not in by_key["benchmark"] and "evidenceSource" not in by_key["rating"]
 
 
 def test_the_short_history_payload_still_resolves_every_row_or_answers_null_with_a_reason(v2_row, monkeypatch):
@@ -1177,21 +1201,25 @@ def test_a_failing_artifact_read_never_costs_the_envelope(v2_row, monkeypatch):
     assert "rsLine" in env["columns"]
 
 
-def test_an_evidence_readout_source_WOULD_resolve_for_unit_2b_09(v2_row, monkeypatch, tmp_path):
-    """The registry's rows do not name `evidence.*` yet (unit 2b-09 points the
-    cards at it). Both halves of the readout rail already hold for those paths:
-    without the artifact they walk to the honesty sentence or a null block,
-    never a missing key; with it they walk to the measured value."""
+def test_the_evidence_card_sources_resolve_with_and_without_the_artifact(v2_row, monkeypatch, tmp_path):
+    """Unit 2b-09 pointed the five measured cards at `scalar:evidence.sentence.<key>`
+    (parsed out of the registry, never retyped). Both halves of the readout rail
+    hold for those paths: without the artifact they walk to the honesty
+    sentence, never a missing key; with it, to the measured sentence where the
+    signal clears the floor and the honesty sentence where it does not."""
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
     _no_cache(monkeypatch)
-    paths = (["evidence.sentence." + k for k in EVIDENCE_KEYS]
+    card_sources = {key: src for key, field, src in _js_rs_readout_sources() if field == "evidenceSource"}
+    assert card_sources == {k: f"scalar:evidence.sentence.{k}" for k in ep.CARD_SIGNALS}, card_sources
+    paths = ([src.split(":", 1)[1] for src in card_sources.values()]
              + ["evidence.signals." + k for k in EVIDENCE_KEYS]
              + ["evidence.signals.beforePrice.hit_rate_pct", "evidence.asof", "evidence.source", "evidence.horizon"])
     absent = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
     for path in paths:
         ok, _ = _resolve_path(absent, path)
         assert ok, f"scalar:{path} is MISSING (not null) without the artifact"
-    assert _resolve_path(absent, "evidence.sentence.beforePrice") == (True, ep.HONESTY_SENTENCE)
+    for key, src in card_sources.items():
+        assert _resolve_path(absent, src.split(":", 1)[1]) == (True, ep.HONESTY_SENTENCE), key
     assert _resolve_path(absent, "evidence.signals.beforePrice.hit_rate_pct") == (True, None)
     write_artifact(tmp_path, fixture_artifact())
     present = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
@@ -1199,9 +1227,19 @@ def test_an_evidence_readout_source_WOULD_resolve_for_unit_2b_09(v2_row, monkeyp
         ok, _ = _resolve_path(present, path)
         assert ok, f"scalar:{path} is MISSING with the artifact"
     assert _resolve_path(present, "evidence.signals.beforePrice.hit_rate_pct") == (True, 58.3)
-    assert _resolve_path(present, "evidence.sentence.beforePrice") == (True, BEFORE_PRICE_SENTENCE)
-    # and the card keys ARE readout row keys the registry already carries, so
-    # 2b-09 adds a source to an existing row rather than a new row
+    assert _resolve_path(present, card_sources["beforePrice"].split(":", 1)[1]) == (True, BEFORE_PRICE_SENTENCE)
+    assert _resolve_path(present, card_sources["redDay"].split(":", 1)[1]) == (True, ep.HONESTY_SENTENCE)      # under the floor
+    assert _resolve_path(present, card_sources["mansfield"].split(":", 1)[1]) == (True, ep.HONESTY_SENTENCE)   # null statistic
+    # the card keys ARE readout row keys the registry carries: 2b-09 added a
+    # source to an existing row, never a new row
     row_keys = {key for key, _, _ in _js_rs_readout_sources()}
     assert set(ep.CARD_SIGNALS) <= row_keys, set(ep.CARD_SIGNALS) - row_keys
+
+
+def test_the_honesty_sentence_is_ONE_fact_in_two_files():
+    """The cards' static evidence line (`RS_HONESTY_SENTENCE`, nativeRegistry.js)
+    and the provider's no-artifact sentence (`rs_evidence_pull.HONESTY_SENTENCE`)
+    are the same words: a chart with no landed envelope and a chart whose
+    envelope says "no artifact" must not read two different honesty lines."""
+    assert _js_rs_honesty_sentence() == ep.HONESTY_SENTENCE
 
