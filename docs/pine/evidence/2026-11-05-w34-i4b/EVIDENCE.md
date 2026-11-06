@@ -4,8 +4,14 @@ NEXT STEP: WAITING FOR THE COORDINATOR'S GO for the heavy jobs: measure-pair (ru
 
 Branch `fix/pine-v12-nz-seed-listing`, from origin/master `bde38b0d69` (engine 20).
 Tested-on-master: `bde38b0d69`. Code tip: see the commit that adds this file (`git log -1`).
-Engine bump: **yes** (member output changes on listing charts for v1/v2 recurrences whose bar 0
-depends on the seed rule; corpus: `atr-god-strategy-by-tradesmart`, v1). SCRIPT_ENGINE_VERSION not edited.
+Engine bump: **yes, conservatively**: served output can change for member-authored v1/v2 (or
+no-pragma) scripts on runs that start at the listing. No committed corpus script is affected.
+SCRIPT_ENGINE_VERSION not edited.
+
+Affected set (corrected after review, 2026-11-06): member-authored v1/v2 or no-pragma scripts on runs
+that start at the listing, and **no corpus script**. `atr-god-strategy-by-tradesmart`, first
+named as the affected script, carries `// @version=5`. The lexer reads that as v5, so this fix
+does not touch it, and no committed corpus script is v1/v2.
 
 ## Problem (diagnosed on master)
 A v1/v2 self-referencing series `x = cond ? nz(x[1], fill) : y` folds to `accum(fill, ...)`. On a run
@@ -79,14 +85,14 @@ the VM, not as a column; the host v4 rail kills it.)
 
 ## Open / residual
 - An OUTSIDE read `x[1]` of a v1/v2 recurrence column on bar 0 still reads `NaN` (the offset), not the
-  zero candidate. A gap, never a drawn guess, unless a downstream `na(x[1]) ? A : B` outside the
-  recurrence picks an arm. Not seen in the corpus case; it is closed when W34-I4-S1 is captured.
+  zero candidate. That leaves a gap, never a drawn guess, unless a `na(x[1]) ? A : B` downstream and
+  outside the recurrence picks an arm. No corpus script is v1/v2. This closes when W34-I4-S1 is captured.
 - v3 `x := nz(x[1], fill)` is also unmeasured, but out of this lane's scope (v1/v2 only per brief).
 - Unstamped documents (no `meta.doorVersion`) keep master's answer.
 
 ## Heavy steps (not yet run; awaiting go)
-- measure-pair runtime 0 and 1 vs base at `merge-base HEAD origin/master`: expected diffs only on
-  `atr-god-strategy-by-tradesmart` listing bars (intended); 0 C18 diffs (`!atObjectDoor`).
+- measure-pair runtime 0 and 1 vs base at `merge-base HEAD origin/master`: expected **0 corpus diffs**
+  (no corpus script is v1/v2) and 0 C18 diffs (`!atObjectDoor`).
 - final-tip FULL + ready-check.
 
 Logs: `C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/w34-i4b/` (t1.log, handmut.log, mut-*.log, nb1.log, nb2.log).
