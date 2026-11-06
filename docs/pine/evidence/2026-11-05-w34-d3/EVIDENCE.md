@@ -24,3 +24,5 @@ Defined-name guard (`definedNames.has(name) || isUserFn(name)` at the top of run
 2. measure-pair (heavy-mp2 lock queued; mpbase2 was switched to c855e8cadf, assert HEAD before and after). Expect correlation-matrix first wall to move; 0 other C18 verdict changes.
 3. Merge origin/master, final-tip FULL (heavy-final2), ready-check.
 4. Engine bump: yes if correlation-matrix or heat-map-seasons outcome moves on the runtime lane (the runtime lane's output changes); recommend yes.
+
+UPDATE: reachability mutation over runtime/__tests__ finished: drop-shared-defined-guard KILLED (failures in the corpus census-style tests 'prints the ceiling and the per-guard drawer count' and 'prints where the DRAWING dies', both 22 s runs, so possibly timing-sensitive; not a clean unit proof). Decision: KEEP the shared guard (reachable in at least one suite, not mine, outside this lane). Still NEXT: measure-pair, final-tip, ready-check.
