@@ -366,11 +366,12 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
   it('R58 I-12: with wave 4 on the footnote names what still comes from its own page; off, the old sentence stays', () => {
     const { unmount } = render(<WidgetPalette editor={mount()} />)
     expect(screen.getByText(/Widgets with live data \(news, breadth, calendar…\) come in from their own page/)).toBeInTheDocument()
-    expect(screen.queryByText(/A few \(Screener, COT, Model Book\)/)).toBeNull()
+    expect(screen.queryByText(/A Screener result still comes in/)).toBeNull()
     unmount()
     latchNotebookFlags({ notebook_widgets_w4_enabled: true })
     render(<WidgetPalette editor={mount()} />)
-    expect(screen.getByText("Most widgets fill in from your own data when you insert them. A few (Screener, COT, Model Book) still come in from their own page, with the journal button beside the widget's gear.")).toBeInTheDocument()
+    // S13.6 remainder (Tier 4): COT and Model Book are inserted here now; only the Screener is still its page's.
+    expect(screen.getByText('Most widgets fill in from your own data when you insert them. A Screener result still comes in from the Screener page, with its Save to Notebook button.')).toBeInTheDocument()
     expect(screen.queryByText(/Widgets with live data/)).toBeNull()
   })
 

@@ -211,9 +211,10 @@ describe('NotebookTab — graph view wiring', () => {
       expect(currentView()).toBe('Table')
     })
 
-    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', () => {
+    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', async () => {
       renderTab('/journal')
-      expect(screen.getByTestId('research-home')).toBeInTheDocument()
+      // Tier 3b fix round 1 (I1): Research Home is a lazy view now, so it arrives a tick later.
+      expect(await screen.findByTestId('research-home')).toBeInTheDocument()
     })
   })
 

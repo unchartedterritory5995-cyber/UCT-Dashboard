@@ -153,6 +153,7 @@ const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
     <div
       className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
       data-earn-sym={c.sym}
+      data-guide="calendar.row"
       onClick={() => onSelect(c.sym)}
       title={`Show ${c.sym} on the linked chart`}
     >
