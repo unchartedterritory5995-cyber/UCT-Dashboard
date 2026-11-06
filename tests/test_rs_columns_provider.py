@@ -152,6 +152,66 @@ def test_composite_leaves_a_gap_when_too_few_members_have_a_bar():
     assert 1002 not in times, "one of three present is a gap, not a guess"
 
 
+def test_composite_does_not_step_when_a_member_joins_mid_window():
+    """Review finding B8. Two incumbents have risen 19 % when a third name's
+    history begins. Indexing the joiner to 100 at ITS first bar (the earlier
+    shape) averaged (119 + 119 + 100) / 3 = 112.67 on the join bar — a −5.3 %
+    step the whole group's red-day and RS-new-high columns would have read as
+    real. Chain-linked, the joiner enters AT the composite's 119 and its own
+    +10 % the next bar moves the composite by one third of that."""
+    series = {
+        "A": _bars([100, 119, 119, 119]),
+        "B": _bars([100, 119, 119, 119]),
+        "C": _bars([50, 55], start_t=1_002),           # history begins on the third bar
+    }
+    comp = rb.equal_weight_composite(series)
+    assert [b["t"] for b in comp] == [1000, 1001, 1002, 1003]
+    c = [b["c"] for b in comp]
+    assert c[0] == pytest.approx(100.0) and c[1] == pytest.approx(119.0)
+    assert c[2] == pytest.approx(119.0), "the join bar is flat: 119 → 119, no step"
+    old_rule_join_bar = (119 + 119 + 100) / 3
+    assert c[2] != pytest.approx(old_rule_join_bar), "the pre-fix mean would have stepped to 112.67"
+    assert c[3] == pytest.approx(119.0 * (1 + 0.10 / 3)), "C's +10 % at one-third weight: 119 × (1 + 0.1/3) = 122.97"
+
+
+def test_composite_does_not_step_when_a_member_misses_one_bar_and_returns():
+    """Review finding B8, the other half. One of four members sits 36 % below
+    the others (A/B/C at 120 indexed, D at 80 ⇒ composite 110). D has no bar at
+    t=1002 and is back at t=1003 with its price unchanged. The earlier shape
+    averaged the three remaining names (120) on the gap bar and the four again
+    on the return (110): a +9.1 % / −8.3 % pair out of nothing. Chain-linked,
+    nobody present moved, so the composite stays at 110 through both bars, and
+    D's +10 % after it returns counts at its re-linked weight."""
+    series = {
+        "A": _bars([100, 120, 120, 120, 120]),
+        "B": _bars([100, 120, 120, 120, 120]),
+        "C": _bars([100, 120, 120, 120, 120]),
+        "D": [{"t": 1000, "c": 100.0}, {"t": 1001, "c": 80.0},            # no bar at t=1002
+              {"t": 1003, "c": 80.0}, {"t": 1004, "c": 88.0}],
+    }
+    comp = rb.equal_weight_composite(series)
+    assert [b["t"] for b in comp] == [1000, 1001, 1002, 1003, 1004], "3 of 4 present is ≥ half, so 1002 is emitted"
+    c = [b["c"] for b in comp]
+    assert c[0] == pytest.approx(100.0)
+    assert c[1] == pytest.approx((120 * 3 + 80) / 4) == pytest.approx(110.0)
+    assert c[2] == pytest.approx(110.0), "D dropped out and nobody moved: no step (the pre-fix mean read 120)"
+    assert c[3] == pytest.approx(110.0), "D returned at its old price and nobody moved: no step back"
+    # D re-linked at the composite's 110 on bar 3 (scale 110 / 80 = 1.375), so its
+    # 80 → 88 on bar 4 is 110 → 121 indexed, against A/B/C's unchanged 3 × 120:
+    # 110 × (360 + 121) / (360 + 110) = 112.5745.
+    assert c[4] == pytest.approx(110.0 * (360 + 88 * (110 / 80)) / (360 + 110))
+    assert c[4] == pytest.approx(112.574468, rel=1e-6)
+
+
+def test_composite_with_constant_membership_is_still_the_mean_of_indexed_values():
+    """Chain-linking changes nothing while nobody joins or leaves: the step
+    ``Σ indexed[t] / Σ indexed[prev]`` IS the ratio of the two means."""
+    comp = rb.equal_weight_composite({"A": _bars([10, 11, 12, 9]), "B": _bars([100, 100, 100, 100]),
+                                      "C": _bars([50, 55, 50, 60])})
+    c = [b["c"] for b in comp]
+    assert c == pytest.approx([100.0, (110 + 100 + 110) / 3, (120 + 100 + 100) / 3, (90 + 100 + 120) / 3])
+
+
 # ── the provider ───────────────────────────────────────────────────────────
 
 def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch):
