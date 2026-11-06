@@ -1083,9 +1083,10 @@ export default function NoteEditorPage({
   // The visible Find door (the header button, and on a phone the More panel's item).
   const openFind = () => setFindOpen(true)
   // S10 (M4): the save indicator is mounted empty, then filled (a live region that arrives holding words is often
-  // not read).
-  const [indicatorOn, setIndicatorOn] = useState(false)
-  useEffect(() => { setIndicatorOn(true) }, [])
+  // not read). Finish review 1: keyed on WHERE the region lives (`indicatorHome`, below), not on this component's
+  // first mount -- the region first mounts when the note ARRIVES (the loading skeleton has none), and again when a
+  // phone crosses 640 px, and each of those inserts must be empty. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const [indicatorOnFor, setIndicatorOnFor] = useState(null)
   // The More panel's "Move to folder" select on a phone (its label's target).
   const moveFolderId = useId()
   const onPageKeyDown = (e) => {
@@ -3565,6 +3566,10 @@ export default function NoteEditorPage({
   // not for the indicator's words too, so a phone says them at the end of the line under the title (NoteDetailsLine
   // `trail`). ONE indicator is mounted at a time, so there is one polite region. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
   const savedOnTitleLine = deferFirstRun
+  const indicatorHome = !note ? null : (savedOnTitleLine ? 'title-line' : 'header')
+  // The commit that inserts the region renders it empty; this effect runs after that commit and fills it.
+  useEffect(() => { setIndicatorOnFor(indicatorHome) }, [indicatorHome])
+  const indicatorOn = indicatorHome !== null && indicatorOnFor === indicatorHome
   const saveIndicator = (className) => (
     <span className={className} role="status" aria-live="polite" data-save-indicator="">
       {indicatorOn ? saveIndicatorWords({
@@ -5353,10 +5358,12 @@ export default function NoteEditorPage({
               note's details, beside the properties it derives (Sector, Industry, Theme). It
               was also mirrored there as a read-only "Ticker" property, so the ticker showed
               twice; now there is ONE control, the same input on the same door. */}
-          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
-          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
-          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
-          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Finish review 3: `.headerMsg` -- on a phone a header message takes a line of its own, so the one-row
+              header never wraps while it shows. */}
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} className={styles.headerMsg} />
+          {chromeMsg && <span className={`${styles.chromeMsg} ${styles.headerMsg}`} role="status">{chromeMsg}</span>}
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}

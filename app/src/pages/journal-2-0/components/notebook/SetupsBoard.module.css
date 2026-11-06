@@ -113,7 +113,7 @@
 }
 .distance {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-bright);
 }
@@ -155,7 +155,8 @@
   gap: 6px 10px;
 }
 .noteLink {
-  font-size: 12px;
+  /* Finish review 6: the same step as `.action` beside it in the card footer. */
+  font-size: 13px;
   color: var(--text-bright);
   /* Underlined in its own colour: a fixed white underline was invisible in the light theme. */
   text-decoration: underline;

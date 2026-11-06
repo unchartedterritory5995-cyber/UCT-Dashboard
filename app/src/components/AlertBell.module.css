@@ -34,7 +34,8 @@
   color: var(--text-bright);
   font-family: var(--font-mono);
   /* Finish batch (2026-11-05, owner-approved app-wide): 9 px was the one size under the type scale on every screen;
-     the scale's smallest step (10 desktop / 11 touch). The 16 px circle is unchanged: one digit still fits inside it. */
+     the scale's smallest step: 10 px, and 11 on a phone (<=640, tokens.css's phone comfort scale; a tablet stays 10).
+     The 16 px circle is unchanged: one digit still fits inside it. */
   font-size: var(--text-xs); font-weight: 700;
   border-radius: var(--radius-lg);
   display: flex; align-items: center; justify-content: center;

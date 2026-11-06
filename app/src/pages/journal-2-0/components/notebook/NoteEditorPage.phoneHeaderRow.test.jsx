@@ -10,12 +10,13 @@
 // declarations that size it (the cascade's EFFECTIVE value, base and phone rules in source order -- the trap that hid
 // the 186 px), and renders the editor to prove the indicator and Share's word are where the arithmetic assumes. The
 // verdict is a real browser at 360 and 390 px.
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
+import editorStyles from './NoteEditorPage.module.css'
 
 const read = (rel) => readFileSync(join(process.cwd(), 'src', rel), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
@@ -81,12 +82,13 @@ const px = (v, vars) => {
 }
 
 /** The phone note header's width budget, from the stylesheets. `widthOk` is what the row needs at `width` px. */
-export function headerRowBudget({ editorCss, tabCss, layoutCss, tokensCss, width }) {
+export function headerRowBudget({ editorCss, tabCss, layoutCss, tokensCss, width, count = 4 }) {
   const vars = {}
   for (const [, n, v] of tokensCss.matchAll(/(--tap-min|--space-sm):\s*([\d.]+px)/g)) if (!(n in vars)) vars[n] = parseFloat(v)
   const ed = rulesAt(editorCss, width)
   const tab = rulesAt(tabCss, width)
-  const gutter = px(/--page-pad-x:\s*([\d.]+px)/.exec(layoutCss)?.[1], vars)
+  // Review 4: the gutter through the cascade at this width, so a phone override of `--page-pad-x` is read.
+  const gutter = px(effective(rulesAt(layoutCss, width), '.root', '--page-pad-x'), vars)
   const reserve = px(effective(tab, '.wrap[data-note-open] .mainNote [data-note-header]', 'padding-left'), vars)
   const padRight = px((effective(ed, '.header', 'padding') || '').split(/\s+/)[1], vars)
   const gap = px(effective(ed, '.headerControls', 'gap'), vars)
@@ -94,8 +96,11 @@ export function headerRowBudget({ editorCss, tabCss, layoutCss, tokensCss, width
   // bare phone rule would lose. Specificity, then source order: the compound selector wins wherever it applies.
   const aiGap = px(effective(ed, '.headerControls .aiGroup', 'gap') ?? effective(ed, '.aiGroup', 'gap'), vars)
   const control = px(effective(ed, '.chromeBtn', 'min-width'), vars)
-  // Favorite · AI (Writing help; Ask is not displayed on a phone, its slot leaves one empty node beside it) · Share · ⋯
-  const controls = 4 * control + 3 * gap + aiGap
+  // `count` is the controls a phone shows in the row (Favorite · AI · Share · ⋯ today). The render half below COUNTS them
+  // in a rendered editor and passes the number in, so a fifth control cannot pass by being left out of the sum.
+  // Review 3: transient items (`chromeMsg`, the SaveFailed lines) are NOT in the row on a phone: `.headerMsg` takes a
+  // line of its own (railed below), so they are excluded here on purpose.
+  const controls = count * control + (count - 1) * gap + aiGap
   const need = reserve + controls + padRight
   const room = width - 2 * gutter
   return { gutter, reserve, padRight, gap, aiGap, control, controls, need, room, fits: need <= room }
@@ -116,17 +121,43 @@ describe('the phone note header row fits ONE line at 360 and 390 px (structural)
     expect(b.need, JSON.stringify(b)).toBeLessThanOrEqual(b.room)
   })
 
-  it('the save indicator is not a header item on a phone, so its reserved width is not in the row', () => {
-    // its phone home is the line under the title (`.savedLine`, base rule: no reserved width)
+  it('the save indicator is on the line under the title on a phone, in a box that holds Saved and Saving… alike', () => {
+    // Review 2: a reserved width, so "Saved" <-> "Saving…" never wraps and unwraps the details line while typing.
     const ed = rulesAt(SHEETS().editorCss, 390)
-    expect(effective(ed, '.savedLine', 'min-width')).toBeNull()
+    expect(effective(ed, '.savedLine', 'min-width')).toBe('4.5em')
+    expect(effective(ed, '.savedLine', 'text-align')).toBe('right')
     expect(effective(ed, '.savedLine', 'margin-left')).toBe('auto')
   })
 
-  it('⭐ CONTROL -- the arithmetic fails the old row (8 px gaps, a 4 px AI gap, the 186 px indicator)', () => {
-    const b = headerRowBudget({ ...SHEETS(), width: 360 })
-    const old = b.reserve + 4 * 44 + 3 * 8 + 4 + 12 + 186 + 12
-    expect(old).toBeGreaterThan(b.room)
+  it('a header message takes a line of its own on a phone, never a place in the row (review 3)', () => {
+    const ed = rulesAt(SHEETS().editorCss, 390)
+    expect(effective(ed, '.headerControls .headerMsg', 'flex-basis')).toBe('100%')
+    expect(effective(ed, '.headerControls .headerMsg', 'order')).toBe('3')
+    // ...and above a phone the rule does not apply (the desktop row is unchanged)
+    expect(effective(rulesAt(SHEETS().editorCss, 1200), '.headerControls .headerMsg', 'flex-basis')).toBeNull()
+    // every message the header can show wears the class: chromeMsg and the three SaveFailed lines
+    const jsx = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx'), 'utf8')
+    const header = jsx.slice(jsx.indexOf('data-tour="ask-row"'), jsx.indexOf('data-tour="note-export"'))
+    expect(header.match(/<SaveFailed [^\n]*\/>/g)).toHaveLength(3)
+    for (const sf of header.match(/<SaveFailed [^\n]*\/>/g)) expect(sf).toContain('className={styles.headerMsg}')
+    expect(header).toMatch(/className=\{`\$\{styles\.chromeMsg\} \$\{styles\.headerMsg\}`\}/)
+  })
+
+  it('⭐ CONTROL -- the budget reads the cascade: the pre-batch phone CSS (8 px gaps, the AI gap) does NOT fit', () => {
+    // Review 7: the old phone rules spliced back out of the REAL stylesheet, so the base `.headerControls` gap (8) and
+    // the bare `.aiGroup` gap (4) are what the reader finds -- 104 + 176 + 24 + 4 + 12 = 320 > 312.
+    const sheets = SHEETS()
+    const old = sheets.editorCss
+      .replace(/\.headerControls\s*\{\s*gap:\s*4px;[^}]*\}/, '')
+      .replace(/\.headerControls \.aiGroup\s*\{\s*gap:\s*0;\s*\}/, '')
+    // non-vacuity: BOTH rules were found in the real stylesheet and removed
+    expect(/\.headerControls\s*\{\s*gap:\s*4px;[^}]*\}/.test(sheets.editorCss)).toBe(true)
+    expect(/\.headerControls \.aiGroup\s*\{\s*gap:\s*0;\s*\}/.test(sheets.editorCss)).toBe(true)
+    const b = headerRowBudget({ ...sheets, editorCss: old, width: 360 })
+    expect(b).toMatchObject({ gap: 8, aiGap: 4 })
+    expect(b.fits, JSON.stringify(b)).toBe(false)
+    // ...and a fifth control does not fit either: the count is a real term
+    expect(headerRowBudget({ ...sheets, width: 360, count: 5 }).fits).toBe(false)
     // ...and the effective-value reader sees a later base rule beat an earlier phone rule (the trap).
     const css = '@media (max-width: 640px) { .x { min-width: 5.5em; } } .x { min-width: 15.5em; }'
     expect(effective(rulesAt(css, 390), '.x', 'min-width')).toBe('15.5em')
@@ -148,8 +179,10 @@ const NOTE = {
   heroImageUrl: null, updatedAt: '2026-01-01T00:00:00Z', isFavorite: false, locked: false,
   bodyJson: { type: 'doc', content: [P('First body line.')] },
 }
+// Review 1: the hook's answer is switchable, so a test can open the note from LOADING to loaded.
+const { LOAD } = vi.hoisted(() => ({ LOAD: { loading: false } }))
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(async (p) => ({ ...NOTE, ...p })), refresh: vi.fn() }),
+  useJ2Note: () => ({ note: LOAD.loading ? null : NOTE, isLoading: LOAD.loading, update: vi.fn(async (p) => ({ ...NOTE, ...p })), refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -163,6 +196,7 @@ vi.mock('../VoiceInputButton', async () => {
 let width = 1200
 let originalMatchMedia
 beforeEach(() => {
+  LOAD.loading = false
   originalMatchMedia = window.matchMedia
   window.matchMedia = vi.fn((query) => {
     const clauses = [...String(query).matchAll(/\((max|min)-width:\s*(\d+)px\)/g)]
@@ -221,5 +255,71 @@ describe('where the indicator and Share\'s word are', () => {
     const whLabel = [...wh.querySelectorAll('span')].find((s) => s.textContent === 'Writing help')
     expect(word.className).toBe(whLabel.className)
     expect(word.className).not.toBe('')
+  })
+})
+
+describe('the row the phone draws, counted (review 4)', () => {
+  // The controls a phone SHOWS in the header row: real buttons, not inside a closed panel (`[hidden]`), not the Ask
+  // toggle and not a `.phoneInMore` item (both `display: none` in the phone block), not a header message.
+  const phoneVisibleControls = () => [...header().querySelectorAll('[data-tour="ask-row"] button')].filter((el) =>
+    !el.closest('[hidden]') && !el.closest('[data-ask-toggle]') && !el.closest(`.${editorStyles.phoneInMore}`)
+    && !el.closest(`.${editorStyles.headerMsg}`))
+
+  it('counts the controls the phone shows and the budget fits THAT count at 360 and 390 px', async () => {
+    await renderAt(390)
+    const n = phoneVisibleControls().length
+    expect(n, phoneVisibleControls().map((b) => b.getAttribute('aria-label')).join(', ')).toBe(4)
+    for (const w of [360, 390]) expect(headerRowBudget({ ...SHEETS(), width: w, count: n }).fits, `${w}`).toBe(true)
+  })
+
+  it('CONTROL: the count sees a control dropped into the row', async () => {
+    await renderAt(390)
+    const stray = document.createElement('button')
+    header().querySelector('[data-tour="ask-row"]').appendChild(stray)
+    expect(phoneVisibleControls()).toHaveLength(5)
+    expect(headerRowBudget({ ...SHEETS(), width: 360, count: 5 }).fits).toBe(false)
+    stray.remove()
+  })
+})
+
+describe('the save indicator mounts EMPTY when the note arrives (review 1)', () => {
+  // A live region that arrives already holding words is often not announced. The region must be inserted empty and
+  // filled by a later commit -- on an open that goes LOADING -> loaded, which is every real open.
+  async function openFromLoading(w) {
+    width = w
+    LOAD.loading = true
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const ui = <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} /></MemoryRouter>
+    const { rerender } = render(ui)
+    expect(document.querySelector('[data-save-indicator]')).toBeNull() // still loading: no region yet
+    // Record the region's text AT INSERTION (inside React's commit, before any effect can fill it): a DOM insert
+    // spy, because a MutationObserver reports after the commit, when the words may already be there.
+    const origAppend = Node.prototype.appendChild
+    const origInsert = Node.prototype.insertBefore
+    const snap = []
+    const watch = (node) => {
+      if (node?.nodeType === 1) {
+        const region = node.matches('[data-save-indicator]') ? node : node.querySelector('[data-save-indicator]')
+        if (region) snap.push(region.textContent)
+      }
+    }
+    Node.prototype.appendChild = function (n) { watch(n); return origAppend.call(this, n) }
+    Node.prototype.insertBefore = function (n, r) { watch(n); return origInsert.call(this, n, r) }
+    try {
+      LOAD.loading = false
+      await act(async () => { rerender(ui) })
+    } finally {
+      Node.prototype.appendChild = origAppend
+      Node.prototype.insertBefore = origInsert
+    }
+    await screen.findByPlaceholderText('Title')
+    await waitFor(() => expect(document.querySelector('[data-save-indicator]')?.textContent).toBe('Saved'))
+    return snap
+  }
+
+  it.each([390, 1440])('at %i px the region is inserted with no words, then says "Saved"', async (w) => {
+    const snap = await openFromLoading(w)
+    expect(snap.length).toBeGreaterThan(0)
+    expect(snap[0]).toBe('')
   })
 })

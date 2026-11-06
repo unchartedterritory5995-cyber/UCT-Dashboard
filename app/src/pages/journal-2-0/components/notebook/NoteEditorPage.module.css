@@ -766,8 +766,12 @@
      title's top at y=336; with this, one 61 px row and the title at y=253.
      ⛔ `.headerControls .aiGroup` (0,2,0) on purpose: the bare `.aiGroup` rule is declared AFTER this block, so a
      bare selector here would lose. Rail: NoteEditorPage.phoneHeaderRow.test.jsx. */
-  .headerControls { gap: 4px; }
+  .headerControls { gap: 4px; justify-content: flex-end; }
   .headerControls .aiGroup { gap: 0; }
+  /* Finish review 3: a header message (a Share / Export notice, a failed write) takes a line of its own under the
+     controls, the way `.saveStatus` does, so the row stays one row while it shows. (0,2,0): it outranks the
+     message's own module class. */
+  .headerControls .headerMsg { flex-basis: 100%; order: 3; white-space: normal; }
   /* An icon whose word is hidden sits centred (its inline 4 px gap was for the word). */
   .chromeBtn:has(> .phoneIconLabel) > svg { margin-right: 0 !important; }
   /* .folderInline: its finger floor lives in the <=1024px block (tablet is touch too). */
@@ -1151,6 +1155,10 @@
 /* Finish batch (iPhone): the same indicator on a phone, last on the line under the title (NoteDetailsLine `trail`). */
 .savedLine {
   margin-left: auto;
+  /* Finish review 2: one box for "Saved" and "Saving…", so an autosave never wraps and unwraps the line (and the
+     body under it) while the member types; only the rare offline phrase can take a second line. */
+  min-width: 4.5em;
+  text-align: right;
   white-space: nowrap;
   font-size: 12px;
   color: var(--text-muted);
