@@ -683,6 +683,48 @@ export function setInstanceInput(cs, instanceId, key, value, registry) {
 }
 
 /**
+ * Apply a definition PRESET (`def.meta.presets[i]`, a named set of input values)
+ * to ONE instance — the settings dialog's generic preset picker calls this.
+ *
+ * ⛔ IT IS A LOOP OVER `setInstanceInput`, NOT A SECOND WRITER. Every key in
+ * `preset.inputs` goes through the one validating door, in declaration order of
+ * the preset, so a value the definition would refuse (out of range, wrong type)
+ * is refused here too and never reaches the blob — a preset that wrote the
+ * instance directly would be the exact door-count defect the dialog's header
+ * comment names. A key the definition does not declare is SKIPPED with a
+ * `console.warn`, never thrown: a stale preset must not take the dialog down.
+ *
+ * It reconfigures the CURRENT instance only. It never adds an instance, never
+ * touches a sibling, and never stores a preset id — "which preset is this" is
+ * derived by the reader from the inputs themselves (plan §5, §6.8).
+ *
+ * Returns `cs` BY IDENTITY when nothing changed (no preset, no instance, no
+ * declared key, or every declared key already stored at the preset's value),
+ * so a caller can skip persisting the way it does for the other writers.
+ */
+export function applyPresetInputs(cs, instanceId, def, preset, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!preset || typeof preset !== 'object') return cs
+  const inputs = preset.inputs
+  if (!inputs || typeof inputs !== 'object' || Array.isArray(inputs)) return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst || !def) return cs
+  const declared = declaredInputs(def)
+  let next = cs
+  for (const [key, value] of Object.entries(inputs)) {
+    if (!declared.has(key)) {
+      console.warn(`[instanceControls] preset "${preset.id}" names "${key}", which ${def.id} does not declare; skipped`)
+      continue
+    }
+    const current = findInstance(next, instanceId)
+    const stored = current && current.inputs && typeof current.inputs === 'object' ? current.inputs : {}
+    if (Object.prototype.hasOwnProperty.call(stored, key) && stored[key] === value) continue
+    next = setInstanceInput(next, instanceId, key, value, registry)
+  }
+  return next
+}
+
+/**
  * Add ANOTHER instance of a definition already on the chart.
  *
  * The new instance carries the definition's DECLARED defaults rather than a copy

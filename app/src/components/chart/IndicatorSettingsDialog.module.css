@@ -20,6 +20,64 @@
   gap: 10px;
 }
 
+/* ── the preset picker (header, above the tabs) ───────────────────────────── */
+
+/* Rendered only for a definition that declares `meta.presets`. One row — label
+   left, select + reset right — on the same `--fld-label-w` column as the input
+   rows below it, so the picker reads as the first row of the form rather than a
+   second toolbar. The origin line takes a whole line of its own underneath. */
+.presetBar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px;
+  flex: 0 0 auto;
+}
+.presetRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+}
+.presetLabel {
+  flex: 0 0 var(--fld-label-w);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.presetControls {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.presetBtn {
+  appearance: none;
+  font: inherit;
+  font-size: 12px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.presetBtn:hover { border-color: var(--border-accent); }
+.presetBtn:focus-visible { outline: 1px solid var(--border-accent); outline-offset: -2px; }
+.presetBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.presetOrigin {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-bottom: 4px;
+}
+
 /* ── tabs ─────────────────────────────────────────────────────────────────── */
 
 .tabs {
@@ -327,6 +385,7 @@
     min-height: var(--tap-min);
     font-size: 16px;
   }
+  .presetBtn { min-height: var(--tap-min); }
   .toggle {
     width: 52px;
     height: 30px;
@@ -346,7 +405,8 @@
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
   .num,
-  .sel {
+  .sel,
+  .presetBtn {
     min-height: var(--tap-min);
   }
 }
