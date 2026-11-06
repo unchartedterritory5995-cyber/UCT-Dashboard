@@ -563,3 +563,12 @@ Merging to master is still not authorized in this file; the owner approves it di
 - W6-T1: review pending; measure runtime-1 in progress.
 - New: W34-I4 builder (light phase), W34-I6 spec writer.
 - Heavy cap: 2 concurrent jobs (coordinator-ordered) after repeated low-memory stops.
+
+
+## 2026-11-06 evening
+- W6-T5 LANDED as ENGINE 21: PR #893 -> master f9651f47ee (bump 70f04da894). Canary withheld slot moved arrays_sort@listing -> h_request_security@listing (arrays_sort now served; keeps 8 ok / 2 withheld-by-name design). hostParity 34/34, service tests 128/128.
+- FOLLOW-UP: hostParity records a mid-run stop as generic runtime:failed (arrays_basic) instead of the refusal name.
+- FOLLOW-UP (master): v1/v2 nz(x[k],fill) bar 0 on listing = being fixed in W34-I4b (no corpus script affected; atr-god is v5).
+- FOLLOW-UP (master, N4 of I6a review): inner switch arms at odd indents (9/6) already served on master; check against the manual.
+- In flight (all reviewed GO-WITH-NOTES, waiting on heavy): W6-T1 (final-tip running, no bump), W34-I4 (measure running; engine 22), W34-I6a (measure running; engine 23), W34-I4b (queued; engine 24). New: W6-T7 matrix builder (light phase). W6-T8 map after T7 (both edit collections.js).
+- Heavy cap: 2-3 concurrent, coordinator-ordered.
