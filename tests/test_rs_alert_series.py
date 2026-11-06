@@ -74,21 +74,17 @@ class _Store:
 
 @pytest.fixture(autouse=True, scope="module")
 def _rs_registered():
-    """⛔ THE ENTRIES ARE REGISTERED HERE, NOT AT IMPORT. `register_rs_series` is
-    unit 2b-05's call (beside the partition and the catalog rows); this module
-    makes it for its own duration and undoes it, so every other alert test file
-    sees the 32-entry table it has always seen."""
-    before = list(alert_series.SERIES_FUNCS)
-    assert not any(a in before for a in ars.RS_ADDRESSES), "nothing registered at import"
-    added = ars.register_rs_series()
-    assert added == ars.RS_ADDRESSES
+    """⭐ 2026-11-06 (RS 2b-05): THE ENTRIES ARE REGISTERED BY THE EVALUATOR AT ITS
+    IMPORT (`indicator_alert_evaluator.RS_ADDRESSES` / `register_rs_series()`,
+    before its partitions and `_CANONICAL_ADDRESS` are derived), so this fixture
+    ASSERTS that registration rather than making it — and never unregisters: the
+    evaluator's tables are a snapshot of the 43-entry table, and removing the
+    eleven would leave `RS_FUNCS` pointing at columns `SERIES_FUNCS` no longer
+    holds for every test file that runs after this one."""
+    assert all(alert_series.SERIES_FUNCS.get(a) is ars.RS_SERIES[a] for a in ars.RS_ADDRESSES), (
+        "the evaluator's import did not register the RS entries")
     assert ars.register_rs_series() == (), "idempotent"
-    try:
-        yield
-    finally:
-        removed = ars.unregister_rs_series()
-        assert removed == ars.RS_ADDRESSES
-        assert list(alert_series.SERIES_FUNCS) == before, "the table is exactly as it was"
+    yield
 
 
 def _expected(address, bars, bench, params):
@@ -126,9 +122,11 @@ def test_registration_is_explicit_idempotent_and_appends_last():
     assert list(partial) == ["rs_line.value"]
     assert ars.unregister_rs_series(table) == ars.RS_ADDRESSES and list(table) == ["rsi", "ma_cross"]
     assert ars.unregister_rs_series(table) == ()
-    # the evaluator's derived tables were built at ITS import, before any registration
+    # 2026-11-06 (RS 2b-05): the evaluator registers at ITS import and derives its
+    # tables after — RS is in the fifth partition, never in the 28-wide grid
     assert not any(a in ev.INDICATOR_FUNCS for a in ars.RS_ADDRESSES)
-    assert not any(a in ev.all_addresses() for a in ars.RS_ADDRESSES)
+    assert all(a in ev.all_addresses() for a in ars.RS_ADDRESSES)
+    assert list(ev.RS_FUNCS) == list(ars.RS_ADDRESSES)
 
 
 def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
@@ -485,16 +483,13 @@ def test_declared_lookback_is_the_convergence_prefix_and_the_evaluator_reads_it(
 
     def alert(address, params):
         return {"indicator": address, "sym": "TEST", "tf": "D", "params_json": json.dumps(params)}
-    # ⛔ `resolve_address` lowercases the stored string and maps it through the
-    # evaluator's IMPORT-TIME `_CANONICAL_ADDRESS`. The RS addresses are camelCase,
-    # so until 2b-05 registers them BEFORE that map is built the evaluator cannot
-    # find the column and the window falls to the floor — pinned here so the
-    # dependency is a sentence somebody reads, not a surprise.
-    assert ev.resolve_address("rs_line.crossUp") == "rs_line.crossup"
-    assert ev.bars_needed_for_alert(alert("rs_line.crossUp", {})) == ev.BARS_MIN == 400
-    for a in ars.RS_ADDRESSES:
-        monkeypatch.setitem(ev._CANONICAL_ADDRESS, a.lower(), a)   # what registration before the map gives
+    # ⭐ 2026-11-06 (RS 2b-05): the evaluator registers the entries BEFORE its
+    # import-time `_CANONICAL_ADDRESS` is built, so the camelCase spelling
+    # resolves on its own and the declared lookback sizes the window — the
+    # pre-2b-05 pin (a lowercased miss and a floor-sized window) is retired.
+    assert ev.resolve_address("rs_line.crossUp") == "rs_line.crossUp"
     assert ev.resolve_address("RS_LINE.CROSSUP") == "rs_line.crossUp"
+    assert "rs_line.crossup" in ev._CANONICAL_ADDRESS
     assert ev.bars_needed_for_alert(alert("rs_line.crossUp", {})) == ev.bars_wanted(126) == 526
     assert ev.bars_needed_for_alert(alert("rs_line.newHigh", {})) == ev.bars_wanted(252) == 652
     assert ev.bars_needed_for_alert(alert("rs_line.value", {})) == ev.BARS_MIN == 400

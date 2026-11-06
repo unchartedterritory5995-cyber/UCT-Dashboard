@@ -73,7 +73,9 @@ def _fires_by_walking(alert, bars, mode=None):
 # ─── the catalog ────────────────────────────────────────────────────────────
 
 def test_ma_cross_is_a_catalog_entry_with_its_params_and_two_crossings():
-    entry = ev.alert_catalog()[-1]
+    # 2026-11-06 (RS 2b-05): the SEVENTEENTH group; `rs_line` is appended after it
+    # (the order itself is pinned by `test_catalog_order_is_the_dropdown_order_and_it_did_not_change`).
+    entry = ev.alert_catalog()[16]
     assert entry["indicator"] == "ma_cross" and entry["label"] == "MA Cross"
     (plot,) = entry["plots"]
     assert plot["value"] == "ma_cross"
@@ -90,8 +92,14 @@ def test_the_frozen_grid_and_every_existing_entry_are_unmoved():
     plot grows a key — `input_options` / `instance_defs` exist only where declared."""
     assert len(ev.INDICATOR_FUNCS) == 28 and "ma_cross" not in ev.INDICATOR_FUNCS
     assert "ma_cross" not in ev.THRESHOLD_ADDRESSES
-    assert ev.all_addresses()[-1] == "ma_cross" and len(ev.all_addresses()) == 32
-    for entry in ev.alert_catalog()[:-1]:
+    # 2026-11-06 (RS 2b-05): the eleven `rs_line.*` addresses are appended AFTER `ma_cross`.
+    assert ev.all_addresses()[31] == "ma_cross" and len(ev.all_addresses()) == 43
+    # …every group BEFORE `ma_cross`. 2026-11-06 (RS 2b-05): `rs_line`, after it,
+    # declares both keys on every plot too (its columns carry `input_options` and
+    # `instance_defs`), by the same rule — only where the column declares them.
+    catalog = ev.alert_catalog()
+    assert [e["indicator"] for e in catalog[16:]] == ["ma_cross", "rs_line"]
+    for entry in catalog[:16]:
         for plot in entry["plots"]:
             assert "input_options" not in plot and "instance_defs" not in plot, plot["value"]
 
@@ -238,7 +246,7 @@ def _post(client, **over):
 def test_the_catalog_is_served_with_the_entry(client):
     r = client.get("/api/indicator-alerts/catalog")
     assert r.status_code == 200
-    assert r.json()["catalog"][-1]["indicator"] == "ma_cross"
+    assert r.json()["catalog"][16]["indicator"] == "ma_cross"   # 2026-11-06 (RS 2b-05): `rs_line` follows
 
 
 def test_a_valid_cross_is_armed_with_its_params(client):

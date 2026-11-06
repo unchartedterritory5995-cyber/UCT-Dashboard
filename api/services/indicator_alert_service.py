@@ -1009,6 +1009,35 @@ def _closed_lane_offer_text(address: str, bars: Optional[list],
             + ", ".join(offers) + ".")
 
 
+def _closed_value_for(alert: dict, address: str, judged: list, params: dict):
+    """The closed lane's value AT the judged bar, through the lane's own call shape.
+
+    ⭐ 2026-11-06 (RS 2b-05). `ev._closed_address_value` is the right-hand
+    operand's resolver — `series_for(address, bars, params)`: no timeframe, no
+    symbol — and a benchmark-reading column answers `[None] * n` to that call by
+    construction, so `diagnose` read every RS alert as "no value … not enough
+    history" however much history it had, and the silence sweep would never
+    have flagged the one that was genuinely refused. A `reads_benchmark` column
+    is called the way `_evaluate_one_closed` calls it (`call_series` with the
+    alert's own `tf` and `sym`, inside an RS pass that joins the cycle's or
+    opens its own), and its typed timeframe refusal propagates to the caller's
+    `except`, where the message IS the diagnosis. Every other address goes
+    through the resolver it always did, byte for byte.
+    """
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+    fn = alert_series.series_function(address)
+    if not getattr(fn, "reads_benchmark", False):
+        return ev._closed_address_value(address, judged, params)
+    if not judged:
+        return None
+    from api.services import alert_rs_series, alert_user_series
+    with alert_rs_series.rs_pass():
+        series = alert_user_series.call_series(
+            fn, judged, params, tf=alert.get("tf"), sym=alert.get("sym"))
+    return series[-1] if series else None
+
+
 def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     """WHY does this alert produce no value? ``(is_fault, detail)``.
 
@@ -1061,7 +1090,13 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
                       "so nothing can be computed")
 
     params = ev._parse_params(alert)
-    mode = ev.eval_mode()
+    # ⭐ 2026-11-06 (RS 2b-05) — THE LANE THE ADDRESS IS ACTUALLY JUDGED IN, not
+    # the mode alone: a CLOSED-ONLY address (`ma_cross`, every `rs_line.*`) is
+    # judged on the closed lane under the rollback lever too (`ev._lane_for`),
+    # so diagnosing it through the forming resolver would read a value nothing
+    # judges — for an RS column `None` by construction, i.e. "not enough
+    # history" forever. Every other address reads `eval_mode()` exactly as before.
+    mode = ev._lane_for(address, None)
     judged = bars
     if mode == "closed":
         index = ev.closed_bar_index(bars, str(alert.get("tf") or ""),
@@ -1074,7 +1109,7 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
 
     try:
         if mode == "closed":
-            value = ev._closed_address_value(address, judged, params)
+            value = _closed_value_for(alert, address, judged, params)
         else:
             value = ev.address_value(address, judged, params)
     except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
@@ -1353,6 +1388,14 @@ def user_definition_refusals(user_id: Optional[Any] = None) -> list[dict]:
 REFUSAL_UNJUDGEABLE_CONDITION = "is not a trigger rule this evaluator can judge"
 REFUSAL_INTRADAY_ONLY = "is only defined on an intraday timeframe"
 REFUSAL_NO_LEVEL = "compares against a level, and no level was given"
+#: 2026-11-06 (RS 2b-05) — the anchor of the FIFTH gate in `refusal_for`: the
+#: phrase every sentence `alert_rs_series.timeframe_refusal` produces carries.
+#: Not a copy of that sentence (the sentence is the lane's own); the phrase a test
+#: anchors on, kept disjoint from the four above so `match=` cannot be satisfied
+#: by a different gate (the Task 9 lesson), and pinned to the lane's sentence by
+#: `test_the_door_refuses_an_intraday_rs_create_with_the_lanes_own_sentence` and
+#: `test_the_three_refusals_are_DISJOINT`.
+REFUSAL_RS_TIMEFRAME = "are judged on closed daily or weekly bars only"
 
 #: How many bars the classification probe below runs on. Ichimoku needs 52 + a
 #: 26-bar displacement before it resolves at all, so a short probe would report
@@ -1555,6 +1598,21 @@ def refusal_for(indicator: Optional[str], condition: Optional[str],
                 f"branch of check_condition, which answers no for it on every "
                 f"bar, before and after the closed-bar cutover alike. The rules "
                 f"it can judge are: {offered}.")
+
+    # ⭐ 2026-11-06 (RS 2b-05) — THE RS TIMEFRAME GATE, AT THE DOOR. An RS column
+    # RAISES `RsTimeframeRefused` on an intraday or monthly timeframe before it
+    # reads anything, so a row that got past here would be a logged refusal
+    # every cycle (`_evaluate_one_closed`) and never a fire. The member reads
+    # the lane's own sentence (`alert_rs_series.timeframe_refusal`) here
+    # instead. True in BOTH lanes: an RS address is CLOSED-ONLY, so
+    # `eval_mode()` is not consulted — the rollback lever cannot make an
+    # intraday RS alert judgeable, which is what lets this gate sit above the
+    # mode-reading one without pre-judging it.
+    if address in ev.RS_ADDRESSES:
+        from api.services import alert_rs_series
+        why = alert_rs_series.timeframe_refusal(tf, address)
+        if why is not None:
+            return why
 
     if address in instant_only_addresses() and code in ev._CALENDAR_TFS:
         intraday = ", ".join(sorted(ev._TF_MINUTES))
