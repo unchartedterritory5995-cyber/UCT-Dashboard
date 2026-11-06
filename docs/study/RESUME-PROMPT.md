@@ -35,8 +35,22 @@ ALL changes to the level and effect and magnitude that my feedback mandated."
   our Charts tab): the chart is the hero and nothing else is a box — one bare status line, the widget full width, one
   prompt line in display type beside the mark (ui/Prompt), four pills, one action, the lesson as a plain block under a
   hairline, a verdict flash, the start and the end a full stage on a dim chart. Batch 20 (round 19) was never cut (the
-  capture was killed for memory; dropped); on the shell as batch 21 (`?b=21&p=b21-hard`, 23 parts) for his ranks. The
-  drill adopts the kit next, on his batch-17 words. The shell keeps unsaved ranks in the browser until Save.
+  capture was killed for memory; dropped); batch 21 (round 20) is ranked (2026-11-06, 50/100: the pointer 11/100,
+  the run-on, the ticker, the verdict and the start button Cut; the start stage 68/100). ROUND 21 applies every
+  part: (1) CORRECTNESS: his AAPL chart (a Launchpad near-miss the screen called "Nothing fired") IS an Oops
+  Reversal by the engine, so api/services/study_hard.py sweeps every Hard chart with all seven setup rules (the
+  engine detectors + the Williams Oops + an up-day window volume record + the bear-gap finder's hard conditions)
+  and a `hard: true` skill session serves only a Yes chart nothing else fires on or a No chart nothing fires on
+  (216 of 363 sandbox charts); another setup's name is posted as itself (a recorded miss); (2) the run-on reaches
+  the move's culmination (the forward strip is topped up to 60 sessions from the server's own bars.db; the chart
+  runs to its best point before a close breaks the signal candle, and 5 past it, a gold callout "+X% in N
+  sessions"); (3) the pointer is the chart's callout layer with a Study `look` (ChartCalloutOverlay: a ring on
+  the candle, a one-line pill in open space, an arrow); (4) the
+  lesson is a coach's card (a direct headline, the last candle measured in six numbers, the bank's chart line, the
+  rule as numbered steps in his words; a near-miss template gets the rule from `reveal.setup_rule`); (5) status
+  line, pressed-edge buttons, metal title, rule tiles, struck medal, score ring, stat cards. On the shell as batch
+  22 (`?b=22&p=b22-hard`). The drill adopts the kit next, on his batch-17 words. The shell keeps unsaved ranks in
+  the browser until Save.
 - Round 17b applied the owner's batch-16 verdicts (50/100): live turning mark + hero question; a facts TABLE with
   gauges (off high, vs 20/50 MA, ADR) beside a 380px chart in the member's own Charts-tab look; a numbered journey
   bar the mark walks; gold-coin answer cards; the gold Check pill; a full-screen verdict with a slam stamp;
@@ -122,9 +136,10 @@ deployments API for this; read commit statuses and check-run annotations.
   After 17b: "This was good i have some feedback but want my peers to check out this version."
 
 ## Next
-1. The owner's batch-17 ranks (the drill) and batch-21 ranks (Hard mode, round 20 = the revamp, PR #880) + his team's
-   notes → the drill on the Study UI kit (pages/study/ui) and on the real widget (ui/StudyChart), in the round-20
-   composition, stacked on #880 until #874 and #880 are in, then off `origin/master`. Batches 18 and 19 are applied.
+1. The owner's batch-22 ranks (Hard mode, round 21, PR #880) and batch-17 ranks (the drill) + his team's notes →
+   the drill on the Study UI kit (pages/study/ui) and the real widget (ui/StudyChart), stacked on #880 until #874
+   and #880 are in, then off `origin/master`. Batches 18, 19 and 21 are applied. Every other challenge that asks
+   "what fired?" (Blitz's name-it questions) should use the same swept pool (`hard: true`).
 2. If he asks: the Study landing / start card in the same look; the end card to Great.
 3. Backlog as it stands 2026-11-05 evening (every line waits on him; nothing runs on the pod without his `!`):
    - Hard mode and Draw-it: the 16 Kicker `levels` drafts (levels.kicker, PR #819) wait on the pod for his approval

@@ -1512,5 +1512,115 @@
     "label": "the run log"
    }
   ]
+ },
+ {
+  "id": "b22-hard",
+  "batch": 22,
+  "title": "1 · Hard mode, round 21: your batch-21 ranks, every part",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "Your AAPL call was right: the engine's Oops Reversal rule fires on that candle, so 'Nothing fired' was wrong. Every Hard chart is now checked against all seven setups before it can play: a chart keeps its place only when its own setup is the one thing that fires, or nothing fires at all. 216 of 363 bank charts pass; your AAPL chart and a WFRD chart where a Launchpad also fires are out. The arrow and the box are replaced: a ring round the candle, a label in open space, an arrow to it, never over another candle. After you answer, the chart runs on to the trade's best point and a few days past it (up to 60 sessions, not 20), quick after the first few candles, and a gold label marks the move: '+20.4% in 22 sessions'. The best point counts only while the trade is alive: once a close breaks the signal candle's low, a later high is not credited to it. When nothing fired, the chart runs on 30 sessions. The ticker shows with the company name, and the big name across the candles is gone. The lesson is a coach's card: a straight headline, the last candle measured in six numbers, what happened on this chart, and the rule as numbered steps in your own words. The status line, the buttons, the start and end screens are rebuilt; the keyboard hint is gone.",
+  "judge": "Rank every part. Name an app that does a part better, and I build to it.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start screen"
+   },
+   {
+    "id": "title",
+    "label": "the HARD MODE title"
+   },
+   {
+    "id": "medal",
+    "label": "the Legendary medal, locked"
+   },
+   {
+    "id": "rules",
+    "label": "the three rule tiles (replaces the paragraph)"
+   },
+   {
+    "id": "start",
+    "label": "the Start button"
+   },
+   {
+    "id": "status",
+    "label": "the status line: mode, progress rail, count, charts named"
+   },
+   {
+    "id": "frame",
+    "label": "the widget's header (you ranked it Good; unchanged)"
+   },
+   {
+    "id": "chart",
+    "label": "the chart with the new pointer"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer: ring, label, arrow"
+   },
+   {
+    "id": "prompt",
+    "label": "the question line (you ranked it Good; unchanged)"
+   },
+   {
+    "id": "pills",
+    "label": "the four pills"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "verdictLine",
+    "label": "the verdict line"
+   },
+   {
+    "id": "runon",
+    "label": "the run-on to the high point, with the gold move label"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker and company name revealed"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the pills after the verdict"
+   },
+   {
+    "id": "lesson",
+    "label": "the coach's card on the first chart"
+   },
+   {
+    "id": "lessonFired",
+    "label": "the coach's card on a chart where a setup fired"
+   },
+   {
+    "id": "lessonNone",
+    "label": "the coach's card on a chart where nothing fired"
+   },
+   {
+    "id": "runonNone",
+    "label": "the run-on on a chart where nothing fired"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run"
+   },
+   {
+    "id": "end",
+    "label": "the end screen"
+   },
+   {
+    "id": "score",
+    "label": "the score ring (or the lit medal on a perfect run)"
+   },
+   {
+    "id": "stats",
+    "label": "the three stat cards"
+   },
+   {
+    "id": "runlog",
+    "label": "the run log, with what you said on a miss"
+   }
+  ]
  }
 ]
