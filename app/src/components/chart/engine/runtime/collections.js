@@ -471,7 +471,9 @@ const W19R2_MEMBERS = {
  *   · an unbiased estimate over one element (n − 1 = 0), a covariance of two arrays of
  *     different sizes, a percentile outside (0, 100], an `na` `biased`;
  *   · `array.lastindexof` of `na` (only `indexof`'s answer is measured);
- *   · `array.every` / `array.some` of an EMPTY array, and in a script older than v6.
+ *   · `array.every` / `array.some` of an EMPTY array, and in a script older than v6;
+ *   · (review B1) `array.median` over an EVEN count, and `median` / `stdev` / `variance` over
+ *     an array the run cannot prove is float (`provablyFloat`).
  *  ⛔ Kept out of the table altogether, so the front end refuses them `runtime:array`
  *  at build: `percentile_linear_interpolation` (which interpolation), `standardize`
  *  (biased or unbiased stdev), `percentrank` (`<` or `<=` in practice), `mode` (ties),
@@ -512,9 +514,22 @@ const divisorOf = (n, biased, what) => {
   return n - 1
 }
 
+/** ⛔ W6-T5 r1 (review B1) — `median`, `stdev` and `variance` each have an `array<int>`
+ *  form that returns `series int`, and the reference does not say how the fraction becomes
+ *  an int (truncate? round?). A run's numbers carry no int/float tag, so the run serves
+ *  these three only over an array it can PROVE is float: one holding a fractional element
+ *  (an `array<int>` cannot). An array of whole numbers stops by name (W6-A1), even when it
+ *  was declared float — a refusal where a guess would be a silent wrong value. */
+const provablyFloat = (xs, what) => {
+  for (const v of xs) if (!Number.isInteger(v)) return xs
+  throw unpinned(`${what} over an array of whole numbers (an \`array<int>\` returns \`series int\`, and the `
+    + 'reference does not say how the fraction is turned into an int; this run cannot prove the array is float)')
+}
+
 const varianceOf = (arr, biased, what) => {
   const xs = realsNoNa(arr, what)
   if (!xs.length) return NaN // the entry: `na` for an empty array
+  provablyFloat(xs, what)
   const m = meanOf(xs)
   let ss = 0
   for (const v of xs) ss += (v - m) * (v - m)
@@ -648,7 +663,11 @@ const W6T5_MEMBERS = {
       const xs = sortedAscending(realsNoNa(a[0], 'array.median'))
       const n = xs.length
       if (!n) return NaN // the entry: `na` for an empty array
-      return n % 2 ? xs[(n - 1) / 2] : (xs[n / 2 - 1] + xs[n / 2]) / 2
+      // ⛔ W6-T5 r1 (review B1) — the entry gives no even-count rule (the mean of the two
+      // middle values, or one of them?): an even count stops by name (W6-A1).
+      if (n % 2 === 0) throw unpinned(`array.median over an even count (${n}): the reference does not say which middle it takes`)
+      provablyFloat(xs, 'array.median')
+      return xs[(n - 1) / 2]
     },
   },
   'array.percentile_nearest_rank': {

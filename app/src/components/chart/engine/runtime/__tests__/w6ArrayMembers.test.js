@@ -20,8 +20,10 @@ import { execute } from '../vm.js'
 import { Budget } from '../limits.js'
 
 const N = 6
+// ⭐ r1 — FRACTIONAL prices: `median` / `stdev` / `variance` are served only over an array the
+// run can prove is float (one holding a fractional element), so whole-number bars would refuse.
 const BARS = Array.from({ length: N }, (_, i) => (
-  { t: 1700000000 + i * 86400, o: 99 + i, h: 101 + i * 2, l: 98 - i, c: 100 + i * 3, v: 1000 + i }))
+  { t: 1700000000 + i * 86400, o: 99.5 + i, h: 101.25 + i * 2, l: 98.75 - i, c: 100.5 + i * 3, v: 1000 + i }))
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 const per = (f) => BARS.map((b, i) => f(b, i))
 
@@ -150,10 +152,18 @@ describe('⭐⭐ array.variance / array.stdev / array.covariance — `biased` "O
 })
 
 describe('⭐ array.median — "the median of an array\'s elements"; na for an empty array', () => {
-  it('odd count: the middle value; even count: the mean of the two middle values', () => {
-    const [m3, m4] = runPine('a3 = array.from(high, open, close)\nplot(array.median(a3))\n' + `${OHLC}plot(a.median())`)
+  it('odd count over a float array: the middle value, as a call and as a method', () => {
+    const [m3, mm] = runPine('a3 = array.from(high, open, close)\nplot(array.median(a3))\nplot(a3.median())')
     close(m3, per((b) => [b.o, b.h, b.c].sort((x, y) => x - y)[1]))
-    close(m4, per((b) => { const s = ohlc(b).sort((x, y) => x - y); return (s[1] + s[2]) / 2 }))
+    close(mm, per((b) => [b.o, b.h, b.c].sort((x, y) => x - y)[1]))
+  })
+  it('⛔ (review B1) an EVEN count stops by name: the entry gives no even-count rule (W6-A1)', () => {
+    expect(() => runPine(`${OHLC}plot(a.median())`)).toThrow(/array\.median over an even count \(4\).*W6-A1/)
+  })
+  it.each(['median', 'stdev', 'variance'])('⛔ (review B1) %s over an array of whole numbers stops by name: `array<int>` returns `series int`, rounding unstated (W6-A1)', (name) => {
+    const re = new RegExp(`array\\.${name} over an array of whole numbers.*W6-A1`)
+    expect(() => runPine(`a = array.from(1, 2, 4)\nplot(array.${name}(a))`)).toThrow(re)
+    expect(() => runPine(`a = array.new_int()\narray.push(a, 1)\narray.push(a, 2)\narray.push(a, 4)\nplot(array.${name}(a))`)).toThrow(re)
   })
   it('`na` for an empty array; ⛔ an `na` element stops by name (W6-A1)', () => {
     const [e] = runPine('plot(array.median(array.new_float()))')
@@ -287,7 +297,7 @@ describe('⛔ under the C18 door\'s probe, median / stdev answer as master did',
     expect(hits).toEqual(per(() => `array.${name}`))
   })
   it('CONTROL — the same calls without a probe compute the reference formula', () => {
-    const [m] = runPine(`${OHLC}plot(array.median(a))`)
-    close(m, per((b) => { const s = ohlc(b).sort((x, y) => x - y); return (s[1] + s[2]) / 2 }))
+    const [m] = runPine('a = array.from(high, open, close)\nplot(array.median(a))')
+    close(m, per((b) => [b.o, b.h, b.c].sort((x, y) => x - y)[1]))
   })
 })

@@ -19,6 +19,8 @@
 //   V01-V03  variance(a, false) over one element; covariance of sizes 1 and 2; percentile_nearest_rank at 0
 //   Q01-Q02  percentile_nearest_rank at 101; percentile_nearest_rank at 0.5 over 4 values
 //   L01      lastindexof(a, na) over an array holding an na
+//   H01-H02  median over an even count: (1.5, 2.5, 4.5, 8.5) and (1.0, 2.0)  (mean of the middles, lower, upper?)
+//   I01-I04  over array<int> (1, 2, 4): median of (1, 2) (even, int), stdev, variance; avg of (1, 2)  (int rounding)
 //@version=6
 indicator("vw-w6-array-members", overlay = false)
 s1 = array.from(3.0, na, 1.0, 2.0)
@@ -78,3 +80,10 @@ plot(array.percentile_nearest_rank(pe, 0), "V03 pnr at 0")
 plot(array.percentile_nearest_rank(pe, 101), "Q01 pnr at 101")
 plot(array.percentile_nearest_rank(pe, 0.5), "Q02 pnr at 0.5")
 plot(array.lastindexof(array.from(1.0, na, 2.0), na), "L01 lastindexof na, present")
+plot(array.median(array.from(1.5, 2.5, 4.5, 8.5)), "H01 median even count, floats")
+plot(array.median(array.from(1.0, 2.0)), "H02 median of (1.0, 2.0)")
+ia = array.from(1, 2, 4)
+plot(array.median(array.from(1, 2)), "I01 median of int (1, 2)")
+plot(array.stdev(ia), "I02 stdev of int (1, 2, 4)")
+plot(array.variance(ia), "I03 variance of int (1, 2, 4)")
+plot(array.avg(array.from(1, 2)), "I04 avg of int (1, 2)")
