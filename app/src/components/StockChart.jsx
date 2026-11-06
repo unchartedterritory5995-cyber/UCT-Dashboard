@@ -20137,9 +20137,9 @@ export default function StockChart({
                         folded={folded}
                         {...legendRowHandlers}
                       />
-                    ) : (
+                    ) : (cs.volume?.visible === false ? null : (   // a hidden volume pane prints no volume (round 18: Hard mode's candles-only chart showed one)
                       <span key="vol" className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-                    )
+                    ))
                   }
                   if (it.kind === 'ma') {
                     const ov = it.ov

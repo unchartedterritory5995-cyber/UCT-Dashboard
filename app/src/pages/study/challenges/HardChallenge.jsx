@@ -95,17 +95,18 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const last = idx + 1 >= total
   const mood = state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'
   return (
-    <div className={`${s.kit} ${s.screen} ${state === 'bad' ? s.shake : ''}`} data-testid="hard-question" data-state={state}>
+    <div className={`${s.kit} ${s.screen}`} data-testid="hard-question" data-state={state}>
       <Hud mode="hard" step={idx} total={total} results={results} live={state === 'ask'} hidden={HIDDEN} right={<Crowns size={16} testId={null} />} />
-      <div className={s.split}>
+      <div className={`${s.split} ${state === 'bad' ? s.shake : ''}`}>
         <div className={s.col}>
-          <StudyChartFrame masked={state === 'ask' || !ticker} symbol={ticker || null} stamp={state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}>
+          <StudyChartFrame masked={state === 'ask' || !ticker} symbol={ticker || null}>
             <ChallengeChart look="widget" id={item.id} bars={all} view={view} height={phone ? 300 : 400} annotations={ann} chartOpts={HARD_CHART} watermark={state !== 'ask' ? ticker || null : null} fetcher={fetcher} />
           </StudyChartFrame>
           {state !== 'ask' && lesson ? <LessonCard text={lesson} ticker={ticker || null} setup={item.name} /> : null}
         </div>
         <div className={s.col}>
-          <MarkBubble mood={mood} tone={state} size={64}>{bubble}</MarkBubble>
+          {state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}
+          <MarkBubble mood={mood} tone={state} size={64} sealed={state !== 'ask'}>{bubble}</MarkBubble>
           <div className={s.qLine}>
             {state === 'ask'
               ? <span className={s.chip}>Name it</span>

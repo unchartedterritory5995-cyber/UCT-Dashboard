@@ -39,5 +39,15 @@ export function firstSentence(s) {
   return [m[0].trim(), t.slice(m[0].length).trim()]
 }
 
+/** The clauses of a chained sentence ("the drive ...; the pullback ...; the trigger ..."), each starting with a capital
+ *  and ending with a stop; one clause when there is no chain. The words are the bank's own. */
+export function clausesOf(text) {
+  const t = String(text || '').trim()
+  if (!t) return []
+  const parts = t.split(/;\s+/).map((c) => c.trim()).filter(Boolean)
+  if (parts.length < 2) return [t]
+  return parts.map((c, i) => cap(i === parts.length - 1 || /[.!?]$/.test(c) ? c : `${c}.`))
+}
+
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s }
 function endStop(s) { return s && !/[.!?]$/.test(s) ? `${s}.` : s }

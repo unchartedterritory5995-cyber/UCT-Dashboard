@@ -23,6 +23,13 @@ ALL changes to the level and effect and magnitude that my feedback mandated."
   The same PR fixes a LIVE scorer bug: the exact scorer read a choice only from a one-key dict, so every Spot the Kicker
   attempt since 2026-11-04 was stored as a miss. Once that merge serves, the owner runs with `!` the readback, then the
   DRY, then the APPLY of docs/study/audits/2026-11-05/{pod_readback_challenge_attempts,rescore_challenge_attempts_pod}.py.
+- ROUND 18 (PR #880, branch feat/study-round-18, stacked on #874): his batch-18 ranks on Hard mode (50; Check, Next,
+  the end card and the fourth crown Cut; "needs dramatic production, graphic, layout improvement on brand") are applied:
+  a Study UI kit (app/src/pages/study/ui: buttons, HUD, drawn crowns, coin cards, a seal, the lesson card, the stage,
+  the Charts-tab widget as the chart's frame, a callout pointer) replaces the lab's styles under Hard mode; the chart is
+  the MEMBER'S OWN Charts-tab widget look (ChallengeChart look="widget"; the ticker masked, then the badge and the
+  watermark). On the shell as batch 19 (`?b=19&p=b19-hard`, 25 parts) for his ranks; the drill adopts the kit next, on
+  his batch-17 words. The shell now keeps unsaved ranks in the browser and says "Nothing is sent until you press Save".
 - Round 17b applied the owner's batch-16 verdicts (50/100): live turning mark + hero question; a facts TABLE with
   gauges (off high, vs 20/50 MA, ADR) beside a 380px chart in the member's own Charts-tab look; a numbered journey
   bar the mark walks; gold-coin answer cards; the gold Check pill; a full-screen verdict with a slam stamp;
@@ -108,9 +115,9 @@ deployments API for this; read commit statuses and check-run annotations.
   After 17b: "This was good i have some feedback but want my peers to check out this version."
 
 ## Next
-1. The owner's batch-17 ranks (the drill) and batch-18 ranks (Hard mode) + his team's notes → round 18 on a new branch off
-   `origin/master`
-   (`feat/study-drill-round-18`), same loop, bigger moves where he says Weak.
+1. The owner's batch-17 ranks (the drill) and batch-19 ranks (Hard mode on the kit, PR #880) + his team's notes → the
+   drill on the Study UI kit (pages/study/ui), bigger moves where he says Weak, stacked on #880 until #874 and #880 are
+   in, then off `origin/master`. Batch 18 is ranked and applied (round 18).
 2. If he asks: the Study landing / start card in the same look; the end card to Great.
 3. Backlog as it stands 2026-11-05 evening (every line waits on him; nothing runs on the pod without his `!`):
    - Hard mode and Draw-it: the 16 Kicker `levels` drafts (levels.kicker, PR #819) wait on the pod for his approval

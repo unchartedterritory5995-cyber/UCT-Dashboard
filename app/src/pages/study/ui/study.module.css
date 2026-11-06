@@ -27,10 +27,13 @@
 }
 
 /* ── screen layout ───────────────────────────────────────────────────────────────────────────────────────── */
-.screen { display: flex; flex-direction: column; gap: 16px; padding-bottom: 112px; animation: slideIn .36s var(--k-ease) both; }
-.screen.shake { animation: shake .5s ease-in-out; }
+.screen { display: flex; flex-direction: column; gap: 16px; padding-bottom: 112px; animation: fadeIn .3s ease both; }
+.hud, .split { animation: slideIn .36s var(--k-ease) both; }
+.split.shake { animation: shake .5s ease-in-out; }
 .split { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
-.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.col { position: relative; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.split .cards { grid-template-columns: 1fr; }
+@media (max-width: 1024px) { .split .cards { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 1024px) { .split { grid-template-columns: 1fr; } }
 
 /* ── the HUD (owner, batch 18: the top bar "needs a higher level of production") ──────────────────────────── */
@@ -74,7 +77,8 @@
 .bubble.ok::before { background: #0f2a18; border-color: rgba(47, 175, 104, .5); }
 .bubble.bad { border-color: rgba(223, 70, 70, .5); background: linear-gradient(180deg, #2a1113, #141011); }
 .bubble.bad::before { background: #2a1113; border-color: rgba(223, 70, 70, .5); }
-@media (max-width: 640px) { .bubble { font-size: 16px; padding: 12px 14px; } }
+.bubble.sealed { padding-right: 108px; }
+@media (max-width: 640px) { .bubble { font-size: 16px; padding: 12px 14px; } .bubble.sealed { padding-right: 88px; } }
 
 /* ── the question line: a chip for what we know, the framing beside it ───────────────────────────────────── */
 .qLine { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -100,7 +104,7 @@
 .frameBrand { display: inline-flex; align-items: center; gap: 7px; padding-left: 8px; margin-left: 6px; border-left: 1px solid var(--k-line); color: var(--k-ink-dim); font-size: 10px; letter-spacing: .2em; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
 .frameBrand img { width: 18px; height: 18px; display: block; }
 .frameBody { position: relative; }
-@media (max-width: 640px) { .tfPill:not(.on) { display: none; } .frameBrand span { display: none; } .symName { display: none; } }
+@media (max-width: 640px) { .frameBrand { display: none; } .symName { display: none; } .tfLocked [class*=tfBtn]:not([class*=tfBtnActive]) { display: none; } }
 
 /* ── answer cards (batch 16: "gold-coin answer cards"; batch 18: "better and more on brand") ─────────────── */
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -162,21 +166,25 @@
 @media (max-width: 640px) { .footIn { flex-direction: column; align-items: stretch; gap: 10px; } .footMsg span { white-space: normal; } }
 
 /* ── the verdict stamp (batch 18: "average but closer") ──────────────────────────────────────────────────── */
-.stampWrap { position: absolute; right: 16px; top: 54px; z-index: 4; pointer-events: none; }
+.stampWrap { position: absolute; right: -10px; top: -22px; z-index: 4; pointer-events: none; }
 .stamp { position: relative; width: 112px; height: 112px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; transform: rotate(-9deg); animation: stampIn .6s var(--k-ease) both; color: var(--k-up); border: 3px solid currentColor; background: radial-gradient(circle at 50% 38%, rgba(12, 36, 22, .94), rgba(8, 14, 10, .94)); box-shadow: 0 0 0 5px rgba(0, 0, 0, .5), 0 0 44px rgba(47, 175, 104, .45), inset 0 0 0 2px rgba(0, 0, 0, .55); }
 .stamp::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; border: 1.5px dashed currentColor; opacity: .75; }
 .stamp.miss { color: var(--k-down); background: radial-gradient(circle at 50% 38%, rgba(42, 17, 19, .94), rgba(16, 8, 9, .94)); box-shadow: 0 0 0 5px rgba(0, 0, 0, .5), 0 0 44px rgba(223, 70, 70, .45), inset 0 0 0 2px rgba(0, 0, 0, .55); }
 .stamp svg { display: block; }
 .stampWord { font-size: 10px; letter-spacing: .24em; font-weight: 900; text-transform: uppercase; margin-top: -3px; }
-@media (max-width: 640px) { .stampWrap { right: 10px; top: 50px; } .stamp { width: 88px; height: 88px; } .stamp svg { width: 36px; height: 36px; } }
+@media (max-width: 640px) { .stampWrap { right: -4px; top: -26px; } .stamp { width: 88px; height: 88px; } .stamp svg { width: 36px; height: 36px; } }
 
 /* ── the lesson card (batch 18: "significant improvement and simplification") ────────────────────────────── */
 .lesson { display: grid; gap: 12px; padding: 18px 20px; border-radius: 18px; border: 1px solid rgba(220, 187, 94, .3); background: linear-gradient(180deg, #171409, #0f0f0f); box-shadow: 0 14px 34px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 241, 194, .12); animation: riseIn .45s var(--k-ease) both; }
 .lessonHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .eyebrow { font-size: 11px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; color: var(--k-gold-bright); }
 .eyebrow.dim { color: var(--k-ink-dim); }
-.lead { margin: 0; font-size: 17px; line-height: 1.5; color: var(--k-ink); font-weight: 600; }
+.lead { margin: 0; font-size: 16px; line-height: 1.55; color: var(--k-ink); font-weight: 500; }
 .lead b { color: var(--k-gold-bright); }
+.leadList { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.leadList li { position: relative; padding-left: 18px; font-size: 16px; line-height: 1.5; color: var(--k-ink); font-weight: 500; }
+.leadList li::before { content: ''; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(180deg, #f3dc8e, #b8942e); box-shadow: 0 0 8px rgba(220, 187, 94, .5); }
+.leadList li:first-child { font-size: 17px; font-weight: 600; }
 .rule { margin: 0; font-size: 14px; line-height: 1.55; color: var(--k-ink-soft); }
 .more summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--k-ink-dim); }
 .more summary::-webkit-details-marker { display: none; }
@@ -187,7 +195,7 @@
 @media (max-width: 640px) { .lesson { padding: 16px; } .lead { font-size: 16px; } }
 
 /* ── the stage: the start card and the end card share one shell ──────────────────────────────────────────── */
-.stageWrap { display: flex; justify-content: center; padding: 18px 0 40px; animation: slideIn .4s var(--k-ease) both; }
+.stageWrap { display: flex; justify-content: center; align-items: center; min-height: min(72vh, 760px); padding: 18px 0 40px; animation: slideIn .4s var(--k-ease) both; }
 .stageCard { position: relative; width: min(640px, 100%); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; padding: 36px 28px 30px; border-radius: 26px; border: 1px solid rgba(220, 187, 94, .28); background: radial-gradient(120% 80% at 50% 0%, rgba(220, 187, 94, .14), transparent 55%), linear-gradient(180deg, #16140d, #0e0e10); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 241, 194, .12); overflow: hidden; }
 .stageCard.legend { border-color: rgba(233, 205, 119, .6); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 90px rgba(220, 187, 94, .25), inset 0 1px 0 rgba(255, 241, 194, .3); }
 .stageCard > * { position: relative; z-index: 1; }
@@ -224,6 +232,7 @@
 
 /* ── motion ──────────────────────────────────────────────────────────────────────────────────────────────── */
 @keyframes slideIn { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes riseIn { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes cardIn { from { transform: translateY(12px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes gemIn { from { transform: translateY(18px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }

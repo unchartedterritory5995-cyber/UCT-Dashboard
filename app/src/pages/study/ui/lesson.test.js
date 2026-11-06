@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { firstSentence, splitLesson } from './lesson'
+import { clausesOf, firstSentence, splitLesson } from './lesson'
 
 // Real bank lessons (docs/study/bank/spot.setups.json, 2026-11-05), shortened only where marked.
 const HVE = 'High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day\'s close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 18.23% on the heaviest volume of the lookback.'
@@ -33,6 +33,15 @@ describe('splitLesson: the chart\'s own sentence leads, the rule follows, the st
     const L = splitLesson(HVE)
     const original = HVE.replace(/\s*\(owner rulings[^)]*\)/g, '')
     expect(`${L.setup}: ${L.rule.charAt(0).toLowerCase()}${L.rule.slice(1)} ${L.here}`).toBe(original)
+  })
+})
+
+describe('clausesOf: a chained sentence reads as steps', () => {
+  it('splits on the semicolons the bank wrote, capitalises each step and closes it', () => {
+    expect(clausesOf('Here the drive was a gap of 5.9%; the pullback ran 6 sessions; the trigger day closed up 4.32%.')).toEqual([
+      'Here the drive was a gap of 5.9%.', 'The pullback ran 6 sessions.', 'The trigger day closed up 4.32%.'])
+    expect(clausesOf('Here the stock closed up 18.23% on the heaviest volume.')).toEqual(['Here the stock closed up 18.23% on the heaviest volume.'])
+    expect(clausesOf('')).toEqual([])
   })
 })
 

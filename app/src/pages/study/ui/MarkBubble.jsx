@@ -4,11 +4,11 @@
 import StudyMark from '../../../components/study/StudyMark'
 import s from './study.module.css'
 
-export default function MarkBubble({ mood = 'idle', tone = 'ask', size = 64, children }) {
+export default function MarkBubble({ mood = 'idle', tone = 'ask', size = 64, sealed = false, children }) {
   return (
     <div className={s.ask}>
       <StudyMark mood={mood} size={size} />
-      <div className={`${s.bubble} ${tone === 'ok' ? s.ok : tone === 'bad' ? s.bad : ''}`} role="status">{children}</div>
+      <div className={`${s.bubble} ${tone === 'ok' ? s.ok : tone === 'bad' ? s.bad : ''} ${sealed ? s.sealed : ''}`} role="status">{children}</div>
     </div>
   )
 }

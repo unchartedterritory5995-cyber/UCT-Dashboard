@@ -73,7 +73,7 @@ export default function ChallengeChart({ id, bars, view = null, height = 320, an
         disablePatterns
         hideJournalOverlay
         hideCompare
-        hideLegend={!widget}
+        hideLegend={!widget || phone}
         hideScaleToggle
         showDrawingTools={false}
         hotkeysActive={false}
