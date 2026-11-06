@@ -40,17 +40,39 @@ def until(condition, seconds=10.0):
 
 
 @pytest.fixture
-def short(clean, monkeypatch):  # noqa: F811
-    monkeypatch.setenv(budget.TURN_DEADLINE_ENV, "0.3")
-    monkeypatch.setattr(limits, "EXPIRE_GRACE_S", 0.1)
+def clocks(monkeypatch):
+    """Every turn clock made during the test, so a test can run the deadline out from inside the model call.
+    A deadline set at turn start would also have to cover the turn's setup, which a long suite run can stretch."""
+    made = []
+
+    class Recorded(budget.TurnClock):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            made.append(self)
+
+    monkeypatch.setattr(budget, "TurnClock", Recorded)
+    monkeypatch.setattr(limits, "RENEW_EVERY_S", 0.05)     # the guard re-reads the clock this often
+
+    def run_out(after_s=0.05):
+        for clock in made:
+            clock.at = time.monotonic() + after_s
+    return run_out
 
 
 @pytest.fixture
-def hung(monkeypatch):
-    """A model call that never returns until the test lets it, as a stuck socket would."""
+def short(clean, clocks, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(limits, "EXPIRE_GRACE_S", 0.1)
+    return clocks
+
+
+@pytest.fixture
+def hung(monkeypatch, short):
+    """A model call that never returns until the test lets it, as a stuck socket would. The deadline runs out
+    once it has started."""
     entered, release = threading.Event(), threading.Event()
 
     def caller(**kw):
+        short()
         entered.set()
         assert release.wait(30)
         return _resp()
@@ -113,13 +135,13 @@ def test_a_turn_that_ends_in_time_keeps_its_answer_and_runs_no_cleanup(clean, cl
     assert held() == (0, 0) and budget.state()["calls"]["charged_worst_case"] == 0
 
 
-def test_a_turn_finishing_just_past_the_deadline_keeps_its_final_on_the_stream(clean, client, monkeypatch):  # noqa: F811
+def test_a_turn_finishing_just_past_the_deadline_keeps_its_final_on_the_stream(clean, clocks, client, monkeypatch):  # noqa: F811
     """Before: the guard's exit ended the stream, so the member saw the error while the final was already stored."""
-    monkeypatch.setenv(budget.TURN_DEADLINE_ENV, "0.1")
     calls = []
     answer = _caller(calls)
 
     def slow(**kw):
+        clocks()
         threading.Event().wait(0.2)                        # back past the deadline, well inside the grace
         return answer(**kw)
 
