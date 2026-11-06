@@ -28,6 +28,7 @@ import { TABLE, parseFormula, isPointwise, SESSION_LOOKBACK, SESSION_MAX_BARS } 
 // ⚠️ IMPORTED BY THE TEST, NEVER BY THE LINTER — see the agreement case below.
 import { maxLookback as interpretMaxLookback, ownLookback } from './interpret.js'
 import * as engineRegistry from '../nativeRegistry'
+import { measureTrailingPads, readGoldenFixtureDocs } from '../__tests__/goldenTrailingPads.js'
 
 /** The repo root, found by walking up. `import.meta.url` is an `http:` URL under
  *  this environment's vite transform and `process.cwd()` is `app/` for the
@@ -728,24 +729,15 @@ describe('there is no exemption surface, and the absence is proven over the lint
  *  neither of them typed. A hand-copied 26 would be a second declaration of one
  *  fact and it would rot the first time the pad moved. */
 function declaredForwardFactsFromGoldenFixtures() {
+  // ⭐ 2026-11-07 — THE MEASUREMENT IS SHARED, AND IT MEASURES PADS OF PLOTS.
+  // The loop that lived here counted the trailing null run of EVERY fixture
+  // column, and went red when the UCT RS fixtures added sparse event/dot columns
+  // (null wherever no event fired). The rule — a fact is a CONTINUOUS plot's
+  // column, addressed `<compute.fn>.<plotKey>` exactly as `lintDefinition` reads
+  // it — and its controls live in `../__tests__/goldenTrailingPads.js` and
+  // `perPlotRepaintBadge.test.jsx`, which read the same fact.
   const dir = path.join(ROOT, 'tests', 'fixtures', 'indicators')
-  const facts = {}
-  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-    const doc = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
-    const expected = doc && doc.expected
-    if (!expected || typeof expected !== 'object' || Array.isArray(expected)) continue
-    for (const [col, values] of Object.entries(expected)) {
-      if (!Array.isArray(values) || !values.length) continue
-      let trailing = 0
-      for (let i = values.length - 1; i >= 0 && values[i] === null; i--) trailing++
-      if (!trailing) continue
-      if (trailing === values.length) {
-        throw new Error(`${file}.${col} is entirely null — that is not a trailing pad, it is an empty column`)
-      }
-      facts[`${doc.kind}.${col}`] = trailing
-    }
-  }
-  return facts
+  return measureTrailingPads(readGoldenFixtureDocs(dir), engineRegistry.listDefinitions())
 }
 
 describe('the measurement over the shipped definitions — and it is allowed to disagree with us', () => {
