@@ -139,6 +139,7 @@ export async function runRequest(ctx, req) {
   let p = null
   try {
     p = ctx.openFn ? await ctx.openFn(R) : await open(R, { query: B.query || '', prefs: B.prefs || null, fixtures: { routes: ctx.routes || [] }, iaCatalog: B.iaCatalog || null, profile: ctx.profile || null })
+    ctx.onPage?.(p)
     await p.settle()
     await p.openPanel()
     const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ${q(req.board)} === 'MC' && x.id === 'g3') })()`, { timeout: 30000 })
