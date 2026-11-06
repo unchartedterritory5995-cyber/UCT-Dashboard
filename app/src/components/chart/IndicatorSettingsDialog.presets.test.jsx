@@ -402,3 +402,134 @@ describe('defSchema: meta.presets and meta.groupsCollapsed', () => {
     expect(errs(fixtureRaw({ groupsCollapsed: [] }))).toEqual([])
   })
 })
+
+// ─── UCT RS PHASE 2a, UNIT 2a-12 — THE DOT SIZE CONTROL AND PRESETS PAST `inputs` ──
+//
+// The Style tab's one control that is not an input: "Dot size" (Small / Default /
+// Large), shown only for a definition that draws dots, writing `presentation.dotSize`
+// through `setInstanceDotSize` — the writer the Chart Data row and the `setDotSize`
+// agent op share. And the picker now reads the whole preset: one that declares a
+// `dotSize` is "current" only while the copy carries it, so a size change away from
+// the word flips the select to Custom like an input change does.
+
+/** The fixture with a DOT output and presets that reach past `inputs`. ⭐ The more
+ *  specific preset (a dot size on top of its inputs) is listed FIRST — first match
+ *  wins in `detectPreset`, and ordering is the author's job. */
+const dotFixtureRaw = () => ({
+  ...fixtureRaw({
+    presets: [
+      { id: 'big', label: 'Big dots', origin: 'Fixture origin: big', inputs: { length: 33 }, dotSize: 'large' },
+      { id: 'fast', label: 'Fast', origin: 'Fixture origin: fast', inputs: FAST },
+      { id: 'slow', label: 'Slow', origin: 'Fixture origin: slow', inputs: SLOW },
+    ],
+  }),
+  plots: [
+    { key: 'out', label: 'Out', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } },
+    { key: 'dot', label: 'Dot', style: 'markers', color: '$color', width: 2, role: 'context', legend: { hide: true } },
+  ],
+})
+const styleTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Style' }))
+const dotSelect = () => screen.queryByRole('combobox', { name: 'Dot size' })
+
+describe('the Dot size control on the Style tab (2a-12)', () => {
+  it('UCT RS (three dot outputs) carries it, reading Default with the three words; the line-only fixture does not', () => {
+    const cs = setIndicatorEnabled(mergeChartSettings(null), 'rsLine', true, engineRegistry)
+    mount({ settings: cs, instanceId: legacyInstanceId('rsLine') })
+    styleTab()
+    expect(dotSelect()).toBeTruthy()
+    expect(dotSelect().value).toBe('medium')
+    expect([...dotSelect().querySelectorAll('option')].map((o) => [o.value, o.textContent]))
+      .toEqual([['small', 'Small'], ['medium', 'Default'], ['large', 'Large']])
+    cleanup()
+    const reg = fakeRegistry(fixtureRaw())
+    mount({ settings: fixtureBlob(FAST), instanceId: FIX_INST, registry: reg })
+    styleTab()
+    expect(dialog()).toBeTruthy()
+    expect(dotSelect()).toBeNull()
+  })
+
+  it('choosing Large writes presentation.dotSize through the writer; Default deletes it; the sibling is untouched; a repeat is not persisted', () => {
+    const reg = fakeRegistry(dotFixtureRaw())
+    const base = fixtureBlob(FAST)
+    const siblingBefore = JSON.stringify(findInstance(base, FIX_SIBLING))
+    const { onChange } = mount({ settings: base, instanceId: FIX_INST, registry: reg })
+    styleTab()
+    fireEvent.change(dotSelect(), { target: { value: 'large' } })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(findInstance(latest(), FIX_INST).presentation).toEqual({ dotSize: 'large' })
+    expect(dotSelect().value).toBe('large')
+    expect(JSON.stringify(findInstance(latest(), FIX_SIBLING))).toBe(siblingBefore)
+    fireEvent.change(dotSelect(), { target: { value: 'medium' } })
+    expect('presentation' in findInstance(latest(), FIX_INST)).toBe(false)
+    // the same word again is a refused (identity) write — nothing persisted
+    const calls = onChange.mock.calls.length
+    fireEvent.change(dotSelect(), { target: { value: 'medium' } })
+    expect(onChange).toHaveBeenCalledTimes(calls)
+  })
+
+  it('Cancel takes a dot size back with everything else', async () => {
+    const user = userEvent.setup()
+    const reg = fakeRegistry(dotFixtureRaw())
+    const { onClose } = mount({ settings: fixtureBlob(FAST), instanceId: FIX_INST, registry: reg })
+    const before = JSON.stringify(latest())
+    styleTab()
+    fireEvent.change(dotSelect(), { target: { value: 'small' } })
+    expect(JSON.stringify(latest())).not.toBe(before)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(JSON.stringify(latest())).toBe(before)
+    expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('a preset that declares a dot size (2a-12)', () => {
+  it('choosing it applies the word through the writer; a dot size away from the word reads as Custom; Reset puts it back', () => {
+    const reg = fakeRegistry(dotFixtureRaw())
+    mount({ settings: fixtureBlob(FAST), instanceId: FIX_INST, registry: reg })
+    expect(presetSelect().value).toBe('fast')
+    choosePreset('big')
+    expect(inputsOf(latest(), FIX_INST).length).toBe(33)
+    expect(findInstance(latest(), FIX_INST).presentation).toEqual({ dotSize: 'large' })
+    expect(presetSelect().value).toBe('big')
+    expect(screen.getByTestId('preset-origin').textContent).toBe('Fixture origin: big')
+    styleTab()
+    expect(dotSelect().value).toBe('large')
+    fireEvent.change(dotSelect(), { target: { value: 'small' } })
+    expect(presetSelect().value).toBe(CUSTOM_PRESET)
+    expect(screen.queryByTestId('preset-origin')).toBeNull()
+    fireEvent.click(resetButton())
+    expect(presetSelect().value).toBe('big')
+    expect(dotSelect().value).toBe('large')
+    // …and nothing but inputs and presentation ever landed on the instance
+    expect(Object.keys(findInstance(latest(), FIX_INST)).sort()).toEqual(['defId', 'hidden', 'inputs', 'instanceId', 'presentation'])
+  })
+
+  it('an instance at a sized preset\'s inputs but at the default dot size is NOT that preset; carrying the word, it is', () => {
+    const reg = fakeRegistry(dotFixtureRaw())
+    const at33 = fixtureBlob({ length: 33, mode: 'a', smooth: true })
+    mount({ settings: at33, instanceId: FIX_INST, registry: reg })
+    expect(presetSelect().value).toBe(CUSTOM_PRESET)
+    cleanup()
+    const sized = {
+      ...at33,
+      indicatorInstances: at33.indicatorInstances.map((i) => (i.instanceId === FIX_INST ? { ...i, presentation: { dotSize: 'large' } } : i)),
+    }
+    mount({ settings: sized, instanceId: FIX_INST, registry: reg })
+    expect(presetSelect().value).toBe('big')
+  })
+
+  it('a preset of inputs alone (the Phase 1 shape) still reads and applies exactly as before, whatever the dot size', () => {
+    const reg = fakeRegistry(dotFixtureRaw())
+    const base = fixtureBlob(FAST)
+    const sized = {
+      ...base,
+      indicatorInstances: base.indicatorInstances.map((i) => (i.instanceId === FIX_INST ? { ...i, presentation: { dotSize: 'small' } } : i)),
+    }
+    const { onChange } = mount({ settings: sized, instanceId: FIX_INST, registry: reg })
+    expect(presetSelect().value).toBe('fast')
+    choosePreset('slow')
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(inputsOf(latest(), FIX_INST)).toEqual(SLOW)
+    expect(findInstance(latest(), FIX_INST).presentation).toEqual({ dotSize: 'small' })
+    expect(presetSelect().value).toBe('slow')
+  })
+})

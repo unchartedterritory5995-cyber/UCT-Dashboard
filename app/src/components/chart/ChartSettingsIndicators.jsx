@@ -111,7 +111,7 @@ import SourceField from './SourceField'
 // FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
 import IndicatorTemplatesBar from './IndicatorTemplatesBar'
-import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
+import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors, storedDotSize, DEFAULT_DOT_SIZE } from './engine/presentation'
 // ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
 // ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
 // about a symbol that may now come from either catalogue, so asking the breadth-only
@@ -126,7 +126,7 @@ import {
 } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
-import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
+import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dotPlotsOf, DOT_SIZE_OPTIONS } from './engine/instanceControls'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -2192,6 +2192,14 @@ export default function ChartSettingsIndicators({
   // Whitespace AFTER a correctly sized control is fine; whitespace INSIDE a giant
   // input holding `20` is what this is not.
 
+  /** The tooltip a regular input row's label shows on hover (S1): the generated
+   *  field's own, else the definition's declared one, else nothing. */
+  const tooltipOf = (row, f) => {
+    if (typeof f.tooltip === 'string' && f.tooltip) return f.tooltip
+    const declared = (registry?.getDefinition?.(row.defId)?.inputs || []).find((i) => i && i.key === f.key)
+    return declared && typeof declared.tooltip === 'string' && declared.tooltip ? declared.tooltip : undefined
+  }
+
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
     const dis = !!f.disabled
@@ -2210,7 +2218,12 @@ export default function ChartSettingsIndicators({
         data-measure={seg ? 'segment' : measureOf(f)}
         title={f.disabled || undefined}
       >
-        <span className={`${styles.insFieldLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+        {/* ⭐ visual review S1 — the declared tooltip rides the label as `title`, so a
+            label the column truncates can still be read on hover. ⚠️ `row.fields` come
+            from `fieldsFromDefinition`, which carries no `tooltip` (only
+            `fieldsForInstance` adds it), so the definition's own declaration is the
+            fallback; absent both, no `title` at all. */}
+        <span className={`${styles.insFieldLabel} ${dis ? styles.indLabelOff : ''}`} title={tooltipOf(row, f)}>{f.label}</span>
         {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
         <span className={styles.insFieldCtl}>
           {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
@@ -2724,13 +2737,17 @@ export default function ChartSettingsIndicators({
     const plots = Array.isArray(def.plots) ? def.plots : []
     // ⭐ BATCH 2 — a `hidden: true` plot is never drawn, so it has no style to pick.
     const restyleable = plots.filter((pl) => pl && pl.hidden !== true && availableStyles(pl, styleCtx).length > 0)
-    if (!restyleable.length) return null
+    // ⭐ 2a-12 — the outputs that draw as DOTS get one Dot size control beside Plot
+    // style, through `setInstanceDotSize` (the dialog's Style tab and the `setDotSize`
+    // agent op share it). A definition with neither has nothing here.
+    const dots = dotPlotsOf(def)
+    if (!restyleable.length && !dots.length) return null
 
     // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
     // inside a panel already titled `QQQ`, is furniture.
     const single = restyleable.length === 1
 
-    return restyleable.map((plot) => {
+    const rows = restyleable.map((plot) => {
       const style = resolvePlotStyle(inst, plot, styleCtx)
       const choices = availableStyles(plot, styleCtx)
       const label = single ? 'Plot style' : `${plot.label || plot.key} style`
@@ -2759,6 +2776,27 @@ export default function ChartSettingsIndicators({
         </div>
       )
     })
+    if (dots.length) {
+      rows.push(
+        <div className={styles.insField} data-field="__dotSize__" data-measure="medium" key="dot-size">
+          <span className={styles.insFieldLabel}>Dot size</span>
+          <span className={styles.insFieldCtl}>
+            <select
+              className={styles.indSelect}
+              value={storedDotSize(inst, null) || DEFAULT_DOT_SIZE}
+              aria-label={`${row.label} dot size`}
+              onChange={(e) => {
+                const next = setInstanceDotSize(settings, row.instanceId, e.target.value, registry)
+                if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+              }}
+            >
+              {DOT_SIZE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </span>
+        </div>,
+      )
+    }
+    return rows
   }, [settings, registry, onChange])
 
   /** Write one settings blob through the ONE persist path this tab uses. A refused
