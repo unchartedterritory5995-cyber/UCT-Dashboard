@@ -24,3 +24,11 @@ Logs: runs/w9-t1/mpA.log, mpA0 (production lane), mpA1 (runtime-on). An earlier 
 - Census 967 rows both lanes: 0 behavioural diffs. 5 rows differ only by a wall-clock `pine:timeout` (10 s translator
   budget) landing on a different step under load; classified as load noise, not a code diff.
 - Vendor harness verdicts byte-identical tip vs base (production 93 MATCH / 103 DIVERGE / 140 INCONCLUSIVE; runtime-on 110/107/119).
+
+## Gate read moved out of the compute closure (final-tip fix)
+The first full final-tip failed serverBundle.rail and hostNeutralClosure.rail: the front end read VITE_PINE_STRATEGY_BROKER_ENABLED
+inside the server compute closure. The reader is now registered by memberPaneDefinition.js (outside the closure); the front end
+holds a default-false reader, so the server stays dark. Mutations (muts2.json): control survived; drop-gate (default true) and
+gate-read-in-closure both KILLED. The measure-pair above ran at a1f5262c33; this change only moves where the flag is read
+(default off, behaviour identical with the flag off). Unrelated master failures seen in final-tip:
+usePreferences.additionsOnly (TodayHome.jsx opaque setPref, red on base 7f6dd3714d too) and useWakeWord.lazy (passes alone).

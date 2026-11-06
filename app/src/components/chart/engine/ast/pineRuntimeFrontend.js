@@ -62,7 +62,12 @@ import { CLOCK_FIELDS } from '../runtime/program.js'
 // ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
 import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS } from '../runtime/broker.js'
 import { readStrategyDeclaration, orderArgsOf, StrategyOptionError } from './strategyBroker.js'
-import { strategyBrokerEnabled } from '../strategyBrokerGate.js'
+// W9-T1 - the build flag is NOT read here: this module is in the server compute closure, which bakes
+// no VITE_* name (serverBundle.rail, hostNeutralClosure.rail). The member door (memberPaneDefinition.js,
+// outside the closure) registers the reader; the server never does, so the broker is dark there.
+let strategyBrokerGateReader = () => false
+export function registerStrategyBrokerGate(reader) { strategyBrokerGateReader = typeof reader === 'function' ? reader : () => false }
+const strategyBrokerEnabled = () => strategyBrokerGateReader() === true
 import { strategyRepaintConstruct } from './strategyRepaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
