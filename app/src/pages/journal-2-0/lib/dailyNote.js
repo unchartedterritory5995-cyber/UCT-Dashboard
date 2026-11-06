@@ -54,13 +54,14 @@ export function takeQueuedNotebookNotice({ noteId = null, now = Date.now() } = {
   } catch { return null }
 }
 
-/** Open (or make) today's note. Resolves `{note, created, templateMissing}`. */
-export async function openDailyNote({ templateId, today = todayET } = {}) {
+/** Open (or make) today's note. Resolves `{note, created, templateMissing}`. `seedToday` (Tier 3b fix round 1, I3/I9):
+ *  a note this call MAKES starts with the Today home's plan -- the first run's Build and Today's "Start a fresh one". */
+export async function openDailyNote({ templateId, today = todayET, seedToday = false } = {}) {
   const res = await fetch('/api/j2/notes/daily', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: today(), ...(templateId ? { templateId } : {}) }),
+    body: JSON.stringify({ date: today(), ...(templateId ? { templateId } : {}), ...(seedToday ? { seedToday: true } : {}) }),
   })
   if (!res.ok) {
     const err = new Error(`daily note request failed (${res.status})`)

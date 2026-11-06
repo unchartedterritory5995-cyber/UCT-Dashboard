@@ -68,7 +68,7 @@
 
 .cardTitle {
   margin: 0 0 6px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-heading);
 }
@@ -81,7 +81,7 @@
 }
 
 .cardSub {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -155,7 +155,7 @@
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .checkBtn {
@@ -187,7 +187,7 @@
 
 .compassIntro {
   margin: 14px 0 0;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -223,14 +223,14 @@
 }
 
 .pathHead {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-heading);
 }
 
 .pathSub {
   flex: 1;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -249,7 +249,7 @@
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms, color 120ms;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .pathBtn {
@@ -289,7 +289,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -360,7 +360,7 @@
 }
 
 .statValue {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-heading);

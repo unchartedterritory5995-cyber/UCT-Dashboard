@@ -1,6 +1,6 @@
 # Charts visual teaching status
 
-Companion to `docs/agent/CHARTS_COVERAGE_MATRIX.md`. VERIFIED means a walkthrough ran in a real headless browser on the local Agent harness with fixture data, not on production. Generated 2026-11-05 at agent/pl/teach-coverage-2 7bd9c09289.
+Companion to `docs/agent/CHARTS_COVERAGE_MATRIX.md`. VERIFIED means a walkthrough ran in a real headless browser on the local Agent harness with fixture data, not on production. Some rows rest on scratch API fixtures for widget data (alerts, groups, the calendar, the indicator alert catalog). Generated 2026-11-05 at agent/pl/teach-coverage-3 54be844faa.
 
 # Charts teach matrix
 
@@ -11,13 +11,13 @@ One row per action ID in the three inventory files. Generated from real-mouse ru
 - MISSING: no walkthrough yet.
 - BLOCKED: cannot be guided as things stand; the reason is in the row.
 
-Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64 (of 499)
+Counts: VERIFIED 283 · IMPLEMENTED / UNVERIFIED 26 · MISSING 150 · BLOCKED 40 (of 499)
 
 | Part | VERIFIED | IMPLEMENTED / UNVERIFIED | MISSING | BLOCKED |
 |---|---|---|---|---|
 | C1 | 118 | 6 | 35 | 16 |
-| C2 | 35 | 9 | 44 | 13 |
-| C3 | 85 | 18 | 85 | 35 |
+| C2 | 57 | 5 | 31 | 8 |
+| C3 | 108 | 15 | 84 | 16 |
 
 | ID | Area | Action | Teach status | Guide feature | Browser evidence |
 |---|---|---|---|---|---|
@@ -200,10 +200,10 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C2-002 | Picker | Search indicators by name or purpose | VERIFIED | indicators | Browser: add.browser |
 | C2-003 | Picker | Browse by category | IMPLEMENTED / UNVERIFIED | indicators | Walkthrough reaches the panel holding this control; no step on this exact control was run in the browser. |
 | C2-004 | Add | Add built-in indicator | VERIFIED | indicators | Browser: add.browser |
-| C2-005 | Add | Add with chosen settings | IMPLEMENTED / UNVERIFIED | indicators | indicators walkthrough reaches the add surface; picking settings before Add was not run. |
-| C2-006 | Add | Add another copy with defaults | IMPLEMENTED / UNVERIFIED | indicators | indicators walkthrough reaches the add surface; Add another was not run. |
-| C2-007 | Add | Add own saved indicator | MISSING |  | Not built: needs a saved definition on the account, which the harness has none of. |
-| C2-008 | Add | Add a symbol as a data series from search | MISSING |  | Not built: the search result row for a symbol needs live search results. |
+| C2-005 | Add | Add with chosen settings | VERIFIED | indicators | Browser: add.browser, field.period |
+| C2-006 | Add | Add another copy with defaults | VERIFIED | indicatorManage | Browser: add.another |
+| C2-007 | Add | Add own saved indicator | VERIFIED | indicatorManage | Browser: add.yours |
+| C2-008 | Add | Add a symbol as a data series from search | VERIFIED | indicatorManage | Browser: add.symbols |
 | C2-009 | Add | Add economic series | MISSING |  | No walkthrough. |
 | C2-010 | Add | Keyboard chord toggles RSI, MACD, BB, VWAP | MISSING |  | No walkthrough. |
 | C2-011 | Add | Enable classic overlay average | MISSING |  | No walkthrough. |
@@ -221,7 +221,7 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C2-023 | Read | Read About text | VERIFIED | legendChip | Browser: chip.about |
 | C2-024 | Inputs | Change numeric setting | VERIFIED | indicatorEdit | Browser: field.period |
 | C2-025 | Inputs | Change select setting (MA type, source) | VERIFIED | indicatorEdit | Browser: field.maType |
-| C2-026 | Inputs | Flip a toggle setting | MISSING |  | indicatorEdit reaches the inspector; no toggle-type input was run. |
+| C2-026 | Inputs | Flip a toggle setting | VERIFIED | indicatorEdit | Browser: menu.volumeShows |
 | C2-027 | Inputs | Edit session input | MISSING |  | No walkthrough. |
 | C2-028 | Inputs | Cancel settings, roll back all edits | MISSING |  | No walkthrough. |
 | C2-029 | Inputs | Set calculation timeframe | VERIFIED | indicatorEdit | Browser: field.__timeframe__ |
@@ -234,7 +234,7 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C2-036 | Placement | Move to price, volume or own pane | VERIFIED | indicatorEdit | Browser: field.__display__ |
 | C2-037 | Placement | Move into another indicator's pane | VERIFIED | legendChip | Browser: chip.move |
 | C2-038 | Panes | Reorder pane | VERIFIED | indicatorManage | Browser: ind.arrange |
-| C2-039 | Panes | Resize pane by divider | BLOCKED |  | The divider control was not located, and it has no data-guide; a drag with no way to confirm it. Needs an attribute on the pane separator. |
+| C2-039 | Panes | Resize pane by divider | VERIFIED | chartView | Browser: pane.divider |
 | C2-040 | Panes | Reorder series within a pane | MISSING |  | No walkthrough. |
 | C2-041 | Legend | Show latest value in header | VERIFIED | legendChip | Browser: chip.value |
 | C2-042 | Legend | Duplicate on chart | VERIFIED | legendChip | Browser: chip.dup |
@@ -254,31 +254,31 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C2-056 | Create | Describe an indicator, get a draft | VERIFIED | indicatorManage | Browser: ind.create |
 | C2-057 | Create | Refine draft by conversation | VERIFIED | indicatorManage | Browser: ind.create |
 | C2-058 | Create | Answer the builder's choice question | MISSING |  | No walkthrough. |
-| C2-059 | Create | Undo a draft step | BLOCKED |  | This happens in the Agent conversation itself. The guide runs inside the Agent panel, so it has no control of its own to point at. |
-| C2-060 | Create | Preview draft on chart | BLOCKED |  | This happens in the Agent conversation itself. The guide runs inside the Agent panel, so it has no control of its own to point at. |
-| C2-061 | Create | Save draft, acknowledge warnings | BLOCKED |  | This happens in the Agent conversation itself. The guide runs inside the Agent panel, so it has no control of its own to point at. |
-| C2-062 | Create | Discard draft | BLOCKED |  | This happens in the Agent conversation itself. The guide runs inside the Agent panel, so it has no control of its own to point at. |
+| C2-059 | Create | Undo a draft step | VERIFIED | builderAction | Browser: bld.undo |
+| C2-060 | Create | Preview draft on chart | BLOCKED |  | The preview draws by itself in the builder (PreviewPane): there is no control to point at. |
+| C2-061 | Create | Save draft, acknowledge warnings | VERIFIED | builderAction | Browser: bld.save |
+| C2-062 | Create | Discard draft | VERIFIED | builderAction | Browser: bld.discard |
 | C2-063 | Create | Keep draft and close | MISSING |  | No walkthrough. |
-| C2-064 | Builder | Build by conditions | MISSING |  | Not built: Formula Builder family. On /charts Create Indicator opens the Agent, so the builder needs its own door proved first. |
+| C2-064 | Builder | Build by conditions | VERIFIED | builderAction | Browser: bld.conditions |
 | C2-065 | Builder | Group conditions, any or all | MISSING |  | No walkthrough. |
-| C2-066 | Builder | Enter a formula | MISSING |  | Not built: Formula Builder family (see C2-064). |
+| C2-066 | Builder | Enter a formula | VERIFIED | builderAction | Browser: bld.enter |
 | C2-067 | Builder | Add or remove member input | MISSING |  | No walkthrough. |
 | C2-068 | Builder | Add, remove or restyle output plot | MISSING |  | No walkthrough. |
-| C2-069 | Builder | Set placement and levels | MISSING |  | Not built: Formula Builder family (see C2-064). |
-| C2-070 | Builder | Set signal markers | MISSING |  | Not built: Formula Builder family (see C2-064). |
-| C2-071 | Builder | Colour candles or background on a signal | MISSING |  | Not built: Formula Builder family (see C2-064). |
-| C2-072 | Builder | Name the draft | BLOCKED |  | The control was not located by the inventory. |
-| C2-073 | Builder | Ask for an alert from the builder | MISSING |  | Not built: Formula Builder family (see C2-064). |
+| C2-069 | Builder | Set placement and levels | VERIFIED | builderAction | Browser: bld.placement |
+| C2-070 | Builder | Set signal markers | VERIFIED | builderAction | Browser: bld.signal |
+| C2-071 | Builder | Colour candles or background on a signal | VERIFIED | builderAction | Browser: bld.signal |
+| C2-072 | Builder | Name the draft | VERIFIED | builderAction | Browser: bld.name |
+| C2-073 | Builder | Ask for an alert from the builder | VERIFIED | builderAction | Browser: bld.alert |
 | C2-074 | Builder | Run Evidence tab | MISSING |  | No walkthrough. |
 | C2-075 | Builder | Use a starter | MISSING |  | No walkthrough. |
-| C2-076 | Import | Paste Pine or thinkScript | MISSING |  | Not built: Formula Builder family (see C2-064). |
+| C2-076 | Import | Paste Pine or thinkScript | VERIFIED | builderAction | Browser: bld.pine |
 | C2-077 | Import | Apply import suggestion | MISSING |  | No walkthrough. |
 | C2-078 | Import | Change script settings | MISSING |  | No walkthrough. |
 | C2-079 | Import | Turn script output into a screen | MISSING |  | No walkthrough. |
 | C2-080 | Image | Read an indicator from a screenshot | MISSING |  | No walkthrough. |
 | C2-081 | Image | Accept image candidate | MISSING |  | No walkthrough. |
-| C2-082 | Saved | Open saved definition to edit | MISSING |  | Not built: needs a saved definition (see C2-007). |
-| C2-083 | Saved | Delete saved definition | MISSING |  | Not built: needs a saved definition (see C2-007). |
+| C2-082 | Saved | Open saved definition to edit | IMPLEMENTED / UNVERIFIED | builderAction | Row built and a formula really saved through the builder, but its row sits below the sheet footer and the ring did not reach it: the card fell back. |
+| C2-083 | Saved | Delete saved definition | IMPLEMENTED / UNVERIFIED | builderAction | Same row as C2-082: not proved. |
 | C2-084 | Saved | Share a definition by link | MISSING |  | No walkthrough. |
 | C2-085 | Saved | Publish to or withdraw from library | MISSING |  | No walkthrough. |
 | C2-086 | Saved | Install from a share link | MISSING |  | No walkthrough. |
@@ -286,16 +286,16 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C2-088 | Alerts | Open indicator alerts popover | VERIFIED | alertIndicator | Browser: alert.indicator, alert.form |
 | C2-089 | Alerts | Create threshold alert | VERIFIED | alertIndicator | Browser: alert.indicator, alert.form |
 | C2-090 | Alerts | Create MA cross alert | VERIFIED | alertAction | Browser: alert.cross |
-| C2-091 | Alerts | Choose plot on a multi-line indicator | IMPLEMENTED / UNVERIFIED | alertIndicator | Row built with its fallback; the harness catalog has one single-line indicator, so the Plot list never showed. |
-| C2-092 | Alerts | Alert on a yes/no signal with trigger policy | IMPLEMENTED / UNVERIFIED | alertAction | Row built with its fallback; the harness catalog has no yes/no signal indicator, so the list never showed. |
+| C2-091 | Alerts | Choose plot on a multi-line indicator | VERIFIED | alertAction | Browser: alert.plot |
+| C2-092 | Alerts | Alert on a yes/no signal with trigger policy | VERIFIED | alertAction | Browser: alert.policy |
 | C2-093 | Alerts | Alert on another timeframe | VERIFIED | alertAction | Browser: alert.timeframe |
 | C2-094 | Alerts | Limit alert to this chart | MISSING |  | No walkthrough. |
 | C2-095 | Alerts | Override alert inputs | MISSING |  | No walkthrough. |
 | C2-096 | Alerts | Choose which instance | IMPLEMENTED / UNVERIFIED | alertIndicator | Row built with its fallback; not run with two copies of one indicator. |
 | C2-097 | Alerts | List indicator alerts | VERIFIED | alertAction | Browser: alert.list |
-| C2-098 | Alerts | Pause or resume alert | IMPLEMENTED / UNVERIFIED | alertAction | Row built with its fallback; the harness alert list stayed empty, so the switch never rendered. |
-| C2-099 | Alerts | Delete alert | IMPLEMENTED / UNVERIFIED | alertAction | Row built with its fallback; the harness alert list stayed empty, so the × never rendered. |
-| C2-100 | Alerts | See why an alert cannot fire | MISSING |  | Not built: needs an alert the catalog cannot serve. |
+| C2-098 | Alerts | Pause or resume alert | VERIFIED | alertAction | Browser: alert.pause |
+| C2-099 | Alerts | Delete alert | VERIFIED | alertAction | Browser: alert.delete |
+| C2-100 | Alerts | See why an alert cannot fire | VERIFIED | alertAction | Browser: alert.cannotFire |
 | C2-101 | Mobile | Edit an average or study on phone | BLOCKED |  | Phone shell only; the guide runs on the desktop Charts workspace. |
 | C3-001 | Board | Add a widget from Widgets ▾ | VERIFIED | widgetAdd | Browser: widgetAdd.news |
 | C3-002 | Board | Drag a widget to move it, or nudge it | VERIFIED | widgetMove | Browser: widgetMove |
@@ -340,25 +340,25 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C3-041 | Layout Dock | Restore a layout version | VERIFIED | layoutAction | Browser: ly.history |
 | C3-042 | Multi Chart | Enter a preset grid | VERIFIED | multiChart | Browser: grid.browser |
 | C3-043 | Multi Chart | Apply a custom rows × columns grid | IMPLEMENTED / UNVERIFIED | multiChart | Walkthrough reaches the panel holding this control; no step on this exact control was run in the browser. |
-| C3-044 | Multi Chart | Exit Multi Chart | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-045 | Multi Chart | Toggle crosshair sync | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-046 | Multi Chart | Toggle time-range sync | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-047 | Multi Chart | Turn on Groups mode | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-048 | Multi Chart | Pick a group for the grid | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-049 | Multi Chart | Step or switch group | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-050 | Multi Chart | Refresh the group | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-051 | Multi Chart | Exit Groups | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-052 | Multi Chart | Apply a saved grid | BLOCKED |  | Saved grids appear in the Multi Chart menu; saving one needs grid mode, where the Agent refuses every request. |
-| C3-053 | Multi Chart | Save a grid | BLOCKED |  | Saved grids appear in the Multi Chart menu; saving one needs grid mode, where the Agent refuses every request. |
-| C3-054 | Multi Chart | Save a grid as global (admin) | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-055 | Multi Chart | Delete a saved grid | BLOCKED |  | Saved grids appear in the Multi Chart menu; saving one needs grid mode, where the Agent refuses every request. |
-| C3-056 | Multi Chart | Set a cell's timeframe | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-057 | Multi Chart | Set a cell's chart style | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-058 | Multi Chart | Toggle a cell's session | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-059 | Multi Chart | Reset a cell to my chart | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-061 | Multi Chart | Open shared grid settings | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
-| C3-062 | Multi Chart | Set an alert from a cell | BLOCKED |  | Multi Chart mode only, and the Agent refuses every request there ("Switch out of Multi Chart"), so no walkthrough can start. Fixing it means useAgent.js, which is off limits. |
+| C3-044 | Multi Chart | Exit Multi Chart | VERIFIED | gridAction | Browser: mc.exit |
+| C3-045 | Multi Chart | Toggle crosshair sync | VERIFIED | gridAction | Browser: mc.syncCross |
+| C3-046 | Multi Chart | Toggle time-range sync | VERIFIED | gridAction | Browser: mc.syncTime |
+| C3-047 | Multi Chart | Turn on Groups mode | VERIFIED | gridAction | Browser: mc.groupMode |
+| C3-048 | Multi Chart | Pick a group for the grid | VERIFIED | gridAction | Browser: mc.groupPick |
+| C3-049 | Multi Chart | Step or switch group | VERIFIED | gridAction | Browser: mc.groupStep |
+| C3-050 | Multi Chart | Refresh the group | VERIFIED | gridAction | Browser: mc.groupRefresh |
+| C3-051 | Multi Chart | Exit Groups | VERIFIED | gridAction | Browser: mc.groupExit |
+| C3-052 | Multi Chart | Apply a saved grid | VERIFIED | gridAction | Browser: mc.apply |
+| C3-053 | Multi Chart | Save a grid | VERIFIED | gridAction | Browser: mc.save |
+| C3-054 | Multi Chart | Save a grid as global (admin) | VERIFIED | gridAction | Browser: mc.global |
+| C3-055 | Multi Chart | Delete a saved grid | VERIFIED | gridAction | Browser: mc.delete |
+| C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED | gridAction | Browser: mc.tf |
+| C3-057 | Multi Chart | Set a cell's chart style | VERIFIED | gridAction | Browser: mc.style |
+| C3-058 | Multi Chart | Toggle a cell's session | VERIFIED | gridAction | Browser: mc.session |
+| C3-059 | Multi Chart | Reset a cell to my chart | IMPLEMENTED / UNVERIFIED | gridAction | Row built with its fallback; a style change in the harness did not fork the cell, so the reset button never rendered. |
+| C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED | gridAction | Browser: mc.max |
+| C3-061 | Multi Chart | Open shared grid settings | VERIFIED | gridAction | Browser: mc.settings |
+| C3-062 | Multi Chart | Set an alert from a cell | VERIFIED | gridAction | Browser: mc.alert |
 | C3-063 | Watchlist | Open a list in a widget (own) | VERIFIED | watchlists | Browser: defects.watchlists |
 | C3-064 | Watchlist | Open a prebuilt or community list | VERIFIED | watchlistAction | Browser: wl.prebuilt |
 | C3-065 | Watchlist | Open the Flagged list | VERIFIED | watchlistAction | Browser: wl.flagged |
@@ -446,12 +446,12 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C3-147 | TE News | Send a headline to Notebook | MISSING |  | No walkthrough. |
 | C3-148 | Calendar | Step days in the widget | VERIFIED | widgetAction | Browser: w.cal |
 | C3-149 | Calendar | Ask who reports on a day from Charts | VERIFIED | widgetAction | Browser: w.cal2 |
-| C3-150 | Calendar | Ask when a stock reports from Charts | IMPLEMENTED / UNVERIFIED | dockAction | Row built with its fallback; adding Company Info was not proved in the harness. |
-| C3-151 | Calendar | Filter economic events by stars | IMPLEMENTED / UNVERIFIED | widgetAction | Row built with its fallback; the harness has no economic events. |
+| C3-150 | Calendar | Ask when a stock reports from Charts | VERIFIED | dockAction | Browser: dock.tabs |
+| C3-151 | Calendar | Filter economic events by stars | VERIFIED | widgetAction | Browser: w.calStars |
 | C3-152 | Calendar | Toggle the TBD section | MISSING |  | No walkthrough. |
 | C3-153 | Calendar | Sort earnings columns | MISSING |  | No walkthrough. |
 | C3-154 | Calendar | Show all earnings in a section | MISSING |  | No walkthrough. |
-| C3-155 | Calendar | Click an earnings row | MISSING |  | Not built: needs earnings rows, and the harness has none. |
+| C3-155 | Calendar | Click an earnings row | VERIFIED | widgetAction | Browser: w.calRow |
 | C3-156 | Calendar | Send a day to Journal | MISSING |  | No walkthrough. |
 | C3-157 | Breadth | Read breadth tiles | VERIFIED | widgetAction | Browser: w.breadth |
 | C3-158 | Breadth | Add or remove a reading | VERIFIED | widgetAction | Browser: w.breadthAdd |
@@ -512,8 +512,8 @@ Counts: VERIFIED 238 · IMPLEMENTED / UNVERIFIED 33 · MISSING 164 · BLOCKED 64
 | C3-213 | Review | Start Review Charts from a results list | BLOCKED |  | Not on the desktop Charts workspace. |
 | C3-214 | Review | Step next or previous in a review (mobile only at this commit) | BLOCKED |  | Not on the desktop Charts workspace. |
 | C3-215 | Review | Open the review feed card (mobile only) | BLOCKED |  | Not on the desktop Charts workspace. |
-| C3-216 | Company dock | Switch dock tab | IMPLEMENTED / UNVERIFIED | dockAction | Row built with its fallback; adding Company Info was not proved in the harness. |
-| C3-217 | Company dock | Open or collapse the dock | IMPLEMENTED / UNVERIFIED | dockAction | Row built with its fallback; adding Company Info was not proved in the harness. |
+| C3-216 | Company dock | Switch dock tab | VERIFIED | dockAction | Browser: dock.tabs |
+| C3-217 | Company dock | Open or collapse the dock | VERIFIED | dockAction | Browser: dock.collapse |
 | C3-218 | Company dock | Search company info | MISSING |  | No walkthrough. |
 | C3-219 | Company dock | Open ETF holdings | IMPLEMENTED / UNVERIFIED | dockAction | Row built with its fallback; the harness does not report SPY as an ETF, so the button never rendered. |
 | C3-220 | Company dock | Pick a leveraged or inverse ETF | MISSING |  | No walkthrough. |

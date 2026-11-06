@@ -146,7 +146,7 @@ describe('focus in the Notebook tab', () => {
     for (let i = 0; i < 50 && !(bodyEl() && active() === bodyEl()); i += 1) await settle(100)
     const body = bodyEl()
     expect(body, 'the new note never rendered its body').not.toBeNull()
-    expect(document.querySelector('input[aria-label="Note title"]'), 'the new note never loaded').not.toBeNull()
+    expect(document.querySelector('[aria-label="Note title"]'), 'the new note never loaded').not.toBeNull()
     expect(active()).toBe(body)
     expect(active()).not.toBe(document.body)
     expect(takesText(active())).toBe(true)

@@ -107,7 +107,7 @@ jobs:
       # right direction to fail — a new heavy dependency in the publish path is worth
       # stopping for — but it is a cost, not a free lunch.
       - name: Install the gate's dependencies
-        run: python -m pip install --quiet pytest httpx numpy pillow
+        run: python -m pip install --quiet pytest httpx numpy pillow pyyaml
 
       # ⛔⛔ COMPENSATING CONTROL — the DETECTIVE half of the protection `production`
       # does not have. Branch protection (G6) is the preventive half and is still
@@ -289,6 +289,11 @@ jobs:
       # call site written against the first is silently running the other. Master
       # was RED on this for a shadowed `_tokens` in wisdom extraction that had been
       # rescoring similarity since c9d6af653 — found by the sweep, not by review.
+      # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
+      # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.
+      - name: CI cost rails
+        run: python -m pytest tests/test_ci_cost_rails.py -q -p no:cacheprovider
+
       - name: No module shadows its own definitions
         run: python -m pytest tests/test_no_shadowed_definitions.py -q
 

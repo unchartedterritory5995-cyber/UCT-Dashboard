@@ -53,7 +53,7 @@ const s8Section = (row) => {
   if (g === 'basics') return 'basics'
   if (['Dictate', 'Writing help', 'Voice note'].includes(t)) return 'ai'
   return ['UCT Terminal day', 'News and catalysts', 'Fundamentals', 'Breadth heatmap', 'My price alerts',
-    'Watchlist snapshot', 'Theme rankings', 'Index levels', 'Scan results'].includes(t) ? 'live' : 'basics'
+    'Watchlist snapshot', 'Theme rankings', 'COT positioning', 'Model Book', 'Index levels', 'Scan results'].includes(t) ? 'live' : 'basics'
 }
 const inSections = (rows) => S8_SECTIONS.flatMap((s) => rows.filter((r) => s8Section(r) === s))
 
@@ -84,6 +84,8 @@ const BASICS_MORE = [
   'basics|Callout', 'basics|Toggle', 'basics|Image',
   'more|UCT Terminal day', 'more|News and catalysts', 'more|Fundamentals', 'more|Breadth heatmap',
   'more|My price alerts', 'more|Watchlist snapshot', 'more|Theme rankings',
+  // Tier 4 (S13.6 remainder): the COT and Model Book captures, reachable from a note.
+  'more|COT positioning', 'more|Model Book',
   'more|Heading 4', 'more|Heading 5', 'more|Heading 6', 'more|Code block', 'more|2 columns', 'more|3 columns',
   'more|Table of contents', 'more|Inline math', 'more|Math block', 'more|Emoji',
 ]
