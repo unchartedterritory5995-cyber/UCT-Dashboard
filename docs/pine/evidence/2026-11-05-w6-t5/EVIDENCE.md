@@ -1,4 +1,4 @@
-NEXT STEP: final-tip FULL on the code tree 65bb5fd15f (runs/w6-t5/ft.sh, lock heavy-final2-w6-t5.lock, out runs/w6-t5-final), then push and ready-check.sh pine-dsk-w6t5 runs/w6-t5-final. measure-pair round B runtime 1 was stopped by the harness for low memory; re-run only if the coordinator asks.
+NEXT STEP: landing by the coordinator: SCRIPT_ENGINE_VERSION bump + regenerate the W5 host-parity digests (hostParity.rail / .v8 red only for that), then a final-tip on the bumped tree and ready-check. Optional: re-run measure-pair round B runtime 1 (stopped by the harness for low memory).
 
 # W6-T5 `array.*` completion (lane w6-t5)
 
@@ -129,3 +129,30 @@ STOPPED by Claude Code for low system memory while it ran (not a failure; not re
   mirage) are host-translation `pine:timeout` steps (10000 ms wall clock) that land differently run to run: the set changes
   between A and B and every such row has a timeout on one side. The host lane (`pine.js`) does not import any file this
   lane changed. Not a lane effect.
+
+## final-tip (FULL, 2 parallel shards, Node 20.20.2, ram_gate, lock heavy-final2-w6-t5.lock)
+Command `runs/w6-t5/ft2.sh` = `final-tip.sh pine-dsk-w6t5 w6-t5-final2` + pytest `test_script_engine_version_gate`,
+`test_saved_script_prebump`, `test_runtime_definitions`, `test_language_coverage`, `test_evidence_engine`,
+`test_saved_probe_integrity`. Logs `runs/w6-t5-final2/`, `runs/w6-t5/ft2.out`.
+- `TIP ad9425772b done` (the final code tree; later commits are docs only), `scope=full shards=2`,
+  `rc gate=0 hyg=0 py=0 js=1`, `totals=ok`, `errors=0`; gate 46 passed, rails pytest 247 passed;
+  vitest `Test Files 9 failed | 1367 passed | 28 skipped`, `Tests 10 failed | 23510 passed | 122 skipped`.
+- Failing files: the named baselines (controlDoorCensus, enumerationSites, vendorHarness, vendorHarness.coverageAudit
+  delta-rsi, settingsScope.rail, pollingSites.rail, usePreferences.additionsOnly), plus **hostParity.rail and
+  hostParity.v8.rail: INTENDED, waiting for the engine bump.** Both say `RED a digest changed WITHOUT an engine bump`:
+  `arrays_basic@listing` and `arrays_sort@listing` go `withheld` (runtime:failed / runtime:array) -> `ok`, which is this
+  lane's served change. Spec rule 6: the coordinator's SCRIPT_ENGINE_VERSION bump regenerates W5's host-parity digests;
+  this lane may not bump.
+- `integrity=tree-changed-during-run`: `lookbackAgreement.test.js` rewrote `tools/lookback_agreement.json` during the run
+  with `distinct_trees_walked` 605 instead of the committed 608 (all 146 rows identical). A host-lane walk count that
+  drops under full-run load (round 1, below, wrote 608 and left the tree clean); no file this lane changed is in that
+  walk's path. The file was restored byte-exact from the HEAD blob afterwards. Not re-run (each full run is about 1 h and
+  the bump commit needs its own final-tip anyway).
+- Round 1 (`runs/w6-t5-final/`, TIP 1cc7add0b0): `integrity=ok`, same baselines and hostParity, plus two lane rails that
+  pinned the old refusals and were repointed in ad9425772b: `vendorHarness.f6SpyDrawings` (volume-profile's own-drawings
+  runtime build now compiles; it stopped at `array.fill`) and `runtimePaneSafety` (its collection-stop example was the
+  median of an empty array, now `na`; it uses an `na` element now). Both green alone after the fix (50/50).
+
+## ready-check
+`ready-check.sh pine-dsk-w6t5 runs/w6-t5-final2`: see the result line below. Expected FAIL on `integrity` (above); with the
+bump and digest regeneration done at landing, the only remaining reds are the named baselines.
