@@ -140,7 +140,7 @@ M = measured, P = published, E = estimate.
 
 ## Not modelled
 
-- **PC capacity:** Nov 4 would be about 245 advisory suites, over 40 h of work on 2 slots at 10.4 min. Superseded runs must be dropped; advisory runs cannot all complete.
+- **PC capacity:** Nov 4 would be about 245 advisory suites, about 21 h of wall time on 2 slots at 10.4 min. That leaves almost no room, so superseded runs should be dropped.
 - **PRs into `agent/int`:** 92 on Nov 1-3, none after. If that flow returns, those PRs need merge-candidate runs too.
 - **Non-Agent PRs touching Agent paths** would need a heavy candidate run.
 - **VPS gate time on real hardware.**
