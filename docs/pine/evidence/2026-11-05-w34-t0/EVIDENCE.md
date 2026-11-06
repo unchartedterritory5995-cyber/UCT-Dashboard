@@ -24,3 +24,8 @@ production census (967 rows) was kept; `job2.sh` re-ran runtime-on + maps + targ
 
 ## Rails and mutations
 `tests/test_pine_coverage_w3w4_t0_honesty.py` (11) + vitest `W3W4-T0: dropHeads` (2). `mut.py`: P0 and J0 no-op controls green; P1..P8, J1, J2 all red (killed). Log `mut.out` under runs/w34-t0.
+
+## Final-tip (full, 1 shard) on 24edd414e3: rc gate=0 hyg=1 py=0 js=1, totals ok, integrity ok
+- hyg=1 was the 6.1 MB wall-detail JSON (5 MB limit); fixed by compact JSON (3.9 MB) in the next commit, hygiene re-run alone: clean; the 3 pine pytest files: 44 passed.
+- js failures: baselines pollingSites, settingsScope, enumerationSites, controlDoorCensus, coverageAudit; plus vendorHarness.test.js
+  (tolerancePolicy float 0.000049999999999999996 vs 0.00005, a file this lane does not touch).

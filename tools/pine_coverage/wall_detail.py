@@ -83,7 +83,7 @@ def main():
     doc = build(prod, rt, a.measured_on, a.master_sha)
     tmp = a.out + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(doc, f, indent=1, sort_keys=False)
+        json.dump(doc, f, separators=(",", ":"), sort_keys=False)
         f.write("\n")
     os.replace(tmp, a.out)
     print("wall detail: %d scripts -> %s" % (len(doc["scripts"]), a.out))
