@@ -265,22 +265,22 @@ Every file:line citation in the control column was checked against this tree: 33
 | ID | Action | Was | Now | Reason |
 |---|---|---|---|---|
 | C2-013 | Toggle Chart IQ pattern recognition | UNMAPPED | IMPLEMENTED / UNVERIFIED | showChartIq is a chart.setSetting option; no state test. Control seen on the phone sheet only. |
-| C3-044 | Exit Multi Chart | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-045 | Toggle crosshair sync | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-046 | Toggle time-range sync | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-047 | Turn on Groups mode | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-048 | Pick a group for the grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-049 | Step or switch group | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-050 | Refresh the group | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-051 | Exit Groups | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-052 | Apply a saved grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-053 | Save a grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-055 | Delete a saved grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
+| C3-044 | Exit Multi Chart | MISSING | VERIFIED | multiChart.exit (branch agent/pl/multichart-control, local). |
+| C3-045 | Toggle crosshair sync | MISSING | VERIFIED | multiChart.setOption crosshair_sync (branch agent/pl/multichart-control, local). |
+| C3-046 | Toggle time-range sync | MISSING | VERIFIED | multiChart.setOption time_range_sync (branch agent/pl/multichart-control, local). |
+| C3-047 | Turn on Groups mode | MISSING | VERIFIED | multiChart.setOption groups_mode (branch agent/pl/multichart-control, local). |
+| C3-048 | Pick a group for the grid | MISSING | VERIFIED | multiChart.loadGroup group (branch agent/pl/multichart-control, local). |
+| C3-049 | Step or switch group | MISSING | VERIFIED | multiChart.loadGroup step (branch agent/pl/multichart-control, local). |
+| C3-050 | Refresh the group | MISSING | VERIFIED | multiChart.loadGroup step refresh (branch agent/pl/multichart-control, local). |
+| C3-051 | Exit Groups | MISSING | VERIFIED | multiChart.setOption groups_mode off (branch agent/pl/multichart-control, local). |
+| C3-052 | Apply a saved grid | MISSING | VERIFIED | multiChart.openSaved (branch agent/pl/multichart-control, local). |
+| C3-053 | Save a grid | MISSING | VERIFIED | multiChart.saveGrid (branch agent/pl/multichart-control, local). |
+| C3-055 | Delete a saved grid | MISSING | VERIFIED | multiChart.deleteSaved (branch agent/pl/multichart-control, local). |
 | C3-056 | Set a cell's timeframe | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-057 | Set a cell's chart style | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-058 | Toggle a cell's session | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-059 | Reset a cell to my chart | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-060 | Maximize or restore a cell | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
+| C3-059 | Reset a cell to my chart | MISSING | VERIFIED | multiChart.resetCell (branch agent/pl/multichart-control, local). |
+| C3-060 | Maximize or restore a cell | MISSING | VERIFIED | multiChart.maximize, multiChart.restoreGrid (branch agent/pl/multichart-control, local). |
 | C3-061 | Open shared grid settings | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-062 | Set an alert from a cell | IMPLEMENTED / UNVERIFIED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-152 | Toggle the TBD section | IMPLEMENTED / UNVERIFIED | MISSING | The offer was withdrawn: widget.setOption no longer offers tbdOpen because the widget never read it (2469b8c548). |
@@ -616,25 +616,25 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-039 | Layout Dock | Remove a layout from the bar | MISSING | none | n/a | none |
 | C3-040 | Layout Dock | View a layout's version history | MISSING | none | n/a | none |
 | C3-041 | Layout Dock | Restore a layout version | MISSING | none | n/a | none |
-| C3-042 | Multi Chart | Enter a preset grid | MISSING | none | n/a | none |
-| C3-043 | Multi Chart | Apply a custom rows × columns grid | MISSING | none | n/a | none |
-| C3-044 | Multi Chart | Exit Multi Chart | BLOCKED | none | n/a | none |
-| C3-045 | Multi Chart | Toggle crosshair sync | BLOCKED | none | n/a | none |
-| C3-046 | Multi Chart | Toggle time-range sync | BLOCKED | none | n/a | none |
-| C3-047 | Multi Chart | Turn on Groups mode | BLOCKED | none | n/a | none |
-| C3-048 | Multi Chart | Pick a group for the grid | BLOCKED | none | n/a | none |
-| C3-049 | Multi Chart | Step or switch group | BLOCKED | none | n/a | none |
-| C3-050 | Multi Chart | Refresh the group | BLOCKED | none | n/a | none |
-| C3-051 | Multi Chart | Exit Groups | BLOCKED | none | n/a | none |
-| C3-052 | Multi Chart | Apply a saved grid | BLOCKED | none | n/a | none |
-| C3-053 | Multi Chart | Save a grid | BLOCKED | none | n/a | none |
+| C3-042 | Multi Chart | Enter a preset grid | VERIFIED | multiChart.enter | pass | browser, scripted model |
+| C3-043 | Multi Chart | Apply a custom rows × columns grid | VERIFIED | multiChart.enter | pass | browser, scripted model |
+| C3-044 | Multi Chart | Exit Multi Chart | VERIFIED | multiChart.exit | pass | browser, scripted model |
+| C3-045 | Multi Chart | Toggle crosshair sync | VERIFIED | multiChart.setOption crosshair_sync | pass | browser, scripted model |
+| C3-046 | Multi Chart | Toggle time-range sync | VERIFIED | multiChart.setOption time_range_sync | pass | browser, scripted model |
+| C3-047 | Multi Chart | Turn on Groups mode | VERIFIED | multiChart.setOption groups_mode | pass | panel, scripted model |
+| C3-048 | Multi Chart | Pick a group for the grid | VERIFIED | multiChart.loadGroup group | pass | panel, scripted model |
+| C3-049 | Multi Chart | Step or switch group | VERIFIED | multiChart.loadGroup step | pass | panel, scripted model |
+| C3-050 | Multi Chart | Refresh the group | VERIFIED | multiChart.loadGroup step refresh | pass | panel, scripted model |
+| C3-051 | Multi Chart | Exit Groups | VERIFIED | multiChart.setOption groups_mode off | pass | panel, scripted model |
+| C3-052 | Multi Chart | Apply a saved grid | VERIFIED | multiChart.openSaved | pass | panel, scripted model |
+| C3-053 | Multi Chart | Save a grid | VERIFIED | multiChart.saveGrid | pass | panel, scripted model |
 | C3-054 | Multi Chart | Save a grid as global (admin) | BLOCKED | none | n/a | none |
-| C3-055 | Multi Chart | Delete a saved grid | BLOCKED | none | n/a | none |
+| C3-055 | Multi Chart | Delete a saved grid | VERIFIED | multiChart.deleteSaved | pass | panel, scripted model |
 | C3-056 | Multi Chart | Set a cell's timeframe | BLOCKED | none | n/a | none |
 | C3-057 | Multi Chart | Set a cell's chart style | BLOCKED | none | n/a | none |
 | C3-058 | Multi Chart | Toggle a cell's session | BLOCKED | none | n/a | none |
-| C3-059 | Multi Chart | Reset a cell to my chart | BLOCKED | none | n/a | none |
-| C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none | n/a | none |
+| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED | multiChart.resetCell | pass | panel, scripted model |
+| C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED | multiChart.maximize, multiChart.restoreGrid | pass | browser, scripted model |
 | C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none | n/a | none |
 | C3-062 | Multi Chart | Set an alert from a cell | BLOCKED | none | n/a | none |
 | C3-063 | Watchlist | Open a list in a widget (own) | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:158 | pass 1/1 | runtime, no panel |
