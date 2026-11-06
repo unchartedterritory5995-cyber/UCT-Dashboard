@@ -1,4 +1,4 @@
-NEXT STEP: final-tip FULL + baselines + ready-check, HOLDING for the coordinator's go. Measure-pair DONE (0 C18 diffs, 0 unintended); origin/master 9a75786663 (engine 21) merged. Mutation batch DONE. Engine bump: YES (a refusal becomes a served value on the runtime pane; `SCRIPT_ENGINE_VERSION` NOT edited here).
+NEXT STEP: RE-RUN final-tip FULL + ready-check on 871d7eeb28 when the coordinator says (run 1 was stopped by the host's low-memory reaper during shard 2). Measure-pair DONE (0 C18 diffs, 0 unintended); origin/master 9a75786663 (engine 21) merged. Mutation batch DONE. Engine bump: YES (a refusal becomes a served value on the runtime pane; `SCRIPT_ENGINE_VERSION` NOT edited here).
 
 # W34-I6a: a `switch` arm that wraps onto a continuation line
 
@@ -125,6 +125,14 @@ Free RAM never under 11 GB. Logs `runs/w34-i6a/mp-all.log`, `mp0.log`, `mp1.log`
 
 origin/master `9a75786663` (engine 21) merged with a normal merge after the measure; clean.
 
+## final-tip run 1: NOT COMPLETE (stopped by the host's low-memory reaper, not a test failure)
+
+`runs/w34-i6a/ft.sh`, lock `dsk/heavy-final2.lock`, ram_gate, FULL, 2 shards SEQUENTIAL, Node 20.20.2; logs
+`runs/w34-i6a-final/`, `runs/w34-i6a/ft.out`. `TIP 871d7eeb28`. gate pytest rc=0 (46 passed); hygiene rc=0; rails
+pytest rc=0 (196 passed). Shard 1/2: 691 files passed, 3 failed, ALL BASELINE (`settingsScope.rail`,
+`pollingSites.rail`, `usePreferences.additionsOnly`). Shard 2/2 was running when the session's memory reaper stopped
+the job (no totals, no FINAL_DONE), so ready-check was not run. No process of this lane was left running (checked).
+
 ## Pending (heavy, waits for the coordinator's go)
 
-1. final-tip FULL + baselines on the merged tip, then ready-check.
+1. Re-run final-tip FULL on 871d7eeb28 (or only after memory frees up), then ready-check.
