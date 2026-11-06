@@ -76,8 +76,8 @@ describe('RT5 — the run keeps what its drawing calls make', () => {
 })
 
 describe('RT5 — conditional-call history refuses by name', () => {
-  it('a ta call inside a block that does not run every bar refuses (W3W4-D1: only ta.stdev here, sma/ema/rma are served per call site)', () => {
-    const r = build('if bar_index % 2 == 0\n    s = ta.stdev(close, 3)\n    label.new(bar_index, s)\n')
+  it('a ta call inside a block that does not run every bar refuses', () => {
+    const r = build('if bar_index % 2 == 0\n    s = ta.sma(close, 3)\n    label.new(bar_index, s)\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:conditional-history')
   })

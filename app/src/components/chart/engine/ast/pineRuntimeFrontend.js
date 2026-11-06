@@ -2430,7 +2430,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
+  // ⛔⛔ W3W4-D1 capture gate (queue row W3N-D1, capture-queue-2026-11-05-w3w4-d1.md): the C48 witnesses
+  // pin sma/ema as PLOT values and nothing pins rma at all, so no capture shows a DRAWING reading the
+  // per-call-site set. Until W3N-D1 MATCHes, the drawing build keeps the named refusal
+  // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
+  // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
+  const DRAWING_HISTORY_CAPTURED = false
   const servedCondCall = (node, scope) => {
+    if (objectsInRun && !(DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true)) return null
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')

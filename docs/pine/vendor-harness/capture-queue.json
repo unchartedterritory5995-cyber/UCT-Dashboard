@@ -44,6 +44,7 @@
    "docs/pine/capture-queue-2026-11-03-w4-t4.md",
    "docs/pine/capture-queue-2026-11-04-w4-t11.md",
    "docs/pine/capture-queue-2026-11-04-w4-t13.md",
+   "docs/pine/capture-queue-2026-11-05-w3w4-d1.md",
    "docs/pine/capture-queue-2026-11-05-w4-t15-t17.md",
    "docs/pine/capture-queue-2026-11-05-w9.md"
   ],
@@ -60,19 +61,19 @@
   "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)"
  },
  "counts": {
-  "targets": 170,
+  "targets": 172,
   "byStatus": {
    "CAPTURED": 76,
    "NEEDS_CHART": 13,
    "NEEDS_LIVE": 5,
-   "QUEUED": 76
+   "QUEUED": 78
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 64,
     "NEEDS_CHART": 12,
     "NEEDS_LIVE": 5,
-    "QUEUED": 67
+    "QUEUED": 69
    },
    "W1": {
     "QUEUED": 2
@@ -94,7 +95,7 @@
     "CAPTURED": 63,
     "NEEDS_CHART": 12,
     "NEEDS_LIVE": 5,
-    "QUEUED": 67
+    "QUEUED": 69
    },
    "1-2": {
     "CAPTURED": 13,
@@ -194,6 +195,9 @@
    },
    "w2": {
     "CAPTURED": 2,
+    "QUEUED": 2
+   },
+   "w3w4-d1": {
     "QUEUED": 2
    },
    "w4-t15-t17": {
@@ -6431,6 +6435,98 @@
    ]
   },
   {
+   "id": "vw-w3n-draw-block-history@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history.pine",
+   "sourceKind": "probe",
+   "sha256": "eb7f2091a354da147f9b0240f3b8ea0de73ee644d503c2df0309aeb87c9dd376",
+   "bytes": 916,
+   "stem": "vw-w3n-draw-block-history",
+   "captureStem": "vw-w3n-draw-block-history",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#D01",
+    "capture-queue-2026-11-05-w3w4-d1#D02",
+    "capture-queue-2026-11-05-w3w4-d1#D03",
+    "capture-queue-2026-11-05-w3w4-d1#D04",
+    "capture-queue-2026-11-05-w3w4-d1#D00"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history.pine",
+   "sourceKind": "probe",
+   "sha256": "eb7f2091a354da147f9b0240f3b8ea0de73ee644d503c2df0309aeb87c9dd376",
+   "bytes": 916,
+   "stem": "vw-w3n-draw-block-history",
+   "captureStem": "vw-w3n-draw-block-history",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#D01",
+    "capture-queue-2026-11-05-w3w4-d1#D02",
+    "capture-queue-2026-11-05-w3w4-d1#D03",
+    "capture-queue-2026-11-05-w3w4-d1#D04",
+    "capture-queue-2026-11-05-w3w4-d1#D00"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "w9-d1-margin50@NYSE:RDDT@D",
    "status": "QUEUED",
    "evidence": [],
@@ -11353,6 +11449,12 @@
    "doc": "docs/pine/capture-queue-2026-11-04-w4-t13.md",
    "wave": "w4-t13",
    "rows": 6,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-05-w3w4-d1.md",
+   "wave": "w3w4-d1",
+   "rows": 5,
    "contextTables": 0
   },
   {

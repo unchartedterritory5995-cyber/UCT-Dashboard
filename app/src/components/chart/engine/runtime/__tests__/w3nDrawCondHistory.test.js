@@ -50,7 +50,7 @@ const same = (a, b, tol = 1e-9) => (a == null || Number.isNaN(a)
   : (b != null && !Number.isNaN(b) && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b))))
 
 function drawn(bars, src) {
-  const built = buildRuntimeIr(src, { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+  const built = buildRuntimeIr(src, { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D', w3nD1ServeDrawingHistory: true })
   if (!built.ok) throw new Error(`drawing build refused ${built.refusal.guard}: ${built.refusal.message}`)
   const program = lowerIrProgram(built.ir)
   const res = execute(program, {
@@ -69,8 +69,10 @@ function plotted(bars, src) {
   const r = execute(program, { bars: bars.length, series: seriesOf(bars), columns: program.columns, confirmed: true })
   return Array.from(r.outputs[0])
 }
-const refusal = (bars, body) => {
-  const b = buildRuntimeIr(SRC(...body), { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+// `serve` = the TEST-ONLY option that lifts the capture gate (DRAWING_HISTORY_CAPTURED = false in product)
+const refusal = (bars, body, serve = true) => {
+  const b = buildRuntimeIr(SRC(...body), { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D',
+    ...(serve ? { w3nD1ServeDrawingHistory: true } : {}) })
   return b.ok ? null : b.refusal.guard
 }
 
@@ -131,10 +133,32 @@ describe('W3W4-D1 - everything else keeps runtime:conditional-history by name', 
     ['a block local [1]', ['if close > open', '    bx = bar_index', '    label.new(bar_index, bx[1], "x")']],
     ['sma in a loop body', ['for i = 0 to 1', '    if close > open', '        label.new(bar_index, ta.sma(close, 3) + i, "x")']],
     ['sma in a function body', ['f(x) =>', '    ta.sma(x, 3)', 'if close > open', '    label.new(bar_index, f(close), "x")']],
+    // a binding made in ONE block, read in ANOTHER: its history is the first block's runs, not the second's
+    ['a series with history bound in another branch', ['if close > open', '    s = ta.sma(close, 3)', 'if bar_index % 2 == 0', '    label.new(bar_index, s, "x")']],
   ])('%s', (_n, body) => {
     expect(refusal(bars, body)).toBe(R4)
   })
   it('control: the same sma on EVERY bar builds (the refusal is the block, not the call)', () => {
     expect(refusal(bars, ['v = ta.sma(close, 3)', 'if close > open', '    label.new(bar_index, v, "x")'])).toBeNull()
+  })
+})
+
+describe('W3W4-D1 - the capture gate (DRAWING_HISTORY_CAPTURED = false): no drawing capture, so refused by name', () => {
+  const bars = barsOf(CAPS.rddt)
+  it.each([
+    ['ta.sma', 'ta.sma(close, 3)'], ['ta.ema', 'ta.ema(close, 3)'], ['ta.rma', 'ta.rma(close, 4)'],
+    ['sma inside arithmetic', 'ta.sma(close, 3) + 1'],
+  ])('%s is refused without the test option', (_n, expr) => {
+    expect(refusal(bars, ['if close > open', `    label.new(bar_index, ${expr}, "x")`], false)).toBe(R4)
+  })
+  it('the same shapes build with the test option (control: the gate, not the shape, refused)', () => {
+    expect(refusal(bars, ['if close > open', '    label.new(bar_index, ta.sma(close, 3), "x")'], true)).toBeNull()
+    expect(refusal(bars, ['if close > open', '    label.new(bar_index, ta.rma(close, 4), "x")'], true)).toBeNull()
+  })
+  it('the option is read from opts only (a product caller passes none): default build refuses', () => {
+    const b = buildRuntimeIr(SRC('if close > open', '    label.new(bar_index, ta.ema(close, 3), "x")'),
+      { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe(R4)
   })
 })

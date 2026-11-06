@@ -522,12 +522,12 @@ describe('W4 T0: the census peel removes a LOGICAL statement, not one physical l
 describe('W4 T0: the runtime probe asks the build the door asked (objects in the run)', () => {
   // The door's value build refuses a drawing at `runtime:object-op`; the DRAWING build
   // explains it. Here the drawing build's own refusal is `runtime:conditional-history`
-  // (a `ta.stdev` assigned in an `if`, read by `line.new`; W3W4-D1 serves sma/ema/rma there), and the host lane refused the
+  // (a `ta.*` assigned in an `if`, read by `line.new`), and the host lane refused the
   // unknown function first so the runtime lane was consulted.
   const OBJECT_OP = [...FIXTURE_HEAD,
     'var float lo = na',
     'if close > open',
-    '    lo := ta.stdev(close, 3)',
+    '    lo := ta.sma(close, 3)',
     'ln = line.new(bar_index, lo, bar_index + 1, lo)',
     'plot(math.nosuch(close))',
   ].join(LF)
