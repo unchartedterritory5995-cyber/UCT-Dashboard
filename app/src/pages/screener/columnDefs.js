@@ -563,14 +563,15 @@ export const COLUMN_DEFS = {
   // `_step("bars_rs")`: the last bar of the SAME `relative_strength` columns the
   // chart's rsLine draws) and seven rating columns (`rs_rating_history`, the
   // 04:15 ET job, read by the next 03:00 build). Views control visibility
-  // (`filters.VIEWS`: the family's own view plus three Momentum seats) and the
+  // (`filters.VIEWS`: the family's own view plus three Momentum seats; `filters.meta()`
+  // leaves out each family's seats, and the RS view, while its writer's flag is off) and the
   // sort menu derives "numeric" from the filter type, so there is no group or
   // hidden key here. NULL is an em dash, never a 0: a short window, a missing
   // SPY bar, a hole in the lookback, a dark rating job.
   rs_new_high: { label: 'RS NH', fmt: yesDash,
     desc: 'Yes when the stock\'s RS line against SPY (its close divided by SPY\'s close, daily bars) closed the last session at or above its highest value of the previous 252 sessions, ties included; blank until a full year of bars exists or when the window has a gap.' },
   rs_nh_before_price: { label: 'RS NH Before Px', fmt: yesDash,
-    desc: 'Yes when the RS line made a 252-session high on the last daily bar while price is still more than 2% below its own 252-session high, the pattern leaders often print before a breakout; blank where the RS high itself is blank.' },
+    desc: 'Yes when the RS line made a 252-session high on the last daily bar while price is still more than 2% below its own 252-session high; IBD calls it more bullish, not a precondition, and no published study measures how often it precedes a breakout; blank where the RS high itself is blank.' },
   rs_nh_red_day: { label: 'RS NH Red Day', fmt: yesDash,
     desc: 'Yes when the RS line made a 252-session high on a daily bar where SPY closed down 0.5% or more, the stress-test day; blank where the RS high itself is blank.' },
   rs_nh_bars_ago: { label: 'RS NH Age', fmt: barsAgo,
@@ -582,7 +583,7 @@ export const COLUMN_DEFS = {
   rs_cross_up_bars_ago: { label: 'RS Cross Age', fmt: barsAgo,
     desc: 'Sessions since the RS line last crossed from below to above its 21-session EMA on daily bars, "today" on the cross bar; the count keeps running even if the line has since fallen back, so pair it with RS > 21E to require that the cross still holds.' },
   mansfield: { label: 'Mansfield', fmt: pctSigned2, heat: heatSign,
-    desc: 'Mansfield RS on 200 daily bars: the RS line against SPY as a signed percent above or below its own 200-session simple average (Weinstein\'s formula, read daily rather than on his weekly 52), so above zero is outperforming its own past year and zero is average; blank until 200 sessions exist.' },
+    desc: 'Mansfield RS on 200 daily bars: the RS line against SPY as a signed percent above or below its own 200-session simple average (Weinstein\'s formula, read daily rather than on his weekly 52), so above zero means the RS line is above its own 200-session average and zero is at it; blank until 200 sessions exist.' },
   mansfield_cross_bars_ago: { label: 'Mans Cross Age', fmt: barsAgo,
     desc: 'Sessions since Mansfield RS last crossed zero in either direction on daily bars, "today" on the cross bar; read beside Mansfield\'s sign to know which way, blank on a gap bar or until 201 sessions exist.' },
   rs_benchmark_agree: { label: 'RS Agree', fmt: yesDash,
@@ -594,7 +595,7 @@ export const COLUMN_DEFS = {
   rs_rating_chg_20: { label: 'Rtg Chg 20', fmt: signedInt, heat: heatSign,
     desc: 'The IBD-style RS Rating minus its value 20 stored sessions earlier in the daily rating history, signed; blank until 20 earlier sessions exist, and a change in rank is a change in position, not a return.' },
   rs_rating_1m: { label: 'Rank 1M', fmt: num(0), heat: heatRs,
-    desc: 'Percentile rank, 1-99, of the plain 21-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+    desc: 'Percentile rank, 1-99, of the plain 21-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
   rs_rating_3m: { label: 'Rank 3M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 63-session return across the cap universe minus ETFs on daily bars, the window the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
   rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,

@@ -1687,6 +1687,84 @@ def _shared_filters(dist):
         return list(built)
 
 
+# ── UCT Relative Strength: shown only while the data behind it fills ─────────
+# Review findings #12 and #14 (2026-11-07). The two RS column families each have
+# one writer, and each writer sits behind its own flag:
+#   * the ten bar-derived columns (`rs_columns.COLUMNS`) are written by the
+#     builder's `bars_rs` step, which follows `registry_defs.RS_V2_ENABLED`;
+#   * the seven rating columns (the rest of the `relative_strength` category,
+#     `snapshot_builder._RS_HISTORY_COLUMNS`) read the side table the 04:15 ET
+#     job writes, which follows `api.main.rs_history_enabled()`.
+# With a flag off its columns are NULL on every row, so a control over them is a
+# filter that returns nothing and a seat in a view is a column of dashes.
+# `meta()` therefore leaves out each family's filters, its view seats (Momentum
+# and Relative Strength), the Relative Strength view itself while V2 is off,
+# and the category once nothing in it is left. FILTERS and VIEWS are NOT
+# changed: a stored spec still validates and runs, and the registry rails keep
+# reading the whole family. Both flags are read per call, read-only.
+
+
+def _rs_v2_on() -> bool:
+    """`registry_defs.RS_V2_ENABLED`, read at call time (tests set the attribute).
+    An unreadable flag is off: the surface stays dark."""
+    try:
+        from api.services.signature import registry_defs  # noqa: PLC0415 - lazy
+        return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _rs_history_on() -> bool:
+    """`api.main.rs_history_enabled()`, the ONE reader of RS_HISTORY_ENABLED.
+
+    ⚠️ Read through `sys.modules`, never imported here: importing `api.main`
+    builds the whole app. The web process that serves `meta()` has it loaded
+    (uvicorn api.main:app); any other caller (a script, a unit test) gets "off",
+    which is the dark answer."""
+    import sys  # noqa: PLC0415
+    main = sys.modules.get("api.main")
+    fn = getattr(main, "rs_history_enabled", None) if main is not None else None
+    if not callable(fn):
+        return False
+    try:
+        return bool(fn())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def rs_dark_keys(v2_on=None, history_on=None) -> frozenset:
+    """The RS filter keys (each equal to its column) a member is not shown now.
+
+    Derived from the bar writer (`rs_columns.COLUMNS`) and the registry's own
+    category, never from a list retyped here."""
+    v2_on = _rs_v2_on() if v2_on is None else v2_on
+    history_on = _rs_history_on() if history_on is None else history_on
+    from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
+    family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
+    bars = family & set(rs_columns.COLUMNS)
+    ratings = family - bars
+    dark = set()
+    if not v2_on:
+        dark |= bars
+    if not history_on:
+        dark |= ratings
+    return frozenset(dark)
+
+
+#: The view that exists only for the RS family; it follows RS_V2_ENABLED.
+RS_VIEW = "relative_strength"
+
+
+def _member_views(dark, v2_on) -> list:
+    out = []
+    for k, v in VIEWS.items():
+        if k == RS_VIEW and not v2_on:
+            continue
+        cols = [c for c in v["columns"] if c not in dark]
+        out.append({"key": k, **v, "columns": cols})
+    return out
+
+
 def meta(user_id=None) -> dict:
     """The whole panel payload.
 
@@ -1735,14 +1813,21 @@ def meta(user_id=None) -> dict:
     _parts["distribution"] = _time.perf_counter() - _t0
     out_filters = _shared_filters(dist)
     _parts["filters"] = _time.perf_counter() - _t0 - _parts["distribution"]
+    # The RS families whose writer is dark leave the payload (see `rs_dark_keys`).
+    rs_v2_on = _rs_v2_on()
+    rs_dark = rs_dark_keys(v2_on=rs_v2_on)
+    if rs_dark:
+        out_filters = [f for f in out_filters if f["key"] not in rs_dark]
     categories = CATEGORIES
+    if not any(f.get("category") == "relative_strength" for f in out_filters):
+        categories = [c for c in CATEGORIES if c["key"] != "relative_strength"]
     if user_id is not None:
         _t1 = _time.perf_counter()
         entry = _my_scans_entry(user_id)
         _parts["my_scans"] = _time.perf_counter() - _t1
         if entry is not None:
             out_filters.append(entry)
-            categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
+            categories = categories + [{"key": "my_scans", "label": "My Scans"}]
         _t1 = _time.perf_counter()
         lists = _my_lists_entry(user_id)
         _parts["my_lists"] = _time.perf_counter() - _t1
@@ -1751,7 +1836,7 @@ def meta(user_id=None) -> dict:
             categories = categories + [{"key": "my_lists", "label": "My Lists"}]
     _log_if_slow("screener-meta", _time.perf_counter() - _t0, _parts)
     return {"filters": out_filters,
-            "views": [{"key": k, **v} for k, v in VIEWS.items()],
+            "views": _member_views(rs_dark, rs_v2_on),
             "categories": categories,
             # The floors, the wording and the vintage the bands were measured
             # on — stated ONCE, beside them, so no surface has to guess at any
@@ -1766,5 +1851,5 @@ def meta(user_id=None) -> dict:
             "comparable_fields": [
                 {"key": k, "label": FILTERS[k]["label"],
                  "category": FILTERS[k]["category"]}
-                for k in comparable_keys()],
+                for k in comparable_keys() if k not in rs_dark],
             "column_ops": dict(COL_OPS)}

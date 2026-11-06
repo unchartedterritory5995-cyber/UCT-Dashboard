@@ -218,7 +218,16 @@ def _rs_sets():
 
 
 def _rs_starters(ss):
+    # 2026-11-07 (review finding #12, unit U6): the RS starters ship only while
+    # `registry_defs.RS_V2_ENABLED` is on (the `bars_rs` step's gate), so the
+    # rails below read them with the flag armed via `_rs_v2_on(monkeypatch)`;
+    # the dark half is railed in tests/test_rs_fix_u6_screener_surfaces.py.
     return [s for s in ss.starters() if s.get("group") == ss.RS_STARTER_GROUP]
+
+
+def _rs_v2_on(monkeypatch):
+    from api.services.signature import registry_defs
+    monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
 
 
 def test_rs_starters_filter_ONLY_the_columns_that_fill_on_day_one(tmp_path, monkeypatch):
@@ -226,6 +235,7 @@ def test_rs_starters_filter_ONLY_the_columns_that_fill_on_day_one(tmp_path, monk
     other half, so the standing empty-column rail bites on any rating starter
     the day somebody adds one early."""
     ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
     from api.services.screener import filters as scr_filters
     bars, ratings = _rs_sets()
     assert bars and ratings and not (bars & ratings)
@@ -256,6 +266,7 @@ def test_the_rs_starter_rules_are_the_ones_the_unit_was_built_to(tmp_path, monke
     now" are the thresholds shipped on 2026-11-06, editorial and awaiting the
     owner's approval (map §5 q5) — move them deliberately, not by drift."""
     ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
     by_id = {s["id"]: s for s in _rs_starters(ss)}
 
     def clauses(sid):
@@ -285,6 +296,7 @@ def test_rs_starters_say_what_they_select_and_never_say_weekly(tmp_path, monkeyp
     wrong thing. Mansfield here is on 200 DAILY bars (`rs_columns`), so no name
     or description may say "weekly"; every one names its own liquidity floor."""
     ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
     for s in _rs_starters(ss):
         text = f"{s['name']} {s['description']}".lower()
         assert "weekly" not in text, s["id"]
