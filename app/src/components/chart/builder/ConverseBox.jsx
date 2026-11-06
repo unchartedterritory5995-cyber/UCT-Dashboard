@@ -348,7 +348,7 @@ export default function ConverseBox({
   useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (
-    <section style={S.box} aria-label="Build it by conversation" data-testid="converse">
+    <section style={S.box} aria-label="Build it by conversation" data-guide="builder.conversation" data-testid="converse">
       <div style={S.head}>Describe the indicator, then refine it — UCT shows exactly what will run</div>
 
       <div style={S.identity} data-testid="converse-identity"
@@ -423,7 +423,7 @@ export default function ConverseBox({
           disabled={busy || disabled || !message.trim()} onClick={() => send(message)}>
           {busy ? 'Working…' : 'Send'}
         </button>
-        <button type="button" style={dim(S.button, !canUndo)} data-testid="converse-undo" disabled={!canUndo} onClick={undoLast}>
+        <button type="button" style={dim(S.button, !canUndo)} data-testid="converse-undo" data-guide="builder.undo" disabled={!canUndo} onClick={undoLast}>
           Undo last change
         </button>
       </div>

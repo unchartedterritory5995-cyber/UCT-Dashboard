@@ -130,6 +130,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
   return (
     <div
       className={wsStyles.addMenu}
+      data-guide="multiChart.flyout"
       style={{
         minWidth: 240,
         // Viewport-bounded: on laptops the full menu (layouts + groups + save)

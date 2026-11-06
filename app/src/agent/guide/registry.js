@@ -401,8 +401,8 @@ export const GUIDE_FEATURES = [
     explain: 'Chart Settings → Canvas holds the chart’s background, grid, crosshair, scale text and watermark. Open it from the gear on the chart’s header.',
     steps: [
       { target: 'chart.settings', text: 'Open this chart’s settings with the gear.', waitFor: 'chartSettings' },
-      { target: 'chartSettings.tab.canvas', text: 'Open Canvas — the background, grid, crosshair, scale text and watermark are here.', waitFor: { id: 'chartSettings.tab.canvas', on: true } },
-      { target: 'chartSettings.tab.canvas', text: 'The background, grid, crosshair, scale text and watermark are all on this tab. Scroll down for the rest.' },
+      // the last step: the tab IS the answer, so the card offers Done rather than waiting for a click that adds nothing
+      { target: 'chartSettings.tab.canvas', text: 'Open Canvas — the background, grid, crosshair, scale text and watermark are here. Scroll down for the rest.' },
     ],
     doIt: { say: 'Tell me the change — for example “make the background black”, “hide the grid lines” or “make the crosshair dashed”.' },
   },

@@ -368,8 +368,8 @@ def test_the_p5_events_are_on_both_sides_and_read_not_typed():
     names = set(_client_event_names())
     assert P5_EVENTS <= names, P5_EVENTS - names
     assert P5_EVENTS <= _J2_TELEMETRY_EVENTS
-    # P5-R-C7: 17 + 3 = 20 names on the client; audit 2026-11-05 (S16, S20) adds five: 25.
-    assert len(_client_event_names()) == 25
+    # P5-R-C7: 17 + 3 = 20 names on the client; audit 2026-11-05 (S16, S20) adds five: 25; S15 adds today_opened: 26.
+    assert len(_client_event_names()) == 26
 
 
 S20_EVENTS = {"first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident"}

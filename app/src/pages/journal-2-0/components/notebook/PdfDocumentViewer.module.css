@@ -104,7 +104,7 @@
   position: absolute;
   background: rgba(255, 210, 60, 0.38);
   border-radius: 2px;
-  transition: background 0.25s ease;
+  transition: background var(--duration-base) var(--ease-out);
 }
 .highlightRectEmphasized {
   background: rgba(255, 170, 20, 0.72);
