@@ -8,6 +8,8 @@ import { setupPanel, ONE, TWO } from './testing/panelHarness'
 import { buildContext } from './capabilities'
 import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
 import { preflightRefusals } from './nl1/interpreter'
+import { planOps, collectTargets } from './executor'
+import { commitPlan } from './runtime'
 import { addChartTab } from '../pages/charts/chartTabs'
 import { orderWords, loadMeta, _resetScreenerCache } from './capabilities/screener'
 
@@ -631,5 +633,64 @@ describe('review of #866, round 2: "nothing was left changed" only after a read-
     silentWrite(h)
     p.st.envelopes.push(planIs('chart.setTimeframe', 'c', { timeframe: 'W' }))
     expect(await say('put it on the weekly for me')).toMatch(NOTHING)
+  }, 40000)
+})
+
+describe('review of #866, round 3: the read-back comes after compensation', () => {
+  const NOTHING = /nothing was left changed/
+  const REVERSED = /could not be reversed/
+  const half = () => [[{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { A: 'AAPL' }]
+  const addThenLink = (h) => p.env('apply', [
+    { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'news', as: null } },
+    { action: 'widget.setLink', target: refOfKind(h, 'board'), args: { widget: 'c', color: 'B' } },
+  ])
+  it('two kinds on one board: the add is taken back, the board reads as it was, and the reply says nothing was left', async () => {
+    const { say, h, board } = p.mount(...half())
+    const before = JSON.stringify(board.state.widgets)
+    h.widgets.applyBoard = () => true           // accepted, never lands
+    p.st.envelopes.push(addThenLink(h))
+    const text = await say('add the news widget and link this chart to blue')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+    expect(text).toMatch(NOTHING)
+    expect(text).not.toMatch(REVERSED)
+  }, 40000)
+  it('the same plan when the take-back fails too stays "could not be reversed"', async () => {
+    const { say, h, board } = p.mount(...half())
+    const { widgets } = h
+    h.widgets = { ...widgets, applyBoard: () => true, remove: () => {} }
+    p.st.envelopes.push(addThenLink(h))
+    const text = await say('add the news widget and link this chart to blue')
+    expect(board.state.widgets.map(w => w.type)).toContain('news')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('two kinds on one chart\'s settings: the indicator change is taken back, and the chart reads as it was', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    await withRsi(say)
+    const { commit } = h.charts
+    const stored0 = JSON.stringify(h.charts.read('c').stored)
+    h.charts.commit = (ref, patch) => (patch.tf ? true : commit(ref, patch))   // the timeframe is accepted, and never lands
+    // an indicator change plans alone, so the two plans are put side by side to reach the runtime as one
+    const planOf = (kind, op) => planOps(collectTargets(h, [kind]), [op], {}, { surface: 'charts' })
+    const first = planOf('indicatorEdits', { action: 'indicator.hide', target: 'ixe:c', args: { instance: 'rsi' } })
+    const second = planOf('chart', { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } })
+    expect([first.ok, second.ok]).toEqual([true, true])
+    const res = await commitPlan(h, { ...first, plans: [...first.plans, ...second.plans] }, { env: {} })
+    expect(res.ok).toBe(false)
+    expect(JSON.stringify(h.charts.read('c').stored)).toBe(stored0)
+    expect(res.failed[0].reason).toMatch(NOTHING)
+  }, 40000)
+  it('NEGATIVE: a failing step that left its own change behind still says so after compensation', async () => {
+    const { say, h } = p.mount(...half())
+    const { commit } = h.charts
+    h.charts.commit = (ref, { symbol: _dropped, ...rest }) => commit(ref, rest)
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'news', as: null } },
+      { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } },
+      { action: 'chart.setSymbol', target: 'c', args: { symbol: 'MSFT' } },
+    ]))
+    const text = await say('add news and put MSFT on the weekly')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
   }, 40000)
 })
