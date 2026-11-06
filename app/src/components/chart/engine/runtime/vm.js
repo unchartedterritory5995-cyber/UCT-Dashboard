@@ -35,6 +35,9 @@ import {
 } from './records.js'
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
+// ⭐⭐ S1 — the strategy broker (`broker.js`).
+import { makeBroker, BrokerRefusal, BrokerStart, BrokerUnpinned } from './broker.js'
+import { pinned as ledgerPinned } from './brokerPins.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
@@ -320,6 +323,42 @@ export function execute(program, ctx, limits, opts) {
   // a sized `array.new_line(n)` may hold Pine's `na` handle (`collections.js::ARRAY_NEW`).
   if (store && budget.objectsInRun === undefined) budget.objectsInRun = true
 
+  // ⭐⭐ S1 — THE RUN'S BROKER, for a program that declares one. A request's sub-run
+  // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
+  const brokerOps = program.brokerOps || []
+  let broker = null
+  if (program.broker && !(opts && opts.entry !== undefined)) {
+    // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
+    if (program.broker.fromListing !== true) {
+      throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
+        + "not known to start at the symbol's first bar", 'Q-S1n')
+    }
+    // [B-EXEC] calc_on_every_tick executes a strategy on every realtime tick of a forming bar.
+    if (program.broker.calcOnEveryTick === true && ctx.confirmed === false) {
+      throw new BrokerRefusal('`calc_on_every_tick = true` executes this strategy on every tick of the forming '
+        + 'bar, which a run over bars cannot reproduce', 'Q-S1o')
+    }
+    // ⭐⭐ W9-T1 — [3.4] a broker run takes the most recent `ctx.historyWindowBars` bars (the value of
+    // `bars_window.HISTORY_WINDOW_BARS`, handed in by the caller: this lane adds no bar constant).
+    // A run without it, or holding more bars than it, is refused: scroll-back must never change trades.
+    const win = ctx.historyWindowBars
+    if (!(Number.isInteger(win) && win > 0)) {
+      throw new BrokerStart('a strategy run needs the history window it starts from, and this run was not told it')
+    }
+    if (ctx.bars > win) {
+      throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
+    }
+    broker = makeBroker(program.broker, { series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned })
+  }
+  // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
+  // it has not run yet, so nothing it computes exists there.
+  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`.
+  if (broker && ctx.confirmed === false) {
+    const pinOk = opts && typeof opts.brokerPinned === 'function' ? opts.brokerPinned : (id) => ledgerPinned(id)
+    if (!pinOk('B-EXEC')) throw new BrokerUnpinned('B-EXEC')
+  }
+  const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
+
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //
   // The reducers in `interpret.js` take `(series, lo, hi)` over a CONTIGUOUS
@@ -496,6 +535,11 @@ export function execute(program, ctx, limits, opts) {
   // `true` answer stops the run there (`stoppedAt`). ⛔ Never for a program that
   // draws: an object store is not encoded, so it is not probed.
   const probe = opts && opts.probe && !store && entryPc === 0 ? opts.probe : null
+  // ⭐⭐ W9-T1 — a broker's state (orders, trades, position) is in no checkpoint and no probe
+  // cell, so a broker run is never resumed, checkpointed or probed: it runs from bar 0.
+  if (broker && opts && opts.probe) {
+    throw new BrokerRefusal('a strategy run is not probed by the warm-up curtain: the state of the broker is not part of its cells', 'W9-probe')
+  }
   const probeBars = probe && Array.isArray(probe.bars) ? probe.bars : []
   let probeI = 0
   let probeAt = probe && probeBars.length ? probeBars[0] : -1
@@ -515,8 +559,8 @@ export function execute(program, ctx, limits, opts) {
   // every tick, so no tick's writes accumulate into the next.
   // `opts.checkpointAt` names the bar at whose end this run's state is copied OUT
   // (`res.checkpoint`) — the last CONFIRMED bar, so no forming value is ever saved.
-  const resume = opts && opts.resume && entryPc === 0 ? opts.resume : null
-  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 ? opts.checkpointAt : -1
+  const resume = opts && opts.resume && entryPc === 0 && !broker ? opts.resume : null
+  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 && !broker ? opts.checkpointAt : -1
   let checkpoint = null
   let startBar = 0
   if (resume) {
@@ -582,7 +626,9 @@ export function execute(program, ctx, limits, opts) {
     pkNest = bc.LOOP_NESTING
   }
   const realtime = opts && opts.realtime && entryPc === 0 ? opts.realtime : null
-  for (let bar = startBar; bar < ctx.bars; bar += 1) {
+  for (let bar = startBar; bar < runBars; bar += 1) {
+    // ⭐⭐ S1 — [B-FILL] the orders the last bar placed fill BEFORE this bar's script runs.
+    if (broker) broker.beginBar(bar)
     if (realtime) realtime.barStart(bar, persist, initialised)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -920,6 +966,22 @@ export function execute(program, ctx, limits, opts) {
           budget.charge('OBJECT_OPERATIONS', 1)
           const ov = store.call(oop.fn, oargs, bar, heldNow)
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
+          break
+        }
+        // ⭐⭐ S1 — A BROKER OPERATION: the PASSED arguments in parameter order, spread
+        // back onto the op's parameter list (`undefined` where the script passed none).
+        case 100 /* OP.BROKER */: {
+          const bop = brokerOps[a]
+          if (!broker) {
+            throw new VmError(`pc ${pc - 1}: \`${bop.fn}\` is a broker op, and this run holds no broker `
+              + '(a request of other bars)')
+          }
+          sp -= b
+          const bargs = new Array(bop.present.length)
+          let k = sp
+          for (let i = 0; i < bop.present.length; i += 1) bargs[i] = bop.present[i] ? stack[k++] : undefined
+          const bv = broker.call(bop.fn, bargs, bar)
+          if (bop.returns !== 'void') stack[sp++] = bv === undefined ? NaN : bv
           break
         }
         case 85 /* OP.COLOUR */: {
@@ -1452,5 +1514,6 @@ export function execute(program, ctx, limits, opts) {
   if (probe && typeof probe.done === 'function') probe.done({ dynLowSeries, dynLowCol })
 
   return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store,
-    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}) }
+    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}),
+    ...(broker ? { broker: broker.summary() } : {}) }
 }

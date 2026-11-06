@@ -196,3 +196,15 @@ describe('⭐⭐ W4-T11 text builtins are gated at the object door', () => {
     expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
   })
 })
+
+describe('W9-T1 the strategy broker is never reachable at the object door', () => {
+  const SRC = ['//@version=5', 'strategy("t")', 'if bar_index == 3', '    strategy.entry("L", strategy.long)', 'plot(strategy.position_size)', ''].join(String.fromCharCode(10))
+  it('the pane build with the broker on retries and builds; at the door it refuses pine:strategy-call as master does', () => {
+    const pane = buildRuntimeIr(SRC, { bars: BARS, inputs: {}, symbol: SYMBOL, strategyBroker: true })
+    expect(pane.ok).toBe(true)
+    expect(pane.ir.broker).not.toBe(null)
+    const door = buildRuntimeIr(SRC, { bars: BARS, inputs: {}, symbol: SYMBOL, strategyBroker: true, objectDoor: true })
+    expect(door.ok).toBe(false)
+    expect(door.refusal.guard).toBe('pine:strategy-call')
+  })
+})
