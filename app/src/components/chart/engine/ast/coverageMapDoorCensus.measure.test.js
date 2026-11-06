@@ -120,6 +120,27 @@ function runtimeProbeOf(source, declined) {
 const gatedRuntime = (r) => !!r && !!r.runtimeDeclined && isGateDecline(r.runtimeDeclined.code)
 const reachedRuntime = (r) => !!r && (r.lane === 'runtime' || (!!r.runtimeDeclined && !gatedRuntime(r)))
 
+/** ⭐ W3W4-T0 — THE GUARD BEHIND EACH DROPPED OBJECT OP, IDENTIFIERS ONLY. `dropReasons` counts
+ *  ops by KIND (`guard:create`, `create:line`, `cell:text`); the translation also holds the
+ *  sentence behind them (`guardRefusals`, `createDropWhy`, `cellTextWhy`). Each is cut to
+ *  `<op>@<line>: <guard>[ <subject>]` (the message text, which can quote a script, is dropped),
+ *  so the census row can say WHICH host guard dropped an op without carrying prose.
+ *  `op` is `create:<family>` for a create, `cell:text` for a cell text, the op kind otherwise. */
+export function dropHeads(diag) {
+  const d = diag || {}
+  const out = []
+  for (const e of d.guardRefusals || []) out.push(short(String(e), 120))
+  for (const e of d.createDropWhy || []) {
+    const m = /^create (\w+)@([\d?]+) [^:]*: (\S+)/.exec(String(e))
+    if (m) out.push(`create:${m[1]}@${m[2]}: ${m[3] === 'no' ? 'unrecorded' : m[3]}`)
+  }
+  for (const e of d.cellTextWhy || []) {
+    const m = /^cell@([\d?]+): (\S+)/.exec(String(e))
+    if (m) out.push(`cell:text@${m[1]}: ${m[2] === 'no' ? 'unrecorded' : m[2]}`)
+  }
+  return [...new Set(out)].slice(0, 60)
+}
+
 function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
   let d
   try {
@@ -168,6 +189,7 @@ function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
     droppedOps: diag.droppedOps || 0,
     attemptedOps: diag.attemptedOps || 0,
     dropReasons: diag.dropReasons || {},
+    dropHeads: dropHeads(diag),
     unsupported: diag.unsupported || [],
     outOfScope: diag.outOfScope || [],
     loopBlockedCalls: diag.loopBlockedCalls || [],
@@ -558,5 +580,32 @@ describe.skipIf(!DOOR_OUT)('engine table through the Pine door (doorCoverage pro
       pine: r.pine && r.pine.status, guard: (r.pine && r.pine.guard) || null,
     })), null, 1)}${LF}`)
     expect(rows.length).toBe(Object.keys(TABLE.functions).length)
+  })
+})
+
+// ─── ⭐ W3W4-T0 — THE GUARD BEHIND A DROPPED OBJECT OP REACHES THE CENSUS ROW ──────────
+describe('W3W4-T0: dropHeads', () => {
+  it('cuts each why sentence to <op>@<line>: <guard>, with no message text', () => {
+    const heads = dropHeads({
+      guardRefusals: ['create@9: pine:state `acc`'],
+      createDropWhy: ['create line@12 slot x: pine:collection array never created', 'create label@3 t: no refusal recorded'],
+      cellTextWhy: ['cell@5: pine:text-value the text is a computed value'],
+    })
+    expect(heads).toEqual([
+      'create@9: pine:state `acc`', 'create:line@12: pine:collection', 'create:label@3: unrecorded', 'cell:text@5: pine:text-value',
+    ])
+    expect(heads.join(' ')).not.toMatch(/array never created|computed value/)
+    expect(dropHeads(undefined)).toEqual([])
+  })
+
+  it('a refused step with dropped ops carries counters and heads on its census row', () => {
+    const src = [...FIXTURE_HEAD, 'f() =>', '    var int n = 0', '    n += 1', '    n',
+      'if barstate.islast', '    label.new(bar_index, high, str.tostring(f()))'].join(LF)
+    const r = oneDoor(src, { runtimeDetail: false })
+    expect(typeof r.attemptedOps).toBe('number')
+    expect(Array.isArray(r.dropHeads)).toBe(true)
+    // consistent: every head names a guard, and a drop with reasons has the counter behind it
+    for (const h of r.dropHeads) expect(h).toMatch(/^[\w:.-]+@[\d?]+: \S+/)
+    if (Object.keys(r.dropReasons).length) expect(r.droppedOps).toBeGreaterThan(0)
   })
 })
