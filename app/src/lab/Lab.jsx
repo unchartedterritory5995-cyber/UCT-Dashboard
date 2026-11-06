@@ -65,8 +65,10 @@ import Piece61ChallengeBlitz from './pieces/Piece61ChallengeBlitz'
 import Piece62ChallengeBoss from './pieces/Piece62ChallengeBoss'
 import Piece63ChallengeKicker from './pieces/Piece63ChallengeKicker'
 import Piece64DailyDrill from './pieces/Piece64DailyDrill'
+import Piece65ChallengeHard from './pieces/Piece65ChallengeHard'
 
 const PIECES = {
+  65: Piece65ChallengeHard,
   64: Piece64DailyDrill,
   63: Piece63ChallengeKicker,
   62: Piece62ChallengeBoss,

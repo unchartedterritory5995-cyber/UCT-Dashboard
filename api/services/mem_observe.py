@@ -17,7 +17,8 @@ dicts) before walking them in small slices that yield the GIL between slices, so
 are not held up. Every probe is wrapped: a failure logs once and is skipped; nothing raises out of the thread.
 
 One log line per tick, grep `[memobs]`:  {"svc":..., "rss_mb":..., "cg_anon_mb":..., "cg_file_mb":...,
-"structs": {name: {"n": .., "aged24": .., "est_mb": ..}}, "would": {counter: n}}
+"structs": {name: {"n": .., "aged24": .., "est_mb": ..}}, "would": {counter: n},
+"files": [[path, size_mb, cached_mb], ...]}  (page-cache residency per file; off: MEM_OBSERVE_FILES=0)
 
 Off switch: MEM_OBSERVE_ENABLED=0. Interval: MEM_OBSERVE_INTERVAL_S (default 600). Size estimates (a json
 sample, the expensive part) run every MEM_OBSERVE_SIZE_EVERY ticks (default 6, i.e. hourly).
@@ -173,7 +174,116 @@ def _probe(kind, obj, now, with_size):
     return res
 
 
-def snapshot(service, targets, with_size=False):
+# ---- page-cache residency per file (added 2026-11-06 after the first day showed ~90% of billed memory is FILE
+# cache, not process memory). mincore() over a read-only mapping reports which pages of a file are already in
+# the page cache. It reads no file data, faults no page in, and charges nothing to the cgroup.
+_FILE_TOP = 12               # files reported per tick, largest cached first
+_FILE_MAX_SCAN = 5000        # files examined per tick (bounded walk)
+_FILE_MIN_BYTES = 1 << 20    # ignore files under 1 MB
+_CHUNK = 1 << 30             # map 1 GB at a time (keeps the residency vector at 256 KB)
+_LIBC = None
+_LOW_BIT = bytes(b & 1 for b in range(256))   # mincore: bit 0 = resident; other bits are reserved
+
+
+def _libc():
+    global _LIBC
+    if _LIBC is None:
+        import ctypes
+        lib = ctypes.CDLL(None, use_errno=True)
+        lib.mmap.restype = ctypes.c_void_p
+        lib.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_long]
+        lib.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+        lib.mincore.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p]
+        _LIBC = lib
+    return _LIBC
+
+
+def _resident_bytes(path, size):
+    """Bytes of `path` currently in the page cache. None when it cannot be measured."""
+    import ctypes
+    import mmap as _mm
+    lib = _libc()
+    page = _mm.PAGESIZE
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        resident = 0
+        off = 0
+        while off < size:
+            ln = min(_CHUNK, size - off)
+            addr = lib.mmap(None, ln, _mm.PROT_READ, _mm.MAP_SHARED, fd, off)
+            if addr in (None, ctypes.c_void_p(-1).value):
+                return None
+            try:
+                vec = (ctypes.c_ubyte * ((ln + page - 1) // page))()
+                if lib.mincore(addr, ln, vec) != 0:
+                    return None
+                resident += bytes(vec).translate(_LOW_BIT).count(1) * page
+            finally:
+                lib.munmap(addr, ln)
+            off += ln
+            time.sleep(0)
+        return min(resident, size)
+    finally:
+        os.close(fd)
+
+
+def _candidate_files(roots):
+    """(label, open_path, size) for big regular files under `roots` plus every file this process holds open
+    (including deleted-but-open ones, which a directory walk cannot see)."""
+    seen, out = set(), []
+
+    def add(label, open_path):
+        try:
+            st = os.stat(open_path)
+        except OSError:
+            return
+        key = (st.st_dev, st.st_ino)
+        if key in seen or not (st.st_mode & 0o170000 == 0o100000) or st.st_size < _FILE_MIN_BYTES:
+            return
+        seen.add(key)
+        out.append((label, open_path, st.st_size))
+
+    try:
+        for fd in os.listdir("/proc/self/fd"):
+            p = f"/proc/self/fd/{fd}"
+            try:
+                add(os.readlink(p), p)
+            except OSError:
+                continue
+    except OSError:
+        pass
+    n = 0
+    for root in roots:
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in ("proc", "sys")]
+            for fn in filenames:
+                n += 1
+                if n > _FILE_MAX_SCAN:
+                    return out
+                fp = os.path.join(dirpath, fn)
+                add(fp, fp)
+    return out
+
+
+def file_cache(roots=None):
+    """Top files by page-cache residency: {"files": [[path, size_mb, cached_mb], ...], "files_cached_mb": total}."""
+    if roots is None:
+        roots = [r for r in os.environ.get("MEM_OBSERVE_FILE_ROOTS",
+                                           os.environ.get("DATA_DIR", "/data") + ":/tmp").split(":") if r]
+    rows = []
+    for label, open_path, size in _candidate_files(roots):
+        try:
+            b = _resident_bytes(open_path, size)
+        except Exception:  # noqa: BLE001
+            b = None
+        if b:
+            rows.append((b, label, size))
+    rows.sort(reverse=True)
+    return {"files": [[lbl, round(sz / 1048576, 1), round(b / 1048576, 1)] for b, lbl, sz in rows[:_FILE_TOP]],
+            "files_cached_mb": round(sum(r[0] for r in rows) / 1048576, 1), "files_scanned": len(rows)}
+
+
+def snapshot(service, targets, with_size=False, with_files=False):
     now = time.time()
     rec = {"svc": service, "ts": int(now), "rss_mb": _proc_rss_mb(), **_cgroup_mb(),
            "threads": threading.active_count(), "structs": {}, "would": dict(_WOULD)}
@@ -187,6 +297,11 @@ def snapshot(service, targets, with_size=False):
                 rec["structs"][label] = r
         except Exception as e:  # noqa: BLE001
             rec["structs"][label] = {"err": type(e).__name__}
+    if with_files:
+        try:
+            rec.update(file_cache())
+        except Exception as e:  # noqa: BLE001
+            rec["files_err"] = type(e).__name__
     return rec
 
 
@@ -201,12 +316,15 @@ def start(service: str, targets) -> bool:
     except ValueError:
         interval, size_every = 600, 6
 
+    files_on = os.environ.get("MEM_OBSERVE_FILES", "1").strip() not in ("0", "false", "no", "")
+
     def _loop():
         tick = 0
         time.sleep(30)                                # let the service finish booting first
         while True:
             try:
-                rec = snapshot(service, targets, with_size=(tick % size_every == 0))
+                rec = snapshot(service, targets, with_size=(tick % size_every == 0),
+                               with_files=files_on and sys.platform.startswith("linux"))
                 log.info("[memobs] %s", json.dumps(rec, separators=(",", ":")))
             except Exception as e:  # noqa: BLE001
                 log.warning("[memobs] tick failed: %s", type(e).__name__)
