@@ -3213,7 +3213,7 @@ export default function ChartSettingsIndicators({
             if (!d || definitionKindOf(d) !== 'user') return null
             const stop = (fn) => (e) => { e.stopPropagation(); fn() }
             return (
-              <span className={styles.resActions} data-testid="your-indicator-actions">
+              <span className={styles.resActions} data-testid="your-indicator-actions" data-guide="indicators.yours">
                 {definitionDoors.canModify() && (
                   <button type="button" className={styles.resAction} data-testid="your-indicator-modify"
                     onClick={stop(() => definitionDoors.modify(d.id))}>Modify</button>
@@ -3288,6 +3288,7 @@ export default function ChartSettingsIndicators({
                 type="button"
                 className={styles.resAddMore}
                 aria-label={`Add another ${row.name}`}
+                data-guide="indicators.addAnother"
                 title={`Add a second ${row.shortName} with the default settings`}
                 onClick={(e) => addAnother(row, e)}
               >＋</button>
