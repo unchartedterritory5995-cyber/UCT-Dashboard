@@ -1,4 +1,4 @@
-NEXT STEP: landing by the coordinator: SCRIPT_ENGINE_VERSION bump + regenerate the W5 host-parity digests (hostParity.rail / .v8 red only for that), then a final-tip on the bumped tree and ready-check. Optional: re-run measure-pair round B runtime 1 (stopped by the harness for low memory).
+NEXT STEP: re-run measure-pair round B runtime 1 alone (runs/w6-t5/mpB1.sh under dsk/heavy-mp2.lock, ram_gate; out runs/w6-t5/mpB-rt1), classify vs the spec movers; then FULL final-tip into a fresh dir; restore tools/lookback_agreement.json only if distinct_trees_walked alone differs (known cc-yata timing drift, coordinator note); then ready-check. The rt1 re-run was stopped twice by Claude Code for low system memory (06:56, 10:24) and waits for the coordinator. Oracle drift (605 vs 608): coordinator-confirmed benign (cc-yata 3000 ms timeout); the oracle walks only pine.js/parse/interpret/lint (37 files, none changed here) over corpus/committed + tests/fixtures/member (unchanged).
 
 # W6-T5 `array.*` completion (lane w6-t5)
 
