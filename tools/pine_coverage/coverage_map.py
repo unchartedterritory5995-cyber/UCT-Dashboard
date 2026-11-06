@@ -87,7 +87,10 @@ BUCKET_LABEL = {
     "realtime-bar-state": "Forming-bar (realtime) state",
     "builtin-missing": "A built-in name the door does not know",
     "call-mapping": "A known name whose call shape / argument order is not mapped",
-    "drawing-objects": "Drawing objects (line/label/box/table/polyline/linefill): ops dropped or withheld",
+    "drawing-objects": "Drawing objects (line/label/box/table/polyline/linefill): an op the object program could not carry that no host guard explains, or a loss with nothing named",
+    "drawing-never-attempted": "Drawing script whose object program attempted NO op (nothing was dropped; nothing was built)",
+    "drawing-no-output-other": "Drawing script with an empty object program: ops attempted, none dropped and nothing else named",
+    "paint-withheld": "A per-bar paint the door withheld (colour typing), with the object program clean",
     "output-contract": "Script offers nothing the pane carries (no plot, hidden-only, constant-only)",
     "translator-robustness": "Translator timeout / crash / round-trip failure",
 }
@@ -425,6 +428,124 @@ def transfers_fully(census_row, u):
         places_orders(u))
 
 
+# ⭐ W3W4-T0 - THE OBJECT PROGRAM'S OWN VERDICT, READ ON REFUSED STEPS TOO.
+# A door `pine:no-output` / `pine:objects-only` says "ZERO SURVIVING ops" (PJ `refusal: hardRefusals[0] || r`,
+# `draws = program.ops.length > 0`). That is three different facts, told apart by the step's own counters:
+#   dropped          attemptedOps > 0 and droppedOps > 0: an op was ATTEMPTED and DROPPED (named op + host guard);
+#   never attempted  attemptedOps == 0: the object pass never tried an op for a drawing constructor;
+#   no-output other  attemptedOps > 0, droppedOps == 0: the program is empty for a reason no counter names.
+# (W3W4-NEXT review B1: "39 dropped every op" was never established; the screener-lane why file split the 39
+# into 27 all-dropped, 10 partial and 2 zero-attempted.)
+OBJECT_PROGRAM_GUARDS = frozenset({"pine:no-output", "pine:objects-only"})
+BUCKET_NEVER_ATTEMPTED = "drawing-never-attempted"
+BUCKET_NO_OUTPUT_OTHER = "drawing-no-output-other"
+BUCKET_PAINT_WITHHELD = "paint-withheld"
+# a drop key naming a host guard: `guard:create <- pine:state`
+DROP_VIA = " <- "
+_HEAD_RX = re.compile(r"^([\w:.\-]+)@([\d?]+): (\S+)(?: (.*))?$")
+
+
+def parse_drop_heads(heads):
+    """[{op, line, guard, token}] from the census's `dropHeads` strings (`<op>@<line>: <guard>[ <subject>]`).
+    An unparseable string is kept as op None so a format drift shows up as an unresolved drop, not silence."""
+    out = []
+    for h in heads or []:
+        m = _HEAD_RX.match(str(h).strip())
+        if not m:
+            out.append({"op": None, "line": None, "guard": None, "token": None})
+            continue
+        g = m.group(3)
+        out.append({"op": m.group(1), "line": None if m.group(2) == "?" else int(m.group(2)),
+                    "guard": "unrecorded" if g in ("unrecorded", "no", "refused") else g,
+                    "token": (m.group(4) or "").strip("` ") or None})
+    return out
+
+
+def _drop_key_ops(key):
+    """The dropHeads `op` names a `dropReasons` key can be explained by: `guard:create` <- op `create`,
+    `create:line` <- op `create:line`, `cell:text` <- op `cell:text`. None for a key no guard explains
+    (`coll:*`, `loop:*`, `fn:*`, `update:props`, geometry)."""
+    kind, _, rest = key.partition(":")
+    if kind == "guard" and rest:
+        return {rest}
+    if key == "cell:text" or kind == "create":
+        return {key}
+    return None
+
+
+def drop_walls(st):
+    """[(key, guard)] the dropped ops of one door step name: ("drop", "<reason>") unchanged for a reason no
+    host guard explains, ("drop", "<reason> <- <guard>") once per distinct host guard that explains it."""
+    heads = parse_drop_heads(st.get("dropHeads"))
+    out = []
+    for k in sorted((st.get("dropReasons") or {}).keys()):
+        base = k.split(":")[0] + ":" + (k.split(":")[1] if ":" in k else "")
+        ops = _drop_key_ops(base)
+        guards = sorted({h["guard"] for h in heads if ops and h["op"] in ops and h["guard"]})
+        if guards:
+            for g in guards:
+                out.append((("drop", base + DROP_VIA + g), g))
+        else:
+            out.append((("drop", base), None))
+    return out
+
+
+def drop_guard_of(drop_value):
+    """The host guard a resolved drop label names, or None (`guard:create <- pine:state` -> `pine:state`)."""
+    if DROP_VIA not in drop_value:
+        return None
+    g = drop_value.split(DROP_VIA, 1)[1]
+    return None if g == "unrecorded" else g
+
+
+def object_program_walls(st, inv):
+    """(keys, named) for one door step's object program: the items the translation says it could not draw
+    (`unsupported`, `loopBlockedCalls`, `outOfScope`) and the dropped ops (`drop_walls`)."""
+    keys, named = set(), False
+    for nm in (st.get("unsupported") or []) + (st.get("loopBlockedCalls") or []):
+        it = inv.normalise(nm, 6)
+        if it:
+            keys.add(("item", it))
+            named = True
+    for ns in st.get("outOfScope") or []:
+        keys.add(("item", ns + ".*"))
+        named = True
+    for k, _ in drop_walls(st):
+        keys.add(k)
+        named = True
+    return keys, named
+
+
+def object_program_split(st):
+    """Which of the three the step's empty object program is: "dropped", "never-attempted", "no-output-other",
+    or None when the row carries no counters (a census older than the counters)."""
+    if st.get("attemptedOps") is None and st.get("droppedOps") is None:
+        return None
+    if (st.get("droppedOps") or 0) > 0 or st.get("dropReasons"):
+        return "dropped"
+    return "never-attempted" if not (st.get("attemptedOps") or 0) else "no-output-other"
+
+
+def object_program_row(st):
+    """The census step's object-program counters for the map: attempted / dropped ops and the three-way split."""
+    return {"attemptedOps": st.get("attemptedOps"), "droppedOps": st.get("droppedOps"), "split": object_program_split(st)}
+
+
+def refused_program_walls(st, inv, items):
+    """The walls of a refused step 0 whose guard is only `pine:no-output` / `pine:objects-only`: the dropped ops
+    (named op and host guard), else the never-attempted / no-output-other split, else nothing (the caller then
+    keeps the old bucket: a census row without counters, or no drawing constructor)."""
+    split = object_program_split(st)
+    if split is None:
+        return set()
+    keys, named = object_program_walls(st, inv)
+    if named:
+        return keys
+    if not (items & DRAWING_CTORS) and not st.get("attemptedOps"):
+        return set()
+    return {("bucket", BUCKET_NEVER_ATTEMPTED if split == "never-attempted" else BUCKET_NO_OUTPUT_OTHER)}
+
+
 def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
     """The capability keys one census row names as walls (all peel steps)."""
     keys = set()
@@ -436,8 +557,20 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
             keys.add(("bucket", "translator-robustness"))
             detail.append(("threw", None))
             continue
+        # ⭐ W3W4-T0 - A REFUSED STEP 0 WHOSE ONLY WALL IS "NO SURVIVING OP" SPEAKS FOR ITS OBJECT PROGRAM.
+        # Only when no other guard is named beside it (those are the walls); only for a script that calls a
+        # drawing constructor (a `pine:no-output` with none is a genuine output-contract gap).
+        own_program = set()
+        if (si == 0 and not st.get("attached") and step0_guards & OBJECT_PROGRAM_GUARDS
+                and not any(GUARD_BUCKET.get(g) != "output-contract" and g not in OBJECT_PROGRAM_GUARDS
+                            for g in step0_guards if g)):
+            own_program = refused_program_walls(st, inv, items)
+            keys |= own_program
         for r in st.get("refusals") or []:
             g = r.get("guard") or "unnamed"
+            if own_program and g in OBJECT_PROGRAM_GUARDS:
+                detail.append((g, None))
+                continue
             # ⛔ PEEL ARTIFACTS ARE NOT WALLS. After step 0 the program has been edited:
             # an output-contract refusal there is the peel having removed the plots, a
             # round-trip / statement refusal on a `x = 0.0` line is the peel's own
@@ -467,20 +600,13 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                 keys.add(("bucket", "translator-robustness"))
             lv = st.get("lossVerdict")
             if lv and lv != "clean" or st.get("withheldObjects") or (st.get("withheldPaints") or 0) > 0:
-                named = False
-                for nm in (st.get("unsupported") or []) + (st.get("loopBlockedCalls") or []):
-                    it = inv.normalise(nm, 6)
-                    if it:
-                        keys.add(("item", it))
-                        named = True
-                for ns in st.get("outOfScope") or []:
-                    keys.add(("item", ns + ".*"))
-                    named = True
-                for k in sorted((st.get("dropReasons") or {}).keys()):
-                    keys.add(("drop", k.split(":")[0] + ":" + (k.split(":")[1] if ":" in k else "")))
-                    named = True
+                ks, named = object_program_walls(st, inv)
+                keys |= ks
                 if not named:
-                    keys.add(("bucket", "drawing-objects"))
+                    # ⭐ W3W4-T0 - a withheld PAINT is not a drawing: with the object program clean, it is its own wall
+                    paint_only = ((st.get("withheldPaints") or 0) > 0 and not st.get("withheldObjects")
+                                  and lv in (None, "clean"))
+                    keys.add(("bucket", BUCKET_PAINT_WITHHELD if paint_only else "drawing-objects"))
     if row.get("stuck") == "killed":
         keys.add(("bucket", "translator-robustness"))
     # ⭐ "NOTHING THE PANE CARRIES" NAMES THE REAL WALL WHEN WE CAN: a strategy with no
@@ -607,7 +733,7 @@ def runtime_walls_of(row):
     return [g for g, _ in runtime_wall_steps(row)]
 
 
-def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, orders_of, norm_src, inputs, N):
+def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, orders_of, norm_src, inputs, N, inv=None):
     """⭐ The runtime-on lane, measured: see the module docstring."""
     rows = read_census(rt_cache, LANE_RUNTIME_ON, "--runtime-cache")
     missing = [s["key"] for s in scripts if s["key"] not in rows]
@@ -624,6 +750,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
     on = {s["key"] for s in scripts if transfers(s["key"])}
     prod = {s["key"] for s in scripts if s["clean"]}
     walls, wall_tags = {}, {}
+    dirty_walls = {}   # W3W4-T0: no runtime wall, attached and dirty: the HOST object program's walls, named
     touches, first, stuck = collections.Counter(), collections.Counter(), collections.Counter()
     enumerated = 0
     for s in scripts:
@@ -634,6 +761,8 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         steps = runtime_wall_steps(r)
         ws = [g for g, _ in steps]
         walls[k] = ws
+        if not ws and inv is not None:
+            dirty_walls[k] = sorted(key_label(x) for x in walls_of(r, inv, s["version"], frozenset(s["_items"]))[0])
         found = {}
         for g, tg in steps:
             if tg:
@@ -672,6 +801,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
             "byScript": {k: walls[k] for k in sorted(walls)},
             # W4 T0: the detail behind the walls whose WAVE depends on it (`for-in`, `bare-security`)
             "tags": {k: wall_tags[k] for k in sorted(wall_tags)},
+            "attachedDirtyWalls": {k: dirty_walls[k] for k in sorted(dirty_walls)},
         },
         "parity": None,
     }
@@ -710,7 +840,9 @@ def key_bucket(k, inv):
     if kind == "bucket":
         return v
     if kind == "drop":
-        return "drawing-objects"
+        # ⭐ W3W4-T0 - a drop a host guard explains belongs to THAT guard's capability
+        g = drop_guard_of(v)
+        return GUARD_BUCKET.get(g, "drawing-objects") if g else "drawing-objects"
     ns = v.split(".")[0] if "." in v else "(global)"
     if v.startswith("request."):
         return "request-security"
@@ -785,6 +917,8 @@ def main():
             "peelSteps": c.get("peelSteps"), "reachedAfterPeel": c.get("reachedAfterPeel"), "stuck": c.get("stuck"),
             "firstGuards": sorted({r.get("guard") for r in ((c.get("steps") or [{}])[0].get("refusals") or [])} - {None}),
             "walls": sorted(key_label(k) for k in walls),
+            # ⭐ W3W4-T0 - step 0's object program, counters only (review B1): attempted / dropped / which of the three
+            "objectProgram": object_program_row((c.get("steps") or [{}])[0]),
             "_walls": walls, "_items": u["items"], "_orders": u["orders"], "_features": u["features"], "_symbols": u["symbols"],
         })
     N = len(scripts)
@@ -1040,7 +1174,7 @@ def main():
         "runtimeOn": runtime_on_section(
             os.path.abspath(a.runtime_cache), a.runtime_verdicts, vd, scripts,
             None, lambda k: bool(orders_by_key[k]) and decl_by_key[k] == "strategy",
-            norm_src, inputs, N) if a.runtime_cache else None,
+            norm_src, inputs, N, inv=inv) if a.runtime_cache else None,
         "engineTableThroughPineDoor": engine_door,
         "scripts": [{k: v for k, v in s.items() if not k.startswith("_")} for s in scripts],
     }
