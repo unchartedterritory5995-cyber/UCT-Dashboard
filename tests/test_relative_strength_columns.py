@@ -159,6 +159,16 @@ def test_compute_phase1_columns_clamps_inputs_and_defaults_the_rest():
     assert rs.resolve_phase1_inputs(None)["lookback"] == rs.DEFAULT_LOOKBACK
 
 
+def test_resolve_phase1_inputs_rounds_integers_like_the_route_does():
+    """Review B9 residual: the route's `_clamp_number` rounds (`int(round)`)
+    while this guard truncated, so 20.6 was 21 on the chart and 20 in a scan."""
+    p = rs.resolve_phase1_inputs({"lookback": 20.6, "maLength": 20.6})
+    assert p["lookback"] == 21 and p["maLength"] == 21, "20.6 → 21, not int(20.6) == 20"
+    p = rs.resolve_phase1_inputs({"lookback": 20.4, "maLength": 20.4})
+    assert p["lookback"] == 20 and p["maLength"] == 20
+    assert isinstance(p["lookback"], int) and not isinstance(p["lookback"], bool)
+
+
 def test_compute_phase1_columns_on_empty_bars_is_empty_not_an_error():
     out = rs.compute_phase1_columns([], [], None)
     assert set(out) == set(rs.PHASE1_COLUMNS) and all(col == [] for col in out.values())

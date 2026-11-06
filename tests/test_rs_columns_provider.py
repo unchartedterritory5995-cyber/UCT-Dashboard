@@ -83,6 +83,21 @@ def test_resolve_inputs_clamps_numbers_and_coerces_bools(v2_row):
     assert "lineColor" not in out, "undeclared keys are dropped, so colours never key the cache"
 
 
+def test_the_two_clamp_paths_round_an_integer_input_the_same_way(v2_row):
+    """Review B9 residual: `_clamp_number` (the route) and
+    `resolve_phase1_inputs` (direct callers) must agree on 20.6 → 21; the pure
+    guard used to truncate to 20, so a chart and a scan could read one input
+    two ways."""
+    raw = {"lookback": 20.6, "maLength": 20.6}
+    route = rd.resolve_inputs("rsLine", raw)
+    pure = rsmod.resolve_phase1_inputs(raw)
+    assert route["lookback"] == pure["lookback"] == 21
+    assert route["maLength"] == pure["maLength"] == 21
+    raw = {"lookback": 20.4, "maLength": 2.4}
+    assert rd.resolve_inputs("rsLine", raw)["lookback"] == rsmod.resolve_phase1_inputs(raw)["lookback"] == 20
+    assert rd.resolve_inputs("rsLine", raw)["maLength"] == rsmod.resolve_phase1_inputs(raw)["maLength"] == 2
+
+
 def test_resolve_inputs_still_refuses_an_enum_outside_the_vocabulary(v2_row):
     with pytest.raises(rd.InputRejected):
         rd.resolve_inputs("rsLine", {"benchmark": "TSLA"})
@@ -150,6 +165,66 @@ def test_composite_leaves_a_gap_when_too_few_members_have_a_bar():
     times = [b["t"] for b in comp]
     assert 1000 in times and 1001 in times, "two of three present is half, so it counts"
     assert 1002 not in times, "one of three present is a gap, not a guess"
+
+
+def test_composite_does_not_step_when_a_member_joins_mid_window():
+    """Review finding B8. Two incumbents have risen 19 % when a third name's
+    history begins. Indexing the joiner to 100 at ITS first bar (the earlier
+    shape) averaged (119 + 119 + 100) / 3 = 112.67 on the join bar — a −5.3 %
+    step the whole group's red-day and RS-new-high columns would have read as
+    real. Chain-linked, the joiner enters AT the composite's 119 and its own
+    +10 % the next bar moves the composite by one third of that."""
+    series = {
+        "A": _bars([100, 119, 119, 119]),
+        "B": _bars([100, 119, 119, 119]),
+        "C": _bars([50, 55], start_t=1_002),           # history begins on the third bar
+    }
+    comp = rb.equal_weight_composite(series)
+    assert [b["t"] for b in comp] == [1000, 1001, 1002, 1003]
+    c = [b["c"] for b in comp]
+    assert c[0] == pytest.approx(100.0) and c[1] == pytest.approx(119.0)
+    assert c[2] == pytest.approx(119.0), "the join bar is flat: 119 → 119, no step"
+    old_rule_join_bar = (119 + 119 + 100) / 3
+    assert c[2] != pytest.approx(old_rule_join_bar), "the pre-fix mean would have stepped to 112.67"
+    assert c[3] == pytest.approx(119.0 * (1 + 0.10 / 3)), "C's +10 % at one-third weight: 119 × (1 + 0.1/3) = 122.97"
+
+
+def test_composite_does_not_step_when_a_member_misses_one_bar_and_returns():
+    """Review finding B8, the other half. One of four members sits 36 % below
+    the others (A/B/C at 120 indexed, D at 80 ⇒ composite 110). D has no bar at
+    t=1002 and is back at t=1003 with its price unchanged. The earlier shape
+    averaged the three remaining names (120) on the gap bar and the four again
+    on the return (110): a +9.1 % / −8.3 % pair out of nothing. Chain-linked,
+    nobody present moved, so the composite stays at 110 through both bars, and
+    D's +10 % after it returns counts at its re-linked weight."""
+    series = {
+        "A": _bars([100, 120, 120, 120, 120]),
+        "B": _bars([100, 120, 120, 120, 120]),
+        "C": _bars([100, 120, 120, 120, 120]),
+        "D": [{"t": 1000, "c": 100.0}, {"t": 1001, "c": 80.0},            # no bar at t=1002
+              {"t": 1003, "c": 80.0}, {"t": 1004, "c": 88.0}],
+    }
+    comp = rb.equal_weight_composite(series)
+    assert [b["t"] for b in comp] == [1000, 1001, 1002, 1003, 1004], "3 of 4 present is ≥ half, so 1002 is emitted"
+    c = [b["c"] for b in comp]
+    assert c[0] == pytest.approx(100.0)
+    assert c[1] == pytest.approx((120 * 3 + 80) / 4) == pytest.approx(110.0)
+    assert c[2] == pytest.approx(110.0), "D dropped out and nobody moved: no step (the pre-fix mean read 120)"
+    assert c[3] == pytest.approx(110.0), "D returned at its old price and nobody moved: no step back"
+    # D re-linked at the composite's 110 on bar 3 (scale 110 / 80 = 1.375), so its
+    # 80 → 88 on bar 4 is 110 → 121 indexed, against A/B/C's unchanged 3 × 120:
+    # 110 × (360 + 121) / (360 + 110) = 112.5745.
+    assert c[4] == pytest.approx(110.0 * (360 + 88 * (110 / 80)) / (360 + 110))
+    assert c[4] == pytest.approx(112.574468, rel=1e-6)
+
+
+def test_composite_with_constant_membership_is_still_the_mean_of_indexed_values():
+    """Chain-linking changes nothing while nobody joins or leaves: the step
+    ``Σ indexed[t] / Σ indexed[prev]`` IS the ratio of the two means."""
+    comp = rb.equal_weight_composite({"A": _bars([10, 11, 12, 9]), "B": _bars([100, 100, 100, 100]),
+                                      "C": _bars([50, 55, 50, 60])})
+    c = [b["c"] for b in comp]
+    assert c == pytest.approx([100.0, (110 + 100 + 110) / 3, (120 + 100 + 100) / 3, (90 + 100 + 120) / 3])
 
 
 # ── the provider ───────────────────────────────────────────────────────────
@@ -304,8 +379,89 @@ def test_industry_composite_counts_only_members_that_have_bars(monkeypatch):
     assert out["resolved"] == "XLK" and out["fallback"] == "industry group too small"
 
 
+def test_industry_composite_takes_the_names_with_bars_not_the_alphabet_first_sixty(monkeypatch):
+    """Review finding B7. A 70-name group whose alphabet-first 60 have no bars
+    and whose last 10 do: sliced alphabetically the composite was empty (or a
+    tiny accident); ordered by presence the 10 carry it, and the label says 10."""
+    first60 = [f"A{i:02d}" for i in range(60)]
+    last10 = [f"Z{i:02d}" for i in range(10)]
+    assert len(first60) == rb.MAX_INDUSTRY_MEMBERS
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Healthcare", "industry": "Biotechnology"})
+    monkeypatch.setattr(rb, "_members_of", lambda ind: first60 + last10)
+    monkeypatch.setattr(rb, "_cap_universe", lambda: set())
+    store = {m: _bars([100 + i, 101 + i, 103 + i]) for i, m in enumerate(last10)}
+    store["XLV"] = _bars([1, 1, 1])
+    fetch = _fetcher(store)
+    out = rb.resolve_benchmark("Z03", "INDUSTRY", "D", 10, fetch)
+    assert out["resolved"] == "INDUSTRY:Biotechnology" and out["fallback"] is None
+    assert out["label"] == "Biotechnology (equal-weight, 10 names)"
+    assert [b["t"] for b in out["bars"]] == [1000, 1001, 1002]
+    full = [s for s, _, c in fetch.calls if c == 10]
+    assert set(last10) <= set(full), "every name with bars was inside the fetch cap"
+    assert len(full) == rb.MAX_INDUSTRY_MEMBERS, "the cap still bounds the full reads"
+    probes = [s for s, _, c in fetch.calls if c == 1]
+    assert sorted(probes) == sorted(first60 + last10), "the whole group was probed once, cheaply"
+
+
+def test_industry_members_in_the_cap_universe_come_before_the_rest_when_all_have_bars(monkeypatch):
+    names = [f"A{i:02d}" for i in range(60)] + [f"Z{i:02d}" for i in range(10)]
+    monkeypatch.setattr(rb, "_cap_universe", lambda: {f"Z{i:02d}" for i in range(10)} | {"BRK-B"})
+    fetch = _fetcher({m: _bars([1, 2]) for m in names + ["BRK.B"]})
+    ordered = rb.order_industry_members(names, "D", fetch)
+    assert ordered[:10] == [f"Z{i:02d}" for i in range(10)], "cap-universe names first, alphabetical within"
+    assert ordered[10:] == [f"A{i:02d}" for i in range(60)]
+    # a class share (bars present) is checked in the cap universe's hyphen form
+    assert rb.order_industry_members(names + ["BRK.B"], "D", fetch)[0] == "BRK.B"
+
+
+def test_industry_ordering_puts_presence_ahead_of_cap_membership(monkeypatch):
+    names = [f"N{i:02d}" for i in range(61)]
+    monkeypatch.setattr(rb, "_cap_universe", lambda: {"N00", "N01"})       # in the universe, but no bars
+    fetch = _fetcher({"N60": _bars([1]), "N59": _bars([1])})
+    ordered = rb.order_industry_members(names, "D", fetch)
+    assert ordered[:2] == ["N59", "N60"], "a name without bars contributes nothing whatever its cap status"
+    assert ordered[2:4] == ["N00", "N01"]
+
+
+def test_industry_ordering_is_unprobed_within_the_cap_and_uses_an_injected_has_bars(monkeypatch):
+    monkeypatch.setattr(rb, "_cap_universe", lambda: set())
+    fetch = _fetcher({})
+    small = ["C", "A", "B"]
+    assert rb.order_industry_members(small, "D", fetch) == ["A", "B", "C"]
+    assert fetch.calls == [], "a group within the cap is fetched whole; nothing to order, nothing probed"
+    big = [f"N{i:02d}" for i in range(61)]
+    seen = []
+    def has_bars(sym, tf):
+        seen.append((sym, tf))
+        return sym == "N60"
+    assert rb.order_industry_members(big, "W", fetch, has_bars)[0] == "N60"
+    assert fetch.calls == [], "the injected probe replaces the fetch_bars(sym, tf, 1) probe"
+    assert len(seen) == 61 and all(tf == "W" for _, tf in seen)
+
+
 def test_the_two_python_benchmark_vocabularies_are_one_set():
     assert set(rd.RS_LINE_BENCHMARKS) == set(rb.LITERAL_BENCHMARKS) | set(rb.AUTO_BENCHMARKS)
+
+
+def test_the_python_vocabulary_is_derived_from_the_resolver_not_retyped():
+    """Review finding B10: one derivation, not two tuples a test holds equal."""
+    assert rd.RS_LINE_BENCHMARKS == rd.rs_benchmark_menu(
+        rd._RS_MENU_ORDER, rb.LITERAL_BENCHMARKS + rb.AUTO_BENCHMARKS)
+    # The derivation DROPS a menu name the resolver does not know and APPENDS a
+    # resolver name the menu does not mention, so the tuple can never offer a
+    # benchmark `resolve_benchmark` would refuse.
+    assert rd.rs_benchmark_menu(("SPY", "DIA", "SECTOR"), ("SPY", "QQQ", "SECTOR")) == ("SPY", "SECTOR", "QQQ")
+    assert rd.rs_benchmark_menu((), ("A", "B", "A")) == ("A", "B")
+
+
+def test_resolve_benchmark_raises_on_a_value_outside_the_vocabulary():
+    """Unreachable from the route (`resolve_inputs` refuses first); a direct
+    caller gets an error, never an RS line against SPY under another name."""
+    fetch = _fetcher({"SPY": _bars([1, 2])})
+    with pytest.raises(ValueError, match="DIA"):
+        rb.resolve_benchmark("NVDA", "DIA", "D", 10, fetch)
+    assert fetch.calls == [], "nothing was fetched in its place"
+    assert rb.resolve_benchmark("NVDA", None, "D", 10, fetch)["resolved"] == "SPY", "blank still means the default"
 
 
 def test_the_python_row_reads_its_ranges_from_the_compute_module():

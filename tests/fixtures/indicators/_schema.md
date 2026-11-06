@@ -460,6 +460,22 @@ fixture's `note`** (4, 20, 25, 29, 30, 57 — `rsLine`, `rsMa`, `rsNH`,
 `test_rs_events_default_the_six_hand_derived_rows`, so the file pins intended
 behaviour and not whatever the module did the day it was written.
 
+> ⚠️ **`rog` WAS REGENERATED ONCE, AT f684c400b0 (2026-11-06), AND THE PAPER
+> ROWS ARE WHAT MAKE THAT NOT HAPPEN AGAIN.** The red-on-green definition
+> changed from "not a red day ∧ not an up day" to the mirror of green-on-red
+> (plan §7.9: benchmark UP by at least the red-day magnitude ∧ stock strictly
+> DOWN); the retired column fired on flat and mildly-down benchmark days and on
+> flat stock days. That commit re-recorded the `rog` array — 32 of 68 positions,
+> every one a retired-rule `1` becoming `0` — and appended to the `note`;
+> every other column, the bars, the benchmark bars and the params are
+> byte-identical before and after (measured column by column). It is the only
+> regeneration this file has had and it was a reviewed diff, not a generator
+> run. **Since then the hand-derived-rows test carries two `rog` rows:** bar 33
+> (benchmark 99 → 100 = +1.01 % ≥ 0.5, stock 109 → 108 down ⇒ `rog = 1`, the
+> only `1` in the column) and bar 2 (benchmark 100 → 100 flat, stock 102 → 101
+> down ⇒ `rog = 0`, exactly where the retired rule fired). A future `rog` change
+> that is re-recorded by regeneration goes red on that arithmetic.
+
 > ⚠️ **`lookback` IS 25, NOT THE 10 THE UNIT FIRST PROPOSED, AND THE REASON IS A
 > CLAMP.** `relative_strength.LOOKBACK_RANGE = (20, 500)` — a fixture declaring 10
 > would be computed at 20 and pin the clamp rather than its own params; the Python

@@ -59,8 +59,11 @@ MIN_PARTIAL_LOOKBACK = 20           # short-history dots need at least this many
 DEFAULT_MANSFIELD_LENGTH = 200
 DEFAULT_SENSITIVITY_WINDOW = 20
 
-# Clamps the provider applies to raw inputs. `registry_defs.resolve_inputs`
-# enforces enum vocabularies only; numbers arrive as the client sent them.
+# The clamp ranges. `registry_defs.resolve_inputs` clamps and rounds first; this
+# is the pure-function guard for direct callers and reads the same constants
+# (the Python row in `registry_defs._rs_line_row` reads its min/max/default
+# from here, and `resolve_phase1_inputs` rounds exactly as `_clamp_number`
+# does — `int(round(f))` — so the two paths cannot disagree about an input).
 LOOKBACK_RANGE = (20, 500)
 MA_LENGTH_RANGE = (2, 200)
 PRICE_TOLERANCE_RANGE = (0.0, 10.0)
@@ -318,14 +321,16 @@ PHASE1_COLUMNS = (
 def resolve_phase1_inputs(inputs: Optional[dict]) -> dict:
     """Clamp the numeric inputs to the ranges the definition declares (plan §6.3)
     and fill defaults. Enum vocabularies are the server definition's business
-    (`registry_defs.resolve_inputs`); this only guards the numbers."""
+    (`registry_defs.resolve_inputs`); this only guards the numbers, and rounds
+    the integer ones the way `registry_defs._clamp_number` does (``int(round)``,
+    not truncation) so a direct caller and the route agree on 20.6 → 21."""
     src = inputs if isinstance(inputs, dict) else {}
     ma_type = str(src.get("maType") or DEFAULT_MA_TYPE).upper()
     if ma_type not in ("EMA", "SMA"):
         ma_type = DEFAULT_MA_TYPE
     return {
-        "lookback": int(_clamp(src.get("lookback"), *LOOKBACK_RANGE, default=DEFAULT_LOOKBACK)),
-        "maLength": int(_clamp(src.get("maLength"), *MA_LENGTH_RANGE, default=DEFAULT_MA_LENGTH)),
+        "lookback": int(round(_clamp(src.get("lookback"), *LOOKBACK_RANGE, default=DEFAULT_LOOKBACK))),
+        "maLength": int(round(_clamp(src.get("maLength"), *MA_LENGTH_RANGE, default=DEFAULT_MA_LENGTH))),
         "maType": ma_type,
         "priceTolerance": _clamp(src.get("priceTolerance"), *PRICE_TOLERANCE_RANGE,
                                  default=DEFAULT_PRICE_TOLERANCE_PCT),
