@@ -1,4 +1,4 @@
-NEXT STEP: waiting for the coordinator's GO, in this order: (1) the mutate.py batch, (2) measure-pair, (3) final-tip. The light work is done.
+NEXT STEP: waiting for the coordinator's GO on measure-pair, then final-tip. The mutate.py batch is done (24/24 as expected).
 
 # W6-T7 `matrix.*` on the runtime lane (lane w6-t7)
 
@@ -96,7 +96,12 @@ N1 fixed: the degenerate shapes stop by name (W6-M1; probe rows D01-D04, E09-E10
 | N1d `submatrix` guard checks rows only | KILLED |
 | M00 control (N1 run) | SURVIVED |
 
+## mutate.py batch (coordinator GO; tip e97fe3c1a5; lock `dsk/heavy-mut.lock`, 8.6 min; `runs/w6-t7/mutjob.log`)
+`mutate.py` (copied as `runs/w6-t7/mutate1.py` with `--maxWorkers=1`), one mutation per call, free RAM checked >= 4000 MB before each
+(lowest 9305 MB). Tests: w6Matrix + objectDoorGate. Mutations `runs/w6-t7/muts.json` = the hand set above (M01-M19, N1a-N1d).
+Result: M00 control SURVIVED; all 23 others KILLED; tree clean after.
+
 ## Not yet run (heavy; each waits for the coordinator's GO)
-- mutate.py batch; measure-pair (expect 0 C18 diffs, `adx-and-di-for-v4` unmoved; movers per spec:
+- measure-pair (expect 0 C18 diffs, `adx-and-di-for-v4` unmoved; movers per spec:
   `one-sided-gaussian-support-resistance-rate-loxx` attach, plus `supertrend-cluster-zeiierman` with W4); final-tip and
   ready-check (merge origin/master first).
