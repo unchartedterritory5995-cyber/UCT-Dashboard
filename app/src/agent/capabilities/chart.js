@@ -358,7 +358,7 @@ export const chartKind = {
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
     if ('volPanePref' in patch && ok) {
-      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw new Error('the server did not confirm the change, so it is not saved')
+      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw Object.assign(new Error('the server did not confirm the change, so it is not saved'), { unreverted: Object.keys(rest).length > 0 })
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
     }

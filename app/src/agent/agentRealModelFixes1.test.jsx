@@ -614,6 +614,18 @@ describe('review of #866, round 2: "nothing was left changed" only after a read-
     expect(text).toMatch(REVERSED)
     expect(text).not.toMatch(NOTHING)
   }, 40000)
+  it('a settings change that went through beside a pane size the server refused is not "nothing"', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    h.prefs = { read: () => ({}), write: async () => false }
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } },
+      { action: 'chart.setSetting', target: 'c', args: { setting: 'volume.paneHeightPct', value: 20 } },
+    ]))
+    const text = await say('weekly and a smaller volume pane please')
+    expect(h.charts.read('c').tf).toBe('W')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
   it('NEGATIVE: a chart change where nothing landed still says nothing was left changed', async () => {
     const { say, h } = p.mount(...ONE('AAPL'))
     silentWrite(h)
