@@ -185,10 +185,25 @@ COLUMNS = [
     # own 200-bar average. NULL when the window is short, the benchmark has no
     # bar at the row's date, or a hole sits inside the lookback (never a
     # guessed 0). Additive: ALTER-added on init, NULL on every row until the
-    # next build. The seven history-derived rating columns are unit 2a-06's.
+    # next build. The seven history-derived rating columns follow (2a-06).
     "rs_new_high", "rs_nh_before_price", "rs_nh_red_day", "rs_nh_bars_ago",
     "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
     "mansfield", "mansfield_cross_bars_ago", "rs_benchmark_agree",
+    # ⭐ UCT RELATIVE STRENGTH, history-derived (Phase 2a, unit 2a-06). ONE
+    # writer, the builder's `_read_rs_history_fields` — a `_read_market_source`
+    # peer read ONCE per build from the `rs_rating_history` side table that
+    # `rs_history.nightly_job` writes (04:15 ET, AFTER this build, so a row
+    # normally carries the rating as of the session before its `bars_asof`;
+    # the builder logs which session it read). All seven INTEGER: the
+    # IBD-style rating 1-99 (plan §7 item 17), its change over the 5 and 20
+    # stored sessions (item 20 — `read_fields` derives the deltas on read,
+    # never stored) and the four component percentiles of the plain
+    # 21/63/126/252-bar returns (item 19). NULL when the table has no row for
+    # the name — a dark pod, a name outside the rated population, too few
+    # sessions for a delta — never a guessed value. Additive: ALTER-added on
+    # init.
+    "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
+    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -256,7 +271,11 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # count. `mansfield` is deliberately NOT here — it is REAL.
         "rs_new_high", "rs_nh_before_price", "rs_nh_red_day", "rs_nh_bars_ago",
         "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
-        "mansfield_cross_bars_ago", "rs_benchmark_agree"}
+        "mansfield_cross_bars_ago", "rs_benchmark_agree",
+        # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
+        # of it, four 1-99 component percentiles. Whole numbers, all seven.
+        "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m"}
 
 
 # ---------------------------------------------------------------------------
