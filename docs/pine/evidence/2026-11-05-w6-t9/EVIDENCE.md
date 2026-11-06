@@ -1,10 +1,8 @@
 # W6-T9 receiver types — EVIDENCE (desktop)
 
-**NEXT STEP (r1): re-run the 9 UNVERIFIED mutants of the r1 table (G04, G05, G07, G08, G09, G13, N2, N4, MA;
-`muts.json`, reaped for low memory), then the heavy jobs: (1) `mutate.py` batch over `muts.json`
-(the hand run below already kills every mutant; the batch re-runs it under the lock), (2)
-measure-pair runtime 0 and 1 against the tip's own master on a shared base (`heavy-mp2.lock` /
-`heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL scope, ready-check.**
+**NEXT STEP: HOLD for the coordinator's direct go, then measure-pair runtime 0 and 1 (shared base, `heavy-mp2.lock` /
+`heavy-mp3.lock`), then merge origin/master again, re-run the targeted rails on the merged tree (review N5), final-tip
+FULL scope, ready-check.**
 
 Branch `feat/pine-w6-t9-receivers`, code tip `73c59fc272`, tested on master `81a4665a5a` (engine 21).
 Spec: `docs/pine/W6-BREAKDOWN.md` @ `1889bbedd7`, section 4 T9 and section 1 rows 3, 4, 6.
@@ -183,3 +181,15 @@ byte-exact; log `runs/w6-t9/handmut3.log`):
 | G02 `overloadRefusal` door gate | KILLED (named failing rail) |
 | G04 `isReceiverCall`, G05 `memberRecvUdt`, G07 `receiverCallOf`, G08 `userMethodShadows`, G09 `receiverInitTy`, G13 call arm, N2, N4, MA | **UNVERIFIED**: vitest exited non-zero with NO failing test line. The harness reaped the run for low system memory at this point, so these results may be crashes, not kills. Re-run them (the coordinator schedules it; the session does not restart a reaped job). The door battery (`doorgates2.log`) already shows each G-site's shape changing at the door when its gate goes. |
 
+### mutate.py batch (r1, coordinator GO 2026-11-06)
+
+Tip `a7d15ed9f0`. `ram_gate` (free 15.9 GB at start), under `_resume-2026-11-01/dsk/heavy-mut.lock`, in three runs
+(`mb0.json`, `mb1.json`, `mb2.json`, each opening with the no-op control M0), `mutate.py`'s loop at `--maxWorkers=1`
+plus a stop if free RAM falls below 4 GB (never reached), over `w6ReceiverTypes.test.js` + `objectDoorGate.test.js`.
+Restores byte-exact; `git status` clean afterwards. Logs `runs/w6-t9/mb0.log`, `mb1.log`, `mb2.log`, `mbsummary.txt`.
+
+**26 mutants: 25 KILLED, each with named failing tests (2-4 per mutant); the no-op control M0 SURVIVED in all three
+runs.** This replaces the r1 hand run's UNVERIFIED rows: G04, G05, G07, G08, G09, G13, N2, N4 and MA are each killed
+by a named rail (G04/G05/G07/G13 by their own objectDoorGate site shape; G08 by the `userMethodShadows` site shape and
+the pane rail; G09 by `t9_chain` and the `receiverInitTy` site shape; N2, N4, MA by their w6ReceiverTypes rails).
+M1-M14, G01 and G02 are killed again.
