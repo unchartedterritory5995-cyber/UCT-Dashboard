@@ -55,7 +55,8 @@ async function driveTurn(p, ctx, req, turn) {
   const modelCalls = R.turns.length - calls0
   R.queue.length = 0
   const envelope = mock ? env.value : R.lastEnvelope?.(calls0) ?? null
-  return { say: turn.say, ms: Date.now() - t0, idle, card, heldUntilApply, newReceipt, receiptText: newReceipt ? rc?.text : null, undoable: newReceipt ? rc?.undoable : null, modelCalls, last: (await p.last()).slice(-500), envelope, unreadable: R.lastUnreadable?.(calls0) || false }
+  const context = modelCalls ? R.turns[calls0]?.context ?? null : null
+  return { say: turn.say, ms: Date.now() - t0, context, idle, card, heldUntilApply, newReceipt, receiptText: newReceipt ? rc?.text : null, undoable: newReceipt ? rc?.undoable : null, modelCalls, last: (await p.last()).slice(-500), envelope, unreadable: R.lastUnreadable?.(calls0) || false }
 }
 
 // the ring around the real control, and what a click there would really hit
@@ -115,6 +116,20 @@ async function walkGuide(p, spec) {
   return { started: true, steps, finished: !left.card, stoppedAt: left.card ? 'the card stayed after the last step' : undefined, clean: !left.ring && !left.card, leftovers: JSON.stringify(left) }
 }
 
+/** The chart a walkthrough's ring really sits on: the role whose box holds its centre. */
+async function ringRole(p, req) {
+  await p.b.waitFor(`!!document.querySelector('[data-testid="guide-ring"]')`, { timeout: 4000 })
+  await sleep(200)
+  const c = await p.b.evaluate(`(() => { const e = document.querySelector('[data-testid="guide-ring"]'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+  if (!c) return null
+  const rows = await p.read()
+  for (const [role, r] of Object.entries(BOARDS[req.board].roles)) {
+    const w = rows.find(x => x.id === r.id)
+    if (w && c.x >= w.x && c.x <= w.x + w.w && c.y >= w.y && c.y <= w.y + w.h) return role
+  }
+  return null
+}
+
 /** One request, start to finish, on a fresh page. → { evidence, result } */
 export async function runRequest(ctx, req) {
   const { R, shotPath } = ctx
@@ -132,10 +147,11 @@ export async function runRequest(ctx, req) {
     if (req.select) await p.select(BOARDS[req.board].roles[req.select].id)
     ev.before = await snapshot(p, req.board)
     for (const t of req.turns) {
-      if (t.act) await ctx.acts?.[t.act]?.(p, req)
-      else ev.turns.push(await driveTurn(p, ctx, req, t))
+      if (t.act) await ctx.acts?.[t.act]?.(p, req, t)
+      else { ev.beforeLast = await snapshot(p, req.board); ev.clicks = await p.clicks(); ev.turns.push(await driveTurn(p, ctx, req, t)) }
       if (R.stopped) throw new Error(`STOP: ${R.stopped}`)
     }
+    if (req.oracle.target?.ring) ev.ring = await ringRole(p, req)
     if (req.oracle.guide) ev.guide = await walkGuide(p, req.oracle.guide)
     ev.after = await snapshot(p, req.board)
     if (shotPath) await p.shot(shotPath).catch(() => {})

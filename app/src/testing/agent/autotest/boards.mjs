@@ -18,6 +18,9 @@ export const IA_CATALOG = [
 const two = () => [chart('w-chart-a', 'A', 0, 0, 9, 20), chart('w-chart-b', 'B', 9, 0, 9, 20), WATCH()]
 const two5 = () => [chart('w-chart-a', 'A', 0, 0, 9, 20, '5'), chart('w-chart-b', 'B', 9, 0, 9, 20, '5'), WATCH()]
 const four = () => [chart('c-tl', 'A', 0, 0, 9, 10), chart('c-tr', 'B', 9, 0, 9, 10), chart('c-bl', 'C', 0, 10, 9, 10), chart('c-br', 'D', 9, 10, 9, 10), WATCH()]
+const three = () => [chart('c-l', 'A', 0, 0, 6, 20), chart('c-m', 'B', 6, 0, 6, 20), chart('c-r', 'C', 12, 0, 6, 20), WATCH()]
+const linked = () => [chart('c-l', 'A', 0, 0, 6, 20), chart('c-m', 'A', 6, 0, 6, 20), chart('c-r', 'B', 12, 0, 6, 20), WATCH()]
+const tfmix = () => [chart('c-tl', 'A', 0, 0, 9, 10, 'D'), chart('c-tr', 'B', 9, 0, 9, 10, 'W'), chart('c-bl', 'C', 0, 10, 9, 10, '5'), chart('c-br', 'D', 9, 10, 9, 10, 'D'), WATCH()]
 const one = () => [chart('w-chart-a', 'A', 0, 0, 18, 20), WATCH()]
 const scan = () => [chart('w-chart-a', 'A', 0, 0, 12, 20), { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 0, w: 12, h: 20, opts: {} }]
 
@@ -37,6 +40,30 @@ export const BOARDS = {
     roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TR: { id: 'c-tr', position: 'top-right', sym: 'QQQ' }, BL: { id: 'c-bl', position: 'bottom-left', sym: 'NVDA' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'TSLA' } },
     browser: { prefs: prefsOf(four(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }), iaCatalog: IA_CATALOG },
     sim: { widgets: four, groups: { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }, extra: { watchlists: LISTS, drawings: true, indicatorAlerts: true } },
+  },
+  // three across; the middle one has no left or right. These four are the selection oracle's boards: BROWSER modes only
+  THREE: {
+    roles: { L: { id: 'c-l', position: 'left', sym: 'SPY' }, M: { id: 'c-m', position: 'middle', sym: 'QQQ' }, R: { id: 'c-r', position: 'right', sym: 'NVDA' } },
+    browser: { prefs: prefsOf(three(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }), iaCatalog: IA_CATALOG },
+    sim: null,
+  },
+  // two charts in ONE link colour: a symbol reaches both, a timeframe only one
+  LINKED: {
+    roles: { L: { id: 'c-l', position: 'left', sym: 'SPY' }, M: { id: 'c-m', position: 'middle', sym: 'SPY' }, R: { id: 'c-r', position: 'right', sym: 'QQQ' } },
+    browser: { prefs: prefsOf(linked(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }) },
+    sim: null,
+  },
+  // 2x2 with mixed timeframes: "the weekly chart" and "the 5 minute chart" name exactly one, "the daily chart" names two
+  TFMIX: {
+    roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TR: { id: 'c-tr', position: 'top-right', sym: 'QQQ' }, BL: { id: 'c-bl', position: 'bottom-left', sym: 'NVDA' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'TSLA' } },
+    browser: { prefs: prefsOf(tfmix(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }) },
+    sim: null,
+  },
+  // 2x2 where two charts in different colours show the same symbol: a symbol does not name a chart here
+  TWIN: {
+    roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TR: { id: 'c-tr', position: 'top-right', sym: 'NVDA' }, BL: { id: 'c-bl', position: 'bottom-left', sym: 'NVDA' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'TSLA' } },
+    browser: { prefs: prefsOf(four(), { A: 'SPY', B: 'NVDA', C: 'NVDA', D: 'TSLA' }) },
+    sim: null,
   },
   ONE: {
     roles: { A: { id: 'w-chart-a', position: null, sym: 'SPY' } },
@@ -64,7 +91,7 @@ export const BOARDS = {
     sim: null,        // the scanner widget and its scan store are real only in a browser
   },
   MC: {
-    roles: { A: { id: 'g0', sym: 'NVDA', position: null }, B: { id: 'g1', sym: 'AMD', position: null }, C: { id: 'g2', sym: 'TSLA', position: null }, D: { id: 'g3', sym: null, position: null } },
+    roles: { A: { id: 'g0', sym: 'NVDA', position: null, word: 'top-left' }, B: { id: 'g1', sym: 'AMD', position: null, word: 'top-right' }, C: { id: 'g2', sym: 'TSLA', position: null, word: 'bottom-left' }, D: { id: 'g3', sym: null, position: null, word: 'bottom-right' } },
     browser: { query: 'multichart=1' },
     sim: null,        // Multi Chart's cells are real only in a browser
   },

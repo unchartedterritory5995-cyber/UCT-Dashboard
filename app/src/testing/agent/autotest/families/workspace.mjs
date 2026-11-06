@@ -98,7 +98,7 @@ export function workspace(L) {
 
   const H = family(L, 'howto', { inv: ['C1-006', 'C1-001', 'C3-006'], select: 'A' })
   const walk = (steps, extra = {}, partial = false) => ({ outcome: 'walkthrough', guide: { steps, partial }, ...extra })
-  const guide = (feature) => [op('guide.show', '$list:guide', { feature })]
+  const guide = (feature) => [op('guide.show', '$list:guide', { feature, detail: null })]
   const tfW = [{ target: 'chart.timeframe', text: 'switch this chart', act: 'next' }, { target: 'chart.timeframeMore', text: 'Every other timeframe', act: 'Done' }]
   H('howto', 'how do I change the timeframe', guide('timeframe'), walk(tfW))
   H('howto', 'walk me through picking a different timeframe', guide('timeframe'), walk(tfW))

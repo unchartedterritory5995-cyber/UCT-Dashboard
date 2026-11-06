@@ -67,7 +67,9 @@ export function startRelay({ groupOfAction }) {
 // the page side: fixture bars that DIFFER by symbol and timeframe, so pixels can prove the redraw.
 // Installed before the harness runs. The harness keeps every lock it has: this wraps its fetch from outside.
 function pageInit(cfg) {
-  const BA = (window.__ba = { cfg, bars: [], api: [], status: [], written: {}, fixtures: cfg.fixtures || {} })
+  const BA = (window.__ba = { cfg, bars: [], api: [], status: [], written: {}, fixtures: cfg.fixtures || {}, clicks: [] })
+  // the charts a real pointer went down on, as the page saw it (isTrusted: only input the browser delivered)
+  addEventListener('pointerdown', (e) => { if (!e.isTrusted) return; const w = e.target?.closest?.('[data-widget-id]'); if (w && (w.dataset.widgetType === 'chart' || w.dataset.gridCellId)) BA.clicks.push(w.dataset.widgetId) }, true)
   const native = window.fetch
   let inner = null
   const hash = (s) => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 9973; return h }
@@ -289,6 +291,7 @@ function mkPage(b, R) {
       await b.click(p.x, p.y)
       return true
     },
+    clicks: () => b.evaluate('window.__ba.clicks.slice()'),
     status: () => b.evaluate('window.__ba.status.slice()'),
     bars: () => b.evaluate('window.__ba.bars.slice()'),
     api: () => b.evaluate('window.__ba.api.slice()'),
