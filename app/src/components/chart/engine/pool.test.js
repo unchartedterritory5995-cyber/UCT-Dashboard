@@ -466,6 +466,9 @@ describe('seriesOptionsForPlot', () => {
     expect(o.lineWidth).toBe(0)
     expect(o.pointMarkersVisible).toBe(true)
     expect(o.pointMarkersRadius).toBe(3)
+    // …and the zero-width line is hidden OUTRIGHT (2026-11-06): the canvas ignores a
+    // zero `lineWidth`, so without this LWC strokes a hairline chord between the dots.
+    expect(o.lineVisible).toBe(false)
   })
 
   it('an unmappable plot has no options at all', () => {

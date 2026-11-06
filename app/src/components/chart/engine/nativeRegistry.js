@@ -1712,7 +1712,10 @@ const RAW_DEFS = [
   nativeDef('percentFromMa', 'percentFromMa',
     // ⭐ `% From MA`, NOT "% From Moving Average": the library offers exactly ONE
     // row named Moving Average (owner §34), and this is a different study.
-    { name: '% From MA', shortName: '% From MA', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ A price-LEVEL study, not relative strength (review finding U7, 2026-11-06):
+    // it reads one series against its own average. The Relative Strength heading
+    // holds the one row that compares against a benchmark.
+    { name: '% From MA', shortName: '% From MA', category: CAT.LEVELS, quickMenu: false,
       legendParams: ['period'],
       description: 'How far the value is above or below its moving average, in percent.',
       tags: ['% from ma', 'percent from moving average', 'distance from ma', 'extension', 'extended'] },
@@ -1729,7 +1732,9 @@ const RAW_DEFS = [
     ]),
 
   nativeDef('fiftyTwoWeek', 'fiftyTwoWeek',
-    { name: '52-Week High/Low', shortName: '52W', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ Likewise a price-LEVEL study (review finding U7): distance from the
+    // close's own 52-week high and low, no benchmark anywhere.
+    { name: '52-Week High/Low', shortName: '52W', category: CAT.LEVELS, quickMenu: false,
       description: 'How far the close is below its 52-week high and above its 52-week low, in percent.',
       tags: ['52 week', '52-week', '52w', '52 week high', '52 week low', 'off high', 'yearly high'],
       // ⛔ A CALENDAR WINDOW. It needs a full 52 weeks of loaded bars before it
@@ -3864,48 +3869,70 @@ const RS_LINE_RAW = {
       options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
         ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)']],
     },
-    { key: 'maLength', type: 'int', label: 'Average length (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
-      tooltip: 'Bars in the moving average on the RS line. 21 is the curriculum default; 50 is a slower read.' },
+    { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
+      tooltip: 'Average length in bars: the moving average on the RS line. 21 is the curriculum default; 50 is a slower read.' },
     { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
       tooltip: 'Small dot when the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
-    { key: 'showNewHighBeforePrice', type: 'bool', label: 'RS high before price', default: true, group: 'Simple',
-      tooltip: 'Large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
+    { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
+      tooltip: 'RS high before price: large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
     { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what Mansfield and StockCharts use.' },
     // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
     // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
     // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
-    { ...colorInput('color', 'Line above average', '#6ba3be'), group: 'Line' },
-    { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line' },
+    // ⭐ The pair carries its own instructions (review finding V3): two identical
+    // swatches for one line say why, and the second says what it colours.
+    { ...colorInput('color', 'Line above avg', '#6ba3be'), group: 'Line',
+      tooltip: 'Line colour above its average. Classic uses one colour; keep both swatches the same for a single-colour line' },
+    { ...colorInput('lineDownColor', 'Line below avg', '#6ba3be'), group: 'Line',
+      tooltip: 'Line colour below its average; the Phase preset sets red here' },
     { ...colorInput('maColor', 'Average colour', '#8a8574'), group: 'Line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
-    { key: 'lookback', type: 'int', label: 'New-high lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
-      tooltip: 'Bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
-    { key: 'priceTolerance', type: 'float', label: 'Price-high tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
-      tooltip: 'Price counts as not at its high when it is more than this far below its lookback high.' },
+    { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
+      tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
+    { key: 'priceTolerance', type: 'float', label: 'Tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
+      tooltip: 'Price-high tolerance: price counts as not at its high when it is more than this far below its lookback high.' },
     { key: 'shortHistoryDots', type: 'bool', label: 'Short-history dots', default: true, group: 'New highs',
       tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in a muted colour.' },
-    { ...colorInput('dotColor', 'RS new high dot', '#6ba3be'), group: 'New highs' },
-    { ...colorInput('dotBeforePriceColor', 'RS high before price dot', '#c9a84c'), group: 'New highs' },
+    { ...colorInput('dotColor', 'New-high dot', '#6ba3be'), group: 'New highs',
+      tooltip: 'Colour of the small RS new-high dot' },
+    { ...colorInput('dotBeforePriceColor', 'Before-price dot', '#c9a84c'), group: 'New highs',
+      tooltip: 'Colour of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
     { ...colorInput('dotPartialColor', 'Short-history dot', '#8a8574'), group: 'New highs' },
   ],
   plots: [
     { key: 'rsLine', label: 'RS', style: 'line', colorMode: 'column:rsAbove',
       color: '$color', colorUp: '$color', colorDown: '$lineDownColor', width: '$lineWidth',
-      role: 'primary', legend: { decimals: 4 } },
+      // ⭐ `precision: 4` keeps the axis tag and the legend saying the same number
+      // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
+      precision: 4, role: 'primary', legend: { decimals: 4 } },
     // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
     // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
     // by the line's colour rule. The Awesome Oscillator's `rising` is the
     // precedent, field for field.
     { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
-    { key: 'rsMa', label: 'MA', style: 'line', color: '$maColor', width: 1, lineStyle: 'dashed', role: 'context', legend: { hide: true } },
-    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+    { key: 'rsMa', label: 'MA', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true } },
+    // ⭐⭐ TWO RENDERERS FOR THE DOTS, AND WHY (review finding V1, 2026-11-06).
+    // lightweight-charts 5.2.0 clamps a series-marker GLYPH to a 12..30 px floor
+    // twice (`calculateShapeHeight` on the bar spacing, `shapeSize` on the
+    // multiplied size), so the "small" 0.6 and "large" 1.2 circles both drew 9 px
+    // at every normal zoom — a size channel that did not render. So:
+    //   · the two SMALL dots are plain `markers` plots with NO `marker` block: the
+    //     binder draws them as the series' own POINT MARKERS (`pool`:
+    //     `pointMarkersVisible`, radius = `width`, no floor — SAR's shape), at the
+    //     plotted value by construction, honouring the member's Dot size;
+    //   · the GOLD before-price dot keeps the glyph at size 2.0, which the floor
+    //     can only make LARGER (15 px at the floor, 23 px from bar spacing 15) and
+    //     which paints ABOVE every series.
+    // `__tests__/markerPixels.test.js` mirrors LWC's arithmetic and pins small < large
+    // at every bar spacing. ⛔ `width` here is the dot RADIUS, never the RS line's.
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      legend: { hide: true } },
     { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 1.2 }, legend: { hide: true } },
-    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+      marker: { shape: 'circle', position: 'inBar', size: 2.0 }, legend: { hide: true } },
+    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 2, role: 'context',
+      legend: { hide: true } },
   ],
   // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
   // declared event by running the definition's compute at registration and

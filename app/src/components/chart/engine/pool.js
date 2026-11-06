@@ -764,7 +764,17 @@ export function seriesOptionsForPlot(plot, ctx) {
   // by default, because LWC's merge skips undefined — a series re-purposed from a level
   // back to a line would otherwise keep its line hidden.
   const levelOnly = plot.levelOnly === true
-  base.lineVisible = !levelOnly
+  // ⭐ A DOT PLOT HAS NO LINE TO SHOW (2026-11-06, UCT RS unit 6). `lineWidth: 0`
+  // alone does not hide it: the canvas IGNORES a zero line width (HTML spec —
+  // "zero, negative, infinite, and NaN values must be ignored"), so LWC's `walkLine`
+  // still stroked a one-device-pixel chord between consecutive points in the dot
+  // colour. Under SAR (a value on every bar) that chord hid beneath the dots; under
+  // a SPARSE dot column (UCT RS's new-high dots, finite only on event bars) it was a
+  // straight line across the pane from one dot to the next. `lineVisible: false` is
+  // LWC's own switch for it: `_internal_lineType` goes undefined and nothing is
+  // walked, while the point markers draw regardless (`drawSeriesPointMarkers` keys
+  // on `pointMarkersRadius` alone).
+  base.lineVisible = !levelOnly && !markers
   if (levelOnly) { base.priceLineVisible = true; base.lastValueVisible = true }
 
   if (pk === 'area') {
