@@ -1,0 +1,131 @@
+// app/src/components/chart/legend/IndicatorChip.textChip.test.jsx
+//
+// ─── UCT RS Phase 2a visual round, unit VA3 · the phone text chip (A5a, A8, A9) ─
+//
+// A readout definition's chip (UCT RS) passes three opt-in props: `name` (the
+// one grammar, `UCT RS · SPY`), `textChip` (stay text on the phone, with a 6 px
+// dot) and `fallbackValue` (the last known value, muted, with its date). Every
+// other chip passes none and renders byte for byte what it did — the RSI/MACD
+// control below.
+import { describe, it, expect, afterEach } from 'vitest'
+import { render, cleanup } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import IndicatorChip from './IndicatorChip'
+import styles from './IndicatorChip.module.css'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const CSS = readFileSync(path.join(HERE, 'IndicatorChip.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+
+afterEach(() => cleanup())
+
+const rs = (over = {}) => ({
+  defId: 'rsLine', plotKey: 'rsLine', instanceId: 'inst:rs', label: 'UCT RS(SPY)', suffix: ' · SPY',
+  color: '#6ba3be', decimals: 4, value: 0.4187, hidden: false, text: 'UCT RS(SPY) 0.4187', ...over,
+})
+const chipOf = (container) => container.querySelector('[data-instance-id="inst:rs"]')
+
+describe('A5a / A9 — the text chip', () => {
+  it('reads `UCT RS · SPY 0.4187`, never `RS(`, and carries the text-chip class', () => {
+    const { container } = render(<IndicatorChip chip={rs()} name="UCT RS · SPY" textChip onMenu={() => {}} />)
+    const el = chipOf(container)
+    expect(el.textContent).toBe('UCT RS · SPY 0.4187')
+    expect(el.textContent).not.toMatch(/RS\(/)
+    expect(el.className).toContain(styles.chipText)
+    // the name splits so the STEM truncates and the benchmark tail and value do not
+    expect(el.querySelector(`.${styles.chipTextHead}`).textContent).toBe('UCT RS')
+    expect(el.querySelector(`.${styles.chipTextTail}`).textContent).toBe(' · SPY')
+    expect(el.querySelector(`.${styles.chipVal}`).textContent).toBe('0.4187')
+    expect(el.getAttribute('aria-label')).toBe('UCT RS · SPY options')
+  })
+
+  it('rated: the suffix grammar applies — `UCT RS · SPY · 94 0.4187`', () => {
+    const { container } = render(<IndicatorChip chip={rs({ suffix: ' · SPY · 94' })} name="UCT RS · SPY · 94" textChip />)
+    expect(chipOf(container).textContent).toBe('UCT RS · SPY · 94 0.4187')
+  })
+
+  it('hidden: the name only, in the muted ink (no line colour on the text)', () => {
+    const { container } = render(<IndicatorChip chip={rs({ hidden: true, value: null, text: 'UCT RS(SPY)' })}
+      name="UCT RS · SPY" textChip fallbackValue={{ text: '0.4700 · Nov 4', muted: true }} />)
+    const el = chipOf(container)
+    expect(el.textContent).toBe('UCT RS · SPY')
+    expect(el.style.color).toBe('')
+    expect(el.querySelector('[data-stale-value]'), 'no number for an undrawn line').toBeNull()
+  })
+
+  it('A8: no live value → the last known one, muted, with its date', () => {
+    const { container } = render(<IndicatorChip chip={rs({ value: null, text: 'UCT RS(SPY)' })}
+      name="UCT RS · SPY" textChip fallbackValue={{ text: '0.4700 · Nov 4', muted: true }} />)
+    const el = chipOf(container)
+    expect(el.textContent).toBe('UCT RS · SPY 0.4700 · Nov 4')
+    const stale = el.querySelector('[data-stale-value]')
+    expect(stale.className).toContain(styles.chipValStale)
+  })
+
+  it('the grid variant prints the short name and the stale value too', () => {
+    const { container } = render(<IndicatorChip grid chip={rs({ value: null })} name="UCT RS · SPY"
+      fallbackValue={{ text: '—', muted: true }} />)
+    expect(container.textContent).toBe('UCT RS · SPY—')
+    expect(container.querySelector('[data-stale-value]').textContent).toBe('—')
+  })
+})
+
+describe('the stylesheet — phone text chip, 168 px, 6 px dot, own line, no tap floor lost', () => {
+  const phone = (() => {
+    const i = CSS.indexOf('.chip.chipText')
+    const at = CSS.lastIndexOf('@media (max-width: 640px)', i)
+    return CSS.slice(at, CSS.indexOf('@media', i))
+  })()
+  const rule = (sel) => {
+    const m = new RegExp(`${sel.replace(/\./g, '\\.').replace(/:/g, '\\:')}\\s*\\{([^}]*)\\}`).exec(phone)
+    expect(m, sel).toBeTruthy()
+    return m[1]
+  }
+  it('stays text at 640 px and below, 168 px max, 11 px / 600, tabular', () => {
+    const r = rule('.chip.chipText')
+    expect(r).toMatch(/max-width:\s*168px/)
+    expect(r).toMatch(/text-indent:\s*0/)
+    expect(r).toMatch(/font:\s*600 11px 'Instrument Sans'/)
+    expect(r).toMatch(/font-variant-numeric:\s*tabular-nums/)
+    expect(r).not.toMatch(/height:\s*\d/) // the `.chip` phone rule's 44 px height and min-width stay
+  })
+  it('the dot is 6 px and sits in the flow beside the text', () => {
+    const r = rule('.chip.chipText::before')
+    expect(r).toMatch(/width:\s*6px/)
+    expect(r).toMatch(/height:\s*6px/)
+    expect(r).toMatch(/position:\s*static/)
+  })
+  it('the stem ellipsizes; the tail and the value never do', () => {
+    expect(rule('.chipTextHead')).toMatch(/text-overflow:\s*ellipsis/)
+    expect(rule('.chipTextTail')).toMatch(/flex:\s*none/)
+    expect(rule('.chip.chipText .chipVal')).toMatch(/flex:\s*none/)
+  })
+  it('own line under the dots: the break is a full-width zero-height item ordered before the text chips', () => {
+    const br = rule('.chipBreak')
+    expect(br).toMatch(/order:\s*1/)
+    expect(br).toMatch(/flex:\s*0 0 100%/)
+    expect(rule('.chip.chipText')).toMatch(/order:\s*2/)
+    // above the phone the break is not drawn at all
+    expect(CSS.replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')).toMatch(/\.chipBreak\s*\{\s*display:\s*none/)
+  })
+  it('⛔ no class in this file contains "legend" (the export-route hide)', () => {
+    expect(CSS.match(/\.[A-Za-z][\w-]*/g).filter((c) => /legend/i.test(c))).toEqual([])
+  })
+})
+
+describe('⛔ the control — RSI and MACD chips are byte-identical without the props', () => {
+  for (const c of [
+    { defId: 'rsi', plotKey: 'rsi', instanceId: 'i:rsi', label: 'RSI(14)', color: '#7b68ee', decimals: 1, value: 54.3, hidden: false, text: 'RSI(14) 54.3' },
+    { defId: 'macd', plotKey: 'macd', instanceId: 'i:macd', label: 'MACD', color: '#2962ff', decimals: 2, value: 1.23, hidden: false, text: 'MACD 1.23' },
+  ]) {
+    it(`${c.defId}: same text, same classes, no text-chip class, no stale value`, () => {
+      const { container } = render(<IndicatorChip chip={c} onMenu={() => {}} />)
+      const el = container.querySelector(`[data-instance-id="${c.instanceId}"]`)
+      expect(el.textContent).toBe(c.text)
+      expect(el.className).not.toContain(styles.chipText)
+      expect(el.querySelector('[data-stale-value]')).toBeNull()
+      expect(el.innerHTML).toBe(`${c.label} <span class="${styles.chipVal}" style="color: inherit;">${c.text.slice(c.label.length + 1)}</span>`)
+    })
+  }
+})
