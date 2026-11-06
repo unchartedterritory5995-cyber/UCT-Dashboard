@@ -258,8 +258,8 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     expect(byKey.priceTolerance.tooltip).toMatch(/^Price-high tolerance/)
     expect(byKey.showNewHighBeforePrice.label).toBe('High before price')
     expect(byKey.showNewHighBeforePrice.tooltip).toMatch(/^RS high before price/)
-    expect(byKey.shortHistoryDots.label).toBe('Partial dots')
-    expect(byKey.shortHistoryDots.tooltip).toMatch(/^Short-history dots/)
+    expect(byKey.shortHistoryDots.label).toBe('Short history')  // VA2 rename, 2026-11-07
+    expect(byKey.shortHistoryDots.tooltip).toMatch(/fewer bars than the lookback/)
   })
 
   it('⭐ Classic resolves to ONE hue for up and down — the ≤2 hues + 1 neutral budget holds', () => {
