@@ -35,6 +35,11 @@
 // decides no legality, so this file's rosters stay the only authority on which
 // members exist.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+// ⭐ W6-T6 — the `for … in` walk rule, one table for both lanes.
+import {
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, REASSIGN_OPS, COLLECTION_MUTATORS,
+  bodyMayWriteList as bodyMayWriteListRule, forInMutationRefusal,
+} from './forInRule.js'
 import { MAX_COLLECTION_CAP } from './objectProgram.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
@@ -293,12 +298,8 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
 const COLLECTION_CALLS = Object.freeze(new Set(['push', 'unshift', 'set', 'remove', 'clear', 'pop', 'shift']))
-/** ⭐ C11b — every operator that REASSIGNS an existing name (Pine reference). */
-const REASSIGN_OPS = Object.freeze(new Set([':=', '+=', '-=', '*=', '/=', '%=']))
-/** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
- *  pass does not carry leaves a drawing collection diverged. */
-const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
-  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat']))
+// ⭐ C11b `REASSIGN_OPS` and C16 `COLLECTION_MUTATORS` (one this pass does not carry leaves a
+// drawing collection diverged) live in `forInRule.js` (W6-T6), the one table both lanes read.
 
 /**
  * Walk the statement tree and pull out every object operation, with the guard
@@ -1609,53 +1610,17 @@ export function collectObjectOps(stmts, h) {
   // `clear`, a reassignment, a helper handed the list — no row), a bounded
   // numeric window changed by its body, and a loop variable that takes over a
   // name another statement declared.
-  const ALL_FAMILIES = Object.freeze({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
-  /** ⭐ C48 — the ways a body may change the list it walks that a capture shows
-   *  (`vw-forin-collections`, F03 / F04 / F05). */
-  const FOR_IN_LIVE_WITNESSED = Object.freeze(new Set(['shift', 'push', 'set']))
+  // ⭐ W6-T6 — the snapshot sources and the witnessed mutations (`FOR_IN_LIVE_WITNESSED`) are
+  // ONE table, `forInRule.js`, read by this lane and the runtime lane alike.
+  const ALL_FAMILIES = FOR_IN_SNAPSHOT_SOURCES
   const refuseForIn = (why, t) => {
     diagnostics.forInRefused.push(`${why}@${t[0] && t[0].line !== undefined ? t[0].line : '?'}`)
     return null
   }
-  /** Does this statement list (at any depth, and through any user function it
-   *  calls) change the list `name` — a mutating member, a reassignment, or a
-   *  user function that is handed it or names it? ⭐ C48 — `allowed`: mutating
-   *  members that do not count (the question becomes "by anything ELSE?"). */
-  const bodyMayWriteList = (list, name, allowed = null) => {
-    const seenFns = new Set()
-    let scan = null
-    const scanToks = (toks) => {
-      for (let i = 0; i < toks.length; i += 1) {
-        const tk = toks[i]
-        if (!tk || tk.kind !== 'ident') continue
-        const v = String(tk.value)
-        const nx = toks[i + 1]
-        if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
-        if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && h.isPunct(nx, '(')
-            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) {
-          if (allowed && allowed.has(v.slice(6))) continue
-          return true
-        }
-        const m = splitMethodName(v)
-        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) {
-          if (allowed && allowed.has(m.method)) continue
-          return true
-        }
-        const fn = fnDefs.has(v) ? v : (m && fnDefs.has(m.method) ? m.method : null)
-        if (!fn || !h.isPunct(nx, '(')) continue
-        const close = closeOf(toks, i + 1)
-        const args = close > 0 ? toks.slice(i + 2, close) : toks.slice(i + 2)
-        if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) return true
-        if (!seenFns.has(fn)) {
-          seenFns.add(fn)
-          if (scan(fnDefs.get(fn).body)) return true
-        }
-      }
-      return false
-    }
-    scan = (items) => (items || []).some((s2) => scanToks(s2.header || []) || scan(s2.sub))
-    return scan(list)
-  }
+  /** Does this statement list change the list `name`? (`forInRule.js::bodyMayWriteList`.) */
+  const bodyMayWriteList = (list, name, allowed = null) => bodyMayWriteListRule(list, name, {
+    allowed, isPunct: h.isPunct, isDefined, fnDefs,
+  })
   const mentionsName = (list, name) => (list || []).some((s2) => (s2.header || [])
     .some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name) || mentionsName(s2.sub, name))
   /** `for x in SRC` / `for [i, x] in SRC` → `{kind, idx, elem, src, family}` for
@@ -1708,7 +1673,7 @@ export function collectObjectOps(stmts, h) {
     const liveWalk = !ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)
     if (liveWalk && isWindow) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
     if (liveWalk && bodyMayWriteList(st.sub, src, FOR_IN_LIVE_WITNESSED)) {
-      return refuseForIn(`the body changes \`${src}\`, the list it walks, by more than push / shift / set`, t)
+      return refuseForIn(forInMutationRefusal(src), t)
     }
     if (isWindow) return { kind: 'window', idx, elem, src, family: null }
     if (elemName !== elem) {
