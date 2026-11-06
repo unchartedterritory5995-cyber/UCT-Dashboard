@@ -547,3 +547,10 @@ Merging to master is still not authorized in this file; the owner approves it di
 - W3W4-D1 LANDED: PR #888 (no bump; dark behind DRAWING_HISTORY_CAPTURED=false). Delta review GO-WITH-NOTES @e66d95c015; fix 483fe42df4 queues 8 W3N-D1 probe targets. Combined tree 173/173.
 - FOLLOW-UP (master): a test rewrites lookback_agreement.json on every run.
 - Next engine number: 20. In flight: W9-T1 (final-tip), W6-T5 (building).
+
+
+## 2026-11-06 W9-T1 landed
+- W9-T1 LANDED: PR #890 (S1 broker core, gated DARK, flag VITE_PINE_STRATEGY_BROKER_ENABLED unset everywhere; no bump). Review NO-GO (B1 flag reader unrailed) -> fixed -> GO-WITH-NOTES @f687b180ff. wseCalcBars r3 red waived as load noise (code identical to 2b91ad5cba full run where it passed; 4/4 alone).
+- W9 design doc DEEP_BARS sentences fixed per R13: docs/pine-w9-strategy-design 72460210b9.
+- lookback_agreement.json: master regenerates distinct_trees_walked 608->607 (rows unchanged); W6-T5 tree 605. Investigator running (which script stopped yielding a tree, regression or benign). W6-T5 final-tip held until known.
+- In flight: W6-T5 (measure re-run), W6-T6, W6-T1. Next engine: 20.
