@@ -549,6 +549,11 @@ def validate_declaration(declared: dict, addresses: Optional[Iterable[str]] = No
         # `known` set here would call the one address Task 15 added to the diff
         # 'not in the catalog' — i.e. it would refuse the declaration that closes
         # the last coverage hole, which is the opposite of what this check is for.
+        # 2026-11-06 (RS 2b-05) — and STILL three, by decision: the diff this
+        # declaration bounds never drives a CLOSED-ONLY address (`ma_cross`, the
+        # eleven `rs_line.*` — `ev.CLOSED_ONLY_ADDRESSES`), so a row naming one
+        # would declare a comparison that is not made. `tools/alert_replay.py::
+        # lane_diff`'s catalog says why; the two enumerate the same three.
         addresses = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
                      + list(ev.PRICE_FUNCS))
     known = set(addresses)

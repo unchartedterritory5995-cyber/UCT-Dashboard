@@ -752,7 +752,14 @@ def test_the_validator_refuses_nothing_that_is_alive_on_the_forming_lane(
 
     mute_on_forming = set()
     for spec in soak.catalog_addresses():
-        column = alert_series.SERIES_FUNCS[spec["address"]](calendar, {})
+        # 2026-11-06 (RS 2b-05) — through `ias._probe_column`, the lane's own
+        # call shape: an ordinary column is called `(bars, params)` byte for
+        # byte as before, and an RS column (benchmark-reading, CLOSED-ONLY — the
+        # rollback lever does not reach it, `ev._lane_for`) gets the timeframe
+        # the calendar encoding implies, the probe symbol and a benchmark.
+        # Called bare it answers None by construction and this rail would have
+        # called every RS address "mute and accepted".
+        column = ias._probe_column(alert_series.SERIES_FUNCS[spec["address"]], calendar, {})
         refusal = ias.refusal_for(spec["address"], spec["condition"], "D",
                                   spec["threshold"])
         if any(v is not None for v in column):
@@ -787,9 +794,9 @@ def test_the_validator_refuses_EXACTLY_TWO_addresses_on_the_closed_lane(
     assert refused == set(ias.instant_only_addresses()) | set(
         ias.closed_lane_dead_addresses())
     assert refused == {"vwap", "ichimoku.chikou"}, refused
-    # …and the rail is not a rail over everything: 30 of 32 stay armable
-    # (2026-11-04: +1 `ma_cross`).
-    assert len(soak.catalog_addresses()) - len(refused) == 30
+    # …and the rail is not a rail over everything: 41 of 43 stay armable on D
+    # (2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`).
+    assert len(soak.catalog_addresses()) - len(refused) == 41
 
 
 def test_the_probe_resolves_every_catalog_address():
@@ -798,11 +805,17 @@ def test_the_probe_resolves_every_catalog_address():
     not tell") is quietly doing the work and the guard is a guard over nothing.
     """
     instant, calendar = ias._probe_series()
+    # 2026-11-06 (RS 2b-05) — an RS address is measured on the CALENDAR encoding
+    # through `ias._probe_column` (it is offered on D / W only; on the instant
+    # encoding the column REFUSES by type, which every probe reads as "not
+    # measured"). Every other address is driven exactly as before.
     unresolved = [a for a in ev.all_addresses()
                   if not any(v is not None
-                             for v in alert_series.SERIES_FUNCS[a](instant, {}))]
+                             for v in ias._probe_column(
+                                 alert_series.SERIES_FUNCS[a],
+                                 calendar if a in ev.RS_ADDRESSES else instant, {}))]
     assert unresolved == []
-    assert len(ev.all_addresses()) == 32  # 2026-11-04: +1 `ma_cross` (CROSS partition)
+    assert len(ev.all_addresses()) == 43  # 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert len(instant) == len(calendar) == ias._PROBE_BARS
     # the two probe series differ in `t` and in NOTHING else
     assert [{k: v for k, v in b.items() if k != "t"} for b in instant] == \
@@ -979,12 +992,15 @@ def test_the_three_refusals_are_DISJOINT(monkeypatch):
         "timeframe": ias.refusal_for("vwap", "above", "D", 400.0),
         "level": ias.refusal_for("rsi", "above", "5", None),
         "displaced": ias.refusal_for("ichimoku.chikou", "above", "5", 0.0),
+        # 2026-11-06 (RS 2b-05): the FIFTH gate — an RS address on an intraday tf.
+        "rs_timeframe": ias.refusal_for("rs_line.newHigh", "above", "5", None),
     }
     anchors = {
         "condition": ias.REFUSAL_UNJUDGEABLE_CONDITION,
         "timeframe": ias.REFUSAL_INTRADAY_ONLY,
         "level": ias.REFUSAL_NO_LEVEL,
         "displaced": ias.CLOSED_LANE_TRAILING_PAD,
+        "rs_timeframe": ias.REFUSAL_RS_TIMEFRAME,
     }
     assert all(messages.values()), "a gate produced no refusal at all"
     for gate, anchor in anchors.items():
@@ -1018,18 +1034,23 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     """
     from tools import alert_soak_matrix as soak
 
+    # 2026-11-06 (RS 2b-05): 43 = 32 + the eleven `rs_line.*` rows the matrix
+    # now arms (its `arm()` writes through the UNGATED `create`; at its
+    # DEFAULT_TF "5" those eleven are refused every cycle by the lane — one
+    # warning line, no fire — and flagged by the silence sweep. That is the
+    # matrix's own concern, recorded in the 2b-05 hand-off, not this rail's).
     first = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert len(first["created"]) == 32 and first["kept"] == []
+    assert len(first["created"]) == 43 and first["kept"] == []
 
     second = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert second["created"] == [] and len(second["kept"]) == 32
+    assert second["created"] == [] and len(second["kept"]) == 43
 
     out = soak.verify()
-    assert out["armed"] == 32
-    assert out["visible_to_shadow"] == 32
+    assert out["armed"] == 43
+    assert out["visible_to_shadow"] == 43
     assert out["deliverable_now"] == 0
     assert out["missing"] == []
-    assert out["addresses_covered"] == out["addresses_expected"] == 32
+    assert out["addresses_covered"] == out["addresses_expected"] == 43
 
 
 def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
@@ -1056,11 +1077,17 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
     from api.services import indicator_alert_evaluator as _ev
 
     specs = soak.catalog_addresses()
-    assert len(specs) == 32
+    assert len(specs) == 43  # 2026-11-06 (RS 2b-05): 32 + 11 `rs_line.*`
 
     monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "closed")
     refused_addresses = set(ias.closed_lane_dead_addresses())
     assert refused_addresses == {"ichimoku.chikou"}, refused_addresses
+    # 2026-11-06 (RS 2b-05) — and the eleven RS addresses, at the matrix's own
+    # DEFAULT_TF ("5"): an RS alert is judged on closed daily / weekly bars only
+    # and the door says so in the lane's sentence (`REFUSAL_RS_TIMEFRAME`). A
+    # different refusal, a different anchor — the two are asserted apart.
+    rs_refused = set(_ev.RS_ADDRESSES)
+    assert len(rs_refused) == 11 and not (rs_refused & refused_addresses)
 
     refused = []
     for spec in specs:
@@ -1072,18 +1099,32 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
             assert r.status_code == 400, (spec, r.text)
             assert ias.CLOSED_LANE_TRAILING_PAD in r.text
             refused.append(spec["address"])
+        elif spec["address"] in rs_refused:
+            assert r.status_code == 400, (spec, r.text)
+            assert ias.REFUSAL_RS_TIMEFRAME in r.text
+            assert ias.CLOSED_LANE_TRAILING_PAD not in r.text
+            refused.append(spec["address"])
         else:
             assert r.status_code == 200, (spec, r.text)
-    assert sorted(refused) == sorted(refused_addresses)
-    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31  # 2026-11-04: 32 specs (+ma_cross) minus chikou
+    assert sorted(refused) == sorted(refused_addresses | rs_refused)
+    # STILL 31: 43 specs minus chikou minus the eleven RS rows refused on "5"
+    # (2026-11-04: 32 specs (+ma_cross) minus chikou; 2026-11-06 (RS 2b-05):
+    # +11 specs and +11 door refusals, so the armed count does not move).
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
 
     # …and on the ROLLBACK lane the whole catalog is armable again, with no
     # deploy and no code change. The gate reads `eval_mode()`, so this is one
-    # environment variable rather than a revert.
+    # environment variable rather than a revert — EXCEPT the RS addresses
+    # (2026-11-06, RS 2b-05): they are CLOSED-ONLY, the lever does not move
+    # them, and a 5-minute RS alert stays refused under either lane.
     monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "forming")
     for spec in specs:
-        assert ias.refusal_for(spec["address"], spec["condition"],
-                               soak.DEFAULT_TF, spec["threshold"]) is None, spec
+        refusal = ias.refusal_for(spec["address"], spec["condition"],
+                                  soak.DEFAULT_TF, spec["threshold"])
+        if spec["address"] in rs_refused:
+            assert refusal is not None and ias.REFUSAL_RS_TIMEFRAME in refusal, spec
+        else:
+            assert refusal is None, spec
 
 
 # ─── THE SNOOZE IS A WINDOW, NOT A LABEL ─────────────────────────────────────
@@ -1207,7 +1248,7 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
         ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
 
     out = soak.verify()
-    assert out["armed"] == 32 and out["deliverable_now"] == 0
+    assert out["armed"] == 43 and out["deliverable_now"] == 0   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert out["expiring_soon"] == 0
     assert out["muzzle_expires_in_days"] > soak.EXPIRY_WARN_DAYS
     assert soak.main(["--verify"]) == 0
@@ -1220,14 +1261,14 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
     warned = soak.verify()
     assert all(a["state"] == ias.STATE_SNOOZED for a in soak.soak_rows())
     assert warned["deliverable_now"] == 0        # still muzzled …
-    assert warned["expiring_soon"] == 32         # … and it says the clock is running
+    assert warned["expiring_soon"] == 43         # … and it says the clock is running (43 since RS 2b-05)
     assert soak.main(["--verify"]) == 1
 
     # past the window: deliverable, and still red
     gone = _time.time() + 31 * _DAY
     monkeypatch.setattr(soak.time, "time", lambda: gone)
     monkeypatch.setattr(ias.time, "time", lambda: gone)
-    assert soak.verify()["deliverable_now"] == 32
+    assert soak.verify()["deliverable_now"] == 43   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert soak.main(["--verify"]) == 1
 
 
@@ -1239,7 +1280,7 @@ def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
     from tools import alert_soak_matrix as soak
     soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
     ids = {a["id"] for a in soak.soak_rows()}
-    assert len(ids) == 32
+    assert len(ids) == 43   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert ids <= {a["id"] for a in ias.list_active()}
 
     # even after the sweep rewrites every state, they stay visible AND muzzled
