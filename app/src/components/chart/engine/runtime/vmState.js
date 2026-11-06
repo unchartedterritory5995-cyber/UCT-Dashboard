@@ -28,15 +28,20 @@
 // ⛔ Anything this does not know how to encode (a drawing handle, an unknown object)
 // makes the whole state unencodable (`null`): no probe is answered from a guess.
 
+import { matrixFromParts } from './matrices.js'
+
 const ARR = Object.freeze({ mark: 'array' })
 const REC = Object.freeze({ mark: 'record' })
 const REF = Object.freeze({ mark: 'ref' })
 const SLICED = Object.freeze({ mark: 'sliced' })
 const PLAIN = Object.freeze({ mark: 'plain' })
 const SECTION = Object.freeze({ mark: 'section' })
+const MAT = Object.freeze({ mark: 'matrix' })
 
 const RECORD_TAG = Symbol.for('uct.pine.udtRecord')
 const HANDLE_TAG = Symbol.for('uct.pine.drawingHandle')
+// ⭐ W6-T7 — `matrices.js`'s tag: a matrix is encoded and checkpointed by its shape and cells
+const MATRIX_TAG = Symbol.for('uct.pine.matrix')
 
 /** The most cells one encoded state may hold; past it the state is not encoded. */
 export const STATE_CELL_CAP = 65536
@@ -64,6 +69,11 @@ export function encodeState(parts, cap = STATE_CELL_CAP) {
       out.push(ARR, v.length)
       if (sliced) out.push(SLICED)
       for (let i = 0; i < v.length && ok; i += 1) put(v[i])
+      return
+    }
+    if (v[MATRIX_TAG] === true) {
+      out.push(MAT, v.rows, v.cols, v.elem)
+      for (let r = 0; r < v.rows && ok; r += 1) for (let c = 0; c < v.cols && ok; c += 1) put(v.cells[r][c])
       return
     }
     if (v[RECORD_TAG] === true) {
@@ -119,6 +129,13 @@ export function cloneValues(parts) {
       seen.set(v, out)
       for (const s of Object.getOwnPropertySymbols(v)) out[s] = v[s]
       for (let i = 0; i < v.length; i += 1) out[i] = copy(v[i])
+      return out
+    }
+    if (v[MATRIX_TAG] === true) {
+      const cells = []
+      const out = matrixFromParts(v.rows, v.cols, cells, v.elem)
+      seen.set(v, out)
+      for (const row of v.cells) cells.push(row.map(copy))
       return out
     }
     if (v[RECORD_TAG] === true) {
