@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clausesOf, firstSentence, splitLesson, stepsOf } from './lesson'
+import { clausesOf, firstSentence, sentencesOf, splitLesson, stepsOf } from './lesson'
 
 // Real bank lessons (docs/study/bank/spot.setups.json, 2026-11-05), shortened only where marked.
 const HVE = 'High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day\'s close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 18.23% on the heaviest volume of the lookback.'
@@ -86,5 +86,15 @@ describe('round 21: the rule as steps, the fixture templates, the review notes',
     const neg = splitLesson("Oops Reversal: the firm's detector does not fire on the last bar of this chart. open below prior close and close above it, but no undercut of the prior low (dropped by the blind review)")
     expect(neg.reason).toBe('Open below prior close and close above it, but no undercut of the prior low.')
     expect(neg.citations).toEqual(['dropped by the blind review'])
+  })
+})
+
+describe('sentencesOf: the chart line, a sentence a line', () => {
+  it('cuts at sentence stops, never inside a number, and keeps semicolon clauses apart', () => {
+    const here = "Here it opened -1.64% from the prior low and closed up 2.73%: also a Williams Oops. The setup was already there: the stock was above its 200-day; the dip tested the 21-day."
+    expect(sentencesOf(here)).toEqual([
+      'Here it opened -1.64% from the prior low and closed up 2.73%: also a Williams Oops.',
+      'The setup was already there: the stock was above its 200-day.', 'The dip tested the 21-day.'])
+    expect(sentencesOf('')).toEqual([])
   })
 })

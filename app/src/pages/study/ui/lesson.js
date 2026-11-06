@@ -66,6 +66,20 @@ export function clausesOf(text) {
   return parts.map((c, i) => cap(i === parts.length - 1 || /[.!?]$/.test(c) ? c : `${c}.`))
 }
 
+/** The sentences of a passage, each its own line (round 21: the chart's own line read as one paragraph); a stop inside a
+ *  number ("0.48%") never ends one. Semicolon chains inside a sentence are cut by clausesOf. The words are the bank's own. */
+export function sentencesOf(text) {
+  const out = []
+  let rest = String(text || '').trim()
+  while (rest) {
+    const [one, more] = firstSentence(rest)
+    if (!one) break
+    out.push(...clausesOf(one))
+    rest = more
+  }
+  return out
+}
+
 /** THE RULE AS STEPS (round 21): the rule's first sentence cut where the bank already cut it, at its semicolons
  *  ("the day before closes red ...; then the next day gaps up ..."), or, in a sentence with no semicolon that walks
  *  through a session ("opens below ..., trades under ..., then reverses and closes above ..."), at its commas when that

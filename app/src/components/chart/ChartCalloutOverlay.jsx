@@ -161,7 +161,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // wide to fit on screen. (The two-pass below additionally wraps a label when
     // that's the only way to place it CLOSE; everywhere else stays single-line.)
     const maxLineW = Math.max(220, Math.min(340, (plotRight - plotLeft) * 0.62))
-    const wrapLabel = (text) => ctx.measureText(text).width <= maxLineW ? [text] : splitTwo(text)
+    const wrapLabel = (text) => (look || ctx.measureText(text).width <= maxLineW) ? [text] : splitTwo(text)
     const boxDims = (lines) => {
       const tw = Math.max(...lines.map(l => ctx.measureText(l).width))
       return { boxW: tw + padX * 2, boxH: lines.length * textH + padY * 2 }
@@ -318,7 +318,9 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
         // do we try wrapping to two narrower lines — and keep it only if that
         // brings it MUCH closer (>30px). Otherwise the label stays one line, even
         // if it sits a little out, so we don't wrap when there's plenty of room.
-        if (it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 130) {
+        // (never with a `look`: Study's labels are short, one line reads better, and the two-line fallback compares only
+        // leader length, so it could pick a spot that covers a candle)
+        if (!look && it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 130) {
           const lines2 = splitTwo(it.text)
           if (lines2.length === 2) {
             const it2 = { ...it, lines: lines2, ...boxDims(lines2) }

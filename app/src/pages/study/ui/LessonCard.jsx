@@ -10,7 +10,7 @@
 // from the reveal's `setup_rule`: the same setup's definition as the approved lessons write it (study_hard.setup_rule).
 import brandMark from '../../../components/intro/assets/compass-mark.png'
 import { readCandle, readText, readTone } from './candleRead'
-import { clausesOf, splitLesson, stepsOf } from './lesson'
+import { sentencesOf, splitLesson, stepsOf } from './lesson'
 import s from './study.module.css'
 
 const an = (n) => `${/^[AEIOU]/i.test(String(n || '')) ? 'an' : 'a'} ${n}`
@@ -25,7 +25,7 @@ export default function LessonCard({ text, ticker = null, setup = null, fired = 
   const steps = R ? stepsOf(R.ruleLead) : []
   const rest = R ? R.ruleRest : ''
   const reads = bars ? readCandle(bars, signal == null ? bars.length - 1 : signal) : []
-  const onChart = L.here ? clausesOf(L.here) : (L.nothing && L.reason ? [`Not ${an(L.setup || name)}: ${low(L.reason)}`] : [])
+  const onChart = L.here ? sentencesOf(L.here) : (L.nothing && L.reason ? [`Not ${an(L.setup || name)}: ${low(L.reason)}`] : [])
   const title = fired === true ? `Why it’s ${an(name)}` : fired === false ? 'Why nothing fired' : 'The lesson'
   if (!steps.length && !onChart.length && !reads.length) return null
   return (
