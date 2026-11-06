@@ -65,6 +65,20 @@ describe('the vocabulary — `evidenceSource` is a card field the schema admits'
     expect(msg).toMatch(/readout\[0\]\.card\.sauce[^\n]*unknown card field/)
     expect(msg, 'the refusal lists the admitted fields, evidenceSource among them').toMatch(/evidenceSource/)
   })
+
+  it('defSchema refuses an evidenceSource that is not a scalar/payload path (a typo would read as "nothing measured" forever)', () => {
+    const row = (src) => ({ ...RS, readout: [{ key: 'rsHigh', label: 'RS high', source: 'scalar:lastRsHigh.barsAgo', format: 'barsAgo',
+      card: { what: 'w', origin: 'o', evidenceSource: src } }] })
+    for (const bad of ['evidence.sentence.rsHigh', 'scalar:', 'input:benchmark', 42, '']) {
+      const r = validateDefinition(row(bad))
+      expect(r.ok, `accepted ${JSON.stringify(bad)}`).toBe(false)
+      expect(r.errors.join('\n')).toMatch(/readout\[0\]\.card\.evidenceSource/)
+    }
+    for (const good of ['scalar:evidence.sentence.rsHigh', 'payload:evidence.sentence.rsHigh']) {
+      const r = validateDefinition(row(good))
+      expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    }
+  })
 })
 
 describe('`cardEvidenceText` — the resolved sentence, else the static line, else nothing; never throws', () => {

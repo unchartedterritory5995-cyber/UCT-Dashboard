@@ -1624,6 +1624,17 @@ function validateReadout(def, inputsByKey, errors) {
         // `learn` names a lesson in the APP's Learn map (`lib/deskVideoHref`), not
         // anything the engine holds — so the schema asks only that it is a key
         // at all. A key the map does not know renders no link (`learnHref` → null).
+        // `evidenceSource` (unit 2b-09) is a payload path the card reads its measured
+        // sentence from. Its GRAMMAR is checked here, at registration: a path that
+        // cannot parse would silently fall back to the static line forever, which
+        // reads as "nothing measured yet" rather than as the typo it is. An
+        // `input:` source is refused too: evidence is the server's, never a knob.
+        if (entry.card.evidenceSource !== undefined) {
+          const parsed = parseReadoutSource(entry.card.evidenceSource)
+          if (!parsed || parsed.kind !== 'scalar') {
+            errors.push(`${path}.card.evidenceSource: ${who} — expected a 'scalar:<a.b.c>' or 'payload:<a.b.c>' path, got ${fmt(entry.card.evidenceSource)}`)
+          }
+        }
         if (entry.card.learn !== undefined && !isNonEmptyString(entry.card.learn)) {
           errors.push(`${path}.card.learn: ${who} — expected a non-empty lesson key (a string the app's Learn map resolves), got ${fmt(entry.card.learn)}`)
         }
