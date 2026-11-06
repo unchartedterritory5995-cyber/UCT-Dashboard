@@ -406,13 +406,13 @@ def test_the_GLOBAL_catalog_is_BYTE_UNMOVED_by_the_scoped_one(client):
     save(USER_A, defn())
     served = _catalog(client)
     global_entries = ev.alert_catalog()
-    assert len(global_entries) == 17  # 2026-11-04: +ma_cross
+    assert len(global_entries) == 18  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert served[:len(global_entries)] == global_entries
     assert [e["indicator"] for e in served[len(global_entries):]] == [DEF_ID]
 
-    assert len(ev.all_addresses()) == 32  # 2026-11-04: +ma_cross
+    assert len(ev.all_addresses()) == 43  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert not [a for a in ev.all_addresses() if aus.is_user_address(a)]
-    assert len(ev.ADDRESS_PARTITIONS) == 4  # 2026-11-04: +CROSS_FUNCS
+    assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert all(p is not aus.USER_FUNCS for p in ev.ADDRESS_PARTITIONS)
     # …and a bare user address still resolves to NOTHING without an account.
     assert ev.value_function(ADDRESS) is None

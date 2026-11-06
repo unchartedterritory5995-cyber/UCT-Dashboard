@@ -57,7 +57,7 @@ from api.services import watchlist_alert_service as wls            # noqa: E402
 # entire per-plot assertion checking nothing while staying green. `len(...) == 28`
 # survives `rsi` being renamed to `rsi2`; the list does not.
 BASELINE_INDICATOR_FUNCS = 28
-BASELINE_CATALOG_GROUPS = 17  # 2026-11-04: +`ma_cross`
+BASELINE_CATALOG_GROUPS = 18  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 #: Every address the GLOBAL space holds, in catalog order — the order the
 #: dropdown renders and the order `build_alert_grid` iterates.
@@ -70,6 +70,10 @@ BASELINE_ADDRESSES = [
     "sar.priceCrossedSar", "sar.trendFlipped", "close",
     # 2026-11-04 — the CROSS partition (global, NOT a user address).
     "ma_cross",
+    # 2026-11-07: +rs_line (UCT RS, unit 2b-05) — the 5th partition, appended last, catalog order.
+    "rs_line.value", "rs_line.ma", "rs_line.above", "rs_line.crossUp", "rs_line.crossDown",
+    "rs_line.newHigh", "rs_line.newHighBeforePrice", "rs_line.newHighRed", "rs_line.mansfield",
+    "rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown",
 ]
 
 USER_A = "user-a"
@@ -333,7 +337,7 @@ def test_the_fourth_partition_is_NOT_in_ADDRESS_PARTITIONS(defs_db, real_bars):
     address into a global enumeration and change the shape of a 685,193-fire log.
     """
     assert all(p is not aus.USER_FUNCS for p in ev.ADDRESS_PARTITIONS)
-    assert len(ev.ADDRESS_PARTITIONS) == 4  # 2026-11-04: +1 `ma_cross` (CROSS partition)
+    assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
     save(USER_A, defn())
     aus.admit_user_definition(USER_A, DEF_ID, bars=real_bars)
