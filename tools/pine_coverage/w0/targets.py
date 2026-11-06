@@ -41,6 +41,12 @@ PRODUCTION, RUNTIME_ON = CM.LANE_PRODUCTION, CM.LANE_RUNTIME_ON
 HARNESS = os.path.join(CM.ROOT, "tests", "fixtures", "vendor", "harness")
 
 
+def placing_orders(script):
+    """Whether a coverage-map script row is a strategy that places orders: the map's own `placesOrders`
+    (read from the script's text). A map written before W9 T0 has none and answers by its `[strategy]` label."""
+    return bool(script["placesOrders"]) if "placesOrders" in script else "[strategy]" in script["walls"]
+
+
 def rt_wave(w, tags=(), order_strategy=False):
     """The plan wave that owns one runtime-lane wall.
 
@@ -240,7 +246,7 @@ def main():
     for k, ws in rt_by.items():
         for w in dict.fromkeys(ws):            # each wall once per script, in first-seen order
             rt_wall_scripts[w].append(k)
-        order_strategy = "[strategy]" in S[k]["walls"]
+        order_strategy = placing_orders(S[k])
         wv = {rt_wave(w, rt_tags.get(k, {}).get(w, ()), order_strategy) for w in ws}
         if order_strategy:                     # orders are never simulated: W9 always
             wv.add("W9")
@@ -256,7 +262,7 @@ def main():
     def wall_wave(w):
         # the wave of the wall's label, unless EVERY script carrying it maps it to one other wave
         # (`for-in` on all of `runtime:loop`'s scripts, say)
-        by_script = {rt_wave(w, rt_tags.get(k, {}).get(w, ()), "[strategy]" in S[k]["walls"]) for k in rt_wall_scripts[w]}
+        by_script = {rt_wave(w, rt_tags.get(k, {}).get(w, ()), placing_orders(S[k])) for k in rt_wall_scripts[w]}
         return next(iter(by_script)) if len(by_script) == 1 else rt_wave(w)
 
     prod_sets = {s["key"]: {PROD_WAVE.get(label_cap.get(w, "?"), "?") for w in s["walls"]} for s in notclean}

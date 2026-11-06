@@ -235,15 +235,19 @@ describe('(D) a tour whose first anchor needs a note: "make a note first", from 
     expect(writes(f)).toEqual([]) // read-only
   })
 
+  // Tier 3b fix round 1 (I2): the voice tour starts on Research Home (`?view=home`); the bare Notebook is the Today
+  // home now, which does not hold its anchor, so from there it navigates too.
   it('a member WITH a note: the start goes on exactly as before (navigate, or stay)', async () => {
     const f = fakeFetch({ notes: [{ id: 'n1' }] })
-    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ path: NOTEBOOK_ROOT })
-    expect(await resolveStart(voice, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ stay: true })
+    expect(voice.start).toBe(`${NOTEBOOK_ROOT}?view=home`)
+    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ path: voice.start })
+    expect(await resolveStart(voice, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ path: voice.start })
+    expect(await resolveStart(voice, loc(NOTEBOOK_ROOT, '?view=home'), { fetchImpl: f })).toEqual({ stay: true })
   })
 
   it('a read that fails is not taken as "no notes": the tour goes on as before', async () => {
     const f = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }))
-    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ path: NOTEBOOK_ROOT })
+    expect(await resolveStart(voice, loc('/support'), { fetchImpl: f })).toEqual({ path: voice.start })
   })
 
   it('a tour NOT in NEEDS_NOTES never pays for the read', async () => {

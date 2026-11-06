@@ -38,7 +38,7 @@ describe('the Learn menu on a cold first press (real panel, no warm-up)', () => 
     expect(learn).not.toHaveAttribute('aria-controls')
 
     const menu = await screen.findByRole('menu', { name: 'Learn: walkthroughs' })
-    expect(document.activeElement).toHaveTextContent('Notebook basics tour')
+    expect(document.activeElement).toHaveTextContent('Notebook basics')
     expect(menu.contains(document.activeElement)).toBe(true)
     // named once the panel has mounted (its passive onReady, one commit after the menu appears)
     await waitFor(() => expect(learn).toHaveAttribute('aria-controls', menu.id))
@@ -51,7 +51,7 @@ describe('the Learn menu on a cold first press (real panel, no warm-up)', () => 
     fireEvent.click(learn)
     const base = vi.fn()
     window.addEventListener(TOUR_OPEN_EVENT, base)
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Notebook basics tour' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Notebook basics' }))
     window.removeEventListener(TOUR_OPEN_EVENT, base)
     expect(base).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('menu')).toBeNull()

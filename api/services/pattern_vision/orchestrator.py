@@ -48,6 +48,20 @@ def _cost(model, in_tok, out_tok) -> float:
     return (in_tok / 1e6) * pin + (out_tok / 1e6) * pout
 
 
+def _charge_failed_call(exc, day, ticker, setup, key_level, examples) -> None:
+    """A timeout reports no usage and may have been billed: it costs its worst case, so endless timeouts
+    still reach the daily hard cap. Only an HTTP error response is free. Never raises into the slot."""
+    try:
+        from api.services.uct_agent import budget
+        if budget._is_provider_error_response(exc):
+            return
+        model = "claude-opus-4-8"
+        tokens_in, tokens_out = vision_judge.worst_case_tokens(setup, key_level=key_level, example_pngs=examples)
+        store.log_cost(day, ticker, model, tokens_in, tokens_out, _cost(model, tokens_in, tokens_out))
+    except Exception as e:
+        log.warning("[pv] could not charge a failed call: %s", e)
+
+
 def _read_bars(ticker, tf):
     from api.services import bars_sqlite
     return bars_sqlite.get_bars(ticker, tf, 400) or []
@@ -248,12 +262,14 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
                                     "asof_date": cand["asof_date"], "path": "render_failed",
                                     "message": "chart_render returned no png"})
             continue
+        examples = []
         try:
             examples = _example_pngs(setup)
             v = vision_judge.judge(setup, png, client=client,
                                    key_level=key_level, example_pngs=examples)
         except Exception as e:
             log.warning("[pv] judge %s/%s failed: %s", ticker, setup, e)
+            _charge_failed_call(e, day, ticker, setup, key_level, examples)
             out["errored"] += 1
             out["problems"].append({"ticker": ticker, "tf": tf, "setup": setup,
                                     "asof_date": cand["asof_date"], "path": "errored",

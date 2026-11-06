@@ -13,6 +13,7 @@
 // is read again in the background while the note is open and editable, every RETRY_MS, at most RETRY_MAX times; the
 // first full answer fills the block. ⛔ Still never a read for a block with no snapshot, nor for one captured on an
 // earlier day (that note must not quietly show today's data, IR-S11). A background read that fails says nothing.
+import EmptyNamesAsk from '../EmptyNamesAsk'
 import { useEffect, useRef, useState } from 'react'
 import { BlockNeedsSwitch } from './blockStates'
 import { CAPTURE_FAILED } from '../../../lib/blocks/captureCopy'
@@ -71,6 +72,9 @@ async function readPart(part) {
   }
 }
 
+/** S17: what a prep block needs when the member has no names. */
+export const PREP_NAMES_ASK = "Add the tickers you watch, and today's prep for them shows up here."
+
 export default function PrepCapture({ part, params, setParams, editable, children }) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -124,6 +128,8 @@ export default function PrepCapture({ part, params, setParams, editable, childre
   const when = snap ? easternTime(snap.capturedAt) : null
   let body = null
   if (snap?.needs) body = <BlockNeedsSwitch what={snap.needs} />
+  // S17 (audit 2026-11-05, M7): a block with no names to read ASKS for them, then captures again.
+  else if (snap?.missing === 'no_names' && editable) body = <EmptyNamesAsk sentence={PREP_NAMES_ASK} onAdded={capture} testId="prep-names-ask" />
   else if (snap?.missing) body = <p className={styles.muted} data-prep-filling={filling ? '' : undefined}>{filling ? FILLING_WORDS[snap.missing] : RETRYABLE.includes(snap.missing) ? FINAL_WORDS[snap.missing] : snap.detail}</p>
   else if (snap) body = children(snap)
   // M-4 (R-T12-C fix round): an empty block says why for an editor too, above its "Capture now".
@@ -134,7 +140,7 @@ export default function PrepCapture({ part, params, setParams, editable, childre
       {when && !filling && <p className={styles.muted}>{`Captured ${when} ET`}</p>}
       {failed && <p role="status" className={styles.muted}>{FAILED}</p>}
       {/* While a gap fills itself there is nothing to press: the member is never asked to retry (S9). */}
-      {editable && !filling && (
+      {editable && !filling && !(snap?.missing === 'no_names') && (
         // btn-secondary: the same visible button as the market context stamp's Capture now.
         <button type="button" className={`btn btn-secondary ${styles.tap}`} disabled={busy} onClick={capture}>
           {snap ? 'Capture again' : 'Capture now'}

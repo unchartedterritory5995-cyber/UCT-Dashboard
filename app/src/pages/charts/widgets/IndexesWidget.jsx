@@ -20,6 +20,7 @@ import { useCallback, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { fetchSnapshot } from './widgetSnapshotFetcher'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
@@ -86,6 +87,10 @@ export default function IndexesWidget({
     () => buildIndexesCapture({ rows, updated }, { hiddenSymbols: opts?.hiddenSymbols }),
     [opts, rows, updated],
   )
+  useWidgetDoor(() => ({
+    options: () => ({ index: INDEX_SYMBOLS.map(e => ({ value: e.sym, label: e.label })) }),
+    capture: () => (journalDoor && !readOnly && rows.length > 0 ? { kind: 'indexes', capture: buildCapture(), label: 'Indexes' } : null),
+  }))
 
   return (
     <div className={styles.root}>

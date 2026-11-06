@@ -112,6 +112,14 @@ MAX_TOKENS: int = 8192
 #: the byte bound `budget.worst_case_usd` uses for text does not apply to it.
 IMAGE_TOKENS_WORST: int = 4784
 
+#: The most this call's fixed prompt can bill: its 33,166 bytes (system, tool schema, framing of the user
+#: turn) at an ASSUMED 2 bytes a token, plus `budget.FRAMING_TOKENS`: about $0.332 a call, against the $0.467
+#: a token per byte reserved. ⛔ The 2 is a conservative assumption, not a measurement: no live call is allowed
+#: here, so no provider token count exists. 3 bytes a token left only 45 tokens of slack and held only at
+#: 2.3 bytes a token or more, so it was not a proven bound. Replace it with a count if one is ever made.
+#: `tests/test_vision_spend_containment.py` fails if the prompt outgrows it.
+PROMPT_TOKENS_WORST: int = 20_600
+
 #: ⛔ ONE BILLED ATTEMPT. See the header: a timed-out call has already generated
 #: tokens and reports no ``usage``, so an SDK retry is spend the ledger counts as
 #: zero. The 60 s clock is the shared client's and stays.
@@ -479,13 +487,12 @@ def _confidence(value: Any) -> int:
 
 
 def worst_case_usd(note: str = "") -> float:
-    """The most one call may bill: `budget.worst_case_usd`'s bound on the prompt and
-    every output token, plus the picture at its ceiling, priced as a cache write."""
+    """The most one call may bill: the pinned prompt, the member's note at a token per byte, the
+    picture at its ceiling and every output token. Plain input rates: this call asks for no cache,
+    so nothing in it can bill as a cache write."""
     from api.services.uct_agent import budget
-    return budget.worst_case_usd(dict(
-        model=MODEL, max_tokens=MAX_TOKENS, system=system_prompt(), tools=[anthropic_tool()],
-        tool_choice={"type": "tool", "name": TOOL_NAME},
-        messages=user_turn(b"", "image/png", note))) + budget._price(MODEL, cache_write=IMAGE_TOKENS_WORST)
+    tokens_in = PROMPT_TOKENS_WORST + len((note or "").encode("utf-8")) + IMAGE_TOKENS_WORST
+    return budget._price(MODEL, input=tokens_in, output=MAX_TOKENS)
 
 
 # --------------------------------------------------------------------------- #

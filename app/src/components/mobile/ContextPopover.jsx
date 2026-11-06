@@ -192,7 +192,11 @@ export default function ContextPopover({
   // Touch → bottom sheet
   if (isTouch) {
     return (
-      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
+      // VIS-7 (audit 2026-11-05, axe aria-dialog-name): the sheet is a dialog and needs a name. The same rule as the
+      // anchored menu below: the title when it is plain text (named BY the visible title), else Options / Actions.
+      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}
+        labelledByTitle={typeof title === 'string' && Boolean(title)}
+        ariaLabel={typeof title === 'string' && title ? undefined : (children != null ? 'Options' : 'Actions')}>
         <div className={styles.sheetList}>
           {children ?? <>{header}{renderItems()}</>}
         </div>

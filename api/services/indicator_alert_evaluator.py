@@ -100,6 +100,7 @@ from api.services.alert_conditions import (  # noqa: F401  (re-exported)
 # and a lazy import here would mean `INDICATOR_FUNCS` could not exist until
 # somebody called something.
 from api.services import alert_series
+from api.services.bars_window import HISTORY_WINDOW_BARS
 
 # D2 CP3 — the timeframe label table lives in ONE place: the address book's
 # `axes.timeframe.code_to_label`, sourced from `signature/ledger.py`. Module
@@ -1104,11 +1105,12 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
 
 #: 🔴 THE ALERT LANE READ A FIXED 200 BARS WHILE ITS OWN BUDGET ADMITS
 #: `maxLookback: 500`, AND THE SCAN LANE ALREADY DID THIS CORRECTLY. Same tree,
-#: two windows; only one could be right. These are `scan_evaluator._MIN_BARS` /
-#: `_MAX_BARS` and the formula is its `want`, brought over verbatim —
-#: `test_the_two_lanes_size_the_same_window` READS the scan lane's own constants
-#: and fails if either side moves, so this is a copy that cannot drift rather
-#: than a second authority.
+#: two windows; only one could be right. These are `scan_evaluator._MIN_BARS` and
+#: `bars_window.HISTORY_WINDOW_BARS` (the one ceiling, imported, never retyped)
+#: and the formula is the scan lane's `want`, brought over verbatim —
+#: `test_the_two_lanes_size_the_same_window` READS the scan lane's own floor and
+#: fails if either side moves, so this is a copy that cannot drift rather than a
+#: second authority.
 #:
 #: Two measurements say why the floor is 400 and not 200:
 #:   * `STZ ema(close,200)` is **145.9311** over 200 bars and **153.2869**
@@ -1118,7 +1120,7 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
 #:     refusing — see `ast_interpret.unresolved_lookback`, which is the other half
 #:     of this fix and the half that matters when even 5,000 bars are not enough.
 BARS_MIN = 400
-BARS_MAX = 5000
+BARS_MAX = HISTORY_WINDOW_BARS
 
 
 def bars_wanted(lookback: int = 0) -> int:

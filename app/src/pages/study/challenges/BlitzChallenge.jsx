@@ -103,7 +103,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
 
   const start = () => { setPhase('play'); setLeft(BLITZ_SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0); setLog([]) }
   const kinds = useMemo(() => { if (!pool) return null; const c = {}; pool.forEach((q) => { c[q.kind] = (c[q.kind] || 0) + 1 }); return c }, [pool])
-  const bankLine = pool == null ? 'loading the bank' : pool.length ? `${pool.length} questions in today's pool` : 'no unseen charts left for now'
+  const bankLine = pool == null ? 'loading the bank' : pool.length ? `${pool.length} questions in today's pool` : 'no charts in the bank yet'
 
   if (error) return <ChallengeError what="the Blitz pool" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
 
@@ -137,7 +137,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
       </StartCard>
     )
   }
-  if (!qn) return <p className={d5.startLead}>{pool == null ? 'Loading the bank' : 'No unseen charts left for now.'}</p>
+  if (!qn) return <p className={d5.startLead}>{pool == null ? 'Loading the bank' : 'No charts in the bank yet.'}</p>
   return (
     <div className={flash === 'ok' ? d5.flashOk : flash === 'bad' ? d5.flashBad : ''} data-testid="blitz-play">
       <div className={d5.topbar}><span className={`${d5.clock} ${left <= 10 ? d5.hot : ''}`} style={{ textAlign: 'left', fontSize: 22 }} data-testid="blitz-clock">{left}s</span><div className={d5.blitzMid}><b data-testid="blitz-score">{score}</b><small>points</small></div><span className={`${d5.multi} ${blitzMult(combo) >= 3 ? d5.hotM : ''}`}>x{blitzMult(combo)}{combo ? ` · ${combo} in a row` : ''}</span></div>

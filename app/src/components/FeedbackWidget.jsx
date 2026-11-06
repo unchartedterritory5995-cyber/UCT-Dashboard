@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
@@ -6,7 +6,35 @@ import useHideOnScroll from '../hooks/useHideOnScroll'
 import useScrollLocked from '../hooks/useScrollLocked'
 import fb from './FeedbackWidget.module.css'
 import Textarea from './ui/Textarea'
-import { OPEN_FEEDBACK_EVENT } from './feedbackDoor'
+import {
+  OPEN_FEEDBACK_EVENT, helpHostMounted, markFeedbackMenuMounted, shortcutsHostOpen, subscribeHelpHosts,
+} from './feedbackDoor'
+import { HELP_SEARCH_HREF, HELP_WALKTHROUGHS_HREF, NEW_TICKET_HREF, QUICK_ANSWERS_HREF } from './helpAnchors'
+import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
+
+/** Which rows this page may offer (Tier 2 review minors 10 and 17): "Tours" only where Help > Walkthroughs is on the
+ *  Support page (the same predicate Support.jsx's section reads), and "Keyboard shortcuts" only where the page has a
+ *  shortcut sheet and the member has a keyboard (not a phone-sized touch screen). */
+export function helpMenuRows({ hasShortcuts, flag = notebookFlag, phoneTouch = false } = {}) {
+  return HELP_MENU_ITEMS.filter((it) => {
+    if (it.key === 'shortcuts') return hasShortcuts && !phoneTouch
+    if (it.key === 'tours') return checklistEnabled(flag)
+    return true
+  })
+}
+const phoneTouchNow = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  && window.matchMedia('(pointer: coarse) and (max-width: 640px)').matches
+
+/** S14 (audit 2026-11-05): the ONE Help menu's rows, in the spec's order. `shortcuts` is offered only where the page
+ *  has a keyboard-shortcut sheet (a registered shortcuts host). */
+export const HELP_MENU_ITEMS = Object.freeze([
+  { key: 'search', label: 'Search help', icon: 'search', href: HELP_SEARCH_HREF },
+  { key: 'answers', label: 'Quick answers', icon: 'sparkle', href: QUICK_ANSWERS_HREF },
+  { key: 'shortcuts', label: 'Keyboard shortcuts', icon: 'sliders' },
+  { key: 'tours', label: 'Tours', icon: 'compass', href: HELP_WALKTHROUGHS_HREF },
+  { key: 'feedback', label: 'Send feedback', icon: 'chat' },
+])
 
 const S = {
   btn: {
@@ -59,6 +87,15 @@ const S = {
     borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
   },
   success: { color: '#4ade80', fontSize: 12, textAlign: 'center', padding: 14 },
+  ticketLink: { color: '#c9a84c', fontSize: 12, textDecoration: 'underline' },
+}
+
+/** Where a menu hangs under `el`: 6 px below it, its right edge on the button's, kept inside an 8 px gutter. */
+export function anchorUnder(el, vw = typeof window !== 'undefined' ? window.innerWidth : 0) {
+  const r = el?.getBoundingClientRect?.()
+  if (!r || (!r.width && !r.height)) return null
+  const right = Math.max(8, Math.round((vw || r.right) - r.right))
+  return { top: Math.round(r.bottom + 6), right }
 }
 
 export default function FeedbackWidget() {
@@ -71,6 +108,12 @@ export default function FeedbackWidget() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [hovered, setHovered] = useState(null)
+  const [anchor, setAnchor] = useState(null)   // { top, right } under a page's Help button, or null (the corner)
+  // S14: a page that draws its own Help button (the Journal header) is a help host; the corner "?" steps aside
+  // while one is mounted, so exactly one "?" is on screen. The menu below still answers both.
+  const hostTick = useSyncExternalStore(subscribeHelpHosts, () => (helpHostMounted() ? 1 : 0) + (shortcutsHostOpen() ? 2 : 0))
+  const pageOwnsHelp = (hostTick & 1) === 1
+  const hasShortcuts = (hostTick & 2) === 2
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
   const triggerRef = useRef(null)
@@ -98,7 +141,9 @@ export default function FeedbackWidget() {
       closeAndReturn()
     }
     const onDown = (e) => {
+      // the control that opened it (the Journal header's Help, the phone "+") toggles on its own press
       const inside = panelRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)
+        || returnToRef.current?.contains?.(e.target)
       if (!inside) close()
     }
     document.addEventListener('keydown', onKey, true)
@@ -114,12 +159,24 @@ export default function FeedbackWidget() {
   // menu through components/feedbackDoor.js.
   useEffect(() => {
     const onOpen = (e) => {
+      const next = e.detail?.mode === 'feedback' ? 'feedback' : 'menu'
+      // S14: a page's own Help button is a toggle, like the corner "?": pressed again while its menu is open, it closes
+      if (e.detail?.toggle && returnToRef.current && returnToRef.current === e.detail?.returnTo) {
+        setMode((m) => (m ? null : next))
+        return
+      }
       returnToRef.current = e.detail?.returnTo || null
-      setMode(e.detail?.mode === 'feedback' ? 'feedback' : 'menu')
+      // Review minor 9: opened from a page's own Help button, the menu hangs under THAT button (right-aligned to it,
+      // inside the viewport), not in the corner where the corner "?" would be.
+      setAnchor(e.detail?.toggle ? anchorUnder(e.detail.returnTo) : null)
+      setMode(next)
     }
     window.addEventListener(OPEN_FEEDBACK_EVENT, onOpen)
     return () => window.removeEventListener(OPEN_FEEDBACK_EVENT, onOpen)
   }, [])
+  // S14: the menu can answer the door only where it renders (a signed-in member, off the admin pages).
+  const answers = Boolean(user) && !location.pathname.startsWith('/admin')
+  useEffect(() => (answers ? markFeedbackMenuMounted() : undefined), [answers])
 
   if (!user || location.pathname.startsWith('/admin')) return null
   // Hide when a modal/sheet is open so the "?" never covers its bottom CTA.
@@ -137,6 +194,32 @@ export default function FeedbackWidget() {
     returnToRef.current = null
     if (back && back.isConnected) back.focus()
     else triggerRef.current?.focus()
+  }
+
+  function choose(it) {
+    if (it.key === 'feedback') { setMode('feedback'); return }
+    if (it.key === 'shortcuts') {
+      // Focus goes back to the button that opened the menu FIRST, so the sheet records it as the place to return
+      // to on close (the pressed row unmounts with the menu and would leave focus on <body>).
+      const open = shortcutsHostOpen()
+      closeAndReturn()
+      open?.()
+      return
+    }
+    close()
+    returnToRef.current = null
+    navigate(it.href)
+  }
+
+  function onMenuKeys(e) {
+    const items = Array.from(panelRef.current?.querySelectorAll('[role="menuitem"]') || [])
+    const at = items.indexOf(document.activeElement)
+    let to = null
+    if (e.key === 'ArrowDown') to = items[(at + 1) % items.length]
+    else if (e.key === 'ArrowUp') to = items[(at - 1 + items.length) % items.length]
+    else if (e.key === 'Home') to = items[0]
+    else if (e.key === 'End') to = items[items.length - 1]
+    if (to) { e.preventDefault(); to.focus() }
   }
 
   async function handleSend() {
@@ -159,34 +242,32 @@ export default function FeedbackWidget() {
   return (
     <>
       {mode === 'menu' && (
-        <div style={S.menu} className={fb.panel} ref={panelRef}>
-          {/* Fix round 1 (review minor 8): real buttons -- in the Tab order, Enter and Space work. */}
-          <button
-            type="button"
-            ref={firstItemRef}
-            style={{ ...S.menuItem, ...S.menuButton, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
-            className={fb.menuItem}
-            onMouseEnter={() => setHovered('feedback')}
-            onMouseLeave={() => setHovered(null)}
-            onClick={() => setMode('feedback')}
-          >
-            <UIcon name="chat" size={15} /> Send Feedback
-          </button>
-          <button
-            type="button"
-            style={{ ...S.menuItem, ...S.menuButton, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
-            className={fb.menuItem}
-            onMouseEnter={() => setHovered('ticket')}
-            onMouseLeave={() => setHovered(null)}
-            onClick={() => { close(); navigate('/support') }}
-          >
-            <UIcon name="document" size={15} /> Support Ticket
-          </button>
+        <div style={anchor ? { ...S.menu, ...anchor } : S.menu} className={fb.panel} ref={panelRef} role="menu" aria-label="Help"
+          onKeyDown={onMenuKeys} data-help-anchored={anchor ? '' : undefined}>
+          {/* S14: ONE Help menu (Search help, Quick answers, Keyboard shortcuts, Tours, Send feedback). Real
+              buttons with role="menuitem": Enter and Space work, Arrow keys walk them, Escape closes. */}
+          {helpMenuRows({ hasShortcuts, phoneTouch: phoneTouchNow() }).map((it, i, all) => (
+            <button
+              key={it.key}
+              type="button"
+              role="menuitem"
+              ref={i === 0 ? firstItemRef : undefined}
+              data-help-item={it.key}
+              style={{ ...S.menuItem, ...S.menuButton, ...(i === all.length - 1 ? { borderBottom: 'none' } : null),
+                background: hovered === it.key ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+              className={fb.menuItem}
+              onMouseEnter={() => setHovered(it.key)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => choose(it)}
+            >
+              <UIcon name={it.icon} size={15} /> {it.label}
+            </button>
+          ))}
         </div>
       )}
 
       {mode === 'feedback' && (
-        <div style={S.popup} className={fb.panel} ref={panelRef}>
+        <div style={anchor ? { ...S.popup, ...anchor } : S.popup} className={fb.panel} ref={panelRef}>
           {sent ? (
             <div style={S.success}>Thanks! We read every message.</div>
           ) : (
@@ -212,23 +293,30 @@ export default function FeedbackWidget() {
               >
                 {sending ? 'Sending...' : 'Send'}
               </button>
+              {/* Tier 2 fix round 1 (review Important 3): feedback is not answered; a ticket is. The menu keeps the
+                  spec's five rows, and this is the labelled door to a reply. */}
+              <a href={NEW_TICKET_HREF} style={S.ticketLink} data-help-ticket=""
+                onClick={(e) => { e.preventDefault(); close(); returnToRef.current = null; navigate(NEW_TICKET_HREF) }}>
+                Need a reply? Open a support ticket
+              </a>
             </>
           )}
         </div>
       )}
 
-      <button
+      {!pageOwnsHelp && <button
         ref={triggerRef}
         type="button"
         style={S.btn}
         className={`${fb.fab} ${tucked ? fb.hidden : ''}`}
-        onClick={() => mode ? close() : setMode('menu')}
+        onClick={() => { if (mode) close(); else { setAnchor(null); setMode('menu') } }}
         title="Help & Feedback"
         aria-label="Help & Feedback"
         aria-expanded={Boolean(mode)}
+        aria-haspopup="menu"
       >
         ?
-      </button>
+      </button>}
     </>
   )
 }
