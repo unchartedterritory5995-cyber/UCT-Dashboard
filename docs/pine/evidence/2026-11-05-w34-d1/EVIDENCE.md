@@ -1,5 +1,11 @@
 NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
 
+FINAL-TIP r1 (full, code tip 07e1646b81, shared heavy-final3.lock, runs/w34-d1/final4.log, outdir runs/w34-d1-final):
+gate=0 hyg=0 js=1 totals=ok errors=0; jsfail = the baseline set incl. coverageAudit and usePreferences.additionsOnly.
+integrity=tree-changed-during-run: tools/lookback_agreement.json was rewritten by a test in the full run (one line differs);
+lookbackAgreement.test.js alone on a clean tree does NOT rewrite it, and the lane does not touch it. File restored (git checkout).
+ready-check therefore FAILs on integrity only. Re-run if the coordinator wants a clean integrity line.
+
 FIX r1 (review NO-GO @5b10b9ff6f, B1/N1/N2):
 - B1: sma/ema/rma are NOT served to drawings. The machinery stays, gated off by DRAWING_HISTORY_CAPTURED = false
   (FE, beside servedCondCall); test-only opts.w3nD1ServeDrawingHistory lifts it. Product callers never set it.
