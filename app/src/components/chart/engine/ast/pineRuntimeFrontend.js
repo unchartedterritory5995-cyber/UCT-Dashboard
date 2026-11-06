@@ -4265,48 +4265,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       return built ? toParse(built) : null
     }
-    // ⭐⭐ W3W4-D3 — `correlation(x, y, n)` / `ta.correlation(x, y, n)`: Pearson's
-    // coefficient, the HOST lane's own expansion (`BUILTIN_CALL_TREE.correlation`
-    // = covariance over the two stdevs) asked here with the FOLDED length and
-    // converted to the script's own spellings, so the lanes share one formula.
-    // ⛔ The spelling must be the script's version's (`ta.` from v5, bare before),
-    // which is the check above: a bare `correlation` in a v5 script is no Pine
-    // function and keeps its refusal. ⛔ The expansion reads each series FOUR times,
-    // so an argument that could change anything the run holds keeps the refusal
-    // (`argumentHasEffect`), and the length must fold to a whole number >= 2.
-    if (bare === 'correlation' && given.length === 3) {
-      objectDoorRefuses('`' + name + '` over a value the run computes', locate(tok))
-      const n = folded(2)
-      // a length that did not fold, or is below 2 / fractional, is refused by the builder (`windowOf`): one authority
-      if (argumentHasEffect(given[0]) || argumentHasEffect(given[1])) return null
-      const HX = '__d3_corr_x'
-      const HY = '__d3_corr_y'
-      let built
-      try {
-        built = BUILTIN_CALL_TREE.correlation([{ type: 'series', name: HX }, { type: 'series', name: HY },
-          { type: 'num', value: n }])
-      } catch { return null }
-      const SPELL = { sma: v5 ? 'ta.sma' : 'sma', stdev: v5 ? 'ta.stdev' : 'stdev' }
-      for (const w of Object.values(SPELL)) if (definedNames.has(w) || isUserFn(w)) return null
-      const ARITH = new Set(['+', '-', '*', '/'])
-      const toParse = (c) => {
-        if (!c || typeof c !== 'object') return null
-        if (c.type === 'num' && Number.isFinite(Number(c.value))) return { type: 'number', value: Number(c.value), tok }
-        if (c.type === 'series' && c.name === HX) return given[0]
-        if (c.type === 'series' && c.name === HY) return given[1]
-        if (c.type === 'op' && ARITH.has(c.name) && Array.isArray(c.args) && c.args.length === 2) {
-          const left = toParse(c.args[0])
-          const right = toParse(c.args[1])
-          return left && right ? { type: 'binary', op: c.name, left, right, tok } : null
-        }
-        if (c.type === 'call' && Object.prototype.hasOwnProperty.call(SPELL, c.name) && Array.isArray(c.args)) {
-          const a = c.args.map(toParse)
-          return a.every(Boolean) ? { type: 'call', name: SPELL[c.name], args: a.map(arg), tok } : null
-        }
-        return null
-      }
-      return built ? toParse(built) : null
-    }
     // ⭐⭐ P3 WS-B — `hma(src, n)`: Alan Hull's average, `wma` THREE TIMES —
     // `wma(2 * wma(src, half) - wma(src, n), root)` — with `half`/`root` read
     // from `interpret.js::hullWindows`, the one place the columnar `hma` sizes

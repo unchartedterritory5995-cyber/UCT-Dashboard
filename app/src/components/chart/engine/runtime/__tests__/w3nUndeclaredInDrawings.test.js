@@ -8,10 +8,16 @@
 //   volume-profile-auto-line-v2                `time(timeframe)` (function form)     -> real missing builtin
 // and `ta.correlation` (heat-map-seasons, v5) is the same name in its v5 spelling.
 //
-// ONLY `correlation` is served: Pine defines it, the host lane already expands it
-// (`pine.js::BUILTIN_CALL_TREE.correlation`), and the runtime lane's respelling asks
-// that same builder. The other two need kernels (a pivot table; a timeframe
-// calendar) and stay refused BY NAME, as the controls below pin.
+// OUTCOME (D3 fix r1): NOTHING is served by the runtime lane. The first build re-spelled
+// `correlation` over runtime state through the host lane's builder, but the committed capture
+// (r11-corr-pct-spy-2026-09-11.json) pins only na-free self-correlation, and over a source that
+// can carry `na` (a slot, a request.security result, a gap) the builder's sma/stdev drop na per
+// window and the result leaves [-1, 1] (-47.64 measured). A source that is na-free by
+// construction is already served by the columnar lane before the runtime lane sees it (probed:
+// zero hits), so the respelling would have served nothing the capture pins. It was removed, and
+// `correlation` over runtime state stays refused BY NAME until the capture in
+// docs/pine/capture-queue-2026-11-05-w34-d3.md lands. The other two names need kernels (a pivot
+// table; a timeframe calendar) and stay refused BY NAME too.
 //
 // Numbers are graded against Pearson's definition written out in plain JS, never
 // against the expansion.
@@ -75,29 +81,46 @@ const near = (ours, ref) => {
   expect(compared).toBeGreaterThan(N / 2)
 }
 
-describe('correlation: served, equal to Pearson, in the script own spelling', () => {
-  it('v4 bare `correlation(x, y, n)`', () => {
-    near(run(4, 'plot(correlation(x, y, 8))\n'), pearson(X, Y, 8))
+
+const GAP_SLOT = 'var float z = na\nz := bar_index % 7 == 3 ? na : close\n'
+
+describe('correlation over runtime state stays refused by name (no capture pins na handling)', () => {
+  it.each([
+    ['v5 mutable slots', 5, 'plot(ta.correlation(x, y, 8))\n'],
+    ['v4 mutable slots, bare spelling', 4, 'plot(correlation(x, y, 8))\n'],
+    ['one slot and one bar field', 5, 'plot(ta.correlation(x, volume, 8))\n'],
+    ['the na-gapped slot probe that served -47.64', 5, `${GAP_SLOT}plot(ta.correlation(z, y, 5))\n`],
+  ])('%s', (_, version, body) => {
+    const r = refusalOf(version, body)
+    expect(r.guard).toBe('runtime:call-undeclared-builtin-state')
+    expect(r.token).toMatch(/correlation$/)
   })
-  it('v5 `ta.correlation(x, y, n)`', () => {
-    near(run(5, 'plot(ta.correlation(x, y, 8))\n'), pearson(X, Y, 8))
+  it('the wrong spelling for the version is refused the same way (v5 bare, v4 ta.)', () => {
+    expect(refusalOf(5, 'plot(correlation(x, y, 8))\n').token).toBe('correlation')
+    expect(refusalOf(4, 'plot(ta.correlation(x, y, 8))\n').token).toBe('ta.correlation')
   })
-  it('a length that is an input folds at its default', () => {
-    near(run(5, 'len = input.int(6, "len")\nplot(ta.correlation(x, y, len))\n'), pearson(X, Y, 6))
+  it('the object door answers as it did on master (not an unrestricted serve)', () => {
+    expect(refusalOf(5, 'plot(ta.correlation(x, y, 8))\n', { objectDoor: true }).guard)
+      .toMatch(/^runtime:/)
   })
-  // ONE AUTHORITY: the runtime path asks `BUILTIN_CALL_TREE.correlation`, the same builder the
-  // columnar lane runs for a PURE call. So the two lanes must agree to the last digits.
-  it('equals the existing columnar lane on the same inputs (pure call vs runtime state)', () => {
-    const pure = run(5, 'plot(ta.correlation(close * 2 - open, volume, 8))\n')
-    const viaState = run(5, 'plot(ta.correlation(x, y, 8))\n')
-    near(viaState, pure)
-    expect(pure.filter(Number.isFinite).length).toBeGreaterThan(N / 2)
+})
+
+describe('the na-free columnar path is untouched, and every served value obeys |r| <= 1', () => {
+  it('INVARIANT: na-free pure calls stay inside [-1, 1] and match Pearson', () => {
+    for (const [body, a, b, n] of [
+      ['plot(ta.correlation(close * 2 - open, volume, 8))\n', X, Y, 8],
+      ['plot(ta.correlation(high - low, close, 5))\n', BARS.map((q) => q.h - q.l), BARS.map((q) => q.c), 5],
+      ['plot(ta.correlation(close, -close, 12))\n', BARS.map((q) => q.c), BARS.map((q) => -q.c), 12],
+    ]) {
+      const out = run(5, body)
+      const defined = out.filter(Number.isFinite)
+      expect(defined.length).toBeGreaterThan(N / 2)
+      defined.forEach((v) => expect(Math.abs(v)).toBeLessThanOrEqual(1 + 1e-9))
+      near(out, pearson(a, b, n))
+    }
   })
-  // The committed TradingView capture (tests/fixtures/vendor/r11-corr-pct-spy-2026-09-11.json,
-  // taCorrelation): `na` until the window fills (first defined bar = length - 1), and
-  // self-correlation is exactly 1 on every defined bar. Run here over runtime state.
-  it('TradingView capture rules: na until the window fills, self-correlation is 1', () => {
-    const out = run(5, 'plot(ta.correlation(x, x, 20))\n')
+  it('TradingView capture rules (r11-corr-pct): na until the window fills, self-correlation is 1', () => {
+    const out = run(5, 'plot(ta.correlation(close * 2 - open, close * 2 - open, 20))\n')
     out.forEach((v, i) => {
       if (i < 19) expect(Number.isNaN(v), `bar ${i} must be na`).toBe(true)
       else expect(Math.abs(v - 1), `bar ${i}`).toBeLessThan(1e-9)
@@ -106,44 +129,6 @@ describe('correlation: served, equal to Pearson, in the script own spelling', ()
   it('control: the reference is not a constant (a wrong formula would be seen)', () => {
     const r = pearson(X, Y, 8).filter(Number.isFinite)
     expect(Math.max(...r) - Math.min(...r)).toBeGreaterThan(0.2)
-  })
-})
-
-describe('grammar: a namespaced or shadowed form is not captured by the bare name', () => {
-  it('bare `correlation` in a v5 script is no Pine function: refused as undeclared', () => {
-    const r = refusalOf(5, 'plot(correlation(x, y, 8))\n')
-    expect(r.guard).toBe('runtime:call-undeclared-builtin-state')
-    expect(r.token).toBe('correlation')
-  })
-  it('`ta.correlation` in a v4 script: refused as undeclared', () => {
-    const r = refusalOf(4, 'plot(ta.correlation(x, y, 8))\n')
-    expect(r.guard).toBe('runtime:call-undeclared-builtin-state')
-    expect(r.token).toBe('ta.correlation')
-  })
-  it('a script own `correlation` function is called, not Pine one', () => {
-    const out = run(4, 'correlation(a, b, n) => a + b\nplot(correlation(x, y, 8))\n')
-    near(out.map((v, i) => (i < 7 ? NaN : v)), X.map((v, i) => (i < 7 ? NaN : v + Y[i])))
-  })
-  it('the neighbours still answer: ta.linreg, ta.vwma, ta.sma', () => {
-    expect(() => run(5, 'plot(ta.linreg(x, 5, 0))\n')).not.toThrow()
-    expect(() => run(5, 'plot(ta.vwma(x, 6))\n')).not.toThrow()
-    expect(() => run(5, 'plot(ta.sma(x, 6))\n')).not.toThrow()
-  })
-})
-
-describe('keeps its refusal', () => {
-  it.each([
-    ['a length only known while the bar runs', 5, 'plot(ta.correlation(x, y, bar_index % 5 + 2))\n'],
-    ['a length below 2', 5, 'plot(ta.correlation(x, y, 1))\n'],
-    ['a fractional length', 5, 'plot(ta.correlation(x, y, 3.5))\n'],
-    ['a named argument', 5, 'plot(ta.correlation(x, y, length = 8))\n'],
-    ['an argument that could change what the run holds', 5,
-      'plot(ta.correlation(x, request.security(syminfo.tickerid, "D", close), 8))\n'],
-  ])('%s', (_, version, body) => {
-    expect(refusalOf(version, body).guard).toMatch(/^runtime:|^pine:/)
-  })
-  it('the object door refuses it by name until a capture proves it', () => {
-    expect(refusalOf(5, 'plot(ta.correlation(x, y, 8))\n', { objectDoor: true }).guard).toBe('runtime:object-door')
   })
 })
 

@@ -1,3 +1,10 @@
+# FIX r1 (review NO-GO @753c0196a2): RESULT
+- B1: the runtime branch is REMOVED; `pineRuntimeFrontend.js` is byte-identical to master. Reason: restricting to na-free-by-construction sources left it unreachable (probed: 0 hits; the columnar lane serves na-free pure calls first), so serving would add nothing the capture pins. `correlation` over runtime state (slots, request.security, gaps) stays refused as runtime:call-undeclared-builtin-state, token named. correlation-matrix therefore does NOT move; the earlier C18/census movement below is superseded: no runtime-lane outcome changes. ENGINE BUMP: NO.
+- Rail (12 tests): refusals incl. the -47.64 slot probe; |r|<=1 invariant and Pearson on na-free calls; capture rules (na until window fills, self-correlation 1). Mutation: reinstating the unrestricted branch is KILLED; no-op control survives.
+- B2: the SPELL shadow guard is deleted with the branch; the user sma/stdev case now cannot be served by this lane.
+- N1 (pure-call -47.64 on master), N2/N4 routed: capture row in docs/pine/capture-queue-2026-11-05-w34-d3.md. Pre-existing master defect: pure ta.correlation over an na-gapped source.
+- Old measure-pair/final-tip sections below are for the superseded tip; the final-tip for this fix is recorded at the end.
+
 # STATUS: DONE. final-tip (runs/w34-d3-final2) complete, see final-tip section below. No next step except the coordinator's engine-bump call.
 
 # W3W4-D3 evidence (lane w34-d3), WIP
