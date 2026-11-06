@@ -1712,7 +1712,10 @@ const RAW_DEFS = [
   nativeDef('percentFromMa', 'percentFromMa',
     // ⭐ `% From MA`, NOT "% From Moving Average": the library offers exactly ONE
     // row named Moving Average (owner §34), and this is a different study.
-    { name: '% From MA', shortName: '% From MA', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ A price-LEVEL study, not relative strength (review finding U7, 2026-11-06):
+    // it reads one series against its own average. The Relative Strength heading
+    // holds the one row that compares against a benchmark.
+    { name: '% From MA', shortName: '% From MA', category: CAT.LEVELS, quickMenu: false,
       legendParams: ['period'],
       description: 'How far the value is above or below its moving average, in percent.',
       tags: ['% from ma', 'percent from moving average', 'distance from ma', 'extension', 'extended'] },
@@ -1729,7 +1732,9 @@ const RAW_DEFS = [
     ]),
 
   nativeDef('fiftyTwoWeek', 'fiftyTwoWeek',
-    { name: '52-Week High/Low', shortName: '52W', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ Likewise a price-LEVEL study (review finding U7): distance from the
+    // close's own 52-week high and low, no benchmark anywhere.
+    { name: '52-Week High/Low', shortName: '52W', category: CAT.LEVELS, quickMenu: false,
       description: 'How far the close is below its 52-week high and above its 52-week low, in percent.',
       tags: ['52 week', '52-week', '52w', '52 week high', '52 week low', 'off high', 'yearly high'],
       // ⛔ A CALENDAR WINDOW. It needs a full 52 weeks of loaded bars before it
