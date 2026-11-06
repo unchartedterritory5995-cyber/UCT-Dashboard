@@ -1,8 +1,11 @@
 // THE STATUS LINE (round 18 HUD; round 20 bare; round 21 after the owner ranked it Weak in batch 21). One line: the mode,
 // one progress rail cut into a notch per chart (gold for a chart named, red for a miss, a breathing outline on the one in
-// play), the step as a count, and the charts named so far. Gone: the struck-through "ticker" chip (the masked badge on
-// the chart already says the ticker is hidden) and the small ring with a lone number in it.
+// play), the step as a count, and the charts named so far; our mark rides the rail on the chart in play, so the bar is a
+// journey the logo travels (the owner, batch 16: "an animated bar of a joruney that our logo is filling up"). Gone:
+// the struck-through "ticker" chip (the masked badge on the chart already says the ticker is hidden) and the small
+// ring with a lone number in it.
 import UIcon from '../../../components/ui/UIcon'
+import brandMark from '../../../components/intro/assets/compass-mark.png'
 import s from './study.module.css'
 
 const LABEL = { hard: 'Hard mode' }
@@ -22,6 +25,8 @@ export default function Hud({ mode = 'hard', step = 0, total = 1, results = [], 
           const cls = r === true ? s.done : r === false ? s.miss : i === step ? s.now : ''
           return <i key={i} className={`${s.notch} ${cls}`} />
         })}
+        {/* our mark rides the journey: it sits on the chart in play and moves on as the rail fills behind it */}
+        <span className={s.railMark} style={{ left: `${((Math.min(step, total - 1) + 0.5) / Math.max(1, total)) * 100}%` }}><img src={brandMark} alt="" /></span>
       </div>
       <span className={s.stepCount} data-testid={stepTestId || undefined}><b>{step + 1}</b><i>/</i>{total}</span>
       <span className={`${s.namedChip} ${got > 0 ? s.on : ''}`} title="charts named">

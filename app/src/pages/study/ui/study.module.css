@@ -407,6 +407,35 @@
   .statBody b { font-size: 21px; }
 }
 
+/* ── ROUND 21, FINAL PASS (the owner's words across the project, applied to batch 22 before he ranks it):
+   batch 16 "an animated bar of a joruney that our logo is filling up" (the mark rides the rail); batch 16 "% down from
+   highs and % extended from MAs" (eight measured reads, four a row); batch 5 "i dont like that the text bounces" (text
+   eases in without overshoot); batch 16 the answer "should take over the entire screen as like a pop up uncovered answer
+   like a normal app or game" (the seal fills the centre for a moment); a phone's pills keep their name on one line. ── */
+.rail { position: relative; overflow: visible; }
+.railMark { position: absolute; top: 50%; z-index: 1; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--k-gold); background: radial-gradient(circle at 50% 35%, #2a2210, #0d0b06); box-shadow: 0 0 0 3px rgba(9, 9, 11, .9), 0 0 16px rgba(220, 187, 94, .45); transition: left .7s cubic-bezier(.2, .8, .2, 1); }
+.railMark img { display: block; width: 19px; height: 19px; }
+@media (max-width: 640px) { .railMark { width: 24px; height: 24px; margin: -12px 0 0 -12px; } .railMark img { width: 16px; height: 16px; } }
+
+.reads { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 640px) { .reads { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.prompt, .coach, .titleMetal, .titleRun, .status, .lesson { animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+.symBadge.reveal { animation: fadeIn .35s ease-out both; }
+
+.stampPop { position: fixed; inset: 0; z-index: 41; display: grid; place-items: center; pointer-events: none; animation: popTake 1.25s cubic-bezier(.2, .8, .2, 1) forwards; }
+.stampPop .stamp { width: 184px; height: 184px; animation: none; border-width: 4px; }
+.stampPop .stamp svg { width: 74px; height: 74px; }
+.stampPop .stampWord { font-size: 15px; margin-top: -4px; }
+@keyframes popTake { 0% { opacity: 0; transform: scale(.72); } 20% { opacity: 1; transform: scale(1.04); } 32% { transform: scale(1); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.94); } }
+@media (max-width: 640px) { .stampPop .stamp { width: 150px; height: 150px; } .stampPop .stamp svg { width: 60px; height: 60px; } }
+
+@media (max-width: 640px) {
+  .card.pill .num { display: none; }
+  .card.pill[data-state=right] .num, .card.pill[data-state=wrong] .num { display: grid; }
+  .card.pill { padding: 10px 12px; }
+}
+
 /* ── motion ──────────────────────────────────────────────────────────────────────────────────────────────── */
 @keyframes slideIn { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

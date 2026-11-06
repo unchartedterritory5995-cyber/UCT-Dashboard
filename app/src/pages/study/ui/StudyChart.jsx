@@ -64,7 +64,7 @@ export default function StudyChart({ id, bars, view = null, height = 400, annota
     showDrawingTools: false,
     hotkeysActive: false,
     dailyDefaultBars: shown,
-    rightPadBars: phone ? 7 : 4,
+    rightPadBars: phone ? 3 : 2,          // the owner, batch 2: "a slight gap at the right ... like 1-2 candles space at max"
     settingsOverride: session.settingsOverride,
     onSettingsPersist: session.onSettingsPersist,
     annotations,

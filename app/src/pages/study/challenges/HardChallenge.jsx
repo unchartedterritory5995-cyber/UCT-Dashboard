@@ -138,9 +138,10 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   return (
     <div className={`${s.kit} ${s.screen}`} data-testid="hard-question" data-state={state} data-run={state !== 'ask' && restDone && k >= runN ? 'done' : 'running'}>
       {state !== 'ask' ? <span className={`${s.flash} ${state === 'ok' ? s.ok : s.bad}`} aria-hidden="true" /> : null}
+      {state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} pop /> : null}
       <Hud mode="hard" step={idx} total={total} results={results} live={state === 'ask'} />
       <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`}>
-        <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 480} chartOpts={HARD_CHART}
+        <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}
           callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} />
       </div>
       <Prompt mood={mood} tone={state} size={phone ? 40 : 48}
