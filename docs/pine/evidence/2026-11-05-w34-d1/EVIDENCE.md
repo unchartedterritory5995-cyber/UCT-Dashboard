@@ -1,3 +1,5 @@
+NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
+
 # W3W4-D1 evidence: per-call-site history for drawings (lane w34-d1)
 
 Branch feat/pine-w34-d1-drawing-history, base origin/master c855e8cadf (engine 18, W6-T3a already in).
