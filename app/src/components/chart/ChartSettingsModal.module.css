@@ -1669,9 +1669,15 @@
      `Display` — the words a member reads to find the control they want — into the
      same grey as `CORE`. SECONDARY keeps the hierarchy and gets the labels back. */
   color: var(--menu-text-dim, #b3b3b9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* ⚰️ IT ELLIPSIZED: `nowrap` + `overflow: hidden` + `text-overflow: ellipsis`,
+     so `High before price` read `High before p…` and `Short-history dots` lost its
+     noun (UCT RS Phase 2a visual A6: "no ellipsis anywhere"). A label that fits
+     the 92px column still sits on one line; one that does not WRAPS to a second,
+     and the row grows. A label is how a member finds the control, so it is never
+     cut. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 .insFieldCtl {
   flex: 1 1 auto;
@@ -1746,6 +1752,80 @@
   flex: 0 1 auto;
 }
 .insFieldCtl > div { min-width: 0; width: 100%; }
+
+/* ── UCT RS PHASE 2a VISUAL (A6): PRESET ROW, INPUT GROUPS, INERT CELLS ───────
+   The Inspector reaches the settings dialog's parity for a definition that
+   declares presets, groups or `activeWhen`. Nothing here applies to a definition
+   that declares none of them: the classes only render for those. `--menu-*`
+   inks only, the family the rest of this panel paints. */
+
+/* Preset: the select, then "Reset to preset", wrapping under it in a narrow
+   Inspector rather than pushing the row past the panel. */
+.insPresetCtl { flex-wrap: wrap; row-gap: 4px; }
+.insField[data-measure='wide'] > .insPresetCtl > select { flex: 1 1 150px; max-width: 210px; }
+.insPresetReset {
+  flex: none;
+  height: 24px;
+  padding: 0 9px;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 6px;
+  color: var(--menu-text-dim, #b3b3b9);
+  font: inherit;
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 110ms, border-color 110ms;
+}
+.insPresetReset:hover:not(:disabled) { color: var(--menu-text, #ededed); border-color: var(--menu-text-faint, #93939a); }
+.insPresetReset:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); color: var(--menu-text, #ededed); }
+.insPresetReset:disabled { opacity: 0.45; cursor: default; }
+/* The preset's origin, under the row in the faint ink, aligned with the controls. */
+.insPresetOrigin {
+  margin: 1px 0 6px 104px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--menu-text-faint, #93939a);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A group head: a disclosure button in the section-label voice, one step quieter
+   than CORE (lighter weight, the faint ink), 28px tall, chevron on the right. Open
+   reads one ink brighter, never gold. */
+.insGroup { display: flex; flex-direction: column; }
+.insGroup + .insGroup, .insField + .insGroup { margin-top: 2px; }
+.insGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 2px 0 0;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--menu-divider, #202022);
+  color: var(--menu-text-faint, #93939a);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition: color 110ms;
+}
+.insGroupHead:hover { color: var(--menu-text-dim, #b3b3b9); }
+.insGroupHead[aria-expanded='true'] { color: var(--menu-text-dim, #b3b3b9); }
+.insGroupHead:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+.insGroupHeadText { white-space: nowrap; }
+.insGroupHeadIcon { display: flex; align-items: center; color: var(--menu-text-faint, #93939a); }
+.insGroupBody { display: flex; flex-direction: column; padding-bottom: 4px; }
+.insGroupBody > .insField + .insField { margin-top: 1px; }
+
+/* An inactive colour cell (`activeWhen` false): the swatch has no disabled state
+   of its own, so the cell takes no pointer and wears the off tier. */
+.insCtlOff { display: inline-flex; opacity: 0.6; pointer-events: none; }
 
 /* ⭐ A NUMBER IS THREE CHARACTERS WIDE, AND 100px IS ROOM FOR FIVE. Wide enough
    for `-100`, `9999` and a caret; narrow enough that `200` does not look lost. */
@@ -2592,6 +2672,7 @@
     margin-right: 0;
   }
   .insFieldLabel { flex: 0 0 84px; }
+  .insPresetOrigin { margin-left: 96px; }
   .insEmpty { max-width: none; }
   .insArrBtn { width: 28px; height: 28px; }
 }
@@ -2616,6 +2697,9 @@
    query at both 390px and 820px, which is the relationship it exists to enforce. */
 @media (max-width: 1024px) and (pointer: coarse) {
   .insRow { min-height: var(--tap-min, 44px); padding-top: 8px; padding-bottom: 8px; }
+  /* A6 — the group heads and the preset reset take a finger too. */
+  .insGroupHead { min-height: var(--tap-min, 44px); }
+  .insPresetReset { min-height: var(--tap-min, 44px); }
 }
 
 
