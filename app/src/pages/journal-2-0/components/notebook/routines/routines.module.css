@@ -407,7 +407,7 @@
   border-radius: 50%;
   background: var(--text-muted);
   transform: translateY(-50%);
-  transition: left 0.15s ease;
+  transition: left var(--duration-fast) var(--ease-out);
 }
 .switchOn .knob {
   left: 28px;

@@ -8,7 +8,7 @@ import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-libra
 import GuideOverlay from './guide/GuideOverlay'
 import { startGuide, endGuide, guideState, onGuideDoIt, _resetGuide } from './guide/guideStore'
 import { placeCard, LOST_MS, LATE_MS, POLL_MS } from './guide/placement'
-import { findTarget, startIndex, reachableAfter, earlierOnScreen, isDisabled, isOn, unclip, restoreClipped } from './guide/targets'
+import { findTarget, startIndex, reachableAfter, earlierOnScreen, isDisabled, isOn, unclip, restoreClipped, exists } from './guide/targets'
 import { stepsFor, titleFor, slotValues, readIndicator, readWidget, readSetting, settingRows } from './guide/slots'
 import { GUIDE_FEATURES, guideFeature, matchFeature } from './guide/registry'
 
@@ -101,6 +101,23 @@ describe('targets', () => {
     expect(reachableAfter(steps, 0, {})).toBe(2)
     expect(reachableAfter(steps, 2, {})).toBeNull()
     expect(earlierOnScreen(steps, 2, {})).toBe(0)
+  })
+  it('a row squeezed to nothing: its neighbours step aside for the step, and come back', () => {
+    const r = dom('<div id="row"><div id="strip"><button data-guide="tool"></button><button></button></div><div id="actions"></div></div>')
+    const strip = r.querySelector('#strip')
+    const actions = r.querySelector('#actions')
+    const tool = strip.querySelector('button')
+    const open = () => actions.style.display === 'none'
+    strip.getClientRects = () => [{}]
+    strip.getBoundingClientRect = () => ({ left: 0, right: open() ? 300 : 0, top: 0, bottom: 24, width: open() ? 300 : 0, height: 24 })
+    tool.getClientRects = () => [{}]
+    tool.getBoundingClientRect = () => (open() ? { left: 10, right: 34, top: 0, bottom: 24, width: 24, height: 24 } : { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 })
+    expect(findTarget('tool')).toBeNull()
+    expect(exists('tool', {})).toBe(true)
+    expect(unclip('tool', {})).toBe(true)
+    expect(findTarget('tool')).toBeTruthy()
+    restoreClipped()
+    expect(actions.style.display).toBe('')
   })
   it('unclip slides a clipping row to bring a control into view, and puts it back', () => {
     const r = dom('<div id="row"><button data-guide="gear"></button></div>')
@@ -229,6 +246,21 @@ describe('the overlay', () => {
     dom('<button data-guide="plot"></button>')
     go([{ target: ['tool', 'plot'], text: 'Click the tool.', altText: 'Too narrow.' }])
     await waitFor(() => expect(text()).toBe('Too narrow.'))
+  })
+  it('Do it for me while the Agent is busy says so on the card, and a later press goes through', async () => {
+    let busy = true
+    const did = vi.fn(() => { if (busy) return false; return true })
+    dom('<button data-guide="a"></button>')
+    onGuideDoIt(did)
+    go([{ target: 'a', text: 'A' }])
+    await waitFor(() => expect(text()).toBe('A'))
+    fireEvent.click(screen.getByRole('button', { name: 'Do it for me' }))
+    expect(did).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(text()).toBe('I’m still working on your last request. Press Do it for me again when I’ve finished.'))
+    busy = false
+    fireEvent.click(screen.getByRole('button', { name: 'Do it for me' }))
+    expect(did).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(text()).toBe('A'))
   })
   it('Do it for me asks the panel, and the card stays out of the way of its own listeners', async () => {
     dom('<button data-guide="a"></button>')

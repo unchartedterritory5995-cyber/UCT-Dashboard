@@ -2941,6 +2941,9 @@ _PREFERENCE_KEYS = {
     "notebook_tips": "notebook_tips",
     # Notebook P1: the Research Type -> Kind of note offer's answer ("dismissed").
     "notebook_kind_mapping": _PREF_OPAQUE,
+    # Audit 2026-11-05, S15: where the Notebook opens for a member who CHOSE ('today', 'home' or 'all'), written by
+    # the Today home's "Open the Notebook on" choice (lib/todayHome.js LANDING_PREF). Unset means the Today home.
+    "notebook_landing": _PREF_OPAQUE,
     # Notebook P2a: Log Trade's pre-entry checklist opt-in ('off' / 'on' / 'on-warn'), written by
     # PortfolioSettingsModal. Added in the same commit as its writer.
     "notebook_log_trade_checklist": _PREF_OPAQUE,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -12,6 +12,7 @@ import { makeGridWarmer } from '../../../charts/grid/gridWarm'
 import { GRID_MAX_CELLS } from '../../../charts/grid/gridLayouts'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import BoardCard from './BoardCard'
+import FirstPlanAsk, { FIRST_PLAN } from './FirstPlanAsk'
 import SimilarNames, { TEMPLATES_URL, fetchJson, findSimilarEnabled } from './SimilarNames'
 import styles from './SetupsBoard.module.css'
 
@@ -77,47 +78,9 @@ function planCanBeDrawn(planDrawing) {
   return chartPlanEnabled()
 }
 
-/** S17 (audit 2026-11-05, M7): the empty board ASKS -- "Draw your first plan", a short how-to (there is no demo
- *  video asset, so the steps stand in for it), a ticker to plan, and three suggestions. Each goes to that ticker's
- *  research page, whose "Plan this trade" opens a plan with its chart. Nothing is written from here. */
-export const FIRST_PLAN = Object.freeze({
-  title: 'Draw your first plan',
-  steps: ['Open a ticker and press Plan this trade.', 'Draw entry, stop and target on its chart.',
-    'Your plan shows up here, closest to its entry first.'],
-})
-const FIRST_PLAN_SUGGESTIONS = ['NVDA', 'SPY', 'QQQ']
-const researchPath = (sym) => `/journal/notebook/research/${encodeURIComponent(sym)}`
-
-function FirstPlanAsk() {
-  const [value, setValue] = useState('')
-  const [go, setGo] = useState(null)
-  const inputId = `${useId()}-first-plan-ticker`
-  if (go) return <Navigate to={researchPath(go)} />
-  const submit = (e) => {
-    e.preventDefault()
-    const sym = value.trim().toUpperCase().replace(/^\$/, '')
-    if (/^[A-Z][A-Z0-9.-]{0,9}$/.test(sym)) setGo(sym)
-  }
-  return (
-    <div className={styles.firstPlan} data-first-plan="">
-      <p className={styles.firstPlanTitle}>{FIRST_PLAN.title}</p>
-      <ol className={styles.firstPlanSteps}>
-        {FIRST_PLAN.steps.map((t) => <li key={t}>{t}</li>)}
-      </ol>
-      <form className={styles.firstPlanForm} onSubmit={submit}>
-        <label className="sr-only" htmlFor={inputId}>Ticker to plan</label>
-        <input id={inputId} className={styles.firstPlanInput} value={value} placeholder="Ticker to plan"
-          autoComplete="off" spellCheck={false} onChange={(e) => setValue(e.target.value)} />
-        <button type="submit" className={styles.action} disabled={!value.trim()}>Plan it</button>
-      </form>
-      <div className={styles.firstPlanForm} role="group" aria-label="Suggestions">
-        {FIRST_PLAN_SUGGESTIONS.map((sym) => (
-          <Link key={sym} className={styles.action} to={researchPath(sym)} aria-label={`Plan ${sym}`}>{`+ ${sym}`}</Link>
-        ))}
-      </div>
-    </div>
-  )
-}
+// S17 (audit 2026-11-05, M7): the empty board ASKS -- "Draw your first plan". Its own small file since S15, so the
+// Today home's setups card asks the same thing without fetching the board's charts.
+export { FIRST_PLAN }
 
 function Board({ onFindSimilar }) {
   const { data, error, isLoading, mutate } = useSWR(BOARD_URL, fetchJson,

@@ -17,8 +17,34 @@
 name: agent ci
 
 on:
+  # CI COST (2026-11-06, owner): push runs take the SAME paths list as the PR trigger below
+  # (tests/test_ci_cost_rails.py holds the two lists equal). Before this, every push to any
+  # agent/** branch ran the full ~76-minute suite even for a docs-only commit: 552 of 789 runs
+  # on 11-01..11-06 were pushes, ~70% of the month's Actions bill. The master deploy gate
+  # still runs the whole Agent suite on every master push, unfiltered.
   push:
     branches: ['agent/**']
+    paths:
+      - 'app/src/agent/**'
+      - 'app/src/components/chart/builder/agent*'
+      # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
+      # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
+      - 'app/src/pages/charts/ChartsWorkspace.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.thisChart.test.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.previousLayout.test.jsx'
+      - 'app/src/pages/charts/widgets/ChartWidget.agent.test.jsx'
+      - 'app/src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx'
+      - 'app/src/pages/breadth/breadthTabHookOrder.test.jsx'
+      - 'app/src/components/chart/builder/studio/agentRoute.test.jsx'
+      - 'app/src/components/StockChart.jsx'
+      - 'app/src/components/StockChart.timeRangeSync.test.jsx'
+      - 'app/src/pages/charts/grid/**'
+      - 'api/services/uct_agent/**'
+      - 'api/routers/uct_agent*.py'
+      - 'tests/test_uct_agent*.py'
+      - 'tools/agent_*'
+      - '.github/workflows/agent-ci.yml'
   pull_request:
     branches: [agent/int, master]
     paths:
@@ -155,15 +181,23 @@ jobs:
         run: |
           python -m pip install --quiet pytest
           python -m pytest tests/test_uct_agent_capreg_*.py -q -p no:cacheprovider
+      # CI COST (2026-11-06, owner): the `post` leg runs ONLY the Python baseline lock above. The vitest
+      # capreg suite at the post clock already runs inside the four browser shards (it lives under src/agent and
+      # `post` is the suite's default clock), and the union rail fails if any shard skips it — so the post
+      # leg's own vitest run was a second, identical ~15-minute execution. The `rth` leg is the only place the
+      # suite runs at the regular-session clock, so it keeps its vitest run.
       - uses: actions/setup-node@v4
+        if: matrix.clock == 'rth'
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: npm ci
+        if: matrix.clock == 'rth'
         working-directory: app
         run: npm ci
       - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=${{ matrix.clock }})
+        if: matrix.clock == 'rth'
         working-directory: app
         run: npx vitest run src/agent/qa/capabilityRegression --reporter=default
 

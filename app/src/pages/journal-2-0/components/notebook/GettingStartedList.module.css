@@ -79,7 +79,7 @@
 .action {
   padding: 4px 0;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   text-align: left;
   color: var(--text-bright);
   background: none;
@@ -94,11 +94,11 @@
   text-decoration: none;
 }
 .label {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-bright);
 }
 .doneLabel {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 

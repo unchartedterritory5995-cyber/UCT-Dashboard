@@ -1,7 +1,7 @@
 // S13 (audit 2026-11-05): the quick-capture box teaches the natural-language alert phrasing. The example must be a
 // sentence the alert parser REALLY reads (lib/alertPhrase.js), so it is parsed here, not trusted.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import CaptureDialog from './CaptureDialog'
 import { AuthContext } from '../../../../context/AuthContext'
 import { captureDestination } from '../../lib/capture'
@@ -55,6 +55,29 @@ describe('the quick thought offers "Set alert" (review Important 2)', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Set an alert' }, { timeout: 3000 })
     expect(within(sheet).getByDisplayValue('NVDA')).toBeInTheDocument()
     expect(within(sheet).getByDisplayValue('190')).toBeInTheDocument()
+  })
+
+  // Tier 2 re-review R1-2: the alert sheet opens ON TOP of the capture dialog. Esc closes the top one only: the sheet
+  // goes, focus returns to "Set alert…", and the capture dialog (and the sentence in it) stays.
+  it('R1-2: Esc closes only the alert sheet, focus returns to Set alert…, the capture dialog stays open', async () => {
+    latchNotebookFlags({ notebook_smart_chips_enabled: true })
+    globalThis.fetch = vi.fn(async (url) => (String(url).includes('smart-chips/tickers')
+      ? { ok: true, json: async () => ({ tickers: [{ symbol: 'NVDA' }] }) }
+      : { ok: true, json: async () => ({}) }))
+    mount()
+    const capture = screen.getByLabelText('Quick thought').closest('[role="dialog"]')
+    expect(capture).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Quick thought'), { target: { value: ALERT_EXAMPLE } })
+    const set = await screen.findByRole('button', { name: 'Set alert…' }, { timeout: 3000 })
+    set.focus()
+    fireEvent.click(set)
+    const sheet = await screen.findByRole('dialog', { name: 'Set an alert' }, { timeout: 3000 })
+    fireEvent.keyDown(document.activeElement && sheet.contains(document.activeElement) ? document.activeElement : sheet,
+      { key: 'Escape', code: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Set an alert' })).toBeNull())
+    expect(capture.isConnected).toBe(true)
+    expect(screen.getByLabelText('Quick thought')).toHaveValue(ALERT_EXAMPLE)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Set alert…' })))
   })
 
   it('CONTROL: a word the server does not confirm as a ticker is never offered', async () => {

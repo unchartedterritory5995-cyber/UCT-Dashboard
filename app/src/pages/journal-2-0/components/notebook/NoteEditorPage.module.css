@@ -230,6 +230,12 @@
   flex-direction: column;
 }
 .titleInput {
+  /* Final polish: a textarea that grows with its text (the title wraps, never clips). */
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   background: transparent;
   border: none;
   font-family: Georgia, 'Times New Roman', serif;
@@ -673,7 +679,7 @@
   border-radius: var(--radius-sm, 4px);
 }
 .proseEditor :global(.uctToggleChevron):hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
-.proseEditor :global(.uctToggleChevron) svg { transition: transform 0.12s ease; }
+.proseEditor :global(.uctToggleChevron) svg { transition: transform var(--duration-fast) var(--ease-out); }
 .proseEditor [data-type="toggle"][data-open="true"] :global(.uctToggleChevron) svg { transform: rotate(90deg); }
 /* Touch tier is <=1024px, never 640px (canonical breakpoint, breakpoints.css). */
 @media (max-width: 1024px) {
@@ -754,6 +760,9 @@
   .savedIndicator { min-width: 5.5em; white-space: normal; font-size: 11px; }
   /* .folderInline: its finger floor lives in the <=1024px block (tablet is touch too). */
   .column { padding: 0 16px; margin: 16px auto 72px; }
+  /* Final polish (WebKit at 390 px): the floating "+" covered the last chart's corner. The column can scroll clear of
+     it, by the same 96 px the list keeps (NotebookTab.module.css .main). */
+  .column { padding-bottom: calc(2 * var(--space-3xl) + env(safe-area-inset-bottom, 0px)); } /* 96 px */
   .header { padding: 8px 12px; }
   .saveStatus { min-width: 0; order: 3; flex-basis: 100%; }
   .headerSelect, .headerInput { font-size: 16px; padding: 8px 10px; }
@@ -1134,15 +1143,22 @@
   gap: 4px;
 }
 .shareSlot { display: contents; }
-/* S10 (M4): the folder, a small quiet select at the start of the line under the title. */
+/* S10 (M4): the folder, a small quiet select at the start of the line under the title.
+   Tier 4 fix round 2 (live scorecard, field border 1:1): it IS a field (it moves the note), so it wears the field
+   edge every field wears (V1: --field-edge, 3.28:1), not a transparent one; hover lifts it to --border-accent. */
+.folderInlineWrap { position: relative; display: inline-flex; align-items: center; max-width: 14em; }
+.folderInlineChev { position: absolute; right: 6px; pointer-events: none; color: var(--text-muted); }
 .folderInline {
+  /* Final polish (WebKit): no native select chrome; the chevron is drawn beside it (.folderInlineChev). */
+  -webkit-appearance: none;
+  appearance: none;
   max-width: 14em;
   min-height: 28px;
-  padding: 2px 6px;
-  border: 1px solid transparent;
+  padding: 2px 24px 2px 6px;
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-sm, 6px);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text);
   font: inherit;
   font-size: 12px;
   text-overflow: ellipsis;
@@ -1150,9 +1166,11 @@
 }
 .folderInline:hover {
   color: var(--text-bright);
+  border-color: var(--border-accent);
 }
 .folderInline:focus-visible {
   outline: 2px solid var(--ut-gold);
   outline-offset: 1px;
   color: var(--text-bright);
 }
+

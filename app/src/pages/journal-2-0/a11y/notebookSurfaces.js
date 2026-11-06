@@ -348,6 +348,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/FirstRunSheet.jsx': { recipe: 'first-run-sheet' },
   // S17 (audit 2026-11-05, M7): an empty widget's ask (sentence, input, three suggestions).
   'components/notebook/EmptyNamesAsk.jsx': { recipe: 'empty-names-ask' },
+  // S15 (audit 2026-11-05, M1): the Today home, and the setups board's first-plan ask it shares (moved out of the board).
+  'components/notebook/TodayHome.jsx': { recipe: 'today-home' },
+  'components/notebook/FirstPlanAsk.jsx': { coveredBy: 'setups-board' },
   // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.
   'components/notebook/NoteSharePanel.jsx': { coveredBy: 'share-popover' },
   // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;

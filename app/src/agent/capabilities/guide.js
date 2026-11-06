@@ -15,7 +15,7 @@ import { registerCapability, registerTargetKind, registerContextProvider, getTar
 import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
-import { findTarget, startIndex, unclip } from '../guide/targets'
+import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
@@ -58,7 +58,7 @@ export function showFeature(f, host, words = '') {
   // ⭐ Multi Chart: a cell has no "more timeframes" menu or drawing strip, so a chart step past the first goes unless it is there
   const absentOnCell = (s, i) => host?.multiChart && i > 0 && String(s.target).startsWith('chart.')
   // an optional opening step (the board's own watchlist) only when it is there
-  const all = steps.filter((s, i) => !((s.optional && !s.late) || absentOnCell(s, i)) || findTarget(s.target, { chartRef }))
+  const all = steps.filter((s, i) => !((s.optional && !s.late) || absentOnCell(s, i)) || exists(s.target, { chartRef }))
   // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
   // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
   // walkthrough starts — never "open the gear" when the settings are already open. The steps before it stay in the list.
