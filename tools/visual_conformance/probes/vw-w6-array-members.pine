@@ -1,0 +1,89 @@
+// W6-T5 (2026-11-06) — probe W6-A1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-06-w6.md
+// Chart: AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+// A runtime error is itself a reading: record its text and the bar it names, then
+// comment that row out and capture the rest.
+//
+//   S01-S02  array.sort with an na element, ascending: is na first or last? (na(get(0)), na(get(3)))
+//   S03-S04  array.sort_indices with an na element, ascending / descending: where the na's index lands
+//   T01-T04  array.sort on text ("b", "A", "a", "é", "Z"): where "A", "a", "é", "Z" land (indexof after sort)
+//   T05-T08  array.sort_indices on the same text: indices 0..3 of the result
+//   P01-P06  percentile_linear_interpolation at 25 / 50 / 90 over (1, 2, 4, 8) and (1, 2, 4, 8, 16)
+//   Z01      standardize(1, 2, 3, 4): element 0 (-1.3416 biased, -1.1619 unbiased)
+//   R01      percentrank of (1, 2, 2, 3) at index 1 (75 with <=, 25 with <)
+//   J01-J04  str.length of join(floats), join(ints), join(a float with many digits), join(text) with no separator
+//   M01      mode of (3, 1, 1, 3): ties
+//   N01-N08  an na element in variance, stdev, median, percentrank, percentile_nearest_rank, abs, every, covariance
+//   U01-U02  new_bool(3) / new_string(3) with no initial value: what is read back
+//   E01-E03  every / some of an empty array; lastindexof of na
+//   V01-V03  variance(a, false) over one element; covariance of sizes 1 and 2; percentile_nearest_rank at 0
+//   Q01-Q02  percentile_nearest_rank at 101; percentile_nearest_rank at 0.5 over 4 values
+//   L01      lastindexof(a, na) over an array holding an na
+//   H01-H02  median over an even count: (1.5, 2.5, 4.5, 8.5) and (1.0, 2.0)  (mean of the middles, lower, upper?)
+//   I01-I04  over array<int> (1, 2, 4): median of (1, 2) (even, int), stdev, variance; avg of (1, 2)  (int rounding)
+//@version=6
+indicator("vw-w6-array-members", overlay = false)
+s1 = array.from(3.0, na, 1.0, 2.0)
+array.sort(s1)
+plot(na(array.get(s1, 0)) ? 1 : 0, "S01 na first after asc sort")
+plot(na(array.get(s1, 3)) ? 1 : 0, "S02 na last after asc sort")
+s2 = array.from(3.0, na, 1.0, 2.0)
+plot(array.get(array.sort_indices(s2), 0), "S03 sort_indices asc idx0")
+plot(array.get(array.sort_indices(s2, order.descending), 0), "S04 sort_indices desc idx0")
+t1 = array.from("b", "A", "a", "é", "Z")
+array.sort(t1)
+plot(array.indexof(t1, "A"), "T01 A after text sort")
+plot(array.indexof(t1, "a"), "T02 a after text sort")
+plot(array.indexof(t1, "é"), "T03 é after text sort")
+plot(array.indexof(t1, "Z"), "T04 Z after text sort")
+t2 = array.from("b", "A", "a", "é", "Z")
+ti = array.sort_indices(t2)
+plot(array.get(ti, 0), "T05 text sort_indices 0")
+plot(array.get(ti, 1), "T06 text sort_indices 1")
+plot(array.get(ti, 2), "T07 text sort_indices 2")
+plot(array.get(ti, 3), "T08 text sort_indices 3")
+pe = array.from(1.0, 2.0, 4.0, 8.0)
+po = array.from(1.0, 2.0, 4.0, 8.0, 16.0)
+plot(array.percentile_linear_interpolation(pe, 25), "P01 pli even 25")
+plot(array.percentile_linear_interpolation(pe, 50), "P02 pli even 50")
+plot(array.percentile_linear_interpolation(pe, 90), "P03 pli even 90")
+plot(array.percentile_linear_interpolation(po, 25), "P04 pli odd 25")
+plot(array.percentile_linear_interpolation(po, 50), "P05 pli odd 50")
+plot(array.percentile_linear_interpolation(po, 90), "P06 pli odd 90")
+plot(array.get(array.standardize(array.from(1.0, 2.0, 3.0, 4.0)), 0), "Z01 standardize e0")
+plot(array.percentrank(array.from(1.0, 2.0, 2.0, 3.0), 1), "R01 percentrank ties")
+plot(str.length(array.join(array.from(1.5, 2.0, 0.25), ",")), "J01 join floats len")
+plot(str.length(array.join(array.from(1, 22, 333), ",")), "J02 join ints len")
+plot(str.length(array.join(array.from(1.0 / 3.0), ",")), "J03 join one third len")
+plot(str.length(array.join(array.from("ab", "c"))), "J04 join no separator len")
+plot(array.mode(array.from(3.0, 1.0, 1.0, 3.0)), "M01 mode ties")
+nx = array.from(1.0, na, 3.0)
+plot(array.variance(nx), "N01 variance with na")
+plot(array.stdev(nx), "N02 stdev with na")
+plot(array.median(nx), "N03 median with na")
+plot(array.percentrank(nx, 0), "N04 percentrank with na")
+plot(array.percentile_nearest_rank(nx, 50), "N05 pnr with na")
+plot(array.sum(array.abs(array.from(-1.0, na))), "N06 abs with na, summed")
+plot(array.every(array.from(1.0, na)) ? 1 : 0, "N07 every with na")
+plot(array.covariance(nx, array.from(1.0, 2.0, 3.0)), "N08 covariance with na")
+ub = array.new_bool(3)
+plot(array.get(ub, 0) ? 1 : 0, "U01 new_bool(3) element 0")
+us = array.new_string(3)
+plot(na(array.get(us, 0)) ? 1 : 0, "U02 new_string(3) element 0 is na")
+ee = array.new_float()
+plot(array.every(ee) ? 1 : 0, "E01 every of empty")
+plot(array.some(ee) ? 1 : 0, "E02 some of empty")
+plot(array.lastindexof(array.from(1.0, 2.0), na), "E03 lastindexof na, absent")
+plot(array.variance(array.from(5.0), false), "V01 unbiased variance of one element")
+plot(array.covariance(array.from(1.0), array.from(1.0, 2.0)), "V02 covariance sizes 1 and 2")
+plot(array.percentile_nearest_rank(pe, 0), "V03 pnr at 0")
+plot(array.percentile_nearest_rank(pe, 101), "Q01 pnr at 101")
+plot(array.percentile_nearest_rank(pe, 0.5), "Q02 pnr at 0.5")
+plot(array.lastindexof(array.from(1.0, na, 2.0), na), "L01 lastindexof na, present")
+plot(array.median(array.from(1.5, 2.5, 4.5, 8.5)), "H01 median even count, floats")
+plot(array.median(array.from(1.0, 2.0)), "H02 median of (1.0, 2.0)")
+ia = array.from(1, 2, 4)
+plot(array.median(array.from(1, 2)), "I01 median of int (1, 2)")
+plot(array.stdev(ia), "I02 stdev of int (1, 2, 4)")
+plot(array.variance(ia), "I03 variance of int (1, 2, 4)")
+plot(array.avg(array.from(1, 2)), "I04 avg of int (1, 2)")
