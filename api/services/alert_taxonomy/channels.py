@@ -84,6 +84,9 @@ LEGACY_WEBHOOKS: dict[str, tuple[str, str]] = {
     # UCT RS nightly leaders post (engineering map unit 2b-07; template docs/alerts/RS-DISCORD-POST.md).
     # Member-facing, blank posts nowhere; dark until the owner approves the template.
     "DISCORD_RS_WEBHOOK_URL": ("rs_leaders", "api/services/rs_discord_post.py (dark behind RS_DISCORD_POST_ENABLED)"),
+    # The admin door's TEST room for that post (unit 2b-08, `target=test`): a test post
+    # goes here, never to the member room, and never touches the session marker.
+    "DISCORD_RS_TEST_WEBHOOK_URL": ("rs_leaders_test", "api/routers/rs_discord.py (admin door target=test)"),
     # Breadth alerts (the owner's breadth channel; `breadth_alerts.WEBHOOK_ENV`). The reader
     # predates this registry; the census named it unlisted from 2026-11-05 until this row (2026-11-07).
     "DISCORD_BREADTH_WEBHOOK_URL": ("breadth", "api/services/breadth_alerts.py"),
