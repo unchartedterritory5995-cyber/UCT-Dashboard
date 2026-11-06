@@ -524,3 +524,5 @@ Merging to master is still not authorized in this file; the owner approves it di
   - B2: D2 builds on W6-T3a, not T3b.
   Started W34-T0 census, W34-D3 undeclared names, W34-D1 drawing history (Sonnet; common brief dsk/BUILDER-BRIEF-COMMON.md).
 - 2026-11-05 17:11 W9-T14a/T2 39e0e6a755 READY-CHECK PASS; in review, chiefly whether member behaviour changes on any re-pointed constant. W6-T3a landing as engine 18 is in progress. W6-T3b is building.
+
+>>> PAUSED 2026-11-05 19:26 for an owner session restart. RESUME FROM reviews/RESUME-2026-11-05.md. Production is at engine 18. W9 (PR #869) is on master, gate pending. Blocker to check first: census 218 -> 212 (reviews/W34-T0.md). Builders were told to push WIP and stop. <<<
