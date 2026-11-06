@@ -512,8 +512,20 @@ export const SOURCE_BAR_FIELDS = Object.freeze([
  * unchanged), and the resolved value is still checked against `PLOT_LINE_STYLES`,
  * so an input whose enum options wander outside the vocabulary fails at
  * registration exactly as a literal typo does.
+ *
+ * ⭐ `colorUp` / `colorDown` JOINED 2026-11-05 (UCT Relative Strength, Phase 1
+ * unit 5). A `colorMode: 'column:<key>'` plot alternates between those two
+ * colours per bar, and until now both had to be an author's literals — so a
+ * member could recolour a one-colour line (`color: '$lineColor'`) but never a
+ * two-colour one, and the RS line coloured by its position against its moving
+ * average (the Phase preset: `bull` above, `bear` below) could not be a pair of
+ * colour inputs. Same shape as `lineStyle`: whole-value, substituted first and
+ * then validated as a colour, `$refs` recorded, `pool.resolvePlotForInstance`
+ * re-applies the member's pick. `readout.resolvePlotColor` (the legend chip's
+ * swatch) still reads `color` only — a chip is one swatch, and the plot keeps a
+ * `color` for it.
  */
-export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle'])
+export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle', 'colorUp', 'colorDown'])
 
 // ─── Grammar ─────────────────────────────────────────────────────────────────
 
@@ -1593,7 +1605,9 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     }
   }
 
-  // ─ substitutable fields (spec §3.1: color, width, levels) ─
+  // ─ substitutable fields (spec §3.1: color, width, levels; `lineStyle`,
+  //   `colorUp` and `colorDown` are substituted further down, beside the
+  //   vocabulary and the colour modes they belong to) ─
 
   if (plot.color !== undefined) {
     const colorRef = refKeyOf(plot.color)
@@ -1674,12 +1688,14 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     errors.push(`${path}.levels: style "hlines" requires a non-empty levels array, got ${fmt(plot.levels)}`)
   }
 
-  // ─ the two colours `colorMode: 'sign'` needs ─
+  // ─ the two colours `colorMode: 'sign'` and `'column:<key>'` need ─
   //
-  // NOT substitutable ($-refs stay confined to SUBSTITUTABLE_PLOT_FIELDS, which
-  // the spec locks at color/width/levels) and validated exactly like `color`
-  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`;
-  // this half is what stops `colorUp: 3` registering.
+  // SUBSTITUTABLE since 2026-11-05 (`SUBSTITUTABLE_PLOT_FIELDS` names them; spec
+  // §3.1 carries the same sentence) and validated exactly like `color`
+  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`
+  // and `'column:'`; the loop below is what stops `colorUp: 3` registering.
+  // ⚰️ This said "NOT substitutable … the spec locks at color/width/levels"
+  // — true until UCT RS's Phase preset needed a member-pickable pair.
   // ⭐ An N-way palette: two or more colours, each validated like `color`.
   if (plot.colorPalette !== undefined) {
     const pal = plot.colorPalette
@@ -1721,14 +1737,23 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       errors.push(`${path}.colorPacked: a computed colour is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
     }
   }
+  // ⭐ Same order as `lineStyle` below: substitute FIRST, then judge the
+  // RESOLVED value, so `colorUp: '$lineUpColor'` is checked on the colour it
+  // becomes. A ref that fails to resolve is already reported by `substitute`.
   for (const field of ['colorUp', 'colorDown']) {
     if (plot[field] === undefined) continue
-    if (!isNonEmptyString(plot[field])) {
+    const ref = refKeyOf(plot[field])
+    const colour = substitute(plot[field], inputsByKey, `${path}.${field}`, errors, field)
+    if (colour === REF_FAILED) continue
+    noteRef(plot, field, ref)
+    if (!isNonEmptyString(colour)) {
       errors.push(
         `${path}.${field}: expected a non-empty colour string (the colour bars on that side of ` +
-        `zero are drawn in), got ${fmt(plot[field])}`,
+        `zero are drawn in)${plot[field] !== colour ? ` after substituting ${fmt(plot[field])}` : ''}, ` +
+        `got ${fmt(colour)}`,
       )
     }
+    plot[field] = colour
   }
 
   // ─ enumerated presentation fields ─

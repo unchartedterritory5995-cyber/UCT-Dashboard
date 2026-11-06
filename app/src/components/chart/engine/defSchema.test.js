@@ -751,11 +751,14 @@ describe('meta.timeframes', () => {
 // here must actually resolve a `$ref`, and a field NOT named here must not. That
 // makes the constant load-bearing without moving the validator's per-field logic
 // behind a loop it would have to special-case anyway (`levels` substitutes
-// per-element, `color`/`width`/`lineStyle` whole-value).
+// per-element, `color`/`width`/`lineStyle`/`colorUp`/`colorDown` whole-value).
 
 describe('SUBSTITUTABLE_PLOT_FIELDS is what actually substitutes', () => {
   it('names exactly the fields v1 resolves', () => {
-    expect([...SUBSTITUTABLE_PLOT_FIELDS]).toEqual(['color', 'width', 'levels', 'lineStyle'])
+    // ⭐ `colorUp`/`colorDown` joined 2026-11-05 (UCT RS Phase 1, unit 5) — spec
+    // §3.1 carries the same six, and `__tests__/colorUpDownSubstitution.test.js`
+    // drives the pair through the schema, the resolver and the binder.
+    expect([...SUBSTITUTABLE_PLOT_FIELDS]).toEqual(['color', 'width', 'levels', 'lineStyle', 'colorUp', 'colorDown'])
   })
 
   it('every NAMED field resolves a $ref to the input default', () => {
@@ -769,6 +772,10 @@ describe('SUBSTITUTABLE_PLOT_FIELDS is what actually substitutes', () => {
         },
         ref: '$s', expect: 'dashed',
       },
+      // Whole-value colours like `color`; validated standalone here (no
+      // `colorMode` on the RSI line), as `validatePlot` checks them.
+      colorUp: { input: { key: 'cu', type: 'color', label: 'CU', default: '#abcdef' }, ref: '$cu', expect: '#abcdef' },
+      colorDown: { input: { key: 'cd', type: 'color', label: 'CD', default: '#fedcba' }, ref: '$cd', expect: '#fedcba' },
     }
     for (const [field, c] of Object.entries(cases)) {
       const d = rsiDef()
