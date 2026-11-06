@@ -395,6 +395,6 @@ def test_a_queued_gate_waits_and_never_promotes(status):
     assert _decide(_run(status, None)) == pg.WAIT
 
 
-def test_a_cancelled_run_with_no_order_stays_refused():
+def test_a_cancelled_run_with_no_order_stays_refused():  # the full outage proof is in test_promotion_gate_supersede.py
     """Without timestamps nothing says the green run came later, so the old refusal stands."""
     assert _decide(_run("completed", "cancelled"), _run("completed", "success")) == pg.REFUSE
