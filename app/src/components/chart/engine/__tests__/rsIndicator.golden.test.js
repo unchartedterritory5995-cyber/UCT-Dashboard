@@ -63,9 +63,9 @@ const DOT_TO_EVENT = Object.freeze({
   dotNHred: 'rsNHred',
   dotNL: 'rsNL',
 })
-/** The Mansfield cross dot fires on EITHER cross; `rs_mansfield.json` carries both. */
+/** The Mansfield cross dot fires on a cross UP only, at 0 (visual round 2026-11-07, spec A2). */
 const MANSFIELD_DOT_TO_EVENTS = Object.freeze({
-  dotMansfieldCross: ['mansfieldCrossUp', 'mansfieldCrossDown'],
+  dotMansfieldCross: ['mansfieldCrossUp'],
 })
 /** Which fixture each LINE plot's column lives in. */
 const LINE_FIXTURE = Object.freeze({ rsLine: 'rs_events_default', rsAbove: 'rs_events_default', rsMa: 'rs_events_default', mansfield: 'rs_mansfield' })
@@ -314,23 +314,19 @@ describe('rs_mansfield — the Mansfield fixture, read by the JS lane as the con
     expect(exp).toHaveProperty('mansfieldCrossBarsAgo')
   })
 
-  it('the cross dot is finite EXACTLY where either cross is 1, EQUALS the Mansfield value there, and sits at or below zero on a cross down', () => {
+  it('the cross dot sits at 0 EXACTLY where a cross UP is 1 and nowhere else (crosses down draw no dot)', () => {
     let fired = 0
-    let belowZero = 0
     exp.dotMansfieldCross.forEach((d, i) => {
-      const either = exp.mansfieldCrossUp[i] === 1 || exp.mansfieldCrossDown[i] === 1
-      if (either) {
-        expect(d, `dotMansfieldCross[${i}] must be the Mansfield value`).toBe(exp.mansfield[i])
-        expect(Number.isFinite(d), `dotMansfieldCross[${i}] = ${d}`).toBe(true)
+      if (exp.mansfieldCrossUp[i] === 1) {
+        expect(d, `dotMansfieldCross[${i}] must sit on the zero line`).toBe(0)
         fired += 1
-        if (exp.mansfieldCrossDown[i] === 1) { expect(d).toBeLessThan(0); belowZero += 1 }
       } else {
-        expect(d, `dotMansfieldCross[${i}] = ${d} where no cross fired`).toBeNull()
+        expect(d, `dotMansfieldCross[${i}] = ${d} where no cross up fired`).toBeNull()
       }
     })
-    expect(fired).toBe(3)                       // bars 23, 43, 62 (the Python lane's pins)
-    expect(belowZero, 'a cross DOWN dot below zero is what rules the glyph renderer out').toBeGreaterThan(0)
-    // …and the dot plot is a PLAIN markers plot, so the binder draws it at that value.
+    expect(fired).toBe(1)                       // bar 43 (the Python lane's pin)
+    expect(exp.mansfieldCrossDown.includes(1), 'the fixture still carries crosses down').toBe(true)
+    // …and the dot plot is a PLAIN markers plot (a glyph refuses values <= 0).
     const plot = def.plots.find(p => p.key === 'dotMansfieldCross')
     expect(plot.marker).toBeUndefined()
     expect(plot.style).toBe('markers')

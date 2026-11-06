@@ -1611,25 +1611,24 @@ def test_rs_mansfield_python_lane_matches_every_golden_column(name):
 
 
 @pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
-def test_rs_mansfield_cross_dot_is_the_mansfield_value_EXACTLY_where_either_cross_is_1(name):
-    """The dot the chart draws for a zero cross (2a-14): the Mansfield value on
-    the bar of a cross UP or a cross DOWN, None everywhere else — so a cross
-    DOWN dot is NEGATIVE, which is why the definition draws it as the series'
-    own point marker and not as a glyph (`markerPrimitive.marks` is `> 0`)."""
+def test_rs_mansfield_cross_dot_sits_at_zero_on_crosses_UP_only(name):
+    """The dot the chart draws for a zero cross (visual round 2026-11-07, spec A2):
+    0.0 on the bar of a cross UP, None everywhere else, including a cross DOWN.
+    It was the Mansfield value at either cross; a dot on the zero line reads as
+    "crossed up here" and cannot be mistaken for a point of the line itself."""
     case = load_case(name)
     exp = case["expected"]
-    dot, mrs, up, down = exp[RS_MANSFIELD_DOT], exp["mansfield"], exp["mansfieldCrossUp"], exp["mansfieldCrossDown"]
+    dot, up, down = exp[RS_MANSFIELD_DOT], exp["mansfieldCrossUp"], exp["mansfieldCrossDown"]
     assert len(dot) == len(case["bars"])
     fired = []
-    for i, (d, v, u, w) in enumerate(zip(dot, mrs, up, down)):
-        if u == 1.0 or w == 1.0:
-            assert d == v, f"{name}.{RS_MANSFIELD_DOT}[{i}] = {d!r} but mansfield is {v!r}"
-            assert type(d) is float, f"{name}.{RS_MANSFIELD_DOT}[{i}] is {type(d).__name__}"
+    for i, (d, u) in enumerate(zip(dot, up)):
+        if u == 1.0:
+            assert d == 0.0 and type(d) is float, f"{name}.{RS_MANSFIELD_DOT}[{i}] = {d!r}"
             fired.append(i)
         else:
-            assert d is None, f"{name}.{RS_MANSFIELD_DOT}[{i}] = {d!r} where no cross fired"
-    assert fired == [23, 43, 62], fired            # the crosses the hand-derived rows pin
-    assert dot[23] < 0 and dot[62] < 0 and dot[43] > 0, "a cross down sits below zero; a cross up above"
+            assert d is None, f"{name}.{RS_MANSFIELD_DOT}[{i}] = {d!r} where no cross up fired"
+    assert fired == [43], fired                    # the one cross up the hand-derived rows pin
+    assert any(w == 1.0 for w in down), "the fixture still carries crosses down; they draw no dot"
 
 
 @pytest.mark.parametrize("name", RS_MANSFIELD_CASES)
