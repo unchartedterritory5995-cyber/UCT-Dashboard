@@ -28,7 +28,9 @@ function show(cs) {
 
 describe('U8 #27 — the phone preset row compares the preset\'s fields, as the dialog does', () => {
   test('Trend inputs with Trend\'s visibility and dot size read Trend', () => {
-    const row = show(rsAt({ visibility: { preset: 'dailyUp' }, presentation: { dotSize: 'small' } }))
+    // visual round A2: Trend sizes its zero-cross dot medium (the default size), so a
+    // Trend instance stores no dot size at all
+    const row = show(rsAt({ visibility: { preset: 'dailyUp' } }))
     expect(row.dataset.preset).toBe('trend')
     expect(within(row).getByTestId('preset-origin').textContent).toBe(trend().origin)
   })
@@ -41,7 +43,7 @@ describe('U8 #27 — the phone preset row compares the preset\'s fields, as the 
   })
 
   test('Trend inputs with every timeframe shown (not daily-and-up) read Custom', () => {
-    const row = show(rsAt({ presentation: { dotSize: 'small' } }))
+    const row = show(rsAt({}))
     expect(row.dataset.preset).toBe('__custom')
   })
 })

@@ -36,9 +36,11 @@ describe('finding #9 — the Mansfield card prints the length actually used', ()
     expect(rows.find((r) => r.key === 'mansfieldLength').text).toBe('200')
     const trendWeekly = { mansfield: { value: 4.2, length: 52 } }
     expect(readoutRows(RS, trendWeekly, { inputs: {} }).find((r) => r.key === 'mansfieldLength').text).toBe('52')
-    // it sits directly under the Mansfield reading it qualifies
-    const keys = RS.readout.map((e) => e.key)
-    expect(keys.indexOf('mansfieldLength')).toBe(keys.indexOf('mansfield') + 1)
+    // it sits in the Mansfield card it qualifies (visual round A1: the numbers
+    // block Value, Last zero cross, Length), never in the glance list
+    expect(row.detailOf).toBe('mansfield')
+    const mansfieldDetails = RS.readout.filter((e) => e.detailOf === 'mansfield').map((e) => e.key)
+    expect(mansfieldDetails).toEqual(['mansfieldValue', 'mansfieldCross', 'mansfieldLength'])
     // a v1 envelope (flag off) has no mansfield block: the row is omitted, never "undefined"
     expect(readoutRows(RS, { benchmark: { resolved: 'SPY' } }, { inputs: {} }).some((r) => r.key === 'mansfieldLength')).toBe(false)
   })

@@ -42,7 +42,7 @@ function ModalHost({ initial, onSeen }) {
 describe('U8 #11 — the dialog Style tab', () => {
   it('reads Mixed after Stress; Default then clears the per-dot Large', () => {
     const initial = stressed()
-    expect(findInstance(initial, RS).presentation).toEqual({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    expect(findInstance(initial, RS).presentation).toEqual({ plots: { dotNHred: { dotSize: 'large' } } })   // visual round A3
     const seen = { cs: initial }
     render(<DialogHost initial={initial} onSeen={(next) => { seen.cs = next }} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Style' }))

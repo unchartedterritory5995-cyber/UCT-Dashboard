@@ -93,7 +93,7 @@ describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}'
     // still draws Classic — no Mansfield line, no red-day or new-low dots.
     expect(values).toMatchObject({
       showMansfield: false, mansfieldLength: 200, showRedDay: false, showNewLow: false,
-      mansfieldColor: DEFAULT_LINE_COLOUR, dotCrossColor: '#8a8574', dotRedColor: '#c9a84c', dotLowColor: '#8a8574',
+      mansfieldColor: DEFAULT_LINE_COLOUR, dotCrossColor: '#8a8574', dotRedColor: DEFAULT_LINE_COLOUR, dotLowColor: '#8a8574',
     })
   })
 

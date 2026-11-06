@@ -557,14 +557,18 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
     expect(presetSelect().value, 'a fresh instance is Classic').toBe('classic')
   })
 
-  it('Trend applies its inputs AND its fields: Mansfield on at 200, visibility daily-and-up, every dot small; the picker reads Trend', () => {
+  it('Trend applies its inputs AND its fields: Mansfield view on at 200, visibility daily-and-up; the picker reads Trend', () => {
     const { onChange } = mount({ settings: rsBlob(), instanceId: RS_INST() })
     choosePreset('trend')
     expect(onChange).toHaveBeenCalled()
     const inst = findInstance(latest(), RS_INST())
-    expect(inst.inputs).toMatchObject({ showMansfield: true, mansfieldLength: 200, color: '#8a8574', lineDownColor: '#8a8574', dotColor: '#8a8574', mansfieldColor: '#6ba3be' })
+    // visual round A2: Mansfield view draws the Mansfield line alone, so Trend sets
+    // the Mansfield and cross-dot colours and leaves the RS line's own alone; its
+    // cross dot is medium, the default size, so nothing is stored for it.
+    expect(inst.inputs).toMatchObject({ showMansfield: true, mansfieldLength: 200, mansfieldColor: '#6ba3be', dotCrossColor: '#6ba3be' })
+    expect(inst.inputs.color).toBeUndefined()
     expect(inst.visibility).toEqual({ preset: 'dailyUp' })
-    expect(inst.presentation.dotSize).toBe('small')
+    expect(inst.presentation).toBeUndefined()
     expect(presetSelect().value).toBe('trend')
     expect(screen.getByTestId('preset-origin').textContent).toMatch(/Weinstein/)
     // a Trend instance is never read as Classic: the toggle it turned on is the tell
@@ -579,13 +583,13 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
     expect(presetSelect().value).toBe('trendWeekly')
   })
 
-  it('Stress applies the red-day dots, the before-price dot large, visibility daily-and-up; the picker reads Stress, not Classic', () => {
+  it('Stress applies the red-day dots as its large gold mark, before price off, visibility daily-and-up; the picker reads Stress, not Classic', () => {
     mount({ settings: rsBlob(), instanceId: RS_INST() })
     choosePreset('stress')
     const inst = findInstance(latest(), RS_INST())
-    expect(inst.inputs).toMatchObject({ showRedDay: true, showNewHighBeforePrice: true, showMansfield: false, color: '#6ba3be' })
+    expect(inst.inputs).toMatchObject({ showRedDay: true, showNewHighBeforePrice: false, showMansfield: false, color: '#6ba3be', dotRedColor: '#c9a84c' })
     expect(inst.visibility).toEqual({ preset: 'dailyUp' })
-    expect(inst.presentation).toEqual({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    expect(inst.presentation).toEqual({ plots: { dotNHred: { dotSize: 'large' } } })
     expect(presetSelect().value).toBe('stress')
     // back to Classic: the toggles come off AND the fields Stress wrote are reset.
     // ⚰️ Moved 2026-11-07 (review finding #26): this pinned "the fields stay as the
@@ -594,7 +598,7 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
     // the default dot size, so choosing it is Classic on screen too.
     choosePreset('classic')
     const back = findInstance(latest(), RS_INST())
-    expect(back.inputs).toMatchObject({ showRedDay: false, showMansfield: false })
+    expect(back.inputs).toMatchObject({ showRedDay: false, showMansfield: false, showNewHighBeforePrice: true, dotRedColor: '#6ba3be' })
     expect(back.visibility).toBeUndefined()
     expect(back.presentation).toBeUndefined()
     expect(presetSelect().value).toBe('classic')

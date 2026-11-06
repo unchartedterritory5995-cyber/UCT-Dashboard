@@ -345,6 +345,16 @@ const V2_COMPUTE_KEYS = Object.freeze(['trees', 'treesHash', 'scanPlot', 'source
 /** Where the indicator draws. `volume` = the shipped left-axis overlay. */
 export const PLACEMENT_TARGETS = Object.freeze(['price', 'pane', 'volume'])
 
+/**
+ * `placement.axis` — whether the pane's price scale shows (Phase 2a visual round,
+ * item A4; owner decision D6). `'visible'` is the default and what an absent field
+ * means; `'hidden'` asks the binder for an invisible right scale on that pane (no
+ * tick labels, no last-value tag), so the value is read in the pane label. The
+ * binder half (`placement.js` / `binder.js`) owns what "invisible" draws; this is
+ * the declaration and its vocabulary. Behavioural, so an unknown value fails closed.
+ */
+export const PLACEMENT_AXIS_MODES = Object.freeze(['visible', 'hidden'])
+
 /** Repaint honesty label (spec §3). Phase A/B: audited metadata. */
 export const REPAINT_MODES = Object.freeze(['non-repainting', 'preview-repaints', 'repaints'])
 
@@ -1641,6 +1651,51 @@ function validateReadout(def, inputsByKey, errors) {
       }
     }
   })
+  validateReadoutDetails(readout, who, errors)
+}
+
+/**
+ * ⭐ `readout[].detailOf` — A DETAIL ROW AND THE GLANCE ROW IT EXPLAINS (Phase 2a
+ * visual round, item A1). A detail row prints only inside its glance row's card,
+ * so the name must resolve to a row that HAS a card, and nesting is ONE level: a
+ * glance row is a row without `detailOf`, so a detail row cannot be the parent of
+ * another (it has no place of its own in the menu to open a card from). Checked
+ * after the per-entry pass because the parent may be declared after the child.
+ * A row naming itself is the same "no glance row" fault as a missing name.
+ */
+function validateReadoutDetails(readout, who, errors) {
+  const byKey = new Map()
+  for (const e of readout) {
+    if (isPlainObject(e) && isNonEmptyString(e.key) && !byKey.has(e.key)) byKey.set(e.key, e)
+  }
+  readout.forEach((entry, i) => {
+    if (!isPlainObject(entry) || entry.detailOf === undefined) return
+    const path = `readout[${i}].detailOf`
+    const name = entry.detailOf
+    if (!isNonEmptyString(name)) {
+      errors.push(`${path}: ${who} — expected the key of the glance row this row explains, got ${fmt(name)}`)
+      return
+    }
+    const parent = byKey.get(name)
+    if (!parent || parent === entry) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} names no other readout row, so this row could never print. ` +
+        `Declared: ${list([...byKey.keys()]) || 'none'}`,
+      )
+      return
+    }
+    if (!isPlainObject(parent.card)) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} has no card, and a detail row prints only inside its glance row's card`,
+      )
+    }
+    if (parent.detailOf !== undefined) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} is itself a detail row (detailOf ${fmt(parent.detailOf)}); ` +
+        `a detail row explains a GLANCE row, one level deep`,
+      )
+    }
+  })
 }
 
 function validatePlacement(placement, errors) {
@@ -1649,6 +1704,11 @@ function validatePlacement(placement, errors) {
     return
   }
   checkVocabulary(placement.target, PLACEMENT_TARGETS, [], 'placement.target', 'placement target', errors)
+  // ⭐ A4 — whether the pane's price scale shows. Absent means `'visible'`, which
+  // is every definition that predates the field, so no other pane moves.
+  if (placement.axis !== undefined) {
+    checkVocabulary(placement.axis, PLACEMENT_AXIS_MODES, [], 'placement.axis', 'placement axis mode', errors)
+  }
 
   // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
   // supplies `DEFAULT_PANE_HEIGHT` when absent. It lives on the definition
@@ -2293,6 +2353,54 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `${path}.hidden: an "hlines" plot is a guide — it returns no column, so there is nothing to ` +
       `compute and nothing to hide; drop the plot instead of hiding it`,
     )
+  }
+  // ⭐ A6 — `plots[].restyle: false` is the plot's OPT-OUT from the Plot style
+  // control: the inspector offers no style row for it. A sparse dot column
+  // restyled as a line draws nothing, so a dropdown there would lie. Behavioural
+  // (it decides what the inspector offers), so anything but a boolean fails closed;
+  // `true` is the default written down.
+  if (plot.restyle !== undefined && typeof plot.restyle !== 'boolean') {
+    errors.push(
+      `${path}.restyle: expected true or false (false = the inspector offers no Plot style for this plot), ` +
+      `got ${fmt(plot.restyle)}`,
+    )
+  }
+  validatePlotActiveWhen(plot, path, inputsByKey, errors)
+}
+
+/**
+ * ⭐ A2 — `plots[].activeWhen`: a guide that draws only under one input state (the
+ * RS Mansfield view's zero line, `{key: 'showMansfield', equals: true}`). The SAME
+ * grammar as `inputs[].activeWhen` and read by the same evaluator
+ * (`indicatorRegistry.evalActiveWhen`), so there is one condition language. It is
+ * admitted on an `hlines` guide ONLY: a guide is static, so whether it draws is a
+ * presentation fact; a data plot's visibility is the server's (it blanks the
+ * column), and a second switch over the same pixels would be a second authority.
+ * The key must name a declared input, for the reason `validateActiveWhen` gives.
+ */
+function validatePlotActiveWhen(plot, path, inputsByKey, errors) {
+  const aw = plot.activeWhen
+  if (aw === undefined || aw === null) return
+  const where = `${path}.activeWhen`
+  if (plot.style !== 'hlines') {
+    errors.push(
+      `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
+      `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
+    )
+    return
+  }
+  if (!isPlainObject(aw) || typeof aw.key !== 'string') {
+    errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
+    return
+  }
+  if (!inputsByKey.has(aw.key)) {
+    errors.push(
+      `${where}.key: unresolvable reference ${fmt(aw.key)} — no input declares that key ` +
+      `(declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`,
+    )
+  }
+  if (!Object.prototype.hasOwnProperty.call(aw, 'equals')) {
+    errors.push(`${where}: expected an \`equals\` value — the guide's condition is one input state`)
   }
 }
 

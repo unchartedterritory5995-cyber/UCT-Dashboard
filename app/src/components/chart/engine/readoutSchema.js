@@ -37,7 +37,19 @@
 //                                            // `evidenceSource` (2b-09) is a `scalar:` /
 //                                            // `payload:` path whose text REPLACES the
 //                                            // static `evidence` line when it resolves
+//     detailOf?: 'rsHigh',                   // a DETAIL row: it prints only inside that
+//                                            // glance row's card (the numbers block)
 //   }]
+//
+// ⭐ GLANCE ROWS AND DETAIL ROWS (Phase 2a visual round, item A1). The chip menu
+// is a read in under five seconds, so it lists the GLANCE rows only — every
+// entry without `detailOf`, in declaration order. A row with `detailOf:
+// '<glanceKey>'` explains one glance row and renders inside that row's card, in
+// a "numbers" block above the three card lines. `defSchema` holds the nesting
+// to ONE level: `detailOf` names an entry that has a `card` and no `detailOf` of
+// its own. `readoutRows` copies the field onto each resolved row (absent on a
+// glance row), so a surface groups the rows without re-reading the definition.
+// A chip row may be a detail row: the pane suffix reads `chip`, never `detailOf`.
 //
 //   `scalar:` and `payload:` are synonyms — both resolve a dotted path over the
 //   envelope's `payload` object. `input:` reads the instance's own input (its
@@ -81,7 +93,7 @@ export const READOUT_SOURCE_PREFIXES = Object.freeze(['scalar', 'payload', 'inpu
  *  closed in `defSchema` — a readout row is behavioural (it decides what the
  *  legend prints), not a document field to preserve. */
 export const READOUT_ENTRY_FIELDS = Object.freeze([
-  'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card',
+  'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card', 'detailOf',
 ])
 
 /** The closed set of fields a row's `card` may carry. `learn` (2a-10) is a
@@ -230,13 +242,16 @@ function resolveRow(entry, scalars, def, inputs) {
   }
   const value = readSource(src, scalars, def, inputs)
   const text = (value === undefined || value === null) ? null : formatReadoutValue(entry.format, value, entry)
+  let row = null
   if (typeof text === 'string' && text) {
-    return { key: entry.key, label: entry.label, value, text, muted: false }
+    row = { key: entry.key, label: entry.label, value, text, muted: false }
+  } else if (typeof entry.fallback === 'string' && entry.fallback) {
+    row = { key: entry.key, label: entry.label, value: null, text: entry.fallback, muted: true }
   }
-  if (typeof entry.fallback === 'string' && entry.fallback) {
-    return { key: entry.key, label: entry.label, value: null, text: entry.fallback, muted: true }
-  }
-  return null
+  // A detail row says whose card it belongs to; a glance row carries no field at
+  // all, so the row shape every existing surface reads is unchanged for it.
+  if (row && typeof entry.detailOf === 'string' && entry.detailOf) row.detailOf = entry.detailOf
+  return row
 }
 
 /**
@@ -249,8 +264,8 @@ function resolveRow(entry, scalars, def, inputs) {
  * @param {object} def the definition (reads `def.readout` and `def.inputs`)
  * @param {object|null} scalars the envelope's payload (`scalarsFor`'s answer)
  * @param {{inputs?: object}} [ctx] the instance's stored inputs, for `input:` rows
- * @returns {{key: string, label: string, value: *, text: string, muted: boolean}[]}
- *   in declaration order
+ * @returns {{key: string, label: string, value: *, text: string, muted: boolean, detailOf?: string}[]}
+ *   in declaration order; `detailOf` is present on a detail row only
  */
 export function readoutRows(def, scalars, ctx) {
   const entries = def && Array.isArray(def.readout) ? def.readout : []
@@ -264,6 +279,18 @@ export function readoutRows(def, scalars, ctx) {
     if (row) out.push(row)
   }
   return out
+}
+
+/**
+ * Is this entry (or resolved row) a GLANCE row, the kind the chip menu lists?
+ * Every row without a `detailOf`. Pure, never throws.
+ *
+ * @param {object} entryOrRow a readout entry or a `readoutRows` row
+ * @returns {boolean}
+ */
+export function isGlanceRow(entryOrRow) {
+  if (!isPlainObject(entryOrRow)) return false
+  return !(typeof entryOrRow.detailOf === 'string' && entryOrRow.detailOf)
 }
 
 /**

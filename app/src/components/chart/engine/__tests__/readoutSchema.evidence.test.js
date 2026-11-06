@@ -149,7 +149,7 @@ describe('the registered copy — UCT Relative Strength cards', () => {
     const sourced = cards.filter(([, c]) => c.evidenceSource !== undefined).map(([k]) => k)
     expect(sourced.sort()).toEqual([...SIGNAL_CARDS].sort())
     // the rating, checks and sensitivity cards have no signal in the v1 artifact
-    for (const key of ['rating', 'checks', 'sensitivity', 'benchmark', 'regime']) expect(cardOf(key).evidenceSource).toBeUndefined()
+    for (const key of ['ratingSummary', 'checks', 'sensitivity', 'benchmarkName', 'regime']) expect(cardOf(key).evidenceSource).toBeUndefined()
   })
 
   it('their static line IS the honesty sentence (Bulkowski leads the before-price line, the honesty sentence closes it)', () => {
@@ -161,14 +161,14 @@ describe('the registered copy — UCT Relative Strength cards', () => {
   })
 
   it('the literature statements sit on the cards they belong to, each naming its source', () => {
-    expect(cardOf('rating').evidence).toMatch(/^The rating is a rank of past return, not a forecast\./)
-    expect(cardOf('rating').evidence).toMatch(/Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014/)
-    expect(cardOf('rating').evidence).toMatch(/about 8% a year long-short and positive in roughly four years of five/)
+    expect(cardOf('ratingSummary').evidence).toMatch(/^The rating is a rank of past return, not a forecast\./)
+    expect(cardOf('ratingSummary').evidence).toMatch(/Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014/)
+    expect(cardOf('ratingSummary').evidence).toMatch(/about 8% a year long-short and positive in roughly four years of five/)
     expect(cardOf('regime').evidence).toMatch(/^Relative strength is a tendency, not a guarantee/)
     expect(cardOf('regime').evidence).toMatch(/Daniel and Moskowitz 2016; Dorsey Wright 2016/)
     expect(cardOf('regime').evidence).toMatch(/2003 and 2009/)
-    expect(cardOf('benchmark').evidence).toMatch(/^A rising RS line means the stock is beating this benchmark over the window/)
-    expect(cardOf('benchmark').evidence).toMatch(/falls faster \(IBD\)/)
+    expect(cardOf('benchmarkName').evidence).toMatch(/^A rising RS line means the stock is beating this benchmark over the window/)
+    expect(cardOf('benchmarkName').evidence).toMatch(/falls faster \(IBD\)/)
     expect(cardOf('sensitivity').evidence).toMatch(/^In 2023 and 2024, 78% of S&P 500 stocks underperformed the cap-weighted index \(Lyrical, 2024\)/)
     expect(cardOf('checks').evidence).toMatch(/No published hit rate exists for these checks and UCT has not measured them yet\.$/)
   })
@@ -209,7 +209,7 @@ describe('the registered copy — UCT Relative Strength cards', () => {
       expect(cardEvidenceText(e, { benchmark: { resolved: 'SPY' } }), key).toBe(e.card.evidence)
     }
     // a literature card is untouched by any payload
-    for (const key of ['rating', 'regime', 'benchmark', 'sensitivity', 'checks']) {
+    for (const key of ['ratingSummary', 'regime', 'benchmarkName', 'sensitivity', 'checks']) {
       const e = RS.readout.find((x) => x.key === key)
       expect(cardEvidenceText(e, measured), key).toBe(e.card.evidence)
     }

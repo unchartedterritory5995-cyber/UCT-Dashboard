@@ -251,8 +251,8 @@ describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading bec
     expect(scaledMarker(gold.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
     expect(scaledMarker(gold.marker, 'small')).toEqual({ shape: 'circle', position: 'inBar', size: 1.2 })
     expect(scaledMarker(gold.marker, 'medium')).toEqual(gold.marker)
-    // the RED text rides along untouched
-    expect(scaledMarker(red.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8, text: 'RED' })
+    // the red-day glyph is the same text-free circle (visual round A3) and scales the same way
+    expect(scaledMarker(red.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
     // a block with no declared size is at LWC's multiplier 1 and scales from there
     expect(scaledMarker({ shape: 'square', position: 'aboveBar' }, 'large').size).toBeCloseTo(1.4)
     // an unknown word, or no block, is a no-op
@@ -307,14 +307,15 @@ describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading bec
     cs = addInstance(cs, 'rsLine', nativeRegistry)
     const a = [...ids(cs)].find((id) => !before.has(id))
     const stress = rs.meta.presets.find((p) => p.id === 'stress')
-    expect(stress.dotSize).toEqual({ dotNHbeforePx: 'large' })
+    // visual round A3: the red-day high is Stress's ONE large gold mark
+    expect(stress.dotSize).toEqual({ dotNHred: 'large' })
     cs = applyPresetInputs(cs, a, rs, stress, nativeRegistry)
     const inst = findInstance(cs, a)
-    expect(inst.presentation).toMatchObject({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    expect(inst.presentation).toMatchObject({ plots: { dotNHred: { dotSize: 'large' } } })
     // …and the plan's plot for that instance carries the scaled glyph
-    expect(presentedPlot(gold, inst).marker.size).toBe(2.8)
-    // the red-day glyph is NOT named by Stress, so it keeps the declared 2.0
-    expect(presentedPlot(red, inst)).toBe(red)
+    expect(presentedPlot(red, inst).marker.size).toBe(2.8)
+    // the before-price glyph is NOT named by Stress (and is switched off there), so it keeps the declared 2.0
+    expect(presentedPlot(gold, inst)).toBe(gold)
   })
 })
 
@@ -400,24 +401,31 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     expect(mine[0].markers).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2 }])
   })
 
-  it('⭐ a Stress-shaped instance (dotSize large on dotNHbeforePx) hands the glyph lane size 2.8, and ONLY that glyph', () => {
-    const { glyphs } = drive({ showRedDay: true }, { plots: { dotNHbeforePx: { dotSize: 'large' } } })
+  it('⭐ a Stress-shaped instance (dotSize large on dotNHred) hands the glyph lane size 2.8, and ONLY that glyph', () => {
+    const { glyphs } = drive({ showRedDay: true }, { plots: { dotNHred: { dotSize: 'large' } } })
     const all = glyphs.flatMap((g) => g.markers)
-    const before = all.filter((mk) => mk.time === BARS[4].t && !mk.text)
-    expect(before).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2.8 }])
-    // the red-day glyph is not named by Stress's dotSize: declared 2.0
-    expect(all.filter((mk) => mk.text === 'RED').map((mk) => mk.size)).toEqual([2])
+    expect(all.filter((mk) => mk.time === BARS[6].t).map((mk) => mk.size)).toEqual([2.8])
+    // the before-price glyph is not named by Stress's dotSize: declared 2.0
+    expect(all.filter((mk) => mk.time === BARS[4].t).map((mk) => mk.size)).toEqual([2])
     // and an instance-level word reaches BOTH glyphs
     const both = drive({ showRedDay: true }, { dotSize: 'small' }).glyphs.flatMap((g) => g.markers)
-    for (const mk of both) expect(mk.size, mk.text || 'before-price').toBeCloseTo(1.2)
+    expect(both.length).toBe(2)
+    for (const mk of both) expect(mk.size).toBeCloseTo(1.2)
   })
 
-  it('dotNHred (2a-14): ONE gold glyph carrying the text RED on its event bar — the Stress reading', () => {
+  it('dotNHred (visual round A3): ONE text-free glyph on its event bar, the info blue by default, gold under Stress', () => {
     const { glyphs } = drive({ showRedDay: true })
-    const red = glyphs.flatMap((g) => g.markers).filter((mk) => mk.text === 'RED')
-    expect(red).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2, text: 'RED' }])
-    // …and it is gold, the premium role, never the bear red (plan §3: red is for losses)
-    expect(rs.inputs.find((i) => i.key === 'dotRedColor').default).toBe(IND_TOKENS.classic.premium)
+    const all = glyphs.flatMap((g) => g.markers)
+    const red = all.filter((mk) => mk.time === BARS[6].t)
+    expect(red).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: IND_TOKENS.classic.info, size: 2 }])
+    // ⛔ no glyph carries text: platform §7 keeps text off the canvas
+    expect(all.some((mk) => 'text' in mk)).toBe(false)
+    // the default is the info blue (never the bear red: plan §3, red is for losses)…
+    expect(rs.inputs.find((i) => i.key === 'dotRedColor').default).toBe(IND_TOKENS.classic.info)
+    // …and the Stress preset makes it the preset's one gold mark
+    const stress = rs.meta.presets.find((p) => p.id === 'stress')
+    const gold = drive(stress.inputs).glyphs.flatMap((g) => g.markers)
+    expect(gold.filter((mk) => mk.time === BARS[6].t)).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: IND_TOKENS.classic.premium, size: 2 }])
   })
 
   it('dotMansfieldCross (2a-14): a point of its own series at a NEGATIVE Mansfield value — a glyph could not draw it', () => {
@@ -466,8 +474,15 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
     dotNH: 'showNewHigh', dotNHbeforePx: 'showNewHighBeforePrice', dotNHpartial: 'shortHistoryDots',
     dotNHred: 'showRedDay', dotNL: 'showNewLow', mansfield: 'showMansfield', dotMansfieldCross: 'showMansfield',
   })
+  // ⭐ Visual round A2: under Mansfield view the server blanks the ratio, its
+  // average and every RS-line dot (the contract's blanking rule), so only the
+  // Mansfield plots and the zero guide draw. A guide draws when its own
+  // `activeWhen` holds.
+  const MANSFIELD_BLANKS = new Set(['rsLine', 'rsAbove', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotNHred', 'dotNL'])
   const drawn = (inputs) => rs.plots.filter((p) => !p.hidden
-    && (TOGGLE_OF[p.key] === undefined || inputs[TOGGLE_OF[p.key]] === true))
+    && (TOGGLE_OF[p.key] === undefined || inputs[TOGGLE_OF[p.key]] === true)
+    && !(inputs.showMansfield === true && MANSFIELD_BLANKS.has(p.key))
+    && !(p.activeWhen && inputs[p.activeWhen.key] !== p.activeWhen.equals))
   /** The non-neutral hues on the plots a preset draws, each plot's colour fields
    *  read through its `$refs` (the member's inputs) exactly as the pool resolves them. */
   const huesOf = (presetInputs) => {
@@ -504,6 +519,7 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
       expect([...hues].sort(), id).toEqual(TWO)
       expect(drawn({ ...defaults, ...preset(id) }).map((p) => p.key), id)
         .toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial'])
+      expect(preset(id), id).toMatchObject({ showNewHighBeforePrice: true, dotRedColor: IND_TOKENS.classic.info })
     }
   })
 
@@ -514,35 +530,44 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
     expect(preset('phase').dotColor).toBe(NEUTRAL)
   })
 
-  it('Trend (and Trend weekly): the Mansfield line takes the info blue, the RS line and the plain dots step back to the neutral, gold stays — two hues', () => {
+  it('Trend (and Trend weekly): Mansfield view — the Mansfield line, its cross-up dots and the zero line alone, info blue plus the neutral, no gold', () => {
     for (const id of ['trend', 'trendWeekly']) {
-      expect([...huesOf(preset(id))].sort(), id).toEqual(TWO)
-      expect(preset(id), id).toMatchObject({ showMansfield: true, color: NEUTRAL, lineDownColor: NEUTRAL, dotColor: NEUTRAL,
-        mansfieldColor: IND_TOKENS.classic.info, showRedDay: false, showNewLow: false })
+      expect([...huesOf(preset(id))].sort(), id).toEqual([IND_TOKENS.classic.info])
+      expect(preset(id), id).toMatchObject({ showMansfield: true, mansfieldColor: IND_TOKENS.classic.info,
+        dotCrossColor: IND_TOKENS.classic.info, showRedDay: false, showNewLow: false })
       const keys = drawn({ ...defaults, ...preset(id) }).map((p) => p.key)
-      expect(keys, id).toContain('mansfield')
-      expect(keys, id).toContain('dotMansfieldCross')
-      expect(keys, id).not.toContain('dotNHred')
+      expect(keys, id).toEqual(['mansfield', 'mansfieldZero', 'dotMansfieldCross'])
     }
     expect(preset('trend').mansfieldLength).toBe(200)
     expect(preset('trendWeekly').mansfieldLength).toBe(52)
     expect(preset('trendWeekly').lookback).toBe(52)
   })
 
-  it('Stress: info blue on the line and the plain dots, gold on BOTH large glyphs — two hues (red is for losses and errors, plan §3)', () => {
+  it('Stress: info blue on the line and the plain dots, gold on the red-day glyph ALONE — two hues (red is for losses and errors, plan §3)', () => {
     expect([...huesOf(preset('stress'))].sort()).toEqual(TWO)
     const keys = drawn({ ...defaults, ...preset('stress') }).map((p) => p.key)
-    expect(keys).toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotNHred'])
-    expect(defaults.dotRedColor).toBe(IND_TOKENS.classic.premium)
-    expect(preset('stress')).toMatchObject({ showRedDay: true, showNewHighBeforePrice: true, showMansfield: false })
+    expect(keys).toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHred', 'dotNHpartial'])
+    expect(defaults.dotRedColor).toBe(IND_TOKENS.classic.info)
+    expect(preset('stress')).toMatchObject({ showRedDay: true, showNewHighBeforePrice: false, showMansfield: false,
+      dotRedColor: IND_TOKENS.classic.premium })
+  })
+
+  it('Custom (Classic plus red-day highs): large gold before price and large BLUE red day — still two hues', () => {
+    const custom = { ...preset('classic'), showRedDay: true }
+    expect([...huesOf(custom)].sort()).toEqual(TWO)
+    expect(drawn({ ...defaults, ...custom }).map((p) => p.key)).toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHred', 'dotNHbeforePx', 'dotNHpartial'])
   })
 
   it('the untouched definition (no preset) is Classic', () => {
     expect([...huesOf({})].sort()).toEqual(TWO)
   })
 
-  it('⛔ CONTROL: a bear red-day dot would be a third hue under Stress — the counter sees it, by plot, not by input', () => {
-    expect(huesOf({ ...preset('stress'), dotRedColor: IND_TOKENS.classic.bear }).size).toBe(3)
+  it('⛔ CONTROL: a bear red-day dot is a hue the counter sees under Stress — by plot, not by input', () => {
+    const bear = huesOf({ ...preset('stress'), dotRedColor: IND_TOKENS.classic.bear })
+    expect(bear.has(IND_TOKENS.classic.bear)).toBe(true)
+    expect([...bear].sort()).not.toEqual(TWO)
+    // and a third hue once before-price is back on beside it
+    expect(huesOf({ ...preset('stress'), showNewHighBeforePrice: true, dotRedColor: IND_TOKENS.classic.bear }).size).toBe(3)
     // …and the same recolour under Classic, where the dot is OFF, changes nothing on the chart
     expect([...huesOf({ ...preset('classic'), dotRedColor: IND_TOKENS.classic.bear })].sort()).toEqual(TWO)
   })

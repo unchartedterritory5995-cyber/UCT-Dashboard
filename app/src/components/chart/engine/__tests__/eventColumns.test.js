@@ -211,8 +211,11 @@ const SHIPPED_COLUMNS = Object.freeze({
   // probes compute); `columnKeys` reads the declaration, so they are rightly
   // absent here. `registry_defs._rs_line_row(True)["columns"]` is the full wire
   // set (22), railed against the provider by `tests/test_rs_columns_provider.py`.
-  rsLine: ['rsLine', 'rsAbove', 'rsMa', 'mansfield', 'dotNH', 'dotNHbeforePx', 'dotNHpartial',
-    'dotNHred', 'dotNL', 'dotMansfieldCross'],
+  // Visual round A3 declares the red-day dot BEFORE the before-price dot, so the
+  // gold before-price glyph paints on top where both fire; the `mansfieldZero`
+  // guide (A2) is an `hlines` plot and returns no column.
+  rsLine: ['rsLine', 'rsAbove', 'rsMa', 'mansfield', 'dotNH', 'dotNHred', 'dotNHbeforePx',
+    'dotNHpartial', 'dotNL', 'dotMansfieldCross'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who
