@@ -810,14 +810,11 @@ function applyPresetFields(cs, instanceId, def, preset, registry) {
       if (plotKey === null) {
         // A WORD means every dot output. The instance level carries it, and an output
         // that stored its own size is brought in line, so the word holds everywhere
-        // and `presetFieldsMatch` reads it back as the preset.
-        if (effectiveDotSize(findInstance(next, instanceId), null) !== word) {
+        // and `presetFieldsMatch` reads it back as the preset. ⭐ U8 #11: the
+        // instance-level write itself deletes the per-output sizes, so one call
+        // does both whenever any dot output is off the word.
+        if (instanceDotSizeReading(findInstance(next, instanceId), def) !== word) {
           next = setInstanceDotSize(next, instanceId, word, registry)
-        }
-        for (const p of dotPlotsOf(def)) {
-          if (effectiveDotSize(findInstance(next, instanceId), p.key) !== word) {
-            next = setInstanceDotSize(next, instanceId, word, registry, p.key)
-          }
         }
         continue
       }
@@ -936,6 +933,24 @@ export const DOT_SIZE_OPTIONS = Object.freeze([
   ['medium', 'Default'],
   ['large', 'Large'],
 ])
+
+/** What the whole-indicator Dot size control reads when the dot outputs do not all
+ *  draw at one size. Never stored and never a size: `setInstanceDotSize` refuses it,
+ *  and a control shows it as a disabled "Mixed" option. (U8 #11, 2026-11-07.) */
+export const DOT_SIZE_MIXED = 'mixed'
+
+/**
+ * The word the whole-indicator Dot size control shows for one instance: the
+ * instance-level word when every dot output of `def` draws at it, else
+ * `DOT_SIZE_MIXED`. ⭐ U8 #11 — the control used to read the instance level alone,
+ * so after Stress it said Default while the before-price dot drew Large, and
+ * choosing Default (already "selected") fired nothing.
+ */
+export function instanceDotSizeReading(inst, def) {
+  const word = effectiveDotSize(inst, null)
+  for (const p of dotPlotsOf(def)) if (effectiveDotSize(inst, p.key) !== word) return DOT_SIZE_MIXED
+  return word
+}
 
 /**
  * Add ANOTHER instance of a definition already on the chart.
@@ -1222,6 +1237,7 @@ export function setInstancePlotStyle(cs, instanceId, style, registry, plotKey) {
  *
  * Same delete-the-default rule as every other optional key here, and the same
  * per-output-over-instance shape as the style — one seam, two properties.
+ * With no `plotKey` the word holds for EVERY dot: per-output sizes are deleted.
  */
 export function setInstanceDotSize(cs, instanceId, size, registry, plotKey) {
   if (!cs || typeof cs !== 'object') return cs
@@ -1248,12 +1264,40 @@ export function setInstanceDotSize(cs, instanceId, size, registry, plotKey) {
       else delete plots[plotKey]
       if (Object.keys(plots).length) presentation.plots = plots
       else delete presentation.plots
-    } else if (size === DEFAULT_DOT_SIZE) {
-      if (!Object.prototype.hasOwnProperty.call(presentation, 'dotSize')) return i
-      delete presentation.dotSize
     } else {
-      if (presentation.dotSize === size) return i
-      presentation.dotSize = size
+      // ⭐ U8 #11 (review, 2026-11-07) — THE WHOLE-INDICATOR WORD MEANS EVERY DOT.
+      // `storedDotSize` reads per output OVER the instance level, so a per-output
+      // size a preset stored (Stress: the before-price dot Large; Stress then Trend:
+      // a per-dot 'small') outranked every later instance-level choice, and no
+      // member control ever deleted it. An instance-level write therefore also
+      // deletes every per-output `dotSize` (other per-output keys stay), the way a
+      // word preset brings each output in line. The dialog's Style tab, the Chart
+      // Settings row and the agent op's no-plotKey path all come through here.
+      let touched = false
+      if (presentation.plots && typeof presentation.plots === 'object') {
+        const plots = {}
+        for (const [k, e] of Object.entries(presentation.plots)) {
+          if (e && typeof e === 'object' && Object.prototype.hasOwnProperty.call(e, 'dotSize')) {
+            const { dotSize: _drop, ...rest } = e
+            touched = true
+            if (Object.keys(rest).length) plots[k] = rest
+          } else {
+            plots[k] = e
+          }
+        }
+        if (Object.keys(plots).length) presentation.plots = plots
+        else delete presentation.plots
+      }
+      if (size === DEFAULT_DOT_SIZE) {
+        if (Object.prototype.hasOwnProperty.call(presentation, 'dotSize')) {
+          delete presentation.dotSize
+          touched = true
+        }
+      } else if (presentation.dotSize !== size) {
+        presentation.dotSize = size
+        touched = true
+      }
+      if (!touched) return i
     }
     changed = true
     return Object.keys(presentation).length ? { ...i, presentation } : (() => {

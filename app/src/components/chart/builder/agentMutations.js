@@ -23,7 +23,7 @@
 
 import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
   setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue,
-  setInstanceVisibility, setInstanceDotSize, dotPlotsOf } from '../engine/instanceControls'
+  setInstanceVisibility, setInstanceDotSize, dotPlotsOf, instanceDotSizeReading } from '../engine/instanceControls'
 import { normalizeVisibility, visibilitySummary, VISIBILITY_PRESETS } from '../engine/instanceTimeframe'
 import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
@@ -864,7 +864,7 @@ export function styleOptionsOf(cs, registry, instanceId) {
     displayTarget: { current: resolveDisplayTarget(inst, view), options: targets.length ? [{ value: 'auto', label: 'Automatic' }, ...targets] : [] },
     // ⭐ 2a-12: `null` for a definition that draws no dots; else the instance-level word and the outputs it covers
     dotSize: dotPlotsOf(def).length
-      ? { current: storedDotSize(inst, null) || DEFAULT_DOT_SIZE, options: Object.keys(DOT_SIZES),
+      ? { current: instanceDotSizeReading(inst, def), options: Object.keys(DOT_SIZES),
           plots: dotPlotsOf(def).map((p) => ({ plotKey: p.key, label: p.label || p.key, current: storedDotSize(inst, p) || DEFAULT_DOT_SIZE })) }
       : null,
   }
@@ -950,7 +950,10 @@ function writeStyle(view, req, inst, def, registry) {
     if (req.plotKey !== undefined && req.plotKey !== null && !plot) {
       return refuse(REASONS.BAD_INPUT, { plotKey: req.plotKey, why: `${nameOfDef(def)} draws no dots on "${req.plotKey}"`, options: dots.map((p) => ({ plotKey: p.key, label: p.label || p.key })) })
     }
-    const before = storedDotSize(inst, plot ? { key: plot.key } : null) || DEFAULT_DOT_SIZE
+    // ⭐ U8 #11 (2026-11-07): with no plotKey, `before` is what the Dot size control reads,
+    // 'mixed' while a per-dot size disagrees, so "default dots" after Stress is a real change
+    // (the setter deletes the per-dot sizes) rather than a no-change refusal.
+    const before = plot ? (storedDotSize(inst, { key: plot.key }) || DEFAULT_DOT_SIZE) : instanceDotSizeReading(inst, def)
     if (before === req.size) return refuse(REASONS.NO_CHANGE)
     const next = setInstanceDotSize(view, id, req.size, registry, plot ? plot.key : undefined)
     if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)

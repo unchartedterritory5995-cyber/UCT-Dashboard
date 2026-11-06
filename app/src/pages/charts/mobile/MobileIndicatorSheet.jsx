@@ -35,10 +35,12 @@ function liveInstanceOf(cs, defId) {
 // export. The rule is unchanged: a preset matches when EVERY key it declares
 // equals the resolved value; the first match wins; a preset with no keys never
 // matches. Nothing is stored on the instance — "which preset is this" is
-// derived from the inputs, so it cannot drift from the chart. (The engine's
-// `detectPreset` also takes a third `{instance, def, cs}` argument that compares
-// a preset's non-input fields; this sheet passes none and reads inputs alone,
-// exactly as its duplicate did.)
+// derived from the instance, so it cannot drift from the chart. The sheet passes
+// the engine's third `{instance, def, cs}` argument, so a preset's non-input
+// fields (visibility, dot size, display target) must match too, exactly as in
+// the desktop dialog. (U8 #27, 2026-11-07: it used to pass none and read inputs
+// alone, so after Trend plus a Large dot the dialog said Custom and the phone
+// still pressed Trend.)
 
 // ─── ONE FIELD ROW ───────────────────────────────────────────────────────────
 //
@@ -341,7 +343,12 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     [studyDef, studyModel],
   )
   const presets = useMemo(() => presetsOf(studyDef), [studyDef])
-  const currentPreset = studyModel ? detectPreset(presets, studyModel.values) : null
+  // ⭐ U8 #27 (2026-11-07): the third argument compares a preset's visibility, dot
+  // size and display target too, exactly as the desktop dialog does, so the two
+  // surfaces cannot name different presets for one instance.
+  const currentPreset = studyModel
+    ? detectPreset(presets, studyModel.values, { instance: studyInst, def: studyDef, cs })
+    : null
 
   // Collapse state, SEEDED from the definition's `meta.groupsCollapsed` hint
   // (`initialCollapsed`) each time the editor target changes — a group the

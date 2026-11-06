@@ -111,7 +111,7 @@ import SourceField from './SourceField'
 // FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
 import IndicatorTemplatesBar from './IndicatorTemplatesBar'
-import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors, storedDotSize, DEFAULT_DOT_SIZE } from './engine/presentation'
+import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
 // ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
 // ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
 // about a symbol that may now come from either catalogue, so asking the breadth-only
@@ -126,7 +126,8 @@ import {
 } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
-import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dotPlotsOf, DOT_SIZE_OPTIONS } from './engine/instanceControls'
+import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dotPlotsOf, DOT_SIZE_OPTIONS,
+  instanceDotSizeReading, DOT_SIZE_MIXED } from './engine/instanceControls'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -2777,19 +2778,23 @@ export default function ChartSettingsIndicators({
       )
     })
     if (dots.length) {
+      // ⭐ U8 #11 (2026-11-07): "Mixed" while a per-dot size disagrees with the
+      // instance level; the writer deletes per-dot sizes on any word chosen.
+      const dotReading = instanceDotSizeReading(inst, def)
       rows.push(
         <div className={styles.insField} data-field="__dotSize__" data-measure="medium" key="dot-size">
           <span className={styles.insFieldLabel}>Dot size</span>
           <span className={styles.insFieldCtl}>
             <select
               className={styles.indSelect}
-              value={storedDotSize(inst, null) || DEFAULT_DOT_SIZE}
+              value={dotReading}
               aria-label={`${row.label} dot size`}
               onChange={(e) => {
                 const next = setInstanceDotSize(settings, row.instanceId, e.target.value, registry)
                 if (next !== settings) onChange?.({ ...next, preset: 'custom' })
               }}
             >
+              {dotReading === DOT_SIZE_MIXED && <option value={DOT_SIZE_MIXED} disabled>Mixed</option>}
               {DOT_SIZE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </span>
