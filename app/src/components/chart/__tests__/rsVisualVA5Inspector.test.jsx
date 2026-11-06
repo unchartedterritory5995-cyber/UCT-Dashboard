@@ -106,7 +106,18 @@ describe('A6.1 — the Preset row is the first CORE row', () => {
     fireEvent.change(presetSelect(), { target: { value: 'trend' } })
     const inst = findInstance(seen.cs, RS_ID)
     for (const [k, v] of Object.entries(preset('trend').inputs)) expect(inst.inputs[k], k).toBe(v)
-    expect(inst.presentation).toEqual({ dotSize: 'small' })
+    // 2026-11-07: the definition unit (VA2) moved Trend to Mansfield view with its
+    // cross dot at the DEFAULT size; the writer stores nothing for 'medium', so the
+    // expectation is read from the preset instead of a literal.
+    const ds = preset('trend').dotSize
+    if (typeof ds === 'string' && ds !== 'medium') expect(inst.presentation && inst.presentation.dotSize).toBe(ds)
+    else if (ds && typeof ds === 'object') {
+      for (const [plotKey, word] of Object.entries(ds)) {
+        const stored = inst.presentation && inst.presentation.plots && inst.presentation.plots[plotKey]
+        if (word === 'medium') expect(stored && stored.dotSize, plotKey).toBeUndefined()
+        else expect(stored && stored.dotSize, plotKey).toBe(word)
+      }
+    }
     expect(inst.visibility).toEqual({ preset: 'dailyUp' })
     expect(seen.cs.preset).toBe('custom')
     expect(presetSelect().value).toBe('trend')
