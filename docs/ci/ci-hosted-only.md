@@ -102,3 +102,38 @@ USD/month total: GitHub, third party, PC power and storage. The $12 inferred Fre
 - **Real-anchor volume:** below normal, and the window is 18 hours.
 - **Merge-candidate rail set:** assumed to match the master rail set.
 - **Tree-reuse window:** depends on real review-to-merge times, which were not measured.
+
+## After AUDIT's ruling of Nov 6 (coalescing 30/60, strict reuse, no managed runners)
+
+**Still no fit. The best hosted-only case is $467/month at the normal pace and $649 at Nov-5 pace: $267 and $449 over $200.**
+
+Setup versus test time, measured from real job steps (`tools/ci_cost_setup.py`; 100 gate shards and 10 runs per rail):
+
+| Job | Checkout s | Install s | Toolchain s | Test s | Total s | Billed min |
+|---|---|---|---|---|---|---|
+| Gate Agent shard | 29 | 10 | 13 | 673 | 730 | 13 |
+| Equivalence rail | 29 | 9 | 14 | 2 | 60 | 1 |
+
+- **Dependency caching saves nothing measurable.** `npm ci` already takes about 10 s per shard, with the setup-node npm cache warm, and setup is 56 s of a 730-s shard.
+- **Fewer, larger shards:** 4 to 2 shards saves 4 billed min per heavy run (52 to 48) and adds about 11 min of wall time. 3 shards saves 1 min.
+
+Best case, cumulative (USD/month total, $12 Free allowance or $18 with Pro):
+
+| Step | Normal | Nov 5 | Gap normal / Nov 5 |
+|---|---|---|---|
+| a, nightly daily on hosted (as today) | 653 | 954 | +453 / +754 |
+| b coalesce 30 min market hours, 60 off-hours | 551 | 749 | +351 / +549 |
+| + c strict tree reuse | 546 | 735 | +346 / +535 |
+| + dependency caching | 546 | 735 | no change |
+| + 2 shards instead of 4 | 528 | 709 | +328 / +509 |
+| + Pro | 526 | 707 | +326 / +507 |
+| **+ nightly weekly** | **467** | **649** | **+267 / +449** |
+| Floor: same, no gate runs | 201 | 371 | +1 / +171 |
+
+- **Dev speed:**
+  - Coalescing at 30/60 gives gate runs of 23 a day normal and 30 on Nov 5.
+  - Promotion latency on Nov 5 is 45 / 75 / 79 min (p50 / p90 / max), up from 26 / 42 / 45. Normal p50 is 38 min.
+  - With 2 shards it is 58 / 86 / 91 min on Nov 5.
+- **Reuse is rare once coalescing is on:** 16% of Agent gates. Strict proof needs no other master push from the candidate's start to the gate's start, about 46 min. Without coalescing it is 66%.
+- **Why it cannot fit:** the mandatory rails, run per push and per candidate, plus the candidate runs, already cost $201 at the normal pace with no gate runs at all.
+- **Rail checkouts (not ruled):** checkout is 75-83 s of term018, wisdom and flow-worker's 1.5-2.2 min. A shallow or sparse checkout would cut term018 from 3 to 2 billed min, wisdom from 2 to 1, flow-worker from 2 to 1 and notebook bytes from 3 to 2. That is about $45/month at most. It does not close the gap.

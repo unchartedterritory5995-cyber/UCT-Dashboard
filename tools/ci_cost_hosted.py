@@ -28,6 +28,9 @@ BLACKSMITH_FREE_USD = 3000 * BLACKSMITH_2VCPU
 PRO_USD = 4.0                # E third-party page; GitHub's own pricing page did not show Pro
 PRO_EXTRA_ALLOWANCE = 6.0    # P $18 included compute on Pro against $12 on Free
 SHARD_SHARE = 4 * 14.09 / 61.66   # M share of the heavy jobs that is the four browser shards
+NIGHTLY_HOSTED_MIN = 379.0   # M the report-only nightly suite on Nov 6, all hosted
+MARKET_UTC = (14.5, 21.0)    # 09:30-16:00 ET in EST (UTC-5), weekdays
+WEEKDAY = {"2026-11-01": False, "2026-11-02": True, "2026-11-03": True, "2026-11-04": True, "2026-11-05": True}
 
 
 def units(data: dict) -> dict:
@@ -44,14 +47,21 @@ def units(data: dict) -> dict:
     }
 
 
-def coalesce(arrivals: list[float], every_min: float, wall: float) -> dict:
-    """Gate runs on the master tip, one at a time, at most one start per `every_min`. Returns runs and latencies."""
+def coalesce(arrivals: list[float], every_min: float, wall: float, off_hours_min: float | None = None,
+             weekday: bool = True) -> dict:
+    """Gate runs on the master tip, one at a time, at most one start per `every_min` (or `off_hours_min` outside
+    weekday market hours). Returns runs and latencies."""
     pushes = sorted(at * 60 for at in arrivals)
     runs, latency = 0, []
     last_start, busy_until = -1e9, -1e9
     index = 0
+
+    def gap(minute: float) -> float:
+        market = weekday and MARKET_UTC[0] * 60 <= minute < MARKET_UTC[1] * 60
+        return every_min if market or off_hours_min is None else off_hours_min
+
     while index < len(pushes):
-        start = max(pushes[index], last_start + every_min, busy_until)
+        start = max(pushes[index], last_start + gap(pushes[index]), busy_until)
         covered = [p for p in pushes[index:] if p <= start]
         end = start + wall
         latency.extend(end - p for p in covered)
@@ -80,8 +90,11 @@ def reuse_rate(arrivals_by_day: dict, window: float) -> float:
 
 
 def month(day: base.Day, unit: dict, k: float = 3.0, gates: float | None = None, reuse: float = 0.0,
-          blacksmith: bool = False, pro: bool = False) -> dict:
-    """Variant a and its add-ons. `gates` overrides the gate run count (coalescing)."""
+          blacksmith: bool = False, pro: bool = False, heavy_saving: float = 0.0, nightly_per_week: float = 0.0) -> dict:
+    """Variant a and its add-ons. `gates` overrides the gate run count (coalescing). `heavy_saving` is billed minutes
+    taken off every heavy Agent run (fewer shards). `nightly_per_week` > 0 runs the nightly suite hosted that often."""
+    unit = {**unit, "gate_core": unit["gate_core"] - heavy_saving, "heavy": unit["heavy"] - heavy_saving,
+            "agent_candidate": unit["agent_candidate"] - heavy_saving}
     merges = day.gates(k)
     runs = merges if gates is None else gates
     agent_candidates = day.heavy_candidates(k)
@@ -95,7 +108,7 @@ def month(day: base.Day, unit: dict, k: float = 3.0, gates: float | None = None,
         moved = (runs - agent_gates * reuse) * shard_min + agent_candidates * shard_min
         hosted -= moved
         third = max(0.0, moved * BLACKSMITH_2VCPU * 30 - BLACKSMITH_FREE_USD) / 30
-    hosted_month = hosted * DAYS + base.fixed_hosted_month(unit)
+    hosted_month = hosted * DAYS + base.fixed_hosted_month(unit) + NIGHTLY_HOSTED_MIN * nightly_per_week * DAYS / 7
     allowance = base.INCLUDED_USD + (PRO_EXTRA_ALLOWANCE if pro else 0.0)
     github = max(0.0, hosted_month * RATE - allowance) + (PRO_USD if pro else 0.0)
     power = (day.agent_pushes * base.PC_SUITE_MIN + base.NIGHTLY_MOVED_MIN) * DAYS / 60 * base.PC_WATTS / 1000 * base.KWH_USD
@@ -125,6 +138,25 @@ def run() -> dict:
             "normal_latency_p50": statistics.median(row["latency_p50"] for row in normal),
         }
     scenarios = {"normal": prof["nov15"], "nov5": prof["nov5"]}
+    results["setup"] = data.get("setup")
+    shards = data.get("setup") or {}
+    two_shard_saving = shards.get("shards_4_cached_min", 52) - shards.get("shards_2_cached_min", 48)
+    window = unit["candidate_wall"] + 30.0
+    results["reuse"]["rate_with_coalescing"] = reuse_rate(by_day, window)
+    mixed = [coalesce([at for at, _ in by_day[d]], 30, unit["gate_wall"], 60, WEEKDAY[d]) for d in days5]
+    busy_mixed = coalesce([at for at, _ in by_day["2026-11-05"]], 30, unit["gate_wall"], 60, True)
+    busy_mixed_2 = coalesce([at for at, _ in by_day["2026-11-05"]], 30, unit["gate_wall"] + 11.2, 60, True)
+    results["coalesce"]["30 market / 60 off"] = {
+        "normal_runs": statistics.fmean(row["runs"] for row in mixed), "nov5_runs": busy_mixed["runs"],
+        "nov5_latency_p50": busy_mixed["latency_p50"], "nov5_latency_p90": busy_mixed["latency_p90"],
+        "nov5_latency_max": busy_mixed["latency_max"],
+        "normal_latency_p50": statistics.median(row["latency_p50"] for row in mixed)}
+    results["coalesce"]["30/60, 2 shards"] = {
+        "normal_runs": statistics.fmean(row["runs"] for row in mixed), "nov5_runs": busy_mixed_2["runs"],
+        "nov5_latency_p50": busy_mixed_2["latency_p50"], "nov5_latency_p90": busy_mixed_2["latency_p90"],
+        "nov5_latency_max": busy_mixed_2["latency_max"],
+        "normal_latency_p50": statistics.median(row["latency_p50"] for row in mixed)}
+    results["best"] = {}
     for label, day in scenarios.items():
         key = "normal_runs" if label == "normal" else "nov5_runs"
         ratio = lambda n: results["coalesce"][n][key] / results["coalesce"][0][key]  # noqa: E731
@@ -144,6 +176,23 @@ def run() -> dict:
             "floor: no gates at all": month(day, unit, gates=0.0),
         }
         results["rows"][label] = rows
+        key2 = "normal_runs" if label == "normal" else "nov5_runs"
+        mixed_runs = merges * results["coalesce"]["30 market / 60 off"][key2] / results["coalesce"][0][key2]
+        reuse = results["reuse"]["rate_with_coalescing"]
+        results["best"][label] = {
+            "a, nightly daily on hosted (as today)": month(day, unit, nightly_per_week=7),
+            "b 30/60": month(day, unit, gates=mixed_runs, nightly_per_week=7),
+            "+ c strict reuse": month(day, unit, gates=mixed_runs, reuse=reuse, nightly_per_week=7),
+            "+ caching (measured: no saving)": month(day, unit, gates=mixed_runs, reuse=reuse, nightly_per_week=7),
+            "+ 2 shards instead of 4": month(day, unit, gates=mixed_runs, reuse=reuse, nightly_per_week=7,
+                                            heavy_saving=two_shard_saving),
+            "+ Pro": month(day, unit, gates=mixed_runs, reuse=reuse, nightly_per_week=7, heavy_saving=two_shard_saving,
+                           pro=True),
+            "+ nightly weekly": month(day, unit, gates=mixed_runs, reuse=reuse, nightly_per_week=1,
+                                      heavy_saving=two_shard_saving, pro=True),
+            "floor: same, no gate runs": month(day, unit, gates=0.0, nightly_per_week=1, heavy_saving=two_shard_saving,
+                                               pro=True),
+        }
     return results
 
 
@@ -156,6 +205,10 @@ def render(results: dict) -> str:
     for n, row in results["coalesce"].items():
         out.append(f"| {n} | {row['normal_runs']:.1f} / {row['nov5_runs']} | {row['nov5_latency_p50']:.0f} / "
                    f"{row['nov5_latency_p90']:.0f} / {row['nov5_latency_max']:.0f} | {row['normal_latency_p50']:.0f} |")
+    out += ["", "| Best case, cumulative | Normal $ | Nov 5 $ | Gap to $200 normal / Nov 5 |", "|---|---|---|---|"]
+    for name in results["best"]["normal"]:
+        a, b = results["best"]["normal"][name]["total"], results["best"]["nov5"][name]["total"]
+        out.append(f"| {name} | {a:,.0f} | {b:,.0f} | {a - TARGET:+,.0f} / {b - TARGET:+,.0f} |")
     out += ["", "Tree reuse: " + json.dumps({k: round(v, 3) for k, v in results["reuse"].items()})]
     return "\n".join(out)
 

@@ -1766,6 +1766,118 @@
   "artifact_partial": false
  },
  "artifact_month_usd": 0.32672215225,
+ "setup": {
+  "shard": {
+   "checkout": 29.33,
+   "install": 9.53,
+   "overhead": 0.96,
+   "test": 673.25,
+   "toolchain": 13.23,
+   "total": 729.6,
+   "n": 100
+  },
+  "union": {
+   "checkout": 28.52,
+   "install": 9.44,
+   "overhead": 1.36,
+   "test": 2.0,
+   "toolchain": 14.44,
+   "total": 59.6,
+   "n": 25
+  },
+  "rails": {
+   "term018 guards": {
+    "checkout": 75.4,
+    "install": 5.8,
+    "overhead": 1.0,
+    "test": 46.9,
+    "toolchain": 0.7,
+    "total": 133.2,
+    "n": 10
+   },
+   "wisdom rails": {
+    "checkout": 83.4,
+    "install": 5.1,
+    "overhead": 0.9,
+    "test": 23.6,
+    "toolchain": 0.5,
+    "total": 117.6,
+    "n": 10
+   },
+   "notebook bytes": {
+    "checkout": 36.9,
+    "install": 12.6,
+    "overhead": 1.1,
+    "test": 69.5,
+    "toolchain": 11.8,
+    "total": 136.2,
+    "n": 10
+   },
+   "notebook budgets": {
+    "checkout": 28.9,
+    "install": 40.9,
+    "overhead": 1.0,
+    "test": 29.6,
+    "toolchain": 0.5,
+    "total": 104.1,
+    "n": 10
+   },
+   "preference allow-list": {
+    "checkout": 43.8,
+    "install": 43.2,
+    "overhead": 0.5,
+    "test": 19.3,
+    "toolchain": 0.3,
+    "total": 109.8,
+    "n": 10
+   },
+   "flow-worker deploy coverage": {
+    "checkout": 75.5,
+    "overhead": 0.9,
+    "test": 5.5,
+    "toolchain": 0.4,
+    "total": 85.9,
+    "n": 10
+   },
+   "vite build args": {
+    "checkout": 28.2,
+    "install": 4.9,
+    "overhead": 0.4,
+    "test": 15.7,
+    "toolchain": 0.4,
+    "total": 52.6,
+    "n": 10
+   },
+   "indicators security suite": {
+    "checkout": 30.7,
+    "install": 58.5,
+    "overhead": 0.9,
+    "test": 386.2,
+    "total": 479.4,
+    "n": 10
+   },
+   "Notebook accessibility": {
+    "checkout": 29.6,
+    "install": 11.7,
+    "overhead": 0.8,
+    "test": 355.6,
+    "toolchain": 12.8,
+    "total": 414.3,
+    "n": 10
+   }
+  },
+  "shard_billed_now": 13,
+  "shard_billed_cached": 13,
+  "shards_1_cached_min": 46,
+  "shards_1_wall_min": 45.99699999999999,
+  "shards_2_cached_min": 48,
+  "shards_2_wall_min": 23.555333333333333,
+  "shards_3_cached_min": 51,
+  "shards_3_wall_min": 16.07477777777778,
+  "shards_4_cached_min": 52,
+  "shards_4_wall_min": 12.3345,
+  "shards_4_now_min": 52
+ },
  "steps": {
   "gate_runs": 40,
   "gate_before_min": 8.75,

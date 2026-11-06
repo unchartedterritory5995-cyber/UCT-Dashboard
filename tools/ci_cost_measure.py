@@ -295,6 +295,7 @@ def main() -> int:
     parser.add_argument("--stop", help="first budget stop instant; default the earliest stopped job")
     parser.add_argument("--post", help="census snapshot from the #877 cutoff, with artifact totals")
     parser.add_argument("--steps", help="output of tools/ci_cost_steps.py")
+    parser.add_argument("--setup", help="output of tools/ci_cost_setup.py")
     args = parser.parse_args()
     with open(args.nov, encoding="utf-8") as handle:
         nov = json.load(handle)
@@ -324,6 +325,9 @@ def main() -> int:
         "storage": post.get("storage"),
         "artifact_month_usd": ccr.artifact_month_usd(post.get("storage") or {}),
     }
+    if args.setup:
+        with open(args.setup, encoding="utf-8") as handle:
+            out["setup"] = json.load(handle)
     if args.steps:
         with open(args.steps, encoding="utf-8") as handle:
             out["steps"] = json.load(handle)
