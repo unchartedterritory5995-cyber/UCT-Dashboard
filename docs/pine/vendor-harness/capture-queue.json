@@ -44,11 +44,13 @@
    "docs/pine/capture-queue-2026-11-03-w4-t4.md",
    "docs/pine/capture-queue-2026-11-04-w4-t11.md",
    "docs/pine/capture-queue-2026-11-04-w4-t13.md",
+   "docs/pine/capture-queue-2026-11-05-w34-d3.md",
+   "docs/pine/capture-queue-2026-11-05-w3w4-d1.md",
    "docs/pine/capture-queue-2026-11-05-w4-t15-t17.md",
    "docs/pine/capture-queue-2026-11-05-w9.md"
   ],
-  "coverageMeasuredOn": "2026-11-03",
-  "coverageMasterSha": "6990d63b02",
+  "coverageMeasuredOn": "2026-11-05",
+  "coverageMasterSha": "3ca4b0d358",
   "fixtures": 353,
   "ledgerRows": 0
  },
@@ -60,19 +62,19 @@
   "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)"
  },
  "counts": {
-  "targets": 170,
+  "targets": 177,
   "byStatus": {
-   "CAPTURED": 76,
+   "CAPTURED": 75,
    "NEEDS_CHART": 13,
    "NEEDS_LIVE": 5,
-   "QUEUED": 76
+   "QUEUED": 84
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 64,
+    "CAPTURED": 63,
     "NEEDS_CHART": 12,
     "NEEDS_LIVE": 5,
-    "QUEUED": 67
+    "QUEUED": 75
    },
    "W1": {
     "QUEUED": 2
@@ -91,15 +93,15 @@
   },
   "byPriorityBand": {
    "0": {
-    "CAPTURED": 63,
+    "CAPTURED": 59,
     "NEEDS_CHART": 12,
     "NEEDS_LIVE": 5,
-    "QUEUED": 67
+    "QUEUED": 73
    },
    "1-2": {
-    "CAPTURED": 13,
+    "CAPTURED": 16,
     "NEEDS_CHART": 1,
-    "QUEUED": 9
+    "QUEUED": 11
    }
   },
   "byDocWave": {
@@ -112,7 +114,7 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 7,
+    "CAPTURED": 6,
     "QUEUED": 5
    },
    "b1-paints": {
@@ -196,6 +198,9 @@
     "CAPTURED": 2,
     "QUEUED": 2
    },
+   "w3w4-d1": {
+    "QUEUED": 8
+   },
    "w4-t15-t17": {
     "QUEUED": 2
    },
@@ -223,10 +228,412 @@
   },
   "rowsNeedingProbe": 131,
   "rowsNeedingProbeLive": 8,
-  "licenceHeldCensus": 159,
+  "licenceHeldCensus": 156,
   "rowsNamingUnreadableCharts": 0
  },
  "targets": [
+  {
+   "id": "vw-w4-session-default-days@BITSTAMP:BTCUSD@60",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w4-session-default-days.pine",
+   "sourceKind": "probe",
+   "sha256": "8d648baf7e8e2a3eb790b802affde28ab3c67275bdd1475ff39586239fea874e",
+   "bytes": 1398,
+   "stem": "vw-w4-session-default-days",
+   "captureStem": "vw-w4-session-default-days",
+   "symbol": "BITSTAMP:BTCUSD",
+   "tf": "60",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 82,
+    "upperSample": [
+     "builtin:advance-decline-ratio__Advance1Decl",
+     "builtin:moon-phases__Moon1Phases",
+     "builtin:parabolic-sar__PSAR",
+     "builtin:relative-volume-at-time__Relative1Vol",
+     "builtin:volatility-stop__Volatility_S",
+     "committed:3-level-zigzag-semafor__3078",
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:ad-line-of-sp-sectors__af306a4359",
+     "committed:asianrange-and-killzones__ef41eb5ad6",
+     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd",
+     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
+     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:function"
+   ],
+   "planWave": "W1",
+   "docWaves": [
+    "w4-t3"
+   ],
+   "oldestDoc": "2026-11-03",
+   "rows": [
+    "capture-queue-2026-11-03-w4-t3#W4-T3a"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w4-session-overnight@BITSTAMP:BTCUSD@60",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w4-session-overnight.pine",
+   "sourceKind": "probe",
+   "sha256": "17e09664203085af2d366719a2d724f5196af8613da1ceeb8dae22e1c288118a",
+   "bytes": 1677,
+   "stem": "vw-w4-session-overnight",
+   "captureStem": "vw-w4-session-overnight",
+   "symbol": "BITSTAMP:BTCUSD",
+   "tf": "60",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 82,
+    "upperSample": [
+     "builtin:advance-decline-ratio__Advance1Decl",
+     "builtin:moon-phases__Moon1Phases",
+     "builtin:parabolic-sar__PSAR",
+     "builtin:relative-volume-at-time__Relative1Vol",
+     "builtin:volatility-stop__Volatility_S",
+     "committed:3-level-zigzag-semafor__3078",
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:ad-line-of-sp-sectors__af306a4359",
+     "committed:asianrange-and-killzones__ef41eb5ad6",
+     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd",
+     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
+     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:function"
+   ],
+   "planWave": "W1",
+   "docWaves": [
+    "w4-t3"
+   ],
+   "oldestDoc": "2026-11-03",
+   "rows": [
+    "capture-queue-2026-11-03-w4-t3#W4-T3b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-call-site-history@AMEX:SPY@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-call-site-history-spy-1d-2026-10-01.json"
+   ],
+   "source": "tools/visual_conformance/probes/vw-call-site-history.pine",
+   "sourceKind": "probe",
+   "sha256": "f2fb305fbce3332ec08278613d3c9f26e879248ee76c8827798ea06b74980639",
+   "bytes": 5992,
+   "stem": "vw-call-site-history",
+   "captureStem": "vw-call-site-history",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 69,
+    "upperSample": [
+     "builtin:moon-phases__Moon1Phases",
+     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
+     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
+     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+     "committed:atr-god-strategy-by-tradesmart__4369755a29",
+     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
+     "committed:atr-support-and-resistance__3e9ddb38c4",
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
+     "committed:elliot-wave-detector-pro__ce1cc9553e",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "fn:conditional-history",
+    "pine:block"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "call-site-history"
+   ],
+   "oldestDoc": "2026-09-30",
+   "rows": [
+    "capture-queue-2026-09-30-call-site-history#A01, B10",
+    "capture-queue-2026-09-30-call-site-history#A02–A07, A10, A11, B04, B05",
+    "capture-queue-2026-09-30-call-site-history#A08, B08",
+    "capture-queue-2026-09-30-call-site-history#A09, B09",
+    "capture-queue-2026-09-30-call-site-history#A12",
+    "capture-queue-2026-09-30-call-site-history#A13 / B01",
+    "capture-queue-2026-09-30-call-site-history#A14",
+    "capture-queue-2026-09-30-call-site-history#B02, B03",
+    "capture-queue-2026-09-30-call-site-history#B06, B07",
+    "capture-queue-2026-09-30-call-site-history#C01–C06",
+    "capture-queue-2026-09-30-call-site-history#H01–H06",
+    "capture-queue-2026-09-30-call-site-history#D01–D03",
+    "capture-queue-2026-09-30-call-site-history#E01–E06"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-call-site-history@NYSE:RDDT@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-call-site-history-rddt-1d-2026-10-01.json"
+   ],
+   "source": "tools/visual_conformance/probes/vw-call-site-history.pine",
+   "sourceKind": "probe",
+   "sha256": "f2fb305fbce3332ec08278613d3c9f26e879248ee76c8827798ea06b74980639",
+   "bytes": 5992,
+   "stem": "vw-call-site-history",
+   "captureStem": "vw-call-site-history",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 69,
+    "upperSample": [
+     "builtin:moon-phases__Moon1Phases",
+     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
+     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
+     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+     "committed:atr-god-strategy-by-tradesmart__4369755a29",
+     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
+     "committed:atr-support-and-resistance__3e9ddb38c4",
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
+     "committed:elliot-wave-detector-pro__ce1cc9553e",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "fn:conditional-history",
+    "pine:block"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "call-site-history"
+   ],
+   "oldestDoc": "2026-09-30",
+   "rows": [
+    "capture-queue-2026-09-30-call-site-history#A01, B10",
+    "capture-queue-2026-09-30-call-site-history#A02–A07, A10, A11, B04, B05",
+    "capture-queue-2026-09-30-call-site-history#A08, B08",
+    "capture-queue-2026-09-30-call-site-history#A09, B09",
+    "capture-queue-2026-09-30-call-site-history#A12",
+    "capture-queue-2026-09-30-call-site-history#A13 / B01",
+    "capture-queue-2026-09-30-call-site-history#A14",
+    "capture-queue-2026-09-30-call-site-history#B02, B03",
+    "capture-queue-2026-09-30-call-site-history#B06, B07",
+    "capture-queue-2026-09-30-call-site-history#C01–C06",
+    "capture-queue-2026-09-30-call-site-history#H01–H06",
+    "capture-queue-2026-09-30-call-site-history#D01–D03",
+    "capture-queue-2026-09-30-call-site-history#E01–E06"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-cond-window-extremes@AMEX:SPY@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-cond-window-extremes-spy-1d-2026-10-02.json"
+   ],
+   "source": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+   "sourceKind": "probe",
+   "sha256": "3410b2d69d17f052c92e730fd3b7b653a32be0b1c7104adddea0d31c0ed103ce",
+   "bytes": 3169,
+   "stem": "vw-cond-window-extremes",
+   "captureStem": "vw-cond-window-extremes",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 69,
+    "upperSample": [
+     "builtin:moon-phases__Moon1Phases",
+     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
+     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
+     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+     "committed:atr-god-strategy-by-tradesmart__4369755a29",
+     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
+     "committed:atr-support-and-resistance__3e9ddb38c4",
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
+     "committed:elliot-wave-detector-pro__ce1cc9553e",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "fn:conditional-history",
+    "pine:block"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "c48"
+   ],
+   "oldestDoc": "2026-10-01",
+   "rows": [
+    "capture-queue-2026-10-01-c48#vw-cond-window-extremes.pine"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-cond-window-extremes@NYSE:RDDT@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-cond-window-extremes-rddt-1d-2026-10-02.json"
+   ],
+   "source": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+   "sourceKind": "probe",
+   "sha256": "3410b2d69d17f052c92e730fd3b7b653a32be0b1c7104adddea0d31c0ed103ce",
+   "bytes": 3169,
+   "stem": "vw-cond-window-extremes",
+   "captureStem": "vw-cond-window-extremes",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 69,
+    "upperSample": [
+     "builtin:moon-phases__Moon1Phases",
+     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
+     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
+     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+     "committed:atr-god-strategy-by-tradesmart__4369755a29",
+     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
+     "committed:atr-support-and-resistance__3e9ddb38c4",
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
+     "committed:elliot-wave-detector-pro__ce1cc9553e",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "fn:conditional-history",
+    "pine:block"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "c48"
+   ],
+   "oldestDoc": "2026-10-01",
+   "rows": [
+    "capture-queue-2026-10-01-c48#vw-cond-window-extremes.pine"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
   {
    "id": "vw-int-cast@NYSE:RDDT@D",
    "status": "NEEDS_CHART",
@@ -256,11 +663,12 @@
      "committed:smarter-snr__ac98ab25d5"
     ],
     "direct": [],
-    "upper": 12,
+    "upper": 13,
     "upperSample": [
      "builtin:hull-moving-average__Hull1MA",
      "committed:camarilla__jw9faob08r",
      "committed:ict-turtle-soup-flux-charts__053c3e6056",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
      "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
      "committed:smarter-snr__ac98ab25d5",
@@ -268,8 +676,7 @@
      "reference:heatmap-volume-xdecow__2lteb6l2tk",
      "reference:most-screener__d7d9ae5349",
      "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7",
-     "reference:range-filter-v1__T5nXpEBeCh",
-     "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f"
+     "reference:range-filter-v1__T5nXpEBeCh"
     ]
    },
    "statedUnblocks": null,
@@ -904,53 +1311,6 @@
    ]
   },
   {
-   "id": "optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02.json"
-   ],
-   "source": "corpus/committed/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
-   "sourceKind": "corpus",
-   "sha256": "2395e1caa875d21a825bfd49f48b7e4c12c3db28d005287ddbabbc5c2bd91fa2",
-   "bytes": 2335,
-   "stem": "optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84",
-   "captureStem": "optimized-keltner-channels-sltp-strategy-for-btc",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "census",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "corpus",
-   "needsLive": false,
-   "priority": 1,
-   "unblocks": {
-    "priority": 1,
-    "firm": [],
-    "named": [],
-    "direct": [
-     "committed:optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84"
-    ],
-    "upper": 0,
-    "upperSample": []
-   },
-   "statedUnblocks": null,
-   "guards": [],
-   "planWave": "E",
-   "docWaves": [
-    "E-census"
-   ],
-   "oldestDoc": "",
-   "rows": [],
-   "origins": [
-    "census"
-   ]
-  },
-  {
    "id": "pivot-high-low-points__hoTsDQRY3L@NYSE:RDDT@D",
    "status": "QUEUED",
    "evidence": [],
@@ -1302,120 +1662,6 @@
    ]
   },
   {
-   "id": "vw-w4-session-default-days@BITSTAMP:BTCUSD@60",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w4-session-default-days.pine",
-   "sourceKind": "probe",
-   "sha256": "8d648baf7e8e2a3eb790b802affde28ab3c67275bdd1475ff39586239fea874e",
-   "bytes": 1398,
-   "stem": "vw-w4-session-default-days",
-   "captureStem": "vw-w4-session-default-days",
-   "symbol": "BITSTAMP:BTCUSD",
-   "tf": "60",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 68,
-    "upperSample": [
-     "builtin:advance-decline-ratio__Advance1Decl",
-     "builtin:moon-phases__Moon1Phases",
-     "builtin:parabolic-sar__PSAR",
-     "builtin:relative-volume-at-time__Relative1Vol",
-     "builtin:volatility-stop__Volatility_S",
-     "committed:3-level-zigzag-semafor__3078",
-     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
-     "committed:ad-line-of-sp-sectors__af306a4359",
-     "committed:asianrange-and-killzones__ef41eb5ad6",
-     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-     "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2",
-     "committed:higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "pine:function"
-   ],
-   "planWave": "W1",
-   "docWaves": [
-    "w4-t3"
-   ],
-   "oldestDoc": "2026-11-03",
-   "rows": [
-    "capture-queue-2026-11-03-w4-t3#W4-T3a"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w4-session-overnight@BITSTAMP:BTCUSD@60",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w4-session-overnight.pine",
-   "sourceKind": "probe",
-   "sha256": "17e09664203085af2d366719a2d724f5196af8613da1ceeb8dae22e1c288118a",
-   "bytes": 1677,
-   "stem": "vw-w4-session-overnight",
-   "captureStem": "vw-w4-session-overnight",
-   "symbol": "BITSTAMP:BTCUSD",
-   "tf": "60",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 68,
-    "upperSample": [
-     "builtin:advance-decline-ratio__Advance1Decl",
-     "builtin:moon-phases__Moon1Phases",
-     "builtin:parabolic-sar__PSAR",
-     "builtin:relative-volume-at-time__Relative1Vol",
-     "builtin:volatility-stop__Volatility_S",
-     "committed:3-level-zigzag-semafor__3078",
-     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
-     "committed:ad-line-of-sp-sectors__af306a4359",
-     "committed:asianrange-and-killzones__ef41eb5ad6",
-     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-     "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2",
-     "committed:higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "pine:function"
-   ],
-   "planWave": "W1",
-   "docWaves": [
-    "w4-t3"
-   ],
-   "oldestDoc": "2026-11-03",
-   "rows": [
-    "capture-queue-2026-11-03-w4-t3#W4-T3b"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
    "id": "vw-w4-arm-runs@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -1440,10 +1686,9 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 62,
+    "upper": 69,
     "upperSample": [
      "builtin:gaps__Gaps",
-     "builtin:mcginley-dynamic__McGinley1Dyn",
      "builtin:relative-strength-index__RSI",
      "builtin:rob-booker-adx-breakout__Rob1Booker1A",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
@@ -1453,7 +1698,8 @@
      "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
      "committed:blackflag-fts__GdkmXaTINI",
      "committed:camarilla__jw9faob08r",
-     "committed:chart-vwap__804099ca2f"
+     "committed:chart-vwap__804099ca2f",
+     "committed:double-topbottom-ultimate-os__bd013ff4f5"
     ]
    },
    "statedUnblocks": null,
@@ -1501,10 +1747,9 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 62,
+    "upper": 69,
     "upperSample": [
      "builtin:gaps__Gaps",
-     "builtin:mcginley-dynamic__McGinley1Dyn",
      "builtin:relative-strength-index__RSI",
      "builtin:rob-booker-adx-breakout__Rob1Booker1A",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
@@ -1514,7 +1759,8 @@
      "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
      "committed:blackflag-fts__GdkmXaTINI",
      "committed:camarilla__jw9faob08r",
-     "committed:chart-vwap__804099ca2f"
+     "committed:chart-vwap__804099ca2f",
+     "committed:double-topbottom-ultimate-os__bd013ff4f5"
     ]
    },
    "statedUnblocks": null,
@@ -1532,339 +1778,6 @@
     "capture-queue-2026-11-03-w4-t4#W4-A2",
     "capture-queue-2026-11-03-w4-t4#W4-A3",
     "capture-queue-2026-11-03-w4-t4#W4-A4"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w4-session-param@AMEX:SPY@5",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w4-session-param.pine",
-   "sourceKind": "probe",
-   "sha256": "5e5d7f52f7484d609ddf0333153bece58e0c2de84d50c56e17f3eb514293aad8",
-   "bytes": 1414,
-   "stem": "vw-w4-session-param",
-   "captureStem": "vw-w4-session-param",
-   "symbol": "AMEX:SPY",
-   "tf": "5",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 41,
-    "upperSample": [
-     "builtin:auto-fib-extension__Auto1Fib1Ext",
-     "builtin:linear-regression-channel__Linear_Regre",
-     "committed:ict-institutional-order-flow-fadi__25d4834579",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:liquidity-levels-sonarlab__bba13c46c4",
-     "committed:market-profile-with-tpo__b2b119d8ab",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:market-structure-break-order-block__3a1fb6197f",
-     "committed:momentum-based-zigzag__38d39d2d6c",
-     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-     "committed:open-interest-profile-fixed-range-by-leviathan__875691ab51",
-     "committed:optimized-trend-tracker__ZhWiFvtpwE"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:history-dynamic-offset"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w4-t3"
-   ],
-   "oldestDoc": "2026-11-03",
-   "rows": [
-    "capture-queue-2026-11-03-w4-t3#W4-T2"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-call-site-history@AMEX:SPY@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/vw-call-site-history-spy-1d-2026-10-01.json"
-   ],
-   "source": "tools/visual_conformance/probes/vw-call-site-history.pine",
-   "sourceKind": "probe",
-   "sha256": "f2fb305fbce3332ec08278613d3c9f26e879248ee76c8827798ea06b74980639",
-   "bytes": 5992,
-   "stem": "vw-call-site-history",
-   "captureStem": "vw-call-site-history",
-   "symbol": "AMEX:SPY",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "preamble",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 39,
-    "upperSample": [
-     "builtin:moon-phases__Moon1Phases",
-     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
-     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
-     "committed:atr-god-strategy-by-tradesmart__4369755a29",
-     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
-     "committed:kalman-price-filter-backquant__47a601e4bc",
-     "committed:kernel-channel-backquant__d8c4b7f75c",
-     "committed:liquidity-levels-sonarlab__bba13c46c4",
-     "committed:machine-learning-lorentzian-classification__21f5ec5277",
-     "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "fn:conditional-history",
-    "pine:block"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "call-site-history"
-   ],
-   "oldestDoc": "2026-09-30",
-   "rows": [
-    "capture-queue-2026-09-30-call-site-history#A01, B10",
-    "capture-queue-2026-09-30-call-site-history#A02–A07, A10, A11, B04, B05",
-    "capture-queue-2026-09-30-call-site-history#A08, B08",
-    "capture-queue-2026-09-30-call-site-history#A09, B09",
-    "capture-queue-2026-09-30-call-site-history#A12",
-    "capture-queue-2026-09-30-call-site-history#A13 / B01",
-    "capture-queue-2026-09-30-call-site-history#A14",
-    "capture-queue-2026-09-30-call-site-history#B02, B03",
-    "capture-queue-2026-09-30-call-site-history#B06, B07",
-    "capture-queue-2026-09-30-call-site-history#C01–C06",
-    "capture-queue-2026-09-30-call-site-history#H01–H06",
-    "capture-queue-2026-09-30-call-site-history#D01–D03",
-    "capture-queue-2026-09-30-call-site-history#E01–E06"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-call-site-history@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/vw-call-site-history-rddt-1d-2026-10-01.json"
-   ],
-   "source": "tools/visual_conformance/probes/vw-call-site-history.pine",
-   "sourceKind": "probe",
-   "sha256": "f2fb305fbce3332ec08278613d3c9f26e879248ee76c8827798ea06b74980639",
-   "bytes": 5992,
-   "stem": "vw-call-site-history",
-   "captureStem": "vw-call-site-history",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "preamble",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 39,
-    "upperSample": [
-     "builtin:moon-phases__Moon1Phases",
-     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
-     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
-     "committed:atr-god-strategy-by-tradesmart__4369755a29",
-     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
-     "committed:kalman-price-filter-backquant__47a601e4bc",
-     "committed:kernel-channel-backquant__d8c4b7f75c",
-     "committed:liquidity-levels-sonarlab__bba13c46c4",
-     "committed:machine-learning-lorentzian-classification__21f5ec5277",
-     "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "fn:conditional-history",
-    "pine:block"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "call-site-history"
-   ],
-   "oldestDoc": "2026-09-30",
-   "rows": [
-    "capture-queue-2026-09-30-call-site-history#A01, B10",
-    "capture-queue-2026-09-30-call-site-history#A02–A07, A10, A11, B04, B05",
-    "capture-queue-2026-09-30-call-site-history#A08, B08",
-    "capture-queue-2026-09-30-call-site-history#A09, B09",
-    "capture-queue-2026-09-30-call-site-history#A12",
-    "capture-queue-2026-09-30-call-site-history#A13 / B01",
-    "capture-queue-2026-09-30-call-site-history#A14",
-    "capture-queue-2026-09-30-call-site-history#B02, B03",
-    "capture-queue-2026-09-30-call-site-history#B06, B07",
-    "capture-queue-2026-09-30-call-site-history#C01–C06",
-    "capture-queue-2026-09-30-call-site-history#H01–H06",
-    "capture-queue-2026-09-30-call-site-history#D01–D03",
-    "capture-queue-2026-09-30-call-site-history#E01–E06"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-cond-window-extremes@AMEX:SPY@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/vw-cond-window-extremes-spy-1d-2026-10-02.json"
-   ],
-   "source": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
-   "sourceKind": "probe",
-   "sha256": "3410b2d69d17f052c92e730fd3b7b653a32be0b1c7104adddea0d31c0ed103ce",
-   "bytes": 3169,
-   "stem": "vw-cond-window-extremes",
-   "captureStem": "vw-cond-window-extremes",
-   "symbol": "AMEX:SPY",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 39,
-    "upperSample": [
-     "builtin:moon-phases__Moon1Phases",
-     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
-     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
-     "committed:atr-god-strategy-by-tradesmart__4369755a29",
-     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
-     "committed:kalman-price-filter-backquant__47a601e4bc",
-     "committed:kernel-channel-backquant__d8c4b7f75c",
-     "committed:liquidity-levels-sonarlab__bba13c46c4",
-     "committed:machine-learning-lorentzian-classification__21f5ec5277",
-     "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "fn:conditional-history",
-    "pine:block"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "c48"
-   ],
-   "oldestDoc": "2026-10-01",
-   "rows": [
-    "capture-queue-2026-10-01-c48#vw-cond-window-extremes.pine"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-cond-window-extremes@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/vw-cond-window-extremes-rddt-1d-2026-10-02.json"
-   ],
-   "source": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
-   "sourceKind": "probe",
-   "sha256": "3410b2d69d17f052c92e730fd3b7b653a32be0b1c7104adddea0d31c0ed103ce",
-   "bytes": 3169,
-   "stem": "vw-cond-window-extremes",
-   "captureStem": "vw-cond-window-extremes",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 39,
-    "upperSample": [
-     "builtin:moon-phases__Moon1Phases",
-     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
-     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
-     "committed:atr-god-strategy-by-tradesmart__4369755a29",
-     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
-     "committed:kalman-price-filter-backquant__47a601e4bc",
-     "committed:kernel-channel-backquant__d8c4b7f75c",
-     "committed:liquidity-levels-sonarlab__bba13c46c4",
-     "committed:machine-learning-lorentzian-classification__21f5ec5277",
-     "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "fn:conditional-history",
-    "pine:block"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "c48"
-   ],
-   "oldestDoc": "2026-10-01",
-   "rows": [
-    "capture-queue-2026-10-01-c48#vw-cond-window-extremes.pine"
    ],
    "origins": [
     "queue-doc"
@@ -1895,7 +1808,7 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 29,
+    "upper": 33,
     "upperSample": [
      "builtin:gaps__Gaps",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
@@ -1904,11 +1817,11 @@
      "committed:camarilla__jw9faob08r",
      "committed:chart-vwap__804099ca2f",
      "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ict-turtle-soup-flux-charts__053c3e6056",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
-     "committed:screener-mean-reversion-channel__nTK2sHWDlB"
+     "committed:market-profile-with-tpo__b2b119d8ab",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a"
     ]
    },
    "statedUnblocks": null,
@@ -1952,7 +1865,7 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 29,
+    "upper": 33,
     "upperSample": [
      "builtin:gaps__Gaps",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
@@ -1961,11 +1874,11 @@
      "committed:camarilla__jw9faob08r",
      "committed:chart-vwap__804099ca2f",
      "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ict-turtle-soup-flux-charts__053c3e6056",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
-     "committed:screener-mean-reversion-channel__nTK2sHWDlB"
+     "committed:market-profile-with-tpo__b2b119d8ab",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a"
     ]
    },
    "statedUnblocks": null,
@@ -1979,6 +1892,63 @@
    "oldestDoc": "2026-11-03",
    "rows": [
     "capture-queue-2026-11-03-w4-t3#W4-T1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w4-session-param@AMEX:SPY@5",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w4-session-param.pine",
+   "sourceKind": "probe",
+   "sha256": "5e5d7f52f7484d609ddf0333153bece58e0c2de84d50c56e17f3eb514293aad8",
+   "bytes": 1414,
+   "stem": "vw-w4-session-param",
+   "captureStem": "vw-w4-session-param",
+   "symbol": "AMEX:SPY",
+   "tf": "5",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 20,
+    "upperSample": [
+     "builtin:auto-fib-extension__Auto1Fib1Ext",
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:liquidity-levels-sonarlab__bba13c46c4",
+     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+     "committed:relative-volume-at-time__gei8CBKbc5",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:support-and-resistance__c4792aabd0",
+     "committed:volume-profile-v054beta__PNSKf75832",
+     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
+     "reference:anti-volume-stop-loss__QyDEhGL8DB",
+     "reference:fxn-asian-session-range__jNLZBfpYDO",
+     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:history-dynamic-offset"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w4-t3"
+   ],
+   "oldestDoc": "2026-11-03",
+   "rows": [
+    "capture-queue-2026-11-03-w4-t3#W4-T2"
    ],
    "origins": [
     "queue-doc"
@@ -2009,20 +1979,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 16,
+    "upper": 18,
     "upperSample": [
      "builtin:detrended-price-oscillator__DPO",
      "builtin:hull-moving-average__Hull1MA",
+     "committed:asianrange-and-killzones__ef41eb5ad6",
      "committed:camarilla__jw9faob08r",
      "committed:ict-turtle-soup-flux-charts__053c3e6056",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
      "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
      "committed:smarter-snr__ac98ab25d5",
      "committed:trend-levels-chartprime__90a5bf4ab1",
      "reference:heatmap-volume-xdecow__2lteb6l2tk",
-     "reference:hurst-cycle-channel-clone-lazybear__1192",
-     "reference:most-screener__d7d9ae5349",
-     "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7"
+     "reference:hurst-cycle-channel-clone-lazybear__1192"
     ]
    },
    "statedUnblocks": null,
@@ -2067,20 +2037,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 16,
+    "upper": 18,
     "upperSample": [
      "builtin:detrended-price-oscillator__DPO",
      "builtin:hull-moving-average__Hull1MA",
+     "committed:asianrange-and-killzones__ef41eb5ad6",
      "committed:camarilla__jw9faob08r",
      "committed:ict-turtle-soup-flux-charts__053c3e6056",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
      "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
      "committed:smarter-snr__ac98ab25d5",
      "committed:trend-levels-chartprime__90a5bf4ab1",
      "reference:heatmap-volume-xdecow__2lteb6l2tk",
-     "reference:hurst-cycle-channel-clone-lazybear__1192",
-     "reference:most-screener__d7d9ae5349",
-     "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7"
+     "reference:hurst-cycle-channel-clone-lazybear__1192"
     ]
    },
    "statedUnblocks": null,
@@ -2129,7 +2099,7 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 14,
+    "upper": 17,
     "upperSample": [
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
      "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ",
@@ -2140,9 +2110,9 @@
      "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
      "committed:stop-loss-clustering-breakouts-kioseff-trading__c6388de20b",
      "committed:trailing-take-profit-trailing-stop-loss__41jwaH1ikz",
+     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37",
      "committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d",
-     "reference:divergence-screener-trendoscope__5bfc8355aa",
-     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+     "reference:divergence-screener-trendoscope__5bfc8355aa"
     ]
    },
    "statedUnblocks": null,
@@ -2190,9 +2160,13 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 5,
+    "upper": 9,
     "upperSample": [
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:mgi-levels-suite__285168ddfb",
+     "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
      "reference:auto-trendlines-trendoscope__c1dc011801",
      "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
      "reference:sessions-nephew-sam__nTgXSYRNbD",
@@ -2247,9 +2221,13 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 5,
+    "upper": 9,
     "upperSample": [
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:mgi-levels-suite__285168ddfb",
+     "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
      "reference:auto-trendlines-trendoscope__c1dc011801",
      "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
      "reference:sessions-nephew-sam__nTgXSYRNbD",
@@ -2302,9 +2280,13 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 5,
+    "upper": 9,
     "upperSample": [
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:mgi-levels-suite__285168ddfb",
+     "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
      "reference:auto-trendlines-trendoscope__c1dc011801",
      "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
      "reference:sessions-nephew-sam__nTgXSYRNbD",
@@ -6431,6 +6413,342 @@
    ]
   },
   {
+   "id": "vw-w3n-draw-block-history-a@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-a.pine",
+   "sourceKind": "probe",
+   "sha256": "0cee10839e257b3a1d199066848918cdb1781dd114ea1596030e87a466ab1135",
+   "bytes": 286,
+   "stem": "vw-w3n-draw-block-history-a",
+   "captureStem": "vw-w3n-draw-block-history-a",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1a"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-a@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-a.pine",
+   "sourceKind": "probe",
+   "sha256": "0cee10839e257b3a1d199066848918cdb1781dd114ea1596030e87a466ab1135",
+   "bytes": 286,
+   "stem": "vw-w3n-draw-block-history-a",
+   "captureStem": "vw-w3n-draw-block-history-a",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1a"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-b@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-b.pine",
+   "sourceKind": "probe",
+   "sha256": "18eca33b53ad0a55cbce1e2ce73078b7e08d5831c9b0731b9228158ff0f59004",
+   "bytes": 286,
+   "stem": "vw-w3n-draw-block-history-b",
+   "captureStem": "vw-w3n-draw-block-history-b",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-b@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-b.pine",
+   "sourceKind": "probe",
+   "sha256": "18eca33b53ad0a55cbce1e2ce73078b7e08d5831c9b0731b9228158ff0f59004",
+   "bytes": 286,
+   "stem": "vw-w3n-draw-block-history-b",
+   "captureStem": "vw-w3n-draw-block-history-b",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-c@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-c.pine",
+   "sourceKind": "probe",
+   "sha256": "6c343788965a3b12d6863c0988f8979256d0d37c7459a599c3432f67221c6e62",
+   "bytes": 286,
+   "stem": "vw-w3n-draw-block-history-c",
+   "captureStem": "vw-w3n-draw-block-history-c",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1c"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-c@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-c.pine",
+   "sourceKind": "probe",
+   "sha256": "6c343788965a3b12d6863c0988f8979256d0d37c7459a599c3432f67221c6e62",
+   "bytes": 286,
+   "stem": "vw-w3n-draw-block-history-c",
+   "captureStem": "vw-w3n-draw-block-history-c",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1c"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-d@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-d.pine",
+   "sourceKind": "probe",
+   "sha256": "42fb685a6daa13cdfd48a2b12f52298668ab25d20d2c97b6aa30e9ccb193e1d6",
+   "bytes": 298,
+   "stem": "vw-w3n-draw-block-history-d",
+   "captureStem": "vw-w3n-draw-block-history-d",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1d"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w3n-draw-block-history-d@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-d.pine",
+   "sourceKind": "probe",
+   "sha256": "42fb685a6daa13cdfd48a2b12f52298668ab25d20d2c97b6aa30e9ccb193e1d6",
+   "bytes": 298,
+   "stem": "vw-w3n-draw-block-history-d",
+   "captureStem": "vw-w3n-draw-block-history-d",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w3w4-d1"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w3w4-d1#W3N-D1d"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "w9-d1-margin50@NYSE:RDDT@D",
    "status": "QUEUED",
    "evidence": [],
@@ -10508,14 +10826,6 @@
    "vendorVerdict": null
   },
   {
-   "key": "reference:bollinger-rsi-double-strategy-by-chartart-v11__2187",
-   "population": "reference",
-   "title": "Bollinger + RSI, Double Strategy (by ChartArt) v1.1",
-   "cachedSource": "tools/pine_survey/cache/sources/bollinger-rsi-double-strategy-by-chartart-v11__2187.pine",
-   "sourcePresent": false,
-   "vendorVerdict": null
-  },
-  {
    "key": "reference:bollingers-bands-fibonacci-ratios__2778",
    "population": "reference",
    "title": "Bollingers Bands Fibonacci ratios",
@@ -10768,14 +11078,6 @@
    "population": "reference",
    "title": "Liquidity by makuchaku & eFe",
    "cachedSource": "tools/pine_survey/cache/sources/liquidity-by-makuchaku-efe__8db03bf972.pine",
-   "sourcePresent": false,
-   "vendorVerdict": null
-  },
-  {
-   "key": "reference:macd-sma-200-strategy-by-chartart__2004",
-   "population": "reference",
-   "title": "MACD + SMA 200 Strategy (by ChartArt)",
-   "cachedSource": "tools/pine_survey/cache/sources/macd-sma-200-strategy-by-chartart__2004.pine",
    "sourcePresent": false,
    "vendorVerdict": null
   },
@@ -11056,14 +11358,6 @@
    "population": "reference",
    "title": "UT Bot + Cooldown + Visual FVG",
    "cachedSource": "tools/pine_survey/cache/sources/ut-bot-cooldown-visual-fvg__17b93cb3b0.pine",
-   "sourcePresent": false,
-   "vendorVerdict": null
-  },
-  {
-   "key": "reference:ut-bot-strategy__VynMPwQs9U",
-   "population": "reference",
-   "title": "UT Bot Strategy",
-   "cachedSource": "tools/pine_survey/cache/sources/ut-bot-strategy__VynMPwQs9U.pine",
    "sourcePresent": false,
    "vendorVerdict": null
   },
@@ -11353,6 +11647,18 @@
    "doc": "docs/pine/capture-queue-2026-11-04-w4-t13.md",
    "wave": "w4-t13",
    "rows": 6,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-05-w34-d3.md",
+   "wave": "w34-d3",
+   "rows": 0,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-05-w3w4-d1.md",
+   "wave": "w3w4-d1",
+   "rows": 4,
    "contextTables": 0
   },
   {
