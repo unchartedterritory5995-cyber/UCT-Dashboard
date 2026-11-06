@@ -119,6 +119,13 @@ src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
   both spellings); rail 18 passed. Hand mutants (`muts-cond.json`): M10 conditional rewritten KILLED, M11 `iff`
   rewritten KILLED. Measure-pair must be re-run (coordinator schedules).
 
+## Review N1 closed (delta review @b8d0d09c7f GO-WITH-NOTES)
+A `?:` inside a CALLED script function is out of the token scan's sight. Chosen fix (simpler of the two offered): a
+definition whose right side calls a function this script defines (`f(...) =>`) is not rewritten (`callsScriptFn`), so
+it builds exactly as on master. Rail `a self-reference calling a script function is untouched` (19 passed); hand
+mutant M12 (remove the check) KILLED (`muts-fn.json`). The first measure-pair re-run was cancelled while still queued
+(never started) and re-queued on the new tip.
+
 ## Coral's next wall (not this lane's)
 `runtime:withheld-all`: the `Trend` plot's `color = tc` changes per bar (`bfr > nz(bfr[1]) ? green : ...`), and
 `memberPaneDefinition.js::runtimeRowColour` withholds a per-bar colour below v4 ("the colour rules of a v1 script have

@@ -857,6 +857,15 @@ export function v2SelfReferenceStatements(stmts, version) {
    *  host fold served it (its bar 0 is `nz`'s 0 under either seed rule, so master's value
    *  does not rest on the unknown seed). Such a definition keeps master's answer. */
   const hasConditional = (rhs) => rhs.some((t) => isPunct(t, '?') || isIdent(t, 'iff'))
+  /** ⛔ REVIEW N1 — and one that CALLS a function this script defines (`f(a) => …`): the
+   *  callee's body may hold a `?:` the token scan above cannot see, which would reach the
+   *  VM the same way. Such a definition keeps master's answer too. */
+  const scriptFns = new Set()
+  for (const st of stmts) {
+    const toks = st.header || []
+    if (isIdent(toks[0]) && isPunct(toks[1], '(') && findTop(toks, (t) => isPunct(t, '=>')) > 0) scriptFns.add(toks[0].value)
+  }
+  const callsScriptFn = (rhs) => rhs.some((t, i) => isIdent(t) && scriptFns.has(t.value) && isPunct(rhs[i + 1], '('))
   let changed = false
   const out = []
   for (const st of stmts) {
@@ -865,7 +874,8 @@ export function v2SelfReferenceStatements(stmts, version) {
     const nameTok = eq === 1 && isIdent(toks[0]) ? toks[0] : null
     const plain = nameTok && !(st.sub && st.sub.length) && !(st.body && st.body.length)
       && declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)
-    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || hasConditional(toks.slice(eq + 1))) {
+    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || hasConditional(toks.slice(eq + 1))
+        || callsScriptFn(toks.slice(eq + 1))) {
       out.push(st); continue
     }
     const eqTok = toks[eq]

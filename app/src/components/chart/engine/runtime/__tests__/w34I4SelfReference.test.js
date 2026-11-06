@@ -223,6 +223,16 @@ describe('W34-I4: scope of the rewrite', () => {
       expect(p.naTests).toBe(0)
     }
   })
+  // ⛔ Review N1: the `?:` sits in a function the definition CALLS, out of the token
+  // scan's sight. The definition is not rewritten, so the build is master's own
+  // (the same statement array): whatever master answers, the rewrite never changes it.
+  it('a self-reference calling a script function is untouched (master builds it as before)', () => {
+    const body = ['pick(a) => nz(a) ? hl2 : 0', 'flag = close > open ? 1 : 0', 'lvl = pick(flag[1]) + 0.5*nz(lvl[1])', 'plot(lvl)']
+    const { st, version } = stmtsOf(src(body))
+    expect(v2SelfReferenceStatements(st, version)).toBe(st)
+    const p = probeRuntimeProgram(src(body))
+    expect(p.ok, p.ok ? '' : `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
+  })
   it('a name declared twice or reassigned is untouched', () => {
     for (const body of [['x = 1', 'x = 0.5*close + 0.5*nz(x[1])', 'plot(x)'], ['x = 0.5*close + 0.5*nz(x[1])', 'x := 2', 'plot(x)']]) {
       const { st, version } = stmtsOf(src(body))
