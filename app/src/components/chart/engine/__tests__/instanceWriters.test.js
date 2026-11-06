@@ -343,13 +343,22 @@ describe('applyPresetInputs — the fields beyond `inputs` (2a-12)', () => {
   it('⭐ an ABSENT field leaves the instance as it was — a preset of inputs alone touches no presentation', () => {
     const { cs, a } = twoRs()
     const styled = setInstanceDotSize(setInstanceVisibility(cs, a, { preset: 'intraday' }, registry), a, 'small', registry)
-    // Classic is already stored ⇒ identity, visibility and dot size included
-    expect(applyPresetInputs(styled, a, rsDef, classicRs(), registry)).toBe(styled)
+    // ⚰️ Moved 2026-11-07 (review finding #26): this used the REGISTERED Classic as
+    // its inputs-only preset. Classic now declares visibility 'all' and the default
+    // dot size (so choosing it after Trend or Stress is Classic on screen), so the
+    // inputs-only case is Classic's inputs alone, and Classic itself resets below.
+    const inputsOnly = () => ({ id: 'classicInputs', label: 'Classic inputs', inputs: { ...classicRs().inputs } })
+    // Classic's inputs are already stored ⇒ identity, visibility and dot size included
+    expect(applyPresetInputs(styled, a, rsDef, inputsOnly(), registry)).toBe(styled)
     // a preset that moves ONE input still leaves the other two alone
-    const moved = applyPresetInputs(styled, a, rsDef, { ...classicRs(), id: 'm', inputs: { ...classicRs().inputs, lookback: 100 } }, registry)
+    const moved = applyPresetInputs(styled, a, rsDef, { ...inputsOnly(), id: 'm', inputs: { ...classicRs().inputs, lookback: 100 } }, registry)
     expect(findInstance(moved, a).inputs.lookback).toBe(100)
     expect(findInstance(moved, a).visibility).toEqual({ preset: 'intraday' })
     expect(storedDotSize(findInstance(moved, a), null)).toBe('small')
+    // the registered Classic declares both fields and puts them back
+    const reset = findInstance(applyPresetInputs(styled, a, rsDef, classicRs(), registry), a)
+    expect(reset.visibility).toBeUndefined()
+    expect(reset.presentation).toBeUndefined()
   })
 
   it('⭐ `dotSize: {plotKey: word}` sizes ONE output; a word afterwards brings that output back in line', () => {

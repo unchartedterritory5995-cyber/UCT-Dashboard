@@ -55,6 +55,14 @@
 // carries nothing there. The static line is therefore what a chart with no
 // landed envelope prints, never a blank.
 //
+// ⭐ THE LITERATURE LINE STAYS (review finding #22, 2026-11-07). A sourced card
+// writes its static `evidence` as zero or more literature sentences followed by
+// ONE stand-in sentence, the last: the honesty sentence. The server sentence
+// replaces only that stand-in, so the Before-price card prints Bulkowski and
+// then the measured (or below-floor) sentence. Before this, a V2 envelope always
+// carried a string there, so the Bulkowski line never printed. A card whose
+// static line is the stand-in alone prints the server sentence alone, as before.
+//
 // THE FORMATS — one line each, so the next format is one line too:
 //   ratio    a number to 4 significant figures            1.0234 → 1.023
 //   pct      a signed percentage, one decimal, '%'        1.84 → +1.8%
@@ -278,7 +286,9 @@ export function readoutChipRows(def, rows) {
 /**
  * The text of a card's "What the evidence says" line (unit 2b-09): the string
  * `card.evidenceSource` resolves to over `scalars` when it is a `scalar:` /
- * `payload:` path and the value there is a non-empty string; else the static
+ * `payload:` path and the value there is a non-empty string, led by the static
+ * line's literature sentences when it has any (finding #22: everything before
+ * its last sentence, the stand-in the server sentence replaces); else the static
  * `card.evidence` when that is a non-empty string; else `null` (no line).
  *
  * ⛔ FAIL CLOSED, LIKE THE ROWS. An `evidenceSource` that does not parse, an
@@ -298,14 +308,31 @@ export function cardEvidenceText(entry, scalars) {
   try {
     const card = entry && isPlainObject(entry.card) ? entry.card : null
     if (!card) return null
+    const stat = typeof card.evidence === 'string' ? card.evidence.trim() : ''
     const src = parseReadoutSource(card.evidenceSource)
     if (src && src.kind === 'scalar' && isPlainObject(scalars)) {
       const v = readPath(scalars, src.path)
-      if (typeof v === 'string') { const t = v.trim(); if (t) return t }
+      if (typeof v === 'string') {
+        const t = v.trim()
+        if (t) {
+          // finding #22: keep the static line's literature, replace its stand-in
+          const lit = literatureOf(stat)
+          return lit ? `${lit} ${t}` : t
+        }
+      }
     }
-    if (typeof card.evidence === 'string') { const t = card.evidence.trim(); if (t) return t }
-    return null
+    return stat || null
   } catch {
     return null
   }
+}
+
+/** A sourced card's static line minus its last sentence (the stand-in the
+ *  server sentence replaces): everything up to the last sentence end that is
+ *  followed by more text. `''` when the line is one sentence. */
+function literatureOf(text) {
+  const re = /[.?!](?=\s+\S)/g
+  let end = -1
+  for (let m = re.exec(text); m; m = re.exec(text)) end = m.index
+  return end < 0 ? '' : text.slice(0, end + 1).trim()
 }

@@ -3901,13 +3901,24 @@ const RS_LINE_RAW = {
     // are drawn — never the benchmark, so choosing Phase keeps the member's
     // benchmark and changing the benchmark does not flip the picker to Custom.
     // The weekly variants exist to set 52 bars on a weekly chart.
+    // ⭐ CLASSIC, CLASSIC WEEKLY AND PHASE DECLARE THE FIELDS THEY RESET (review
+    // finding #26, 2026-11-07). Trend and Stress write visibility "daily and up"
+    // and dot sizes. A preset that declared inputs alone left both as Trend or
+    // Stress wrote them, and `presetFieldsMatch` (inputs alone when no field is
+    // declared) still read the instance back as Classic: the pane stayed hidden
+    // intraday and the gold dot drew Large under a picker that said Classic.
+    // `visibility: 'all'` drops the key, and the default word `medium` clears the
+    // instance-level size and every per-dot size (`setInstanceDotSize` deletes it).
     presets: [
       { id: 'classic', label: 'Classic (O\'Neil)', origin: 'IBD, MarketSurge',
-        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES } },
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
       { id: 'classicWeekly', label: 'Classic, weekly chart', origin: 'IBD, MarketSurge; 52 bars is one year of weekly bars',
-        inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES } },
+        inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
       { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
-        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: '#3cb868', lineDownColor: '#e74c3c', dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES } },
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: '#3cb868', lineDownColor: '#e74c3c', dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
       // ⭐ TREND (Weinstein's Mansfield, plan §5 / §7 item 13). The Mansfield line
       // is the reading, so it takes the info blue and the RS line steps back to
       // the neutral; dots go small so the oscillator is what the eye lands on.
@@ -4062,7 +4073,10 @@ const RS_LINE_RAW = {
   // surface prints that sentence VERBATIM — "1,284 RS new highs before price
   // from … ; 58.3% closed higher than SPY 63 bars later (median +2.1%).
   // Universe as held, survivorship not yet corrected." — and the static
-  // `evidence` (the honesty sentence) only when no envelope has landed. The
+  // `evidence` (the honesty sentence) only when no envelope has landed. A
+  // sourced card's literature sentences (Bulkowski on Before price) lead the
+  // server sentence, which replaces only the closing honesty sentence
+  // (`readoutSchema.cardEvidenceText`, review finding #22, 2026-11-07). The
   // cards with no signal in the artifact carry the defensible literature
   // statements, each with its source, never a win rate, a threshold or a
   // forecast (the must-not-claim list, 03-evidence.md §b).
@@ -4080,8 +4094,8 @@ const RS_LINE_RAW = {
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
         evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.' } },
     { key: 'fastRating', label: 'Fast rating', source: 'scalar:rating.fast', format: 'int',
-      card: { what: 'UCT fast rating, 1 to 99: the same idea read hourly from 200 days of vendor bars, so it moves during the session.',
-        origin: 'The site\'s existing RS rank (rs_ranking). Thinner history than the nightly rating, so the two can differ by a few points.' } },
+      card: { what: 'UCT fast rating, 1 to 99, as captured by the nightly job (the screener\'s hourly RS Rank): 3-month, 6-month, 1-month and 1-week returns over about 138 sessions.',
+        origin: 'The site\'s existing RS rank (rs_ranking), read once a night beside the IBD-style rating; the Rated as of row dates both. A different formula from the IBD-style rating, so the two can differ widely.' } },
     { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text' },
     { key: 'phase', label: 'RS line', source: 'scalar:legend.above', format: 'bool',
       words: ['above its average', 'below its average'],
@@ -4112,16 +4126,20 @@ const RS_LINE_RAW = {
         evidenceSource: 'scalar:evidence.sentence.redDay',
         learn: 'redDay' } },
     { key: 'mansfield', label: 'Mansfield', source: 'scalar:mansfield.value', format: 'pct',
-      card: { what: 'Mansfield Relative Strength: the RS ratio as a percent above or below its own moving average (200 bars daily, 52 weekly). Above zero, the stock is outperforming its own trend against the benchmark.',
+      card: { what: 'Mansfield Relative Strength: the RS ratio as a percent above or below its own moving average, measured over the Mansfield length set on this chart, in this chart\'s bars; the Mansfield length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length, which the weekly Trend preset sets. Above zero, the stock is outperforming its own trend against the benchmark.',
         origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
         evidence: RS_HONESTY_SENTENCE,
         evidenceSource: 'scalar:evidence.sentence.mansfield' } },
+    // ⭐ THE LENGTH ACTUALLY USED (review finding #9, 2026-11-07). The default is
+    // 200 on every timeframe, so a weekly chart reads a 200-week average unless
+    // the weekly Trend preset set 52. The row prints what the server computed.
+    { key: 'mansfieldLength', label: 'Mansfield length', source: 'scalar:mansfield.length', format: 'int' },
     { key: 'mansfieldState', label: 'Mansfield read', source: 'scalar:mansfield.stateLabel', format: 'text' },
     { key: 'mansfieldCross', label: 'Zero cross', source: 'scalar:mansfield.crossBarsAgo', format: 'barsAgo' },
     { key: 'regime', label: 'Regime', source: 'scalar:regime.label', format: 'text', fallback: 'needs more history',
       card: { what: 'The market state the reading lives in, from the benchmark alone: above or below its 200-day average, the sign of its two-year return, and where its six-month realised volatility sits in its own three-year range. Persistence: above the 200-day with a positive two-year trend. Rebound-risk: a negative two-year trend in the high-volatility third. Mixed: anything else.',
         origin: 'Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.',
-        evidence: 'Relative strength is a tendency, not a guarantee: in backtests it loses roughly one year in five and reverses hardest at bear-market bottoms. The fifteen worst momentum months since 1927 all came after a negative two-year market return, during rebounds (1932, 2001, 2009), and in 2003 and 2009 the laggards beat the leaders by 35 to 50 points (Daniel and Moskowitz 2016; Dorsey Wright 2016).' } },
+        evidence: 'Relative strength is a tendency, not a guarantee: in backtests it loses roughly one year in five and reverses hardest at bear-market bottoms. The fifteen worst momentum months since 1927 all came after a negative two-year market return, fourteen of them in months the market rose (1932, 2001, 2009), and in 2003 and 2009 the laggards beat the leaders by 35 to 50 points (Daniel and Moskowitz 2016; Dorsey Wright 2016).' } },
     { key: 'regimeNote', label: 'Regime note', source: 'scalar:regime.reason', format: 'text', when: 'scalar:regime.reason' },
     { key: 'sensitivity', label: 'Benchmarks', source: 'scalar:sensitivity.summary', format: 'text',
       card: { what: 'Whether the last 20 bars of relative strength point the same way against SPY, the equal-weight index (RSP) and the sector ETF. Agree means all three slopes share a sign.',
@@ -4131,7 +4149,7 @@ const RS_LINE_RAW = {
     { key: 'checks', label: 'Checks', source: 'scalar:checks.summary', format: 'text', fallback: 'needs more history',
       card: { what: 'The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark\'s; return since the benchmark\'s 20-session low against the benchmark\'s; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day.',
         origin: 'UCT workshops (Chartmaster, the four RS checks).',
-        evidence: 'Counts, not signals: six green-on-red days in twenty is unusual, one in twenty is noise. No published hit rate exists for these checks and UCT has not measured them yet.',
+        evidence: 'Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT\'s own threshold, and the screener\'s up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.',
         learn: 'fourChecks' } },
     { key: 'checkMa', label: 'Averages', source: 'scalar:checks.ma.reason', format: 'text' },
     { key: 'checkAnchor', label: 'Since the low', source: 'scalar:checks.anchor.reason', format: 'text' },
