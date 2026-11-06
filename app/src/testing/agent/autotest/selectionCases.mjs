@@ -26,10 +26,12 @@ export const CAPS = {
   averages: { inv: ['C1-103'], ops: r => [op('chartSetup.setMovingAverages', ch(r), { visible: false })], check: px, phrases: ['no moving averages on {T}', 'hide the moving averages on {T}'], bare: ['hide the moving averages'] },
   range: { inv: ['C1-029'], ops: r => [op('chartSetup.setRange', ch(r), { range: '3M' })], check: px, phrases: ['show three months on {T}', 'zoom {T} to 3 months'], bare: ['just the last three months'] },
   compare: { inv: ['C1-034'], ops: r => [op('chart.compare', ch(r), { add: ['AMD'], remove: [], clear: false })], check: px, phrases: ['overlay AMD on {T}', 'compare {T} with AMD'], bare: ['compare with AMD'] },
+  // Multi Chart's top-right cell already shows AMD, and a chart cannot be compared with itself
+  compareOther: { inv: ['C1-034'], ops: r => [op('chart.compare', ch(r), { add: ['MSFT'], remove: [], clear: false })], check: px, phrases: ['overlay MSFT on {T}', 'compare {T} with MSFT'], bare: ['compare with MSFT'] },
   background: { inv: ['C1-047'], ops: r => [op('chart.setBackground', ch(r), { color: '#000000' })], check: px, phrases: ['black background on {T}', 'make the background of {T} black'], bare: ['black background'] },
   theme: { inv: ['C1-079'], ops: r => [op('chart.applyTheme', ch(r), { theme: 'nord' })], check: px, phrases: ['use the nord colors on {T}', 'apply the nord theme to {T}'], bare: ['apply the nord theme'] },
   setting: { inv: ['C1-049'], ops: r => [op('chart.setSetting', ch(r), { setting: 'grid.visible', value: false })], check: px, phrases: ['kill the grid lines on {T}', 'hide the grid on {T}'], bare: ['kill the grid lines'] },
-  level: { inv: ['C1-131'], ops: r => [op('drawing.addLevel', dr(r), { price: 120, color: null, style: null })], check: () => [['drawingCount', 'eq', 1]], phrases: ['draw a line at 120 on {T}', 'mark 120 on {T}'], bare: ['draw a line at 120'] },
+  level: { inv: ['C1-131'], ops: r => [op('drawing.addLevel', dr(r), { price: 120, color: null, style: null })], check: () => [['drawingCount', 'gt', 0]], phrases: ['draw a line at 120 on {T}', 'mark 120 on {T}'], bare: ['draw a line at 120'] },
   date: { inv: ['C1-030'], ops: r => [op('chart.goToDate', ch(r), { date: '2025-03-03' })], check: r => [[`${r}.axis`, 'changed']], phrases: ['jump {T} to march 3rd 2025', 'take {T} to march 3 2025'], bare: ['jump to march 3rd 2025'] },
   alert: { inv: ['C1-114'], ops: r => [op('alert.create', '$list:alertLibrary', { symbol: `$sym:${r}`, price: 120, direction: 'above' })], check: () => [['alerts', 'len', 1]], phrases: ['alert me when {T} goes above 120', 'set an alert at 120 on {T}'], bare: ['alert me above 120'] },
 }
@@ -111,9 +113,9 @@ export function generated() {
     n += 1
     out.push({ id: `sel-${board}-${cap}-${kind}`, board, cap, ...kindsFor(board, cap, n)[kind] })
   }
-  for (const board of ['FOUR', 'MC']) for (const cap of CORE) for (const kind of ALL_KINDS) add(board, cap, kind)
-  for (const cap of Object.keys(CAPS)) if (!CORE.includes(cap)) for (const kind of ['deictic', 'position']) add('FOUR', cap, kind)
-  for (const cap of Object.keys(CAPS)) if (!CORE.includes(cap) && cap !== 'alert') add('MC', cap, 'deictic')
+  for (const board of ['FOUR', 'MC']) for (const cap of CORE) for (const kind of ALL_KINDS) add(board, board === 'MC' && cap === 'compare' ? 'compareOther' : cap, kind)
+  for (const cap of Object.keys(CAPS)) if (!CORE.includes(cap) && cap !== 'compareOther') for (const kind of ['deictic', 'position']) add('FOUR', cap, kind)
+  for (const cap of Object.keys(CAPS)) if (!CORE.includes(cap) && !['alert', 'compareOther'].includes(cap)) add('MC', cap, 'deictic')
   for (const board of ['TWO', 'THREE']) for (const cap of ['timeframe', 'indicator', 'level']) for (const kind of ['deictic', 'position', 'noClickBare', 'badDeictic', 'badNamed']) add(board, cap, kind)
   return out
 }

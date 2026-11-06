@@ -89,3 +89,19 @@ The browser clock is not pinned, so anything that depends on market hours varies
 4. **Authorization file:** `C:/UCT/agent-autotest-authorization.json`, written by the owner:
    `{"approved_by":"owner","max_usd":8,"expires":"YYYY-MM-DD","targets":["local"],"stages":["canary"],"public_set_sha256":"<run.mjs --lint>","heldout_sha256":"<run.mjs --lint>"}`
 5. **Production, separately:** add `"production"` to `targets` and the exact `production_ack` sentence from `realGuard.mjs`.
+
+## Selection oracle (BROWSER-MOCK-MODEL, free)
+A request's own checks say the state it asked for exists. They do not say which chart was clicked, so a default-to-first bug passes whenever the test clicks the first chart. `selectionOracle.mjs` records four charts per request and fails when they disagree:
+
+| Field | Read from |
+|---|---|
+| clicked | a trusted `pointerdown` in the page, not the test's intent |
+| intended | the case: `clicked`, named roles, or `ask` |
+| landed | the charts whose real state changed; a drawing or alert lands on the charts showing its symbol |
+| told | the chart `body.context` marked selected, when a model was asked |
+
+The scripted plan reads its target from the request the panel sent (`$chart:sel`), so a context that lies sends the plan to the wrong chart. An adversary case scripts a bad guess: landing elsewhere fails, and stopping to ask passes.
+
+Run from `app/`, with a scratch cache of its own: `node src/testing/agent/autotest/selectionRun.mjs --set public|heldout|negative [--ids regex] [--mutate first-chart|first-click] --out dir --cache dir`. The runner owns its dev server, so nothing is left listening. Negative cases pass only when their named check fails. A mutant is a transform at serve time, so no file changes. The held-out specs (`selection.heldout.enc.json`) were written by a separate author and are sealed like the main held-out set.
+
+Not proved: that a real model picks these plans. An adversary case shows what happens if it guesses wrong, not how often it does. `recount.mjs` recounts coverage from run evidence and writes no pin.

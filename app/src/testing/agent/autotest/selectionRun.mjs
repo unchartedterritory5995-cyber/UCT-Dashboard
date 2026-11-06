@@ -14,7 +14,7 @@ import { startServer } from './selectionServe.mjs'
 
 const { values: A } = parseArgs({ options: {
   set: { type: 'string', default: 'public' }, ids: { type: 'string', default: '' }, mutate: { type: 'string', default: '' },
-  out: { type: 'string', default: 'selection-out' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5993' },
+  from: { type: 'string', default: '' }, out: { type: 'string', default: 'selection-out' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5993' },
 } })
 if (!A.cache) throw new Error('--cache: a scratch folder outside every shared folder')
 for (const k of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY', 'UCT_AGENT_EVAL_API_KEY']) delete process.env[k]
@@ -44,7 +44,7 @@ const acts = {
   },
   hover: async (p, req, t) => { const r = await roleBox(p, t.role, req); await p.b.hover(r.x, r.y); await sleep(300); await p.b.hover(2, 2) },
   clickWidget: async (p, req, t) => {
-    const c = await p.b.evaluate(`(() => { const r = document.querySelector('[data-widget-id=${JSON.stringify(t.id)}]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.bottom - 12 } })()`)
+    const c = await p.b.evaluate(`(() => { const r = document.querySelector('[data-widget-id=${JSON.stringify(t.id)}]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 10 } })()`)
     await p.b.click(c.x, c.y)
     await sleep(300)
   },
@@ -75,13 +75,15 @@ const list = (() => {
   return L
 })()
 const requests = list ?? (await import('./selectionHeldout.mjs')).loadSealed()
-const picked = A.ids ? requests.filter(r => new RegExp(A.ids).test(r.id)) : requests
+const chosen = A.ids ? requests.filter(r => new RegExp(A.ids).test(r.id)) : requests
+const picked = A.from ? chosen.slice(chosen.findIndex(r => r.id === A.from)) : chosen
 
 const dir = A.out
 mkdirSync(join(dir, 'shots'), { recursive: true })
 const known = new Set(loadManifest().map(c => c.name))
 const R = await startRelay({ groupOfAction })
-const ctx = { R, mock: true, acts, profile: runProfile() }
+let page = null
+const ctx = { R, mock: true, acts, profile: runProfile(), onPage: (p) => { page = p } }
 const label = A.mutate ? `${MODE} MUTANT ${A.mutate}` : MODE
 say(label, `${picked.length} requests, set ${A.set}, out ${dir}, ${server.base}`)
 
@@ -89,7 +91,11 @@ const rows = [], records = []
 for (const req of picked) {
   const held = req.set === 'heldout'
   const shotPath = held ? null : join(dir, 'shots', `${req.id}.png`)
-  const { evidence, result } = await runRequest({ ...ctx, shotPath }, req)
+  // a page that stops answering (a native dialog, a hung tab) fails its one request, never the run
+  let timer
+  const hung = new Promise((resolve) => { timer = setTimeout(() => { page?.close().catch(() => {}); resolve({ evidence: { turns: [], crash: 'the page stopped answering' }, result: { pass: false, graded: 0, na: 0, checks: [{ name: 'the run reached the end', pass: false, detail: 'the page stopped answering', tag: 'crash' }] } }) }, 150000) })
+  const { evidence, result } = await Promise.race([runRequest({ ...ctx, shotPath }, req), hung])
+  clearTimeout(timer)
   const row = rowOf(req, evidence, result, { mode: MODE, known })
   const rec = evidence.target ? { clicked: evidence.target.clicked, intended: evidence.target.intended, landed: evidence.target.landed, told: evidence.target.told, modelCalls: evidence.target.modelCalls } : null
   if (req.negative) {
