@@ -42,7 +42,8 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, use
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { effectiveColourFor } from './engine/pool'
-import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs } from './indicatorRegistry'
+import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs,
+         sectionize, initialCollapsed, INLINE_MAX } from './indicatorRegistry'
 import { findInstance, setInstanceInput, setInstanceHidden,
          setInstanceDisplayTarget, applyPresetInputs, setInstanceDotSize,
          presetsOf, detectPreset, CUSTOM_PRESET, dotPlotsOf, DOT_SIZE_OPTIONS } from './engine/instanceControls'
@@ -59,8 +60,12 @@ import styles from './IndicatorSettingsDialog.module.css'
  *  system's number rather than on a copy of it. */
 export const DEBOUNCE_MS = 250
 
-/** §6: `inline` packs up to THREE same-type controls onto one row; a fourth wraps. */
-export const INLINE_MAX = 3
+/** §6: `inline` packs up to THREE same-type controls onto one row; a fourth wraps.
+ *  ⭐ 2a-15 — the number is the REGISTRY's (`indicatorRegistry.INLINE_MAX`), where
+ *  `sectionize` / `packRows` / `initialCollapsed` moved at unit 2a-11 so this
+ *  dialog and the phone sheet read ONE grouping rule. Re-exported so a caller
+ *  that read it off the dialog still can. */
+export { INLINE_MAX }
 
 const TABS = Object.freeze([
   ['inputs', 'Inputs'],
@@ -100,38 +105,13 @@ function chipFacts(def, instanceId, values, registry) {
   return chips[0] || null
 }
 
-/** A group of consecutive same-type fields sharing an `inline` name, chunked at
- *  `INLINE_MAX`. Anything else is its own row. Layout only — every field that
- *  arrives here leaves here. */
-function packRows(fields) {
-  const out = []
-  let i = 0
-  while (i < fields.length) {
-    const f = fields[i]
-    if (!f.inline) { out.push({ kind: 'row', field: f }); i += 1; continue }
-    let j = i + 1
-    while (j < fields.length && fields[j].inline === f.inline && fields[j].type === f.type) j += 1
-    for (let k = i; k < j; k += INLINE_MAX) {
-      out.push({ kind: 'pack', inline: f.inline, fields: fields.slice(k, Math.min(k + INLINE_MAX, j)) })
-    }
-    i = j
-  }
-  return out
-}
-
-/** Sections by declared `group`, in first-appearance order. Ungrouped fields keep
- *  a headerless section so a definition that declares no group renders exactly
- *  what it did before groups existed. */
-function sectionize(fields) {
-  const order = []
-  const byGroup = new Map()
-  for (const f of fields) {
-    const g = f.group || null
-    if (!byGroup.has(g)) { byGroup.set(g, []); order.push(g) }
-    byGroup.get(g).push(f)
-  }
-  return order.map((g) => ({ group: g, items: packRows(byGroup.get(g)) }))
-}
+// ⭐ 2a-15 — `packRows` (a run of consecutive same-type fields sharing an `inline`
+// name, chunked at `INLINE_MAX`) and `sectionize` (sections by declared `group`,
+// first-appearance order, a headerless section for the ungrouped) were this
+// file's until unit 2a-11 lifted them, byte for byte in effect, into
+// `indicatorRegistry.js`. The registry's `sectionize(def, fields)` packs each
+// section's rows itself (`section.rows`, the shape this file called
+// `section.items`) and reads `meta.groupsCollapsed` through `initialCollapsed`.
 
 export default function IndicatorSettingsDialog({ open, instanceId, settings, onChange, onClose, registry, sheetClassName = '' }) {
   const uid = useId()
@@ -608,19 +588,15 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   // set applied on the Style tab (§6.4, the plot-referenced colours and widths)
   // would open that tab with EVERY control folded away — for UCT RS the Style tab
   // holds nothing but the two hinted groups. Style groups start expanded.
-  const startsCollapsed = new Set(
-    def && def.meta && Array.isArray(def.meta.groupsCollapsed)
-      ? def.meta.groupsCollapsed.filter((g) => typeof g === 'string')
-      : [],
-  )
+  const startsCollapsed = initialCollapsed(def)
 
-  const renderFields = (fields, { hint = false } = {}) => sectionize(fields).map((section, si) => {
+  const renderFields = (fields, { hint = false } = {}) => sectionize(def, fields).map((section, si) => {
     const gid = `${uid}-g${si}`
     const ckey = section.group || `__${si}`
     const isOpen = Object.prototype.hasOwnProperty.call(collapsed, ckey)
       ? !collapsed[ckey]
       : !(hint && section.group && startsCollapsed.has(section.group))
-    const body = section.items.map((item, ii) => (
+    const body = section.rows.map((item, ii) => (
       item.kind === 'row'
         ? renderField(item.field, false)
         : (

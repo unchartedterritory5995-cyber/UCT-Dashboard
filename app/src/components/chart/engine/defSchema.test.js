@@ -5,7 +5,15 @@ import {
   validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
   SUBSTITUTABLE_PLOT_FIELDS, EVENT_COLUMN_DOMAIN, isEventColumnValue,
   SUPPORTED_KINDS, COMPUTE_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES, META_LEARN_FIELDS,
+  PLACEMENT_TARGETS, PRESET_FIELDS, PRESET_DOT_SIZES, PRESET_VISIBILITY_PRESETS,
 } from './defSchema'
+// ⭐ THE PRESET-FIELD VOCABULARIES, from the modules that WRITE them (2a-15): the
+// schema's lists are pinned equal to these, so a word the writer gains tomorrow
+// cannot be refused here by a stale copy.
+import { DOT_SIZES } from './presentation'
+import { VISIBILITY_PRESETS } from './instanceTimeframe'
+import { isValidTf } from '../timeframes'
+import { getDefinition } from './nativeRegistry'
 // ⭐ THE ONE PARSER, IMPORTED BY THE TEST FOR THE SAME REASON THE SCHEMA IMPORTS
 // IT: an `ast` fixture built any other way is a second grammar (D-A1).
 import { parseFormula, astHash } from './ast/parse'
@@ -1494,5 +1502,170 @@ describe('readout[] — validated fail-closed, by definition id and entry index'
       expect(e, JSON.stringify(bad)).toMatch(/readout\[1\]\.card\.learn: definition "rsi" — expected a non-empty lesson key/)
       expect(e).not.toMatch(/readout\[0\]/)
     }
+  })
+})
+
+// ─── meta.presets[].{visibility, dotSize, displayTarget} (Phase 2a, unit 2a-15) ─
+//
+// The three non-input preset fields are consumed by `applyPresetFields`
+// (`instanceControls.js`, unit 2a-12), which DROPS a value its writer cannot take
+// with a `console.warn`. The schema refuses those values at registration, by
+// definition id, preset id and field, in the writers' own vocabularies.
+describe('meta.presets[] non-input fields — validated exactly as applyPresetFields consumes them', () => {
+  /** An RSI with two dot outputs (a plain `markers` plot, a `markers` plot with a
+   *  glyph), a HIDDEN markers plot and a line, plus one preset `p` carrying the
+   *  fields under test. */
+  const withPreset = (fields, extraPlots = []) => {
+    const d = rsiDef()
+    d.plots.push(
+      { key: 'dotPlain', label: 'Dot', style: 'markers', color: '#aabbcc', width: 2 },
+      { key: 'dotGlyph', label: 'Glyph', style: 'markers', color: '#aabbcc', width: 1,
+        marker: { shape: 'circle', position: 'inBar', size: 2 } },
+      { key: 'dotHidden', style: 'markers', color: '#aabbcc', width: 2, hidden: true },
+      ...extraPlots,
+    )
+    d.meta.presets = [{ id: 'p', label: 'P', inputs: { period: 21 }, ...fields }]
+    return d
+  }
+  const ok = (d) => { const r = validateDefinition(d); expect(r.ok, JSON.stringify(r.errors)).toBe(true); return r.def }
+  const errs = (d) => { const r = validateDefinition(d); expect(r.ok).toBe(false); return r.errors }
+  const only = (d) => {
+    const e = errs(d)
+    expect(e, e.join('\n')).toHaveLength(1)
+    return e[0]
+  }
+
+  it('the vocabularies are the writers\' own, not copies', () => {
+    expect(PRESET_DOT_SIZES).toEqual(Object.keys(DOT_SIZES))
+    expect(PRESET_DOT_SIZES).toEqual(['small', 'medium', 'large'])
+    expect(PRESET_VISIBILITY_PRESETS).toEqual(VISIBILITY_PRESETS.map((p) => p.value))
+    expect(PRESET_VISIBILITY_PRESETS).toEqual(['all', 'intraday', 'dailyUp', 'custom'])
+    expect(PRESET_FIELDS).toEqual(['id', 'label', 'origin', 'inputs', 'visibility', 'dotSize', 'displayTarget'])
+    for (const v of [PRESET_DOT_SIZES, PRESET_VISIBILITY_PRESETS, PRESET_FIELDS]) expect(Object.isFrozen(v)).toBe(true)
+    // the codes the custom-policy check reads are the chart's own
+    expect(['D', 'W', '1'].every(isValidTf)).toBe(true)
+    expect(isValidTf('fortnight')).toBe(false)
+  })
+
+  it('accepts every shape the writer takes — the Trend and Stress shapes among them', () => {
+    // Trend: a word for every dot output + daily and up
+    ok(withPreset({ dotSize: 'small', visibility: { preset: 'dailyUp' } }))
+    // Stress: one output sized, by key — a glyph plot is a dot output
+    ok(withPreset({ dotSize: { dotGlyph: 'large' }, visibility: { preset: 'dailyUp' } }))
+    ok(withPreset({ dotSize: { dotPlain: 'medium', dotGlyph: 'small' } }))
+    ok(withPreset({ visibility: { preset: 'intraday' } }))
+    ok(withPreset({ visibility: { preset: 'custom', tfs: ['D', 'W'] } }))
+    // "every timeframe", both spellings the writer clears the key for
+    ok(withPreset({ visibility: 'all' }))
+    ok(withPreset({ visibility: null }))
+    for (const t of PLACEMENT_TARGETS) ok(withPreset({ displayTarget: t }))
+    // a preset that sets only inputs is still fine
+    ok(withPreset({}))
+    // and the fields come back verbatim on the returned def
+    const d = ok(withPreset({ dotSize: { dotGlyph: 'large' }, visibility: { preset: 'custom', tfs: ['W', 'D'] }, displayTarget: 'price' }))
+    expect(d.meta.presets[0]).toMatchObject({ dotSize: { dotGlyph: 'large' }, visibility: { preset: 'custom', tfs: ['W', 'D'] }, displayTarget: 'price' })
+  })
+
+  it('the shipped rsLine definition registers with its Trend / Stress fields intact', () => {
+    const rs = getDefinition('rsLine')
+    expect(rs, 'rsLine refused at registration').toBeTruthy()
+    const by = Object.fromEntries(rs.meta.presets.map((p) => [p.id, p]))
+    expect(by.trend).toMatchObject({ dotSize: 'small', visibility: { preset: 'dailyUp' } })
+    expect(by.trendWeekly).toMatchObject({ dotSize: 'small', visibility: { preset: 'dailyUp' } })
+    expect(by.stress).toMatchObject({ dotSize: { dotNHbeforePx: 'large' }, visibility: { preset: 'dailyUp' } })
+    // …and `dotNHbeforePx` is a glyph plot, which is why the object form must accept one
+    expect(rs.plots.find((p) => p.key === 'dotNHbeforePx').marker).toBeTruthy()
+  })
+
+  it('⛔ refuses an unknown preset key BY NAME — the field set is closed because the writer reads by name', () => {
+    const e = only(withPreset({ dotsize: 'large' }))
+    expect(e).toMatch(/^meta\.presets\[0\]\.dotsize: definition "rsi", preset "p" — unknown preset field/)
+    expect(e).toMatch(/id, label, origin, inputs, visibility, dotSize, displayTarget/)
+    expect(only(withPreset({ visibilty: { preset: 'dailyUp' } }))).toMatch(/\.visibilty: .*unknown preset field/)
+  })
+
+  it('refuses a dotSize the writer would drop: a word outside the vocabulary, a non-object, an empty object', () => {
+    expect(only(withPreset({ dotSize: 'enormous' })))
+      .toMatch(/^meta\.presets\[0\]\.dotSize: definition "rsi", preset "p" — expected one of "small", "medium", "large" \(or \{plotKey: word\}\), got "enormous"/)
+    expect(only(withPreset({ dotSize: 4 }))).toMatch(/\.dotSize: .*got 4$/)
+    expect(only(withPreset({ dotSize: ['large'] }))).toMatch(/\.dotSize: .*got an array/)
+    expect(only(withPreset({ dotSize: null }))).toMatch(/\.dotSize: .*got null/)
+    expect(only(withPreset({ dotSize: {} }))).toMatch(/\.dotSize: .*an empty object sizes nothing; name a dot output \(dotPlain, dotGlyph\)/)
+  })
+
+  it('refuses {plotKey: word} naming anything but a declared, non-hidden dot output — and a bad word per key', () => {
+    // a line plot draws no dots
+    expect(only(withPreset({ dotSize: { rsi: 'large' } })))
+      .toMatch(/^meta\.presets\[0\]\.dotSize\.rsi: definition "rsi", preset "p" — "rsi" is not a dot output .*Declared: dotPlain, dotGlyph$/)
+    // a hidden markers plot is computed and never drawn
+    expect(only(withPreset({ dotSize: { dotHidden: 'large' } }))).toMatch(/\.dotSize\.dotHidden: .*not a dot output/)
+    // a key nothing declares
+    expect(only(withPreset({ dotSize: { nope: 'large' } }))).toMatch(/\.dotSize\.nope: .*not a dot output/)
+    // the right key, the wrong word
+    expect(only(withPreset({ dotSize: { dotGlyph: 'huge' } })))
+      .toMatch(/^meta\.presets\[0\]\.dotSize\.dotGlyph: .*expected one of "small", "medium", "large", got "huge"$/)
+    // both wrong ⇒ both reported, on the same key
+    const e = errs(withPreset({ dotSize: { rsi: 7 } }))
+    expect(e).toHaveLength(2)
+    expect(e.every((m) => m.startsWith('meta.presets[0].dotSize.rsi:'))).toBe(true)
+  })
+
+  it('refuses a visibility that is not a timeframe policy — shape, preset word, custom codes', () => {
+    const SHAPES = /null, "all", \{preset: "intraday"\}, \{preset: "dailyUp"\} or \{preset: "custom", tfs: \[<timeframe code>, …\]\}/
+    expect(only(withPreset({ visibility: 'dailyUp' }))).toMatch(/^meta\.presets\[0\]\.visibility: definition "rsi", preset "p" — expected /)
+    expect(only(withPreset({ visibility: 'dailyUp' }))).toMatch(SHAPES)
+    expect(only(withPreset({ visibility: ['D'] }))).toMatch(/\.visibility: .*got an array/)
+    expect(only(withPreset({ visibility: { preset: 'sometimes' } })))
+      .toMatch(/^meta\.presets\[0\]\.visibility\.preset: .*expected one of "intraday", "dailyUp", "custom" \(spell "every timeframe" as visibility: "all"\), got "sometimes"$/)
+    // `{preset: 'all'}` is the one spelling the normaliser reads as "all" BY ACCIDENT (it
+    // matches nothing) — refused with the pointer to the real spelling
+    expect(only(withPreset({ visibility: { preset: 'all' } }))).toMatch(/\.visibility\.preset: .*spell "every timeframe" as visibility: "all"/)
+    expect(only(withPreset({ visibility: {} }))).toMatch(/\.visibility\.preset: .*got undefined/)
+    // custom needs codes…
+    expect(only(withPreset({ visibility: { preset: 'custom' } }))).toMatch(/\.visibility\.tfs: .*non-empty array of timeframe codes, got undefined/)
+    expect(only(withPreset({ visibility: { preset: 'custom', tfs: [] } }))).toMatch(/\.visibility\.tfs: .*reads an empty list as "all"/)
+    // …every one a code the chart has, named by index
+    const e = errs(withPreset({ visibility: { preset: 'custom', tfs: ['D', 'fortnight', 7] } }))
+    expect(e).toHaveLength(2)
+    expect(e[0]).toMatch(/^meta\.presets\[0\]\.visibility\.tfs\[1\]: definition "rsi", preset "p" — "fortnight" is not a chart timeframe code/)
+    expect(e[1]).toMatch(/\.visibility\.tfs\[2\]: .*7 is not a chart timeframe code/)
+    // codes on a non-custom policy are ignored by the writer, so they are a mistake here
+    expect(only(withPreset({ visibility: { preset: 'dailyUp', tfs: ['D'] } }))).toMatch(/\.visibility\.tfs: .*only a "custom" policy names timeframe codes; "dailyUp" ignores them/)
+    // and a stray key
+    expect(only(withPreset({ visibility: { preset: 'dailyUp', from: 'D' } }))).toMatch(/\.visibility: .*unknown key\(s\) "from"/)
+  })
+
+  it('refuses a displayTarget outside the placement vocabulary — including the writer\'s @instance form', () => {
+    expect(only(withPreset({ displayTarget: 'sideways' })))
+      .toMatch(/^meta\.presets\[0\]\.displayTarget: definition "rsi", preset "p" — expected one of "price", "pane", "volume", got "sideways"$/)
+    // `@rsi` is writable for a DERIVED instance, but a definition names no instance
+    expect(only(withPreset({ displayTarget: '@rsi' }))).toMatch(/\.displayTarget: .*got "@rsi"/)
+    expect(only(withPreset({ displayTarget: null }))).toMatch(/\.displayTarget: .*got null/)
+    expect(only(withPreset({ displayTarget: 1 }))).toMatch(/\.displayTarget: .*got 1/)
+  })
+
+  it('is exhaustive across presets and fields — every problem named in one pass, by index', () => {
+    const d = withPreset({})
+    d.meta.presets = [
+      { id: 'a', label: 'A', inputs: { period: 21 }, dotSize: 'big', visibility: { preset: 'never' }, displayTarget: 'nowhere' },
+      { id: 'b', label: 'B', inputs: { period: 14 }, dotSize: 'small' },
+      { id: 'c', label: 'C', inputs: { period: 9 }, dotSize: { rsi: 'large' }, extra: 1 },
+    ]
+    const e = errs(d)
+    expect(e.filter((m) => m.startsWith('meta.presets[0].')).map((m) => m.split(':')[0]).sort())
+      .toEqual(['meta.presets[0].displayTarget', 'meta.presets[0].dotSize', 'meta.presets[0].visibility.preset'])
+    expect(e.some((m) => m.startsWith('meta.presets[1].'))).toBe(false)
+    expect(e.filter((m) => m.startsWith('meta.presets[2].')).map((m) => m.split(':')[0]).sort())
+      .toEqual(['meta.presets[2].dotSize.rsi', 'meta.presets[2].extra'])
+    expect(e.every((m) => m.includes('definition "rsi", preset "'))).toBe(true)
+  })
+
+  it('⛔ CONTROL: the entry-shape errors of the pre-2a-15 block still fire beside the field errors', () => {
+    const d = withPreset({})
+    d.meta.presets = [{ id: '', label: 'X', inputs: 'nope', dotSize: 'big' }]
+    const e = errs(d).join('\n')
+    expect(e).toMatch(/meta\.presets\[0\]\.id: required non-empty string/)
+    expect(e).toMatch(/meta\.presets\[0\]\.inputs: required object/)
+    expect(e).toMatch(/meta\.presets\[0\]\.dotSize: definition "rsi", preset "" — expected one of/)
   })
 })

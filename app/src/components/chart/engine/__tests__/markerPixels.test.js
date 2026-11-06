@@ -25,13 +25,16 @@
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import * as nativeRegistry from '../nativeRegistry'
 import { getDefinition } from '../nativeRegistry'
 import { seriesOptionsForPlot } from '../pool'
-import { presentedPlot, DOT_SIZES } from '../presentation'
+import { presentedPlot, DOT_SIZES, DOT_GLYPH_SCALE, scaledMarker } from '../presentation'
 import { markersFor } from '../markerPrimitive'
 import { createBinder } from '../binder'
 import { IND_TOKENS } from '../../designTokens'
 import { createFakeChart } from './fakeChart'
+import { mergeChartSettings } from '../../chartDefaults'
+import { addInstance, applyPresetInputs, findInstance } from '../instanceControls'
 
 // ─── the mirror ─────────────────────────────────────────────────────────────
 
@@ -229,6 +232,92 @@ describe('presentation.dotSize is honoured on a plot DECLARED markers', () => {
   })
 })
 
+// ─── 5b. presentation.dotSize reaches a GLYPH plot (2a-13 / 2a-15) ──────────
+//
+// Stress's `dotSize: {dotNHbeforePx: 'large'}` was stored and detected at 2a-14
+// and visually inert: `presentedPlot` scaled only `width`, which a glyph never
+// reads, and the pool drew a 2 px point marker under the glyph. The word is now a
+// MULTIPLIER on the declared `marker.size` (`DOT_GLYPH_SCALE`), and the series
+// under a glyph draws no point marker at all.
+
+describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading becomes pixels', () => {
+  const gold = plot('dotNHbeforePx')
+  const red = plot('dotNHred')
+
+  it('the glyph scale is 0.6× / 1× / 1.4× of the DECLARED size; Default is the declared look by identity of value', () => {
+    expect(DOT_GLYPH_SCALE).toEqual({ small: 0.6, medium: 1, large: 1.4 })
+    expect(Object.isFrozen(DOT_GLYPH_SCALE)).toBe(true)
+    expect(Object.keys(DOT_GLYPH_SCALE)).toEqual(Object.keys(DOT_SIZES))
+    expect(scaledMarker(gold.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
+    expect(scaledMarker(gold.marker, 'small')).toEqual({ shape: 'circle', position: 'inBar', size: 1.2 })
+    expect(scaledMarker(gold.marker, 'medium')).toEqual(gold.marker)
+    // the RED text rides along untouched
+    expect(scaledMarker(red.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8, text: 'RED' })
+    // a block with no declared size is at LWC's multiplier 1 and scales from there
+    expect(scaledMarker({ shape: 'square', position: 'aboveBar' }, 'large').size).toBeCloseTo(1.4)
+    // an unknown word, or no block, is a no-op
+    expect(scaledMarker(gold.marker, 'huge')).toBe(gold.marker)
+    expect(scaledMarker(undefined, 'large')).toBeUndefined()
+  })
+
+  it('presentedPlot: a per-output or instance-level word scales `marker.size`; `width` is left alone', () => {
+    const perOutput = presentedPlot(gold, { presentation: { plots: { dotNHbeforePx: { dotSize: 'large' } } } })
+    expect(perOutput.marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
+    expect(perOutput.width, 'the glyph reads marker.size, not width').toBe(gold.width)
+    expect(perOutput.style).toBe('markers')
+    const instanceLevel = presentedPlot(gold, { presentation: { dotSize: 'small' } })
+    expect(instanceLevel.marker.size).toBeCloseTo(1.2)
+    // per-output outranks the instance level, as it does for the plain dots
+    expect(presentedPlot(gold, { presentation: { dotSize: 'small', plots: { dotNHbeforePx: { dotSize: 'large' } } } }).marker.size).toBe(2.8)
+    // a stored `medium` is a stored choice: the plot is re-made, the glyph is the declared one
+    expect(presentedPlot(gold, { presentation: { dotSize: 'medium' } }).marker).toEqual(gold.marker)
+  })
+
+  it('⛔ CONTROL: with nothing stored the declared glyph stands and the plot is returned by identity', () => {
+    expect(presentedPlot(gold, {})).toBe(gold)
+    expect(presentedPlot(gold, { presentation: {} })).toBe(gold)
+    expect(presentedPlot(gold, { presentation: { plots: { dotNH: { dotSize: 'large' } } } })).toBe(gold)
+    expect(gold.marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0 })
+    // the glyph plot never takes the point-radius path: a Large word does not touch `width`
+    expect(presentedPlot(gold, { presentation: { dotSize: 'large' } }).width).toBe(1)
+  })
+
+  it('the pixel table: Default unchanged at 15 / 23; Large 23 at EVERY spacing; Small 9 / 13 / 17 / 23', () => {
+    const at = (word) => Object.fromEntries(BAR_SPACINGS.map((bs) => [bs, glyphCircleSize(scaledMarker(gold.marker, word).size, bs)]))
+    expect(at('medium')).toEqual({ 4: 15, 6: 15, 8: 15, 12: 15, 15: 23, 20: 23, 30: 23 })
+    expect(at('large')).toEqual({ 4: 23, 6: 23, 8: 23, 12: 23, 15: 23, 20: 23, 30: 23 })
+    expect(at('small')).toEqual({ 4: 9, 6: 9, 8: 9, 12: 9, 15: 13, 20: 17, 30: 23 })
+    // Stress's Large dot renders at a LARGER circle than Default wherever Default is
+    // under the ceiling (phone, grid cell, zoomed out: bar spacing ≤ 12)…
+    for (const bs of [4, 6, 8, 12]) expect(at('large')[bs], `bs ${bs}`).toBeGreaterThan(at('medium')[bs])
+    // …and EQUAL to it from the desktop daily zoom (bar spacing 15), because 23 is the
+    // largest circle LWC draws: `size()` clamps the multiplied height to 30, × 0.8 = 24,
+    // ceiled odd = 23, and Default (14 × 2 = 28 → 22.4 → 23) is already there.
+    for (const bs of [15, 20, 30]) expect(at('large')[bs], `bs ${bs}`).toBe(23)
+    expect(glyphCircleSize(100, 15), 'the ceiling, whatever the multiplier').toBe(23)
+    expect(glyphCircleSize(100, 4), 'at any spacing').toBe(23)
+    // Small stays under Default at every spacing but the 30 px ceiling
+    for (const bs of [4, 6, 8, 12, 15, 20]) expect(at('small')[bs], `bs ${bs}`).toBeLessThan(at('medium')[bs])
+  })
+
+  it('the Stress preset, applied through the writer, stores the word the glyph lane reads', () => {
+    const ids = (c) => new Set(c.indicatorInstances.map((i) => i.instanceId))
+    let cs = mergeChartSettings({})
+    const before = ids(cs)
+    cs = addInstance(cs, 'rsLine', nativeRegistry)
+    const a = [...ids(cs)].find((id) => !before.has(id))
+    const stress = rs.meta.presets.find((p) => p.id === 'stress')
+    expect(stress.dotSize).toEqual({ dotNHbeforePx: 'large' })
+    cs = applyPresetInputs(cs, a, rs, stress, nativeRegistry)
+    const inst = findInstance(cs, a)
+    expect(inst.presentation).toMatchObject({ plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    // …and the plan's plot for that instance carries the scaled glyph
+    expect(presentedPlot(gold, inst).marker.size).toBe(2.8)
+    // the red-day glyph is NOT named by Stress, so it keeps the declared 2.0
+    expect(presentedPlot(red, inst)).toBe(red)
+  })
+})
+
 // ─── 6. the binder draws the plain dot ON the RS value, only on event bars ──
 
 describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS value, and the gold dot is a glyph above it', () => {
@@ -250,7 +339,7 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     dotMansfieldCross: [NaN, NaN, NaN, -0.4, NaN, NaN, NaN, NaN],
   }
 
-  function drive(inputs = {}) {
+  function drive(inputs = {}, presentation = undefined) {
     const fake = createFakeChart()
     const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
     const glyphs = []
@@ -262,7 +351,7 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     }
     binder.sync({
       enabled: true,
-      instances: [{ instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs }],
+      instances: [{ instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs, ...(presentation ? { presentation } : {}) }],
       registry,
       bars: BARS,
       adjustTime: (t) => t,
@@ -294,13 +383,33 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     expect(glyphs.some((g) => g.series === dot), 'a plain dot never reaches createSeriesMarkers').toBe(false)
   })
 
-  it('dotNHbeforePx: ONE glyph, inBar, size 2, on the event bar — above the series that holds the same value', () => {
-    const { glyphs, byColour } = drive()
-    const gold = byColour('#c9a84c', true)
+  it('dotNHbeforePx: ONE glyph, inBar, size 2, on the event bar — above a series that holds the value and draws NOTHING itself', () => {
+    const { fake, glyphs, byColour } = drive()
+    // ⭐ 2a-13: the glyph's host series draws no point marker (there used to be a 2 px
+    // disc under every gold circle) and no line — `byColour(…, false)` is the proof.
+    expect(byColour('#c9a84c', true), 'no gold series draws point markers').toBeUndefined()
+    const gold = byColour('#c9a84c', false)
     expect(gold, 'the gold dot series').toBeTruthy()
+    expect(gold.__options).toMatchObject({ lineWidth: 0, pointMarkersVisible: false, lineVisible: false })
+    // both gold glyph hosts (before-price and red-day) are point-marker-free
+    for (const s of fake.seriesCreated.filter((x) => x.__options.color === '#c9a84c')) {
+      expect(s.__options.pointMarkersVisible).toBe(false)
+    }
     const mine = glyphs.filter((g) => g.series === gold)
     expect(mine.length).toBe(1)
     expect(mine[0].markers).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2 }])
+  })
+
+  it('⭐ a Stress-shaped instance (dotSize large on dotNHbeforePx) hands the glyph lane size 2.8, and ONLY that glyph', () => {
+    const { glyphs } = drive({ showRedDay: true }, { plots: { dotNHbeforePx: { dotSize: 'large' } } })
+    const all = glyphs.flatMap((g) => g.markers)
+    const before = all.filter((mk) => mk.time === BARS[4].t && !mk.text)
+    expect(before).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2.8 }])
+    // the red-day glyph is not named by Stress's dotSize: declared 2.0
+    expect(all.filter((mk) => mk.text === 'RED').map((mk) => mk.size)).toEqual([2])
+    // and an instance-level word reaches BOTH glyphs
+    const both = drive({ showRedDay: true }, { dotSize: 'small' }).glyphs.flatMap((g) => g.markers)
+    for (const mk of both) expect(mk.size, mk.text || 'before-price').toBeCloseTo(1.2)
   })
 
   it('dotNHred (2a-14): ONE gold glyph carrying the text RED on its event bar — the Stress reading', () => {

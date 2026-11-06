@@ -746,6 +746,14 @@ export function seriesOptionsForPlot(plot, ctx) {
 
   // ── everything else is one of LWC's line-shaped series ──
   const markers = plot.style === 'markers'
+  // ⭐ A GLYPH DRAWS NO POINT MARKER UNDER ITSELF (2a-13). A `markers` plot WITH a
+  // `marker` block is painted by the series-marker lane (`binder.js` →
+  // `markersFor`, riding this very series); its `width` was still emitted here as
+  // `pointMarkersRadius` with `pointMarkersVisible: true`, so a 2 px disc sat under
+  // every gold glyph — invisible beneath the disc, and the SECOND renderer the
+  // review warned about (`presentation.js:421` vs `binder.js:2511`). The series
+  // keeps its data (the glyph's `inBar` anchor IS the value) and draws nothing.
+  const glyph = markers && !!plot.marker && typeof plot.marker === 'object' && !Array.isArray(plot.marker)
   base.crosshairMarkerVisible = false
   // SAR: dots, not a line — `lineWidth: 0` plus point markers
   // (`StockChart.jsx:5889-5894`). The plot's `width` is the DOT RADIUS there,
@@ -757,7 +765,7 @@ export function seriesOptionsForPlot(plot, ctx) {
   // (`presentation.lineLookPatch` never stamps it on a step).
   base.lineType = lineTypeValue(plot.style === 'stepline' ? 'WithSteps'
     : (plot.lineType === 'curved' ? 'Curved' : 'Simple'), c.LineType)
-  base.pointMarkersVisible = markers
+  base.pointMarkersVisible = markers && !glyph
   base.pointMarkersRadius = (markers && Number.isFinite(plot.width)) ? plot.width : DEFAULT_DOT_RADIUS
   // ⭐ "Last value horizontal" (`presentation.presentedPlot` → `plot.levelOnly`): no
   // history ink, one level at the latest value. EMITTED ON EVERY LINE-FAMILY BIND, true

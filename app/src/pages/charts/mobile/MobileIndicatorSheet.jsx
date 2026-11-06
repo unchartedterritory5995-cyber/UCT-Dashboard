@@ -6,7 +6,8 @@ import * as engineRegistry from '../../../components/chart/engine/nativeRegistry
 import { catalogRows, userCatalogRows, catalogGeneration } from '../../../components/chart/indicatorCatalog'
 import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/IndicatorLibraryDialog'
 import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed } from '../../../components/chart/indicatorRegistry'
-import { setInstanceInput, removeInstance, applyPresetInputs } from '../../../components/chart/engine/instanceControls'
+import { setInstanceInput, removeInstance, applyPresetInputs,
+         presetsOf, detectPreset, CUSTOM_PRESET } from '../../../components/chart/engine/instanceControls'
 import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryButtons'
 import UnavailableIndicators from '../../../components/chart/UnavailableIndicators'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
@@ -25,41 +26,19 @@ function liveInstanceOf(cs, defId) {
   return list.find((i) => i && typeof i === 'object' && !isInstanceTombstone(i) && i.defId === defId) || null
 }
 
-// ─── THE PRESET STATE (UCT RS Phase 2a, unit 2a-11) ─────────────────────────
+// ─── THE PRESET STATE (UCT RS Phase 2a, unit 2a-11 → 2a-15) ─────────────────
 //
-// ⚠️ DUPLICATED FROM `IndicatorSettingsDialog.jsx` (`presetsOf`, `detectPreset`),
-// where both are file-private. Unit 2a-11 may not edit that file and may not
-// re-export from it, so the phone carries the same two rules verbatim; unit
-// 2a-15 (the integration unit, which owns the dialog) collapses the pair into
-// one shared export. Keep the RULE identical until then: a preset matches when
-// EVERY key it declares equals the resolved value; the first match wins; a
-// preset with no keys never matches. Nothing is stored on the instance — "which
-// preset is this" is derived from the inputs, so it cannot drift from the chart.
-
-/** The sentinel the Custom chip carries in `data-preset-id`. Not a preset id,
- *  never written anywhere — the dialog's `CUSTOM_PRESET`, same value. */
-const CUSTOM_PRESET = '__custom'
-
-/** The definition's declared presets (`meta.presets`), shape-filtered so a
- *  malformed entry renders nothing rather than a broken chip. */
-function presetsOf(def) {
-  const raw = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
-  return raw.filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id
-    && typeof p.label === 'string' && p.inputs && typeof p.inputs === 'object' && !Array.isArray(p.inputs))
-}
-
-/** The preset whose EVERY declared key equals the resolved value — or `null`
- *  for Custom. Compared against the RESOLVED values (declared defaults under
- *  stored inputs), so a fresh instance whose defaults are a preset's values
- *  reads as that preset. */
-function detectPreset(presets, values) {
-  for (const p of presets) {
-    const keys = Object.keys(p.inputs)
-    if (!keys.length) continue
-    if (keys.every((k) => values[k] === p.inputs[k])) return p
-  }
-  return null
-}
+// `presetsOf`, `detectPreset` and `CUSTOM_PRESET` are the ENGINE's
+// (`instanceControls.js`, since unit 2a-12), read by this sheet and the desktop
+// dialog alike. Unit 2a-11 carried verbatim copies here because it could not
+// edit the dialog they lived in; unit 2a-15 collapsed the pair into that one
+// export. The rule is unchanged: a preset matches when EVERY key it declares
+// equals the resolved value; the first match wins; a preset with no keys never
+// matches. Nothing is stored on the instance — "which preset is this" is
+// derived from the inputs, so it cannot drift from the chart. (The engine's
+// `detectPreset` also takes a third `{instance, def, cs}` argument that compares
+// a preset's non-input fields; this sheet passes none and reads inputs alone,
+// exactly as its duplicate did.)
 
 // ─── ONE FIELD ROW ───────────────────────────────────────────────────────────
 //
