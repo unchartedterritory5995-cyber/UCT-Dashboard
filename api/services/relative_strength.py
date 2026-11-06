@@ -678,17 +678,31 @@ def last_rs_high(columns: Dict[str, Column], times: Sequence) -> Optional[dict]:
 
 def legend_scalars(columns: Dict[str, Column]) -> dict:
     """What the legend chip says in words (plan §6.6): % distance from the MA,
-    the MA's slope sign, and the RS-above flag, for the LAST bar."""
+    the MA's slope sign, and the RS-above flag, read at the LAST BAR WITH A
+    FINITE RS VALUE (visual round A8, 2026-11-06).
+
+    That is the last bar whenever both closes exist there, so a normal chart
+    reads exactly what it always did. When the newest bar has no ratio (the
+    benchmark is missing a recent bar) the reading comes from the last bar that
+    has one instead of going blank; ``index`` names that bar and ``lastValue``
+    is the ratio there (six places), so the caller can date it and say so.
+    ``index`` and ``lastValue`` are None when no bar has a finite ratio."""
     rs = columns.get("rsLine") or []
     ma = columns.get("rsMa") or []
-    out = {"pctFromMa": None, "maSlope": None, "above": None}
+    out = {"pctFromMa": None, "maSlope": None, "above": None, "index": None, "lastValue": None}
     if not rs or not ma:
         return out
-    v, m = rs[-1], ma[-1]
+    i = next((j for j in range(len(rs) - 1, -1, -1) if _is_num(rs[j])), None)
+    at = len(rs) - 1 if i is None else i
+    if i is not None:
+        out["index"] = i
+        out["lastValue"] = round(float(rs[i]), 6)
+    v = rs[at]
+    m = ma[at] if at < len(ma) else None
     if _is_num(v) and _is_num(m) and m != 0:
         out["pctFromMa"] = (v / m - 1.0) * 100.0
         out["above"] = v >= m
-    if len(ma) >= 2 and _is_num(ma[-1]) and _is_num(ma[-2]):
-        d = ma[-1] - ma[-2]
+    if 1 <= at < len(ma) and _is_num(ma[at]) and _is_num(ma[at - 1]):
+        d = ma[at] - ma[at - 1]
         out["maSlope"] = 1 if d > 0 else (-1 if d < 0 else 0)
     return out
