@@ -1,17 +1,31 @@
-# W6-T3b evidence: `exprType` with per-call-site return-type inference (WIP, session restarted)
+# W6-T3b evidence: `exprType` with per-call-site return-type inference
 
-## NEXT STEP (exact)
-1. Measure-pair: a rerun was queued under `heavy-mp2.lock` at 17:39 (waiting on an unlabelled holder, pid 10756).
-   Log: `_resume-2026-11-01/runs/w6t3b/mp-all.log` (per lane `mp0.log`, `mp1.log`, dirs `mp0/`, `mp1/`; job `runs/w6t3b/mp.sh`).
-   If it did not finish with `MPALL_DONE`, re-run: `lock_run` (LOCK var -> `$UCT_RESUME/dsk/heavy-mp2.lock`) `-- bash $UCT_RESUME/runs/w6t3b/mp.sh`.
-   It switches `pine-dsk-mpbase2` to `merge-base HEAD origin/master` and asserts HEAD before/after each lane.
-   Attempt 1 (`mp-all-attempt1.log`, `mp0-attempt1.log`) is VOID: another session switched `pine-dsk-mpbase2` to
-   `c855e8cadf` at 17:18 during the base side (reflog), so the script stopped with HEAD MOVED. Its tip side was rt0
-   harness `MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140`, same totals as the base side before the move.
-2. Classify every C18/census/harness diff (expected: 0; no served path reads a new answer).
-3. final-tip LAST: `lock_run` on `$UCT_RESUME/dsk/heavy-final2.lock` `-- bash $UCT_RESUME/runs/w6t3b/ft.sh`
-   (FULL, 2 parallel shards, Node 20.20.2), then `ready-check.sh pine-dsk-w6t3b $UCT_RESUME/runs/w6t3b-final`.
-   Before it, merge current origin/master if it moved. Then fill the sections below and push (docs only after TIP).
+**Code tip (final-tip ran on it): `afea7afaf5`** (merge of origin/master `7f6dd3714d`; no engine file in that merge).
+Later commits are docs only. **Engine bump: no** (`SCRIPT_ENGINE_VERSION` untouched, 18 from master).
+
+## measure-pair (`runs/w6t3b/mp.sh`, lock heavy-mp2.lock, base `pine-dsk-mpbase2` switched in-job; HEAD asserted before/after each lane)
+Log `runs/w6t3b/mp-all.log`, `mp0.log`, `mp1.log`; compare `runs/w6t3b/mpcompare.py` (ignores `ms`).
+`== side tip 1eb962e278` / `== side base 3ca4b0d358` (tested-on-master `3ca4b0d358`, then the merge-base). Master
+`7f6dd3714d`, merged afterwards, changes no file under `app/src/components/chart/engine`, so the pair stands for the final code.
+- **C18 corpus audit 395 rows: 0 diffs; constructed probes 69: 0 diffs, on both lanes.**
+- Harness byte-identical: rt0 `MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140`, rt1 `MATCH 111 / DIVERGE 107 / INCONCLUSIVE 118` both sides.
+- Census 967 rows; no row changed attached/clean/stuck. All NOISE, the same rows W4-T14 and W6-T3a recorded:
+  rt0 `volatility-coil-edge-bullbyte` (dropReasons), `halftrend-longshort-signal-engine-bigbeluga` (peelSteps 7 vs 6),
+  `luxy-momentum-…` (attemptedOps), `multi-timeframe-trend-indicator` (nested refusal list length); rt1
+  `multi-timeframe-trend-indicator` (same). These are `pine:timeout` wall-clock and nested-refusal rows; no T3b caller
+  serves a new answer. 0 unintended.
+- Attempt 1 (`mp-all-attempt1.log`) is VOID: another session switched `pine-dsk-mpbase2` mid-run (reflog 17:18); the
+  script caught it (HEAD MOVED).
+
+## final-tip (`runs/w6t3b/ft.sh`, lock heavy-final2.lock, FULL, 2 parallel shards, Node 20.20.2; logs `runs/w6t3b-final/`, `runs/w6t3b/ft.out`)
+`TIP afea7afaf5 done`, `scope=full shards=2`, `rc gate=0 hyg=0 py=0 js=1`, `totals=ok errors=0 integrity=ok`.
+jsfail, classified:
+- baselines: `pollingSites.rail`, `settingsScope.rail`, `enumerationSites`, `vendorHarness`;
+- red on MASTER `7f6dd3714d` too, the same test each, run alone in `pine-dsk-mpbase2` (`runs/w6t3b/rerun-master.log`;
+  tip alone `runs/w6t3b/rerun.log`, 3 failed | 200 passed both sides):
+  `controlDoorCensus` (flags master's `app/src/agent/guide/slots.js`), `usePreferences.additionsOnly` (flags master's
+  `notebook/TodayHome.jsx`), `vendorHarness.coverageAudit` (delta-rsi INCONCLUSIVE). None touch this lane's files.
+- ready-check: FAILS only on those three master reds (outside its allowlist); see the bottom of this file.
 
 ## State
 - Branch `feat/pine-w6-t3b-expr-type`; code commit `e105a1f9a3`; merges: T3a tip `7dc6a77d1b`, origin/master
