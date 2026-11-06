@@ -41,22 +41,37 @@
 name: term018 guards
 
 on:
+  # MERGE-CANDIDATE RUN (AUDIT ruling 3): dispatched once at the exact SHA, never on a PR push. See infra/ci-runner/AUDIT-NOTES.md.
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "vps, or hosted-fallback: MANUAL FALLBACK, owner (or AUDIT with owner OK) only, for this one run."
+        type: choice
+        default: vps
+        options: [vps, hosted-fallback]
+  # Only ci-vps-shadow.yml calls this: the same steps on the VPS beside the deciding run, under another workflow's name.
+  workflow_call:
+    inputs:
+      lane:
+        type: string
+        default: ''
+      tag:
+        type: string
+        default: ''
   # 2026-10-19: push runs on master only. The repo is private now and Actions minutes cost money;
   # a branch push used to run this AND its pull_request run, i.e. the same check twice.
   push:
     branches: [master]
-  pull_request:
-
 # CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
 # workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
 # is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}-${{ inputs.tag }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   static:
-    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane != 'hosted-fallback' && 'uct-vps' || inputs.lane == 'vps' && 'uct-vps' || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

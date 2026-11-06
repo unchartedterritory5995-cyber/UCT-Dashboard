@@ -36,17 +36,13 @@
 name: Clock parity fixture
 
 on:
+  # MERGE-CANDIDATE RUN (AUDIT ruling 3): dispatched once at the exact SHA, never on a PR push. See infra/ci-runner/AUDIT-NOTES.md.
+  workflow_dispatch:
   push:
     paths:
       - 'tools/record_clock_parity.py'
       - 'tests/fixtures/ast/clock_parity.json'
       - 'api/services/indicator_compute.py'
-  pull_request:
-    paths:
-      - 'tools/record_clock_parity.py'
-      - 'tests/fixtures/ast/clock_parity.json'
-      - 'api/services/indicator_compute.py'
-
 # CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
 # workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
 # is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
@@ -56,7 +52,7 @@ concurrency:
 
 jobs:
   fixture:
-    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

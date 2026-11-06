@@ -65,7 +65,7 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "MANUAL FALLBACK, owner (or AUDIT with owner OK) only. hosted-fallback runs the self-hosted jobs on GitHub-hosted runners, for this one run."
+        description: "vps, or hosted-fallback: MANUAL FALLBACK, owner (or AUDIT with owner OK) only, for this one run."
         type: choice
         default: vps
         options: [vps, hosted-fallback]
@@ -84,7 +84,7 @@ concurrency:
 
 jobs:
   gate:
-    name: deploy-correctness checks + Agent server tests
+    name: deploy-correctness checks
     runs-on: ubuntu-latest
     timeout-minutes: 60   # 40 -> 60 (2026-11-04, owner-approved): release train 2 ran the gate 35.2 of 40 min on 3d3d444d4f (Agent vitest 23.7 min, serial); 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest); 25 -> 40 (2026-11-02): Sprint 1 grew the Agent vitest step to 16.2 min and the gate ran 23.5 of 25 min on c3ba71c343
     steps:
@@ -361,23 +361,6 @@ jobs:
           /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
           /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py
 
-      # ── UCT AGENT (2026-10-11) ────────────────────────────────────────────────────
-      # The p25 Agent release reached production with NO Agent test in this gate (it ran
-      # none; the report-only full suite was cancelled / pending). These two steps run the
-      # Agent's own suites on every push: the server half against the PRODUCTION dependency
-      # set built just above, the browser half (planner, composer, runtime, approvals,
-      # receipts, Undo, the scripted 24-task evaluation) under vitest. The model is never
-      # called — every Agent test scripts it; this job holds no key.
-      # ⛔ NEVER SKIPPED: no `if:`, no continue-on-error, no path filter, no
-      # --passWithNoTests. A renamed or emptied suite FAILS: the pytest glob matches nothing
-      # (exit 4), and the browser step refuses a suite smaller than its floor.
-      # tests/test_uct_agent_deploy_gate.py rails all of this (and runs inside the glob).
-      - name: UCT Agent server tests (production dependency set)
-        run: |
-          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx
-          /tmp/prodvenv/bin/python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
-
-
       - name: Explain a failure
         if: failure()
         run: |
@@ -402,6 +385,50 @@ jobs:
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
           echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"
+
+  # ── AGENT SERVER TESTS (AUDIT ruling 1, 2026-11-06): its own job, so it can run on the VPS while everything
+  # deploy-correctness stays hosted in `gate`. It builds the production dependency set itself, as `pine-runtime` does,
+  # and `verdict` requires result == success by exact name.
+  # ── UCT AGENT (2026-10-11) ────────────────────────────────────────────────────
+  # The p25 Agent release reached production with NO Agent test in this gate (it ran
+  # none; the report-only full suite was cancelled / pending). These two steps run the
+  # Agent's own suites on every push: the server half against the PRODUCTION dependency
+  # set built just above, the browser half (planner, composer, runtime, approvals,
+  # receipts, Undo, the scripted 24-task evaluation) under vitest. The model is never
+  # called — every Agent test scripts it; this job holds no key.
+  # ⛔ NEVER SKIPPED: no `if:`, no continue-on-error, no path filter, no
+  # --passWithNoTests. A renamed or emptied suite FAILS: the pytest glob matches nothing
+  # (exit 4), and the browser step refuses a suite smaller than its floor.
+  # tests/test_uct_agent_deploy_gate.py rails all of this (and runs inside the glob).
+  agent-server:
+    name: UCT Agent server tests (production dependency set)
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
+    timeout-minutes: 20
+    steps:
+      # FULL HISTORY, ON PURPOSE. In `gate` these tests inherited history from earlier steps' fetches. At depth 2 two
+      # F-16 rails skip because their pinned commit is absent, and the job still reads green: measured 3652 passed,
+      # 2 skipped, against 3654 passed. Same depth as agent-ci.yml's `server` job.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: The production dependency set for the server tests
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m venv /tmp/prodvenv
+          /tmp/prodvenv/bin/python -m pip install --quiet --upgrade pip
+          /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt pytest httpx
+
+      # Proves it ran at the exact SHA: a checkout of anything else fails here, before a test runs.
+      - name: UCT Agent server tests (production dependency set)
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "testing exactly $GITHUB_SHA"
+          /tmp/prodvenv/bin/python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
 
   # ── SPEEDUP (2026-11-04): the Agent browser suite was 22.3 of the gate's ~31 min, run
   # serially AFTER the Python checks. It now runs as 4 parallel vitest shards beside the
@@ -591,48 +618,40 @@ jobs:
       - name: Pine runtime - the image agrees with Dockerfile.web
         run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q -p no:cacheprovider
 
-  # A job on an offline runner stays queued for up to 24 hours, and `timeout-minutes` does not count queue time, so
-  # a dead VPS would hold this workflow's serial queue for a day. This hosted job bounds that: no runner labelled
-  # uct-vps within 10 minutes fails the gate and cancels the run, so the heavy jobs report cancelled and `verdict`
-  # fails. It passes as soon as a runner is online. It never reads a result and never decides one.
+  # One-shot (AUDIT ruling 5): asks once and exits, never waits. A red here is the clear message; heavy jobs stay queued
+  # until `ci-queue-watch.yml` cancels the run, which is what lets `verdict` run and fail. It decides no result.
   runner-watchdog:
     name: VPS runner online (hosted watchdog)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     permissions:
       contents: read
-      actions: write   # only to cancel this run when the runner is absent
     steps:
       - uses: actions/checkout@v4
       - name: A runner labelled uct-vps is online
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback') }}
         env:
           CI_RUNNER_READ_TOKEN: ${{ secrets.CI_RUNNER_READ_TOKEN }}
-        run: python3 tools/ci_runner_watchdog.py gate --label uct-vps --minutes 10
+        run: python3 tools/ci_queue_watch.py online --label uct-vps
       - name: Label a manual hosted fallback run
         if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.lane == 'hosted-fallback' }}
         run: |
           echo "::warning title=MANUAL HOSTED FALLBACK::The heavy gate jobs ran on GitHub-hosted runners, by manual dispatch from ${GITHUB_ACTOR}."
           echo "## MANUAL HOSTED FALLBACK, dispatched by ${GITHUB_ACTOR}" >> "$GITHUB_STEP_SUMMARY"
-      - name: End the run instead of leaving it queued
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY"
 
   # One named verdict for the whole gate. Runs even when a dependency failed or was
   # cancelled, and passes ONLY if every job above succeeded.
   verdict:
     name: master deploy gate verdict
-    needs: [gate, agent-browser, agent-browser-union, pine-runtime, runner-watchdog]
+    needs: [gate, agent-server, agent-browser, agent-browser-union, pine-runtime, runner-watchdog]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every gate job succeeded
         run: |
-          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }} runner-watchdog=${{ needs.runner-watchdog.result }}"
-          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ] && [ "${{ needs.runner-watchdog.result }}" = success ]; then
+          echo "gate=${{ needs.gate.result }} agent-server=${{ needs.agent-server.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }} runner-watchdog=${{ needs.runner-watchdog.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-server.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ] && [ "${{ needs.runner-watchdog.result }}" = success ]; then
             echo "master deploy gate: ALL JOBS GREEN"; exit 0
           fi
           exit 1

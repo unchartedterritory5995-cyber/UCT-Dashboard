@@ -17,62 +17,12 @@
 name: agent ci
 
 on:
-  # CI COST (2026-11-06, owner): push runs take the SAME paths list as the PR trigger below
-  # (tests/test_ci_cost_rails.py holds the two lists equal). Before this, every push to any
-  # agent/** branch ran the full ~76-minute suite even for a docs-only commit: 552 of 789 runs
-  # on 11-01..11-06 were pushes, ~70% of the month's Actions bill. The master deploy gate
-  # still runs the whole Agent suite on every master push, unfiltered.
-  push:
-    branches: ['agent/**']
-    paths:
-      - 'app/src/agent/**'
-      - 'app/src/components/chart/builder/agent*'
-      # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
-      # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
-      - 'app/src/pages/charts/ChartsWorkspace.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.thisChart.test.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.previousLayout.test.jsx'
-      - 'app/src/pages/charts/widgets/ChartWidget.agent.test.jsx'
-      - 'app/src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx'
-      - 'app/src/pages/breadth/breadthTabHookOrder.test.jsx'
-      - 'app/src/components/chart/builder/studio/agentRoute.test.jsx'
-      - 'app/src/components/StockChart.jsx'
-      - 'app/src/components/StockChart.timeRangeSync.test.jsx'
-      - 'app/src/pages/charts/grid/**'
-      - 'api/services/uct_agent/**'
-      - 'api/routers/uct_agent*.py'
-      - 'tests/test_uct_agent*.py'
-      - 'tools/agent_*'
-      - '.github/workflows/agent-ci.yml'
-  pull_request:
-    branches: [agent/int, master]
-    paths:
-      - 'app/src/agent/**'
-      - 'app/src/components/chart/builder/agent*'
-      # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
-      # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
-      - 'app/src/pages/charts/ChartsWorkspace.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.thisChart.test.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.previousLayout.test.jsx'
-      - 'app/src/pages/charts/widgets/ChartWidget.agent.test.jsx'
-      - 'app/src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx'
-      - 'app/src/pages/breadth/breadthTabHookOrder.test.jsx'
-      - 'app/src/components/chart/builder/studio/agentRoute.test.jsx'
-      - 'app/src/components/StockChart.jsx'
-      - 'app/src/components/StockChart.timeRangeSync.test.jsx'
-      - 'app/src/pages/charts/grid/**'
-      - 'api/services/uct_agent/**'
-      - 'api/routers/uct_agent*.py'
-      - 'tests/test_uct_agent*.py'
-      - 'tools/agent_*'
-      - '.github/workflows/agent-ci.yml'
-  # The one way off the VPS: no automatic fallback exists. See infra/ci-runner/AUDIT-NOTES.md, 'Fallback'.
+  # MERGE-CANDIDATE RUN (AUDIT ruling 3): dispatched once at the exact SHA, never on a PR push. See infra/ci-runner/AUDIT-NOTES.md.
+  # Before this, a push to agent/** or a PR ran it. Workers now get that signal from the PC's local advisory run.
   workflow_dispatch:
     inputs:
       lane:
-        description: "MANUAL FALLBACK, owner (or AUDIT with owner OK) only. hosted-fallback runs the self-hosted jobs on GitHub-hosted runners, for this one run."
+        description: "vps, or hosted-fallback: MANUAL FALLBACK, owner (or AUDIT with owner OK) only, for this one run."
         type: choice
         default: vps
         options: [vps, hosted-fallback]
@@ -87,13 +37,9 @@ env:
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
   AGENT_SHARDS: '4'
 
-# A PR from a branch in this repo already ran on its push; running it again on the
-# pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
-# (All three jobs carry the same condition; `union` needs `browser`.)
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 20
     steps:
@@ -118,7 +64,6 @@ jobs:
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 25
     strategy:
@@ -162,7 +107,6 @@ jobs:
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 20
     strategy:
@@ -213,7 +157,7 @@ jobs:
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository)
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -225,7 +169,6 @@ jobs:
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     timeout-minutes: 15
     steps:

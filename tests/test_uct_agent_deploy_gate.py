@@ -173,7 +173,8 @@ def test_no_OTHER_workflow_is_an_agent_gate():
         text = w.read_text(encoding="utf-8")
         on = text.split("\njobs:")[0]
         push = re.search(r"(?ms)^\s+push:\s*\n\s+branches:\s*\[([^\]]*)\]", on)
-        assert push is not None, f"{w.name}: no push.branches block to inspect"
+        if push is None:     # dispatch-only (agent-ci.yml, AUDIT ruling 3): it cannot run on a master push at all
+            continue
         assert not re.search(r"(^|[,\s'\"])master([,\s'\"]|$)", push.group(1)), f"{w.name} must not run on master pushes (PRs into master are fine; they never decide promotion)"
 
 

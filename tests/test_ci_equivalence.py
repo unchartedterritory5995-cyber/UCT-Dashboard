@@ -192,6 +192,12 @@ def test_job_data_ignores_runner_identity(tmp_path):
     assert verdict(tmp_path, a, b, sha_a=None, sha_b=None)["verdict"] == ce.EQUIVALENT
 
 
+def test_a_shadow_job_matches_its_deciding_job_by_its_own_name(tmp_path):
+    a = {"jobs.json": {"jobs": [job(name="rails")]}}
+    b = {"jobs.json": {"jobs": [job(name="wisdom / rails", runner="uct-ci-1-abcd")]}}
+    assert verdict(tmp_path, a, b, sha_a=None, sha_b=None)["verdict"] == ce.EQUIVALENT
+
+
 @pytest.mark.parametrize("label,other", [
     ("cancelled job", job(conclusion="cancelled")),
     ("skipped job", job(conclusion="skipped")),

@@ -71,16 +71,6 @@ on:
       - 'docs/notebook/perf-budgets.json'
       - 'tests/test_notes_cas_is_atomic.py'
       - '.github/workflows/notebook-latency.yml'
-  pull_request:
-    paths:
-      - 'api/services/journal_two/**'
-      - 'api/routers/journal_two.py'
-      - 'tools/notebook_scale_benchmark.py'
-      - 'tools/notebook_perf_budgets.py'
-      - 'docs/notebook/perf-budgets.json'
-      - 'tests/test_notes_cas_is_atomic.py'
-      - '.github/workflows/notebook-latency.yml'
-
 # CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
 # workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
 # is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
@@ -90,7 +80,7 @@ concurrency:
 
 jobs:
   ratio:
-    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -123,7 +113,7 @@ jobs:
   # The Notebook's write protection (see the header's SECOND JOB note). Its own job so the
   # pytest load never lands on the ratio job's timings, and so each verdict reads by name.
   write-protection:
-    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

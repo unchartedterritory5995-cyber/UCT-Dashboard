@@ -90,7 +90,7 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "MANUAL FALLBACK, owner (or AUDIT with owner OK) only. hosted-fallback runs the self-hosted jobs on GitHub-hosted runners, for this one run."
+        description: "vps, or hosted-fallback: MANUAL FALLBACK, owner (or AUDIT with owner OK) only, for this one run."
         type: choice
         default: vps
         options: [vps, hosted-fallback]

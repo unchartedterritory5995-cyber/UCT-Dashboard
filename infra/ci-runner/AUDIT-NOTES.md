@@ -1,125 +1,145 @@
 # Notes for AUDIT: draft workflow change
 
-**Status: draft on a local branch, not pushed.** Do not merge before the VPS exists and `VALIDATION-PLAN.md` passes on
-it. The routing uses literal labels, so a merge with no VPS leaves every heavy gate job waiting for a machine that does
-not exist, and the watchdog then fails every gate. That is safe, and it stops promotion.
+**Status: draft on a local branch, not pushed, nothing approved.** Do not merge before the VPS exists and
+`VALIDATION-PLAN.md` passes on it. Labels are literal, so a merge with no VPS leaves every heavy gate job queued, the
+watchdog red, and nothing promoted. Safe, but it stops deploys.
+
+Two commits, so the rail switch can be held: **routing** now, **switch** after ten shadow gates match.
+
+## Rulings applied
+
+| # | Ruling | How |
+|---|---|---|
+| 1 | Split `gate` | New `agent-server` job on the VPS. `gate` keeps deploy-correctness, production check, secret scan, rails and the boots check |
+| 2 | Eight workflows may move | Shadow first (`ci-vps-shadow.yml`); the switch commit moves them. `vite-build-args`, `notebook-latency`, `clock-parity-fixture` never move |
+| 3 | Named set at merge-candidate time | `workflow_dispatch` only, no PR or push trigger. PC reports nowhere on GitHub |
+| 4 | Rail consolidation | Not done. Later, separate PR |
+| 5 | Watchdog | One-shot hosted step, plus scheduled `ci-queue-watch.yml` built on `tools/ci_queue_watch.py` |
+| 6 | Proofs | Both done, see below |
+
+**Where I went past or against what you wrote:**
+- Ruling 3 offered "label or `workflow_dispatch`". **I rejected labels.** A `labeled` trigger skips the check on every other
+  label, and your queue accepts SKIPPED, so a PR with any unrelated label could clear the named set with nothing having
+  run. A rail forbids `labeled`. Dispatch has no such state, and it runs at the exact branch tip rather than a merge ref.
+- Ruling 3 said PC checks need different names. **I went further: the PC has no GitHub presence at all.** Your queue stops
+  on anything not SUCCESS or SKIPPED, so a queued PC check on a powered-off PC would stop it, whatever its name. PC runs are
+  `launcher.py local` and report locally. That also means no runner token on the PC, and no `uct-pc` label anywhere.
 
 ## Changes, every one
 
 **`master-deploy-gate.yml`**
-- `agent-browser`, `agent-browser-union`, `pine-runtime`: `runs-on` becomes a literal `uct-vps`, or hosted only for a
-  manual dispatch on master with `lane=hosted-fallback`. No repository variable is read anywhere in this file.
-- New `workflow_dispatch` trigger with a `lane` choice input, default `vps`.
-- New hosted job `runner-watchdog`, added to `verdict.needs`, and required as `= success` in the verdict's condition.
-- The "CI cost rails" step also runs `tests/test_ci_runner_routing.py`.
-- Unchanged: `gate` and `verdict` stay on `ubuntu-latest`. Timeouts are 30, 15 and 30. No job was renamed, no `if:` and
-  no `continue-on-error` were added, and `concurrency` is the same.
+- `gate`: renamed `deploy-correctness checks`. Lost the server-test step. The "CI cost rails" step also runs `tests/test_ci_runner_routing.py`.
+- New `agent-server`, name `UCT Agent server tests (production dependency set)`, `timeout-minutes: 20`, `fetch-depth: 0`, builds its own
+  production venv, no secret. Its step starts with `test "$(git rev-parse HEAD)" = "$GITHUB_SHA"`.
+- `agent-browser`, `agent-browser-union`, `pine-runtime`: literal `uct-vps`, hosted only for a manual dispatch on master with
+  `lane=hosted-fallback`. No repository variable appears in this file. Timeouts 30, 15, 30, unchanged.
+- New `runner-watchdog`, hosted, one-shot, `contents: read` only.
+- New `workflow_dispatch` with a `lane` choice, default `vps`.
+- `verdict.needs` gains `agent-server` and `runner-watchdog`, each required `= success`. `verdict` and `gate` stay on `ubuntu-latest`.
 
-**`agent-ci.yml`**: `agent ci` checks are read by name for merges, so they cannot run on the PC.
-- `server`, `browser`, `capability-regression-clock`, `union`: literal `uct-vps`, hosted only by manual dispatch.
-- New `workflow_dispatch` trigger with the same input.
-- Five `if:` lines change from `github.event_name == 'push' || ...` to `github.event_name != 'pull_request' || ...`, so
-  a dispatch run is not skipped. Push and PR behaviour are unchanged.
-- `capability-regression` stays hosted.
+**`agent-ci.yml`**: only trigger is now `workflow_dispatch` with `lane`. `server`, `browser`, `capability-regression-clock`, `union` go to
+`uct-vps`, hosted only by that input. The `if:` lines that skipped same-repo PRs go, since no PR event remains. `capability-regression` stays hosted.
 
-**`full-suite-report.yml`**: `vitest`, `pytest`, `collect_profile` as above, plus the `lane` input. `plan`, `publish`
-(which holds `contents: write`) and `gate` stay hosted.
+**Rails, five that may move** (`wisdom-rails`, `term018-guards`, `optionsflow-guard`, `notebook-bytes`, `notebook-a11y`): no `pull_request`
+trigger. New `workflow_dispatch` with `lane`, new `workflow_call` for the shadow, `-${{ inputs.tag }}` added to the concurrency group. Dispatch
+runs on the VPS, a master push stays hosted. **Switch commit**: a master push moves too, `ci-vps-shadow.yml` is deleted, and the watch may
+cancel them.
 
-**PR leg on the VPS, master leg hosted**: `runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}`
-in `clock-parity-fixture` (fixture), `notebook-a11y` (a11y), `notebook-bytes` (bytes), `notebook-latency` (ratio,
-write-protection), `optionsflow-guard` (guard), `term018-guards` (static), `vite-build-args` (build-args), `wisdom-rails`
-(rails). Promotion reads the master leg, so that leg does not move.
+**Rails that stay hosted** (`vite-build-args`, `notebook-latency`, `clock-parity-fixture`): no `pull_request` trigger, dispatchable. `runs-on` unchanged.
 
-**PC, advisory only, off by default**: `notebook-budgets` (latency), `preference-allowlist` (allowlist),
-`flow-worker-deploy-coverage` (coverage), PR leg only, and only if `vars.UCT_PC_ADVISORY == 'on'`. The value is compared
-to a literal and never used as a label, so an unset or wrong value lands on hosted and no value can name another machine.
+**Three advisory workflows, master side only** (`notebook-budgets`, `preference-allowlist`, `flow-worker-deploy-coverage`): new `workflow_call` and `-${{ inputs.tag }}` for the shadow. PR triggers and PR legs stay hosted. `flow-worker`'s exit 0 is untouched, and a rail holds it. **Switch commit**: a master push moves to the VPS. `notebook-budgets`' runner claim is updated there, but its budgets are **not re-baselined**, because that needs real VPS readings. Do that from the shadow's numbers before the switch.
 
-**New files**: `.github/workflows/ci-runner-watch.yml`, `tools/ci_runner_watchdog.py`, `tests/test_ci_runner_watchdog.py`,
-`tests/test_ci_runner_routing.py`, `tools/ci_equivalence.py`, `tests/test_ci_equivalence.py`,
-`tests/test_ci_runner_launcher.py`, `infra/ci-runner/*`.
+**`indicators-security-suite`** stays hosted, and a rail holds it.
 
-**Not changed**: `promote-production.yml`, `tools/promotion_gate.py`, `tests/test_ci_cost_rails.py`,
-`tests/test_uct_agent_deploy_gate.py`, `joystick-device.yml`.
+**`full-suite-report.yml`**: `vitest`, `pytest`, `collect_profile` to `uct-vps`, `lane` input added. `plan`, `publish` (`contents: write`), `gate` stay hosted.
 
-**Cannot move**: `indicators-security-suite` and `ocr-linux-cert` use `container:`, which needs a Docker socket on the
-runner. Everything that reads `secrets.*` stays hosted, and `test_ci_runner_routing.py` holds that.
+**New workflows**: `ci-queue-watch.yml`, `ci-vps-shadow.yml` (both `promotion-gate: no`).
+
+**Rails edited, because ruling 3 changes what they pin**:
+- `tests/test_ci_cost_rails.py`: `test_agent_ci_push_and_pr_run_on_the_same_paths` becomes `test_agent_ci_runs_only_when_dispatched`. `UNFILTERED_PR_OK` is now empty.
+- `tests/test_uct_agent_deploy_gate.py`: `test_no_OTHER_workflow_is_an_agent_gate` accepts a dispatch-only workflow, which cannot run on a master push.
+
+**New tests and tools**: `tools/ci_queue_watch.py`, `tools/ci_equivalence.py`, `tests/test_ci_queue_watch.py`, `tests/test_ci_runner_routing.py`, `tests/test_ci_equivalence.py`, `tests/test_ci_runner_launcher.py`, `infra/ci-runner/*`.
+
+**Not changed**: `promote-production.yml`, `tools/promotion_gate.py`, `joystick-device.yml`, the secret scan. The three advisory workflows above and `indicators-security-suite` keep their PR triggers on hosted, so they still run on every PR push. See question 7.
+
+## Running the named set
+
+```sh
+B=<branch>; for w in agent-ci vite-build-args notebook-latency clock-parity-fixture wisdom-rails term018-guards optionsflow-guard notebook-bytes notebook-a11y; do gh workflow run $w.yml --ref "$B"; done
+```
+
+Confirm every run's `head_sha` is the SHA you mean to merge: a push between dispatches gives mixed SHAs. Path filters no longer apply, so all nine always run.
+Workers lose CI on push. Their signal is the PC's local run, in `VALIDATION-PLAN.md`.
+
+## Proofs you required
+
+- **A failing server test turns the verdict red.** The real glob in a real container exits 1 (`fail-server`), and the verdict step, executed by bash from
+  the real YAML, fails on `agent-server=failure`.
+- **A missing job turns it red.** The same step with any job's result absent fails, for all six jobs. A rail also holds `verdict.needs` equal to every other job in the file.
+- `skipped` and `cancelled` turn it red for all six as well: 25 cases in `test_ci_runner_routing.py`, run on Linux in the image.
+- **UNTESTED**: none of this has gone through GitHub. Both need repeating on real runs: VALIDATION-PLAN checks 4 and 6.
 
 ## Outage
 
-Everything about promotion below is proved through the real `promotion_gate.decide`. Everything about GitHub's
-queueing is from its docs and is UNTESTED here, because no runner was registered.
+Promotion claims are proved through the real `promotion_gate.decide`. GitHub's queueing is from its docs and UNTESTED here, because no runner was registered.
 
-**A queued job with no runner online.** It stays queued, and GitHub cancels it after 24 hours. It cannot report success.
-`timeout-minutes` does not count queue time, so the job timeouts do not bound this.
+**A queued job with no runner online.** It stays queued, and GitHub cancels it after 24 hours. It cannot report success. `timeout-minutes` does not count queue time.
 
-**The gate verdict and promote.** `runner-watchdog` fails after 10 minutes with no `uct-vps` runner online, then cancels
-the run. The heavy jobs report `cancelled`, `verdict` still runs because it is `always()` on hosted, sees a result other
-than `success`, and fails. The run's conclusion is not `success`, so promotion refuses. A scheduled promote that reaches
-a still-queued gate gets WAIT, times out after about 20 minutes, and fails. Red and noisy, never a promotion.
+**The gate verdict and promote.** `runner-watchdog` fails at once if no runner is online, which is the clear message. The heavy jobs stay queued, so `verdict`
+cannot run yet, because `needs` waits. `ci-queue-watch` then cancels the run once a job has queued 45 minutes, 45-75 minutes in at a 30-minute cadence. The heavy
+jobs report `cancelled`, `verdict` runs on hosted, and it fails. Promotion refuses every conclusion except `success`. A scheduled promote reaching a queued gate
+gets WAIT, times out after about 20 minutes and fails, which is red and noisy but never a promotion.
 
-**A cancelled or interrupted job.** A lost runner ends the job as `failure` or `cancelled`. The verdict requires exactly
-`success`, so `skipped`, `cancelled` and `failure` all fail, and `decide` refuses every conclusion except `success`
-(`test_no_conclusion_but_success_promotes`). What GitHub reports for a killed container is UNTESTED: VALIDATION-PLAN check 6.
+**A cancelled or interrupted job.** A lost runner ends the job `failure` or `cancelled`. Both fail the verdict. What GitHub reports for a killed container is UNTESTED: check 6.
 
-**The serial gate queue during an outage.** `master-deploy` holds one running and one pending run. The watchdog bounds
-each held run to about 10 minutes. **A third push cancels the pending second run**, per GitHub's docs. That commit never
-gets a gate run, so its per-commit secret scan never runs, and the next green commit promotes its code anyway. Only the
-advisory whole-range scan sees it. This happens today (`48b5c77903` was cancelled at 00:23Z on 11-06), and an outage
-makes it more likely. See question 4.
+**The serial gate queue during an outage.** `master-deploy` holds one running and one pending run, now for up to 75 minutes instead of 24 hours. **A third push
+cancels the pending run**, per GitHub's docs, so that commit never gets a gate run and its per-commit secret scan never runs. The next green commit promotes its code,
+and only the advisory whole-range scan sees it. It happens today (`48b5c77903`, 00:23Z on 11-06), and an outage makes it likelier. See question 3.
 
-**Detection.** Three layers, all hosted, so none shares a fate with the runner:
-- `runner-watchdog` on every gate, within 10 minutes.
-- `ci-runner-watch.yml` hourly, for jobs on `uct-vps` or `uct-pc` queued 30 minutes or more. It goes red, and GitHub
-  emails the workflow's last editor.
-- The red scheduled promotes.
+**The watch never drops a commit**: it cancels only a run with a job actually queued on `uct-vps`, so a run waiting in the concurrency queue, which has no such job, is
+left alone. It refuses `promote to production` in code, whatever its arguments say. Tested.
 
-**Fallback.** Never automatic. The owner, or AUDIT with the owner's OK, runs:
+**Detection, all hosted**: `runner-watchdog` per gate, at once. `ci-queue-watch` every 30 minutes, red on anything stuck, emailing the workflow's last editor. Red scheduled promotes.
+
+**Fallback.** Never automatic. The owner, or AUDIT with the owner's OK:
 
 ```sh
 gh workflow run master-deploy-gate.yml --ref master -f lane=hosted-fallback
 gh workflow run agent-ci.yml --ref <branch> -f lane=hosted-fallback
 ```
 
-The heavy jobs then run on hosted, and the run is labelled with a warning and a summary heading naming the actor. It
-spends real minutes and the spending limit still applies. **It has a limit you need to rule on:** `decide` reads every
-run for a SHA, so a commit whose push run was cancelled stays refused even after a green fallback
-(`test_a_green_fallback_run_does_not_launder_a_cancelled_run_on_the_same_commit`). See question 3.
+It is labelled with a warning and a summary heading naming the actor, spends real minutes, and the spending limit still applies. **Limit:** `decide` reads every run for a
+SHA, so a commit whose push run was cancelled stays refused after a green fallback (tested). See question 2.
 
-**Recovery once the VPS is back.** `gh run rerun <id> --failed` on the failed run, then
-`gh workflow run promote-production.yml -f sha=<sha>`, as `notebook-latency.yml` already documents. A rerun replaces the
-run's result, so this does work with `decide`.
+**Recovery once the VPS is back.** `gh run rerun <id> --failed`, then `gh workflow run promote-production.yml -f sha=<sha>`. A rerun replaces the run's result, so this works with `decide`.
+
+## Findings
+
+- **Splitting `gate` nearly lost two tests, silently.** The server tests were inheriting history from earlier steps' `--depth=200` fetches. A new job at the old `fetch-depth: 2` gave
+  **3652 passed, 2 skipped**, green, against hosted's 3654 passed: two F-16 rails skip when their pinned commit is absent. Fixed with `fetch-depth: 0`, pinned by a rail. `ci_equivalence` says DIFFERENT on that pair. A job that can lose tests and stay green is what the count comparison is for, so compare counts on the first real VPS gate too.
+- **Near-limit jobs.** Hosted: capreg @ rth 15.2 of 20 min, shards up to 18.4 of 25 in `agent ci` and of 30 in the gate. No timeout was raised, and a rail pins them. On the PC's
+  4 CPUs these took 3.5 and 4.5 min, but that is an i7-13700KF. **A VPS must be measured before anything relies on it.**
+- **The one suite slower here is the Agent server tests**: 6.1 min alone, 9.1 min under load, against 2.0-3.3 on hosted. Nothing is slow individually (the slowest test is under 5 s) and there are no hangs,
+  so it is spread across 3654 tests. fsync measured about 2 ms. That makes disk latency a plausible cause, but **I did not prove it**. Check fsync on any VPS you shortlist.
+- **The "harness did not load: booting…" flake did not appear** in these runs, which proves little: it is load-dependent and these were not its conditions.
+- **A container's exit code is not a health signal.** A runner with a bad config exits 0, because `run.sh` maps "terminated, no retry" to success. No result travels that way: the runner reports to GitHub.
+- **`interop=false` is not enough in WSL.** See ISOLATION.md, note 1.
 
 ## Questions for AUDIT
 
-1. **A worker can impersonate the VPS. This is the big one.** Labels are chosen at registration. GitHub documents
-   `generate-jitconfig` as accepting a classic token with `repo` scope and admin access, and the owner's `gh` token on
-   this PC has `repo` scope. So a worker here could register a runner labelled `uct-vps`, take gate jobs and return
-   success. That breaks "refused if a token any worker holds produced it", and neither your label rule, the watchdog nor
-   the launcher can see it, because names are caller-chosen too. Runner groups are not available on a user-owned repo. As
-   far as I can see the only real fix is that no worker-reachable token has admin on this repo: the owner replaces the
-   PC's `gh` login with a fine-grained token that has no Administration permission. Does the VPS plan proceed without that?
-2. **`gate` mixes deploy-correctness with the Agent server tests.** You allow the server tests on the VPS, but moving them
-   means splitting a job, which changes `needs` and the check name. I left `gate` whole on hosted: 8.5 minutes per master
-   push, of which the server tests are about 3. Split it, or keep it?
-3. **Fallback against `promotion_gate`.** As it stands the fallback cannot rescue a commit whose push run was cancelled,
-   and during a VPS outage every push run gets cancelled, so nothing promotes until the VPS returns. Safe, but the
-   fallback then only helps after a rerun. A fix would need `decide` to prefer a later owner-dispatched run on the same
-   SHA, which changes what promotion reads, so I did not draft it. Accept the limit, or do you want a patch to review?
-4. **`queue: max` on `master-deploy`.** GitHub's concurrency now supports `queue: max`, keeping up to 100 pending runs
-   instead of cancelling. It would close the dropped-commit hole above, outage or not. It changes the gate's queueing, so
-   it is not in this draft. Do you want it?
-5. **New secret `CI_RUNNER_READ_TOKEN`.** The runners API refuses `GITHUB_TOKEN`, so your watchdog needs one. It is
-   read-only and read only by a hosted step. Approved?
-6. **Which checks do you read by name?** I treated all of `agent ci` and the PR leg of every `promotion-gate: yes`
-   workflow as merge-deciding, and these three as not: `notebook budgets`, `preference allow-list`, `flow-worker deploy
-   coverage`. Is that right? If you read any of the three, it moves off the PC.
-7. **Does your VPS allow-list cover small rails and `agent ci`?** You listed the gate's heavy jobs. I extended it to the PR
-   leg of small rails and to `agent ci`, because the PC is out and the cost plan needs them off hosted. If not, they stay hosted.
-8. **PR-leg rails have no fallback.** Those workflows have no dispatch input, so a VPS outage holds their PR checks pending
-   until it ends. Acceptable, or add the input to all eight?
-9. **`notebook latency` on the VPS.** It is a timing check, and its header says flapping sends it back to advisory. The PR
-   leg moves. Watch it, or keep it hosted?
-10. **`ubuntu-latest` floats, the image does not.** Jobs moved from 24.04 to 26.04 without a workflow change. The kit pins
-    26.04, so hosted and VPS can diverge the day GitHub moves it. Pin `runs-on: ubuntu-26.04` on the hosted jobs?
-11. **The owner's 11-06 hold** says no workflow changes without approval. This branch only prepares them. Confirm that
-    merging needs both your review and the owner's go.
+1. **A worker can impersonate the VPS. This is the big one.** Labels are chosen at registration. GitHub documents `generate-jitconfig` as accepting a classic token with `repo` scope and
+   admin access, and the owner's `gh` token on this PC has `repo` scope. So a worker here could register a runner labelled `uct-vps`, take gate jobs and return success. That breaks "refused if a
+   token any worker holds produced it", and neither your label rule, the watchdog nor the launcher can see it, because names are caller-chosen too. Runner groups are not available on a user-owned
+   repo. As far as I can see, the only real fix is that no worker-reachable token has admin on this repo: the owner replaces the PC's `gh` login with a fine-grained token with no Administration permission. Does the VPS plan proceed without that?
+2. **The runner-read token, ruling 5.** Reading runners needs admin access. GitHub's docs name only the classic `repo` scope; whether a fine-grained `Administration: read` works is unverified. In repository
+   secrets it is readable by **any workflow on any branch**: a worker who can push a branch can add a workflow that prints it. So a classic token there hands workers admin, which reopens question 1, and a fine-grained read-only one hands them read-only runner data. Environment protection might limit it, but
+   that may need a paid plan on a private repo. The alternative is no token at all: drop the `online` step, and rely on `ci-queue-watch`, which needs only `actions: write`. You lose the immediate message and keep the same bound. Which do you want? The draft has the step, and it fails closed.
+3. **`queue: max` on `master-deploy`.** GitHub's concurrency now supports it, keeping up to 100 pending runs instead of cancelling. It would close the dropped-commit hole, outage or not. It changes the gate's queueing, so it is not in this draft.
+4. **Fallback against `promotion_gate`.** During a VPS outage push runs get cancelled, and a green fallback cannot rescue those commits, so nothing promotes until the VPS returns. Safe. A fix means `decide` preferring a later owner-dispatched run on the same SHA, which changes what promotion reads, so I did not draft it. Accept the limit, or do you want a patch to review?
+5. **Dispatch runs on a PR's rollup.** I could not confirm that a `workflow_dispatch` run appears in a PR's check rollup. If your queue reads the rollup, it may not see them, and it must read the runs by name and SHA instead. Please confirm how it reads them.
+6. **`gh` reading the renamed job.** No tool in the repo reads the old `gate` job name. Does your queue script?
+7. **The four workflows still on every PR push**: `notebook budgets`, `preference allow-list`, `flow-worker deploy coverage`, `indicators security suite`. You cleared the first three to move master-side; their PR legs stay hosted and keep costing. Can those PR legs move to dispatch too, or to the VPS?
+8. **`ubuntu-latest` floats, the image does not.** Jobs moved from 24.04 to 26.04 without a workflow change. The kit pins 26.04, so hosted and VPS can diverge the day GitHub moves it. Pin `runs-on: ubuntu-26.04` on hosted jobs?
+9. **`agent ci` capacity.** About 30 slot-minutes per run on the PC's CPUs. At 2 slots that is 4 runs an hour; dispatching only at merge-candidate time makes this reasonable, but a VPS slower than the PC reduces it.
+10. **The owner's 11-06 hold** says no workflow changes without approval. Confirm merging needs both your review and the owner's go.

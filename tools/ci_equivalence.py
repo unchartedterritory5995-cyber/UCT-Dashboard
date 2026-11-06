@@ -126,7 +126,8 @@ def read_jobs(side: dict, doc: dict) -> None:
             side["shas"].add(j["head_sha"])
         steps = [(s.get("name"), s.get("conclusion")) for s in j.get("steps") or []
                  if not re.match(r"^(Set up job|Complete job|Post )", s.get("name") or "")]
-        side["jobs"][j.get("name")] = {"conclusion": j.get("conclusion"), "status": j.get("status"), "steps": steps}
+        # a job in a called workflow is "<caller job> / <job>"; the shadow and the deciding run share the last part
+        side["jobs"][(j.get("name") or "").split(" / ")[-1]] = {"conclusion": j.get("conclusion"), "status": j.get("status"), "steps": steps}
 
 
 def read_dir(root: pathlib.Path) -> dict:

@@ -3,15 +3,15 @@
 Results below are from a real container on the owner's PC (WSL2 distro `uct-ci`, Docker Engine 29.9.3), through
 `launcher.py`'s own flags. No runner was registered, so nothing here proves behaviour with GitHub in the loop.
 
-## What each lane may do
+## What each machine may do
 
-| | `advisory-pc` (label `uct-pc`) | `gate-vps` (label `uct-vps`) |
+| | Owner's PC | VPS (label `uct-vps`) |
 |---|---|---|
-| Machine | Owner's PC, shared with Claude sessions and owner `gh` credentials | Separate x64 machine (not bought yet) |
+| Machine | Shared with Claude sessions and owner `gh` credentials | Separate x64 machine (not bought yet) |
 | May decide a merge | **Never** | Only as the Actions job's own conclusion at the exact SHA |
-| Runs | PR leg of 3 advisory workflows, and only if `UCT_PC_ADVISORY=on` | Gate heavy jobs, `agent ci`, PR leg of small rails, nightly report |
+| Runs | Local advisory runs through `launcher.py local`. Registers no runner, holds no token, reports nothing to GitHub | Gate heavy jobs, `agent ci`, five rails, nightly report |
 
-The launcher enforces part of this: the gate lane refuses WSL, non-x86_64, and a host holding `~/.config/gh`,
+The launcher enforces part of this: `serve` refuses WSL, non-x86_64, and a host holding `~/.config/gh`,
 `~/.claude`, `~/.git-credentials` or an SSH private key.
 
 ## Threats
@@ -51,13 +51,13 @@ Note 2: the positive control matters. A listener on the distro was REACHED from 
    `/proc/<listener>/environ` or the runner's files. It is valid for that one runner and job, and dies with the container.
 2. **A hostile job within its own run.** It can read `GITHUB_TOKEN` and the checkout, exactly as on a hosted runner.
 3. **Anyone who controls the host.** On the PC, any process running as the Windows user can run
-   `wsl -d uct-ci -u root`, so it can read the PAT, swap the image or edit results. This is why the PC is advisory only.
+   `wsl -d uct-ci -u root`, so it can swap the image or edit results. This is why the PC is advisory only.
 4. **A rogue runner claiming `uct-vps`. This one affects the gate.** Labels are chosen by whoever registers. GitHub
    documents `generate-jitconfig` as accepting a classic token with `repo` scope and admin access, and the `gh` token on
    this PC has that scope. So a worker on this PC could register a machine labelled `uct-vps`, take gate jobs and report
    success. No label rule stops that, and runner groups are not available on a user-owned repo. The launcher and the
    watchdog cannot detect it either, since runner names are also caller-chosen. Not tested, deliberately. See
-   AUDIT-NOTES.md, question 1.
+   AUDIT-NOTES.md, questions 1 and 2.
 5. **Container escape.** The kernel is shared. On the PC that kernel is WSL's, on the VPS the host's.
 
 ## Running the proofs

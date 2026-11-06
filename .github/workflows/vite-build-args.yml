@@ -28,6 +28,8 @@
 name: vite build args
 
 on:
+  # MERGE-CANDIDATE RUN (AUDIT ruling 3): dispatched once at the exact SHA, never on a PR push. See infra/ci-runner/AUDIT-NOTES.md.
+  workflow_dispatch:
   # 2026-10-19: push runs on master only. The repo is private now and Actions minutes cost money;
   # a branch push used to run this AND its pull_request run, i.e. the same check twice.
   push:
@@ -39,15 +41,6 @@ on:
       - 'tests/test_vite_flag_ledger.py'
       - 'tools/vite_flag_index.py'
       - 'docs/feature_flags.json'
-  pull_request:
-    paths:
-      - 'Dockerfile.web'
-      - 'app/src/**'
-      - 'tests/test_dockerfile_vite_build_args.py'
-      - 'tests/test_vite_flag_ledger.py'
-      - 'tools/vite_flag_index.py'
-      - 'docs/feature_flags.json'
-
 # CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
 # workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
 # is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
@@ -57,7 +50,7 @@ concurrency:
 
 jobs:
   build-args:
-    runs-on: ${{ github.event_name == 'pull_request' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

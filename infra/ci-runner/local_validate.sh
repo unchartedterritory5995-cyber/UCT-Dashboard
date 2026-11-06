@@ -4,7 +4,7 @@
 #   usage: local_validate.sh <image> <results-dir> [suite-spec ...]
 set -uo pipefail
 IMG=$1; OUT=$2; shift 2
-KIT=/srv/uct/kit; SRC=/srv/uct/src; SLOTS=${SLOTS:-2}; CPUS=${CPUS:-4}; MEM=${MEM:-10}
+KIT=/srv/uct/kit; SRC=${SRC:-/srv/uct/src}; SLOTS=${SLOTS:-2}; CPUS=${CPUS:-4}; MEM=${MEM:-10}
 mkdir -p "$OUT"
 one() {
   spec=$1; suite=${spec%:*}; arg=""; if [ "$spec" != "$suite" ]; then arg=${spec#*:}; fi

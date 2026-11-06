@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run N slots of ephemeral, single-job GitHub Actions runners, one fresh container per job.
 
-    python3 launcher.py serve --lane advisory-pc --image sha256:<id> --repo owner/name
+    python3 launcher.py serve --image sha256:<id> --repo owner/name       # the VPS
     python3 launcher.py local --image sha256:<id> -- bash -c '...'    # same container, no runner
     python3 launcher.py print-args --image sha256:<id>                # the docker argv, for review
 
@@ -16,9 +16,10 @@ TOKEN APPROACH: JIT runner configs (POST /repos/{repo}/actions/runners/generate-
   * The config reaches the container on STDIN only, so it is absent from argv, `docker inspect`,
     image layers and logs. entrypoint.sh hands it to the runner.
 
-Lanes are a closed list, and a lane decides the label. Nothing passes a free-form label:
-  advisory-pc  label uct-pc   advisory checks only, never merge-deciding
-  gate-vps     label uct-vps  refuses to start on WSL, on non-x86_64, or beside owner/worker credentials
+Lanes are a closed list, and a lane decides the label. Nothing passes a free-form label. The only lane is:
+  gate-vps  label uct-vps  refuses to start on WSL, on non-x86_64, or beside owner/worker credentials
+The owner's PC is advisory only and uses `local`, which registers nothing: its results never appear on GitHub, so they
+can neither stop nor satisfy AUDIT's merge set, and the PC needs no token.
 """
 from __future__ import annotations
 
@@ -42,7 +43,7 @@ import urllib.request
 
 API = "https://api.github.com"
 DEFAULT_REPO = "unchartedterritory5995-cyber/UCT-Dashboard"
-LANE_LABELS = {"advisory-pc": "uct-pc", "gate-vps": "uct-vps"}
+LANE_LABELS = {"gate-vps": "uct-vps"}
 NETWORK = "uct-ci"
 BRIDGE = "br-uctci"
 CONTAINER_LABEL = "uct.ci=1"
@@ -61,7 +62,7 @@ class Refused(Exception):
 @dataclasses.dataclass
 class Config:
     image: str
-    lane: str = "advisory-pc"
+    lane: str = "gate-vps"
     repo: str = DEFAULT_REPO
     slots: int = 2
     cpus: int = 4
@@ -300,8 +301,7 @@ class Slots:
     def serve(self) -> int:
         check_lane(self.cfg.lane)
         check_image(self.cfg.image)
-        if self.cfg.lane == "gate-vps":
-            check_gate_host()
+        check_gate_host()
         if self.docker("network", "inspect", self.cfg.network).returncode != 0:
             raise Refused(f"network {self.cfg.network} is missing; run egress-firewall.sh first")
         self.event(event="start", lane=self.cfg.lane, label=LANE_LABELS[self.cfg.lane], slots=self.cfg.slots,
@@ -323,7 +323,7 @@ def _parser() -> argparse.ArgumentParser:
     for name in ("serve", "local", "print-args"):
         s = sub.add_parser(name)
         s.add_argument("--image", required=True)
-        s.add_argument("--lane", default="advisory-pc")
+        s.add_argument("--lane", default="gate-vps")
         s.add_argument("--cpus", type=int, default=4)
         s.add_argument("--memory-gib", type=int, default=10)
         s.add_argument("--pids", type=int, default=4096)

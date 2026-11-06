@@ -115,11 +115,17 @@ def test_a_digest_is_accepted(image):
 
 def test_lanes_are_a_closed_list_and_the_lane_picks_the_label():
     assert launcher.runner_labels("gate-vps")[-1] == "uct-vps"
-    assert launcher.runner_labels("advisory-pc")[-1] == "uct-pc"
-    assert "uct-vps" not in launcher.runner_labels("advisory-pc")
     assert "ubuntu-latest" not in launcher.runner_labels("gate-vps")
+    assert set(launcher.LANE_LABELS) == {"gate-vps"}     # the PC has no lane: it registers nothing
+    for lane in ("uct-vps", "advisory-pc"):
+        with pytest.raises(launcher.Refused):
+            launcher.runner_labels(lane)
+
+
+def test_serving_refuses_a_shared_host_before_it_touches_github(monkeypatch):
+    monkeypatch.setattr(launcher, "check_gate_host", lambda: (_ for _ in ()).throw(launcher.Refused("WSL")))
     with pytest.raises(launcher.Refused):
-        launcher.runner_labels("uct-vps")
+        launcher.Slots(launcher.Config(image=IMAGE), github=FakeGitHub()).serve()
 
 
 def test_the_gate_lane_refuses_wsl(tmp_path):
@@ -211,7 +217,7 @@ def test_the_api_call_carries_the_token_only_in_a_header(tmp_path):
         seen.append(req)
         return Resp()
 
-    cfg = launcher.Config(image=IMAGE, lane="gate-vps", token_file=str(f), repo="o/r")
+    cfg = launcher.Config(image=IMAGE, token_file=str(f), repo="o/r")
     assert launcher.GitHub(cfg, opener=opener).jit_config("n") == (5, "abc")
     req = seen[0]
     assert req.full_url == "https://api.github.com/repos/o/r/actions/runners/generate-jitconfig"

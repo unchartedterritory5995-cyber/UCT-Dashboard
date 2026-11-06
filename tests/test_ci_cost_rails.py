@@ -28,10 +28,7 @@ UNFILTERED_BRANCH_PUSH_OK = {
     "wisdom-rails.yml": "stdlib-only rails, ~5 min, the wisdom program's own branches",
 }
 #: PR-triggered workflows with NO path filter: repo-wide rails whose subject is the whole tree.
-UNFILTERED_PR_OK = {
-    "term018-guards.yml": "every guard in api/ is its subject; ~3 min",
-    "wisdom-rails.yml": "the ban rails scan the whole tree; ~5 min",
-}
+UNFILTERED_PR_OK: dict = {}   # term018-guards and wisdom-rails were here; AUDIT ruling 3 moved both to dispatch
 
 
 def _load(path: pathlib.Path) -> dict:
@@ -57,12 +54,11 @@ def _filtered(trigger: dict) -> bool:
     return bool(trigger.get("paths") or trigger.get("paths-ignore"))
 
 
-def test_agent_ci_push_and_pr_run_on_the_same_paths():
-    """The 70% leak. The push trigger must carry the PR trigger's paths list, entry for entry."""
+def test_agent_ci_runs_only_when_dispatched():
+    """The 70% leak, closed harder (AUDIT ruling 3, 2026-11-06): the named set runs once at merge-candidate time at
+    the exact SHA. A push or PR trigger here would put the whole Agent suite back on every commit."""
     on = _on(_load(WORKFLOWS / "agent-ci.yml"))
-    push, pr = on["push"].get("paths"), on["pull_request"].get("paths")
-    assert pr, "agent-ci.yml's pull_request trigger lost its paths list"
-    assert push == pr, f"agent-ci.yml push.paths and pull_request.paths differ:\n push={push}\n pr={pr}"
+    assert set(on) == {"workflow_dispatch"}, f"agent-ci.yml triggers: {sorted(on)}"
 
 
 def test_no_branch_push_trigger_runs_without_a_path_filter():

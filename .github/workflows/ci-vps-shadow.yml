@@ -1,0 +1,41 @@
+# promotion-gate: no — SHADOW ONLY (AUDIT ruling 2). Promotion never reads this, so a red or stuck shadow cannot stop
+#   a deploy. It runs eight workflows on the VPS beside their deciding hosted runs on master. After ten real gates with
+#   identical outcomes, the switch commit moves those rails and deletes this file. Compare with tools/ci_equivalence.py.
+name: ci vps shadow
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-vps-shadow-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  wisdom:
+    uses: ./.github/workflows/wisdom-rails.yml
+    with: { lane: vps, tag: wisdom }
+  term018:
+    uses: ./.github/workflows/term018-guards.yml
+    with: { lane: vps, tag: term018 }
+  optionsflow:
+    uses: ./.github/workflows/optionsflow-guard.yml
+    with: { lane: vps, tag: optionsflow }
+  bytes:
+    uses: ./.github/workflows/notebook-bytes.yml
+    with: { lane: vps, tag: bytes }
+  a11y:
+    uses: ./.github/workflows/notebook-a11y.yml
+    with: { lane: vps, tag: a11y }
+  budgets:
+    uses: ./.github/workflows/notebook-budgets.yml
+    with: { lane: vps, tag: budgets }
+  allowlist:
+    uses: ./.github/workflows/preference-allowlist.yml
+    with: { lane: vps, tag: allowlist }
+  flow-coverage:
+    uses: ./.github/workflows/flow-worker-deploy-coverage.yml
+    with: { lane: vps, tag: flow-coverage }
