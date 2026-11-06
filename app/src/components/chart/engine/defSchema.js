@@ -134,6 +134,18 @@ import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
   parseReadoutSource,
 } from './readoutSchema'
+// ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
+// 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
+// to `setInstanceDotSize` (the words of `DOT_SIZES`), its `visibility` to
+// `setInstanceVisibility` (the policies `normalizeVisibility` keeps, over the
+// chart's own timeframe codes) and its `displayTarget` to the placement writer.
+// The schema reads those three modules rather than typing their lists again, so
+// a word the writer would drop with a `console.warn` cannot be declared. None of
+// the three imports anything of this module (`presentation.js` imports nothing,
+// `instanceTimeframe.js` only `../timeframes`), so there is no cycle to mind.
+import { DOT_SIZES } from './presentation'
+import { VISIBILITY_PRESETS } from './instanceTimeframe'
+import { isValidTf } from '../timeframes'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -1136,6 +1148,145 @@ function validateMetaLearn(learn, errors) {
  *        this is the one meta field that cannot be checked from `meta` alone.
  * @param {string[]} errors
  */
+// ─── preset fields beyond `inputs` (Phase 2a, unit 2a-15) ───────────────────
+
+/** Every key a `meta.presets[]` entry may carry. Closed: `applyPresetFields`
+ *  reads the three non-input fields BY NAME, so a key outside this list is a
+ *  typo that applies nothing, never data waiting for a future reader. */
+export const PRESET_FIELDS = Object.freeze(['id', 'label', 'origin', 'inputs', 'visibility', 'dotSize', 'displayTarget'])
+
+/** The dot-size words a preset may name — `DOT_SIZES`' own keys (`presentation.js`),
+ *  the vocabulary `setInstanceDotSize` accepts. ONE list, read from its owner. */
+export const PRESET_DOT_SIZES = Object.freeze(Object.keys(DOT_SIZES))
+
+/** The visibility policies a preset may name — `VISIBILITY_PRESETS`' own values
+ *  (`instanceTimeframe.js`): `all` (stored as the ABSENT key), `intraday`,
+ *  `dailyUp`, `custom` (the only one that carries timeframe codes). */
+export const PRESET_VISIBILITY_PRESETS = Object.freeze(VISIBILITY_PRESETS.map((p) => p.value))
+
+/** The outputs a definition draws as DOTS — the rule `instanceControls.dotPlotsOf`
+ *  applies, restated over the RAW plots (this runs before `validatePlot`): a
+ *  `markers` style or a `marker` glyph block, hidden ones excluded. Read here, not
+ *  imported, because `instanceControls` imports this module. */
+function dotPlotKeysOf(def) {
+  const plots = def && Array.isArray(def.plots) ? def.plots : []
+  return plots
+    .filter((p) => isPlainObject(p) && isNonEmptyString(p.key) && p.hidden !== true
+      && (p.style === 'markers' || isPlainObject(p.marker)))
+    .map((p) => p.key)
+}
+
+/**
+ * ⭐⭐ `meta.presets[i].{visibility, dotSize, displayTarget}` — checked EXACTLY as
+ * `applyPresetFields` consumes them, so a value the writer would drop with a
+ * `console.warn` is refused at registration instead, by definition id, preset id
+ * and field:
+ *
+ *   visibility     `null` | `'all'` (the absent key — every timeframe), or the
+ *                  policy object `normalizeVisibility` keeps: `{preset: 'intraday'}`,
+ *                  `{preset: 'dailyUp'}`, `{preset: 'custom', tfs: [<code>, …]}` with
+ *                  at least one code and every code one `isValidTf` knows. The
+ *                  normaliser DROPS an unknown code and answers "all" for an empty
+ *                  list — fail-open is right for a reader of a saved chart and wrong
+ *                  for an author, so a code it would drop is refused here.
+ *   dotSize        one word of `PRESET_DOT_SIZES` (every dot output), or
+ *                  `{plotKey: word}` where every key is a declared dot output
+ *                  (`dotPlotKeysOf`) and every value a word; an empty object sizes
+ *                  nothing and is refused.
+ *   displayTarget  one of `PLACEMENT_TARGETS` (`price` / `pane` / `volume`). The
+ *                  writer also takes `@<instanceId>` for a DERIVED instance, but a
+ *                  definition has no instance to name, so the preset vocabulary is
+ *                  the placement vocabulary.
+ *
+ * Absent fields are fine (a preset that sets only inputs). The entry's own shape
+ * (`id`, `label`, `inputs`) is the caller's check; this reads `p.id` for the
+ * message only, so a preset that failed that check still gets its fields named.
+ */
+function validatePresetFields(p, i, def, errors) {
+  const who = `definition ${fmt(def && def.id)}, preset ${fmt(p.id)}`
+  const at = (field) => `meta.presets[${i}].${field}: ${who} — `
+
+  for (const key of Object.keys(p)) {
+    if (!PRESET_FIELDS.includes(key)) {
+      errors.push(
+        `${at(key)}unknown preset field. Expected one of ${list(PRESET_FIELDS)}; ` +
+        `\`applyPresetFields\` reads its fields by name, so this one would register and apply nothing.`,
+      )
+    }
+  }
+
+  if (p.visibility !== undefined && p.visibility !== null && p.visibility !== 'all') {
+    const v = p.visibility
+    const SHAPES = `null, "all", {preset: "intraday"}, {preset: "dailyUp"} or {preset: "custom", tfs: [<timeframe code>, …]}`
+    if (!isPlainObject(v)) {
+      errors.push(`${at('visibility')}expected ${SHAPES}, got ${fmt(v)}`)
+    } else {
+      const extra = Object.keys(v).filter((k) => k !== 'preset' && k !== 'tfs')
+      if (extra.length) {
+        errors.push(`${at('visibility')}unknown key(s) ${list(extra.map(fmt))}; a policy carries \`preset\` and, for custom, \`tfs\``)
+      }
+      if (!PRESET_VISIBILITY_PRESETS.includes(v.preset) || v.preset === 'all') {
+        errors.push(
+          `${at('visibility.preset')}expected one of ${list(PRESET_VISIBILITY_PRESETS.filter((x) => x !== 'all').map(fmt))} ` +
+          `(spell "every timeframe" as visibility: "all"), got ${fmt(v.preset)}`,
+        )
+      } else if (v.preset === 'custom') {
+        if (!Array.isArray(v.tfs) || !v.tfs.length) {
+          errors.push(
+            `${at('visibility.tfs')}a custom policy needs a non-empty array of timeframe codes, got ${fmt(v.tfs)}. ` +
+            `\`normalizeVisibility\` reads an empty list as "all", which is not what custom means.`,
+          )
+        } else {
+          v.tfs.forEach((code, j) => {
+            if (typeof code !== 'string' || !isValidTf(code)) {
+              errors.push(
+                `${at(`visibility.tfs[${j}]`)}${fmt(code)} is not a chart timeframe code; the normaliser would drop it silently.`,
+              )
+            }
+          })
+        }
+      } else if (v.tfs !== undefined) {
+        errors.push(`${at('visibility.tfs')}only a "custom" policy names timeframe codes; ${fmt(v.preset)} ignores them`)
+      }
+    }
+  }
+
+  if (p.dotSize !== undefined) {
+    const d = p.dotSize
+    const WORDS = list(PRESET_DOT_SIZES.map(fmt))
+    if (typeof d === 'string') {
+      if (!PRESET_DOT_SIZES.includes(d)) {
+        errors.push(`${at('dotSize')}expected one of ${WORDS} (or {plotKey: word}), got ${fmt(d)}`)
+      }
+    } else if (!isPlainObject(d)) {
+      errors.push(`${at('dotSize')}expected one of ${WORDS} or {plotKey: word}, got ${fmt(d)}`)
+    } else {
+      const dots = dotPlotKeysOf(def)
+      const entries = Object.entries(d)
+      if (!entries.length) {
+        errors.push(`${at('dotSize')}an empty object sizes nothing; name a dot output (${list(dots) || 'none declared'}) or use a word`)
+      }
+      for (const [plotKey, word] of entries) {
+        if (!dots.includes(plotKey)) {
+          errors.push(
+            `${at(`dotSize.${plotKey}`)}${fmt(plotKey)} is not a dot output of this definition ` +
+            `(a non-hidden "markers" plot or one with a \`marker\` glyph). Declared: ${list(dots) || 'none'}`,
+          )
+        }
+        if (typeof word !== 'string' || !PRESET_DOT_SIZES.includes(word)) {
+          errors.push(`${at(`dotSize.${plotKey}`)}expected one of ${WORDS}, got ${fmt(word)}`)
+        }
+      }
+    }
+  }
+
+  if (p.displayTarget !== undefined) {
+    if (typeof p.displayTarget !== 'string' || !PLACEMENT_TARGETS.includes(p.displayTarget)) {
+      errors.push(`${at('displayTarget')}expected one of ${list(PLACEMENT_TARGETS.map(fmt))}, got ${fmt(p.displayTarget)}`)
+    }
+  }
+}
+
 function validateMeta(meta, def, errors) {
   if (!isPlainObject(meta)) {
     errors.push(`meta: required object, got ${fmt(meta)}`)
@@ -1287,11 +1438,27 @@ function validateMeta(meta, def, errors) {
   }
   // `presets` is read by the settings dialog's generic preset picker: a named set
   // of input values applied to the CURRENT instance through `setInstanceInput`.
-  // Light shape check only — each entry needs a string `id` and `label` and an
+  // Light shape check on the entry — each needs a string `id` and `label` and an
   // object `inputs`. Keys and values inside `inputs` are NOT checked against the
   // declared inputs here: the writer validates every value at apply time and the
   // picker skips an undeclared key with a warning, so a stale preset degrades
   // rather than refusing the whole definition.
+  //
+  // ⭐⭐ THE THREE NON-INPUT FIELDS ARE BEHAVIOURAL AND FAIL CLOSED (Phase 2a,
+  // unit 2a-15; the writer is unit 2a-12's `applyPresetFields`). `visibility`,
+  // `dotSize` and `displayTarget` are each handed to a per-instance writer that
+  // DROPS a value it cannot take with a `console.warn` — so a preset carrying
+  // `dotSize: 'big'` or a visibility over a timeframe code the chart does not
+  // have would register, show in the picker, and apply nothing. That is the
+  // "validated but inert" failure this schema exists to prevent, and nobody
+  // reads a console on a phone. `validatePresetFields` refuses each one by
+  // definition id, preset id and field, in the writer's own vocabulary.
+  //
+  // ⛔ AND A PRESET'S KEY SET IS CLOSED (`PRESET_FIELDS`), unlike `meta.*`
+  // itself. `applyPresetFields` reads its three fields BY NAME — `dotsize` or
+  // `visibilty` is not forward-compatible data waiting for a reader, it is a
+  // typo that silently does nothing; the forward-compatibility half of the
+  // asymmetric policy stays with `meta`'s own unknown keys (preserved below).
   if (meta.presets !== undefined && meta.presets !== null) {
     if (!Array.isArray(meta.presets)) {
       errors.push(`meta.presets: expected an array of {id, label, inputs}, got ${fmt(meta.presets)}`)
@@ -1318,6 +1485,7 @@ function validateMeta(meta, def, errors) {
         if (!isPlainObject(p.inputs)) {
           errors.push(`meta.presets[${i}].inputs: required object of input values, got ${fmt(p.inputs)}`)
         }
+        validatePresetFields(p, i, def, errors)
       })
     }
   }

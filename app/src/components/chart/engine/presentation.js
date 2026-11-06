@@ -315,6 +315,39 @@ export function drawsHistory(style) {
  */
 export const DOT_SIZES = Object.freeze({ small: 1.5, medium: 2.5, large: 4 })
 export const DEFAULT_DOT_SIZE = 'medium'
+
+/**
+ * ⭐ THE SAME THREE WORDS ON A GLYPH (Phase 2a, unit 2a-13 / 2a-15). A `markers`
+ * plot WITH a `marker` block is not a point marker: lightweight-charts draws it
+ * as a series-marker glyph whose pixel size is `calculateShapeHeight(barSpacing)
+ * × marker.size`, double-clamped to 12..30 px (see `__tests__/markerPixels.test.js`,
+ * the mirror). `pointMarkersRadius` never reaches it, so the radius table above
+ * is the wrong quantity. For a glyph the word is a MULTIPLIER on the size its
+ * author declared: `medium` IS the declared look (× 1), `small` and `large` step
+ * away from it. The declared size is the author's, so Classic's gold dot at
+ * Default is byte-for-byte what it was before a member ever touched the control.
+ *
+ * ⚠️ WHAT THE FLOOR AND CEILING DO TO IT, so nobody promises more than the
+ * renderer draws. For UCT RS's gold dot (declared 2.0, a circle, coefficient 0.8):
+ *   · Default (× 1 → 2.0): 15 px at bar spacing ≤ 12, 23 px from 15 — unchanged.
+ *   · Large (× 1.4 → 2.8): 23 px at EVERY spacing — larger than Default on a
+ *     phone, in a grid cell and zoomed out (23 vs 15), and EQUAL to Default from
+ *     bar spacing 15, because 23 is the biggest circle LWC draws (`size()` clamps
+ *     the multiplied height to 30, × 0.8 → 24, ceiled odd → 23) and Default is
+ *     already there at the desktop daily zoom.
+ *   · Small (× 0.6 → 1.2): 9 / 13 / 17 / 23 px at spacing ≤ 12 / 15 / 20 / 30.
+ */
+export const DOT_GLYPH_SCALE = Object.freeze({ small: 0.6, medium: 1, large: 1.4 })
+
+/** The `marker` block a glyph plot should draw at ONE dot-size word: the declared
+ *  block with `size` multiplied by `DOT_GLYPH_SCALE[word]`. A block that declares
+ *  no size is at LWC's multiplier 1, and scales from there. */
+export function scaledMarker(marker, word) {
+  const scale = DOT_GLYPH_SCALE[word]
+  if (!marker || typeof marker !== 'object' || !Number.isFinite(scale)) return marker
+  const declared = Number.isFinite(marker.size) ? marker.size : 1
+  return { ...marker, size: declared * scale }
+}
 export const DOT_SIZE_CHOICES = Object.freeze([
   { value: 'small', label: 'Small' },
   { value: 'medium', label: 'Medium' },
@@ -436,7 +469,20 @@ export function presentedPlot(plot, instance, ctx) {
   // ⛔ ONLY when the member restyled the output to dots or stored a size. A plot
   // declared `markers` that reaches here for another reason (a `renderLook`, say)
   // keeps the radius its author declared — this used to hand SAR 2.5 for 3.
-  if (defStyle === 'markers' && (styleChanged || dotSized)) next.width = DOT_SIZES[resolveDotSize(instance, plot)]
+  //
+  // ⭐ A GLYPH IS THE OTHER RENDERER (2a-13). A `markers` plot WITH a `marker`
+  // block is drawn by the series-marker lane, which reads `marker.size` and never
+  // `width` (the pool draws no point marker under a glyph), so a stored word
+  // scales the DECLARED glyph size (`scaledMarker`) and leaves `width` alone —
+  // this is where Stress's `dotSize: {dotNHbeforePx: 'large'}` became pixels,
+  // having been stored and detected but visually inert at 2a-14.
+  if (defStyle === 'markers' && (styleChanged || dotSized)) {
+    if (dotSized && plot.marker && typeof plot.marker === 'object') {
+      next.marker = scaledMarker(plot.marker, resolveDotSize(instance, plot))
+    } else {
+      next.width = DOT_SIZES[resolveDotSize(instance, plot)]
+    }
+  }
   if (sign) {
     next.colorMode = 'sign'
     next.colorUp = sign.up

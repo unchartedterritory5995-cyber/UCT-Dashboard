@@ -471,6 +471,34 @@ describe('seriesOptionsForPlot', () => {
     expect(o.lineVisible).toBe(false)
   })
 
+  // ⭐ 2a-13 — a `markers` plot WITH a `marker` block is a GLYPH, drawn by the
+  // series-marker lane riding this series. The series itself draws nothing: no
+  // point marker under the glyph (there used to be a 2 px disc, invisible beneath
+  // the 15 px gold circle — the second renderer), no line between event bars.
+  it('a markers plot with a `marker` glyph draws NO point marker and no line — the glyph lane paints it', () => {
+    for (const key of ['dotNHbeforePx', 'dotNHred']) {
+      const p = plotOf('rsLine', key)
+      expect(p.marker, key).toBeTruthy()
+      const o = seriesOptionsForPlot(p, { scaleId: 'rsLine' })
+      expect(o.lineWidth, key).toBe(0)
+      expect(o.pointMarkersVisible, key).toBe(false)
+      expect(o.lineVisible, key).toBe(false)
+      // the key set stays uniform — the radius is emitted (inert) exactly as for a line
+      expect(o.pointMarkersRadius, key).toBe(1)
+    }
+    // the same plot WITHOUT its glyph block is the plain-dot case: point markers on
+    const { marker: _glyph, ...plain } = plotOf('rsLine', 'dotNHbeforePx')
+    const o = seriesOptionsForPlot(plain, { scaleId: 'rsLine' })
+    expect(o.pointMarkersVisible).toBe(true)
+    expect(o.pointMarkersRadius).toBe(1)
+    expect(o.lineVisible).toBe(false)
+    // and a glyph on a synthetic plot, so the rule is the block's, not UCT RS's
+    const synthetic = { key: 'g', style: 'markers', color: '#abcdef', width: 2, marker: { shape: 'square', position: 'aboveBar' } }
+    expect(seriesOptionsForPlot(synthetic, { scaleId: 'x' })).toMatchObject({ pointMarkersVisible: false, pointMarkersRadius: 2, lineVisible: false, lineWidth: 0 })
+    // a `marker` that is not an object is not a glyph block (defSchema refuses it; this is the second lock)
+    expect(seriesOptionsForPlot({ ...synthetic, marker: 'circle' }, { scaleId: 'x' }).pointMarkersVisible).toBe(true)
+  })
+
   it('an unmappable plot has no options at all', () => {
     expect(seriesOptionsForPlot(plotOf('rsi', 'bands'), {})).toBeNull()
     expect(seriesOptionsForPlot({ style: 'hologram' }, {})).toBeNull()
