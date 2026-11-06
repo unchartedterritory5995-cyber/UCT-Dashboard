@@ -41,6 +41,16 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 ONE ``screener_rows`` query into ``prev_closes`` before the
                 per-ticker loop), and ``opt_flow`` (the flow-worker's
                 per-ticker options aggregate, bridged via R2).
+  - RS rating history -> ``rs_history.read_fields`` (UCT RS Phase 2a, unit
+                2a-06), the same ``market_row`` merge, ONE read per build: the
+                seven history-derived rating columns from the
+                ``rs_rating_history`` side table in screener.db, mapped from
+                the reader's field names to column names HERE
+                (``_read_rs_history_fields``) and read as the NEWEST stored
+                session — ``rs_history_nightly`` runs at 04:15 ET, after this
+                build, so the newest row is normally the session before
+                ``bars_asof``. The receipt counts rated/unrated/no_row beside
+                the reader's own ``missing``/``stale:<n>d`` notes.
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -407,9 +417,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     PLUS the THREE Wave 5 readers, same shape: ``pattern_join`` (pattern-engine
     ids/confidence/direction/expectancy — see below), ``darkpool_agg``
     (block-print notional/prints + signature-DPL distance), and ``opt_flow``
-    (the flow-worker options aggregate). Disjoint from every other source by
-    construction (each reader owns its own columns). Merged AFTER
-    ``ratings_row`` and BEFORE ``context_row``.
+    (the flow-worker options aggregate) — PLUS, since UCT RS Phase 2a (unit
+    2a-06), ``_read_rs_history_fields`` (the seven history-derived rating
+    columns from the ``rs_rating_history`` side table, one read per build).
+    Disjoint from every other source by construction (each reader owns its
+    own columns). Merged AFTER ``ratings_row`` and BEFORE ``context_row``.
 
     🔑 ``pattern_join`` rides THREE non-column CARRIER keys into ``market_row``
     on purpose — ``pattern_entry_px``/``pattern_stop_px``, the best active
@@ -986,6 +998,65 @@ def _read_market_source(label, reader, targets, failures=None) -> dict:
         return {}
 
 
+#: `rs_history.read_fields` field -> snapshot column, for the seven
+#: history-derived UCT RS rating columns (plan §10.1; map §2.5, unit 2a-06).
+#: COLUMN NAMES ARE THE KEYS on purpose: `tests/test_scalar_population_rail.py`
+#: reads a module's writers from the string keys of its dict literals, so this
+#: table is how the census sees seven collectors rather than none. `fast`
+#: (the UCT fast rating) is NOT mapped — `rs_rank` already is that number
+#: (map §2.5); `score`, `bars` and `asof` are the reader's provenance, logged
+#: once per build below, never columns.
+_RS_HISTORY_COLUMNS = {
+    "rs_rating_ibd": "ibd",       # IBD-style rating 1-99 (plan §7 item 17)
+    "rs_rating_chg_5": "d5",      # rating minus its value 5 stored sessions ago
+    "rs_rating_chg_20": "d20",    # ... 20 stored sessions ago (item 20)
+    "rs_rating_1m": "m1",         # component percentiles of the plain
+    "rs_rating_3m": "m3",         #   21/63/126/252-bar returns (item 19)
+    "rs_rating_6m": "m6",
+    "rs_rating_12m": "m12",
+}
+
+
+def _read_rs_history_fields(targets, failures=None) -> dict:
+    """``{TICKER: {rs_rating_ibd, rs_rating_chg_5, ...}}`` from the
+    ``rs_rating_history`` side table — the ``_read_market_source`` contract
+    (``reader(targets, failures=failures)``), ONE call per build.
+
+    ⭐ THE NEWEST STORED SESSION, NOT THIS BUILD'S OWN. ``read_fields(session=)``
+    demands an EXACT session match, and ``rs_history_nightly`` rates the
+    settled session at 04:15 ET — AFTER this 03:00 build — so asking for the
+    build's own session would read ``{}`` every night by construction. Reading
+    the newest row (normally the session before ``bars_asof``; the same
+    session after an intraday rebuild) is what makes a nightly fill possible
+    at all. The reader applies its own freshness rule (``rs_history.
+    STALE_DAYS``: a newest session more than 3 calendar days behind the
+    settled one notes ``stale:<n>d`` into ``failures`` and is still served)
+    and names the session it served, which is logged here once per build.
+
+    Honesty: a field the row cannot supply (an unrated component, a delta
+    with no earlier session) is ABSENT from the mapped dict, never ``None``,
+    so ``build_row``'s merge leaves the column NULL; a ticker with no row is
+    absent from the map. The import is lazy on purpose: a dark pod (no table)
+    pays one failed SELECT, which the reader catches and notes ``missing``.
+    """
+    from . import rs_history
+    raw = rs_history.read_fields(targets, failures=failures) or {}
+    out = {}
+    asof = None
+    for t, fields in raw.items():
+        if not fields:
+            continue
+        asof = fields.get("asof") or asof
+        mapped = {col: fields[key] for col, key in _RS_HISTORY_COLUMNS.items()
+                  if fields.get(key) is not None}
+        if mapped:
+            out[t] = mapped
+    if out:
+        log.info("[screener] rs_history: %s rating rows read, as of session %s",
+                 len(out), asof)
+    return out
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────
 
 # The generator's `{ticker: Stock|ADR|ETF}` map, loaded ONCE per build (it is
@@ -1516,6 +1587,15 @@ def _run_build_locked(max_tickers=None) -> dict:
         targets, sources)
     optflow_map = _read_market_source(
         "opt_flow", opt_flow.read_opt_flow_fields, targets, sources)
+    # ⭐ The seven history-derived UCT RS rating columns (Phase 2a, unit
+    # 2a-06): ONE read per build from the `rs_rating_history` side table, a
+    # disjoint peer of the readers above (it owns its seven columns and
+    # nothing else — `test_no_two_screener_sources_write_the_same_column`
+    # pins that), wrapped like them so a dead or absent table degrades to {}
+    # and is COUNTED under `sources["rs_history"]`, never fatal. Which
+    # session it reads, and why: see `_read_rs_history_fields`.
+    rshist_map = _read_market_source(
+        "rs_history", _read_rs_history_fields, targets, sources)
     # ⭐ THE SETTLED NEWEST BAR — one whole-market call, before the loop. See the
     # "newest daily bar, settled" block above `settled_session`. The receipt says
     # which session, how many rows came back, and what happened per ticker, or
@@ -1620,11 +1700,26 @@ def _run_build_locked(max_tickers=None) -> dict:
             T = t.upper()
             context_row = {**breadth_map.get(T, {}), **uct20_map.get(T, {}),
                            **index_map.get(T, {}), **etf_map.get(T, {})}
+            rs_hist = rshist_map.get(T) or {}
+            # Counted beside `no_rank`/`no_row` above, for the same reason: a
+            # dark pod (no table — the reader notes `missing` ONCE) and a name
+            # outside the rated population both read as "no row" here, and
+            # only the RATIO tells them apart. `rated` is counted too: the
+            # first clean nightly fill is what promotes these seven out of the
+            # partition's refused side (R8), and the receipt is where that is
+            # read. `unrated` is a row whose rating is NULL (an ETF with no
+            # stock distribution to interpolate into) with components present.
+            sources.setdefault("rs_history", {})
+            _hist_outcome = ("rated" if "rs_rating_ibd" in rs_hist
+                             else "unrated" if rs_hist else "no_row")
+            sources["rs_history"][_hist_outcome] = \
+                sources["rs_history"].get(_hist_outcome, 0) + 1
             market_row = {**finviz_map.get(T, {}), **edates_map.get(T, {}),
                           **lastmove_map.get(T, {}), **implied_map.get(T, {}),
                           **analyst_map.get(T, {}), **insider_map.get(T, {}),
                           **pattern_map.get(T, {}), **dp_map.get(T, {}),
-                          **optflow_map.get(T, {}), **archive_map.get(T, {})}
+                          **optflow_map.get(T, {}), **archive_map.get(T, {}),
+                          **rs_hist}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, mc_price, failures=sources),
