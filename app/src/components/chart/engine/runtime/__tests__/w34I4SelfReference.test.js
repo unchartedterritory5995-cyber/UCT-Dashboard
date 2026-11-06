@@ -165,6 +165,15 @@ describe('W34-I4: a self read whose bar-0 value the reference does not state kee
     const [x] = run(src(['x = 0.5*close + 0.5*nz(x[1], close)', 'plot(x)']))
     expect(Number.isNaN(x[0])).toBe(true)
   })
+  // Mutation M2 survived the first batch: every bare read above ends the line or meets
+  // `==`, so a bare read followed by `)` (the shape `nz(x[k])` also ends with) was unrailed.
+  it('a bare self read closed by a parenthesis is not rewritten and refuses pine:state', () => {
+    const body = ['x = 0.25*close + (0.75*x[1])', 'plot(x)']
+    const l = lexPine(src(body))
+    const st = blockStatements(l.tokens, l.indents, 0)
+    expect(v2SelfReferenceStatements(st, l.version)).toBe(st)
+    expect((refusalOf(src(body)) || {}).guard).toBe('pine:state')
+  })
   it('one guarded and one bare read: not rewritten, refused', () => {
     const r = refusalOf(src(['x = 0.25*close + 0.5*nz(x[1]) + 0.25*x[2]', 'plot(x)']))
     expect(r && r.guard).toBe('pine:state')

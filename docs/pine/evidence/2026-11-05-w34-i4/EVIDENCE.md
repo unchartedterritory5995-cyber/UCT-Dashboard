@@ -69,7 +69,13 @@ byte-exact (`cmp` OK, tree clean): **1 failed | 13 passed**, killed by `nz(x[1],
 (`hand-m1.log`). The Laguerre refusal is reached by a rail: `a bare self read in a comparison refuses pine:state
 naming the variable` (the synthetic `col`-shaped read) passes on the tip and on master.
 
-## Mutations (batch NOT YET RUN - waiting for the go). `docs/pine/evidence/2026-11-05-w34-i4/muts.json`
+## Mutation batch (RUN @719fe9275f, heavy-mut.lock, mutate.py copy at --maxWorkers=1 with a <4 GB stop, `mut1.log`)
+M0 no-op control SURVIVED. KILLED: M1 (v4 seed rail), M1b (rewrite-shape rail; not equivalent after all), M3, M4,
+M5, M6, M7, M8, M9 (3 rails). **M2 (bare read admitted) SURVIVED**: no rail had a bare read followed by `)`. Fixed
+with a new rail (`a bare self read closed by a parenthesis ...`, rail now 17 passed); M2 + M0 re-run: M2 KILLED,
+M0 SURVIVED (`mut2.log`). 10/10 killed, control survives.
+
+## Mutations (planned table) `docs/pine/evidence/2026-11-05-w34-i4/muts.json`
 Command (from app/, under `lock_run LOCK_MUT`): `python $S/mutate.py ../docs/pine/evidence/2026-11-05-w34-i4/muts.json
 src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
 | mutation | expected killer |
