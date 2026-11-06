@@ -2127,6 +2127,103 @@ def _check_nightly_finished() -> None:
         print(f"[scheduler] could not run the screener nightly watchdog: {e}")
 
 
+# -- UCT Relative Strength: the IBD-style rating history (engineering map --------
+# docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md, unit 2a-04)
+#
+# `rs_history.nightly_job()` rates the cap universe for the settled session into
+# `rs_rating_history` and records a receipt row in `rs_history_runs`, both side
+# tables in screener.db (the `volume_curve` recipe). The module reads NO
+# environment variable by design (`tests/test_rs_rating_history.py` pins it); the
+# flag is read HERE, per call, so arming and rollback are one Railway variable.
+# The job itself is registered in `register_screener_jobs` (`rs_history_nightly`).
+
+#: The share of a run's targets that may go unrated (short history, stale bars,
+#: no bars) before the run is reported as short. The map's figure.
+RS_HISTORY_SHORT_SHARE = 0.20
+
+
+def rs_history_enabled() -> bool:
+    """`RS_HISTORY_ENABLED` read per call: a flip needs no restart. Only "1" arms it
+    (the `_wire_enabled` convention: "true", "yes" and typos all mean off). The ONE
+    reader -- `/api/screener/snapshot-status` imports this, so the job and the
+    surface cannot disagree about the switch."""
+    return os.environ.get("RS_HISTORY_ENABLED", "0") == "1"
+
+
+def _rs_history_shortfall(receipt: dict):
+    """Why a rating-history run fell short, in words, or None when it rated enough.
+
+    Short = more than RS_HISTORY_SHORT_SHARE of `targets` went unrated
+    (`short_history + stale + no_bars`), OR nothing was rated at all. A run the
+    module could not store carries `rated == 0`, so it lands here through the
+    second rule and the message names the module's own reason."""
+    if receipt.get("crashed"):
+        return f"the job crashed ({receipt['crashed']})"
+    targets = int(receipt.get("targets") or 0)
+    rated = int(receipt.get("rated") or 0)
+    note = receipt.get("note") if isinstance(receipt.get("note"), dict) else {}
+    if rated == 0:
+        reason = note.get("error") or note.get("reason")
+        return (f"no name was rated out of {targets:,} targets"
+                + (f" ({reason})" if reason else ""))
+    missed = sum(int(receipt.get(k) or 0) for k in ("short_history", "stale", "no_bars"))
+    if targets and missed > targets * RS_HISTORY_SHORT_SHARE:
+        return (f"{missed:,} of {targets:,} targets went unrated "
+                f"(short_history={receipt.get('short_history')}, stale={receipt.get('stale')}, "
+                f"no_bars={receipt.get('no_bars')})")
+    return None
+
+
+def _alert_if_rs_history_short(receipt: dict) -> None:
+    """ONE warning per short run, keyed `rs_history_short:{session}`, through the
+    emitter the screener build uses for its own shortfall (`_alert_if_nightly_short`
+    above), so it lands where the owner already watches. Never raises."""
+    why = _rs_history_shortfall(receipt)
+    if not why:
+        return
+    try:
+        from api.services import chart_health_alerts
+        session = receipt.get("session") or datetime.now(_ET).strftime("%Y-%m-%d")
+        chart_health_alerts.emit(
+            f"rs_history_short:{session}", "warning",
+            f"The UCT RS rating history fell short for {session}: {why}. Until the next "
+            "full run, rs_rating_history carries fewer rated names for that session.",
+            {**{k: receipt.get(k) for k in ("session", "targets", "rated", "rows",
+                                          "short_history", "stale", "no_bars",
+                                          "split_guard", "duration_ms", "crashed")},
+             "note": receipt.get("note")},
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] could not raise the rs history alert: {e}")
+
+
+def _run_rs_history() -> None:
+    """The `rs_history_nightly` job. Never raises.
+
+    Off (`RS_HISTORY_ENABLED` unset or not "1"): returns before touching the DB --
+    the side tables are created on first WRITE, so a dark pod carries no table.
+    On: one `rs_history.nightly_job()` with the module's own defaults (it resolves
+    the settled session, the cap universe, the ETF set and the bars reader itself);
+    the receipt it recorded is then read for the shortfall rule above.
+    """
+    try:
+        if not rs_history_enabled():
+            logging.getLogger(__name__).debug(
+                "[scheduler] rs history: RS_HISTORY_ENABLED is off; nothing touched")
+            return
+        from api.services.screener import rs_history
+        receipt = rs_history.nightly_job()
+        print(f"[scheduler] rs history: session={receipt.get('session')} "
+              f"rated={receipt.get('rated')} targets={receipt.get('targets')} "
+              f"rows={receipt.get('rows')} short={receipt.get('short_history')} "
+              f"stale={receipt.get('stale')} no_bars={receipt.get('no_bars')} "
+              f"ms={receipt.get('duration_ms')}")
+        _alert_if_rs_history_short(receipt)
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs history error: {e}")
+        _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -2191,6 +2288,41 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_check_nightly_finished,
                       trigger=CronTrigger(hour=NIGHTLY_WATCHDOG_HOUR_ET, minute=0, timezone=_ET),
                       id="screener_nightly_watchdog", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength rating history: its OWN cron at 04:15 ET ---------
+    #
+    # ⛔ NOT A LINE APPENDED TO `_run` ABOVE. The engineering map (unit 2a-04)
+    # allows the inline path -- under `_nightly_shortfall(stats) is None`, the way
+    # membership is chained -- only once the step is MEASURED under three minutes,
+    # and the sweep block below refuses unmeasured work in the build's
+    # `max_instances=1` slot. It has not been measured on the web pod (the box
+    # that wrote this has no bars.db), so this is the own-cron path. ⏳ THE
+    # ALTERNATIVE, once the first production receipts (`rs_history_runs`'s
+    # `duration_ms`, read back as `rs_history.last_run` on
+    # `/api/screener/snapshot-status`) show a run under 180,000 ms: move the call
+    # inline after `membership.record_all()` and delete this registration; the
+    # flag read and the alert stay as they are.
+    #
+    # 04:15 ET is the map's hour: the 03:00 build took 44 minutes on 2026-10-16
+    # and this reads the daily bars that build just caught up; the 05:00 sweep
+    # reads nothing from this table.
+    #
+    # `coalesce=True, misfire_grace_time=3600`: the watchdog's settings, for the
+    # watchdog's reason -- under apscheduler's 1-second default grace a restart
+    # spanning 04:15 drops the whole session from the history, silently. ⚠️ The
+    # build job above carries NO grace at all, so "match the build job" would
+    # mean one second, which is the hole and not the fix; 3600 is what every
+    # once-a-day sibling here uses. A late start is safe: a rerun for the same
+    # session is INSERT OR REPLACE in `rs_history.store_rows`.
+    #
+    # ⛔ REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth` in
+    # tests/test_scan_live_sweep.py): `RS_HISTORY_ENABLED` is read PER CALL inside
+    # `_run_rs_history`, so arming and rollback are one Railway variable with no
+    # deploy. Off, the job returns before touching the DB.
+    scheduler.add_job(_run_rs_history,
+                      trigger=CronTrigger(hour=4, minute=15, timezone=_ET),
+                      id="rs_history_nightly", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
