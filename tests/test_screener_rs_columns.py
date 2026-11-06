@@ -327,7 +327,17 @@ def test_collect_is_the_batch_shape():
 
 # ───────────────────────────── the builder seat ─────────────────────────────
 
-def test_the_builder_step_merges_the_columns_and_counts_outcomes():
+def _arm_rs_v2(monkeypatch):
+    """Pins moved 2026-11-07 (RS review finding #5, unit U3): the `bars_rs` step
+    now runs only under `registry_defs.RS_V2_ENABLED` (dark by default), so the
+    tests that exercise the step arm the flag first. The dark path is pinned in
+    tests/test_rs_fix_u3_screener.py."""
+    from api.services.signature import registry_defs
+    monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+
+
+def test_the_builder_step_merges_the_columns_and_counts_outcomes(monkeypatch):
+    _arm_rs_v2(monkeypatch)
     from api.services.screener import snapshot_builder as sb
     failures = {}
     row = sb.build_row("AAA", AAA, None, None, failures=failures, spy_bars=SPY, rsp_bars=RSP)
@@ -372,6 +382,7 @@ def test_a_raising_collector_costs_its_columns_never_the_row(monkeypatch):
     """The sibling rail (`test_a_raising_bar_consumer_costs_its_columns_never_the_row`)
     for this step: a raise degrades to NULL columns, is counted by name, and
     the row is still written and dated."""
+    _arm_rs_v2(monkeypatch)
     from api.services.screener import snapshot_builder as sb
 
     def _boom(*a, **k):
@@ -420,6 +431,7 @@ def test_benchmarks_are_read_once_at_deep_bars_through_the_tickers_reader(monkey
 def test_run_build_reads_spy_and_rsp_once_and_the_rows_carry_the_columns(tmp_path, monkeypatch):
     """The whole seat, end to end: one SPY read, one RSP read, the per-row
     outcomes under `sources["bars_rs"]`, the columns populated and persisted."""
+    _arm_rs_v2(monkeypatch)
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "rs.db"))
     import api.services.screener.snapshot_db as sdb
     import api.services.screener.snapshot_builder as b
