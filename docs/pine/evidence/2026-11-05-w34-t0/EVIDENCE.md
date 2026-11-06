@@ -38,3 +38,8 @@ Not built. W34-D2 found the drawing build DOES lower ops, and that the door's va
 "the drawing build declined with zero ops lowered" would label a decline the census cannot attribute to that build, and would be a
 wrong-reason label. Item 6 waits for D2's finding to be fixed in the probe (or for the census to probe the drawing build directly).
 `masterSha` in the map reads 3ca4b0d358; the census tree was 299a1a77cb (c855e8cadf plus the W9-T0 branch), both engine 18.
+
+## Full final-tip on 670f6a95f8 (after master merge): rc gate=0 hyg=1->see below py=0 js=1, totals ok, integrity ok
+jsfail: controlDoorCensus, enumerationSites, vendorHarness, settingsScope, pollingSites (baselines), usePreferences.additionsOnly (master's TodayHome.jsx, recorded),
+vendorHarness.coverageAudit (delta-rsi-oscillator-strategy runtime-pane; re-run alone: 1 failed, 184 passed; not a file this lane touches).
+ready-check: FAIL on coverageAudit only.
