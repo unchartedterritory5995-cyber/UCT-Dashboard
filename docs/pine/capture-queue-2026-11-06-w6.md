@@ -49,3 +49,14 @@ Note for the reviewer: `array.mode`'s reference entry does state a tie rule ("it
 breakdown keeps it refused until W6-A1 (review B3), so M01 confirms the sentence before it is served.
 `array.sort_indices` on text, and its `na` ordering, are served on master (a pre-W6 choice: JavaScript string order,
 `na` sinks); T01-T08 and S03-S04 measure them, and W6-T5 does not change them (it would move the live C18 door).
+
+## W6-U1: receiver types (W6-T9)
+
+Branch `feat/pine-w6-t9-receivers`. Authority: the Pine manual, *Methods* and *Objects*, read 2026-11-06 (quoted in
+`app/src/components/chart/engine/runtime/__tests__/w6ReceiverTypes.test.js`). W6-T9 serves overloads chosen by a
+receiver type this lane can tell apart, chains, members on typed receivers and a record's shallow `copy`, on the runtime
+pane only; the C18 object door keeps master's answer. The rows below stay refused by name until captured.
+
+| id | probe | chart | question | engine today |
+|---|---|---|---|---|
+| W6-U1 | `tools/visual_conformance/probes/vw-w6-receivers.pine` rows U01-U09 | AMEX:SPY 1D | U01-U02 two overloads by receiver type (confirms what is served); U03-U04 a user `get(array<float>, int)` beside the built-in, on `array<float>` and on `array<int>` (which one Pine runs, and whether the `array<int>` call compiles); U05 a chain off an element (confirms); U06 `copy` aliasing (confirms the shallow copy); U07 a field read off an `na` record (the runtime error's text and bar); U08 overloads on `array<float>` / `array<string>` called on an `array<int>` (does an `array<int>` receiver convert to `array<float>` in overload choice, or not compile?); U09 overloads `m(float)` / `m(string)` on an `int` | U03-U04: `runtime:udt-method` "... AND a built-in member ... (W6-U1)" on every shape W6-T9 adds (master's single-declaration binding on a slot is unchanged); U07: stops by name ("is `na` - Pine stops the script here"); U08-U09: `runtime:udt-method` "... this lane has one number type (W6-U1)" (review N2: this lane cannot tell an `int` receiver from a `float` one, so no overload whose receiver holds numbers is chosen). Reached by `fx-market-sessions` (`clear` on `array<float>`), `ipda-standard-deviations-...` |

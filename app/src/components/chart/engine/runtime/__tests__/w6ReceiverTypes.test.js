@@ -2,11 +2,23 @@
 //
 // ─── ⭐⭐ W6-T9 — RECEIVER TYPES: OVERLOADED METHODS, CHAINS, MEMBERS ON ANY TYPED RECEIVER ──
 //
-// Pine chooses among same-named methods by the RECEIVER's type, and a member read off an
-// expression's result belongs to that result's type (User-defined methods,
-// https://www.tradingview.com/pine-script-docs/language/methods/ ; Objects,
-// https://www.tradingview.com/pine-script-docs/language/objects/). The type is T3b's
-// `exprType`, the one owner. Every shape below is SYNTHETIC: no script text is quoted.
+// The Pine manual, read 2026-11-06. *Methods*
+// (https://www.tradingview.com/pine-script-docs/language/methods/):
+//   · "User-defined methods can override and overload existing built-in and user-defined
+//     methods with the same identifier." (with "different parameter signatures")
+//   · "The type of the first parameter in the signature must be explicitly declared."
+//   · "The underlying type of each variable determines which overload of `getType()` the
+//     compiler will use." (its example overloads `int` AND `float`)
+//   · "The compiler will only use this `fill()` overload instead of the built-in when the
+//     user provides …"
+// *Objects* (https://www.tradingview.com/pine-script-docs/language/objects/):
+//   · "the built-in `copy()` method produces a _shallow copy_ of an object", and fields that
+//     reference UDT or special-type objects "in a shallow copy of the object will point to the
+//     same instances as the original".
+// So the receiver's type picks the declaration, and a member read off an expression's result
+// belongs to that result's type. The type is T3b's `exprType`, the one owner. This lane has
+// ONE number type, so it cannot tell an `int` receiver from a `float` one: an overload whose
+// receiver holds numbers refuses by name (W6-U1). Every shape below is SYNTHETIC.
 //
 // Served: overloads by receiver type (dotted and function form); a method or field on an
 // element, a copy, a function's result, a field path; a collection member on a field or
@@ -49,22 +61,22 @@ const refusal = (body, extra = {}) => {
 const close = BARS.map((b) => b.c)
 
 const TWO_CLR = 'method clr(array<string> id, int m = 0) =>\n    id.size() > m ? id.size() : 0\n'
-  + 'method clr(array<float> id, int m = 0) =>\n    id.size() > m ? -id.size() : 0\n'
+  + 'method clr(array<bool> id, int m = 0) =>\n    id.size() > m ? -id.size() : 0\n'
 const DOT_CND = 'type Dot\n    float v = 1\ntype Cnd\n    float w = 2\n'
   + 'method mk(Dot this) =>\n    this.v * 10\nmethod mk(Cnd this) =>\n    this.w * 100\n'
 
 describe('⭐ 1. overloads: the receiver\'s type picks the declaration', () => {
-  it('two `clr` over `array<string>` and `array<float>` each run on their own receiver', () => {
-    const v = run(`${TWO_CLR}var array<string> s = array.new<string>()\nvar array<float> f = array.new<float>()\n`
-      + 's.push("a")\nf.push(1.0)\nf.push(2.0)\nplot(s.clr())\nplot(f.clr())\n')
+  it('two `clr` over `array<string>` and `array<bool>` each run on their own receiver', () => {
+    const v = run(`${TWO_CLR}var array<string> s = array.new<string>()\nvar array<bool> f = array.new<bool>()\n`
+      + 's.push("a")\nf.push(true)\nf.push(false)\nplot(s.clr())\nplot(f.clr())\n')
     expect(v[0]).toEqual([1, 2, 3, 4, 5, 6])
     expect(v[1]).toEqual([-2, -4, -6, -8, -10, -12])
   })
   it('the receiver may be a FIELD, with the method\'s other arguments (a built-in `clear` cannot take two)', () => {
-    const src = 'type Sess\n    array<float> pr\n    array<string> nm\n'
+    const src = 'type Sess\n    array<bool> pr\n    array<string> nm\n'
       + 'method clear(array<string> id, int _min = 0) =>\n    if id.size() > _min\n        id.shift()\n    id.size()\n'
-      + 'method clear(array<float> id, int _min = 0) =>\n    if id.size() > _min\n        id.shift()\n    id.size() * 10\n'
-      + 'var s = Sess.new(array.new<float>(), array.new<string>())\ns.pr.push(close)\ns.nm.push("x")\n'
+      + 'method clear(array<bool> id, int _min = 0) =>\n    if id.size() > _min\n        id.shift()\n    id.size() * 10\n'
+      + 'var s = Sess.new(array.new<bool>(), array.new<string>())\ns.pr.push(close > 0)\ns.nm.push("x")\n'
       + 'plot(s.pr.clear(3))\nplot(s.nm.clear(2))\n'
     const v = run(src)
     expect(v[0]).toEqual([10, 20, 30, 30, 30, 30])
@@ -153,6 +165,13 @@ describe('⭐ 3. built-in members on a collection held anywhere typed', () => {
   })
 })
 
+describe('⭐ 3b. the shadowing rule within one kind (review N2)', () => {
+  it('a script\'s method on `Foo` does not run for a `Bar` receiver (two record types, one kind)', () => {
+    const b = build('type Foo\n    float x = 1\ntype Bar\n    float y = 2\nmethod mm(Foo f) =>\n    f.x\nv = Bar.new()\nplot(v.mm())\n')
+    expect(b.ok).toBe(false)
+  })
+})
+
 describe('⭐ 4. a record\'s own `copy` (shallow)', () => {
   it('`f.copy()` and `Foo.copy(f)` are new records; a collection field is SHARED', () => {
     const src = 'type Z\n    float s = 0\n    array<float> xs\nvar z = Z.new(1, array.new<float>())\n'
@@ -194,10 +213,25 @@ describe('⛔ 5. what still refuses, by name', () => {
     expect(r.guard).toBe('runtime:udt-method')
   })
   it('W6-U1 — a script\'s overload beside a built-in member that takes the same call', () => {
-    const r = refusal('method clear(array<string> id) =>\n    0\nmethod clear(array<float> id) =>\n    1\n'
-      + 'var array<float> f = array.new<float>()\nf.push(1)\nf.clear()\nplot(f.size())\n')
+    const r = refusal('method clear(array<string> id) =>\n    0\nmethod clear(array<bool> id) =>\n    1\n'
+      + 'var array<bool> f = array.new<bool>()\nf.push(true)\nf.clear()\nplot(f.size())\n')
     expect(r.guard).toBe('runtime:udt-method')
-    expect(r.message).toMatch(/W6-U1/)
+    expect(r.message).toMatch(/built-in member of a `array<bool>` that takes this call.*W6-U1/)
+  })
+  it('N2 — an overload whose receiver holds numbers: an `array<int>` never runs the `array<float>` one', () => {
+    const OV = 'method clr(array<string> id) =>\n    1\nmethod clr(array<float> id) =>\n    2\n'
+    for (const decl of ['var array<int> a = array.new<int>()', 'var array<float> a = array.new<float>()']) {
+      const r = refusal(`${OV}${decl}\nplot(a.clr())\n`)
+      expect(r.guard, decl).toBe('runtime:udt-method')
+      expect(r.message, decl).toMatch(/one number type \(W6-U1\)/)
+    }
+    const r = refusal('method m(float x) =>\n    1\nmethod m(string x) =>\n    2\nx = 1.5\nplot(x.m())\n')
+    expect(r.message).toMatch(/one number type \(W6-U1\)/)
+  })
+  it('two declarations on the SAME receiver type say so (Pine then reads the other arguments)', () => {
+    const r = refusal('type P\n    float x = 0\nmethod b(P p, float d) =>\n    p.x\nmethod b(P p, string d) =>\n    p.x\nplot(P.new().b(1))\n')
+    expect(r.guard).toBe('runtime:udt-method')
+    expect(r.message).toMatch(/same receiver type/)
   })
   it('a member off an expression whose type is not known keeps the shared resolver\'s refusal', () => {
     const r = refusal('type Z\n    float s = 0\ng(a) => a.get(0).s\nvar zs = array.new<Z>()\nzs.push(Z.new(close))\nplot(g(zs))\n')

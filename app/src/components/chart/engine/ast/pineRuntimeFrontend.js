@@ -1418,16 +1418,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   // ── ⭐⭐ W6-T9 — RECEIVER TYPES: OVERLOADED METHODS, CHAINS, MEMBERS ON ANY TYPED RECEIVER ──
   //
-  // Pine chooses among same-named methods by the RECEIVER's type (User-defined methods,
-  // https://www.tradingview.com/pine-script-docs/language/methods/), and a member read off
-  // an expression's result (`a.get(i).field`, `f(x).m()`) belongs to that result's type.
+  // The Pine manual, *Methods* (https://www.tradingview.com/pine-script-docs/language/methods/),
+  // read 2026-11-06:
+  //   · "User-defined methods can override and overload existing built-in and user-defined
+  //     methods with the same identifier." (with "different parameter signatures")
+  //   · "The type of the first parameter in the signature must be explicitly declared."
+  //   · "The underlying type of each variable determines which overload of `getType()` the
+  //     compiler will use." (its example overloads `int` AND `float`, so Pine tells them apart)
+  //   · "The compiler will only use this `fill()` overload instead of the built-in when the
+  //     user provides …" (a user overload beside a built-in is chosen by signature)
+  // So a call picks its declaration by the RECEIVER's type, and a member read off an
+  // expression's result (`a.get(i).field`, `f(x).m()`) belongs to that result's type.
   // The type is T3b's `exprType`, the ONE owner; nothing below records a type of its own.
   // ⛔⛔ SERVED ONLY WHEN THE TYPE IS KNOWN AND SETTLES THE CHOICE. An overloaded name on a
   // receiver `exprType` cannot type, two overloads this lane cannot tell apart (`int` and
   // `float` are one `num` here), or an overload whose receiver type it cannot read, refuse
   // `runtime:udt-method` by name. A library type is not a type this lane reads (W8).
-  // ⛔ THE OBJECT DOOR BUILDS WHAT MASTER BUILT: every rule below is off there
-  // (`receiverTypesServed`), so the door keeps master's refusals and guards.
+  // ⛔ THE OBJECT DOOR BUILDS WHAT MASTER BUILT. `receiverTypesServed` is asked at the
+  // DOORS only (each a site where this task changes what is built), never inside the type
+  // readers behind them (`resolveMethod`, `isOverloadedMethod`, `exprType`'s method arms):
+  // a reader's answer reaches the door only through a door site, so a gate inside one
+  // could not be proved (review B1). One `objectDoorGate.test.js` shape + one mutant per
+  // door site: `methodCallOf`, `overloadRefusal`, `isReceiverCall`, `memberRecvUdt`,
+  // `receiverCallOf`, `userMethodShadows`, `receiverInitTy`, the call arm.
   const receiverTypesServed = !atObjectDoor
   /** The receiver type a `method` header WRITES (`name(array<string> id, …)`), or null when
    *  this lane cannot read one (no written type, a library type, a default on the receiver). */
@@ -1461,9 +1474,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (sigs.some((t) => !t)) return 'one of them declares a receiver type this lane does not read'
     const keys = sigs.map(tyKey)
     if (new Set(keys).size !== keys.length) {
-      return 'two of them take receivers this lane cannot tell apart (an `int` and a `float` are one number type here)'
+      const dup = sigs.find((t, k) => keys.indexOf(tyKey(t)) !== k)
+      return tyHasNumber(dup)
+        ? 'two of them take receivers this lane cannot tell apart (an `int` and a `float` are one number type here)'
+        : 'two of them take the same receiver type, and Pine then chooses by the other arguments, which this lane does not resolve'
     }
     return null
+  }
+  /** Does a type hold a number anywhere (a number, or a collection of numbers)? This lane has
+   *  ONE number type, so such a receiver cannot be told `int` from `float`. */
+  const tyHasNumber = (t) => !!t && (t.kind === 'num' || tyHasNumber(t.elem || null) || tyHasNumber(t.key || null))
+  /** ⛔⛔ (review N2) AN OVERLOAD WHOSE RECEIVER HOLDS NUMBERS IS NOT CHOSEN HERE. The manual's
+   *  own overload example tells `int` from `float` ("The underlying type of each variable
+   *  determines which overload …"), and no sentence says an `array<int>` receiver converts to an
+   *  `array<float>` one, so an `array<int>` receiver must not run an `array<float>` overload.
+   *  This lane has one number type, so it refuses by name (queue row W6-U1, probe rows U08-U09). */
+  const numberOverloadRefusal = (name, sig, tok) => {
+    note('runtime:udt-method')
+    throw new RuntimeRefusal('runtime:udt-method', `\`${name}\` is declared more than once, and the declaration `
+      + `this receiver fits takes \`${tyKey(sig)}\`: Pine tells an \`int\` receiver from a \`float\` one, and `
+      + 'this lane has one number type (W6-U1)', locate(tok))
   }
   /** The function name a declaration registers under: the plain name for a single
    *  declaration, an overload's own (`overloadFnName`), or null (refused by name). */
@@ -1482,7 +1512,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const sigs = methodSigsOf(name)
     if (bindableMethod(name)) {
       const own = sigs[0]
-      if (receiverTypesServed && recvTy && own && !tyCompatible(own, recvTy)) return { fn: null }
+      if (recvTy && own && !tyCompatible(own, recvTy)) return { fn: null }
       return { fn: name }
     }
     const why = (methodDecls.get(name) || 0) > 1 ? overloadRefusal(name)
@@ -1496,15 +1526,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         locate(tok))
     }
     const exact = sigs.findIndex((t) => tyKey(t) === tyKey(recvTy))
-    if (exact >= 0) return { fn: overloadFnName(name, sigs[exact]) }
+    const chosen = (sig) => {
+      if (!tyHasNumber(sig)) return { fn: overloadFnName(name, sig) }
+      if (quiet) return { fn: null, refused: true }
+      return numberOverloadRefusal(name, sig, tok)
+    }
+    if (exact >= 0) return chosen(sigs[exact])
     const fits = sigs.filter((t) => tyCompatible(t, recvTy))
     if (!fits.length) return { fn: null }
     // ⛔ A RECEIVER TYPE WITH AN UNKNOWN PART (`array.new<float>()` held untyped is `array<?>`
     // to the slot) settles the choice only when ONE overload fits AND no built-in member of
     // that name could be what Pine picked instead; anything else refuses by name.
-    if (fits.length === 1 && !tyComplete(recvTy) && !mayBeBuiltinMember(recvTy, name)) {
-      return { fn: overloadFnName(name, fits[0]) }
-    }
+    if (fits.length === 1 && !tyComplete(recvTy) && !mayBeBuiltinMember(recvTy, name)) return chosen(fits[0])
     if (quiet) return { fn: null, refused: true }
     note('runtime:udt-method')
     throw new RuntimeRefusal('runtime:udt-method',
@@ -1546,9 +1579,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (t.kind === 'array') return Object.hasOwn(ARRAY_FNS, `array.${name}`)
     return t.kind === 'matrix' || t.kind === 'map'
   }
-  /** ⭐ W6-T9 — `f.copy()` / `Foo.copy(f)`: a NEW record whose every field is `f`'s (Pine's copy
-   *  is SHALLOW: a collection or record held in a field is shared, not duplicated; Objects,
-   *  https://www.tradingview.com/pine-script-docs/language/objects/). Lowered as `Foo.new(f.a,
+  /** ⭐ W6-T9 — `f.copy()` / `Foo.copy(f)`: a NEW record whose every field is `f`'s. The manual,
+   *  *Objects* (https://www.tradingview.com/pine-script-docs/language/objects/), read 2026-11-06:
+   *  "the built-in `copy()` method produces a _shallow copy_ of an object", and fields that
+   *  reference UDT or special-type objects "in a shallow copy of the object will point to the
+   *  same instances as the original". Lowered as `Foo.new(f.a,
    *  f.b, …)`, so an `na` receiver stops by name at the first field read, as any field read does.
    *  ⛔ Only a receiver read twice safely (a name or a field path): `zs.pop().copy()` would pop
    *  once per field, so it refuses by name. */
@@ -1604,7 +1639,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const memberRecvUdt = (recv, scope) => udtTypeOf(recv, scope)
     || (receiverTypesServed ? udtNameOf(exprType(recv, scope)) : null)
   /** Is `name` a method this lane serves as overloads (more than one declaration)? */
-  const isOverloadedMethod = (name) => receiverTypesServed && (methodDecls.get(name) || 0) > 1
+  const isOverloadedMethod = (name) => (methodDecls.get(name) || 0) > 1
   /** ⭐⭐ A CALL ON A TYPED RECEIVER, rewritten to the name form this lane lowers:
    *  - `recv.m(…)` / `expr.m(…)` where `m` is the script's own method for the receiver's
    *    type → `{kind:'user', call}` (`m#type(recv, …)` for an overload);
@@ -1662,8 +1697,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const added = r.fn !== method || !(recv.type === 'name' && lookupReadable(recv.name, scope) !== null)
         if (added && builtinTakesCall(recvTy, method, 1 + rest.length)) {
           note('runtime:udt-method')
-          throw new RuntimeRefusal('runtime:udt-method', `\`${method}\` is this script's method AND a built-in `
-            + `member of a \`${tyKey(recvTy)}\` that takes this call; which one Pine runs is not yet captured (W6-U1)`,
+          throw new RuntimeRefusal('runtime:udt-method', `\`${method}\` is this script's method AND ${recvTy
+            ? `a built-in member of a \`${tyKey(recvTy)}\` that takes this call`
+            : 'possibly a built-in member of this receiver, whose type is not known here'}; which one Pine runs is not yet captured (W6-U1)`,
           locate(node.tok))
         }
         return { kind: 'user', fn: r.fn, call: { type: 'call', name: r.fn, tok: node.tok, args: [recvArg, ...rest] } }
@@ -4358,7 +4394,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!recvTy || recvTy === NA_TY) return null
     // ⭐ W6-T9 — the method the call dispatches to by this receiver type (`resolveMethod`):
     // an overload's own definition, or none (a built-in member of the type, below).
-    if (receiverTypesServed && methodDecls.has(method)) {
+    if (methodDecls.has(method)) {
       const r = resolveMethod(method, plainTy(recvTy), null, true)
       if (r.refused) return null
       if (r.fn) {
@@ -4371,7 +4407,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return tys ? userCallTy(method, tys) : null
     }
     // ⭐ W6-T9 — a record's own `copy()` is a record of its type (`recordCopyOf`)
-    if (receiverTypesServed && method === 'copy' && recvTy.kind === 'udt' && !definedNames.has('copy')) return plainTy(recvTy)
+    if (method === 'copy' && recvTy.kind === 'udt' && !definedNames.has('copy')) return plainTy(recvTy)
     const ns = methodNsOf(recvTy)
     if (!ns) return null
     return collectionResultTy(`${ns}.${method}`,
@@ -4414,7 +4450,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const name = String(node.name || '')
         const ctor = udtCtorOf(node)
         if (ctor) return makeTy('udt', { name: ctor.name })
-        if (receiverTypesServed && /\.copy$/.test(name) && udtTypes.has(name.slice(0, -5)) && !definedNames.has('copy')
+        if (/\.copy$/.test(name) && udtTypes.has(name.slice(0, -5)) && !definedNames.has('copy')
             && (node.args || []).length === 1) return makeTy('udt', { name: name.slice(0, -5) })
         // the method form: a dotted call whose head is a VALUE this lane can type
         const uf = splitMethodName(name)

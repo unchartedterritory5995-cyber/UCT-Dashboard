@@ -1,6 +1,7 @@
 # W6-T9 receiver types — EVIDENCE (desktop)
 
-**NEXT STEP: coordinator-scheduled heavy jobs, in order: (1) `mutate.py` batch over `muts.json`
+**NEXT STEP (r1): re-run the 9 UNVERIFIED mutants of the r1 table (G04, G05, G07, G08, G09, G13, N2, N4, MA;
+`muts.json`, reaped for low memory), then the heavy jobs: (1) `mutate.py` batch over `muts.json`
 (the hand run below already kills every mutant; the batch re-runs it under the lock), (2)
 measure-pair runtime 0 and 1 against the tip's own master on a shared base (`heavy-mp2.lock` /
 `heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL scope, ready-check.**
@@ -124,3 +125,61 @@ W7), `footprint-strategy` and `lorentzian-…` / `trailing-take-profit-…` (lib
 
 Not run yet (heavy; coordinator schedules). Expected movers per the spec:
 `trend-speed-analyzer-zeiierman` (+W4) and the +W1/W3 rows.
+
+## Fix round r1 (review `_resume-2026-11-01/dsk/reviews/W6-T9.md`, NO-GO @96af51f9ae)
+
+**B1, the C18 door gate in `memberRecvUdt` had no rail.** Every site where W6-T9 changes what the door
+builds was listed and each gate removed alone in a copy of the FE (`runs/w6-t9/doorgates.py`, a battery of
+38 synthetic shapes x objectsInRun 0/1, at the door, compared with the unmutated tip; log `doorgates.log`,
+`doorgates2.log`):
+- 8 sites change the door when their gate goes: `methodCallOf`, `overloadRefusal`, `isReceiverCall`,
+  `memberRecvUdt`, `receiverCallOf`, `userMethodShadows`, `receiverInitTy`, the call arm. Each now has its
+  own `objectDoorGate.test.js` shape (describe "W6-T9 receiver types keep master's answer at the object
+  door, site by site", 8 tests) and its own mutant (G01-G13 below). `memberRecvUdt`'s shape is the
+  reviewer's `f_rt(close).o`.
+- 5 gates changed nothing at the door under any shape: `resolveMethod`'s single-declaration test,
+  `isOverloadedMethod`, and `exprType`'s three method arms (overload result, `.copy()`, `Foo.copy()`).
+  They are TYPE READERS whose answers reach the door only through the 8 gated sites (the other `exprType`
+  callers are T6's `for … in`, refused by name at the door, and the method-form family callback on a
+  slot name). A gate inside a reader cannot be proved, so the 5 were REMOVED rather than railed (lesson:
+  a guard repeated is a guard unproved). The FE header names the 8 door sites.
+- Door identity: the 38-shape battery at the door is byte-identical between master 81a4665a5a's FE and
+  the tip, for objectsInRun 0 and 1 (`runs/w6-t9/dm0.txt`/`dt0.txt`, `dm1.txt`/`dt1.txt`).
+
+**N1.** The manual's sentences are quoted (Methods x4, Objects x2, read 2026-11-06, the reviewer's
+quotes) in the `w6ReceiverTypes` header, the FE band header, and the `recordCopyOf` comment.
+
+**N2 (coordinator) / N3 (review): an `array<int>` receiver was served by an `array<float>` overload.**
+This lane has one number type, so it cannot tell an `int` receiver from a `float` one, and no manual
+sentence says a collection receiver converts in overload choice (the `getType()` example tells `int` from
+`float`). Now: an OVERLOAD whose chosen receiver type holds a number (a number, or a collection or map of
+numbers) refuses by name, `runtime:udt-method` "... this lane has one number type (W6-U1)". A single
+declaration (master's binding) is unchanged. Queue: `docs/pine/capture-queue-2026-11-06-w6.md` row W6-U1,
+probe `tools/visual_conformance/probes/vw-w6-receivers.pine` (rows U01-U09; U08-U09 settle this). Rail:
+"N2 - an overload whose receiver holds numbers" (array<int>, array<float>, a float scalar). The served
+overload rails now use `array<string>` / `array<bool>` and record types. Consequence: `fx-market-sessions`'
+`clear(array<float>)` dispatch is refused by name until U08 is captured.
+
+**N4.** Two declarations on the same non-number receiver now say "two of them take the same receiver type,
+and Pine then chooses by the other arguments"; the int/float sentence is kept for number receivers. Rail +
+mutant N4.
+
+**Review N2 (tyCompatible name check unrailed).** Rail "3b": a method on `Foo` does not run for a `Bar`
+receiver. Mutant MA.
+
+**N5.** T7 is not merged; any `definedNames.has(m)` site T7 adds keeps master's untyped shadowing. The
+targeted rails are to be re-run on the merged tree before final-tip.
+
+Targeted vitest, the same 10 files: **385/385**. Log `runs/w6-t9/vt5.log`.
+
+Hand mutations r1 (`muts.json`, 26 mutants, w6ReceiverTypes + objectDoorGate, `--maxWorkers=1`, restored
+byte-exact; log `runs/w6-t9/handmut3.log`):
+
+| mutation | result |
+|---|---|
+| M0 no-op control | survived (control) |
+| M1-M14 (round 0 set; M8 re-pointed at the new line) | all KILLED, each with named failing rails |
+| G01 `methodCallOf` door gate | KILLED (named failing rail) |
+| G02 `overloadRefusal` door gate | KILLED (named failing rail) |
+| G04 `isReceiverCall`, G05 `memberRecvUdt`, G07 `receiverCallOf`, G08 `userMethodShadows`, G09 `receiverInitTy`, G13 call arm, N2, N4, MA | **UNVERIFIED**: vitest exited non-zero with NO failing test line. The harness reaped the run for low system memory at this point, so these results may be crashes, not kills. Re-run them (the coordinator schedules it; the session does not restart a reaped job). The door battery (`doorgates2.log`) already shows each G-site's shape changing at the door when its gate goes. |
+
