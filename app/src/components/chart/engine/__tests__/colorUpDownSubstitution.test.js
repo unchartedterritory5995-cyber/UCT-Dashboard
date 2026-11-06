@@ -228,14 +228,34 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
   it('the two inputs live in the Line group, labelled by what they colour; `lineColor` is gone', () => {
     const up = rs.inputs.find((i) => i.key === 'color')
     const down = rs.inputs.find((i) => i.key === 'lineDownColor')
-    expect(up).toMatchObject({ type: 'color', label: 'Line above average', group: 'Line', default: '#6ba3be' })
-    expect(down).toMatchObject({ type: 'color', label: 'Line below average', group: 'Line', default: '#6ba3be' })
+    expect(up).toMatchObject({ type: 'color', label: 'Line above avg', group: 'Line', default: '#6ba3be' })
+    expect(down).toMatchObject({ type: 'color', label: 'Line below avg', group: 'Line', default: '#6ba3be' })
     expect(inputKeys.has('lineColor')).toBe(false)
     // ⭐ Review finding V3 (unit 7): two identical swatches for one line need to say
     // why, and the second needs to say what it colours — the dialog renders a
     // `tooltip` as visible row text under the control.
-    expect(up.tooltip).toBe('Classic uses one colour; keep both swatches the same for a single-colour line')
-    expect(down.tooltip).toBe('Colour where the RS line is below its average; the Phase preset sets red here')
+    expect(up.tooltip).toBe('Line colour above its average. Classic uses one colour; keep both swatches the same for a single-colour line')
+    expect(down.tooltip).toBe('Line colour below its average; the Phase preset sets red here')
+  })
+
+  // ⭐ Visual review S1 (2026-11-06): seven of thirteen labels truncated to an
+  // ellipsis in the Chart Settings inspector column, and the units were the part
+  // cut. The long form lives in the tooltip; the label must fit the column.
+  it('every RS input label fits the inspector column (18 characters) and the long form is in the tooltip', () => {
+    const d = rs
+    const MAX = 18
+    for (const inp of d.inputs) {
+      expect(inp.label.length, `${inp.key} label "${inp.label}" is ${inp.label.length} chars`).toBeLessThanOrEqual(MAX)
+    }
+    const byKey = Object.fromEntries(d.inputs.map((i) => [i.key, i]))
+    expect(byKey.maLength.label).toBe('Average (bars)')
+    expect(byKey.maLength.tooltip).toMatch(/^Average length in bars/)
+    expect(byKey.lookback.label).toBe('Lookback (bars)')
+    expect(byKey.lookback.tooltip).toMatch(/^New-high lookback/)
+    expect(byKey.priceTolerance.label).toBe('Tolerance (%)')
+    expect(byKey.priceTolerance.tooltip).toMatch(/^Price-high tolerance/)
+    expect(byKey.showNewHighBeforePrice.label).toBe('High before price')
+    expect(byKey.showNewHighBeforePrice.tooltip).toMatch(/^RS high before price/)
   })
 
   it('⭐ Classic resolves to ONE hue for up and down — the ≤2 hues + 1 neutral budget holds', () => {
