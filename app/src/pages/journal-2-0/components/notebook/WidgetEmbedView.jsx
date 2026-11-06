@@ -244,7 +244,8 @@ function PhoneOpenLink({ href, label, navigate }) {
         }
       }}
     >
-      <span className={styles.phoneOpenHint}>Tap to open full screen</span>
+      {/* Final polish (WebKit at 390 px): the visible words moved UNDER the plot (`.phoneOpenCaption`); a pill here
+          covered the volume pane. The link still covers the chart, transparent, so a tap anywhere opens it. */}
     </a>
   )
 }
@@ -974,6 +975,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
       data-snapshot-embed={snapshotEmbed ? 'true' : undefined}
+      // Final polish: in phone chart mode the compact header is a row ABOVE the plot, never laid over it.
+      data-phone-chart={phoneMode && phoneRender ? 'true' : undefined}
     >
       {editor?.isEditable !== false && !frozen && (
         // ONE Tab stop for the whole row (the toolbar pattern): Left and Right move inside
@@ -1192,6 +1195,10 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
           />
         )}
       </div>
+      {/* Final polish: the hint is a caption under the plot, covering no data (the whole plot is the tap target). */}
+      {phoneMode && phoneRender && attrs.params?.symbol && (
+        <p className={styles.phoneOpenCaption} aria-hidden="true" data-phone-chart-caption="">Tap the chart to open it full screen</p>
+      )}
       {planDoors && inView && (
         <EmbedErrorBoundary fallback={null}>
           <Suspense fallback={null}>
@@ -1214,7 +1221,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       )}
       {/* Fix round 2 (re-review N6): the region is MOUNTED EMPTY on every editable chart and filled
           when the chart is selected -- a live region inserted with its words is generally not read. */}
-      {attrs.widgetId === 'chart' && editor?.isEditable !== false && !shareView && (
+      {/* Final polish: not on a phone chart -- its keys are a keyboard's, and the line pushed the note down. */}
+      {attrs.widgetId === 'chart' && editor?.isEditable !== false && !shareView && !(phoneMode && phoneRender) && (
         <p className={selected ? styles.selectedHint : styles.hintIdle} aria-live="polite" data-chart-hint>
           {!selected ? '' : canRetarget
             ? 'Selected · type a ticker to switch it (for example A, M, D) · Del removes the chart · Esc back to writing'
