@@ -341,6 +341,184 @@ def _start_combined_pass():
     log.info(f"breadth combined pass armed -> {artifact}")
 
 
+# ── UCT RS evidence job (WORKER, dark): a nightly SUBPROCESS at 21:30 ET ─────────
+# Engineering map docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md,
+# unit 2b-02. The job itself is `python -m api.services.rs_evidence` (unit 2b-01); it
+# reads NO environment variable, so everything it needs travels on argv, built here.
+RS_EVIDENCE_FIRE_ET = (21, 30)
+"""HH:MM America/New_York of the nightly pass. After the bars day is settled (the
+worker's daily store is final by the evening) and clear of the worker's overnight
+passes and the web pod's 03:00 ET screener build."""
+RS_EVIDENCE_START_DELAY_S = 180
+"""Seconds the thread sleeps before its first look at the clock, so a pass never
+competes with the boot prewarm (the combined pass waits 45 s; this is heavier)."""
+RS_EVIDENCE_TIMEOUT_S = 2 * 3600
+"""The subprocess budget. A pass still running at the limit is killed and the
+`rs_evidence` health key says so."""
+RS_EVIDENCE_DEFAULT_SESSIONS = 5           # --sessions when RS_EVIDENCE_SESSIONS is unset
+RS_EVIDENCE_DB_NAME = "rs_evidence.db"     # under DATA_DIR (the worker's own volume)
+RS_EVIDENCE_ARTIFACT_KEY = "rs/evidence.json"
+"""The R2 key the pass publishes to. Equal to api.services.rs_evidence.ARTIFACT_KEY
+(pinned by tests/test_rs_evidence_worker_arming.py rather than imported: the job
+package stays out of this process). The CLI REQUIRES --dest; it never defaults."""
+_RS_EVIDENCE_CWD = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+"""The repo root (the parent of api/), so `-m api.services.rs_evidence` resolves in
+the child whatever directory the worker was launched from."""
+_RS_EVIDENCE_HEALTH_KEYS = ("last_start", "last_end", "exit_code", "duration_s",
+                            "last_receipt_line", "error")
+_rs_evidence_state = {k: None for k in _RS_EVIDENCE_HEALTH_KEYS}
+_rs_evidence_state_lock = threading.Lock()
+
+
+def _rs_evidence_health() -> dict:
+    """The `rs_evidence` health key: the latest pass, every field None before one."""
+    with _rs_evidence_state_lock:
+        return dict(_rs_evidence_state)
+
+
+def _rs_evidence_set(**fields) -> None:
+    unknown = set(fields) - set(_RS_EVIDENCE_HEALTH_KEYS)
+    assert not unknown, unknown
+    with _rs_evidence_state_lock:
+        _rs_evidence_state.update(fields)
+
+
+def _rs_evidence_next_fire(now):
+    """The next RS_EVIDENCE_FIRE_ET wall-clock instant in America/New_York STRICTLY
+    after `now` (an aware datetime in any zone). Built from the ET date and the wall
+    time, never by adding 24 h, so a DST change moves the fire by the clock (21:30 ET
+    on both sides of it) and the day it falls on is 23 or 25 hours long."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    local = now.astimezone(et)
+    hh, mm = RS_EVIDENCE_FIRE_ET
+    fire = _dt.datetime.combine(local.date(), _dt.time(hh, mm), tzinfo=et)
+    if fire <= local:
+        fire = _dt.datetime.combine(local.date() + _dt.timedelta(days=1), _dt.time(hh, mm), tzinfo=et)
+    return fire
+
+
+def _rs_evidence_sleep_until(fire, *, sleep=time.sleep, clock=None) -> None:
+    """Sleep in bounded chunks, re-reading the clock, until `fire` has passed. A
+    single 24 h sleep would wake early on some platforms and re-fire within the
+    same minute; this returns only once the instant is behind us."""
+    import datetime as _dt
+    clock = clock or (lambda: _dt.datetime.now(_dt.timezone.utc))
+    while True:
+        remaining = (fire - clock()).total_seconds()
+        if remaining <= 0:
+            return
+        sleep(min(remaining, 3600.0))
+
+
+def _rs_evidence_command(data_dir: str, sessions: int) -> list:
+    """The exact argv of one pass: the module CLI of unit 2b-01 with its REQUIRED
+    --db and --dest. `--publish` without `--dest` is a usage error there (exit 2)."""
+    return [sys.executable, "-m", "api.services.rs_evidence",
+            "--db", os.path.join(data_dir, RS_EVIDENCE_DB_NAME),
+            "--sessions", str(int(sessions)),
+            "--publish", "--dest", RS_EVIDENCE_ARTIFACT_KEY]
+
+
+def _rs_evidence_receipt_line(text):
+    """The CLI prints ONE `receipt {json}` line (last); keep the newest, bounded."""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", "replace")
+    if not text:
+        return None
+    for line in reversed(text.splitlines()):
+        if line.startswith("receipt "):
+            return line[:4000]
+    return None
+
+
+def _run_rs_evidence_once(cmd, *, timeout_s=RS_EVIDENCE_TIMEOUT_S) -> dict:
+    """ONE pass as a SUBPROCESS (the combined-pass recipe: its own interpreter and
+    GIL, so the worker's prewarm and uploader keep their share). Records the
+    `rs_evidence` health key and NEVER raises: a non-zero exit, the timeout and a
+    spawn failure each land in `error`, and the scheduling thread lives on."""
+    import datetime as _dt
+    import subprocess
+    t0 = time.time()
+    _rs_evidence_set(last_start=_dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+                     last_end=None, exit_code=None, duration_s=None, error=None)
+    log.info(f"rs evidence pass spawning: {' '.join(cmd)}")
+    exit_code, receipt, error = None, None, None
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, cwd=_RS_EVIDENCE_CWD)
+        exit_code = r.returncode
+        receipt = _rs_evidence_receipt_line(r.stdout)
+        if exit_code != 0:
+            tail = ((r.stderr or "").strip() or (r.stdout or "").strip())[-600:].replace("\n", " ")
+            error = f"exit {exit_code}: {tail}".strip()
+    except subprocess.TimeoutExpired as e:
+        receipt = _rs_evidence_receipt_line(e.stdout)
+        error = f"timeout after {timeout_s}s; the process was killed"
+    except Exception as e:                              # noqa: BLE001 - the health key is the report
+        error = f"{type(e).__name__}: {e}"[:600]
+    duration = round(time.time() - t0, 1)
+    _rs_evidence_set(last_end=_dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+                     exit_code=exit_code, duration_s=duration, last_receipt_line=receipt, error=error)
+    if error:
+        log.warning(f"rs evidence pass FAILED after {duration}s: {error}")
+    else:
+        log.info(f"rs evidence pass exited rc={exit_code} after {duration}s: {receipt}")
+    return _rs_evidence_health()
+
+
+def _start_rs_evidence_pass():
+    """UCT RS evidence job on the WORKER (unit 2b-02): a daemon thread that sleeps
+    RS_EVIDENCE_START_DELAY_S, then runs `python -m api.services.rs_evidence` as a
+    SUBPROCESS once a night at RS_EVIDENCE_FIRE_ET (21:30 ET).
+
+    ⛔ DARK by default: RS_EVIDENCE_ENABLED must be literally "1" at boot, read HERE
+    and once, like every sibling start function (a flip needs a worker redeploy).
+    ⛔ The weekly `--sessions 1250` backfill is NOT scheduled here. The first
+    production run is the owner's manual `--dry-run --sessions 5` on the worker, to
+    measure the runtime and the `no_bars` count before arming; a full-history pass
+    is a manual invocation too, never a thread.
+    RS_EVIDENCE_SESSIONS (default 5) is the `--sessions` argument of every pass.
+    RS_EVIDENCE_RUN_ON_BOOT=1 runs ONE pass right after the start delay and then
+    follows the schedule: the first production receipt without waiting for 21:30 ET.
+    """
+    if os.environ.get("RS_EVIDENCE_ENABLED") != "1":
+        log.info("rs evidence pass not started (RS_EVIDENCE_ENABLED=0)")
+        return
+    data_dir = os.environ.get("DATA_DIR", "/data")
+    raw = os.environ.get("RS_EVIDENCE_SESSIONS", str(RS_EVIDENCE_DEFAULT_SESSIONS))
+    try:
+        sessions = int(raw)
+        if sessions < 0:
+            raise ValueError(raw)
+    except ValueError:
+        log.warning(f"RS_EVIDENCE_SESSIONS={raw!r} is not a count; using {RS_EVIDENCE_DEFAULT_SESSIONS}")
+        sessions = RS_EVIDENCE_DEFAULT_SESSIONS
+    run_on_boot = os.environ.get("RS_EVIDENCE_RUN_ON_BOOT") == "1"
+    cmd = _rs_evidence_command(data_dir, sessions)
+
+    def loop():
+        import datetime as _dt
+        time.sleep(RS_EVIDENCE_START_DELAY_S)       # never compete with the boot prewarm
+        if run_on_boot:
+            _run_rs_evidence_once(cmd)
+        while True:
+            try:
+                now = _dt.datetime.now(_dt.timezone.utc)
+                fire = _rs_evidence_next_fire(now)
+                log.info(f"rs evidence pass next fire {fire.isoformat(timespec='minutes')} "
+                         f"(in {int((fire - now).total_seconds())}s)")
+                _rs_evidence_sleep_until(fire)
+                _run_rs_evidence_once(cmd)
+            except Exception as e:                  # noqa: BLE001 - the schedule outlives any surprise
+                log.exception(f"rs evidence scheduler error (non-fatal): {e}")
+                time.sleep(300)
+
+    threading.Thread(target=loop, daemon=True, name="rs_evidence").start()
+    log.info(f"rs evidence pass armed: {RS_EVIDENCE_FIRE_ET[0]:02d}:{RS_EVIDENCE_FIRE_ET[1]:02d} ET nightly, "
+             f"sessions={sessions}, run_on_boot={run_on_boot}, db={cmd[4]}, dest={RS_EVIDENCE_ARTIFACT_KEY}")
+
+
 def _start_wick_backfill():
     """Phase-3 wick grind (WORKER): reconstruct real intraday high/low for past days
     from Massive stocks minute flat files and ship them via the R2 bridge (they upgrade
@@ -753,6 +931,9 @@ def _build_app() -> FastAPI:
             "prewarm": _prewarm_health(),
             "bars_daily": _bars_daily_health(),
             "universe_crawler": _universe_crawler_health(),
+            # UCT RS evidence job (unit 2b-02): the latest nightly pass, every
+            # field None while RS_EVIDENCE_ENABLED is off or before the first run.
+            "rs_evidence": _rs_evidence_health(),
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -921,6 +1102,12 @@ def main():
     _probe_flatfile_access()
     _start_wick_backfill()
     _start_combined_pass()
+    # UCT RS evidence job (unit 2b-02): nightly 21:30 ET subprocess, dark unless
+    # RS_EVIDENCE_ENABLED=1; the start function only spawns a thread and returns.
+    try:
+        _start_rs_evidence_pass()
+    except Exception as e:
+        log.warning(f"rs evidence pass failed to start (non-fatal): {e}")
     _start_memwatch()
     # Historical PIT fundamentals V5: SEC ingestion -> derive -> validate -> immutable versioned publication.
     # The WORKER is the ONE owner (it holds the stores); dark unless FUNDAMENTALS_PIT_V5_PIPELINE=1 and the V5
