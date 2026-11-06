@@ -1,4 +1,4 @@
-NEXT STEP: the measure-pair job (runs/w6-t1/mp.sh) is still running and holds heavy-mp3.lock; Claude Code reaped its wrapper shell under memory pressure. Wait for W6T1_MP_DONE in runs/w6-t1/mp.log, or re-run mp.sh under heavy-mp3.lock when the coordinator says so. Then classify the diffs here (expect 0 C18/census/harness diffs: no app/src change), merge origin/master, run a FULL final-tip (pytest rails: tests/test_pine_coverage_w6_t1_relabel.py), push and run ready-check.
+NEXT STEP (heavy, HELD until the coordinator says go): re-run `runs/w6-t1/mp.sh` (measure-pair runtime 0 then 1, census on, tip pine-dsk-w6t1 vs base pine-dsk-mpbase3 @ 2f40ee68c5) under the SHARED lock `_resume-2026-11-01/dsk/heavy-mp3.lock`, after ram_gate. Skip runtime 0 if the orphaned run in runs/w6-t1/mp0 completed (see 'Measure-pair status'). Then: classify the diffs, merge origin/master, run a FULL final-tip (`final-tip.sh pine-dsk-w6t1 w6-t1-final tests/test_pine_coverage_w6_t1_relabel.py` under LOCK_FINAL2), push, and run `ready-check.sh` on runs/w6-t1-final.
 
 # W6-T1 evidence: re-wave the mis-labelled W6 guards (tooling only)
 
@@ -42,6 +42,27 @@ re-waves a wall by its tag.
    `volume_row pocRow = reqFP.poc()` with `footprint reqFP = request.footprint(…)`, the v6 built-in
    footprint types, so it is tagged `footprint` and sent to W7 (request.*). The script's two libraries
    (`msl`, `vis1`) are not involved in this wall.
+
+### Why `tuple` goes to W4 (for the reviewer to check)
+
+Source: `corpus/committed/inside-bar-strategy-w-sl__b39f395d5d.pine` (MPL-2.0, committed corpus). It is
+`//@version=4` (line 23) and `strategy(` (line 24).
+- Line 98: `InsideBar(NBars) =>` is a user function. Its body is one `if / else if … / else` statement.
+- Lines 105, 108, 111 and 114: each arm's last line is `[inside1Bar]` … `[inside4Bar]`. Line 116: `else` ends in `[na]`.
+- Line 117: `[insideBar] = InsideBar(i_NBars)` is the call site, which destructures a one-element tuple.
+- The five `pine:collection` census steps are on exactly lines 105, 108, 111, 114 and 116, each with token
+  `[` and step text `[insideNBar]` / `[na]` (`runs/w34-t0/rt/census.jsonl`, `rtProbe.line` / `.text`).
+- Pine has no array literal: arrays come only from `array.*` constructors. So a bracket list in value
+  position is a tuple, here the value of the function's last `if` arm. What is missing is a tuple-valued
+  `if` arm in a function body, which is a statement and block-value form. `runtime:block-value` is
+  W4 (`rt_wave`'s default), so that is where the tag sends it. Nothing in the wall involves orders.
+- Why not the spec's "order strategy → W9": that rule keys on a coincidence. It would also re-wave a real
+  collection wall on any order strategy, and it would leave this same tuple shape as W6 on an indicator.
+  The script is still a W9 member through W9-T0's script-level rule (`if order_strategy: wv.add("W9")` in
+  targets.py), so its W9 membership does not change. It leaves W6 and joins W4.
+- Rails: `test_a_bare_bracket_list_is_a_tuple_value_w4_and_not_a_collection` (W4 even when
+  `order_strategy=True`) and `test_an_indexed_or_called_bracket_is_not_a_tuple` (`x = arr[0]`,
+  `[a, b] = f(x)`, `[a[1]]` stay W6).
 
 `footprint-strategy`'s `previos_detail_close.size()` stays W6 (T9). The head is a history read of an
 LTF array, so knowing the receiver's type is the missing piece, and the detail is not the orphan one.
@@ -104,3 +125,16 @@ runtime-on, 679 scripts). No census was re-run.
 - `runtimeWallWave["pine:collection"]` stays `W6`. Its scripts now map to two waves (W7 and W4), and
   `wall_wave` keeps the label's wave when they disagree. That is the existing rule, unchanged.
 - The spec forecast "56 → about 50"; the result is 57 → 50.
+
+## Measure-pair status
+
+The first attempt (`runs/w6-t1/mp.sh`) took heavy-mp3.lock at 09:45. Claude Code then stopped its wrapper
+shell and the heavy-lock holder under memory pressure. The `measure-pair.sh` children kept running
+orphaned. That has two consequences:
+- the lock file's heartbeat went stale while they ran;
+- the runtime-1 pass will not start.
+
+Runtime 0, tip side, was complete (`runs/w6-t1/mp0`): audit, probe, census (967 rows) and harness all rc=0;
+harness TOTAL 336, MATCH 93, DIVERGE 103, INCONCLUSIVE 140. The script flagged `BASE_HEAD MOVED on tip`
+(`983cfed110` → `69ce7380fa`). That change is docs only (this file): both commits carry code commit
+`4d8d6f3534`'s tree for every non-docs path. The base side was still running at the time of writing.
