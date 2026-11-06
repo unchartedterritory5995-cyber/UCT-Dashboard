@@ -50,7 +50,15 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 session — ``rs_history_nightly`` runs at 04:15 ET, after this
                 build, so the newest row is normally the session before
                 ``bars_asof``. The receipt counts rated/unrated/no_row beside
-                the reader's own ``missing``/``stale:<n>d`` notes.
+                the reader's own ``missing``/``stale:<n>d`` notes. A served
+                session more than ``RS_HISTORY_MAX_LAG_SESSIONS`` trading
+                sessions behind the build's settled session is WITHHELD (the
+                seven go NULL) and counted ``withheld_stale``.
+  - UCT RS bar columns -> ``rs_columns.collect_one`` (Phase 2a, unit 2a-05),
+                the ``bars_rs`` step. DARK unless ``registry_defs.RS_V2_ENABLED``:
+                a dark pod reads no RSP, settles no benchmark and pays no CPU
+                for the ten columns. Armed, the receipt's ``bars_rs`` block
+                carries the step's measured time.
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -75,6 +83,19 @@ from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, s
               archive_join, rs_columns)
 
 log = logging.getLogger(__name__)
+
+
+def rs_v2_enabled() -> bool:
+    """``registry_defs.RS_V2_ENABLED``, read per call from its one copy (the flag
+    the chart's rsLine row and the RS alert catalog read). Gates the ``bars_rs``
+    step, the RSP read and the benchmark settle (review finding #5, 2026-11-07):
+    the step costs ~55-75 ms of pure-Python CPU per ticker on the web pod, so a
+    dark pod must not pay it for ten columns no member surface shows."""
+    try:
+        from api.services.signature import registry_defs
+        return bool(registry_defs.RS_V2_ENABLED)
+    except Exception:                                        # noqa: BLE001
+        return False
 
 
 # ── the row's price date, and how old is too old ──────────────────────────────
@@ -395,7 +416,7 @@ def rs_fields(rs_row) -> dict:
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
               market_row=None, failures=None, identity_state=None,
-              spy_bars=None, rsp_bars=None) -> dict:
+              spy_bars=None, rsp_bars=None, rs_timing=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -444,7 +465,9 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     this ticker's window by bar TIME inside ``rs_columns`` for the ten
     bar-derived UCT RS columns (Phase 2a, unit 2a-05). ``spy_closes`` stays the
     60-close FLOAT list ``rs_line_trend`` zips positionally — the pre-2a shape,
-    now DERIVED from the same SPY read (``spy_closes_from_bars``).
+    now DERIVED from the same SPY read (``spy_closes_from_bars``). The ten run
+    only while ``rs_v2_enabled()``; ``rs_timing`` (optional ``{"rows", "ms"}``)
+    accumulates the step's wall time for the build receipt.
 
     ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
     every ``_read_*`` in this file already reports into; ``run_build`` passes
@@ -553,13 +576,25 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         # `sources["spy_bars"]["none"]` says why, once. Per-row outcomes
         # (rated / short / no_bench) are counted under the step's own label, in
         # the same census a raise from it would land in.
-        if spy_bars:
+        #
+        # ⛔ DARK BY DEFAULT (review finding #5, 2026-11-07). The step had no gate
+        # but `spy_bars`, so every build on a dark pod paid its pure-Python CPU
+        # (~10 min on the 03:00 build, inside the web process) for ten columns
+        # nothing showed. It now runs only under RS_V2_ENABLED, and its wall time
+        # is measured into `rs_timing` so the receipt states the cost before
+        # anyone arms the flag.
+        if spy_bars and rs_v2_enabled():
             _rs_stats = (failures.setdefault("bars_rs", {})
                          if failures is not None else None)
+            _rs_t0 = time.perf_counter()
             row.update(_step("bars_rs",
                              lambda: rs_columns.collect_one(
                                  bars, spy_bars, rsp_bars,
                                  session=_asof_of(bars), stats=_rs_stats)))
+            if rs_timing is not None:
+                rs_timing["rows"] = rs_timing.get("rows", 0) + 1
+                rs_timing["ms"] = rs_timing.get("ms", 0.0) + \
+                    (time.perf_counter() - _rs_t0) * 1000.0
         row.update(_step("bars_ath_fields",
                          lambda: technicals.ath_fields(
                              bars_full, ipo_date=row.get("ipo_date"))))
@@ -1017,6 +1052,33 @@ _RS_HISTORY_COLUMNS = {
 }
 
 
+#: The most trading sessions the served rating session may sit behind the
+#: build's settled session and still be published (normal lag: 1).
+RS_HISTORY_MAX_LAG_SESSIONS = 3
+
+
+def _rs_history_lag_sessions(asof, settled):
+    """Trading sessions after ``asof`` up to and including ``settled``; ``None``
+    when either is unknown or the exchange calendar does not cover the span.
+    Stops counting once past ``RS_HISTORY_MAX_LAG_SESSIONS``, so a year-old
+    session costs a few days of calendar reads, not a year."""
+    if settled is None:
+        return None
+    try:
+        a = datetime.date.fromisoformat(str(asof)[:10])
+    except (TypeError, ValueError):
+        return None
+    from api.services import session_calendar as sc
+    n, d = 0, a
+    while d < settled and n <= RS_HISTORY_MAX_LAG_SESSIONS:
+        d += datetime.timedelta(days=1)
+        if not sc.covers(d):
+            return None
+        if sc.is_trading_day(d):
+            n += 1
+    return n
+
+
 def _read_rs_history_fields(targets, failures=None) -> dict:
     """``{TICKER: {rs_rating_ibd, rs_rating_chg_5, ...}}`` from the
     ``rs_rating_history`` side table — the ``_read_market_source`` contract
@@ -1028,10 +1090,21 @@ def _read_rs_history_fields(targets, failures=None) -> dict:
     build's own session would read ``{}`` every night by construction. Reading
     the newest row (normally the session before ``bars_asof``; the same
     session after an intraday rebuild) is what makes a nightly fill possible
-    at all. The reader applies its own freshness rule (``rs_history.
+    at all. The reader notes its own freshness rule (``rs_history.
     STALE_DAYS``: a newest session more than 3 calendar days behind the
-    settled one notes ``stale:<n>d`` into ``failures`` and is still served)
-    and names the session it served, which is logged here once per build.
+    settled one notes ``stale:<n>d`` into ``failures``) and names the session
+    it served, which is logged here once per build.
+
+    ⛔ A SESSION TOO FAR BEHIND IS WITHHELD, NOT SERVED (review finding #20,
+    2026-11-07). Served at any age, a rollback that left the table behind froze
+    "RS rating N, up X in a week" on every row with no as-of date. When the
+    served session is more than ``RS_HISTORY_MAX_LAG_SESSIONS`` trading
+    sessions behind the build's settled session, nothing is mapped (the seven
+    go NULL) and ``failures["rs_history"]["withheld_stale"]`` counts the rows
+    withheld. Counted in SESSIONS, not calendar days: the normal lag is one
+    session (the 04:15 job runs after this build), and a calendar rule of 3
+    days would withhold a healthy table on the Tuesday after a Friday holiday.
+    An unknown lag (the calendar does not cover the dates) serves, as before.
 
     Honesty: a field the row cannot supply (an unrated component, a delta
     with no earlier session) is ABSENT from the mapped dict, never ``None``,
@@ -1051,6 +1124,17 @@ def _read_rs_history_fields(targets, failures=None) -> dict:
                   if fields.get(key) is not None}
         if mapped:
             out[t] = mapped
+    if out and asof is not None:
+        lag = _rs_history_lag_sessions(asof, rs_history.settled_session())
+        if lag is not None and lag > RS_HISTORY_MAX_LAG_SESSIONS:
+            if failures is not None:
+                failures.setdefault("rs_history", {})
+                failures["rs_history"]["withheld_stale"] = \
+                    failures["rs_history"].get("withheld_stale", 0) + len(out)
+            log.warning("[screener] rs_history: newest session %s is %s+ sessions "
+                        "behind the settled one; %s rating rows withheld",
+                        asof, lag, len(out))
+            return {}
     if out:
         log.info("[screener] rs_history: %s rating rows read, as of session %s",
                  len(out), asof)
@@ -1501,12 +1585,19 @@ def _run_build_locked(max_tickers=None) -> dict:
     # bar-derived RS columns join them by time per ticker (`rs_columns`), and
     # `rs_line_trend`'s positional float list is DERIVED from the SPY read so
     # nothing reads SPY twice. An empty read is COUNTED once, never fatal.
+    #
+    # ⛔ RSP is read only while the `bars_rs` step is armed (RS_V2_ENABLED,
+    # review finding #5): it feeds nothing else, so a dark pod skips the read
+    # and its `rsp_bars` census entry. SPY is always read: `rs_line_trend`
+    # (pre-2a, member-visible) is derived from it.
+    rs_on = rs_v2_enabled()
+    rs_timing = {"enabled": rs_on, "rows": 0, "ms": 0.0}
     spy_bars = _read_benchmark_bars("SPY")
-    rsp_bars = _read_benchmark_bars("RSP")
+    rsp_bars = _read_benchmark_bars("RSP") if rs_on else []
     spy_closes = spy_closes_from_bars(spy_bars)
     if not spy_bars:
         sources.setdefault("spy_bars", {})["none"] = 1
-    if not rsp_bars:
+    if rs_on and not rsp_bars:
         sources.setdefault("rsp_bars", {})["none"] = 1
     # ⭐ ONE bulk pull, scoped to the symbols this run will actually build, so
     # the 71,370-row provider file is never materialised beyond our universe.
@@ -1637,6 +1728,32 @@ def _run_build_locked(max_tickers=None) -> dict:
                 len(catch_frames[ymd]) if catch_frames[ymd] is not None
                 else got_day.get("error", "error"))
         return catch_frames[ymd]
+    # ⭐ THE BENCHMARKS GET THE SAME SETTLE AND CATCH-UP AS EVERY TICKER (review
+    # finding #15, 2026-11-07). Without it a ticker's settled close was divided
+    # by an intraday SPY snapshot on the newest bar (enough to flip the -0.5 %
+    # red-day test), and a ticker caught up to the settled session while SPY
+    # ended a session earlier got no ratio at all (`no_bench`, ten NULLs); RSP
+    # a session short NULLed `rs_benchmark_agree`. Only the bars the RS columns
+    # read are settled: `spy_closes` (rs_line_trend, pre-2a) was derived above
+    # from the stored read and is unchanged. Armed only with the step, so a
+    # dark pod fetches no extra frame for it.
+    bench_receipt = {}
+    if rs_on and settled_rows:
+        spy_bars, rsp_bars = list(spy_bars), list(rsp_bars)
+        for _sym, _series in (("SPY", spy_bars), ("RSP", rsp_bars)):
+            if not _series:
+                continue
+            _b_out = settled_bar_outcome(_series, settled_rows.get(_sym), s_ymd)
+            entry = {"settled": _b_out}
+            if _b_out == "not_session" and catch_days:
+                _c_out, _c_n = catchup_outcome(_series, _sym, catch_days, _frame_for)
+                entry.update(catchup=_c_out, appended=_c_n)
+            try:
+                entry["current"] = int(_series[-1].get("t")) == s_ymd
+            except (TypeError, ValueError):
+                entry["current"] = False
+            bench_receipt[_sym] = entry
+        settled_receipt["benchmarks"] = bench_receipt
     from api.services import massive as _massive  # symbol mapping only; no I/O
     for t in targets:
         try:
@@ -1726,7 +1843,8 @@ def _run_build_locked(max_tickers=None) -> dict:
                             rs_row, bulk_row, spy_closes=spy_closes,
                             context_row=context_row, market_row=market_row,
                             failures=sources, identity_state=identity_state,
-                            spy_bars=spy_bars, rsp_bars=rsp_bars)
+                            spy_bars=spy_bars, rsp_bars=rsp_bars,
+                            rs_timing=rs_timing)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
@@ -1770,8 +1888,14 @@ def _run_build_locked(max_tickers=None) -> dict:
     if catch_days:
         settled_receipt["catchup"] = catch_receipt
     log.info("[screener] settled newest bars: %s", settled_receipt)
+    # ⭐ The `bars_rs` step's measured cost, in the receipt (review finding #5):
+    # the figure to read on the pod before RS_V2_ENABLED is armed for members.
+    rs_timing["ms"] = round(rs_timing["ms"], 1)
+    rs_timing["ms_per_row"] = (round(rs_timing["ms"] / rs_timing["rows"], 2)
+                               if rs_timing["rows"] else None)
+    log.info("[screener] bars_rs step: %s", rs_timing)
     return {"built": built, "skipped": skipped, "errors": errors,
             "targets": len(targets), "sector_rs": sector_rs,
             "populated": populated, "empty_columns": empty_columns,
             "sources": sources, "identity_refusals": identity_state,
-            "settled_bars": settled_receipt}
+            "settled_bars": settled_receipt, "bars_rs": rs_timing}

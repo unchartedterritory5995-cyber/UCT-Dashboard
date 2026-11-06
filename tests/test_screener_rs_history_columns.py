@@ -12,8 +12,10 @@ The session rule, pinned below because it is the one decision in this unit:
 the build reads the NEWEST stored session, not its own settled session.
 `rs_history_nightly` runs at 04:15 ET, after the 03:00 build, so at build time
 the newest row is normally the session before `bars_asof`; `read_fields`'s own
-`STALE_DAYS` rule (3 calendar days behind the settled session) decides when that
-is too old, and a stale row is SERVED and counted, never blanked.
+`STALE_DAYS` rule (3 calendar days behind the settled session) notes `stale:<n>d`.
+Moved 2026-11-07 (RS review finding #20): a stored session more than
+`snapshot_builder.RS_HISTORY_MAX_LAG_SESSIONS` trading sessions behind is
+WITHHELD (the seven go NULL) and counted `withheld_stale`; it was served at any age.
 """
 from __future__ import annotations
 
@@ -199,19 +201,26 @@ def test_run_build_fills_the_seven_from_the_newest_stored_session_with_deltas(tm
     assert not (set(SEVEN) & set(stats["empty_columns"]))
 
 
-def test_a_stale_newest_session_is_served_and_counted(tmp_db, monkeypatch):
+def test_a_stale_newest_session_is_withheld_and_counted(tmp_db, monkeypatch):
     """`read_fields`'s own rule: a newest session more than STALE_DAYS (3) calendar
-    days behind the settled session notes `stale:<n>d` ONCE and the rows are
-    still served — the column carries the last rating the pod has, with the
-    receipt saying how old, rather than a blank."""
+    days behind the settled session notes `stale:<n>d` ONCE.
+
+    Pin moved 2026-11-07 (RS review finding #20, unit U3). This said "stale is
+    served": the column carried the last rating the pod had at ANY age, so a
+    rolled-back flag froze every row's rating with no as-of date. 2026-01-21 is
+    seven trading sessions behind 2026-01-30, past
+    `RS_HISTORY_MAX_LAG_SESSIONS` (3), so the seven are withheld and the receipt
+    counts the withheld rows."""
     assert rh.STALE_DAYS == 3
+    assert b.RS_HISTORY_MAX_LAG_SESSIONS == 3
     monkeypatch.setattr(rh, "settled_session", lambda now=None: date(2026, 1, 30))
     _seed()
     _stub_build(monkeypatch, ["AAA", "CCC"])
     stats = b.run_build()
     assert stats["built"] == 2
-    assert _stored("AAA") == (70, 5, 20, 1, 2, 3, 4), "stale is served"
-    assert stats["sources"]["rs_history"] == {"stale:9d": 1, "rated": 1, "no_row": 1}
+    assert _stored("AAA") == (None,) * 7, "too stale to publish"
+    assert stats["sources"]["rs_history"] == {"stale:9d": 1, "withheld_stale": 1,
+                                              "no_row": 2}
 
 
 def test_no_table_leaves_the_seven_null_and_the_row_intact(tmp_db, monkeypatch):

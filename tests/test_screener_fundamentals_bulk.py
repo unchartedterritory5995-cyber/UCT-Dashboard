@@ -655,6 +655,13 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
     # the key set is the full seven, never a subset. ──
     from api.services.screener import rs_history
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "srckeys_screener.db"))
+    # Pin moved 2026-11-07 (RS review finding #20, unit U3): the shim now
+    # WITHHOLDS a session more than RS_HISTORY_MAX_LAG_SESSIONS behind the
+    # settled one, and these January sessions read against the real clock were
+    # ten months stale. The build's clock is pinned to the session after the
+    # newest stored one (the normal 04:15 ordering), so the key set is read fresh.
+    monkeypatch.setattr(rs_history, "settled_session",
+                        lambda now=None: _dt.date(2026, 1, 22))
     for k in range(21):
         rs_history.store_rows(
             f"2026-01-{k + 1:02d}",

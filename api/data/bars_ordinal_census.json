@@ -668,11 +668,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 412
+          "line": 487
         }
       ],
       "evidence": {
-        "line": 157,
+        "line": 177,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -696,11 +696,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 711
+          "line": 746
         }
       ],
       "evidence": {
-        "line": 715,
+        "line": 750,
         "pattern": "int-subscript",
         "index": 0
       }

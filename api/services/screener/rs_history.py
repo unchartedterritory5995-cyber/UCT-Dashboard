@@ -33,12 +33,26 @@ and ``etf_tickers`` to rank over something else; the receipt records both sizes.
 
 SPLIT GUARD. Daily bars are fetched adjusted and the web pod runs the split-repair
 sweep, but an unadjusted split that slips through would rank a 3:1 split as a 67 %
-crash. A one-bar close ratio beyond +/- :data:`SPLIT_GUARD_PCT` anywhere inside the
-window marks the ticker ``bars = 0`` and it is skipped for that session: no row,
-counted in the receipt as ``split_guard``. The threshold is one constant. At the
-default 60 it catches every forward split of 3:1 and larger and every reverse
-split of 1:2 and larger; a 2:1 forward split (-50 %) passes it, as does a real
--50 % day, which is the trade-off the number states.
+crash. A ticker whose scored closes (the newest :data:`SCORE_BARS`, all the 252-bar
+term reads) still carry an unadjusted split is marked ``bars = 0`` and skipped for
+that session: no row, counted in the receipt as ``split_guard``.
+
+The judge is the DECLARED split list (2026-11-07, review finding #4). When
+``bars_sanitize``'s corporate-action cache holds the ticker's list, the one detector,
+``bars_sanitize.unadjusted_splits``, decides: only a declared split whose boundary
+still shows its factor in the closes trips the guard, so a real +65 % earnings gap
+or a -60 % crash never does. The cache is read without scheduling a provider fetch.
+When the list is not cached, :func:`split_suspect` is the fallback: a one-bar
+ratio beyond +/- :data:`SPLIT_GUARD_PCT` that is also split-SIZED (within the
+detector's tolerance of a factor in :data:`SPLIT_FACTORS`). At the default 60 it
+catches an unadjusted 3:1 or larger forward split and a 1:2 or larger reverse split;
+a 2:1 forward split (-50 %) passes it, as does a real -50 % day, and so does a real
++65 % gap. A real +100 % day reads as a 1:2 reverse split and is still skipped
+while the list is not cached, which is the trade-off the fallback states.
+
+The old guard read every one-bar ratio in the whole ``READ_BARS`` window, so one
+real big gap removed a leader for about 270 sessions, including the sessions after
+the gap had left the 253 closes the score reads.
 
 WHERE IT RUNS. The WEB pod, after the 03:00 ET screener build, writing a side
 table in ``screener.db`` through ``snapshot_db.connect()`` - the ``volume_curve``
@@ -100,9 +114,15 @@ RATING_MAX = 99
 #: Closes read per ticker: the 252-bar term needs 253 closes, plus a margin for a
 #: missing day or two so a short gap does not cost the year term.
 READ_BARS = 270
-#: The split guard: a one-bar close ratio beyond this percent either way marks the
-#: window unadjusted and the ticker is skipped for the session.
+#: Closes the score reads: the 252-bar term compares the newest close with the one
+#: 252 bars back, so a split older than these closes cannot move the rating.
+SCORE_BARS = 253
+#: The fallback split guard (no cached split list): a one-bar close ratio beyond
+#: this percent either way, AND split-sized, marks the window unadjusted.
 SPLIT_GUARD_PCT = 60.0
+#: Split factors the fallback recognises, forward (``prev / cur``) and reverse
+#: (their reciprocals). The tolerance is ``bars_sanitize``'s own.
+SPLIT_FACTORS = (2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50)
 #: A ticker whose newest stored bar is more than this many calendar days behind the
 #: session is not rated for it (a stale name, or a hole in the store). Wide enough
 #: for a long weekend plus a night the prewarm missed.
@@ -166,15 +186,61 @@ def closes_from_rows(rows) -> tuple[list[int], list[float]]:
     return ts_out, c_out
 
 
-def split_suspect(closes, pct: float = SPLIT_GUARD_PCT) -> bool:
-    """True when any one-bar close ratio inside ``closes`` lies beyond +/- ``pct``."""
-    lo, hi = 1.0 - pct / 100.0, 1.0 + pct / 100.0
-    for prev, cur in zip(closes, closes[1:]):
-        if prev > 0 and cur > 0:
-            r = cur / prev
-            if r < lo or r > hi:
+def _split_tol() -> float:
+    """``bars_sanitize``'s ratio tolerance, read from its one copy (no second number)."""
+    from api.services.bars_sanitize import _SPLIT_TOL
+    return float(_SPLIT_TOL)
+
+
+def _split_sized(step: float, tol: float) -> bool:
+    """True when ``step`` (``prev / cur``) is within ``tol`` of a split factor."""
+    for f in SPLIT_FACTORS:
+        for factor in (float(f), 1.0 / f):
+            if abs(step / factor - 1.0) <= tol:
                 return True
     return False
+
+
+def split_suspect(closes, pct: float = SPLIT_GUARD_PCT) -> bool:
+    """The fallback guard, used when the declared split list is not cached.
+
+    True when a one-bar close ratio among the newest :data:`SCORE_BARS` closes lies
+    beyond +/- ``pct`` AND is split-sized (see :func:`_split_sized`). Older closes
+    are not read: the score never reaches them.
+    """
+    lo, hi = 1.0 - pct / 100.0, 1.0 + pct / 100.0
+    tail = list(closes)[-SCORE_BARS:]
+    tol = _split_tol()
+    for prev, cur in zip(tail, tail[1:]):
+        if prev > 0 and cur > 0:
+            r = cur / prev
+            if (r < lo or r > hi) and _split_sized(prev / cur, tol):
+                return True
+    return False
+
+
+def _iso(ymd) -> str:
+    s = str(int(ymd))
+    return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+
+
+def window_split_suspect(ts_win, closes_win, declared) -> bool:
+    """Does this scoring window carry an unadjusted split?
+
+    ``declared`` is the ticker's declared split list (``[(iso_date, ratio)]``), ``[]``
+    when it has none, or ``None`` when the list is unknown. Known: the one detector,
+    ``bars_sanitize.unadjusted_splits``, over the newest :data:`SCORE_BARS` closes
+    (read-only; the store is never touched here). Unknown: :func:`split_suspect`.
+    """
+    tail_c = list(closes_win)[-SCORE_BARS:]
+    if declared is None:
+        return split_suspect(tail_c)
+    if not declared:
+        return False
+    tail_t = list(ts_win)[-SCORE_BARS:]
+    from api.services import bars_sanitize
+    bars = [{"t": _iso(t), "c": c} for t, c in zip(tail_t, tail_c)]
+    return bool(bars_sanitize.unadjusted_splits(bars, list(declared)))
 
 
 def ibd_score(closes) -> float | None:
@@ -258,15 +324,18 @@ def _rank_block(values: dict, ranked_set: set) -> dict:
     return out
 
 
-def compute_ratings(closes_by_ticker: dict, etf_tickers) -> dict:
+def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> dict:
     """Pure: ``{TICKER: {ibd, m1, m3, m6, m12, score, bars}}``.
 
     * ``score`` is :func:`ibd_score` (``None`` without the 63-day term).
     * ``ibd`` and the components are percentiles across the NON-ETF tickers only;
       an ETF receives each number by :func:`interpolate_pct` against that
       distribution and never moves a stock's rating.
-    * A window that trips :func:`split_suspect` yields ``bars = 0``, every rating
-      ``None`` and ``reason = "unadjusted_split"``; the writer stores no row for it.
+    * A window the split guard marks yields ``bars = 0``, every rating ``None`` and
+      ``reason = "unadjusted_split"``; the writer stores no row for it. ``suspects``
+      is the set of tickers the caller judged against the declared split list
+      (:func:`window_split_suspect`); without it every window gets the fallback,
+      :func:`split_suspect`.
     * ``bars`` is the count of closes the ticker was scored on.
     """
     etfs = {str(t).upper() for t in (etf_tickers or ())}
@@ -277,7 +346,7 @@ def compute_ratings(closes_by_ticker: dict, etf_tickers) -> dict:
     for t, closes in (closes_by_ticker or {}).items():
         tu = str(t).upper()
         c = [float(x) for x in (closes or ()) if x is not None]
-        if split_suspect(c):
+        if (tu in suspects) if suspects is not None else split_suspect(c):
             skipped.append(tu)
             continue
         bars[tu] = len(c)
@@ -359,10 +428,16 @@ def _lagging(newest_ymd: int, session_ymd_: int) -> bool:
 def window_at(ts_list: list, closes: list, to_ymd: int) -> list | None:
     """The newest ``READ_BARS`` closes with ``ts <= to_ymd``, or ``None`` when there
     are none or the newest is more than ``MAX_BAR_LAG_DAYS`` behind the session."""
+    b = _window_bounds(ts_list, to_ymd)
+    return None if b is None else closes[b[0]:b[1]]
+
+
+def _window_bounds(ts_list: list, to_ymd: int):
+    """``(lo, cut)`` of :func:`window_at`'s slice, or ``None`` (same rule)."""
     cut = bisect_right(ts_list, int(to_ymd))
     if cut == 0 or _lagging(ts_list[cut - 1], int(to_ymd)):
         return None
-    return closes[max(0, cut - READ_BARS):cut]
+    return max(0, cut - READ_BARS), cut
 
 
 # --------------------------------------------------------------------------- #
@@ -410,6 +485,30 @@ def default_bars_reader(ticker: str, n: int, to_key: int) -> list:
     - ``bars_sqlite.get_bars_before``: one indexed seek per ticker, never a by-date scan."""
     from api.services import bars_sqlite
     return bars_sqlite.get_bars_before(ticker, "D", int(n), int(to_key))
+
+
+def default_splits_reader(ticker: str):
+    """The ticker's declared split list from ``bars_sanitize``'s corporate-action
+    cache: ``[(iso_date, ratio), ...]``, ``[]`` for none declared, ``None`` when the
+    cache does not hold it. CACHE ONLY: a miss schedules no provider fetch (the
+    nightly sweeps the whole universe; the cache warms on the serve path)."""
+    try:
+        from api.services import bars_sanitize as san
+        with san.suppress_meta_warm():
+            meta = san._meta_cached(str(ticker).upper())
+    except Exception:                                        # noqa: BLE001
+        return None
+    if meta is None:
+        return None
+    return list(meta.get("splits") or [])
+
+
+def _split_list(splits_reader, ticker: str):
+    try:
+        got = splits_reader(ticker)
+    except Exception:                                        # noqa: BLE001
+        return None
+    return None if got is None else list(got)
 
 
 def default_fast_map() -> dict:
@@ -488,10 +587,12 @@ def record_run(receipt: dict) -> None:
 
 
 def last_run() -> dict | None:
-    """The newest receipt, ``note`` parsed, or ``None``. Never raises."""
+    """The newest receipt, ``note`` parsed, or ``None``. Never raises, and never
+    creates a table: a dark pod's read answers ``None`` and leaves no schema behind."""
     try:
         with closing(snapshot_db.connect()) as conn:
-            ensure_schema(conn)
+            if not _table_exists(conn, RUNS_TABLE):
+                return None
             r = conn.execute(f"SELECT * FROM {RUNS_TABLE} ORDER BY id DESC LIMIT 1").fetchone()
     except Exception:                                        # noqa: BLE001
         return None
@@ -559,15 +660,18 @@ def _counts_for(ratings: dict, etfs: set) -> dict:
 
 
 def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
-                fast_map=None, etf_tickers=None, now=None, session_fn=None) -> dict:
+                fast_map=None, etf_tickers=None, now=None, session_fn=None,
+                splits_reader=None) -> dict:
     """Rate the universe for one session and store the rows. Never raises.
 
     ``session`` defaults to the last completed session before ``now`` through
     ``session_fn`` (default :func:`settled_session`). ``universe`` defaults to the
     cap universe, ``etf_tickers`` to :func:`default_etf_tickers`, ``bars_reader`` to
     the web pod's ``bars_sqlite`` daily read and ``fast_map`` to the cached UCT fast
-    rating. Rows are ``INSERT OR REPLACE`` for the session, so a rerun for the same
-    session leaves the same rows. Returns the receipt it recorded.
+    rating. ``splits_reader`` (default :func:`default_splits_reader`) gives the
+    declared split list the split guard judges against. Rows are ``INSERT OR
+    REPLACE`` for the session, so a rerun for the same session leaves the same rows.
+    Returns the receipt it recorded.
     """
     t0 = time.time()
     receipt = {"ok": False, "session": None, "started_at": t0, "finished_at": None,
@@ -590,8 +694,11 @@ def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
         receipt["targets"] = len(targets)
         receipt["excluded_etfs"] = len(etfs & set(targets))
         reader = bars_reader or default_bars_reader
+        split_reader = splits_reader or default_splits_reader
         fast = fast_map if fast_map is not None else default_fast_map()
         closes_by_ticker: dict = {}
+        suspects: set = set()
+        split_basis = {"declared": 0, "unknown": 0}
         for t in targets:
             try:
                 rows = reader(t, READ_BARS, ymd)
@@ -602,16 +709,22 @@ def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
             if not ts_list:
                 receipt["no_bars"] += 1
                 continue
-            win = window_at(ts_list, closes, ymd)
-            if win is None:
+            bounds = _window_bounds(ts_list, ymd)
+            if bounds is None:
                 receipt["stale"] += 1
                 continue
+            win = closes[bounds[0]:bounds[1]]
+            declared = _split_list(split_reader, t)
+            split_basis["unknown" if declared is None else "declared"] += 1
+            if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+                suspects.add(str(t).upper())
             closes_by_ticker[t] = win
-        ratings = compute_ratings(closes_by_ticker, etfs)
+        ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
         counts = _counts_for(ratings, etfs)
         receipt.update(rated=counts["rated"], short_history=counts["short_history"],
                        split_guard=counts["split_guard"])
         receipt["note"]["etfs_rated"] = counts["etfs_rated"]
+        receipt["note"]["split_basis"] = split_basis
         receipt["rows"] = store_rows(key, ratings, fast, replace=True)
         receipt["fast_filled"] = sum(1 for t, r in ratings.items()
                                      if r.get("bars") and _fast_for(fast, t) is not None)
@@ -641,7 +754,8 @@ def _finish(receipt: dict, t0: float) -> dict:
 
 
 def backfill(days: int = BACKFILL_DAYS, *, universe=None, data_dir=None, bars_reader=None,
-             etf_tickers=None, now=None, session_fn=None, sessions=None) -> dict:
+             etf_tickers=None, now=None, session_fn=None, sessions=None,
+             splits_reader=None) -> dict:
     """One-shot point-in-time history over the names held today. Never raises.
 
     Behind :func:`marker_path` - present means done, and the marker is written only
@@ -680,6 +794,7 @@ def backfill(days: int = BACKFILL_DAYS, *, universe=None, data_dir=None, bars_re
         receipt["targets"] = len(targets)
         receipt["excluded_etfs"] = len(etfs & set(targets))
         reader = bars_reader or default_bars_reader
+        split_reader = splits_reader or default_splits_reader
         depth = READ_BARS + len(keys) + 10
         end_ymd = session_ymd(keys[-1])
         series: dict = {}
@@ -691,19 +806,27 @@ def backfill(days: int = BACKFILL_DAYS, *, universe=None, data_dir=None, bars_re
                 rows = None
             ts_list, closes = closes_from_rows(rows)
             if ts_list:
-                series[t] = (ts_list, closes)
+                series[t] = (ts_list, closes, _split_list(split_reader, t))
         receipt["note"]["tickers_with_bars"] = len(series)
+        receipt["note"]["split_basis"] = {
+            "declared": sum(1 for s in series.values() if s[2] is not None),
+            "unknown": sum(1 for s in series.values() if s[2] is None)}
         rated_sessions = 0
         with closing(snapshot_db.connect()) as conn:
             ensure_schema(conn)
             for key in keys:
                 ymd = session_ymd(key)
                 closes_by_ticker = {}
-                for t, (ts_list, closes) in series.items():
-                    win = window_at(ts_list, closes, ymd)
-                    if win is not None:
-                        closes_by_ticker[t] = win
-                ratings = compute_ratings(closes_by_ticker, etfs)
+                suspects = set()
+                for t, (ts_list, closes, declared) in series.items():
+                    bounds = _window_bounds(ts_list, ymd)
+                    if bounds is None:
+                        continue
+                    win = closes[bounds[0]:bounds[1]]
+                    if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+                        suspects.add(str(t).upper())
+                    closes_by_ticker[t] = win
+                ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
                 counts = _counts_for(ratings, etfs)
                 receipt["rated"] += counts["rated"]
                 receipt["short_history"] += counts["short_history"]
@@ -738,6 +861,35 @@ def _note(failures, outcome: str) -> None:
     failures["rs_history"][outcome] = failures["rs_history"].get(outcome, 0) + 1
 
 
+def _table_exists(conn, name: str) -> bool:
+    """A ``sqlite_master`` lookup: answers without creating anything."""
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+                        (name,)).fetchone() is not None
+
+
+def _sessions_desc(conn, limit=None, upto=None) -> list:
+    """The stored sessions, newest first, at most ``limit`` (``None`` = all), none
+    after ``upto``. One primary-key seek per session (``MAX(session) WHERE session <
+    ?``), so it reads ``limit`` index entries, never every row of those sessions."""
+    if upto is None:
+        cur = conn.execute(f"SELECT MAX(session) FROM {TABLE}").fetchone()[0]
+    else:
+        cur = conn.execute(f"SELECT MAX(session) FROM {TABLE} WHERE session <= ?",
+                           (upto,)).fetchone()[0]
+    out = []
+    while cur is not None and (limit is None or len(out) < limit):
+        out.append(cur)
+        cur = conn.execute(f"SELECT MAX(session) FROM {TABLE} WHERE session < ?",
+                           (cur,)).fetchone()[0]
+    return out
+
+
+#: ``read_fields`` reads only the asked tickers' rows (primary-key lookups) when it
+#: is asked for at most this many; a larger ask (the screener build's whole
+#: universe) reads each session whole, which is cheaper at that size.
+NARROW_READ_MAX = 200
+
+
 def read_fields(tickers, session=None, failures=None, now=None) -> dict:
     """``{TICKER: {ibd, fast, m1, m3, m6, m12, score, bars, d5, d20, asof}}`` for the
     newest session (or ``session``), the ``opt_flow.read_opt_flow_fields`` shape.
@@ -762,26 +914,33 @@ def read_fields(tickers, session=None, failures=None, now=None) -> dict:
         with closing(snapshot_db.connect()) as conn:
             if session is not None:
                 key = session_key(session)
-                sess = [r[0] for r in conn.execute(
-                    f"SELECT DISTINCT session FROM {TABLE} WHERE session <= ? "
-                    "ORDER BY session DESC LIMIT 21", (key,)).fetchall()]
+                sess = _sessions_desc(conn, 21, upto=key)
                 if not sess or sess[0] != key:
                     sess = []
             else:
-                sess = [r[0] for r in conn.execute(
-                    f"SELECT DISTINCT session FROM {TABLE} ORDER BY session DESC LIMIT 21").fetchall()]
+                sess = _sessions_desc(conn, 21)
             if not sess:
                 _note(failures, "missing")
                 return {}
             latest = sess[0]
             cols = ", ".join(ROW_COLUMNS)
+            # A chart asks for one symbol: read its rows by primary key rather than
+            # three whole sessions (review finding #30, 2026-11-07). The build's
+            # bulk ask keeps the whole-session read.
+            if len(want) <= NARROW_READ_MAX:
+                only = f" AND ticker IN ({', '.join('?' * len(want))})"
+                args = tuple(want)
+            else:
+                only, args = "", ()
             rows = {r["ticker"]: dict(r) for r in conn.execute(
-                f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?", (latest,)).fetchall()}
+                f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?{only}",
+                (latest,) + args).fetchall()}
             earlier = {}
             for n in (5, 20):
                 if len(sess) > n:
                     earlier[n] = {r[0]: r[1] for r in conn.execute(
-                        f"SELECT ticker, ibd FROM {TABLE} WHERE session = ?", (sess[n],)).fetchall()}
+                        f"SELECT ticker, ibd FROM {TABLE} WHERE session = ?{only}",
+                        (sess[n],) + args).fetchall()}
     except Exception as e:                                   # noqa: BLE001 - a read never raises
         log.warning("[rs_history] read failed: %s", e)
         _note(failures, "missing")
@@ -832,16 +991,22 @@ def ticker_history(ticker: str, limit: int = 60) -> list:
 
 def status(data_dir=None) -> dict:
     """The last receipt, row and session counts, the newest session and the
-    backfill marker's state. Never raises; an empty store reads as zeros."""
+    backfill marker's state. Never raises; an empty store reads as zeros.
+
+    READ-ONLY (review finding #31, 2026-11-07): a pod with no table answers zeros and
+    creates nothing, so a dark pod still carries no table. No statement decodes every
+    row: ``MAX(session)`` and the session count are primary-key seeks (one per
+    session), and the row count is a bare ``COUNT(*)``, which SQLite answers by
+    counting b-tree cells (measured 2026-11-07 on 1.1M synthetic rows: 2.7 ms, against
+    397 ms for the old ``COUNT(DISTINCT session)`` statement)."""
     rows = sessions = 0
     latest = None
     try:
         with closing(snapshot_db.connect()) as conn:
-            ensure_schema(conn)
-            r = conn.execute(
-                f"SELECT COUNT(*) AS n, COUNT(DISTINCT session) AS s, MAX(session) AS m FROM {TABLE}"
-            ).fetchone()
-            rows, sessions, latest = int(r["n"] or 0), int(r["s"] or 0), r["m"]
+            if _table_exists(conn, TABLE):
+                rows = int(conn.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()[0] or 0)
+                listed = _sessions_desc(conn)
+                sessions, latest = len(listed), (listed[0] if listed else None)
     except Exception as e:                                   # noqa: BLE001
         log.warning("[rs_history] status read failed: %s", e)
     return {"table": TABLE, "rows": rows, "sessions": sessions, "latest_session": latest,
