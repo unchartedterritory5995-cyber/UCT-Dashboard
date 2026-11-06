@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 187,
-  "withProductionKinds": 178,
+  "all": 184,
+  "withProductionKinds": 175,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 187,
-  "withAnyRegressionCase": 135,
+  "capabilities": 184,
+  "withAnyRegressionCase": 132,
   "perProtection": {
    "nl": {
-    "covered": 135,
-    "applicable": 187
+    "covered": 132,
+    "applicable": 184
    },
    "routing": {
-    "covered": 132,
-    "applicable": 187
+    "covered": 129,
+    "applicable": 184
    },
    "args": {
-    "covered": 135,
-    "applicable": 187
+    "covered": 132,
+    "applicable": 184
    },
    "execution": {
-    "covered": 135,
-    "applicable": 187
+    "covered": 132,
+    "applicable": 184
    },
    "receipt": {
-    "covered": 106,
-    "applicable": 187
+    "covered": 104,
+    "applicable": 184
    },
    "refusal": {
     "covered": 31,
-    "applicable": 187
+    "applicable": 184
    },
    "permission": {
-    "covered": 180,
-    "applicable": 187
+    "covered": 177,
+    "applicable": 184
    },
    "undo": {
-    "covered": 63,
-    "applicable": 120
+    "covered": 62,
+    "applicable": 118
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 187
+    "applicable": 184
    },
    "phrasings": {
-    "covered": 130,
-    "applicable": 187
+    "covered": 127,
+    "applicable": 184
    }
   }
  },
@@ -6174,6 +6174,69 @@
     "phrasings": []
    }
   },
+  "multiChart.cell": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "gridCell",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "multichart.maximize: \"maximize the AMD chart\"",
+     "multichart.maximize: \"make the AMD cell full screen\"",
+     "multichart.maximize: \"full-screen AMD\"",
+     "multichart.resetCell: \"reset the AMD cell\"",
+     "multichart.resetCell: \"reset this cell of AMD\"",
+     "multichart.resetCell: \"reset the AMD chart in the grid to my chart settings\""
+    ],
+    "routing": [
+     "multichart.maximize: \"maximize the AMD chart\"",
+     "multichart.maximize: \"make the AMD cell full screen\"",
+     "multichart.maximize: \"full-screen AMD\"",
+     "multichart.resetCell: \"reset the AMD cell\"",
+     "multichart.resetCell: \"reset this cell of AMD\"",
+     "multichart.resetCell: \"reset the AMD chart in the grid to my chart settings\""
+    ],
+    "args": [
+     "corpus multichart.maximize",
+     "corpus multichart.resetCell"
+    ],
+    "execution": [
+     "multichart.maximize (c)",
+     "multichart.resetCell (c)"
+    ],
+    "receipt": [
+     "multichart.maximize (c)",
+     "multichart.resetCell (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.maximize: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "multiChart.deleteSaved": {
    "domain": "multiChart",
    "group": "multiChart",
@@ -6406,60 +6469,6 @@
     "phrasings": []
    }
   },
-  "multiChart.maximize": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "gridCell",
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "surfaces": [
-    "charts"
-   ],
-   "fast": false,
-   "protections": {
-    "nl": true,
-    "routing": true,
-    "args": true,
-    "execution": true,
-    "receipt": true,
-    "refusal": false,
-    "permission": true,
-    "undo": true,
-    "multiStep": false,
-    "phrasings": true
-   },
-   "phrasings": 3,
-   "evidence": {
-    "nl": [
-     "multichart.maximize: \"maximize the AMD chart\"",
-     "multichart.maximize: \"make the AMD cell full screen\"",
-     "multichart.maximize: \"full-screen AMD\""
-    ],
-    "routing": [
-     "multichart.maximize: \"maximize the AMD chart\"",
-     "multichart.maximize: \"make the AMD cell full screen\"",
-     "multichart.maximize: \"full-screen AMD\""
-    ],
-    "args": [
-     "corpus multichart.maximize"
-    ],
-    "execution": [
-     "multichart.maximize (c)"
-    ],
-    "receipt": [
-     "multichart.maximize (c)"
-    ],
-    "refusal": [],
-    "permission": [],
-    "undo": [
-     "multichart.maximize: undo restores"
-    ],
-    "multiStep": [],
-    "phrasings": []
-   }
-  },
   "multiChart.openSaved": {
    "domain": "multiChart",
    "group": "multiChart",
@@ -6509,112 +6518,6 @@
     "permission": [],
     "undo": [
      "multichart.openSaved: undo restores"
-    ],
-    "multiStep": [],
-    "phrasings": []
-   }
-  },
-  "multiChart.resetCell": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "gridCell",
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "surfaces": [
-    "charts"
-   ],
-   "fast": false,
-   "protections": {
-    "nl": true,
-    "routing": true,
-    "args": true,
-    "execution": true,
-    "receipt": true,
-    "refusal": false,
-    "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": true
-   },
-   "phrasings": 3,
-   "evidence": {
-    "nl": [
-     "multichart.resetCell: \"reset the AMD cell\"",
-     "multichart.resetCell: \"reset this cell of AMD\"",
-     "multichart.resetCell: \"reset the AMD chart in the grid to my chart settings\""
-    ],
-    "routing": [
-     "multichart.resetCell: \"reset the AMD cell\"",
-     "multichart.resetCell: \"reset this cell of AMD\"",
-     "multichart.resetCell: \"reset the AMD chart in the grid to my chart settings\""
-    ],
-    "args": [
-     "corpus multichart.resetCell"
-    ],
-    "execution": [
-     "multichart.resetCell (c)"
-    ],
-    "receipt": [
-     "multichart.resetCell (c)"
-    ],
-    "refusal": [],
-    "permission": [],
-    "undo": [],
-    "multiStep": [],
-    "phrasings": []
-   }
-  },
-  "multiChart.restoreGrid": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "multiChart",
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "surfaces": [
-    "charts"
-   ],
-   "fast": false,
-   "protections": {
-    "nl": true,
-    "routing": true,
-    "args": true,
-    "execution": true,
-    "receipt": true,
-    "refusal": false,
-    "permission": true,
-    "undo": true,
-    "multiStep": false,
-    "phrasings": true
-   },
-   "phrasings": 3,
-   "evidence": {
-    "nl": [
-     "multichart.restoreGrid: \"restore the grid\"",
-     "multichart.restoreGrid: \"unmaximize this\"",
-     "multichart.restoreGrid: \"unmaximize the chart\""
-    ],
-    "routing": [
-     "multichart.restoreGrid: \"restore the grid\"",
-     "multichart.restoreGrid: \"unmaximize this\"",
-     "multichart.restoreGrid: \"unmaximize the chart\""
-    ],
-    "args": [
-     "corpus multichart.restoreGrid"
-    ],
-    "execution": [
-     "multichart.restoreGrid (c)"
-    ],
-    "receipt": [
-     "multichart.restoreGrid (c)"
-    ],
-    "refusal": [],
-    "permission": [],
-    "undo": [
-     "multichart.restoreGrid: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -6696,7 +6599,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 17,
+   "phrasings": 20,
    "evidence": {
     "nl": [
      "multichart.syncCrosshair: \"sync the crosshairs\"",
@@ -6719,20 +6622,23 @@
      "corpus multichart.syncTimeRange",
      "corpus multichart.syncOff",
      "corpus multichart.groupsOff",
-     "corpus multichart.noSymbolSync"
+     "corpus multichart.noSymbolSync",
+     "corpus multichart.restoreGrid"
     ],
     "execution": [
      "multichart.syncCrosshair (c)",
      "multichart.syncTimeRange (c)",
      "multichart.syncOff (c)",
      "multichart.groupsOff (c)",
-     "multichart.noSymbolSync (c)"
+     "multichart.noSymbolSync (c)",
+     "multichart.restoreGrid (c)"
     ],
     "receipt": [
      "multichart.syncCrosshair (c)",
      "multichart.syncTimeRange (c)",
      "multichart.syncOff (c)",
-     "multichart.groupsOff (c)"
+     "multichart.groupsOff (c)",
+     "multichart.restoreGrid (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -6740,58 +6646,9 @@
      "multichart.syncCrosshair: undo restores",
      "multichart.syncTimeRange: undo restores",
      "multichart.syncOff: undo restores",
-     "multichart.groupsOff: undo restores"
+     "multichart.groupsOff: undo restores",
+     "multichart.restoreGrid: undo restores"
     ],
-    "multiStep": [],
-    "phrasings": []
-   }
-  },
-  "multiChart.status": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "multiChart",
-   "risk": "local",
-   "reversible": true,
-   "undo": "none",
-   "query": true,
-   "surfaces": [
-    "charts"
-   ],
-   "fast": false,
-   "protections": {
-    "nl": true,
-    "routing": true,
-    "args": true,
-    "execution": true,
-    "receipt": false,
-    "refusal": false,
-    "permission": true,
-    "undo": null,
-    "multiStep": false,
-    "phrasings": true
-   },
-   "phrasings": 3,
-   "evidence": {
-    "nl": [
-     "multichart.status: \"is multi chart on\"",
-     "multichart.status: \"are my multi chart crosshairs synced\"",
-     "multichart.status: \"which grid is multi chart using\""
-    ],
-    "routing": [
-     "multichart.status: \"is multi chart on\"",
-     "multichart.status: \"are my multi chart crosshairs synced\"",
-     "multichart.status: \"which grid is multi chart using\""
-    ],
-    "args": [
-     "corpus multichart.status"
-    ],
-    "execution": [
-     "multichart.status (c)"
-    ],
-    "receipt": [],
-    "refusal": [],
-    "permission": [],
-    "undo": [],
     "multiStep": [],
     "phrasings": []
    }

@@ -39,7 +39,7 @@ const NO_SUCH_OPTION = {
   symbol_sync: 'Multi Chart has no symbol sync: every cell keeps its own ticker. I can put one ticker on the cells you name.',
   timeframe_sync: 'Multi Chart has no timeframe sync: every cell keeps its own timeframe. I can set one timeframe on the cells you name.',
 }
-const OPTION_IDS = [...Object.keys(OPTIONS), ...Object.keys(NO_SUCH_OPTION)]
+const OPTION_IDS = [...Object.keys(OPTIONS), 'maximized', ...Object.keys(NO_SUCH_OPTION)]
 const pick = (o, keys) => Object.fromEntries(keys.map(k => [k, o?.[k]]))
 const cellSig = (cells) => (cells || []).map(c => [c.id, c.sym || null, c.tf, c.chartType ?? null, c.settings ?? null])
 const fieldSig = (s, k) => (k === 'cells' ? cellSig(s?.cells) : k === 'group' ? (s?.group?.id ?? null) : s?.[k] ?? null)
@@ -258,9 +258,10 @@ export function registerMultiChartCapabilities() {
       if (!s) return undefined
       const on = s.mode === 'grid'
       const names = s.savedList.map(r => r.name).slice(0, 20)
-      // off screen the options are not worth their bytes on every turn: multiChart.status reads them when asked
+      // an option that is off is left out: a quiet grid costs no bytes on every turn, and the model says what it reads here
       return [{ ref: refFor(REF, REF), label: 'Multi Chart', on, layout: shapeWord(s.layout),
-        ...(on ? { crosshairSync: s.syncCrosshair, timeRangeSync: s.syncTimeRange, groupsMode: s.groupsMode, ...(s.group ? { group: groupName(s.group) } : {}) } : {}) },
+        ...(s.syncCrosshair ? { crosshairSync: true } : {}), ...(s.syncTimeRange ? { timeRangeSync: true } : {}), ...(s.groupsMode ? { groupsMode: true } : {}),
+        ...(s.group ? { group: groupName(s.group) } : {}), ...(s.maximized ? { maximized: true } : {}) },
       ...(names.length || on ? [{ ref: refFor(SAVED_REF, SAVED_REF), label: 'Saved grids', names }] : [])]
     },
   })
@@ -271,25 +272,11 @@ export function registerMultiChartCapabilities() {
   const named = { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false }
 
   registerCapability({
-    ...common, name: 'multiChart.status', query: true,
-    summary: 'Say whether Multi Chart is on, its shape, its sync options, Groups mode and the group loaded.',
-    hints: 'target = the Multi Chart entry.',
-    args: noArgs,
-    answer(s) {
-      if (!s) return 'Multi Chart is not available here.'
-      const on = (v) => (v ? 'on' : 'off')
-      return [s.mode === 'grid' ? `Multi Chart is on (${shapeWord(s.layout)}).` : `Multi Chart is off. Its grid is ${shapeWord(s.layout)}.`,
-        `Crosshair sync: ${on(s.syncCrosshair)}`, `Time-range sync: ${on(s.syncTimeRange)}`,
-        `Groups mode: ${on(s.groupsMode)}${s.group ? ` (${groupName(s.group)})` : ''}`].join('\n')
-    },
-  })
-
-  registerCapability({
     ...common, name: 'multiChart.enter',
     exclusive: true,
     exclusiveReason: 'Switching Multi Chart replaces the charts on screen, so do it in two steps: switch first, then ask for the chart changes.',
-    summary: 'Switch to Multi Chart, the full-screen grid of independent chart cells, or change its shape while it is on. Not chartGrid.set, which lays out charts on the board.',
-    hints: `target = the Multi Chart entry. layout = rows x columns, 1 to 4 each: ${LAYOUTS.map(l => l.id).join(', ')} or any other shape up to 4x4 (1x2 side by side, 2x1 stacked), or null for the grid it had. A chart count that fits two shapes is a question for the member.`,
+    summary: 'Switch to Multi Chart or change its shape.',
+    hints: `Multi Chart is the full-screen grid of independent chart cells; chartGrid.set lays out charts on the board instead. target = the Multi Chart entry. layout = rows x columns, 1 to 4 each: ${LAYOUTS.map(l => l.id).join(', ')} or any other shape up to 4x4 (1x2 side by side, 2x1 stacked), or null for the grid it had. A chart count that fits two shapes is a question for the member.`,
     args: { type: 'object', properties: { layout: { type: ['string', 'null'] } }, required: ['layout'], additionalProperties: false },
     check(st, args) {
       if (args.layout != null && !exactLayout(args.layout)) return `Multi Chart grids go up to 4 rows by 4 columns (${GRID_MAX_CELLS} charts), written like 2x3, so I can't make “${String(args.layout).slice(0, 12)}”.`
@@ -312,8 +299,8 @@ export function registerMultiChartCapabilities() {
     ...common, name: 'multiChart.exit',
     exclusive: true,
     exclusiveReason: 'Leaving Multi Chart replaces the charts on screen, so do it in two steps: leave first, then ask for the chart changes.',
-    summary: 'Leave Multi Chart and go back to the Charts board. The grid keeps its charts for next time.',
-    hints: 'target = the Multi Chart entry.',
+    summary: 'Leave Multi Chart for the Charts board.',
+    hints: 'target = the Multi Chart entry. The grid keeps its charts for next time.',
     args: noArgs,
     check: (st) => notReady(st),
     apply: (st) => (st.mode === 'grid' ? { ...st, mode: 'workspace', maximized: null } : st),
@@ -323,17 +310,23 @@ export function registerMultiChartCapabilities() {
 
   registerCapability({
     ...common, name: 'multiChart.setOption',
-    summary: 'Turn a Multi Chart option on or off: crosshair sync, time-range sync, or Groups mode. They can be set with Multi Chart on or off.',
-    hints: `target = the Multi Chart entry. option = ${OPTION_IDS.join('|')} (symbol_sync and timeframe_sync do not exist in UCT: name them and UCT says so). on = true, false, or null to flip it. One op per option. Turning Groups mode off keeps the charts and clears the group.`,
+    summary: 'Set crosshair sync, time-range sync or Groups mode, or restore a maximized grid.',
+    hints: `target = the Multi Chart entry. option = ${OPTION_IDS.join('|')} (symbol_sync and timeframe_sync do not exist in UCT: name them and UCT says so). Each can be set with Multi Chart on or off, but maximized only takes on = false, which restores the grid after a cell was maximized. on = true, false, or null to flip it. One op per option. Turning Groups mode off keeps the charts and clears the group.`,
     args: { type: 'object', properties: { option: { type: 'string', enum: OPTION_IDS }, on: { type: ['boolean', 'null'] } }, required: ['option', 'on'], additionalProperties: false },
-    check: (st, args) => NO_SUCH_OPTION[args.option] || notReady(st),
+    check(st, args) {
+      if (args.option !== 'maximized') return NO_SUCH_OPTION[args.option] || notReady(st)
+      if (st.mode !== 'grid') return IN_GRID_ONLY
+      return args.on === false ? null : 'name the cell to maximize.'
+    },
     apply(st, args) {
+      if (args.option === 'maximized') return st.maximized ? { ...st, maximized: null } : st
       const key = OPTIONS[args.option][0]
       const want = args.on == null ? !st[key] : !!args.on
       return st[key] === want ? st : { ...st, [key]: want }
     },
-    noop: (st, _after, args) => `${OPTIONS[args.option][1]} is already ${st[OPTIONS[args.option][0]] ? 'on' : 'off'}`,
+    noop: (st, _after, args) => (args.option === 'maximized' ? 'No cell is maximized' : `${OPTIONS[args.option][1]} is already ${st[OPTIONS[args.option][0]] ? 'on' : 'off'}`),
     describe(before, after, args) {
+      if (args.option === 'maximized') return 'Restored the grid'
       const [key, label] = OPTIONS[args.option]
       if (before[key] === after[key]) return null
       const tail = after.mode === 'grid' ? '' : ' (it applies when Multi Chart is on)'
@@ -342,20 +335,9 @@ export function registerMultiChartCapabilities() {
   })
 
   registerCapability({
-    ...common, name: 'multiChart.restoreGrid',
-    summary: 'Bring back every cell after one was maximized.',
-    hints: 'target = the Multi Chart entry.',
-    args: noArgs,
-    check: (st) => (st.mode === 'grid' ? null : IN_GRID_ONLY),
-    apply: (st) => (st.maximized ? { ...st, maximized: null } : st),
-    noop: () => 'No cell is maximized',
-    describe: () => 'Restored the grid',
-  })
-
-  registerCapability({
     ...common, name: 'multiChart.loadGroup',
-    summary: 'Fill the Multi Chart grid with a theme group, step to the next or previous group, or refresh the group loaded. Turns Multi Chart and Groups mode on.',
-    hints: 'target = the Multi Chart entry. group = the group\'s name in the member\'s words, or null; step = next|previous|refresh, or null. Exactly one of them. UCT matches the name and says so when several fit.',
+    summary: 'Load, step or refresh a theme group in Multi Chart.',
+    hints: 'Turns Multi Chart and Groups mode on. target = the Multi Chart entry. group = the group\'s name in the member\'s words, or null; step = next|previous|refresh, or null. Exactly one of them. UCT matches the name and says so when several fit.',
     args: { type: 'object', properties: { group: { type: ['string', 'null'] }, step: { type: ['string', 'null'], enum: ['next', 'previous', 'refresh', null] } }, required: ['group', 'step'], additionalProperties: false },
     async prepare(ops) {
       return ops.some(o => o?.args?.group || (o?.args?.step && o.args.step !== 'refresh')) ? { multiChartGroups: await fetchGroups() } : {}
@@ -391,8 +373,8 @@ export function registerMultiChartCapabilities() {
     ...common, name: 'multiChart.openSaved',
     exclusive: true,
     exclusiveReason: 'Opening a saved grid replaces the charts on screen, so do it in two steps: open it first, then ask for the chart changes.',
-    summary: 'Open one of the saved grids (the names in the Saved grids entry).',
-    hints: 'target = the Multi Chart entry. name = the grid\'s name in the member\'s words. UCT matches it and says so when several fit.',
+    summary: 'Open a saved Multi Chart grid.',
+    hints: 'target = the Multi Chart entry. name = one of the Saved grids entry\'s names, in the member\'s words. UCT matches it and says so when several fit.',
     args: named,
     check(st, args, env) {
       const m = matchNamed(env.target.savedList, args.name)
@@ -407,31 +389,23 @@ export function registerMultiChartCapabilities() {
   })
 
   registerCapability({
-    target: 'gridCell', surfaces: ['charts'], name: 'multiChart.maximize', chartIsItsArgument: true,
-    summary: 'Maximize one Multi Chart cell over the whole grid. Only with Multi Chart on.',
-    hints: 'target = the ref of the cell in `charts`.',
-    args: noArgs,
+    target: 'gridCell', surfaces: ['charts'], name: 'multiChart.cell', chartIsItsArgument: true,
+    summary: 'Maximize one Multi Chart cell, or reset it to my chart settings.',
+    hints: 'target = the ref of the cell in `charts`. do = maximize|reset. Reset drops the settings only that cell has.',
+    args: { type: 'object', properties: { do: { type: 'string', enum: ['maximize', 'reset'] } }, required: ['do'], additionalProperties: false },
     check: () => null,
-    apply: (st) => (st.maximized ? st : { ...st, maximized: true }),
-    noop: (st) => `${st.label} is already maximized`,
-    describe: (before) => `Maximized ${before.label}`,
-  })
-
-  registerCapability({
-    target: 'gridCell', surfaces: ['charts'], name: 'multiChart.resetCell', chartIsItsArgument: true,
-    summary: 'Reset one Multi Chart cell to the member\'s own chart settings, dropping the settings only that cell has. Only with Multi Chart on.',
-    hints: 'target = the ref of the cell in `charts`.',
-    args: noArgs,
-    check: () => null,
-    apply: (st) => (st.settings ? { ...st, settings: null } : st),
-    noop: (st) => `${st.label} already uses your chart settings`,
-    describe: (before) => `Reset ${before.label} to your chart settings`,
+    apply(st, args) {
+      if (args.do === 'maximize') return st.maximized ? st : { ...st, maximized: true }
+      return st.settings ? { ...st, settings: null } : st
+    },
+    noop: (st, _after, args) => (args.do === 'maximize' ? `${st.label} is already maximized` : `${st.label} already uses your chart settings`),
+    describe: (before, after, args) => (args.do === 'maximize' ? `Maximized ${before.label}` : `Reset ${before.label} to your chart settings`),
   })
 
   registerCapability({
     target: SAVED_REF, surfaces: ['charts'], name: 'multiChart.saveGrid',
-    summary: 'Save the Multi Chart grid on screen under a new name, with its tickers and timeframes. Never replaces a saved grid.',
-    hints: 'target = the Saved grids entry. name = the new name, 60 characters at most.',
+    summary: 'Save the Multi Chart grid under a new name.',
+    hints: 'target = the Saved grids entry. name = the new name, 60 characters at most. Keeps its tickers and timeframes; never replaces a saved grid.',
     args: named,
     check(st, args) {
       const nm = String(args.name || '').trim()
@@ -448,8 +422,8 @@ export function registerMultiChartCapabilities() {
     target: SAVED_REF, surfaces: ['charts'], name: 'multiChart.deleteSaved',
     risk: 'confirm', reversible: false, undo: 'none',
     undoNote: 'A deleted grid cannot be brought back.',
-    summary: 'Delete one of the member\'s own saved grids. Permanent. Prebuilt grids cannot be deleted here.',
-    hints: 'target = the Saved grids entry. name = the grid\'s name.',
+    summary: 'Delete a saved Multi Chart grid. Permanent.',
+    hints: 'target = the Saved grids entry. name = the grid\'s name. Only the member\'s own; prebuilt grids cannot be deleted here.',
     args: named,
     check(st, args) {
       const m = matchNamed(st.mine, args.name)

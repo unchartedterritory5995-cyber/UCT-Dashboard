@@ -133,7 +133,7 @@ const refOf = (b, label = 'Multi Chart') => b.context.multiChart.find(x => x.lab
 // a scripted model's plan on the Multi Chart entry, or the Saved grids entry
 const plan = (action, args, label) => (b) => env('apply', [{ action, target: refOf(b, label), args }])
 const plans = (...steps) => (b) => env('apply', steps.map(([action, args]) => ({ action, target: refOf(b), args })))
-const onCell = (action, n) => (b) => env('apply', [{ action, target: b.context.charts[n].ref, args: {} }])
+const onCell = (what, n) => (b) => env('apply', [{ action: 'multiChart.cell', target: b.context.charts[n].ref, args: { do: what } }])
 const st = () => H.mc.state
 const syms = () => st().cells.map(c => c.sym).join(' ')
 const click = (id) => fireEvent.pointerDown(document.querySelector(`[data-grid-cell-id="${id}"]`).parentElement)
@@ -405,15 +405,17 @@ describe('options', () => {
     await waitFor(() => expect(st().syncCrosshair).toBe(false))
     expect(st().cells[1].tf).toBe('W')
   }, 30000)
-  it('the status reads the grid, not the model', async () => {
-    H.prefs = { multichart_state: JSON.stringify(GRID({ syncCrosshair: true, groupsMode: true, group: { id: 'semis', name: 'Semiconductors' } })) }
+  it('"maximized" only restores: a cell to maximize has to be named, and off the grid there is nothing to restore', async () => {
     const { say } = mount()
-    envelopes.push(plan('multiChart.status', {}))
-    await say('is multi chart on')
-    await waitFor(() => expect(transcript()).toMatch(/Multi Chart is on \(2×2\)/))
-    expect(transcript()).toMatch(/Crosshair sync: on/)
-    expect(transcript()).toMatch(/Time-range sync: off/)
-    expect(transcript()).toMatch(/Groups mode: on \(Semiconductors\)/)
+    envelopes.push(plan('multiChart.setOption', { option: 'maximized', on: true }))
+    await say('maximize')
+    await waitFor(() => expect(transcript()).toMatch(/name the cell to maximize/))
+    envelopes.push(plan('multiChart.exit', {}))
+    await say('leave multi chart')
+    await waitFor(() => expect(st().mode).toBe('workspace'))
+    envelopes.push(plan('multiChart.setOption', { option: 'maximized', on: false }))
+    await say('restore the grid')
+    await waitFor(() => expect(transcript()).toMatch(/only exists inside Multi Chart/))
   }, 30000)
 })
 
@@ -421,7 +423,7 @@ describe('one cell: a click never stands in for a described chart', () => {
   it('a named cell maximizes, the click elsewhere does not matter; Undo restores', async () => {
     const { say, undo } = mount()
     click('c0')
-    envelopes.push(onCell('multiChart.maximize', 1))
+    envelopes.push(onCell('maximize', 1))
     await say('maximize the AMD chart')
     await waitFor(() => expect(maxed()).toBe('c1'))
     expect(lastReceipt()).toMatch(/Maximized .*AMD/)
@@ -429,13 +431,13 @@ describe('one cell: a click never stands in for a described chart', () => {
     await waitFor(() => expect(maxed()).toBe(null))
   }, 30000)
   it.each([
-    ['maximize the AMD chart', 'multiChart.maximize'],
-    ['maximize AMD', 'multiChart.maximize'],
-    ['blow up the top right one', 'multiChart.maximize'],
-    ['blow up the top-right chart', 'multiChart.maximize'],
-    ['maximize chart 2', 'multiChart.maximize'],
-    ['reset the AMD cell chart', 'multiChart.resetCell'],
-    ['reset AMD to my chart', 'multiChart.resetCell'],
+    ['maximize the AMD chart', 'maximize'],
+    ['maximize AMD', 'maximize'],
+    ['blow up the top right one', 'maximize'],
+    ['blow up the top-right chart', 'maximize'],
+    ['maximize chart 2', 'maximize'],
+    ['reset the AMD cell chart', 'reset'],
+    ['reset AMD to my chart', 'reset'],
   ])('"%s" with NVDA clicked and a plan aimed at the click: asked, nothing runs', async (text, action) => {
     H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'NVDA', { settings: { a: 1 } }), cell('c1', 'AMD', { settings: { b: 2 } }), cell('c2', 'TSLA'), cell('c3', 'SPY')] })) }
     const { say } = mount()
@@ -450,7 +452,7 @@ describe('one cell: a click never stands in for a described chart', () => {
   it('the answer to that question acts on the chart picked', async () => {
     const { say } = mount()
     click('c0')
-    envelopes.push(onCell('multiChart.maximize', 0))
+    envelopes.push(onCell('maximize', 0))
     await say('maximize the AMD chart')
     await waitFor(() => expect(transcript()).toMatch(/Did you mean/))
     fireEvent.click(screen.getByRole('button', { name: /AMD/ }))
@@ -459,13 +461,13 @@ describe('one cell: a click never stands in for a described chart', () => {
   it('"this chart" with a click is the click', async () => {
     const { say } = mount()
     click('c2')
-    envelopes.push(onCell('multiChart.maximize', 2))
+    envelopes.push(onCell('maximize', 2))
     await say('maximize this chart')
     await waitFor(() => expect(maxed()).toBe('c2'))
   }, 30000)
   it('no click and no description: asked, never guessed', async () => {
     const { say } = mount()
-    envelopes.push(onCell('multiChart.maximize', 3))
+    envelopes.push(onCell('maximize', 3))
     await say('maximize it')
     await waitFor(() => expect(transcript()).toMatch(/Which chart/))
     expect(maxed()).toBe(null)
@@ -473,7 +475,7 @@ describe('one cell: a click never stands in for a described chart', () => {
   it('the hidden board\'s selected chart is not a cell', async () => {
     onBoard()
     const { say } = mount()
-    envelopes.push(() => env('apply', [{ action: 'multiChart.maximize', target: 'board1', args: {} }]))
+    envelopes.push(() => env('apply', [{ action: 'multiChart.cell', target: 'board1', args: { do: 'maximize' } }]))
     await say('maximize this chart')
     await waitFor(() => expect(transcript()).toMatch(/not on the workspace/))
     expect(boardWrites).toEqual([])
@@ -483,7 +485,7 @@ describe('one cell: a click never stands in for a described chart', () => {
     const { say } = mount()
     fireEvent.click(document.querySelector('[data-grid-cell-id="c1"]').querySelector('[aria-label="Maximize this chart"]'))
     await waitFor(() => expect(maxed()).toBe('c1'))
-    envelopes.push(onCell('multiChart.maximize', 2))
+    envelopes.push(onCell('maximize', 2))
     await say('maximize the TSLA chart')
     await waitFor(() => expect(transcript()).toMatch(/hidden behind the maximized one/))
     expect(maxed()).toBe('c1')
@@ -492,7 +494,7 @@ describe('one cell: a click never stands in for a described chart', () => {
     const { say, undo } = mount()
     fireEvent.click(document.querySelector('[data-grid-cell-id="c1"]').querySelector('[aria-label="Maximize this chart"]'))
     await waitFor(() => expect(maxed()).toBe('c1'))
-    envelopes.push(plan('multiChart.restoreGrid', {}))
+    envelopes.push(plan('multiChart.setOption', { option: 'maximized', on: false }))
     await say('restore the grid')
     await waitFor(() => expect(maxed()).toBe(null))
     await undo()
@@ -502,7 +504,7 @@ describe('one cell: a click never stands in for a described chart', () => {
     const own = { chartType: 'line', upColor: '#123456' }
     H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'NVDA', { chartType: 'hollow', settings: own }), cell('c1', 'AMD'), cell('c2', 'TSLA'), cell('c3', 'SPY')] })) }
     const { say, undo } = mount()
-    envelopes.push(onCell('multiChart.resetCell', 0))
+    envelopes.push(onCell('reset', 0))
     await say('reset the NVDA chart to my chart')
     await waitFor(() => expect(st().cells[0].settings ?? null).toBe(null))
     expect(st().cells[0].chartType).toBe('hollow')
@@ -687,7 +689,8 @@ describe('what the model is told', () => {
     await say('how does this look to you today')
     await waitFor(() => expect(body).not.toBeNull())
     const entry = body.context.multiChart[0]
-    expect(entry).toMatchObject({ on: true, layout: '2×2', crosshairSync: true, timeRangeSync: false, groupsMode: true, group: 'Semiconductors' })
+    expect(entry).toMatchObject({ on: true, layout: '2×2', crosshairSync: true, groupsMode: true, group: 'Semiconductors' })
+    expect(entry.timeRangeSync).toBeUndefined()
     const text = JSON.stringify(body.context.multiChart)
     for (const hidden of ['secretField', 'sources', 'alsoIn', 'Hidden Y', 'presentation', 'cells', 'hydrated']) expect(text).not.toContain(hidden)
   }, 30000)

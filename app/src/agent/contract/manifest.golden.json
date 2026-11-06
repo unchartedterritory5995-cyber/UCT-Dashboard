@@ -4169,33 +4169,11 @@
    "shape": null
   },
   {
-   "name": "multiChart.status",
-   "domain": "multiChart",
-   "target": "multiChart",
-   "summary": "Say whether Multi Chart is on, its shape, its sync options, Groups mode and the group loaded.",
-   "hints": "target = the Multi Chart entry.",
-   "args": {
-    "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": false
-   },
-   "risk": "local",
-   "reversible": true,
-   "undo": "none",
-   "query": true,
-   "argAliases": null,
-   "coerce": null,
-   "defaults": null,
-   "defaultsWhen": null,
-   "shape": null
-  },
-  {
    "name": "multiChart.enter",
    "domain": "multiChart",
    "target": "multiChart",
-   "summary": "Switch to Multi Chart, the full-screen grid of independent chart cells, or change its shape while it is on. Not chartGrid.set, which lays out charts on the board.",
-   "hints": "target = the Multi Chart entry. layout = rows x columns, 1 to 4 each: 1x2, 2x1, 2x2, 2x3, 3x2, 3x3, 4x4 or any other shape up to 4x4 (1x2 side by side, 2x1 stacked), or null for the grid it had. A chart count that fits two shapes is a question for the member.",
+   "summary": "Switch to Multi Chart or change its shape.",
+   "hints": "Multi Chart is the full-screen grid of independent chart cells; chartGrid.set lays out charts on the board instead. target = the Multi Chart entry. layout = rows x columns, 1 to 4 each: 1x2, 2x1, 2x2, 2x3, 3x2, 3x3, 4x4 or any other shape up to 4x4 (1x2 side by side, 2x1 stacked), or null for the grid it had. A chart count that fits two shapes is a question for the member.",
    "args": {
     "type": "object",
     "properties": {
@@ -4225,8 +4203,8 @@
    "name": "multiChart.exit",
    "domain": "multiChart",
    "target": "multiChart",
-   "summary": "Leave Multi Chart and go back to the Charts board. The grid keeps its charts for next time.",
-   "hints": "target = the Multi Chart entry.",
+   "summary": "Leave Multi Chart for the Charts board.",
+   "hints": "target = the Multi Chart entry. The grid keeps its charts for next time.",
    "args": {
     "type": "object",
     "properties": {},
@@ -4247,8 +4225,8 @@
    "name": "multiChart.setOption",
    "domain": "multiChart",
    "target": "multiChart",
-   "summary": "Turn a Multi Chart option on or off: crosshair sync, time-range sync, or Groups mode. They can be set with Multi Chart on or off.",
-   "hints": "target = the Multi Chart entry. option = crosshair_sync|time_range_sync|groups_mode|symbol_sync|timeframe_sync (symbol_sync and timeframe_sync do not exist in UCT: name them and UCT says so). on = true, false, or null to flip it. One op per option. Turning Groups mode off keeps the charts and clears the group.",
+   "summary": "Set crosshair sync, time-range sync or Groups mode, or restore a maximized grid.",
+   "hints": "target = the Multi Chart entry. option = crosshair_sync|time_range_sync|groups_mode|maximized|symbol_sync|timeframe_sync (symbol_sync and timeframe_sync do not exist in UCT: name them and UCT says so). Each can be set with Multi Chart on or off, but maximized only takes on = false, which restores the grid after a cell was maximized. on = true, false, or null to flip it. One op per option. Turning Groups mode off keeps the charts and clears the group.",
    "args": {
     "type": "object",
     "properties": {
@@ -4258,6 +4236,7 @@
        "crosshair_sync",
        "time_range_sync",
        "groups_mode",
+       "maximized",
        "symbol_sync",
        "timeframe_sync"
       ]
@@ -4286,33 +4265,11 @@
    "shape": null
   },
   {
-   "name": "multiChart.restoreGrid",
-   "domain": "multiChart",
-   "target": "multiChart",
-   "summary": "Bring back every cell after one was maximized.",
-   "hints": "target = the Multi Chart entry.",
-   "args": {
-    "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": false
-   },
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "argAliases": null,
-   "coerce": null,
-   "defaults": null,
-   "defaultsWhen": null,
-   "shape": null
-  },
-  {
    "name": "multiChart.loadGroup",
    "domain": "multiChart",
    "target": "multiChart",
-   "summary": "Fill the Multi Chart grid with a theme group, step to the next or previous group, or refresh the group loaded. Turns Multi Chart and Groups mode on.",
-   "hints": "target = the Multi Chart entry. group = the group's name in the member's words, or null; step = next|previous|refresh, or null. Exactly one of them. UCT matches the name and says so when several fit.",
+   "summary": "Load, step or refresh a theme group in Multi Chart.",
+   "hints": "Turns Multi Chart and Groups mode on. target = the Multi Chart entry. group = the group's name in the member's words, or null; step = next|previous|refresh, or null. Exactly one of them. UCT matches the name and says so when several fit.",
    "args": {
     "type": "object",
     "properties": {
@@ -4355,8 +4312,8 @@
    "name": "multiChart.openSaved",
    "domain": "multiChart",
    "target": "multiChart",
-   "summary": "Open one of the saved grids (the names in the Saved grids entry).",
-   "hints": "target = the Multi Chart entry. name = the grid's name in the member's words. UCT matches it and says so when several fit.",
+   "summary": "Open a saved Multi Chart grid.",
+   "hints": "target = the Multi Chart entry. name = one of the Saved grids entry's names, in the member's words. UCT matches it and says so when several fit.",
    "args": {
     "type": "object",
     "properties": {
@@ -4380,37 +4337,25 @@
    "shape": null
   },
   {
-   "name": "multiChart.maximize",
+   "name": "multiChart.cell",
    "domain": "multiChart",
    "target": "gridCell",
-   "summary": "Maximize one Multi Chart cell over the whole grid. Only with Multi Chart on.",
-   "hints": "target = the ref of the cell in `charts`.",
+   "summary": "Maximize one Multi Chart cell, or reset it to my chart settings.",
+   "hints": "target = the ref of the cell in `charts`. do = maximize|reset. Reset drops the settings only that cell has.",
    "args": {
     "type": "object",
-    "properties": {},
-    "required": [],
-    "additionalProperties": false
-   },
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "argAliases": null,
-   "coerce": null,
-   "defaults": null,
-   "defaultsWhen": null,
-   "shape": null
-  },
-  {
-   "name": "multiChart.resetCell",
-   "domain": "multiChart",
-   "target": "gridCell",
-   "summary": "Reset one Multi Chart cell to the member's own chart settings, dropping the settings only that cell has. Only with Multi Chart on.",
-   "hints": "target = the ref of the cell in `charts`.",
-   "args": {
-    "type": "object",
-    "properties": {},
-    "required": [],
+    "properties": {
+     "do": {
+      "type": "string",
+      "enum": [
+       "maximize",
+       "reset"
+      ]
+     }
+    },
+    "required": [
+     "do"
+    ],
     "additionalProperties": false
    },
    "risk": "local",
@@ -4427,8 +4372,8 @@
    "name": "multiChart.saveGrid",
    "domain": "multiChart",
    "target": "multiChartSaved",
-   "summary": "Save the Multi Chart grid on screen under a new name, with its tickers and timeframes. Never replaces a saved grid.",
-   "hints": "target = the Saved grids entry. name = the new name, 60 characters at most.",
+   "summary": "Save the Multi Chart grid under a new name.",
+   "hints": "target = the Saved grids entry. name = the new name, 60 characters at most. Keeps its tickers and timeframes; never replaces a saved grid.",
    "args": {
     "type": "object",
     "properties": {
@@ -4455,8 +4400,8 @@
    "name": "multiChart.deleteSaved",
    "domain": "multiChart",
    "target": "multiChartSaved",
-   "summary": "Delete one of the member's own saved grids. Permanent. Prebuilt grids cannot be deleted here.",
-   "hints": "target = the Saved grids entry. name = the grid's name.",
+   "summary": "Delete a saved Multi Chart grid. Permanent.",
+   "hints": "target = the Saved grids entry. name = the grid's name. Only the member's own; prebuilt grids cannot be deleted here.",
    "args": {
     "type": "object",
     "properties": {

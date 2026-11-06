@@ -4311,28 +4311,8 @@
     }
    }
   },
-  "multichart.status": {
-   "digest": "141d4bc540565d00",
-   "phrasings": {
-    "is multi chart on": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "are my multi chart crosshairs synced": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "which grid is multi chart using": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
   "multichart.maximize": {
-   "digest": "36ca47636b6420c1",
+   "digest": "a628bebd0a43dca8",
    "phrasings": {
     "maximize the AMD chart": {
      "digest": "44136fa355b3678a",
@@ -4352,7 +4332,7 @@
    }
   },
   "multichart.restoreGrid": {
-   "digest": "21debc9651f9e9ee",
+   "digest": "b312e60e1b4a8101",
    "phrasings": {
     "restore the grid": {
      "digest": "44136fa355b3678a",
@@ -4372,7 +4352,7 @@
    }
   },
   "multichart.resetCell": {
-   "digest": "c74da51378abc333",
+   "digest": "f42f6e85c2578247",
    "phrasings": {
     "reset the AMD cell": {
      "digest": "44136fa355b3678a",

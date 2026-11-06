@@ -279,8 +279,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-056 | Set a cell's timeframe | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-057 | Set a cell's chart style | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-058 | Toggle a cell's session | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-059 | Reset a cell to my chart | MISSING | VERIFIED | multiChart.resetCell (branch agent/pl/multichart-control, local). |
-| C3-060 | Maximize or restore a cell | MISSING | VERIFIED | multiChart.maximize, multiChart.restoreGrid (branch agent/pl/multichart-control, local). |
+| C3-059 | Reset a cell to my chart | MISSING | VERIFIED | multiChart.cell reset (branch agent/pl/multichart-control, local). |
+| C3-060 | Maximize or restore a cell | MISSING | VERIFIED | multiChart.cell maximize, multiChart.setOption maximized (branch agent/pl/multichart-control, local). |
 | C3-061 | Open shared grid settings | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-062 | Set an alert from a cell | IMPLEMENTED / UNVERIFIED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
 | C3-152 | Toggle the TBD section | IMPLEMENTED / UNVERIFIED | MISSING | The offer was withdrawn: widget.setOption no longer offers tbdOpen because the widget never read it (2469b8c548). |
@@ -633,8 +633,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-056 | Multi Chart | Set a cell's timeframe | BLOCKED | none | n/a | none |
 | C3-057 | Multi Chart | Set a cell's chart style | BLOCKED | none | n/a | none |
 | C3-058 | Multi Chart | Toggle a cell's session | BLOCKED | none | n/a | none |
-| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED | multiChart.resetCell | pass | panel, scripted model |
-| C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED | multiChart.maximize, multiChart.restoreGrid | pass | browser, scripted model |
+| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED | multiChart.cell reset | pass | panel, scripted model |
+| C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED | multiChart.cell maximize, multiChart.setOption maximized | pass | browser, scripted model |
 | C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none | n/a | none |
 | C3-062 | Multi Chart | Set an alert from a cell | BLOCKED | none | n/a | none |
 | C3-063 | Watchlist | Open a list in a widget (own) | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:158 | pass 1/1 | runtime, no panel |

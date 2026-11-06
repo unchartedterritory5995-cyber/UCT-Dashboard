@@ -10692,52 +10692,23 @@
       ]
     },
     {
-      "id": "multichart.status",
-      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
-      "capabilities": [
-        "multiChart.status"
-      ],
-      "board": "MULTI",
-      "needs": [
-        "multiChart.status"
-      ],
-      "model": {
-        "ops": [
-          {
-            "action": "multiChart.status",
-            "target": "$multiChart[0]",
-            "args": {}
-          }
-        ]
-      },
-      "expect": {
-        "says": [
-          "Crosshair sync: off",
-          "Time-range sync: off"
-        ]
-      },
-      "phrasings": [
-        "is multi chart on",
-        "are my multi chart crosshairs synced",
-        "which grid is multi chart using"
-      ]
-    },
-    {
       "id": "multichart.maximize",
       "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
       "capabilities": [
-        "multiChart.maximize"
+        "multiChart.cell"
       ],
       "board": "MULTI",
       "needs": [
-        "multiChart.maximize"
+        "multiChart.cell"
       ],
       "model": {
         "ops": [
           {
-            "action": "multiChart.maximize",
+            "action": "multiChart.cell",
             "target": "$charts[1]",
-            "args": {}
+            "args": {
+              "do": "maximize"
+            }
           }
         ]
       },
@@ -10766,18 +10737,21 @@
       "id": "multichart.restoreGrid",
       "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
       "capabilities": [
-        "multiChart.restoreGrid"
+        "multiChart.setOption"
       ],
       "board": "MULTI",
       "needs": [
-        "multiChart.restoreGrid"
+        "multiChart.setOption"
       ],
       "model": {
         "ops": [
           {
-            "action": "multiChart.restoreGrid",
+            "action": "multiChart.setOption",
             "target": "$multiChart[0]",
-            "args": {}
+            "args": {
+              "option": "maximized",
+              "on": false
+            }
           }
         ]
       },
@@ -10811,18 +10785,20 @@
       "id": "multichart.resetCell",
       "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
       "capabilities": [
-        "multiChart.resetCell"
+        "multiChart.cell"
       ],
       "board": "MULTI",
       "needs": [
-        "multiChart.resetCell"
+        "multiChart.cell"
       ],
       "model": {
         "ops": [
           {
-            "action": "multiChart.resetCell",
+            "action": "multiChart.cell",
             "target": "$charts[1]",
-            "args": {}
+            "args": {
+              "do": "reset"
+            }
           }
         ]
       },

@@ -60,7 +60,7 @@ export const TOPICS = [
   {
     id: 'multiChart', title: 'Multi Chart',
     words: [/\bmulti[\s-]?(?:charts?|grids?)\b/, /\bgrid mode\b/, /\b(?:saved|my) grids?\b/],
-    caps: ['multiChart.status', 'multiChart.enter', 'multiChart.exit', 'multiChart.setOption', 'multiChart.restoreGrid', 'multiChart.loadGroup', 'multiChart.openSaved', 'multiChart.maximize', 'multiChart.resetCell', 'multiChart.saveGrid', 'multiChart.deleteSaved'], productHas: true,
+    caps: ['multiChart.enter', 'multiChart.exit', 'multiChart.setOption', 'multiChart.loadGroup', 'multiChart.openSaved', 'multiChart.cell', 'multiChart.saveGrid', 'multiChart.deleteSaved'], productHas: true,
     canDo: 'switch Multi Chart on and off, set its shape up to 4×4, turn crosshair sync, time-range sync and Groups mode on or off, load a theme group and step through groups, maximize or restore a cell, reset a cell, and open, save or delete your saved grids',
     known: () => ['publishing a prebuilt grid'],
     planned: null,
