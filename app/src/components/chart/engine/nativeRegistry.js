@@ -962,10 +962,11 @@ const RAW_DEFS = [
     [
       periodInput('period', 'Period', 14, 2, 200),
       // ⭐ `multiplier` IS AN INPUT THE COMPUTE READS, AND IT HAD TO BE.
-      // `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
-      // `lineStyle` — `SUBSTITUTABLE_PLOT_FIELDS`, locked by spec §3.1 — and a
-      // band's WIDTH IN PRICE is none of those. Written as a plot literal it
-      // would render one multiplier for every user while the settings form
+      // `$<inputKey>` substitution is legal in `color`, `width`, `levels`,
+      // `lineStyle`, `colorUp` and `colorDown` — `SUBSTITUTABLE_PLOT_FIELDS`,
+      // locked by spec §3.1 — and a band's WIDTH IN PRICE is none of those.
+      // Written as a plot literal it would render one multiplier for every user
+      // while the settings form
       // offered a control that changed nothing, and `atr_bands_14_2.json`
       // (multiplier 2) would stay green the whole time.
       { key: 'multiplier', type: 'float', label: 'Multiplier', default: 2, min: 0.1, max: 10, step: 0.1 },
@@ -3792,12 +3793,22 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
 // dot column when off. Colours and width are the Style tab's and never reach the
 // server (`resolve_inputs` drops undeclared keys).
 //
-// ⚠️ ONE COLOUR PER PLOT IN THIS UNIT. `resolvePlotForInstance` substitutes only
-// `color`, `width` and `lineStyle`, so a two-colour line (the Phase preset's
-// bull-above / bear-below) needs `colorUp`/`colorDown` added to
-// `SUBSTITUTABLE_PLOT_FIELDS` and the resolver — a small generic follow-up, not
-// smuggled into this definition. Classic draws the line in the informational
-// blue IBD draws it in, the platform's ≤2 hues + 1 neutral budget intact.
+// ⭐ TWO COLOURS ON THE LINE (Phase 1, unit 5). `rsLine` is `colorMode:
+// 'column:rsAbove'` with `colorUp: '$lineUpColor'` / `colorDown: '$lineDownColor'`
+// — both substitutable since unit 5 added them to `SUBSTITUTABLE_PLOT_FIELDS` and
+// `pool.resolvePlotForInstance` (spec §3.1 carries the same sentence). Classic
+// defaults BOTH to the informational blue IBD draws the line in, so it still
+// draws ONE hue and the platform's ≤2 hues + 1 neutral budget holds (plan §3,
+// decision 9); the Phase preset sets `bull` above / `bear` below, the plan's
+// documented three-hue exception. `rsAbove` is the server's 0/1/null column
+// declared as a HIDDEN plot, field for field as the Awesome Oscillator declares
+// `rising`, because `colorMode: 'column:<key>'` needs a declared column and
+// `events[]` cannot be declared on this lane (see the note at the end). The line
+// keeps `color: '$lineUpColor'` too: the legend chip is one swatch
+// (`readout.resolvePlotColor` reads `color`), and it is the series colour under
+// any point the condition column did not reach.
+// ⚰️ This said "ONE COLOUR PER PLOT IN THIS UNIT … a small generic follow-up";
+// unit 5 is that follow-up.
 const RS_LINE_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
@@ -3824,7 +3835,16 @@ const RS_LINE_RAW = {
     presets: [
       { id: 'classic', label: 'Classic (O\'Neil)', origin: 'IBD, MarketSurge',
         inputs: { benchmark: 'SPY', maLength: 21, maType: 'EMA', lookback: 252, priceTolerance: 2,
-          showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true } },
+          showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true,
+          lineUpColor: '#6ba3be', lineDownColor: '#6ba3be' } },
+      // ⭐ The two line hexes are the Classic chart preset's `bull`/`bear` roles
+      // (`designTokens.IND_TOKENS.classic`, the app's --gain/--loss). Literals,
+      // because a preset is a set of INPUT VALUES and a colour input holds the
+      // colour the picker would hold, not a token reference.
+      { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
+        inputs: { benchmark: 'SPY', maLength: 21, maType: 'EMA', lookback: 252, priceTolerance: 2,
+          showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true,
+          lineUpColor: '#3cb868', lineDownColor: '#e74c3c' } },
     ],
   },
   placement: { target: 'pane', pane: { height: 0.18 } },
@@ -3848,7 +3868,11 @@ const RS_LINE_RAW = {
     { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what Mansfield and StockCharts use.' },
-    { ...colorInput('lineColor', 'Line', '#6ba3be'), group: 'Line' },
+    // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
+    // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
+    // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
+    { ...colorInput('lineUpColor', 'Line above average', '#6ba3be'), group: 'Line' },
+    { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line' },
     { ...colorInput('maColor', 'Average', '#8a8574'), group: 'Line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'New-high lookback', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
@@ -3862,7 +3886,14 @@ const RS_LINE_RAW = {
     { ...colorInput('dotPartialColor', 'Short-history dot', '#8a8574'), group: 'New highs' },
   ],
   plots: [
-    { key: 'rsLine', label: 'RS', style: 'line', color: '$lineColor', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+    { key: 'rsLine', label: 'RS', style: 'line', colorMode: 'column:rsAbove',
+      color: '$lineUpColor', colorUp: '$lineUpColor', colorDown: '$lineDownColor', width: '$lineWidth',
+      role: 'primary', legend: { decimals: 4 } },
+    // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
+    // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
+    // by the line's colour rule. The Awesome Oscillator's `rising` is the
+    // precedent, field for field.
+    { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
     { key: 'rsMa', label: 'MA', style: 'line', color: '$maColor', width: 1, lineStyle: 'dashed', role: 'context', legend: { hide: true } },
     { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 1, role: 'context',
       marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },

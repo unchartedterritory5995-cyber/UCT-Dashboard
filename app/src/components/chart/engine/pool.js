@@ -236,9 +236,13 @@ export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = fal
 
   let out = null
   // `lineStyle` is here because VWAP's user-facing style picker has to reach the
-  // series (B3 Task 8) — see `SUBSTITUTABLE_PLOT_FIELDS`. `levels` is handled
-  // below because it is per-ELEMENT rather than whole-value.
-  for (const field of ['color', 'width', 'lineStyle']) {
+  // series (B3 Task 8); `colorUp`/`colorDown` because UCT RS's Phase preset
+  // colours the line by its position against its average from TWO colour inputs
+  // (2026-11-05) — see `SUBSTITUTABLE_PLOT_FIELDS`. `levels` is handled below
+  // because it is per-ELEMENT rather than whole-value. The binder reads the
+  // plot this returns (`planBindings` → `b.plot`), so `columnColorsForPlot`
+  // sees the member's pair, not the definition's defaults.
+  for (const field of ['color', 'width', 'lineStyle', 'colorUp', 'colorDown']) {
     const key = refs[field]
     if (!key) continue
     const v = inputs[key]
