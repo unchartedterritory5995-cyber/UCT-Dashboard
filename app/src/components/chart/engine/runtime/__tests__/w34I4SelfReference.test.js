@@ -208,6 +208,21 @@ describe('W34-I4: scope of the rewrite', () => {
       expect(v2SelfReferenceStatements(st, version)).toBe(st)
     }
   })
+  // ⛔ Measure-pair finding (`earnings-sr-levels-lazybear`, v1): a self-reference that
+  // carries a `?:` keeps master's host fold, so its below-v4 test never reaches the VM's
+  // unsettled `na` reading and the script stays drawn exactly as on master.
+  it('a self-reference with a ?: or iff is untouched and still builds with no na-test', () => {
+    for (const body of [
+      ['flag = close > open ? 1 : 0', 'lvl = (nz(flag[1]) ? hl2 : nz(lvl[1]))', 'plot(lvl)'],
+      ['flag = close > open ? 1 : 0', 'lvl = iff(nz(flag[1]), hl2, nz(lvl[1]))', 'plot(lvl)'],
+    ]) {
+      const { st, version } = stmtsOf(src(body))
+      expect(v2SelfReferenceStatements(st, version)).toBe(st)
+      const p = probeRuntimeProgram(src(body))
+      expect(p.ok, p.ok ? '' : `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
+      expect(p.naTests).toBe(0)
+    }
+  })
   it('a name declared twice or reassigned is untouched', () => {
     for (const body of [['x = 1', 'x = 0.5*close + 0.5*nz(x[1])', 'plot(x)'], ['x = 0.5*close + 0.5*nz(x[1])', 'x := 2', 'plot(x)']]) {
       const { st, version } = stmtsOf(src(body))

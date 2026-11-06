@@ -106,6 +106,26 @@ src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
   are now slots, so the two v1 `?:` conditions are lowered to the VM and counted by `naTestsOf`, where the host fold
   had kept them inside a pure column. **LANE STOPPED here pending a coordinator decision (not merged, no final-tip).**
 
+## Regression fix (after measure-pair)
+- Cause: `ehl2_mode1` / `ehl2_mode2` (lines 8-9) are `x = (nz(earnings[1]) ? A : nz(x[1]))`: one-argument nz, so the
+  rewrite caught them. As slots, their v1 `?:` tests were lowered to the VM `SELECT`; `lowerIr.js::naTestsOf` counts a
+  below-v4 `?:` whose test is not a comparison (`nz(...)` is numeric), so the fallback declined `runtime:na-test`.
+- Master's value did NOT rest on the unknown seed: the only self read is `nz(x[1])` (0 on bar 0 under either rule) and
+  the test is `nz(...)` (never `na`). So the decline was not honest; the matcher is narrowed.
+- Fix: `v2SelfReferenceStatements` skips a definition whose right side has a `?` or `iff` (`hasConditional`): the
+  statement array is returned unchanged, so such scripts build byte-identically to master. Coral has no conditional in
+  `i1`..`i6` and stays rewritten (spike: `ok`, 4 outputs, `naTests` 0).
+- Rail: `a self-reference with a ?: or iff is untouched and still builds with no na-test` (synthetic earnings shape,
+  both spellings); rail 18 passed. Hand mutants (`muts-cond.json`): M10 conditional rewritten KILLED, M11 `iff`
+  rewritten KILLED. Measure-pair must be re-run (coordinator schedules).
+
+## Coral's next wall (not this lane's)
+`runtime:withheld-all`: the `Trend` plot's `color = tc` changes per bar (`bfr > nz(bfr[1]) ? green : ...`), and
+`memberPaneDefinition.js::runtimeRowColour` withholds a per-bar colour below v4 ("the colour rules of a v1 script have
+no capture here": v1-v3 named colours are not witnessed). The values are served; only the colour is withheld. Not
+fixable here without guessing the v1 palette. Owner: the RT6/C37 colour lane, after a capture of the v1-v3 colour
+constants (`green`/`red`/`blue`/`gray`) on a per-bar `plot(color=)`.
+
 ## final-tip: NOT YET RUN
 Expected classification: runtime-on census - `coral-trend-indicator-lazybear` moves off `pine:state` (INTENDED); other
 v1/v2 scripts with nz-guarded self-references may change runtime walls/values (INTENDED, list them); C18 out/probe

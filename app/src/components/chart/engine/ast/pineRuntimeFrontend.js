@@ -850,6 +850,13 @@ export function v2SelfReferenceStatements(stmts, version) {
     }
     return reads > 0
   }
+  /** ⛔ MEASURE-PAIR FINDING (runtime-on, `earnings-sr-levels-lazybear`, v1): a definition
+   *  carrying a `?:` or `iff` (`x = (c ? a : nz(x[1]))`) is NOT rewritten. As a slot its
+   *  test is lowered to the VM's `SELECT`, whose below-v4 `na` reading is unsettled
+   *  (`lowerIr.js::naTestsOf`, RT1), so the run declined `runtime:na-test` where master's
+   *  host fold served it (its bar 0 is `nz`'s 0 under either seed rule, so master's value
+   *  does not rest on the unknown seed). Such a definition keeps master's answer. */
+  const hasConditional = (rhs) => rhs.some((t) => isPunct(t, '?') || isIdent(t, 'iff'))
   let changed = false
   const out = []
   for (const st of stmts) {
@@ -858,7 +865,9 @@ export function v2SelfReferenceStatements(stmts, version) {
     const nameTok = eq === 1 && isIdent(toks[0]) ? toks[0] : null
     const plain = nameTok && !(st.sub && st.sub.length) && !(st.body && st.body.length)
       && declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)
-    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value)) { out.push(st); continue }
+    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || hasConditional(toks.slice(eq + 1))) {
+      out.push(st); continue
+    }
     const eqTok = toks[eq]
     out.push({ ...st, header: [nameTok, eqTok, { ...eqTok, kind: 'ident', value: 'na' }], body: [], sub: [] })
     out.push({ ...st, header: [nameTok, { ...eqTok, value: ':=' }, ...toks.slice(eq + 1)] })
