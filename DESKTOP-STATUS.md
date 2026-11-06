@@ -554,3 +554,12 @@ Merging to master is still not authorized in this file; the owner approves it di
 - W9 design doc DEEP_BARS sentences fixed per R13: docs/pine-w9-strategy-design 72460210b9.
 - lookback_agreement.json: master regenerates distinct_trees_walked 608->607 (rows unchanged); W6-T5 tree 605. Investigator running (which script stopped yielding a tree, regression or benign). W6-T5 final-tip held until known.
 - In flight: W6-T5 (measure re-run), W6-T6, W6-T1. Next engine: 20.
+
+
+## 2026-11-06 afternoon
+- LOOKBACK oracle deterministic: PR #891 -> master a3b8f0fb59 (frozen clock; timed-out scripts contribute nothing, listed in `timed_out`; 608->594 trees by design; rows unchanged). Review GO-WITH-NOTES. Full final-tips should no longer dirty tools/lookback_agreement.json.
+- W6-T6 LANDED as ENGINE 20: PR #892 -> master bde38b0d69 (bump 08c8186133; digests Node 24.13.1; smoke LOCAL 4/4; service tests 128/128 first run). Review GO-WITH-NOTES @63857e344e; N1 refused by name; N1b (f(q.arr), a = q.arr) FOLLOW-UP -> add to capture row Q-W6T6-H.
+- W6-T5: review GO-WITH-NOTES @21d72f793e after NO-GO B1 (even-count median / int-array stats served as fractions -> now refused by name). Measure-pair rerun in progress; then merge master, final-tip; lands as ENGINE 21.
+- W6-T1: review pending; measure runtime-1 in progress.
+- New: W34-I4 builder (light phase), W34-I6 spec writer.
+- Heavy cap: 2 concurrent jobs (coordinator-ordered) after repeated low-memory stops.
