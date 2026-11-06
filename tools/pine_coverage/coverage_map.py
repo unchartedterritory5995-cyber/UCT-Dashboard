@@ -682,18 +682,99 @@ def script_verdict(verdicts):
 # reads these tags; no wall LABEL is changed by them.
 TAG_FOR_IN = "for-in"
 TAG_BARE_SECURITY = "bare-security"
+# ⭐ W6 T1 - the W6 guards whose label names a collection or a type that is not what is behind them
+# (W6-BREAKDOWN section 0, finding 3). Each tag is read off the step's own detail AND the script's
+# unpeeled source; `targets.py::rt_wave` re-waves the wall by it. No wall LABEL changes.
+#   ltf-array  `pine:collection` "`x` is read as an array here and nothing in this script creates it",
+#              where `x` is bound by `request.security_lower_tf(…)` in the unpeeled source: the peel
+#              removed that line, so the array is the lower-timeframe request's result (W7).
+#   tuple      `pine:collection` whose step text is a bare bracket list `[a, …]`. Pine has no array
+#              literal, so that statement is a tuple value (a function's or an `if` arm's), not a
+#              collection (W4, beside `runtime:block-value`).
+#   library    `pine:type` / `pine:member` whose head is an `import` alias, or a name declared with a
+#              library's type or from a library's call (`chr.DateTimeWindow x = …`, `x = chr.f(…)`) (W8).
+#   footprint  `pine:type` / `pine:member` whose head is declared a `footprint` / `volume_row` (the types
+#              `request.footprint` returns) or bound by `request.footprint(…)` (W7).
+TAG_LTF_ARRAY = "ltf-array"
+TAG_TUPLE = "tuple"
+TAG_LIBRARY = "library"
+TAG_FOOTPRINT = "footprint"
+
+_NOTHING_CREATES = re.compile(r"`([A-Za-z_]\w*)` is read as an array here and nothing in this script creates it")
+_LTF_BIND = re.compile(r"(\[[^\[\]]*\]|\b[A-Za-z_]\w*)\s*:?=\s*request\s*\.\s*security_lower_tf\s*\(")
+_TUPLE_TEXT = re.compile(r"^\[[^\[\]]*\]$")
+_IMPORT = re.compile(r"^[ \t]*import\s+[\w.-]+/(\w+)/\d+(?:[ \t]+as[ \t]+(\w+))?", re.M)
 
 
-def _wall_tags(guard, probe, declined):
+class SourceFacts:
+    """What the W6 T1 tags read off a script's unpeeled source (comments and string contents removed)."""
+
+    def __init__(self, src):
+        self.code = strip_code(src or "")[0]
+        self.aliases = {m.group(2) or m.group(1) for m in _IMPORT.finditer(self.code)}
+        self.ltf = set()
+        for m in _LTF_BIND.finditer(self.code):
+            t = m.group(1)
+            self.ltf.update(re.findall(r"[A-Za-z_]\w*", t) if t.startswith("[") else [t])
+
+    def _decls(self, name):
+        # `[var] [Type | ns.Type[<…>][[]]] name = rhs` (or `:=`): (declared type, rhs) per binding of `name`
+        rx = (r"^[ \t]*(?:(?:var|varip)\s+)?(?:([A-Za-z_][\w.]*)(?:<[^>\n]*>)?(?:\[\])?[ \t]+)?%s[ \t]*:?=(?!=)[ \t]*([^\n]*)"
+              % re.escape(name))
+        return [(m.group(1) or "", m.group(2)) for m in re.finditer(rx, self.code, re.M)]
+
+    def library_head(self, head):
+        if head in self.aliases:
+            return True
+        for ty, rhs in self._decls(head):
+            if "." in ty and ty.split(".")[0] in self.aliases:
+                return True
+            m = re.match(r"([A-Za-z_]\w*)\s*\.", rhs)
+            if m and m.group(1) in self.aliases:
+                return True
+        return False
+
+    def footprint_head(self, head):
+        return any(ty in ("footprint", "volume_row") or re.match(r"request\s*\.\s*footprint\s*\(", rhs)
+                   for ty, rhs in self._decls(head))
+
+
+def _member_head(guard, probe):
+    """The name a `pine:type` / `pine:member` step's dotted read starts from: `pine:type`'s token is the
+    dotted name itself; `pine:member`'s token is the member, read back along the step text's chain."""
+    tok = probe.get("token") or ""
+    if not tok:
+        return None
+    if guard == "pine:type":
+        return tok.split(".")[0]
+    m = re.search(r"([A-Za-z_]\w*)(?:\s*\.\s*\w+|\s*\((?:[^()]|\([^()]*\))*\))*\s*\.\s*%s\b" % re.escape(tok),
+                  probe.get("text") or "")
+    return m.group(1) if m else None
+
+
+def _wall_tags(guard, probe, declined, facts=None):
     tags = []
-    if guard == "runtime:loop" and "for … in" in ((probe.get("message") or "") + (declined.get("why") or "")):
+    detail = (probe.get("message") or "") + (declined.get("why") or "")
+    if guard == "runtime:loop" and "for … in" in detail:
         tags.append(TAG_FOR_IN)
     if guard == "runtime:call-undeclared-builtin-state" and probe.get("token") == "security":
         tags.append(TAG_BARE_SECURITY)
+    if guard == "pine:collection":
+        m = _NOTHING_CREATES.search(detail)
+        if m and facts is not None and m.group(1) in facts.ltf:
+            tags.append(TAG_LTF_ARRAY)
+        if _TUPLE_TEXT.match((probe.get("text") or "").strip()):
+            tags.append(TAG_TUPLE)
+    if guard in ("pine:type", "pine:member") and facts is not None:
+        head = _member_head(guard, probe)
+        if head and facts.library_head(head):
+            tags.append(TAG_LIBRARY)
+        elif head and facts.footprint_head(head):
+            tags.append(TAG_FOOTPRINT)
     return tags
 
 
-def runtime_wall_steps(row):
+def runtime_wall_steps(row, src=None):
     """[(wall, tags)] over every peel step of a runtime-on census row: the runtime lane's own
     walls, its probe's guard where it declined with a position and the probe AGREES with the door,
     else the decline's code, else the host's guards (a refusal the runtime lane was never offered).
@@ -703,8 +784,11 @@ def runtime_wall_steps(row):
     `runtimeDeclined.code` is what actually declined the script. Taking the probe's guard first
     called 79 steps `runtime:object-op` in the 2026-11-02 map, of which 2 agreed with the door
     (W4-BREAKDOWN section 0, finding 2). A row from before `agrees` existed carries none: the probe
-    is then trusted, as it always was."""
+    is then trusted, as it always was.
+
+    `src` is the script's unpeeled source; without it the W6 T1 tags that read the source are not set."""
     out = []
+    facts = SourceFacts(src) if src is not None else None
     for si, st in enumerate(row.get("steps") or []):
         if st.get("attached"):
             break
@@ -723,7 +807,7 @@ def runtime_wall_steps(row):
             g = "host:" + ",".join(gs)
         if si > 0 and g == "pine:undefined":
             continue
-        out.append((g, _wall_tags(g, pr, rd)))
+        out.append((g, _wall_tags(g, pr, rd, facts)))
     return out
 
 
@@ -758,7 +842,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         if k in on:
             continue
         r = rows[k]
-        steps = runtime_wall_steps(r)
+        steps = runtime_wall_steps(r, open(inputs[k]["path"], encoding="utf-8").read())
         ws = [g for g, _ in steps]
         walls[k] = ws
         if not ws and inv is not None:
@@ -799,7 +883,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
             "first": dict(sorted(first.items(), key=lambda kv: (-kv[1], kv[0]))),
             "stuck": dict(sorted(stuck.items(), key=lambda kv: (-kv[1], kv[0]))),
             "byScript": {k: walls[k] for k in sorted(walls)},
-            # W4 T0: the detail behind the walls whose WAVE depends on it (`for-in`, `bare-security`)
+            # W4 T0 / W6 T1: the detail behind the walls whose WAVE depends on it (the TAG_* above)
             "tags": {k: wall_tags[k] for k in sorted(wall_tags)},
             "attachedDirtyWalls": {k: dirty_walls[k] for k in sorted(dirty_walls)},
         },

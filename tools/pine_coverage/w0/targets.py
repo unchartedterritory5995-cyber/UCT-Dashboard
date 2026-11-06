@@ -56,6 +56,12 @@ def rt_wave(w, tags=(), order_strategy=False):
       * a bare `security(…)` (the v1-v4 spelling) reaches `runtime:call-undeclared-builtin-state`
         and is W7 (request.*): tag `bare-security`;
       * `runtime:no-output` on a script that places orders is W9 (the strategy tester).
+    ⭐ W6 T1 - four W6-labelled guards, by the same means (W6-BREAKDOWN section 0, finding 3; the tags
+    are coverage_map.py's TAG_*):
+      * `pine:collection` on an array the peel orphaned from its `request.security_lower_tf` is W7: `ltf-array`;
+      * `pine:collection` on a bare bracket list is a tuple value, not a collection, so W4: `tuple`;
+      * `pine:type` / `pine:member` on a library's alias or type is W8: `library`;
+      * `pine:type` / `pine:member` on a `request.footprint` value is W7: `footprint`.
     `tags` is `runtimeOn.walls.tags[script][wall]` (coverage_map.py); `order_strategy` is whether
     the script is a strategy that places orders. Called with neither, it answers by label alone."""
     if w == "runtime:loop" and "for-in" in tags:
@@ -64,6 +70,14 @@ def rt_wave(w, tags=(), order_strategy=False):
         return "W7"
     if w == "runtime:no-output" and order_strategy:
         return "W9"
+    if w == "pine:collection" and CM.TAG_LTF_ARRAY in tags:
+        return "W7"
+    if w == "pine:collection" and CM.TAG_TUPLE in tags:
+        return "W4"
+    if w in ("pine:type", "pine:member") and CM.TAG_LIBRARY in tags:
+        return "W8"
+    if w in ("pine:type", "pine:member") and CM.TAG_FOOTPRINT in tags:
+        return "W7"
     if w in ("pine:builtin", "pine:function", "pine:arity", "pine:input-kind", "pine:named-argument", "pine:role-order"):
         return "W1"
     if w in ("pine:drawing", "host:pine:object-removal-lost") or w.startswith("host:pine:object"):
