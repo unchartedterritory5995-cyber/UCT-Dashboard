@@ -14,8 +14,9 @@ rule 11 (ast/strategyRepaint.js, runtime:strategy-repaint; barstate.isrealtime/i
 by their own guards before the broker retry); object door never retries (rule 4); record skeleton keyed by bar time with
 per-fill rule; spec gains a pinned-by table.
 
-Mutations (muts.json, run under heavy-mut.lock): control survived; drop-gate, drop-forming-bar-skip, drop-pinned,
-drop-rule-11, opcode-97, drop-window-refusal, drop-object-door-gate all KILLED.
+Mutations (muts.json, run under heavy-mut.lock): control survived; drop-forming-bar-skip, drop-pinned,
+drop-rule-11, opcode-97, drop-window-refusal, drop-object-door-gate KILLED. NOTE: muts.json drop-gate (strategyBrokerGate.js returns true) was
+KILLED only at a1f5262c33; at 2b91ad5cba it SURVIVED (review B1). It is superseded by muts4.json below.
 
 ## Measure-pair (tip a1f5262c33 vs own base worktree at 7f6dd3714d, HEAD asserted before and after each side)
 Logs: runs/w9-t1/mpA.log, mpA0 (production lane), mpA1 (runtime-on). An earlier attempt on the shared mpbase3 was void
@@ -38,3 +39,10 @@ pineRuntimeFrontendGate.test.js refused memberPaneDefinition importing pineRunti
 engine/strategyBrokerGateRegistry.js; the front end reads it, memberPaneDefinition registers the flag. Mutations (muts3.json): control
 survived; drop-gate and gate-read-in-closure KILLED. Failures left in the full run are the master baselines plus usePreferences.additionsOnly
 (red on base 7f6dd3714d).
+
+## B1 fix (review W9-T1 NO-GO @2b91ad5cba): the flag reader railed through the product path
+New rail strategyBrokerGate.product.test.js: strategyBrokerEnabled() under stubbed env (only '1' opens it); the registry default and
+a non-function registration are OFF; memberPaneDefinition.js's registration drives buildRuntimeIr with NO option: env unset/''/'0'/'true'
+refuse pine:strategy-call, env '1' retries into broker mode. muts4.json at this tip: control SURVIVED; drop-gate-reader-true,
+loosen-to-truthy, register-true, registry-default-true all KILLED. muts3 re-run: control SURVIVED, drop-gate and gate-read-in-closure
+KILLED. muts2.json is obsolete (its target text was replaced by the registry; BADMATCH) and is superseded by muts3/muts4.
