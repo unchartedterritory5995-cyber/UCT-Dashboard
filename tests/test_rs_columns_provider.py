@@ -83,6 +83,21 @@ def test_resolve_inputs_clamps_numbers_and_coerces_bools(v2_row):
     assert "lineColor" not in out, "undeclared keys are dropped, so colours never key the cache"
 
 
+def test_the_two_clamp_paths_round_an_integer_input_the_same_way(v2_row):
+    """Review B9 residual: `_clamp_number` (the route) and
+    `resolve_phase1_inputs` (direct callers) must agree on 20.6 → 21; the pure
+    guard used to truncate to 20, so a chart and a scan could read one input
+    two ways."""
+    raw = {"lookback": 20.6, "maLength": 20.6}
+    route = rd.resolve_inputs("rsLine", raw)
+    pure = rsmod.resolve_phase1_inputs(raw)
+    assert route["lookback"] == pure["lookback"] == 21
+    assert route["maLength"] == pure["maLength"] == 21
+    raw = {"lookback": 20.4, "maLength": 2.4}
+    assert rd.resolve_inputs("rsLine", raw)["lookback"] == rsmod.resolve_phase1_inputs(raw)["lookback"] == 20
+    assert rd.resolve_inputs("rsLine", raw)["maLength"] == rsmod.resolve_phase1_inputs(raw)["maLength"] == 2
+
+
 def test_resolve_inputs_still_refuses_an_enum_outside_the_vocabulary(v2_row):
     with pytest.raises(rd.InputRejected):
         rd.resolve_inputs("rsLine", {"benchmark": "TSLA"})
