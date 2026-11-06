@@ -201,3 +201,4 @@ final-tip `runs/w6-t5/ftC.sh` -> `runs/w6-t5-final3/` (lock heavy-final2-w6-t5.l
 247 passed; vitest `Test Files 9 failed | 1372 passed`, `Tests 10 failed | 23608 passed | 122 skipped`. Failing: the
 named baselines plus hostParity.rail / hostParity.v8.rail (`arrays_basic`, `arrays_sort` withheld -> ok: the engine bump
 the coordinator applies at landing regenerates the digests).
+ready-check (`runs/w6-t5-final3`, HEAD e449c69a5b): `READY-CHECK FAIL: js failure outside the baseline allowlist: hostParity.rail.test.js` (the pending-bump digests above; ready-check not changed).
