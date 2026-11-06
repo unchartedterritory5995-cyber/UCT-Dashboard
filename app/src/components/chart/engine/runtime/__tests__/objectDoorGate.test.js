@@ -212,6 +212,88 @@ describe('⭐⭐ W4-T11 text builtins are gated at the object door', () => {
   })
 })
 
+// ⭐⭐ W6-T5 — the `array.*` members served after master c04bdbe2c1 (the W19-R2 port and the
+// reference-formula members) are NOT held at the door (`pineRuntimeFrontend.js::heldArray`,
+// the `false` flavour above): the same pane build at the door refuses with MASTER'S OWN guard
+// and sentence (`runtime:array`, naming the member), the pane builds it, and the door draws
+// exactly what master drew. measure-pair's C18 audit then shows the door byte-identical. MASTER_DOOR is pinned from master c04bdbe2c1 (this
+// file's `doorRun`, run in a master worktree, 2026-11-06). ⚠️ Three of master's answers are
+// the HOST object lane's, not this runtime's: for `fill`, `reverse` and `sort` it draws the
+// label from the array as built, without the write (`586.915` is o+h+l+c, `144.14` is the
+// open). That is master's live behaviour, pinned here so this lane cannot move it; it is
+// reported in the W6-T5 evidence, not changed here.
+// `array.median` / `array.stdev` were already BUILT by master at the door, so they are not
+// gated at build; the door's run keeps master's answer (`collections.js::MASTER_AT_DOOR`),
+// which `w6ArrayMembers.test.js` and `c18WhileAndLastBar.test.js` pin at the run level.
+describe('⭐⭐ W6-T5 array members are gated at the object door', () => {
+  const ARR = 'a = array.from(open, high, low, close)\nb = array.from(close, open, high, low)\n'
+  const REFUSED = { ok: false, labels: null }
+  const SHAPES_A = {
+    fill: ['array.fill(a, close, 1, 3)\nv = array.sum(a)\n', { ok: true, labels: ['586.915'] }],
+    insert: ['array.insert(a, 1, close)\nv = array.size(a) + array.get(a, 1)\n', REFUSED],
+    reverse: ['array.reverse(a)\nv = array.get(a, 0)\n', { ok: true, labels: ['144.14'] }],
+    lastindexof: ['v = array.lastindexof(a, close)\n', REFUSED],
+    range: ['v = array.range(a)\n', REFUSED],
+    abs: ['v = array.sum(array.abs(a))\n', REFUSED],
+    join: ['s = array.from("x", "yz")\nv = str.length(array.join(s, "-"))\n', REFUSED],
+    variance: ['v = array.variance(a)\n', REFUSED],
+    covariance: ['v = array.covariance(a, b)\n', REFUSED],
+    percentile_nearest_rank: ['v = array.percentile_nearest_rank(a, 50)\n', REFUSED],
+    sort: ['array.sort(a)\nv = array.get(a, 0)\n', { ok: true, labels: ['144.14'] }],
+    every: ['v = array.every(a) ? 1 : 0\n', REFUSED],
+    some: ['v = array.some(a) ? 1 : 0\n', REFUSED],
+  }
+  for (const [name, [body, master]] of Object.entries(SHAPES_A)) {
+    it(`${name}: the door draws what master drew`, () => {
+      expect(doorRun(H + ARR + body + label('v'))).toEqual(master)
+    })
+    it(`${name}: the runtime pane builds it`, () => {
+      const b = paneBuild(H + ARR + body + 'plot(v)\n')
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the same build at the object door refuses as master did (runtime:array, by name)`, () => {
+      const b = paneBuild(H + ARR + body + 'plot(v)\n', { objectDoor: true })
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:array')
+      expect(b.refusal.message).toContain(`array.${name}`)
+    })
+    it(`${name}: the method form at the object door refuses as master did`, () => {
+      const m = body.replace(new RegExp(`array\\.${name}\\((\\w+)(, )?`), (_, recv) => `${recv}.${name}(`)
+      const b = paneBuild(H + ARR + m + 'plot(v)\n', { objectDoor: true })
+      expect(m).not.toBe(body)
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:array')
+      expect(b.refusal.message).toContain(`array.${name}`)
+    })
+  }
+  it('an UNREAD binding of a gated member refuses at the door where master refused it (holdsArray keeps master\'s answer)', () => {
+    // Master counted an unheld `array.*` call as a collection binding, so it lowered the
+    // initialiser and refused it even though nothing reads `v`. The pane, which holds the
+    // member and knows it returns a number, builds it.
+    const src = H + ARR + 'v = array.range(a)\nplot(close)\n'
+    const door = paneBuild(src, { objectDoor: true })
+    expect(door.ok).toBe(false)
+    expect(door.refusal.guard).toBe('runtime:array')
+    expect(door.refusal.message).toContain('array.range')
+    expect(paneBuild(src).ok).toBe(true)
+  })
+  for (const name of ['median', 'stdev']) {
+    it(`${name}: master built it at the door, and the door still builds it`, () => {
+      const b = paneBuild(H + ARR + `v = array.${name}(a)\nplot(v)\n`, { objectDoor: true })
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the door draws what master drew (elements, empty, over state)`, () => {
+      const none = { ok: true, labels: [] }
+      expect(doorRun(H + ARR + `v = array.${name}(a)\n` + label('v'))).toEqual(none)
+      expect(doorRun(H + `e = array.new_float()\nv = array.${name}(e)\n` + label('v'))).toEqual(none)
+      expect(doorRun(H + STATE + 'x = array.from(close + k, open)\n' + `v = array.${name}(x)\n` + label('v'))).toEqual(none)
+    })
+  }
+  it('CONTROL: array.sum over the same array is master\'s and draws through the door', () => {
+    expect(doorRun(H + ARR + 'v = array.sum(a)\n' + label('v'))).toEqual({ ok: true, labels: ['586.915'] })
+  })
+})
+
 describe('W9-T1 the strategy broker is never reachable at the object door', () => {
   const SRC = ['//@version=5', 'strategy("t")', 'if bar_index == 3', '    strategy.entry("L", strategy.long)', 'plot(strategy.position_size)', ''].join(String.fromCharCode(10))
   it('the pane build with the broker on retries and builds; at the door it refuses pine:strategy-call as master does', () => {

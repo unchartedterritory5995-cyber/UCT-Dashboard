@@ -38,12 +38,12 @@ export function isFatal(e) { return !!e && (e.status === 401 || e.status === 402
  *  the whole pool down with it ("Couldn't load the Blitz pool", the owner, 2026-11-04, on his phone). Now a skill
  *  that fails for a non-fatal reason is skipped and the others still play; only a member-level refusal (signed
  *  out, unpaid, Study off) or EVERY skill failing surfaces as an error, and that error names the status. */
-async function skillSets(skillIds, size, fetcher) {
+async function skillSets(skillIds, size, fetcher, extra = null) {
   const sets = []
   let lastErr = null
   for (const skill_id of skillIds) {
     try {
-      sets.push(await fetcher(SESSIONS_URL, { method: 'POST', body: { kind: 'skill', skill_id, size } }))
+      sets.push(await fetcher(SESSIONS_URL, { method: 'POST', body: { kind: 'skill', skill_id, size, ...(extra || {}) } }))
     } catch (e) {
       if (isFatal(e)) throw e
       lastErr = e
@@ -55,10 +55,12 @@ async function skillSets(skillIds, size, fetcher) {
 }
 
 /** The chart (spot) items of several setups, one shuffled list. Each: id, skill, name, q, choices, bars
- *  (normalized), sessionId (so the attempt lands in a real session), difficulty. */
-export async function fetchSpotPool(skillIds = Object.keys(SETUP_SKILLS), size = 12, fetcher = studyFetch, seed) {
+ *  (normalized), sessionId (so the attempt lands in a real session), difficulty. `hard: true` asks the server for
+ *  the charts Hard mode may ask "what fired?" about (api/services/study_hard.py: a Yes chart nothing else fires on,
+ *  a No chart nothing fires on at all; owner, batch 21: "We cannot have incorrect examples and explanations!"). */
+export async function fetchSpotPool(skillIds = Object.keys(SETUP_SKILLS), size = 12, fetcher = studyFetch, seed, { hard = false } = {}) {
   const pool = []
-  for (const set of await skillSets(skillIds, size, fetcher)) {
+  for (const set of await skillSets(skillIds, size, fetcher, hard ? { hard: true } : null)) {
     for (const it of set.items || []) {
       if (it.type !== 'spot' || !it.bars?.bars?.length) continue
       pool.push({ id: it.id, skill: it.skill_id, name: setupName(it.skill_id), q: it.prompt_json?.q || it.prompt_json?.question || '', choices: it.prompt_json?.choices || ['Yes', 'No'], bars: normalizeBars(it.bars), sessionId: set.session_id, difficulty: it.difficulty })
@@ -84,6 +86,21 @@ export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart']
 export async function scoreAttempt(item, answer, timeMs, fetcher = studyFetch) {
   const a = await fetcher(ATTEMPTS_URL, { method: 'POST', body: { item_id: item.id, answer, time_ms: Math.max(0, Math.round(timeMs || 0)), session_id: item.sessionId } })
   return { ...a, forward: normalizeBars(a?.reveal?.forward_bars || []) }
+}
+
+/** The rest of a chart's forward strip after the reveal's first bars (POST /attempts/{id}/step; the server serves
+ *  them only to the member who answered). Resolves to the normalized bars past `have`; [] when there are none or the
+ *  call fails (the run-on then stops where the reveal's bars stop). */
+export async function fetchForwardRest(attempt, have, fetcher = studyFetch) {
+  const total = Number(attempt?.reveal?.forward_total || 0)
+  const id = attempt?.attempt_id
+  if (!id || total <= have) return []
+  try {
+    const r = await fetcher(`${ATTEMPTS_URL}/${encodeURIComponent(id)}/step`, { method: 'POST', body: { offset: have, n: total - have } })
+    return normalizeBars(r?.bars || [])
+  } catch {
+    return []
+  }
 }
 
 function pick(arr, n, rnd) { const a = [...arr]; const out = []; while (a.length && out.length < n) out.push(a.splice(Math.floor(rnd() * a.length), 1)[0]); return out }

@@ -113,3 +113,59 @@ def test_the_ws_quiet_counter_sits_only_on_an_existing_history():
     assert "elif hist and ts_ms * 1_000_000 - hist[-1][0] > _MEMOBS_QUIET_NS:" in block
     assert block.index("_memobs_bump(\"raw_t_quiet24_prints\")") < block.index("hist.append((ts_ms * 1_000_000, price))")
     assert ws._MEMOBS_QUIET_NS == 24 * 3600 * 1_000_000_000
+
+
+# ---- per-file page-cache residency (Linux only: mincore + /proc) ----
+linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="mincore and /proc are Linux-only")
+
+
+def _drop(path):
+    import os
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+    finally:
+        os.close(fd)
+
+
+@linux_only
+def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(tmp_path):
+    f = tmp_path / "hot.bin"
+    f.write_bytes(b"x" * (8 << 20))
+    f.read_bytes()
+    size = f.stat().st_size
+    hot = mem_observe._resident_bytes(str(f), size)
+    assert hot is not None and 0 < hot <= size
+    _drop(str(f))
+    cold1 = mem_observe._resident_bytes(str(f), size)
+    cold2 = mem_observe._resident_bytes(str(f), size)
+    # measuring must not fault the file in: a second measurement of a dropped file is still (near) empty
+    assert cold1 < size // 4 and cold2 < size // 4, (hot, cold1, cold2)
+
+
+@linux_only
+def test_file_cache_reports_top_files_and_deleted_open_files(tmp_path):
+    import os
+    big = tmp_path / "big.db"
+    big.write_bytes(b"y" * (4 << 20))
+    big.read_bytes()
+    gone = tmp_path / "gone.tmp"
+    gone.write_bytes(b"z" * (3 << 20))
+    fh = open(gone, "rb")
+    fh.read()
+    os.unlink(gone)
+    try:
+        rec = mem_observe.file_cache([str(tmp_path)])
+    finally:
+        fh.close()
+    names = [r[0] for r in rec["files"]]
+    assert any(n.endswith("big.db") for n in names)
+    assert any("gone.tmp" in n for n in names), names      # found through /proc/self/fd although deleted
+    assert rec["files_cached_mb"] >= 6
+
+
+def test_snapshot_with_files_never_raises(tmp_path, monkeypatch):
+    monkeypatch.setenv("MEM_OBSERVE_FILE_ROOTS", str(tmp_path))
+    rec = mem_observe.snapshot("t", [], with_files=True)
+    assert ("files" in rec) or ("files_err" in rec)

@@ -107,6 +107,12 @@ const SHIFT_F = chordById('SHIFT_F')
  *                          timeframe (Journal Daily/Weekly-only, a small popup)
  *                          renders none of that row rather than a row of dead
  *                          buttons
+ *   identityLabel          default null; a host whose `sym` is NOT a ticker (a Study
+ *                          item id: the chart shows an exhibit, round 18) hands the
+ *                          identity row its own label (a string or a node) and the
+ *                          pane looks nothing up on `sym`: no ticker meta, no
+ *                          delisting, no day change, no logo, and Shift+F flags
+ *                          nothing. null (every other surface) is byte-identical.
  *   tfCodes                default null; when an array is supplied it REPLACES
  *                          the user's favorited timeframes as the only codes
  *                          the bar offers (no auto-add of the current `tf`) —
@@ -132,6 +138,7 @@ function ChartPane({
   onActivate = undefined,
   showTfBar = true,
   tfCodes = null,
+  identityLabel = null,
   // ⭐ May the symbol search offer ECONOMIC series (`ECON:USCPI`)? Only a surface
   // whose chart is the member's own charting chart opts in (the /charts ChartWidget);
   // a trade drawer or a popup keeps a ticker-only search. Even then the category
@@ -237,13 +244,14 @@ function ChartPane({
   // Header shows the COMPANY NAME + logo (not the ticker). For a theme index it's
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
-  const meta = useTickerMeta(synthDailyOnly ? null : sym)
+  const exhibit = identityLabel != null   // the host names the chart; `sym` is not a ticker to look up
+  const meta = useTickerMeta((synthDailyOnly || exhibit) ? null : sym)
   // DELISTED (dead company — Yahoo, Twitter, Lehman): freeze every live path. Its bars
   // still flow through /api/bars (Massive retains delisted history to ~2003), but there is
   // no live quote/stream to chase — so liveUpdates goes false, the header quote/change is
   // suppressed, the watermark uses the curated name/sector (a reused symbol's live meta is
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
-  const delistedInfo = useDelisted(synthDailyOnly ? null : sym)
+  const delistedInfo = useDelisted((synthDailyOnly || exhibit) ? null : sym)
   const isDelisted = !!delistedInfo
   const companyName = (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
@@ -501,9 +509,9 @@ function ChartPane({
     : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, tfCap)
   shownTfCountRef.current = responsiveTfs.length
   const infoAbbrev = infoForceAbbrev
-  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
+  const effHeaderLabel = exhibit ? identityLabel : ((titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
     ? sym
-    : headerLabel
+    : headerLabel)
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
   const toggleTfFav = useCallback((code) => {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -804,7 +812,7 @@ function ChartPane({
     // in ChartPane.chordAdoption.test.jsx.
     // ⛔ `!e.repeat` stays HERE, not in the table: a held chord auto-repeats ~30x/sec
     // and this binding is a TOGGLE. That is a property of the binding, not the chord.
-    if (matchesChord(e, SHIFT_F) && !e.repeat) {
+    if (matchesChord(e, SHIFT_F) && !e.repeat && !exhibit) {
       e.preventDefault(); e.stopPropagation()
       const willFlag = !isFlagged(sym)
       toggleFlag(sym)
@@ -826,7 +834,7 @@ function ChartPane({
     // (document) hotkey handlers — typing a ticker must never trigger a tool or TF.
     e.stopPropagation()
     searchRef.current?.openWith(e.key)
-  }, [sym, isFlagged, toggleFlag, onSymbolChange])
+  }, [sym, isFlagged, toggleFlag, onSymbolChange, exhibit])
 
   useImperativeHandle(ref, () => ({
     openSettings,
@@ -918,13 +926,13 @@ function ChartPane({
           sym={sym}
           displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
-          logoSym={(_themeViewLabel || synthDailyOnly) ? null : sym}
+          logoSym={(_themeViewLabel || synthDailyOnly || exhibit) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
           economic={allowEconomic}
-          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
+          showChange={!exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
