@@ -1,5 +1,12 @@
 NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
 
+FINAL-TIP (full, tip defa05f551, clean tree, heavy-final3 lock): log runs/w34-d1/final3.log, outdir runs/w34-d1-final.
+rcs: gate=0 hyg=0 js=1 totals=ok errors=0 integrity=ok. ready-check FAIL on two non-baseline files, both not from D1:
+- vendorHarness.coverageAudit delta-rsi: re-run alone still INCONCLUSIVE, and it fails identically on master (pine-dsk-mpbase3 @7f6dd3714d).
+- usePreferences.additionsOnly: TodayHome.jsx (notebook, arrived via master merge) has 1 unbaselined opaque setPref site; not touched by this lane.
+Other failures are the listed baseline files. master was 15 commits ahead of the tip when run; not merged per coordinator.
+Served: ta.sma/ema/rma in a main-body block (C48 plot witnesses + differential); all else refused by name. Engine bump: yes (not edited).
+
 # W3W4-D1 evidence: per-call-site history for drawings (lane w34-d1)
 
 Branch feat/pine-w34-d1-drawing-history, base origin/master c855e8cadf (engine 18, W6-T3a already in).
