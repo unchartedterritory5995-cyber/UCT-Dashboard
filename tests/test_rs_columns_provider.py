@@ -364,6 +364,66 @@ def test_industry_composite_counts_only_members_that_have_bars(monkeypatch):
     assert out["resolved"] == "XLK" and out["fallback"] == "industry group too small"
 
 
+def test_industry_composite_takes_the_names_with_bars_not_the_alphabet_first_sixty(monkeypatch):
+    """Review finding B7. A 70-name group whose alphabet-first 60 have no bars
+    and whose last 10 do: sliced alphabetically the composite was empty (or a
+    tiny accident); ordered by presence the 10 carry it, and the label says 10."""
+    first60 = [f"A{i:02d}" for i in range(60)]
+    last10 = [f"Z{i:02d}" for i in range(10)]
+    assert len(first60) == rb.MAX_INDUSTRY_MEMBERS
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Healthcare", "industry": "Biotechnology"})
+    monkeypatch.setattr(rb, "_members_of", lambda ind: first60 + last10)
+    monkeypatch.setattr(rb, "_cap_universe", lambda: set())
+    store = {m: _bars([100 + i, 101 + i, 103 + i]) for i, m in enumerate(last10)}
+    store["XLV"] = _bars([1, 1, 1])
+    fetch = _fetcher(store)
+    out = rb.resolve_benchmark("Z03", "INDUSTRY", "D", 10, fetch)
+    assert out["resolved"] == "INDUSTRY:Biotechnology" and out["fallback"] is None
+    assert out["label"] == "Biotechnology (equal-weight, 10 names)"
+    assert [b["t"] for b in out["bars"]] == [1000, 1001, 1002]
+    full = [s for s, _, c in fetch.calls if c == 10]
+    assert set(last10) <= set(full), "every name with bars was inside the fetch cap"
+    assert len(full) == rb.MAX_INDUSTRY_MEMBERS, "the cap still bounds the full reads"
+    probes = [s for s, _, c in fetch.calls if c == 1]
+    assert sorted(probes) == sorted(first60 + last10), "the whole group was probed once, cheaply"
+
+
+def test_industry_members_in_the_cap_universe_come_before_the_rest_when_all_have_bars(monkeypatch):
+    names = [f"A{i:02d}" for i in range(60)] + [f"Z{i:02d}" for i in range(10)]
+    monkeypatch.setattr(rb, "_cap_universe", lambda: {f"Z{i:02d}" for i in range(10)} | {"BRK-B"})
+    fetch = _fetcher({m: _bars([1, 2]) for m in names + ["BRK.B"]})
+    ordered = rb.order_industry_members(names, "D", fetch)
+    assert ordered[:10] == [f"Z{i:02d}" for i in range(10)], "cap-universe names first, alphabetical within"
+    assert ordered[10:] == [f"A{i:02d}" for i in range(60)]
+    # a class share (bars present) is checked in the cap universe's hyphen form
+    assert rb.order_industry_members(names + ["BRK.B"], "D", fetch)[0] == "BRK.B"
+
+
+def test_industry_ordering_puts_presence_ahead_of_cap_membership(monkeypatch):
+    names = [f"N{i:02d}" for i in range(61)]
+    monkeypatch.setattr(rb, "_cap_universe", lambda: {"N00", "N01"})       # in the universe, but no bars
+    fetch = _fetcher({"N60": _bars([1]), "N59": _bars([1])})
+    ordered = rb.order_industry_members(names, "D", fetch)
+    assert ordered[:2] == ["N59", "N60"], "a name without bars contributes nothing whatever its cap status"
+    assert ordered[2:4] == ["N00", "N01"]
+
+
+def test_industry_ordering_is_unprobed_within_the_cap_and_uses_an_injected_has_bars(monkeypatch):
+    monkeypatch.setattr(rb, "_cap_universe", lambda: set())
+    fetch = _fetcher({})
+    small = ["C", "A", "B"]
+    assert rb.order_industry_members(small, "D", fetch) == ["A", "B", "C"]
+    assert fetch.calls == [], "a group within the cap is fetched whole; nothing to order, nothing probed"
+    big = [f"N{i:02d}" for i in range(61)]
+    seen = []
+    def has_bars(sym, tf):
+        seen.append((sym, tf))
+        return sym == "N60"
+    assert rb.order_industry_members(big, "W", fetch, has_bars)[0] == "N60"
+    assert fetch.calls == [], "the injected probe replaces the fetch_bars(sym, tf, 1) probe"
+    assert len(seen) == 61 and all(tf == "W" for _, tf in seen)
+
+
 def test_the_two_python_benchmark_vocabularies_are_one_set():
     assert set(rd.RS_LINE_BENCHMARKS) == set(rb.LITERAL_BENCHMARKS) | set(rb.AUTO_BENCHMARKS)
 

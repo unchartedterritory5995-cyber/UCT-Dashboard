@@ -16,7 +16,8 @@ The chart's `benchmark` input is an enum the server resolves:
   ETF, then SPY.
 
 ⭐ PURE WHERE IT CAN BE. The bar fetcher is injected (the router passes
-`_fetch_bars_for_tf`), and the industry-map reads are wrapped in two tiny
+`_fetch_bars_for_tf`; an optional `has_bars` presence probe rides the same
+pattern), and the industry-map and cap-universe reads are wrapped in three tiny
 functions a test can monkeypatch, so every branch below is exercised without a
 database.
 """
@@ -86,6 +87,52 @@ def _members_of(industry: str) -> List[str]:
         return []
 
 
+def _cap_universe() -> set:
+    """The chartable universe (`groups.cap_universe_set`, hyphen + uppercase),
+    empty when it cannot be read — one seam for tests, best effort like the map."""
+    try:
+        from api.services.groups import cap_universe_set
+        return set(cap_universe_set() or ())
+    except Exception:                                   # noqa: BLE001
+        logger.exception("rs_benchmarks: cap universe read failed")
+        return set()
+
+
+HasBars = Callable[[str, str], bool]
+
+
+def order_industry_members(members: Sequence[str], tf: str, fetch_bars: FetchBars,
+                           has_bars: Optional[HasBars] = None) -> List[str]:
+    """The group in the order the composite should take members from: names
+    WITH bars in the store first, then names in the cap universe, then the
+    alphabet as the tie-break.
+
+    ⭐ ONLY WHEN THE CAP BITES. A group within :data:`MAX_INDUSTRY_MEMBERS` is
+    fetched whole whatever the order, so it is returned sorted and unprobed —
+    the probe is one small read per name, and most groups never pay it. A
+    larger group used to be sliced alphabetically (review finding B7):
+    "Biotechnology"'s composite was the alphabet-first micro-caps that happened
+    to have bars, and its largest names were excluded by construction.
+
+    ``has_bars`` is the injected presence probe (same pattern as ``fetch_bars``);
+    without one, ``fetch_bars(sym, tf, 1)`` is the probe.
+    """
+    names = sorted({str(m).upper() for m in members if m})
+    if len(names) <= MAX_INDUSTRY_MEMBERS:
+        return names
+    probe = has_bars or (lambda sym, tf_: bool(fetch_bars(sym, tf_, 1)))
+    cap = _cap_universe()
+
+    def key(sym: str):
+        try:
+            present = bool(probe(sym, tf))
+        except Exception:                               # noqa: BLE001 — a failed probe is "unknown", not fatal
+            present = False
+        return (not present, sym.replace(".", "-") not in cap, sym)
+
+    return sorted(names, key=key)
+
+
 def equal_weight_composite(series_by_member: Dict[str, Sequence[dict]]) -> List[dict]:
     """Equal-weight index of several close series, as bars ``{"t", "c"}``.
 
@@ -152,13 +199,15 @@ def equal_weight_composite(series_by_member: Dict[str, Sequence[dict]]) -> List[
 
 
 def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
-                      fetch_bars: FetchBars) -> dict:
+                      fetch_bars: FetchBars, has_bars: Optional[HasBars] = None) -> dict:
     """Resolve the enum to bars.
 
     Returns ``{"requested", "resolved", "label", "fallback", "bars"}``.
     ``resolved`` is a ticker for literal and sector benchmarks and the string
     ``"INDUSTRY:<name>"`` for a composite. ``fallback`` is ``None`` when the
     request resolved as asked, else a short reason the legend prints.
+    ``has_bars`` is the optional presence probe `order_industry_members` uses
+    on a group larger than the fetch cap.
     """
     req = str(requested or DEFAULT_BENCHMARK).upper()
     sym_u = str(sym or "").upper()
@@ -192,11 +241,14 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
         if (industry or "") == ETF_INDUSTRY:
             return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
                     "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-        members = sorted({m.upper() for m in _members_of(industry)}) if industry else []
+        members = (order_industry_members(_members_of(industry), tf, fetch_bars, has_bars)
+                   if industry else [])
         # Fetch first, then count: a member without bars in the store contributes
         # nothing, so the floor is on CONTRIBUTING names and the label says how
         # many actually carried the composite (review finding). The fetch cap
-        # keeps a 200-name group from costing 200 reads per chart open.
+        # keeps a 200-name group from costing 200 full reads per chart open, and
+        # `order_industry_members` puts the names that HAVE bars (and are in the
+        # cap universe) ahead of the slice so the cap never excludes them.
         series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
         contributing = {m: s for m, s in series.items() if s}
         if len(contributing) >= MIN_INDUSTRY_MEMBERS:
