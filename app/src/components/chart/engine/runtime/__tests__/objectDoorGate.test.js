@@ -198,9 +198,10 @@ describe('⭐⭐ W4-T11 text builtins are gated at the object door', () => {
 })
 
 // ⭐⭐ W6-T5 — the `array.*` members served after master c04bdbe2c1 (the W19-R2 port and the
-// reference-formula members) ask `objectDoorRefuses` first (`admitArrayCall`, the one
-// admitter): the same pane build at the door refuses BY NAME, the pane builds it, and the
-// door draws exactly what master drew. MASTER_DOOR is pinned from master c04bdbe2c1 (this
+// reference-formula members) are NOT held at the door (`pineRuntimeFrontend.js::heldArray`,
+// the `false` flavour above): the same pane build at the door refuses with MASTER'S OWN guard
+// and sentence (`runtime:array`, naming the member), the pane builds it, and the door draws
+// exactly what master drew. measure-pair's C18 audit then shows the door byte-identical. MASTER_DOOR is pinned from master c04bdbe2c1 (this
 // file's `doorRun`, run in a master worktree, 2026-11-06). ⚠️ Three of master's answers are
 // the HOST object lane's, not this runtime's: for `fill`, `reverse` and `sort` it draws the
 // label from the array as built, without the write (`586.915` is o+h+l+c, `144.14` is the
@@ -235,14 +236,32 @@ describe('⭐⭐ W6-T5 array members are gated at the object door', () => {
       const b = paneBuild(H + ARR + body + 'plot(v)\n')
       expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
     })
-    it(`${name}: the same build at the object door refuses BY NAME`, () => {
+    it(`${name}: the same build at the object door refuses as master did (runtime:array, by name)`, () => {
       const b = paneBuild(H + ARR + body + 'plot(v)\n', { objectDoor: true })
       expect(b.ok).toBe(false)
-      expect(b.refusal.guard).toBe('runtime:object-door')
-      expect(b.refusal.message).toMatch(/runtime pane only/)
+      expect(b.refusal.guard).toBe('runtime:array')
+      expect(b.refusal.message).toContain(`array.${name}`)
+    })
+    it(`${name}: the method form at the object door refuses as master did`, () => {
+      const m = body.replace(new RegExp(`array\\.${name}\\((\\w+)(, )?`), (_, recv) => `${recv}.${name}(`)
+      const b = paneBuild(H + ARR + m + 'plot(v)\n', { objectDoor: true })
+      expect(m).not.toBe(body)
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:array')
       expect(b.refusal.message).toContain(`array.${name}`)
     })
   }
+  it('an UNREAD binding of a gated member refuses at the door where master refused it (holdsArray keeps master\'s answer)', () => {
+    // Master counted an unheld `array.*` call as a collection binding, so it lowered the
+    // initialiser and refused it even though nothing reads `v`. The pane, which holds the
+    // member and knows it returns a number, builds it.
+    const src = H + ARR + 'v = array.range(a)\nplot(close)\n'
+    const door = paneBuild(src, { objectDoor: true })
+    expect(door.ok).toBe(false)
+    expect(door.refusal.guard).toBe('runtime:array')
+    expect(door.refusal.message).toContain('array.range')
+    expect(paneBuild(src).ok).toBe(true)
+  })
   for (const name of ['median', 'stdev']) {
     it(`${name}: master built it at the door, and the door still builds it`, () => {
       const b = paneBuild(H + ARR + `v = array.${name}(a)\nplot(v)\n`, { objectDoor: true })

@@ -1148,6 +1148,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     throw new RuntimeRefusal('runtime:object-door', `${what} is served on the runtime pane only, not to a drawing `
       + 'script (the object door), until a TradingView capture proves it exact', at)
   }
+  /** ⭐⭐ W6-T5 — IS THIS AN `array.*` MEMBER THIS LANE HOLDS? At the object door, a member
+   *  served after master c04bdbe2c1 (`collections.js::DOOR_GATED_ARRAY`) is NOT held, so every
+   *  site below answers master's answer and the door refuses where master refused, with
+   *  master's own guard and sentence (a widened predicate keeps master's answer). One
+   *  predicate for all seven sites; rail `objectDoorGate.test.js` (W6-T5). */
+  const heldArray = (name) => Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)
+    && !(atObjectDoor && DOOR_GATED_ARRAY.has(name))
   /** WS-D's text-input kinds; master's two at the object door. */
   const textInputHere = (node) => (atObjectDoor
     ? !!(node && node.type === 'call' && MASTER_TEXT_INPUTS.has(node.name)) : isTextInputCall(node))
@@ -1769,7 +1776,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const untypedParamArrayCall = (rslot, node) => {
     if (!untypedParams.has(rslot) || !node || node.type !== 'call') return false
     const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
-    return !!(rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name))
+    return !!(rew && heldArray(rew.node.name))
   }
   const newSlot = (name, persistent, index) => {
     slots.push({
@@ -3370,7 +3377,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const holdsArray = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'call') {
-      if (producesArray(node.name)) return true
+      if (heldArray(node.name) && producesArray(node.name)) return true
       // ⭐ AN UNSERVED COLLECTION CALL COUNTS AS ONE TOO, so the binding gets
       // a slot, the initialiser is LOWERED, and the refusal names the call the
       // member wrote. Left as an `env` macro it is never lowered at all, and
@@ -3378,7 +3385,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // measured: `m = matrix.new<float>(2, 2, 0.0)` was reported as
       // `matrix.rows`, one line below the call they would need to remove.
       return ARRAY_NS.test(String(node.name || ''))
-        && !Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)
+        && !heldArray(node.name)
     }
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
@@ -4100,9 +4107,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  watchlist parser is made of. */
   const admitArrayCall = (node, scope, asStatement) => {
     const spec = ARRAY_FNS[node.name]
-    // ⭐ W6-T5 — a member served after master c04bdbe2c1 (`array.fill`, `array.sort`, …)
-    // is the runtime pane's only: the object door builds what master built.
-    if (DOOR_GATED_ARRAY.has(node.name)) objectDoorRefuses('`' + node.name + '`', locate(node.tok))
     for (const arg of node.args) {
       if (arg && arg.name) {
         throw new RuntimeRefusal('runtime:statement',
@@ -7397,7 +7401,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
         if (textInputHere(node)) return admitTextInput(node, scope)
-        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
+        if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)
         }
         // ⭐⭐ THE METHOD FORM IN VALUE POSITION — `a.size()` IS `array.size(a)`.
@@ -7432,7 +7436,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // served today, and the one question T9's chains will ask.
             const ns = methodNsOf(exprType({ type: 'name', name: uf.recv, tok: node.tok }, scope))
             const rew = methodFormCall(node, () => ns, (m) => definedNames.has(m))
-            if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
+            if (rew && heldArray(rew.node.name)) {
               return admitArrayCall(rew.node, scope, false)
             }
             // ⛔ AND A MEMBER THIS RUNTIME DOES NOT HOLD REFUSES BY THE
@@ -11245,7 +11249,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // reasoning about the wrong branch.
         // ⭐ C11 — AND A COLLECTION CALL THAT RETURNS A VALUE IS A STATEMENT TOO
         // (`array.shift(a)` to drop the oldest element), its one value dropped.
-        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, word)) {
+        if (heldArray(word)) {
           const callNode = parseWholeExpression(toks)
           // ⭐ RT5 — `array.get(lines, 0).delete()`: a drawing method on an element.
           if (objectsInRun && callNode && callNode.type === 'method') {
@@ -11305,7 +11309,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             const ns = methodNsOf(exprType({ type: 'name', name: uf.recv, tok: first }, scope))
             const rew = methodFormCall(parseWholeExpression(toks),
               () => ns, (m) => definedNames.has(m))
-            if (rew && ARRAY_FNS[rew.node.name]) {
+            if (rew && heldArray(rew.node.name)) {
               out.push(arrayStmt(rew.node, scope))
               continue
             }
