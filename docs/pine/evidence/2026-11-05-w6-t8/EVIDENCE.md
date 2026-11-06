@@ -1,4 +1,4 @@
-NEXT STEP: heavy jobs, in the coordinator's order: (1) mutate.py batch, (2) measure-pair runtime-on (0 C18 verdict diffs, `adx-and-di-for-v4` unmoved, classify every diff), (3) merge origin/master again + re-run the T7 trial-merge rails (T7 is now f2445b11e1), then final-tip FULL + ready-check. r1 (review B1) is done; no heavy job has run.
+NEXT STEP: re-queue measure-pair (`runs/w6-t8/mp.sh`, runtimes 0 and 1, under dsk/heavy-mp2.lock; base mpbase2 switched to the merge-base f9651f47ee inside the job) when the coordinator says. The first queue was reaped by Claude Code for low system memory while it still WAITED on W6-T7's mp2 hold: nothing ran, base untouched. Then merge origin/master, push, hold for the final-tip go. mutate.py batch DONE.
 
 # W6-T8 `map.*` on the runtime lane (lane w6-t8)
 
@@ -116,3 +116,13 @@ merge order is correct.
   B6 checkpoint drops the value type (1).
 - Not changed (non-blocking notes): N1 a missing string-valued key answers `na` (representable in v6; a later `str.*`
   stops with the VM kind sentence, fail-closed); N2 colour keys compare packed RGBA.
+
+## mutate.py batch (coordinator GO @01cea6311c)
+`runs/w6-t8/mutjob.sh` under `dsk/heavy-mut.lock`, ram_gate 6 GB, one mutation per call of a `--maxWorkers=1` copy of
+`mutate.py` (`runs/w6-t8/mutate-w1.py`; the shared script hard-codes 2), free RAM checked >= 4 GB before each (lowest
+10.8 GB). Test files: `w6Map.test.js`, `objectDoorGate.test.js`. 21 mutations (`runs/w6-t8/muts.json`, output
+`mutate.out`): M0 no-op control SURVIVED (correct); M1-M14 and B1-B6 all KILLED. Tree clean after (`git status` empty).
+
+## measure-pair: not run yet
+Queued under `dsk/heavy-mp2.lock` behind `w6-t7-mp` (pid 51844). Claude Code reaped the waiting job for low system memory
+before it got the lock: `mp-all.log` holds only the wait line, mpbase2 still at bde38b0d69 and clean, no `mp0/` / `mp1/`.
