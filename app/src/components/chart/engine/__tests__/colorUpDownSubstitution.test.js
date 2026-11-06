@@ -241,9 +241,11 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
   // ⭐ Visual review S1 (2026-11-06): seven of thirteen labels truncated to an
   // ellipsis in the Chart Settings inspector column, and the units were the part
   // cut. The long form lives in the tooltip; the label must fit the column.
-  it('every RS input label fits the inspector column (18 characters) and the long form is in the tooltip', () => {
+  it('every RS input label fits the inspector column (17 characters) and the long form is in the tooltip', () => {
     const d = rs
-    const MAX = 18
+    // 17 = the longest label that rendered whole in the 2026-11-06 recapture
+    // ('High before price'); 'Short-history dots' at 18 still cut to 'Short-history d'.
+    const MAX = 17
     for (const inp of d.inputs) {
       expect(inp.label.length, `${inp.key} label "${inp.label}" is ${inp.label.length} chars`).toBeLessThanOrEqual(MAX)
     }
@@ -256,6 +258,8 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     expect(byKey.priceTolerance.tooltip).toMatch(/^Price-high tolerance/)
     expect(byKey.showNewHighBeforePrice.label).toBe('High before price')
     expect(byKey.showNewHighBeforePrice.tooltip).toMatch(/^RS high before price/)
+    expect(byKey.shortHistoryDots.label).toBe('Partial dots')
+    expect(byKey.shortHistoryDots.tooltip).toMatch(/^Short-history dots/)
   })
 
   it('⭐ Classic resolves to ONE hue for up and down — the ≤2 hues + 1 neutral budget holds', () => {
