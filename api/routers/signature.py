@@ -921,9 +921,15 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     # The newest stored rating session and the artifact's `asof` now sit in the
     # key, so the first request after either job lands is a cold compute. The
     # flag-off (v1) key is unchanged: v1 carries neither block.
+    #
+    # ⭐ AND THE PAYLOAD SHAPE (visual round VA1, 2026-11-06). Rev 3 is unreleased,
+    # so the summaries and the Mansfield-view blanking did not bump it; the shape
+    # number in the v2 key keeps an envelope cached before them from being served
+    # after them for the rest of the session. The v1 key is unchanged.
     day = _et_session_day()
     gen = f"{_rs_data_generation()}:" if registry_defs.RS_V2_ENABLED else ""
-    ck = _ck(f"rs{rev}",
+    shape = f"p{_RS_PAYLOAD_SHAPE}" if registry_defs.RS_V2_ENABLED else ""
+    ck = _ck(f"rs{rev}{shape}",
              f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
              f"{json.dumps(toggles, sort_keys=True)}:{gen}{day}")
     try:
@@ -965,13 +971,15 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
         cols["mansfield"] = mans["mansfield"]
         cols["mansfieldCrossUp"] = mans["mansfieldCrossUp"]
         cols["mansfieldCrossDown"] = mans["mansfieldCrossDown"]
-        # ⭐ THE CROSS DOT SITS AT THE MANSFIELD VALUE, WHICH MAY BE ≤ 0 — so it is
-        # NOT `relative_strength.dot_column` (that refuses a non-positive value,
-        # the right rule for a ratio) and the chart draws it as the series' own
-        # point marker, which paints at any finite value (`markerPrimitive`'s
-        # glyph rule is `> 0`, so a glyph would drop every cross DOWN).
-        cols["dotMansfieldCross"] = _rs_dot_at(
-            mans["mansfield"], rsmod.either(mans["mansfieldCrossUp"], mans["mansfieldCrossDown"]))
+        # ⭐ THE CROSS DOT IS A CROSS UP, CENTRED ON THE ZERO LINE (visual round
+        # A2, 2026-11-06): one dot at 0 on each bar where the line crosses UP
+        # through zero. Crosses down are not drawn (the line falling through the
+        # zero guide shows them; the readout names the last cross either way).
+        # A value of 0 is NOT `relative_strength.dot_column` (that refuses a
+        # non-positive value, the right rule for a ratio), so the chart draws it
+        # as the series' own point marker, which paints at any finite value. The
+        # `mansfieldCrossUp` / `mansfieldCrossDown` EVENT columns are untouched.
+        cols["dotMansfieldCross"] = _rs_zero_cross_dot(mans["mansfield"], mans["mansfieldCrossUp"])
         # The readout's Mansfield scalars are read BEFORE the toggle blanks the
         # column: the reading is true whether or not the line is drawn.
         mansfield_scalars = _rs_mansfield_scalars(mans, params["mansfieldLength"])
@@ -999,6 +1007,23 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
         for k in ("mansfield", "dotMansfieldCross"):
             cols[k] = _round_series(cols[k], 4)      # a PERCENT distance from its own average
 
+        # The legend and last-high scalars are read HERE, after rounding and
+        # BEFORE the Mansfield view blanks the ratio (A2): the RS line and Last RS
+        # high rows still print under Mansfield view, because the reading is true
+        # whether or not the line is drawn.
+        legend = _rs_legend(rsmod.legend_scalars(cols), times, params)
+        last_high = _rs_last_high(rsmod.last_rs_high(cols, times), params["lookback"], len(times),
+                                  intraday=intraday,
+                                  why=(None if derived else
+                                       "benchmark is the symbol" if same_symbol else "no benchmark bars"))
+        # ⭐ MANSFIELD VIEW (A2): one reading per pane. The ratio, its average,
+        # the above flag and every RS-line dot column go all-null in the WIRE
+        # (they stay in `columns`, so the definition's exact-match column contract
+        # holds) and the Mansfield line draws alone. Event columns stay.
+        if toggles["showMansfield"]:
+            for k in _RS_MANSFIELD_VIEW_BLANKS:
+                cols[k] = list(blank)
+
         # ── the Leadership scalars (plan §6.6; §7 items 21-23) ───────────────
         groups = rs_benchmarks._groups_for(sym) or {}
         daily = store == "D"
@@ -1024,8 +1049,8 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
         payload = {
             "benchmark": dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
                               bars=len(bench.get("bars") or [])),
-            "legend": rsmod.legend_scalars(cols),
-            "lastRsHigh": rsmod.last_rs_high(cols, times),
+            "legend": legend,
+            "lastRsHigh": last_high,
             "history": {"bars": len(times), "requested": count, "short": short_history},
             "inputs": params,
             "intraday": intraday,
@@ -1105,6 +1130,113 @@ _RS_GREEN_ON_RED_WINDOW = 20
 #: (review #21, 2026-11-07).
 _RS_GREEN_ON_RED_PASS = 6
 _RS_PULLBACK_EMA = 8          # pullback distance from the 8-day EMA (v3 §7.20)
+#: The v2 payload's shape, in the cache key (bump when a payload field or a
+#: wire blanking rule changes inside one `compute.rev`).
+_RS_PAYLOAD_SHAPE = 2
+#: What Mansfield view blanks in the wire (A2): the ratio, its average, the
+#: above flag and every RS-line dot. Event columns are never blanked here.
+_RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
+    "rsLine", "rsMa", "rsAbove", "dotNH", "dotNHbeforePx", "dotNHred", "dotNHpartial", "dotNL",
+)
+_RS_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+# ── copy helpers (visual round A1, 2026-11-06) ───────────────────────────────
+#
+# Every summary below is a sentence-free fragment in operator voice with no
+# trailing period, and the client prints it verbatim. The number rules match
+# `readoutSchema.formatReadoutValue` so a figure reads the same in a summary and
+# in the card's numbers block: one decimal, a sign on a non-zero percent, never
+# "-0.0%"; `today` / `1 bar ago` / `n bars ago`; never "1 bars".
+
+def _rs_plural(n: int, word: str) -> str:
+    """``1 bar`` / ``2 bars`` / ``0 bars``."""
+    n = int(n)
+    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+
+
+def _rs_ago(n: int) -> str:
+    """``today`` / ``1 bar ago`` / ``n bars ago`` (the readout's barsAgo rule)."""
+    n = int(n)
+    return "today" if n == 0 else f"{_rs_plural(n, 'bar')} ago"
+
+
+def _rs_bar_ymd(t) -> str | None:
+    """A bar time (YYYYMMDD key or unix seconds) as ``YYYYMMDD``; None when unreadable."""
+    iso = _bar_date_iso(t) if t is not None else ""
+    return iso.replace("-", "") if len(iso) == 10 else None
+
+
+def _rs_short_date(ymd: str | None) -> str | None:
+    """``20261104`` → ``Nov 4``."""
+    try:
+        return f"{_RS_MONTHS[int(ymd[4:6]) - 1]} {int(ymd[6:8])}"
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def _rs_zero_cross_dot(values, cross_up) -> list:
+    """``0.0`` where the Mansfield line crossed UP through zero and has a value,
+    else ``None``: the Trend preset's cross dot, centred on the zero guide (A2)."""
+    out = [None] * len(values)
+    for i, (v, e) in enumerate(zip(values, cross_up)):
+        if e == 1.0 and _rs_num(v):
+            out[i] = 0.0
+    return out
+
+
+def _rs_legend(leg: dict, times, params: dict) -> dict:
+    """`relative_strength.legend_scalars` plus what the RS line row prints (A1,
+    A8): ``asOf`` (YYYYMMDD of the bar the scalars were read at, the last bar
+    with a finite RS value), ``stale`` (that bar is not the newest one, a
+    benchmark gap) and ``summary`` (``above its 21 EMA by 6.8%`` /
+    ``below its 50 SMA by 2.1%`` / ``at its 21 EMA``, with `` · as of Nov 4``
+    when stale). The length and type are the instance's own."""
+    out = dict(leg)
+    idx = out.get("index")
+    asof = _rs_bar_ymd(times[idx]) if isinstance(idx, int) and 0 <= idx < len(times) else None
+    out["asOf"] = asof
+    out["stale"] = bool(isinstance(idx, int) and idx < len(times) - 1)
+    pct, above = out.get("pctFromMa"), out.get("above")
+    summary = None
+    if _rs_num(pct) and above is not None:
+        avg = f"its {int(params.get('maLength') or 0)} {str(params.get('maType') or '').upper()}"
+        mag = f"{abs(pct):.1f}"
+        if float(mag) == 0.0:
+            summary = f"at {avg}"
+        else:
+            summary = f"{'above' if above else 'below'} {avg} by {mag}%"
+        if out["stale"] and _rs_short_date(asof):
+            summary += f" · as of {_rs_short_date(asof)}"
+    out["summary"] = summary
+    return out
+
+
+def _rs_last_high(last: dict | None, lookback: int, bars_held: int, *, intraday: bool, why: str | None) -> dict:
+    """`relative_strength.last_rs_high`, always a dict, plus ``summary`` (A1):
+    ``today · before price`` / ``1 bar ago · before price · red day`` /
+    ``38 bars ago`` / ``none in the last 252 bars``. A short history that cannot
+    hold a full-lookback high says so (``needs 252 bars (has 180)``); intraday and
+    the no-ratio states carry their reason."""
+    out = dict(last) if last else {"index": None, "time": None, "beforePrice": None,
+                                     "redDay": None, "barsAgo": None}
+    if why:
+        summary = why
+    elif intraday:
+        summary = "not read on intraday charts"
+    elif last:
+        parts = [_rs_ago(last["barsAgo"])]
+        if last.get("beforePrice"):
+            parts.append("before price")
+        if last.get("redDay"):
+            parts.append("red day")
+        summary = " · ".join(parts)
+    elif bars_held < lookback:
+        summary = f"needs {_rs_plural(lookback, 'bar')} (has {bars_held})"
+    else:
+        summary = f"none in the last {_rs_plural(lookback, 'bar')}"
+    out["summary"] = summary
+    return out
 
 
 def _rs_num(v) -> bool:
@@ -1123,23 +1255,43 @@ def _rs_mansfield_length(raw) -> int:
     return int(round(min(float(hi), max(float(lo), f))))
 
 
-def _rs_dot_at(values, events) -> list:
-    """``values[t]`` where ``events[t] == 1`` and the value is finite, else
-    ``None`` — the Mansfield cross dot, which (unlike an RS-ratio dot) may sit
-    at or below zero."""
-    out = [None] * len(values)
-    for i, (v, e) in enumerate(zip(values, events)):
-        if e == 1.0 and _rs_num(v):
-            out[i] = float(v)
-    return out
-
-
 def _rs_mansfield_scalars(mans: dict, length: int) -> dict:
-    """The last bar's Mansfield reading in words and numbers."""
-    value = (mans.get("mansfield") or [None])[-1]
+    """The last bar's Mansfield reading in words and numbers.
+
+    Visual round A1 (2026-11-06) adds ``slope`` (1 / -1 / 0 against the bar
+    before), ``crossDirection`` + ``lastCross`` (``up, 57 bars ago``; the last
+    zero cross in EITHER direction, from the event columns) and ``summary``
+    (``+18.7%, above zero, falling``): sign and slope spelled out, because the
+    state word ``neutral`` beside +18.7% read as a contradiction. ``stateLabel``
+    stays for any reader of the old field."""
+    series = mans.get("mansfield") or [None]
+    value = series[-1]
     state = (mans.get("mansfieldState") or [None])[-1]
     age = (mans.get("mansfieldCrossBarsAgo") or [None])[-1]
     labels = {1: "bull", -1: "bear", 0: "neutral"}
+    slope = None
+    if _rs_num(value) and len(series) >= 2 and _rs_num(series[-2]):
+        d = float(value) - float(series[-2])
+        slope = 1 if d > 0 else (-1 if d < 0 else 0)
+    up = mans.get("mansfieldCrossUp") or []
+    down = mans.get("mansfieldCrossDown") or []
+    direction = cross_ago = None
+    for i in range(max(len(up), len(down)) - 1, -1, -1):
+        if i < len(up) and up[i] == 1.0:
+            direction = "up"
+        elif i < len(down) and down[i] == 1.0:
+            direction = "down"
+        else:
+            continue
+        cross_ago = max(len(up), len(down)) - 1 - i
+        break
+    summary = None
+    if _rs_num(value):
+        text = _rs_pct(float(value))
+        where = "at zero" if text == "0.0%" else ("above zero" if value > 0 else "below zero")
+        summary = f"{text}, {where}"
+        if slope is not None:
+            summary += ", " + {1: "rising", -1: "falling", 0: "flat"}[slope]
     return {
         "value": float(value) if _rs_num(value) else None,
         "aboveZero": (value >= 0) if _rs_num(value) else None,
@@ -1147,6 +1299,10 @@ def _rs_mansfield_scalars(mans: dict, length: int) -> dict:
         "stateLabel": labels.get(state) if state is not None else None,
         "crossBarsAgo": int(age) if _rs_num(age) else None,
         "length": int(length),
+        "slope": slope,
+        "crossDirection": direction,
+        "lastCross": f"{direction}, {_rs_ago(cross_ago)}" if direction else None,
+        "summary": summary,
     }
 
 
@@ -1224,7 +1380,20 @@ def _rs_rating(sym: str) -> dict:
         out["source"] = "row"
     else:
         out["source"] = "dark" if dark else "missing"
+    out["summary"] = _rs_rating_summary(out["ibd"], out["fast"])
     return out
+
+
+def _rs_rating_summary(ibd, fast) -> str | None:
+    """The Rating row (A1): ``94 · fast 91`` / ``fast 91 · nightly pending`` /
+    ``94`` / None when neither exists (the row prints its muted fallback)."""
+    if ibd is not None and fast is not None:
+        return f"{ibd} · fast {fast}"
+    if fast is not None:
+        return f"fast {fast} · nightly pending"
+    if ibd is not None:
+        return f"{ibd}"
+    return None
 
 
 def _rs_evidence() -> dict:
@@ -1340,8 +1509,9 @@ def _rs_regime(bench_closes: list) -> dict:
     200-day average, the sign of the 504-bar return, and the 126-session
     realised-volatility tercile against its own trailing three-year distribution.
     ``persistence`` = above the 200-day with a positive two-year trend;
-    ``rebound-risk`` = negative two-year trend in the high-vol tercile (the
-    Daniel-Moskowitz panic state); ``mixed`` otherwise. ``label`` is ``None``
+    ``rebound risk`` = negative two-year trend in the high-vol tercile (the
+    Daniel-Moskowitz panic state); ``mixed`` otherwise. The label is printed
+    verbatim, so it is spelled as words (A1: was ``rebound-risk``). ``label`` is ``None``
     with a ``reason`` while the bars cannot decide it."""
     closes = [float(c) for c in bench_closes if _rs_num(c)]
     n = len(closes)
@@ -1375,7 +1545,7 @@ def _rs_regime(bench_closes: list) -> dict:
         if out["above200"] and out["trend2y"] > 0:
             out["label"] = "persistence"
         elif out["trend2y"] < 0 and out["volTercile"] == "high":
-            out["label"] = "rebound-risk"
+            out["label"] = "rebound risk"
         elif out["trend2y"] < 0 and out["volTercile"] is None:
             pass                                       # rebound-risk or mixed: the tercile decides
         else:
@@ -1410,22 +1580,27 @@ def _rs_sensitivity_unavailable(reason: str) -> dict:
     from api.services import relative_strength as rsmod
     return {"window": rsmod.DEFAULT_SENSITIVITY_WINDOW, "spy": None, "rsp": None, "sector": None,
             "reasons": {"spy": reason, "rsp": reason, "sector": reason},
+            "legs": {"spy": reason, "rsp": reason, "sector": reason},
             "agree": None, "summary": None}
 
 
 def _rs_slope_leg(bars, leg_bars, window: int, name: str):
+    """``(leg, reason, note)``: the leg, or None with its ``reason`` (the long
+    form `reasons` keeps) and its ``note`` (the short form the Agreement summary
+    prints after ``<ticker>: ``)."""
     from api.services import relative_strength as rsmod
     rs = rsmod.rs_line(bars, leg_bars)
     if len(rs) < window:
-        return None, f"needs {window} bars of RS against {name} (have {len(rs)})"
+        return (None, f"needs {window} bars of RS against {name} (have {len(rs)})",
+                f"needs {_rs_plural(window, 'bar')} (has {len(rs)})")
     tail = rs[-window:]
     if any(v is None for v in tail):
-        return None, f"a gap in the last {window} bars against {name}"
+        return None, f"a gap in the last {window} bars against {name}", f"gap in last {_rs_plural(window, 'bar')}"
     slope = rsmod._slope(tail)
     if slope is None:
-        return None, f"no slope against {name}"
+        return None, f"no slope against {name}", "no slope"
     sign = 1 if slope > 0 else (-1 if slope < 0 else 0)
-    return {"sign": sign, "slope": slope, "word": {1: "rising", -1: "falling", 0: "flat"}[sign]}, None
+    return {"sign": sign, "slope": slope, "word": {1: "rising", -1: "falling", 0: "flat"}[sign]}, None, None
 
 
 def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: dict, fetch_bars) -> dict:
@@ -1440,6 +1615,9 @@ def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: di
     resolved = str(bench.get("resolved") or "").upper()
     out = {"window": window, "spy": None, "rsp": None, "sector": None, "reasons": {},
            "agree": None, "summary": None}
+    #: the short form of a missing leg, ``(label, note)``: ``RSP: no bars``,
+    #: ``sector: none for an ETF``. The long ``reasons`` stay as they were.
+    notes: dict[str, tuple[str, str]] = {}
 
     def leg_bars(ticker: str):
         if ticker == resolved and bench.get("bars"):
@@ -1455,6 +1633,7 @@ def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: di
         lb = leg_bars(ticker)
         if not lb:
             out["reasons"][key] = f"no {ticker} bars"
+            notes[key] = (ticker, "no bars")
             continue
         legs[key] = (ticker, lb)
     industry = (groups or {}).get("industry") or ""
@@ -1462,19 +1641,23 @@ def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: di
     etf = rs_benchmarks.SECTOR_ETF.get(sector or "")
     if industry == rs_benchmarks.ETF_INDUSTRY:
         out["reasons"]["sector"] = "symbol is an ETF"
+        notes["sector"] = ("sector", "none for an ETF")
     elif not etf:
         out["reasons"]["sector"] = "no sector" if not sector else f"sector not mapped: {sector}"
+        notes["sector"] = ("sector", "none known" if not sector else f"{sector} not mapped")
     else:
         lb = leg_bars(etf)
         if not lb:
             out["reasons"]["sector"] = f"no {etf} bars"
+            notes["sector"] = (etf, "no bars")
         else:
             legs["sector"] = (etf, lb)
     series: dict[str, list] = {}
     for key, (ticker, lb) in legs.items():
-        leg, why = _rs_slope_leg(bars, lb, window, ticker)
+        leg, why, note = _rs_slope_leg(bars, lb, window, ticker)
         if leg is None:
             out["reasons"][key] = why
+            notes[key] = (ticker, note)
             continue
         leg["ticker"] = ticker
         out[key] = leg
@@ -1482,30 +1665,64 @@ def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: di
     if all(k in series for k in ("spy", "rsp", "sector")):
         agree = rsmod.benchmark_agree(series["spy"], series["rsp"], series["sector"], window)[-1]
         out["agree"] = (agree == 1.0) if agree is not None else None
-    present = [k for k in ("spy", "rsp", "sector") if out[k]]
-    if out["agree"] is True:
-        out["summary"] = "agree: " + ", ".join(f"{out[k]['ticker']} {out[k]['word']}" for k in present)
-    elif present:
-        out["summary"] = ", ".join(f"{out[k]['ticker']} {out[k]['word']}" for k in present)
-        missing = [k for k in ("spy", "rsp", "sector") if not out[k]]
-        if missing:
-            out["summary"] += "; " + "; ".join(out["reasons"][k] for k in missing)
-    else:
-        out["summary"] = "; ".join(out["reasons"].values()) or None
+    # The Agreement card's numbers block, one value per leg (A1): SPY
+    # ``rising`` / RSP ``no bars`` / Sector ``XLK rising`` or ``none for an ETF``.
+    out["legs"] = {k: ((out[k]["word"] if k != "sector" else f"{out[k]['ticker']} {out[k]['word']}")
+                       if out[k] else (notes[k][1] if k in notes else out["reasons"].get(k)))
+                   for k in ("spy", "rsp", "sector")}
+    out["summary"] = _rs_sensitivity_summary(out, notes)
     return out
+
+
+def _rs_and(names: list) -> str:
+    """``SPY`` / ``SPY and XLK`` / ``SPY, RSP and XLK``."""
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def _rs_sensitivity_summary(out: dict, notes: dict) -> str | None:
+    """The Agreement row (A1): ``SPY, RSP and XLK all rising`` /
+    ``split: SPY rising, RSP falling, XLK rising`` / ``SPY and XLK rising; RSP:
+    no bars``. Legs that share one word are grouped; a missing leg follows a
+    semicolon as ``<ticker>: <short reason>``."""
+    keys = ("spy", "rsp", "sector")
+    present = [k for k in keys if out[k]]
+    missing = [f"{notes[k][0]}: {notes[k][1]}" for k in keys if not out[k] and k in notes]
+    if not present:
+        return "; ".join(missing) or None
+    words = {out[k]["word"] for k in present}
+    names = [out[k]["ticker"] for k in present]
+    if len(words) == 1:
+        word = words.pop()
+        head = f"{_rs_and(names)} all {word}" if len(names) == 3 else f"{_rs_and(names)} {word}"
+    else:
+        head = "split: " + ", ".join(f"{out[k]['ticker']} {out[k]['word']}" for k in present)
+    return "; ".join([head] + missing)
 
 
 def _rs_checks_unavailable(reason: str) -> dict:
     """The checks for a chart that cannot run them. ``summary`` carries the
     reason (review #24), so the readout never shows its "needs more history"
     fallback for a known reason; each check keeps it too."""
-    blank = {"pass": None, "reason": reason}
+    blank = {"pass": None, "reason": reason, "line": reason}
     return {"ma": dict(blank), "anchor": dict(blank), "pivotSpeed": dict(blank), "greenOnRed": dict(blank),
             "pullbackEma8": None, "passed": 0, "of": 0, "summary": reason}
 
 
 def _rs_pct(v) -> str:
-    return f"{v:+.1f}%"
+    """One decimal, a sign on a non-zero value, never ``-0.0%`` (the readout's
+    ``pct`` rule, so a number reads the same on the server and the client)."""
+    s = f"{v:.1f}"
+    if float(s) == 0.0:
+        return "0.0%"
+    return f"+{s}%" if v > 0 else f"{s}%"
+
+
+def _rs_check_line(check: dict) -> str:
+    """A check's card line (A1): ``pass · <reason>`` / ``fail · <reason>``, or the
+    reason alone while the check is undecided. Pass and fail are words."""
+    p = check.get("pass")
+    reason = check.get("reason") or ""
+    return reason if p is None else f"{'pass' if p else 'fail'} · {reason}"
 
 
 def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
@@ -1560,9 +1777,11 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
                              "barsAgo": 0,
                              "reason": f"{bench_name}'s {_RS_ANCHOR_WINDOW}-session low is today"}
         else:
+            # A1: the value no longer opens with its label's words ("Since the
+            # low"), and "1 bars ago" is "1 bar ago".
             out["anchor"] = {"pass": sr > br, "stock": sr, "bench": br, "anchorTime": bars[a].get("t"),
                              "barsAgo": ago,
-                             "reason": f"since {bench_name}'s low {ago} bars ago: stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)}"}
+                             "reason": f"stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)}; low was {_rs_ago(ago)}"}
     else:
         out["anchor"] = {"pass": None, "reason": f"needs {_RS_ANCHOR_WINDOW} sessions of both"}
 
@@ -1584,10 +1803,11 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
             break
     if seen == _RS_PIVOT_RED_DAYS:
         out["pivotSpeed"] = {"pass": hits >= _RS_PIVOT_PASS, "count": hits, "of": seen,
-                             "reason": f"{hits} of the last {seen} red days closed in the top third of the range"}
+                             "reason": f"{hits} of the last {seen} red days closed in the top third"}
     else:
         out["pivotSpeed"] = {"pass": None, "count": hits, "of": seen,
-                             "reason": f"only {seen} red days in the window (needs {_RS_PIVOT_RED_DAYS})"}
+                             "reason": f"only {_rs_plural(seen, 'red day')} in {_rs_plural(len(bars), 'bar')} "
+                                       f"(needs {_RS_PIVOT_RED_DAYS})"}
 
     # green on red over the last twenty sessions
     stock_chg = rsmod.pct_change([float(b["c"]) if _rs_num(b.get("c")) else None for b in bars])
@@ -1602,8 +1822,13 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
         reds = rsmod.rolling_count(red, _RS_GREEN_ON_RED_WINDOW)[-1]
         red_days = int(reds) if reds is not None else None
         where = f"in the last {_RS_GREEN_ON_RED_WINDOW} sessions"
-        reason = (f"up on {k} of {red_days} red days {where}" if red_days is not None
-                  else f"up on {k} red days {where}")
+        # A1 pluralisation: the noun follows the count it sits beside.
+        if red_days == 0:
+            reason = f"no red days {where}"
+        elif red_days is not None:
+            reason = f"up on {k} of {_rs_plural(red_days, 'red day')} {where}"
+        else:
+            reason = f"up on {_rs_plural(k, 'red day')} {where}"
         out["greenOnRed"] = {"pass": k >= _RS_GREEN_ON_RED_PASS, "count": k, "of": _RS_GREEN_ON_RED_WINDOW,
                              "redDays": red_days, "reason": reason}
     else:
@@ -1620,7 +1845,9 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
     decided = [out[k]["pass"] for k in ("ma", "anchor", "pivotSpeed", "greenOnRed") if out[k]["pass"] is not None]
     out["passed"] = sum(1 for p in decided if p)
     out["of"] = len(decided)
-    out["summary"] = f"{out['passed']} of {out['of']}" if decided else None
+    out["summary"] = f"{out['passed']} of {out['of']} pass" if decided else None
+    for k in ("ma", "anchor", "pivotSpeed", "greenOnRed"):
+        out[k]["line"] = _rs_check_line(out[k])
     return out
 
 def _et_now():

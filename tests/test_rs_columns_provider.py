@@ -310,7 +310,9 @@ def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch)
     # the v3 blocks are all present, each either answered or null WITH a reason
     for k in ("rating", "mansfield", "regime", "sensitivity", "checks", "theme"):
         assert k in p, k
-    assert p["rating"] == {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "source": "dark"}
+    # Pin moved 2026-11-06 (visual round VA1): the rating carries its summary.
+    assert p["rating"] == {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "source": "dark",
+                           "summary": None}
     assert p["theme"] is None, "no industry map on a test box ⇒ no theme, never a guess"
     assert p["mansfield"]["length"] == 200 and p["mansfield"]["value"] is not None, "330 bars clear the 200-bar average"
     # events are 0/1/None and dots sit on the line
@@ -696,7 +698,7 @@ def test_provider_mansfield_columns_match_the_shared_fixture_in_the_python_lane(
     env = sig._rs_line_provider("XYZ", "W", {"benchmark": "SPY", "showMansfield": True,
                                              "mansfieldLength": case["params"]["length"], "lookback": 20})
     exp = case["expected"]
-    for col in ("mansfield", "dotMansfieldCross"):
+    for col in ("mansfield",):
         got = env["columns"][col]
         assert len(got) == len(exp[col])
         for i, (g, e) in enumerate(zip(got, exp[col])):
@@ -705,10 +707,16 @@ def test_provider_mansfield_columns_match_the_shared_fixture_in_the_python_lane(
                 assert g == pytest.approx(round(e, 4), abs=5e-5), f"{col}[{i}]: {g!r} != {e!r}"
     for col in ("mansfieldCrossUp", "mansfieldCrossDown"):
         assert env["columns"][col] == exp[col], col
-    # the dot: three crosses, two of them BELOW zero — the reason it is a plain point marker
+    # Pin moved 2026-11-06 (visual round A2): the dot is a cross UP only, centred
+    # on the zero line (value 0). The fixture's `dotMansfieldCross` still
+    # describes the old either-direction dot at the Mansfield value; the provider
+    # no longer serves that, so the wire is checked against the fixture's own
+    # `mansfieldCrossUp` column instead.
     fired = [i for i, v in enumerate(env["columns"]["dotMansfieldCross"]) if v is not None]
-    assert fired == [23, 43, 62]
-    assert env["columns"]["dotMansfieldCross"][23] < 0 < env["columns"]["dotMansfieldCross"][43]
+    ups = [i for i, v in enumerate(exp["mansfieldCrossUp"]) if v == 1.0 and exp["mansfield"][i] is not None]
+    assert fired == ups and len(fired) >= 1
+    assert all(env["columns"]["dotMansfieldCross"][i] == 0.0 for i in fired)
+    assert not any(exp["mansfieldCrossDown"][i] == 1.0 for i in fired), "no dot on a cross down"
     # the readout scalars read the same last bar
     ms = env["payload"]["mansfield"]
     assert ms["length"] == 10 and ms["value"] == pytest.approx(exp["mansfield"][-1])
@@ -772,11 +780,13 @@ def test_mansfield_length_is_clamped_like_every_other_number(v2_row):
     assert rd.resolve_inputs("rsLine", {"mansfieldLength": 99999})["mansfieldLength"] == 500
 
 
-def test_the_cross_dot_builder_keeps_negative_values_unlike_the_rs_dot_builder():
+def test_the_cross_dot_builder_sits_at_zero_on_crosses_up_unlike_the_rs_dot_builder():
+    """Pin moved 2026-11-06 (visual round A2): the Mansfield dot is drawn at 0,
+    on a cross UP only, wherever the line has a value."""
     mrs = [None, -2.0, -0.5, 0.0, 0.7, None, 1.1]
-    ev = [None, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0]
-    assert sig._rs_dot_at(mrs, ev) == [None, -2.0, None, 0.0, 0.7, None, None]
-    assert rsmod.dot_column(mrs, ev) == [None, None, None, None, 0.7, None, None], "the RS builder refuses ≤ 0 (a ratio)"
+    up = [None, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0]
+    assert sig._rs_zero_cross_dot(mrs, up) == [None, 0.0, None, 0.0, 0.0, None, None]
+    assert rsmod.dot_column(mrs, up) == [None, None, None, None, 0.7, None, None], "the RS builder refuses ≤ 0 (a ratio)"
 
 
 # ── rating ─────────────────────────────────────────────────────────────────
@@ -784,11 +794,12 @@ def test_the_cross_dot_builder_keeps_negative_values_unlike_the_rs_dot_builder()
 def test_rating_reads_the_history_row_and_names_its_source(monkeypatch):
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
         "NVDA": {"ibd": 94, "fast": 91, "m1": 90, "asof": "2026-11-05", "d5": 2, "d20": -7}})
-    assert sig._rs_rating("nvda") == {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": -7, "source": "row"}
+    assert sig._rs_rating("nvda") == {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": -7, "source": "row",
+                                      "summary": "94 · fast 91"}
 
 
 def test_rating_is_null_never_raises_and_says_dark_or_missing(monkeypatch):
-    blank = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None}
+    blank = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "summary": None}
     monkeypatch.delenv("RS_HISTORY_ENABLED", raising=False)
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
     assert sig._rs_rating("NVDA") == {**blank, "source": "dark"}
@@ -815,7 +826,7 @@ def test_payload_blocks_answer_on_a_long_daily_series_and_reuse_the_benchmark_ba
     p = env["payload"]
     # regime: every leg decided, a label, no reason
     r = p["regime"]
-    assert r["label"] in ("persistence", "rebound-risk", "mixed") and r["reason"] is None
+    assert r["label"] in ("persistence", "rebound risk", "mixed") and r["reason"] is None
     assert isinstance(r["above200"], bool) and r["trend2y"] in (-1, 0, 1) and r["volTercile"] in ("low", "mid", "high")
     # Pin moved 2026-11-07 (RS review #19): the regime reads its benchmark at
     # the fixed 883-bar depth, whatever the lookback.
@@ -837,7 +848,7 @@ def test_payload_blocks_answer_on_a_long_daily_series_and_reuse_the_benchmark_ba
     for k in ("ma", "anchor", "pivotSpeed", "greenOnRed"):
         assert isinstance(c[k]["pass"], bool), k
         assert isinstance(c[k]["reason"], str) and any(ch.isdigit() for ch in c[k]["reason"]), k
-    assert c["of"] == 4 and 0 <= c["passed"] <= 4 and c["summary"] == f"{c['passed']} of 4"
+    assert c["of"] == 4 and 0 <= c["passed"] <= 4 and c["summary"] == f"{c['passed']} of 4 pass"
     assert c["pivotSpeed"]["of"] == 10 and c["greenOnRed"]["of"] == 20
     assert c["ma"]["pass"] == (c["ma"]["stock200"] > c["ma"]["bench200"])
     assert c["anchor"]["pass"] == (c["anchor"]["stock"] > c["anchor"]["bench"]) and 0 <= c["anchor"]["barsAgo"] < 20
@@ -863,12 +874,12 @@ def test_payload_blocks_are_null_with_a_reason_when_bars_are_short_or_a_leg_is_m
     assert s["rsp"] is None and s["reasons"]["rsp"] == "no RSP bars"
     assert s["spy"] is not None and s["sector"] is not None, "the legs that have bars still answer"
     assert s["agree"] is None, "agreement needs all three"
-    assert "no RSP bars" in s["summary"]
+    assert "RSP: no bars" in s["summary"]       # pin moved 2026-11-06 (VA1): the short leg form
     c = p["checks"]
     assert c["ma"]["pass"] is None and "needs 200 bars" in c["ma"]["reason"]
     assert c["anchor"]["pass"] is not None, "20 sessions suffice for the anchor"
     assert c["greenOnRed"]["pass"] is not None
-    assert c["of"] < 4 and c["summary"] == f"{c['passed']} of {c['of']}"
+    assert c["of"] < 4 and c["summary"] == f"{c['passed']} of {c['of']} pass"
 
 
 def test_an_etf_says_so_in_theme_and_has_no_sector_leg(v2_row, monkeypatch):
@@ -884,7 +895,7 @@ def test_an_etf_says_so_in_theme_and_has_no_sector_leg(v2_row, monkeypatch):
     s = p["sensitivity"]
     assert s["sector"] is None and s["reasons"]["sector"] == "symbol is an ETF"
     assert s["spy"] is not None and s["rsp"] is not None and s["agree"] is None
-    assert "symbol is an ETF" in s["summary"]
+    assert "sector: none for an ETF" in s["summary"]   # pin moved 2026-11-06 (VA1)
 
 
 def test_theme_and_sensitivity_name_an_unmapped_sector(v2_row, monkeypatch):
@@ -925,12 +936,12 @@ def test_regime_rules_on_hand_built_series():
     down = [100.0 * (1.0 - 0.001) ** i for i in range(900)]
     r = sig._rs_regime(down)
     assert r["above200"] is False and r["trend2y"] == -1
-    assert r["label"] in ("rebound-risk", "mixed")             # the tercile decides between the two
+    assert r["label"] in ("rebound risk", "mixed")             # the tercile decides between the two
     # a down trend whose volatility just exploded is the panic state
     calm = [100.0 * (1.0 - 0.0005) ** i for i in range(880)]
     wild = [calm[-1] * (1.0 + (0.08 if i % 2 == 0 else -0.09)) ** (i + 1) for i in range(130)]
     r = sig._rs_regime(calm + wild)
-    assert r["trend2y"] == -1 and r["volTercile"] == "high" and r["label"] == "rebound-risk"
+    assert r["trend2y"] == -1 and r["volTercile"] == "high" and r["label"] == "rebound risk"   # words (VA1)
     # too short: null with the reasons, never a guess
     r = sig._rs_regime(up[:150])
     assert r["label"] is None and "200-day" in r["reason"] and "two-year" in r["reason"]
@@ -954,7 +965,7 @@ def test_checks_rules_on_hand_built_bars():
     assert out["anchor"]["pass"] is True and out["anchor"]["anchorTime"] >= 1000 + 240
     assert out["greenOnRed"]["count"] == 7 and out["greenOnRed"]["pass"] is True         # 20 sessions ⇒ 6 or 7 red days, all green
     assert out["pivotSpeed"]["of"] == 10 and out["pivotSpeed"]["count"] == 10 and out["pivotSpeed"]["pass"] is True
-    assert out["passed"] == 4 and out["of"] == 4 and out["summary"] == "4 of 4"
+    assert out["passed"] == 4 and out["of"] == 4 and out["summary"] == "4 of 4 pass"
     assert isinstance(out["pullbackEma8"], float)
     # a flat stock on the same benchmark fails the first two and the pivot (close mid-range)
     flat = [{"t": 1000 + i, "o": 50.0, "h": 51.0, "l": 49.0, "c": 50.0, "v": 1} for i in range(260)]
@@ -963,7 +974,7 @@ def test_checks_rules_on_hand_built_bars():
     assert out["anchor"]["stock"] == pytest.approx(0.0) and out["anchor"]["pass"] is False, "the benchmark rose off its own low"
     assert out["pivotSpeed"]["count"] == 0 and out["pivotSpeed"]["pass"] is False, "a mid-range close is not the top third"
     assert out["greenOnRed"]["count"] == 0 and out["greenOnRed"]["pass"] is False
-    assert out["summary"] == f"{1 if out['ma']['pass'] else 0} of 4"
+    assert out["summary"] == f"{1 if out['ma']['pass'] else 0} of 4 pass"
     # too short for the averages: null with the bar counts in the reason
     out = sig._rs_checks(stock[:100], bench[:100], "SPY", -0.5)
     assert out["ma"]["pass"] is None and "have 100 and 100" in out["ma"]["reason"]
@@ -985,11 +996,12 @@ def test_sensitivity_legs_reuse_the_resolved_benchmark_and_agree_on_three_rising
     bench = {"resolved": "SPY", "bars": flat}
     out = sig._rs_sensitivity("NVDA", bars, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
     assert calls == ["RSP", "XLK"], "SPY came from the benchmark already in hand"
-    assert out["agree"] is True and out["summary"] == "agree: SPY rising, RSP rising, XLK rising"
+    # Pins moved 2026-11-06 (visual round VA1): the Agreement row's grouped copy.
+    assert out["agree"] is True and out["summary"] == "SPY, RSP and XLK all rising"
     assert out["spy"]["sign"] == out["rsp"]["sign"] == out["sector"]["sign"] == 1
     # a flat leg disagrees (a flat slope is neither sign)
     out = sig._rs_sensitivity("NVDA", flat, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
-    assert out["agree"] is False and out["summary"] == "SPY flat, RSP flat, XLK flat"
+    assert out["agree"] is False and out["summary"] == "SPY, RSP and XLK all flat"
     # a short series: null legs with the reason
     out = sig._rs_sensitivity("NVDA", bars[:5], bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
     assert out["spy"] is None and "needs 20 bars" in out["reasons"]["spy"]
