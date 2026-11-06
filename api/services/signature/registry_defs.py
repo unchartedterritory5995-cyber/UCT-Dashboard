@@ -94,7 +94,17 @@ STORE_TF_FOR: dict[str, str] = {
 # options (`nativeRegistry.RS_LINE_RAW`). `test_the_rs_line_benchmarks_are_ONE_
 # list_across_BOTH_LANES` diffs them, so a benchmark added on one side alone is
 # a red test rather than an option that resolves to nothing.
-RS_LINE_BENCHMARKS: tuple[str, ...] = ("SPY", "QQQ", "IWM")
+RS_LINE_BENCHMARKS: tuple[str, ...] = ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "INDUSTRY")
+
+# ⭐ UCT RELATIVE STRENGTH v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-
+# strength-indicator-design.md §8.1, §13). `wire_columns` requires the provider's
+# keys to EQUAL the declared `columns`, so a rollout flag cannot live in the
+# provider alone: the ROW declares one shape per flag state, read once at import.
+# Flag off ⇒ the v1 row (one column, rev 1); flag on ⇒ the Phase 1 column set,
+# rev 2, a `payload` envelope key. Rollback is the flag plus a redeploy.
+import os as _os  # noqa: E402 — beside the one constant it serves
+
+RS_V2_ENABLED: bool = _os.environ.get("RS_V2_ENABLED", "0") == "1"
 
 
 # ── Refusals. DELIBERATELY DISJOINT PHRASES ─────────────────────────────────
@@ -179,29 +189,61 @@ _FCB = {
     "rules_key": "fcb",
 }
 
-_RS_LINE = {
-    "schemaVersion": SCHEMA_VERSION,
-    "id": "rsLine",
-    "version": 1,
-    "compute": {"kind": "server", "fn": "rsLine", "rev": 1},
-    "meta": {
-        "name": "Relative Strength Line", "shortName": "RS", "category": "Momentum",
-        "description": "This symbol's close divided by a benchmark's.",
-        "tier": "premium", "repaint": "non-repainting",
-    },
-    "placement": {"target": "pane"},
-    "inputs": [
+def _rs_line_row(v2: bool) -> dict:
+    """The `rsLine` row, in its v1 or v2 shape (see `RS_V2_ENABLED`).
+
+    Only COMPUTE-affecting inputs are declared here: `resolve_inputs` drops any
+    key the row does not declare, which is exactly what keeps a member's colour
+    pick out of the server's cache key (plan §8.1, §8.3). Numeric inputs carry
+    `min`/`max` so the resolver can clamp; the JS definition declares the same
+    ranges for the dialog's steppers.
+    """
+    inputs: list[dict] = [
         {"key": "benchmark", "type": "enum", "default": "SPY",
          "options": list(RS_LINE_BENCHMARKS)},
-    ],
-    "columns": ["rsLine"],
-    "payload_keys": [],
-    # ⛔ NO LEDGER ROW, ON PURPOSE. `LEDGER_INDICATOR_FOR` has no entry for
-    # `rsLine`: it is a chart indicator, not a Signature RULE, and nothing about
-    # it is written to the append-only signal ledger. `ledger_indicator()`
-    # returning None for it is the assertion that the two are different things.
-    "rules_key": None,
-}
+    ]
+    if v2:
+        inputs += [
+            {"key": "maLength", "type": "int", "default": 21, "min": 2, "max": 200},
+            {"key": "maType", "type": "enum", "default": "EMA", "options": ["EMA", "SMA"]},
+            {"key": "lookback", "type": "int", "default": 252, "min": 20, "max": 500},
+            {"key": "priceTolerance", "type": "float", "default": 2.0, "min": 0.0, "max": 10.0},
+            {"key": "redDayThreshold", "type": "float", "default": -0.5, "min": -3.0, "max": 0.0},
+            {"key": "showNewHigh", "type": "bool", "default": True},
+            {"key": "showNewHighBeforePrice", "type": "bool", "default": True},
+            {"key": "shortHistoryDots", "type": "bool", "default": True},
+        ]
+    if v2:
+        from api.services.relative_strength import PHASE1_COLUMNS
+        columns = list(PHASE1_COLUMNS)
+    else:
+        columns = ["rsLine"]
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "id": "rsLine",
+        "version": 2 if v2 else 1,
+        "compute": {"kind": "server", "fn": "rsLine", "rev": 2 if v2 else 1},
+        "meta": {
+            "name": "UCT Relative Strength" if v2 else "Relative Strength Line",
+            "shortName": "UCT RS" if v2 else "RS", "category": "Momentum",
+            "description": ("Is this stock beating the market, or just riding it? The RS line "
+                            "against a benchmark, with new-high dots.") if v2
+                           else "This symbol's close divided by a benchmark's.",
+            "tier": "premium", "repaint": "non-repainting",
+        },
+        "placement": {"target": "pane"},
+        "inputs": inputs,
+        "columns": columns,
+        "payload_keys": ["payload"] if v2 else [],
+        # ⛔ NO LEDGER ROW, ON PURPOSE. `LEDGER_INDICATOR_FOR` has no entry for
+        # `rsLine`: it is a chart indicator, not a Signature RULE, and nothing about
+        # it is written to the append-only signal ledger. `ledger_indicator()`
+        # returning None for it is the assertion that the two are different things.
+        "rules_key": None,
+    }
+
+
+_RS_LINE = _rs_line_row(RS_V2_ENABLED)
 
 SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE)
 
@@ -299,14 +341,42 @@ def resolve_inputs(def_id: str, raw: dict | None) -> dict:
         val = src.get(key, spec.get("default"))
         if val is None:
             val = spec.get("default")
-        if spec["type"] == "enum":
+        kind = spec["type"]
+        if kind == "enum":
             options = spec.get("options") or []
             if val not in options:
                 raise InputRejected(
                     f"input {key!r} was given {val!r}, which is outside the enum "
                     f"vocabulary {options} declared by {def_id!r}")
+        elif kind in ("int", "float"):
+            # ⭐ CLAMPED, NOT REFUSED (plan §8.1). A number outside the declared
+            # range is a stepper that ran past its stop, not a request for data the
+            # definition cannot produce; the dialog clamps visibly on its side and
+            # the server clamps identically here, so the two never disagree.
+            val = _clamp_number(val, spec, kind)
+        elif kind == "bool":
+            if isinstance(val, str):
+                val = val.strip().lower() in ("1", "true", "yes", "on")
+            else:
+                val = bool(val)
         out[key] = val
     return out
+
+
+def _clamp_number(val: Any, spec: dict, kind: str) -> float | int:
+    default = spec.get("default")
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        f = float(default) if default is not None else 0.0
+    if not math.isfinite(f):
+        f = float(default) if default is not None else 0.0
+    lo, hi = spec.get("min"), spec.get("max")
+    if lo is not None:
+        f = max(float(lo), f)
+    if hi is not None:
+        f = min(float(hi), f)
+    return int(round(f)) if kind == "int" else float(f)
 
 
 # ── The wire contract ───────────────────────────────────────────────────────

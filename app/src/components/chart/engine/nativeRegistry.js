@@ -3765,33 +3765,117 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
  * in `IndicatorLibraryDialog` and gates nothing by itself; the gate is the
  * handler, and this is the declaration matching it.
  */
+// ─── UCT Relative Strength (v2) ──────────────────────────────────────────────
+//
+// Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md
+// (§5–§8). Same id as the v1 "Relative Strength Line" so a saved layout keeps
+// working: every new input has a default, and an instance stored as
+// `{benchmark: 'QQQ'}` renders Classic against QQQ.
+//
+// ⛔ THE SERVER OWNS THE COLUMNS. `compute.kind: 'server'` because an RS line
+// needs a SECOND symbol and the compute contract carries one `bars`
+// (`compute_rs_line_raw`'s docstring). `api/services/relative_strength.py`
+// computes every column below; `registry_defs._rs_line_row(v2=True)` declares the
+// same compute inputs with the same ranges, and `wire_columns` requires the two
+// column lists to be EQUAL. The benchmark enum is diffed against the Python list
+// by `test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES`.
+//
+// ⭐ DOTS RIDE THE LINE. A marker plot's glyph sits at the plotted value when
+// `position: 'inBar'` (binder: "THE MARKERS RIDE THE PLOT'S OWN SERIES"), and
+// the marker builder draws wherever the column is finite and > 0. So each dot
+// column carries the RS VALUE on event bars and NaN elsewhere — a dot exactly on
+// the line, exactly where the event fired. The 0/1 event columns stay beside
+// them as `events` for the screener and the alert grammar.
+//
+// ⭐ TOGGLES ARE COMPUTE INPUTS. The engine has no per-plot visibility an input
+// can drive (audit A3), so "show RS new highs" is a server input that blanks the
+// dot column when off. Colours and width are the Style tab's and never reach the
+// server (`resolve_inputs` drops undeclared keys).
+//
+// ⚠️ ONE COLOUR PER PLOT IN THIS UNIT. `resolvePlotForInstance` substitutes only
+// `color`, `width` and `lineStyle`, so a two-colour line (the Phase preset's
+// bull-above / bear-below) needs `colorUp`/`colorDown` added to
+// `SUBSTITUTABLE_PLOT_FIELDS` and the resolver — a small generic follow-up, not
+// smuggled into this definition. Classic draws the line in the informational
+// blue IBD draws it in, the platform's ≤2 hues + 1 neutral budget intact.
 const RS_LINE_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
-  version: 1,
-  compute: { kind: 'server', fn: 'rsLine', rev: 1 },
+  version: 2,
+  compute: { kind: 'server', fn: 'rsLine', rev: 2 },
   meta: {
-    name: 'Relative Strength Line', shortName: 'RS', category: CAT.RELATIVE_STRENGTH,
-    description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
-    tags: ['comparative', 'momentum'], tier: 'premium', repaint: 'non-repainting',
+    name: 'UCT Relative Strength', shortName: 'UCT RS', category: CAT.RELATIVE_STRENGTH,
+    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark, with new-high dots and seven ways to read it, from O\'Neil\'s classic to Weinstein\'s Mansfield and UCT\'s stress test.',
+    tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'rs rating', 'blue dot',
+      'mansfield', 'rrg', 'rotation', 'leader', 'leadership', 'price relative'],
+    tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // Read by the settings dialog (plan §6.3): these groups open collapsed so
+    // the Simple group is what a member sees first.
+    groupsCollapsed: ['Line', 'New highs'],
+    // Read by the preset picker (plan §5, §6.8): a named set of input values,
+    // applied to the CURRENT instance through `setInstanceInput`.
+    presets: [
+      { id: 'classic', label: 'Classic (O\'Neil)', origin: 'IBD, MarketSurge',
+        inputs: { benchmark: 'SPY', maLength: 21, maType: 'EMA', lookback: 252, priceTolerance: 2,
+          showNewHigh: true, showNewHighBeforePrice: true, shortHistoryDots: true } },
+    ],
   },
-  placement: { target: 'pane', pane: { height: 0.15 } },
+  placement: { target: 'pane', pane: { height: 0.18 } },
   inputs: [
-    // ⭐ AN `enum` OF A FIXED LIST, NOT A `symbol` (decision A3). `symbol` is in
-    // `RESERVED_INPUT_TYPES` and `defSchema` refuses it with a distinct message;
-    // three benchmarks cover the question this indicator answers and need no new
-    // input type, no symbol picker and no second data-entitlement question.
+    // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
+    // SECTOR and INDUSTRY are enum values the SERVER resolves from the universe
+    // sector/industry map; RSP is the equal-weight S&P. A free-text benchmark is
+    // a Phase 3 `string` input validated server-side, so `symbol` stays reserved.
     {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY',
-      options: [['SPY', 'S&P 500 (SPY)'], ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)']],
+      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
+      tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
+      options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
+        ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)']],
     },
-    colorInput('color', 'Color', '#4ECDC4'),
-    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+    { key: 'maLength', type: 'int', label: 'Moving average', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
+      tooltip: 'Bars in the moving average on the RS line. 21 is the curriculum default; 50 is a slower read.' },
+    { key: 'showNewHigh', type: 'bool', label: 'Show RS new highs', default: true, group: 'Simple',
+      tooltip: 'Small dot when the RS line is at its highest level of the lookback.' },
+    { key: 'showNewHighBeforePrice', type: 'bool', label: 'Show RS new high before price', default: true, group: 'Simple',
+      tooltip: 'Large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
+    { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
+      options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
+      tooltip: 'Exponential reacts faster; simple is what Mansfield and StockCharts use.' },
+    { ...colorInput('lineColor', 'Line', '#6ba3be'), group: 'Line' },
+    { ...colorInput('maColor', 'Average', '#8a8574'), group: 'Line' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
+    { key: 'lookback', type: 'int', label: 'New-high lookback', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
+      tooltip: 'Bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
+    { key: 'priceTolerance', type: 'float', label: 'Price-high tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
+      tooltip: 'Price counts as not at its high when it is more than this far below its lookback high. The same tolerance defines the dot and the evidence statistic.' },
+    { key: 'shortHistoryDots', type: 'bool', label: 'Short-history dots', default: true, group: 'New highs',
+      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in the neutral colour.' },
+    { ...colorInput('dotColor', 'RS new high', '#6ba3be'), group: 'New highs' },
+    { ...colorInput('dotBeforePriceColor', 'RS high before price', '#c9a84c'), group: 'New highs' },
+    { ...colorInput('dotPartialColor', 'Short-history dot', '#8a8574'), group: 'New highs' },
   ],
   plots: [
-    { key: 'rsLine', label: 'RS', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+    { key: 'rsLine', label: 'RS', style: 'line', color: '$lineColor', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+    { key: 'rsMa', label: 'MA', style: 'line', color: '$maColor', width: 1, lineStyle: 'dashed', role: 'context', legend: { hide: true } },
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+    { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.2 }, legend: { hide: true } },
+    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
   ],
+  // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
+  // declared event by running the definition's compute at registration and
+  // checking the column exists; a server definition computes nothing until a
+  // symbol is fetched, so every event would read "returned no column" and the
+  // definition would be refused. The 0/1 event columns (`rsNH`, `rsNHbeforePx`,
+  // `rsNHred`, `rsNL`, `gor`, `rog`, `crossUp`, `crossDown`, `rsAbove`, `pxNH`,
+  // `rsNHpartial`) still arrive from the server for every bar — the binder draws
+  // the declared plots and ignores the rest — and the screener and the alert
+  // lane read them from `api/services/relative_strength.py` directly (plan
+  // §10). Declaring them here is a Phase 2b task once the server lane has an
+  // event-probe path of its own.
 }
 
 const _serverRegistered = registerDefinitions([RS_LINE_RAW])

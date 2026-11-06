@@ -881,15 +881,90 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     `bars` and an RS line needs two, so the second symbol is fetched where a
     second symbol is reachable.
     """
-    from api.services.indicator_compute import compute_rs_line
-    bars = _fetch_bars_for_tf(sym, tf)
-    benchmark = inputs.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
-    bench_bars = _fetch_bars_for_tf(benchmark, tf)
-    return {
-        "columns": {"rsLine": compute_rs_line(bars, bench_bars)},
-        "times": [int(b["t"]) for b in bars],
-        "asOf": time.time(),
-    }
+    from api.services import relative_strength as rsmod
+    from api.services import rs_benchmarks
+    from api.services.indicator_compute import _round_series
+
+    params = rsmod.resolve_phase1_inputs(inputs)
+    requested = (inputs or {}).get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    toggles = {k: bool((inputs or {}).get(k, True)) for k in
+               ("showNewHigh", "showNewHighBeforePrice", "shortHistoryDots")}
+    store = registry_defs.store_tf(tf)
+    intraday = store not in ("D", "W", "M")
+    count = _rs_bars_count(store, params["lookback"])
+
+    # ⭐ CACHED PER SESSION DAY (plan §8.2). The key carries only COMPUTE inputs
+    # (`resolve_inputs` already dropped the rest), the resolved timeframe and the
+    # calendar day, so a stale answer cannot outlive the session it describes;
+    # the TTL is the ceiling, the day in the key is the floor.
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    ck = _ck("rs2" if registry_defs.RS_V2_ENABLED else "rs1",
+             f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
+             f"{json.dumps(toggles, sort_keys=True)}:{day}")
+    try:
+        hit = cache.get(ck)
+    except Exception:                                  # noqa: BLE001 — a cache read is bookkeeping
+        hit = None
+    if hit:
+        return hit
+
+    bars = _fetch_bars_for_tf(sym, tf, count)
+    bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=_fetch_bars_for_tf)
+    cols = rsmod.compute_phase1_columns(bars, bench["bars"], params)
+    times = [int(b["t"]) for b in bars]
+
+    if not registry_defs.RS_V2_ENABLED:
+        envelope = {"columns": {"rsLine": _round_series(cols["rsLine"], 6)},
+                    "times": times, "asOf": time.time()}
+    else:
+        # The data carries the timeframe rule (plan §6.5): on an intraday chart a
+        # 252-bar "new high" is two days and means nothing, so events and dots are
+        # blank there whatever the chart's visibility settings say.
+        blank = [None] * len(times)
+        event_keys = ("rsNH", "rsNHpartial", "pxNH", "rsNHbeforePx", "rsNHred", "rsNL", "gor", "rog")
+        dot_keys = ("dotNH", "dotNHbeforePx", "dotNHred", "dotNHpartial", "dotNL")
+        if intraday:
+            for k in event_keys + dot_keys:
+                cols[k] = list(blank)
+        # The dot toggles are compute inputs on purpose: the engine has no
+        # per-plot visibility an input can drive, so "off" means the column is
+        # blank and the marker draws nothing (plan §4, audit A3).
+        if not toggles["showNewHigh"]:
+            cols["dotNH"] = list(blank)
+        if not toggles["showNewHighBeforePrice"]:
+            cols["dotNHbeforePx"] = list(blank)
+        if not toggles["shortHistoryDots"]:
+            cols["dotNHpartial"] = list(blank)
+        for k in ("rsLine", "rsMa") + dot_keys:
+            cols[k] = _round_series(cols[k], 6)      # a RATIO: six places, not four
+        payload = {
+            "benchmark": {k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
+            "legend": rsmod.legend_scalars(cols),
+            "lastRsHigh": rsmod.last_rs_high(cols, times),
+            "history": {"bars": len(times), "short": len(times) < params["lookback"]},
+            "inputs": params,
+            "intraday": intraday,
+        }
+        envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
+
+    try:
+        if times:
+            cache.set(ck, envelope, ttl=900 if intraday else 6 * 3600)
+    except Exception:                                  # noqa: BLE001 — see the DPL cache-write note
+        logger.exception("signature: rs cache write failed for %s", sym)
+    return envelope
+
+
+def _rs_bars_count(store_tf: str, lookback: int) -> int:
+    """How many bars the RS lane reads (plan §8.2): the lookback plus two and a
+    half years of dot history on a daily chart, the lookback plus 200 on weekly
+    and monthly, the lane's usual 400 intraday. Measured on master: the old fixed
+    400 left ~7 months of dots behind a 252-bar lookback."""
+    if store_tf == "D":
+        return int(lookback) + 600
+    if store_tf in ("W", "M"):
+        return int(lookback) + 200
+    return 400
 
 
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)
