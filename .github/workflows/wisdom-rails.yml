@@ -41,15 +41,6 @@ on:
         type: choice
         default: vps
         options: [vps, hosted-fallback]
-  # Only ci-vps-shadow.yml calls this: the same steps on the VPS beside the deciding run, under another workflow's name.
-  workflow_call:
-    inputs:
-      lane:
-        type: string
-        default: ''
-      tag:
-        type: string
-        default: ''
   # 2026-10-19: push runs on master only. The repo is private now and Actions minutes cost money;
   # a branch push used to run this AND its pull_request run, i.e. the same check twice.
   push:
@@ -58,12 +49,12 @@ on:
 # workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
 # is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}-${{ inputs.tag }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   rails:
-    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane != 'hosted-fallback' && 'uct-vps' || inputs.lane == 'vps' && 'uct-vps' || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -25,16 +25,14 @@ HOSTED = "ubuntu-latest"
 GATE_LANE = ("${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' "
              "&& inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}")
 DISPATCH_LANE = "${{ github.event_name == 'workflow_dispatch' && inputs.lane == 'hosted-fallback' && 'ubuntu-latest' || 'uct-vps' }}"
-SHADOW_LANE = ("${{ github.event_name == 'workflow_dispatch' && inputs.lane != 'hosted-fallback' && 'uct-vps' "
-               "|| inputs.lane == 'vps' && 'uct-vps' || 'ubuntu-latest' }}")
 
-#: The five rails AUDIT allows on the VPS. A push to master stays hosted until the switch commit.
+#: The five rails AUDIT allows on the VPS, on master as well. Ten shadow gates matched before this switch.
 VPS_RAILS = {"wisdom-rails.yml": "rails", "term018-guards.yml": "static", "optionsflow-guard.yml": "guard",
              "notebook-bytes.yml": "bytes", "notebook-a11y.yml": "a11y"}
 #: Advisory, and allowed on the VPS on the master side only. Their PR legs stay hosted.
 MASTER_SIDE = {"notebook-budgets.yml": "latency", "preference-allowlist.yml": "allowlist",
                "flow-worker-deploy-coverage.yml": "coverage"}
-SHADOW_ONLY = "${{ inputs.lane == 'vps' && 'uct-vps' || 'ubuntu-latest' }}"
+MASTER_PUSH = "${{ github.event_name == 'push' && 'uct-vps' || 'ubuntu-latest' }}"
 #: AUDIT: these never move.
 HOSTED_RAILS = {"vite-build-args.yml", "notebook-latency.yml", "clock-parity-fixture.yml", "indicators-security-suite.yml"}
 GATE_HEAVY = ("agent-server", "agent-browser", "agent-browser-union", "pine-runtime")
@@ -44,8 +42,8 @@ ROUTED = {
     **{("master-deploy-gate.yml", j): GATE_LANE for j in GATE_HEAVY},
     **{("agent-ci.yml", j): DISPATCH_LANE for j in ("server", "browser", "capability-regression-clock", "union")},
     **{("full-suite-report.yml", j): DISPATCH_LANE for j in ("vitest", "pytest", "collect_profile")},
-    **{(f, j): SHADOW_LANE for f, j in VPS_RAILS.items()},
-    **{(f, j): SHADOW_ONLY for f, j in MASTER_SIDE.items()},
+    **{(f, j): DISPATCH_LANE for f, j in VPS_RAILS.items()},
+    **{(f, j): MASTER_PUSH for f, j in MASTER_SIDE.items()},
 }
 
 
@@ -195,21 +193,6 @@ def test_no_workflow_triggers_on_a_label():
         assert "labeled" not in str((pr or {}).get("types")), name
 
 
-def test_the_shadow_cannot_touch_promotion():
-    doc = yaml.safe_load(_text("ci-vps-shadow.yml"))
-    assert pg.classify(_text("ci-vps-shadow.yml")) == "no"
-    assert {j["uses"].rsplit("/", 1)[1] for j in doc["jobs"].values()} == {*VPS_RAILS, *MASTER_SIDE}
-    assert all(j["with"]["lane"] == "vps" for j in doc["jobs"].values())
-
-
-def test_each_shadow_call_has_its_own_concurrency_group():
-    """github.workflow is the caller's in a called workflow, so without the tag all five would share one group."""
-    tags = [j["with"]["tag"] for j in yaml.safe_load(_text("ci-vps-shadow.yml"))["jobs"].values()]
-    assert len(set(tags)) == len(tags)
-    for name in {**VPS_RAILS, **MASTER_SIDE}:
-        assert "${{ inputs.tag }}" in yaml.safe_load(_text(name))["concurrency"]["group"], name
-
-
 # ---- the gate
 
 def test_every_heavy_gate_job_has_a_timeout_and_cannot_be_skipped():
@@ -286,6 +269,8 @@ def test_the_queue_watch_is_scoped_to_the_gate():
     assert {j["runs-on"] for j in doc["jobs"].values()} == {HOSTED}
     run = doc["jobs"]["watch"]["steps"][-1]["run"]
     assert '--cancel-workflow "master deploy gate"' in run
+    for title in ("wisdom rails", "term018 guards", "Options Flow guard", "notebook bytes", "Notebook accessibility"):
+        assert f'--cancel-workflow "{title}"' in run, title
     assert "promote" not in run
 
 
