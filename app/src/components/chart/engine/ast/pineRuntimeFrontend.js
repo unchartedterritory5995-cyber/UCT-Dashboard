@@ -2231,7 +2231,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!t || t.kind !== 'ident') continue
       const v = String(t.value)
       if (STATE_HEAD.has(v)) return true
-      if (HELD_WORDS.has(v) || declared.has(v)) continue
+      // ⛔ W6-T2 r1: before v5 `method` is not a keyword, so a call to a v3/v4 user function named
+      // `method` is a call like any other and must not be skipped as a word (it would count a held
+      // body that calls it as pure and serve a wrong value).
+      if ((HELD_WORDS.has(v) && !(v === 'method' && pineVersion !== null && pineVersion < 5))
+        || declared.has(v)) continue
       // a named argument's name (`length = 3`) is not a read
       if (isPunct(toks[k + 1], '=')) continue
       if (isPunct(toks[k + 1], '(')) {
@@ -10315,13 +10319,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ AN OVERLOADED NAME STILL REFUSES. Pine picks among same-named methods
       // by the receiver's TYPE, and this lane does not type a receiver — binding
       // whichever came last would run a method the member did not call.
-      if (word === 'method') {
+      // ⭐⭐ W6-T2 — `method` IS A KEYWORD ONLY IN THE SHAPE `method <ident>`, AND ONLY FROM v5.
+      // `method` arrived in Pine v5, so in a v3/v4 script `method = input(…)`, `method := …` and
+      // `method` as an argument are an ordinary name (the same test `collectUdtTypes` applies to
+      // `type`, and `scanDefs` already applies to the declaration count). ⛔ In v5+ (or an
+      // unversioned script) `method = …` is a keyword misuse TradingView rejects: no capture shows
+      // what it would answer, so it keeps refusing by name below rather than serving a value.
+      const methodIsName = word === 'method' && !(toks[1] && toks[1].kind === 'ident')
+        && pineVersion !== null && pineVersion < 5
+      if (word === 'method' && !methodIsName) {
         const mName = toks[1] && toks[1].kind === 'ident' ? String(toks[1].value) : null
         if (!mName || !bindableMethod(mName)) {
           note('runtime:udt-method')
           throw new RuntimeRefusal('runtime:udt-method',
             mName ? `\`${mName}\` is declared more than once (or also as a plain function), and Pine `
-              + 'chooses among them by the receiver\'s type, which this lane does not resolve' : null,
+              + 'chooses among them by the receiver\'s type, which this lane does not resolve'
+              : '`method` is a keyword from Pine v5 and is not a declaration here (no `method <name>(`); '
+                + 'only a v3/v4 script may use it as a name',
             locate(first))
         }
         toks = toks.slice(1)
