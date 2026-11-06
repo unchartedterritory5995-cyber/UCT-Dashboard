@@ -525,6 +525,10 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # `bars_full` is the full sanitized series; only ath_fields reads it.
     # Task 9 adds more consumers of both names.
     bars_full = technicals.usable_bars(bars)
+    # The RS step's own window (review finding #18): the same "raw tail, then
+    # sanitize" idiom, RS_WINDOW_BARS deep instead of 400. Read BEFORE `bars`
+    # is reassigned below, because it slices the raw parameter.
+    rs_bars = technicals.usable_bars(bars[-RS_WINDOW_BARS:])
     bars = technicals.usable_bars(bars[-400:])
 
     # 🔴 A CONSUMER THAT RAISES MUST COST ITS COLUMNS, NEVER THE ROW — because
@@ -568,8 +572,8 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
                              bars, ipo_date=row.get("ipo_date"))))
         # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). The ten
         # RS columns come from the SAME `relative_strength` functions the
-        # chart's rsLine draws (plan §2.3 principle 5), over this row's 400-bar
-        # window against the SPY / RSP bar dicts `_run_build_locked` read ONCE
+        # chart's rsLine draws (plan §2.3 principle 5), over this row's
+        # RS_WINDOW_BARS (652) window against the SPY / RSP bar dicts `_run_build_locked` read ONCE
         # at DEEP_BARS, joined by bar TIME — never the positional zip
         # `rs_line_trend` below still does. Gated exactly like `rs_line_trend`:
         # no SPY bars this build ⇒ the columns stay NULL and the build-level
@@ -587,9 +591,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             _rs_stats = (failures.setdefault("bars_rs", {})
                          if failures is not None else None)
             _rs_t0 = time.perf_counter()
+            # `rs_bars`, not `bars`: an age column can only count back to the
+            # first bar its event can exist on (bar LOOKBACK for an RS new high,
+            # bar MANSFIELD_LENGTH for a Mansfield cross). Over the 400-bar
+            # window that capped `rs_nh_bars_ago` at 147 and
+            # `mansfield_cross_bars_ago` at 199, so a filter of 148+ never
+            # matched and the column went blank on day 148 while the chart still
+            # drew the dot (review finding #18). Same newest bar, same session.
             row.update(_step("bars_rs",
                              lambda: rs_columns.collect_one(
-                                 bars, spy_bars, rsp_bars,
+                                 rs_bars, spy_bars, rsp_bars,
                                  session=_asof_of(bars), stats=_rs_stats)))
             if rs_timing is not None:
                 rs_timing["rows"] = rs_timing.get("rows", 0) + 1
@@ -739,6 +750,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
 # (`bars_window.HISTORY_WINDOW_BARS`, ruling R13): the two are equal today and
 # decided separately. (The bars API's ceiling is 60,000; 5000 was never it.)
 DEEP_BARS = 5000
+
+# The bar-derived RS step's window (review finding #18, 2026-11-07): 400
+# sessions of published age on top of the 252-session new-high lookback, so
+# `rs_nh_bars_ago` reads its true age for any RS new high in the last 400
+# sessions (it was capped at 147) and `mansfield_cross_bars_ago` for any cross
+# in the last 452 (it was capped at 199). Every other consumer keeps its 400.
+# Measured with the O(n) kernel, synthetic 5000-bar SPY/RSP, venv Python on
+# the dev box: 5.4 ms per ticker at 400 bars, 10.0 ms at 652.
+RS_PUBLISHED_AGE_BARS = 400
+RS_WINDOW_BARS = rs_columns.LOOKBACK + RS_PUBLISHED_AGE_BARS     # 652
 
 
 def _read_daily_bars(ticker):

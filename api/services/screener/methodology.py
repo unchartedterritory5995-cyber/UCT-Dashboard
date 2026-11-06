@@ -387,7 +387,7 @@ def _rs_column_methods() -> list:
          "caveat": ("A daily 200 and a weekly 52 are not the same number for the same stock, "
                     "and neither is Weinstein's own chart service's. Compare it with itself "
                     "over time and with its zero line, not with a figure from another tool.")},
-        {"column": "mansfield_cross_bars_ago", "label": "Mansfield Zero-Cross Age (bars)",
+        {"column": "mansfield_cross_bars_ago", "label": "Mansfield Cross Age (bars)",
          "one_line": "Sessions since Mansfield RS last crossed its zero line.",
          "scale": age,
          "how": (f"0 on the session Mansfield RS crossed zero in EITHER direction, one more "
