@@ -2174,6 +2174,8 @@ def _rs_history_shortfall(receipt: dict):
     return None
 
 
+# TERM-018: observed red-before-green; the record is
+# docs/terminal-research/12-decisions/gates/term-018-guard-observations.json.
 def _alert_if_rs_history_short(receipt: dict) -> None:
     """ONE warning per short run, keyed `rs_history_short:{session}`, through the
     emitter the screener build uses for its own shortfall (`_alert_if_nightly_short`
