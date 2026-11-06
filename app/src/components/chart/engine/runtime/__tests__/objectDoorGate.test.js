@@ -196,3 +196,66 @@ describe('⭐⭐ W4-T11 text builtins are gated at the object door', () => {
     expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
   })
 })
+
+// ⭐⭐ W6-T5 — the `array.*` members served after master c04bdbe2c1 (the W19-R2 port and the
+// reference-formula members) ask `objectDoorRefuses` first (`admitArrayCall`, the one
+// admitter): the same pane build at the door refuses BY NAME, the pane builds it, and the
+// door draws exactly what master drew. MASTER_DOOR is pinned from master c04bdbe2c1 (this
+// file's `doorRun`, run in a master worktree, 2026-11-06). ⚠️ Three of master's answers are
+// the HOST object lane's, not this runtime's: for `fill`, `reverse` and `sort` it draws the
+// label from the array as built, without the write (`586.915` is o+h+l+c, `144.14` is the
+// open). That is master's live behaviour, pinned here so this lane cannot move it; it is
+// reported in the W6-T5 evidence, not changed here.
+// `array.median` / `array.stdev` were already BUILT by master at the door, so they are not
+// gated at build; the door's run keeps master's answer (`collections.js::MASTER_AT_DOOR`),
+// which `w6ArrayMembers.test.js` and `c18WhileAndLastBar.test.js` pin at the run level.
+describe('⭐⭐ W6-T5 array members are gated at the object door', () => {
+  const ARR = 'a = array.from(open, high, low, close)\nb = array.from(close, open, high, low)\n'
+  const REFUSED = { ok: false, labels: null }
+  const SHAPES_A = {
+    fill: ['array.fill(a, close, 1, 3)\nv = array.sum(a)\n', { ok: true, labels: ['586.915'] }],
+    insert: ['array.insert(a, 1, close)\nv = array.size(a) + array.get(a, 1)\n', REFUSED],
+    reverse: ['array.reverse(a)\nv = array.get(a, 0)\n', { ok: true, labels: ['144.14'] }],
+    lastindexof: ['v = array.lastindexof(a, close)\n', REFUSED],
+    range: ['v = array.range(a)\n', REFUSED],
+    abs: ['v = array.sum(array.abs(a))\n', REFUSED],
+    join: ['s = array.from("x", "yz")\nv = str.length(array.join(s, "-"))\n', REFUSED],
+    variance: ['v = array.variance(a)\n', REFUSED],
+    covariance: ['v = array.covariance(a, b)\n', REFUSED],
+    percentile_nearest_rank: ['v = array.percentile_nearest_rank(a, 50)\n', REFUSED],
+    sort: ['array.sort(a)\nv = array.get(a, 0)\n', { ok: true, labels: ['144.14'] }],
+    every: ['v = array.every(a) ? 1 : 0\n', REFUSED],
+    some: ['v = array.some(a) ? 1 : 0\n', REFUSED],
+  }
+  for (const [name, [body, master]] of Object.entries(SHAPES_A)) {
+    it(`${name}: the door draws what master drew`, () => {
+      expect(doorRun(H + ARR + body + label('v'))).toEqual(master)
+    })
+    it(`${name}: the runtime pane builds it`, () => {
+      const b = paneBuild(H + ARR + body + 'plot(v)\n')
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the same build at the object door refuses BY NAME`, () => {
+      const b = paneBuild(H + ARR + body + 'plot(v)\n', { objectDoor: true })
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:object-door')
+      expect(b.refusal.message).toMatch(/runtime pane only/)
+      expect(b.refusal.message).toContain(`array.${name}`)
+    })
+  }
+  for (const name of ['median', 'stdev']) {
+    it(`${name}: master built it at the door, and the door still builds it`, () => {
+      const b = paneBuild(H + ARR + `v = array.${name}(a)\nplot(v)\n`, { objectDoor: true })
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the door draws what master drew (elements, empty, over state)`, () => {
+      const none = { ok: true, labels: [] }
+      expect(doorRun(H + ARR + `v = array.${name}(a)\n` + label('v'))).toEqual(none)
+      expect(doorRun(H + `e = array.new_float()\nv = array.${name}(e)\n` + label('v'))).toEqual(none)
+      expect(doorRun(H + STATE + 'x = array.from(close + k, open)\n' + `v = array.${name}(x)\n` + label('v'))).toEqual(none)
+    })
+  }
+  it('CONTROL: array.sum over the same array is master\'s and draws through the door', () => {
+    expect(doorRun(H + ARR + 'v = array.sum(a)\n' + label('v'))).toEqual({ ok: true, labels: ['586.915'] })
+  })
+})

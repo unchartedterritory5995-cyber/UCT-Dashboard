@@ -65,7 +65,7 @@ import {
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
-import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, isVoid, argKind, DOOR_GATED_ARRAY, producesArrayText } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
 // so a method-form call is admitted or refused by the same table, with the same
@@ -2773,6 +2773,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // a slot as text — `int n = str.length(s)` is an int, and calling it text
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
+    // ⭐ W6-T5 — `array.join` returns text (`collections.js::producesArrayText`).
+    if (node.type === 'call' && producesArrayText(node.name)) return true
     // ⭐ P3 WS-B — `str.tostring` is text in EVERY run, not only one that draws
     // (`text.js::RUN_TEXT_FNS`; see the call arm).
     if ((objectsInRun || !atObjectDoor) && isRunTostring(node)) return true
@@ -4100,6 +4102,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  watchlist parser is made of. */
   const admitArrayCall = (node, scope, asStatement) => {
     const spec = ARRAY_FNS[node.name]
+    // ⭐ W6-T5 — a member served after master c04bdbe2c1 (`array.fill`, `array.sort`, …)
+    // is the runtime pane's only: the object door builds what master built.
+    if (DOOR_GATED_ARRAY.has(node.name)) objectDoorRefuses('`' + node.name + '`', locate(node.tok))
     for (const arg of node.args) {
       if (arg && arg.name) {
         throw new RuntimeRefusal('runtime:statement',
