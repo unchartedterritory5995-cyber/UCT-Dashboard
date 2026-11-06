@@ -239,6 +239,21 @@ def test_columns_route_serves_the_v2_envelope(client, monkeypatch, v2_row):  # n
     assert all(v is None or isinstance(v, (int, float)) for v in body["columns"]["rsNH"])
 
 
+def test_the_js_definition_names_exactly_the_inputs_the_python_row_declares():
+    """`meta.serverInputs` in nativeRegistry.js is what keys the client's fetch;
+    the Python row's `inputs` is what the server resolves. Diffed the same way
+    the benchmark enum is, so a key added on one side alone is a red test rather
+    than an input that is sent and dropped, or declared and never sent."""
+    import pathlib
+    import re
+    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    block = src.split("serverInputs:", 1)[1].split("],", 1)[0]
+    js = re.findall(r"'([A-Za-z]+)'", block)
+    py = [i["key"] for i in rd._rs_line_row(True)["inputs"]]
+    assert sorted(js) == sorted(py), (js, py)
+    assert len(js) >= 3, "a short list makes this comparison vacuous"
+
+
 def test_columns_route_422s_an_unknown_benchmark(client, monkeypatch, v2_row):  # noqa: F811
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
     c = TestClient(client)

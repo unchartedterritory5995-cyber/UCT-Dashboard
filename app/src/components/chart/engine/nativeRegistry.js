@@ -3810,6 +3810,12 @@ const RS_LINE_RAW = {
       'mansfield', 'rrg', 'rotation', 'leader', 'leadership', 'price relative'],
     tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // ⭐ THE INPUTS THE SERVER DECLARES — and therefore the only ones that key the
+    // fetch (`serverCompute.pickServerInputs`). Colours and width stay on the
+    // client. `test_rs_columns_provider.py` diffs this list against the Python
+    // row's input keys, the same way the benchmark enum is diffed.
+    serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'priceTolerance',
+      'redDayThreshold', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots'],
     // Read by the settings dialog (plan §6.3): these groups open collapsed so
     // the Simple group is what a member sees first.
     groupsCollapsed: ['Line', 'New highs'],

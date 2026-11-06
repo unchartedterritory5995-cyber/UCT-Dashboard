@@ -402,3 +402,78 @@ describe('⭐ the lane is GENERIC — a fourth tenant needs no code in it', () =
     }
   })
 })
+
+// ─── UCT Relative Strength v2: the envelope's scalars, the server-only key, rev gating ─
+// Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md §8.3.
+import { pickServerInputs, revMismatch, scalarsFor } from './serverCompute'
+
+describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () => {
+  beforeEach(() => clearServerColumns())
+
+  it('keeps `payload` and `rev` when the wire carries them, and NOTHING else when it does not', () => {
+    const bare = columnsFromWire({ columns: { a: [1] }, times: [1] })
+    expect(Object.keys(bare).sort()).toEqual(['columns', 'times'])
+    const rich = columnsFromWire({ columns: { a: [1] }, times: [1], rev: 2, payload: { legend: { above: true } }, asOf: 5 })
+    expect(rich.rev).toBe(2)
+    expect(rich.payload).toEqual({ legend: { above: true } })
+    expect(rich.asOf).toBeUndefined()
+    // a payload that is not a plain object is not a payload
+    expect(columnsFromWire({ columns: {}, times: [], payload: [1, 2] }).payload).toBeUndefined()
+  })
+
+  it('`pickServerInputs` sends only the keys the definition names, else everything', () => {
+    const def = { meta: { serverInputs: ['benchmark', 'lookback'] } }
+    expect(pickServerInputs(def, { benchmark: 'SPY', lookback: 252, lineColor: '#fff', lineWidth: 2 }))
+      .toEqual({ benchmark: 'SPY', lookback: 252 })
+    expect(pickServerInputs({ meta: {} }, { a: 1, b: 2 })).toEqual({ a: 1, b: 2 })
+  })
+
+  it('a colour change does NOT re-key the fetch for a definition that names its server inputs', async () => {
+    const def = getDefinition('rsLine')
+    expect(def.meta.serverInputs).toContain('benchmark')
+    expect(def.meta.serverInputs).not.toContain('lineColor')
+    const calls = []
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [1] }, times: [20260105], rev: 2 }) }
+    const bars = [{ t: '2026-01-05', c: 1 }]
+    const base = { benchmark: 'SPY', lookback: 252, lineColor: '#111111' }
+    serverColumnsFor(def, bars, base, { sym: 'NVDA', tf: 'D', fetcher })
+    await Promise.resolve(); await Promise.resolve()
+    serverColumnsFor(def, bars, { ...base, lineColor: '#222222' }, { sym: 'NVDA', tf: 'D', fetcher })
+    expect(calls.length, 'one fetch for two colours').toBe(1)
+    expect(calls[0]).not.toContain('lineColor')
+  })
+
+  it('⛔ REV GATING — an entry on another rev is a miss, re-asked once, and draws nothing meanwhile', async () => {
+    const def = getDefinition('rsLine')
+    expect(def.compute.rev).toBe(2)
+    const inputs = { benchmark: 'SPY' }
+    const ctx = { sym: 'NVDA', tf: 'D' }
+    // a stale rev-1 envelope lands in the cache (a browser that fetched before the deploy)
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs), { columns: { rsLine: [0.5] }, times: [20260105], rev: 1 })
+    expect(revMismatch(cachedColumns('rsLine', 'NVDA', 'D', inputs), def)).toBe(true)
+    const calls = []
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [0.7] }, times: [20260105], rev: 2 }) }
+    const bars = [{ t: '2026-01-05', c: 1 }]
+    expect(serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })).toEqual({})
+    expect(cachedColumns('rsLine', 'NVDA', 'D', inputs), 'the stale entry is gone at once').toBeNull()
+    await new Promise((r) => setTimeout(r, 0))     // let the fetch chain land (several microtasks)
+    expect(calls.length, 'the lane asks on a microtask, as it always has').toBe(1)
+    const drawn = serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })
+    expect(Array.from(drawn.rsLine)).toEqual([0.7])
+    expect(calls.length, 'the re-ask happened once').toBe(1)
+  })
+
+  it('`scalarsFor` reads the landed payload and never asks', () => {
+    const def = getDefinition('rsLine')
+    const inputs = { benchmark: 'SPY', lineColor: '#abc' }
+    const ctx = { sym: 'NVDA', tf: 'D' }
+    expect(scalarsFor(def, inputs, ctx)).toBeNull()
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 2, payload: { benchmark: { resolved: 'SPY' } } })
+    expect(scalarsFor(def, inputs, ctx)).toEqual({ benchmark: { resolved: 'SPY' } })
+    // on the wrong rev the scalars are withheld with the columns
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 1, payload: { stale: true } })
+    expect(scalarsFor(def, inputs, ctx)).toBeNull()
+  })
+})
