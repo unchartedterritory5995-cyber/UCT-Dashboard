@@ -65,9 +65,8 @@ import { readStrategyDeclaration, orderArgsOf, StrategyOptionError } from './str
 // W9-T1 - the build flag is NOT read here: this module is in the server compute closure, which bakes
 // no VITE_* name (serverBundle.rail, hostNeutralClosure.rail). The member door (memberPaneDefinition.js,
 // outside the closure) registers the reader; the server never does, so the broker is dark there.
-let strategyBrokerGateReader = () => false
-export function registerStrategyBrokerGate(reader) { strategyBrokerGateReader = typeof reader === 'function' ? reader : () => false }
-const strategyBrokerEnabled = () => strategyBrokerGateReader() === true
+import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
+const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,

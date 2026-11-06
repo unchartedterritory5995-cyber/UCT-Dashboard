@@ -32,3 +32,9 @@ holds a default-false reader, so the server stays dark. Mutations (muts2.json): 
 gate-read-in-closure both KILLED. The measure-pair above ran at a1f5262c33; this change only moves where the flag is read
 (default off, behaviour identical with the flag off). Unrelated master failures seen in final-tip:
 usePreferences.additionsOnly (TodayHome.jsx opaque setPref, red on base 7f6dd3714d too) and useWakeWord.lazy (passes alone).
+
+## Gate registry (second final-tip fix)
+pineRuntimeFrontendGate.test.js refused memberPaneDefinition importing pineRuntimeFrontend. The reader now lives in the import-free
+engine/strategyBrokerGateRegistry.js; the front end reads it, memberPaneDefinition registers the flag. Mutations (muts3.json): control
+survived; drop-gate and gate-read-in-closure KILLED. Failures left in the full run are the master baselines plus usePreferences.additionsOnly
+(red on base 7f6dd3714d).
