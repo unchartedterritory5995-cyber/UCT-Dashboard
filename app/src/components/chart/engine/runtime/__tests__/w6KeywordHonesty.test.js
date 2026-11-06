@@ -38,4 +38,24 @@ describe('W6-T2 method as a name', () => {
   it('user function and namespaced forms are untouched', () => {
     expect(out0(5, 'f(x) => x + 1\nplot(f(close) + ta.sma(close, 1))')).toEqual(BARS.map((b) => b.c * 2 + 1))
   })
+  it('v4 held function calling `method` with history still refuses runtime:conditional-history', () => {
+    const src = `method(x) => x - x[1]
+g(s, n) => n > 0 ? method(s) : s
+up = close > open
+y = up ? g(close, 2) : close
+plot(y)`
+    const b = build(4, src)
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:conditional-history')
+    // control: the same script with the function renamed refuses identically
+    const c = build(4, src.replace(/method/g, 'mm'))
+    expect(c.ok).toBe(false)
+    expect(c.refusal.guard).toBe('runtime:conditional-history')
+  })
+  it('v4 `method f(x) =>` (declaration shape) is never read as a name', () => {
+    const b = build(4, `method f(x) => x + 1
+plot(f(close))`)
+    expect(b.ok === true || b.refusal.guard === 'runtime:udt-method').toBe(true)
+    expect(b.ok ? 'declared' : 'refused').toBe('declared')
+  })
 })

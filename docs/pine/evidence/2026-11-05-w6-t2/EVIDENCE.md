@@ -43,3 +43,15 @@ gate=0 hyg=0 js=1, totals ok, integrity ok. Failing files: controlDoorCensus, en
 settingsScope.rail, pollingSites.rail (baselines), vendorHarness.coverageAudit (delta-rsi, re-run alone: still fails),
 usePreferences.additionsOnly (TodayHome.jsx opaque setPref, from master). The last two were re-run on the base
 7f6dd3714d: both fail there identically, so neither is from this lane.
+
+## r1 (review NO-GO @70d1a93722, B1)
+B1 was a silent wrong value: a v3/v4 user function named `method` was served, but HELD_WORDS still skipped it, so a
+held body calling it counted as pure. Fix: the held scan skips `method` as a word only when the version is not known
+to be below 5. Rails added: the reviewer's repro (v4 held `g` calling `method(x) => x - x[1]` refuses
+runtime:conditional-history, with the renamed `mm` control) and `method f(x) =>` is still a declaration in v4.
+Mutations (heavy-mut.lock): no-op SURVIVED (control); HELD gate removed KILLED (this is the pre-fix state, so the repro
+is red before and green after); methodIsName forced false KILLED; version gate removed KILLED; ident clause removed KILLED
+(the reviewer's M3, now a killed case).
+N3 (fnDefName) deliberately NOT changed: it is type inference, the result stays unknown (conservative), and changing it
+would need a new measure-pair. Measure-pair numbers above stand for the one-line HELD change since it only affects
+scripts with a v3/v4 user function named `method`, which refused before. Engine bump: yes.

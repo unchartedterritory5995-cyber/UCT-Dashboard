@@ -2231,7 +2231,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!t || t.kind !== 'ident') continue
       const v = String(t.value)
       if (STATE_HEAD.has(v)) return true
-      if (HELD_WORDS.has(v) || declared.has(v)) continue
+      // ⛔ W6-T2 r1: before v5 `method` is not a keyword, so a call to a v3/v4 user function named
+      // `method` is a call like any other and must not be skipped as a word (it would count a held
+      // body that calls it as pure and serve a wrong value).
+      if ((HELD_WORDS.has(v) && !(v === 'method' && pineVersion !== null && pineVersion < 5))
+        || declared.has(v)) continue
       // a named argument's name (`length = 3`) is not a read
       if (isPunct(toks[k + 1], '=')) continue
       if (isPunct(toks[k + 1], '(')) {
