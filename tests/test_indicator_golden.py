@@ -108,6 +108,15 @@ RS_MANSFIELD_CASES = ["rs_mansfield"]
 #      re-deriving its floor is how a floor quietly stops being one.
 AST_CASES = ["ast_sma_20", "ast_nan_propagation", "ast_crossover"]
 
+# ⭐ PHASE 2a (UCT RS, unit 2a-16): NOT an indicator-math case. `rs_learn_videos`
+# carries the Desk video ids the RS Learn links point at — no bars, no expected
+# columns — and is read by `tests/test_rs_learn_seed.py` (against the Desk seed)
+# and `app/src/lib/deskVideoHref.test.js` (against the JS map). It lives in this
+# directory because it is the one place both lanes already resolve shared
+# fixtures from; it is listed here ONLY so the on-disk census below keeps
+# demanding that every file has a reader, and it is never fed to `compute_case`.
+RS_LEARN_FIXTURES = ["rs_learn_videos"]
+
 # Cases whose bars live in another file. The indirection is the point — see
 # `_generate.py::_write_referenced` — so it gets its own list rather than being
 # inferred, and `test_a_referenced_case_really_is_referenced` guards it.
@@ -249,7 +258,7 @@ def test_every_fixture_file_is_covered_by_a_test():
     """A fixture nobody reads is a fixture nobody maintains."""
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
-              | set(RS_MANSFIELD_CASES) | set(AST_CASES))
+              | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES))
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )
