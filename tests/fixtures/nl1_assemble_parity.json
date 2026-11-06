@@ -102,6 +102,14 @@
   "chart.closeTab": "workspace",
   "chart.renameTab": "workspace",
   "chart.linkTab": "workspace",
+  "multiChart.enter": "multiChart",
+  "multiChart.exit": "multiChart",
+  "multiChart.setOption": "multiChart",
+  "multiChart.loadGroup": "multiChart",
+  "multiChart.openSaved": "multiChart",
+  "multiChart.cell": "multiChart",
+  "multiChart.saveGrid": "multiChart",
+  "multiChart.deleteSaved": "multiChart",
   "drawing.addTrendline": "drawingTools",
   "drawing.addRay": "drawingTools",
   "drawing.addRectangle": "drawingTools",
@@ -177,6 +185,10 @@
   {
    "id": "chartGrid",
    "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+  },
+  {
+   "id": "multiChart",
+   "title": "Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell"
   },
   {
    "id": "boardEdit",
@@ -316,6 +328,10 @@
      {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
+      "id": "multiChart",
+      "title": "Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell"
      },
      {
       "id": "boardEdit",
@@ -473,6 +489,10 @@
      {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
+      "id": "multiChart",
+      "title": "Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell"
      },
      {
       "id": "boardEdit",
@@ -644,6 +664,10 @@
      {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
+      "id": "multiChart",
+      "title": "Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell"
      },
      {
       "id": "boardEdit",
@@ -827,6 +851,10 @@
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
+      "id": "multiChart",
+      "title": "Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell"
+     },
+     {
       "id": "boardEdit",
       "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
@@ -980,6 +1008,10 @@
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
+      "id": "multiChart",
+      "title": "Multi Chart mode: enter, exit, shape, sync, Groups, saved grids, maximize a cell"
+     },
+     {
       "id": "boardEdit",
       "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
      },
@@ -1071,6 +1103,7 @@
     "charts",
     "chartSetup",
     "chartGrid",
+    "multiChart",
     "boardEdit",
     "workspace",
     "layouts",
@@ -1187,6 +1220,14 @@
     "chart.closeTab",
     "chart.renameTab",
     "chart.linkTab",
+    "multiChart.enter",
+    "multiChart.exit",
+    "multiChart.setOption",
+    "multiChart.loadGroup",
+    "multiChart.openSaved",
+    "multiChart.cell",
+    "multiChart.saveGrid",
+    "multiChart.deleteSaved",
     "drawing.addTrendline",
     "drawing.addRay",
     "drawing.addRectangle",

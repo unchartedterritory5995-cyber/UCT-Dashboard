@@ -25,6 +25,9 @@ import { mountedWidgetDoor } from '../pages/charts/widgetDoors'
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
 import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
+import { parseLayoutId, gridTemplateLayout } from '../pages/charts/grid/gridLayouts'
+import { fetchGroupTop, fetchPeers, pinEtf } from '../pages/charts/grid/groupsApi'
+import { pushRecent } from '../pages/charts/grid/groupRecents'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -712,6 +715,92 @@ export function buildCellSync({ readCells, localCell, settleMs = 700, tries = 2 
     }
   }
 }
+/**
+ * ⭐ MULTI CHART AS A MODE: the grid itself, on or off screen, through the hook the Layouts ▸ Multi Chart menu writes with.
+ * `getMc()` → { mc: useMultiChartState(), global, mine, saveLayout, deleteLayout } (ChartsWorkspace). `chartApiById` reaches
+ * the mounted grid, for what only it holds (which cell is maximized). Group fills run the menu's own steps, but look the
+ * group up FIRST, so a group that will not load leaves the grid as it was.
+ */
+export function buildMultiChartSource({ getMc, chartApiById }) {
+  const mc = () => getMc()?.mc || null
+  const mounted = () => gridOf(chartApiById)
+  const isGrid = (t) => t?.layout?.kind === 'multichart'
+  const row = (t) => ({ id: t.id, name: t.name, layout: t.layout?.layout ?? null })
+  const fill = (filled, group) => {
+    const m = mc()
+    if (m.state.mode !== 'grid') m.enterGrid(m.state.layout)
+    m.setGroupsMode(true)
+    m.fillCells(filled, group)
+    return { ok: true, syms: filled.slice(0, parseLayoutId(m.state.layout).cellCount) }
+  }
+  return {
+    read() {
+      const m = mc()
+      if (!m) return null
+      const s = m.state
+      return { mode: s.mode === 'grid' ? 'grid' : 'workspace', layout: s.layout, cells: s.cells, hydrated: m.hydrated !== false,
+        syncCrosshair: !!s.syncCrosshair, syncTimeRange: !!s.syncTimeRange, groupsMode: !!s.groupsMode, group: s.group || null,
+        maximized: mounted()?.maximized?.() ?? null }
+    },
+    saved() {
+      const g = getMc()
+      return { global: (g?.global || []).filter(isGrid).map(row), mine: (g?.mine || []).filter(isGrid).map(row) }
+    },
+    mounted: () => !!mounted(),
+    enter: (layoutId) => mc().enterGrid(layoutId),
+    exit: () => mc().exitGrid(),
+    setSyncCrosshair: (on) => mc().setSyncCrosshair(on),
+    setSyncTimeRange: (on) => mc().setSyncTimeRange(on),
+    setGroupsMode: (on) => mc().setGroupsMode(on),
+    setMaximized: (id) => mounted()?.setMaximized?.(id),
+    // a cell's own settings blob, as its Reset button writes it: ticker, timeframe, Style pick and session stay as they are
+    setCellSettings(id, settings) {
+      const m = mc()
+      const i = m.state.cells.findIndex(c => c.id === id)
+      if (i < 0) return false
+      m.updateCellAt(i, { ...m.state.cells[i], settings })
+      return true
+    },
+    restore: (fields) => mc().restoreFields(fields),
+    persist: () => mc().flushSave(),
+    /** A theme group into the grid (GroupPicker's pick; `step` and refresh use the same fill). */
+    async loadGroup({ id, name, by = 'today', recent = false }) {
+      const n = parseLayoutId(mc().state.layout).cellCount
+      const { syms, etf } = await fetchGroupTop(id, { n, by })
+      const filled = pinEtf(syms, etf, n)
+      if (!filled.length) return { ok: false, reason: `${name || 'That group'} has no chartable names right now` }
+      if (recent) pushRecent(id)
+      return fill(filled, { id, by, n, name })
+    },
+    /** MultiChartMenu's ↻ Refresh group: an industry cohort re-resolves from its seed, a theme group from its top list. */
+    async refreshGroup() {
+      const g = mc().state.group
+      const n = mc().state.cells.length
+      if (String(g?.id || '').startsWith('industry:')) {
+        if (!g.seed) return { ok: false, reason: 'that cohort has no ticker to refresh from' }
+        const res = await fetchPeers(g.seed, { n: Math.max(1, n - 1) })
+        const syms = [g.seed, ...((res && res.peers) || [])].slice(0, n)
+        if (syms.length <= 1) return { ok: false, reason: 'that cohort has no other names right now' }
+        return fill(syms, { ...g, n })
+      }
+      const { syms, etf } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
+      const filled = pinEtf(syms, etf, n)
+      if (!filled.length) return { ok: false, reason: 'that group has no chartable names right now' }
+      return fill(filled, { ...g, n })
+    },
+    openSaved(id) {
+      const g = getMc()
+      const tpl = [...(g?.global || []), ...(g?.mine || [])].find(t => t.id === id && isGrid(t))
+      if (!tpl) return null
+      g.mc.applyGridTemplate(tpl)
+      return tpl
+    },
+    // create-only: the name-keyed upsert behind this route would otherwise replace a saved layout of the same name
+    saveGrid: (name) => getMc().saveLayout({ name, layout: gridTemplateLayout(mc().state), groups: null, scope: 'user', createOnly: true }),
+    deleteSaved: (id) => getMc().deleteLayout(id),
+  }
+}
+
 const GRID_KEYS_URL = `${PREFS_URL}?keys=multichart_state`
 async function readServerCells() {
   const r = await fetch(GRID_KEYS_URL, { credentials: 'include', cache: 'no-store' })
@@ -742,7 +831,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, multiChart = null, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -751,6 +840,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
+    ...(multiChart ? { multiChartBoard: buildMultiChartSource({ getMc: multiChart, chartApiById }) } : {}),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),

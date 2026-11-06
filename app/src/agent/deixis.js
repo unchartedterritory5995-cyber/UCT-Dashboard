@@ -253,6 +253,26 @@ function clickFits(said, charts, sel) {
   return said.some(w => { const parts = w.split('-'); return charts.some(c => c.ref === sel && c.position && parts.every(p => c.position.split('-').includes(p))) })
 }
 
+/**
+ * ⛔ A capability whose only argument is its chart (`chartIsItsArgument`: maximize a cell, reset a cell). Any chart the words
+ * name is then THE target, so neither the chart clicked nor the model's pick replaces it: asked, nothing runs. Chart
+ * capabilities that take other arguments stay with the rules around this one, where a ticker may be an argument ("compare AMD").
+ */
+function namedElsewhere({ host, ops, text, getTargetKind, getCapability }) {
+  for (const o of ops || []) {
+    const cap = getCapability(o?.action)
+    if (!cap?.chartIsItsArgument) continue
+    const kind = getTargetKind(cap.target)
+    const list = kind?.list(host) || []
+    const chart = chartRefOf(kind, list.find(s => s.ref === o.target))
+    const named = chartsNamedBy(text, host?.charts?.list?.() || [])
+    if (!named.size || named.has(chart)) continue
+    const meant = list.filter(s => named.has(chartRefOf(kind, s)))
+    return { ask: { text: meant.length === 1 ? `Did you mean ${meant[0].label}?` : 'Which chart do you mean?', choices: (meant.length > 1 ? meant : list).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+  }
+  return null
+}
+
 export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
   if (pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   // an ANSWER to the model's question is read with the words that question was about (`context`)
@@ -271,6 +291,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
     if (chart) targets.set(chart, { list, action: o.action })
   }
   if (!targets.size) return null
+  if (!pickedRefs?.length) { const elsewhere = namedElsewhere({ host, ops, text: words, getTargetKind, getCapability }); if (elsewhere) return elsewhere }
   // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
   // the charts this plan changes ("both" = two), else it is only proposed
   // ⭐ P2: "copy these to my other charts" — with the chart the request is about, the member named every chart
@@ -374,6 +395,8 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     }
     if (dests.size === 1 && otherChartMeant(text, charts, [...dests][0], ops)) return null
   }
+  const elsewhere = namedElsewhere({ host, ops, text, getTargetKind, getCapability })
+  if (elsewhere) return elsewhere
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
   const aimed = new Map()
   for (const o of ops || []) {
