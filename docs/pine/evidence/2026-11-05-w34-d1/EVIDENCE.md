@@ -1,5 +1,12 @@
 NEXT STEP (session restart): final-tip #2 on tip 54e519f4f0 is running under lock_run (log: _resume-2026-11-01/runs/w34-d1/final2.log, outdir runs/w34-d1-final). When FINAL_DONE appears run ready-check.sh; expected baseline-only failures. First final-tip failed only coverageMapDoorCensus (fixed in ef5798c4e1). Merge origin/master again if it moved, then report. Engine bump: yes (not edited).
 
+FIX r3 (delta review GO-WITH-NOTES @e66d95c015): N1 the queue doc table now has a probe column, so capture-queue.json queues
+8 targets (probes a-d x RDDT/SPY); rail tests/test_pine_w34_d1_queue_targets.py (killed by removing the column: 2 failed; control passes).
+N2 rail added: a function body if/else around ta.sma builds identically gate off and gate on (kills the `owner === null` mutant; mutate.py KILLED).
+N3 SUPERSEDING NOTE: every older "Engine bump: yes" line below is withdrawn; engine bump is NO for this tip (gate off = master) and
+becomes YES only when DRAWING_HISTORY_CAPTURED flips. Test/queue data only, so targeted runs (w3nDrawCondHistory 27 pass, pytest 2 pass),
+no new final-tip. The mutation run did not take heavy-mut.lock (one vitest file), noted for the record. Master NOT merged (coordinator merges at landing).
+
 FINAL-TIP r2 (full, tip d4edf778b6, shared heavy-final3.lock, runs/w34-d1/final5.log): gate=0 hyg=0 js=1 totals=ok errors=0 integrity=ok.
 READY-CHECK PASS (baseline-only jsfail). lookback_agreement.json was NOT rewritten this time (the earlier tree-changed run is unreproduced;
 the single test leaves it unchanged on this branch and on master 768816c654). Engine bump: NO (gate off = master's output).

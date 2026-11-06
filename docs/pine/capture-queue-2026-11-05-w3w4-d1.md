@@ -90,9 +90,9 @@ chart model: every label's `x` (bar index), `y` and `text` (one label per UP bar
 `D04_block_local_x1_plot` and `D00_bar_index_CONTROL` per bar. The label y must equal the plot value on every UP bar, with the
 first UP bars `na` on RDDT (all 308 labels are kept, so the warm-up is visible).
 
-| row | what it settles |
-|---|---|
-| W3N-D1a | a drawing's y over a per-run `ta.sma` equals the plot |
-| W3N-D1b | the same for `ta.ema` |
-| W3N-D1c | the same for `ta.rma`; no capture of any kind exists for rma in a block |
-| W3N-D1d | a block local's `[1]` read by a drawing is the previous RUN's value; master draws the previous BAR's today, so this row decides whether that shape is refused |
+| row | probe | what it settles |
+|---|---|---|
+| W3N-D1a | `vw-w3n-draw-block-history-a.pine` | a drawing's y over a per-run `ta.sma` equals the plot |
+| W3N-D1b | `vw-w3n-draw-block-history-b.pine` | the same for `ta.ema` |
+| W3N-D1c | `vw-w3n-draw-block-history-c.pine` | the same for `ta.rma`; no capture of any kind exists for rma in a block |
+| W3N-D1d | `vw-w3n-draw-block-history-d.pine` | a block local's `[1]` read by a drawing is the previous RUN's value; master draws the previous BAR's today, so this row decides whether that shape is refused |

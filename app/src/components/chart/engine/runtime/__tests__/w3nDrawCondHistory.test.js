@@ -171,3 +171,16 @@ describe('W3W4-D1 - gate off leaves the drawing build exactly as master (nothing
     expect(refusal(bars, body, true)).toBe(R4)
   })
 })
+
+describe('W3W4-D1 - the gate-on path is the MAIN BODY only (a function body is not reopened)', () => {
+  const bars = barsOf(CAPS.rddt)
+  // A function whose body is an if/else around ta.sma, called at the top level, builds on master and
+  // with the gate off. Opening the drawing history inside a function body (dropping `owner === null`)
+  // would refuse it, so gate on must leave it exactly as it was.
+  const FN = ['f() =>', '    if close > open', '        ta.sma(close, 3)', '    else', '        close',
+    'label.new(bar_index, f(), "x")']
+  it('builds with the gate off AND with the test option (identical)', () => {
+    expect(refusal(bars, FN, false)).toBeNull()
+    expect(refusal(bars, FN, true)).toBeNull()
+  })
+})
