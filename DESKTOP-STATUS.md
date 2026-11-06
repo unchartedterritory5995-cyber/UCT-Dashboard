@@ -533,3 +533,10 @@ Merging to master is still not authorized in this file; the owner approves it di
 - Rule added to BUILDER-BRIEF-COMMON: a landing that touches the screener moves the pin in the same PR.
 - D2 READY-CHECK PASS; review started.
 - Resumed D1 (clean final-tip), D3 (final-tip), W6-T3b (measure-pair + final-tip), and the W34-T0 review. <<<
+
+
+## 2026-11-06 ~09:40 GMT
+- W6-T3b LANDED: PR #886 -> master c04bdbe2c1. Review GO-WITH-NOTES @92918d04a3, READY-CHECK PASS, no engine bump.
+- T0 (51ea1acf04), D2 (768816c654), D3 (ca4f330ac3) are ancestors of origin/production.
+- W6-T2: delta review GO-WITH-NOTES @3dcd4f7c55; ready-check FAILS on the final-tip record (2 load timeouts that pass alone). Not waived: a clean full final-tip re-run into runs/w6-t2/final-r2 is in progress. Lands with an engine bump (19 if first).
+- D1: own full run in progress. W9-T1: measure-pair in progress.
