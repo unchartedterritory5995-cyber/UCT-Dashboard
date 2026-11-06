@@ -36,7 +36,7 @@ import json
 import os
 import sqlite3
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from api.services import alert_fired_log
 
@@ -876,6 +876,61 @@ def mark_needs_attention(alert_id: int, detail: Any, *,
 CLOSED_LANE_TRAILING_PAD = "is displaced forward and has no value on a CLOSED bar"
 
 
+# ─── 2026-11-06 (RS 2b-04): THE BENCHMARK SEAM FOR THE PROBES ────────────────
+#
+# ⭐ A `reads_benchmark` column (`alert_rs_series`, the UCT Relative Strength
+# addresses) needs three things the probes below never passed a column: a
+# timeframe, a symbol and a SECOND series. Called bare -- `fn(bars, {})` -- it
+# answers `[None] * len(bars)`, which a probe reads as "could not tell". So the
+# probes call through `_probe_column`: an ordinary column gets `(bars, params)`
+# exactly as before, byte for byte; a benchmark-reading one gets the timeframe
+# the bars' own encoding implies, the probe symbol, and a benchmark served by
+# this seam inside a pass of its own (`alert_rs_series.rs_pass`).
+#
+# ⛔ THE SEAM IS A MODULE ATTRIBUTE A TEST REPLACES (`_PROBE_BENCHMARK_FETCH`),
+# and the default is derived from the probe bars themselves -- the same `t`s, a
+# drifted close -- so the ratio moves and no store is read. On the instant
+# encoding the RS column RAISES its typed timeframe refusal (daily / weekly
+# only), which every probe already treats as "not measured": the honest answer
+# for a lane that is not offered there.
+_PROBE_SYM = "PROBE"
+_PROBE_TF_CALENDAR = "D"
+_PROBE_TF_INSTANT = "60"
+_PROBE_BENCHMARK_DRIFT = 0.0005
+#: ``(ticker, tf, want) -> bars``, or ``None`` ⇒ a drifted copy of the probe bars.
+_PROBE_BENCHMARK_FETCH: Optional[Callable[[str, str, int], list]] = None
+
+
+def _is_calendar_encoded(bars: list) -> bool:
+    """`YYYYMMDD` ints (what `bars_sqlite` stores for D/W/M) vs unix seconds."""
+    try:
+        t = int(bars[-1]["t"])
+    except (TypeError, ValueError, KeyError, IndexError):
+        return False
+    return 10_000_000 <= t < 100_000_000
+
+
+def _probe_benchmark_fetcher(bars: list) -> Callable[[str, str, int], list]:
+    if _PROBE_BENCHMARK_FETCH is not None:
+        return _PROBE_BENCHMARK_FETCH
+    bench = [{"t": b["t"], "c": float(b["c"]) * (1.0 + _PROBE_BENCHMARK_DRIFT * i)}
+             for i, b in enumerate(bars)]
+
+    def fetch(ticker: str, tf: str, want: int) -> list:
+        return bench[-int(want):] if 0 < int(want) < len(bench) else list(bench)
+    return fetch
+
+
+def _probe_column(column: Any, bars: list, params: dict) -> list:
+    """Call a column the way the lane would (see the block above)."""
+    if not getattr(column, "reads_benchmark", False):
+        return column(bars, params)
+    from api.services import alert_rs_series, alert_user_series
+    tf = _PROBE_TF_CALENDAR if _is_calendar_encoded(bars) else _PROBE_TF_INSTANT
+    with alert_rs_series.rs_pass(fetch_bars=_probe_benchmark_fetcher(bars)):
+        return alert_user_series.call_series(column, bars, params, tf=tf, sym=_PROBE_SYM)
+
+
 def closed_lane_pad(address: str, bars: Optional[list], params: dict) -> int:
     """How many bars of TRAILING `None` this address's column ends with here.
 
@@ -897,7 +952,7 @@ def closed_lane_pad(address: str, bars: Optional[list], params: dict) -> int:
     if fn is None or not bars:
         return 0
     try:
-        column = fn(list(bars), dict(params or {}))
+        column = _probe_column(fn, list(bars), dict(params or {}))
     except Exception:  # noqa: BLE001 - a raising compute is diagnosed elsewhere
         return 0
     if not any(v is not None for v in column):
@@ -1378,8 +1433,8 @@ def instant_only_addresses() -> frozenset:
         if column is None:
             continue
         try:
-            on_instant = column(instant, {})
-            on_calendar = column(calendar, {})
+            on_instant = _probe_column(column, instant, {})
+            on_calendar = _probe_column(column, calendar, {})
         except Exception:  # noqa: BLE001 - a raising compute is `diagnose`'s job
             continue
         if any(v is not None for v in on_instant) and all(
