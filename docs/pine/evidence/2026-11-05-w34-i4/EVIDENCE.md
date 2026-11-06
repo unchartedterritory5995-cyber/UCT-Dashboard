@@ -1,6 +1,6 @@
 # W34-I4 v1-v3 self-referencing state residue (`pine:state` on the run) - evidence (desktop)
 
-**NEXT STEP: WAITING FOR THE COORDINATOR'S GO for the heavy jobs, in this order: (1) mutation batch
+**NEXT STEP (superseded): STOPPED on the measure-pair regression below; earlier text:** WAITING FOR THE COORDINATOR'S GO for the heavy jobs, in this order: (1) mutation batch
 (`muts.json`, lock `heavy-mut-w34-i4.lock`), (2) measure-pair runtime 0 and 1 (shared base lock
 `heavy-mp2.lock`/`heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL, ready-check.**
 Light work is done (code, rail, red-on-master, Python parity pytest). Review NO-GO @862ee67295 (B1) FIXED, see below;
@@ -91,7 +91,22 @@ src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
 | M9 fill form re-admitted (`,` branch) | fill-form rails + identity rail (hand-run: killed, 3 red) |
 | M8 no self read required | identity rail |
 
-## measure-pair / final-tip: NOT YET RUN (heavy; waiting for the go)
+## measure-pair (RUN, heavy-mp2.lock, base pine-dsk-mpbase2 = bde38b0d69; `== side tip 274ec257da` / `== side base bde38b0d69`; `mp.log`, `mp-rt0/`, `mp-rt1/`)
+| lane | C18 out | C18 probe | harness TOTAL (tip = base) | verdicts.json | census diffs |
+|---|---|---|---|---|---|
+| 0 | IDENTICAL | IDENTICAL | 336: 93 / 103 / 140 | identical | 6 / 967 |
+| 1 | IDENTICAL | IDENTICAL | 336: 111 / 107 / 118 | identical | 3 / 967 |
+- Lane 0: all 6 are v5/v6 scripts (the rewrite returns early above v2) whose differing steps carry `pine:timeout`:
+  wall-clock peel noise, no I4 code path (ai-supertrend-x-pivot, multi-timeframe-trend-indicator, volatility-coil-edge,
+  halftrend-longshort, luxy-momentum, mirage-liquidity-sweep).
+- Lane 1: `multi-timeframe-trend-indicator` (v6) timeout noise. `coral-trend-indicator-lazybear`: INTENDED, moves off
+  `pine:state`; its NEXT wall is `runtime:withheld-all` (the `Trend` plot's colour changes bar to bar), so it does not
+  attach yet. **`earnings-sr-levels-lazybear` (v1): UNINTENDED REGRESSION** - base attached on the runtime lane
+  ("Drawn bar by bar", 1 plot); tip declines `runtime:na-test` (2 conditions). Its `x = (c ? a : nz(x[1]))` self-refs
+  are now slots, so the two v1 `?:` conditions are lowered to the VM and counted by `naTestsOf`, where the host fold
+  had kept them inside a pure column. **LANE STOPPED here pending a coordinator decision (not merged, no final-tip).**
+
+## final-tip: NOT YET RUN
 Expected classification: runtime-on census - `coral-trend-indicator-lazybear` moves off `pine:state` (INTENDED); other
 v1/v2 scripts with nz-guarded self-references may change runtime walls/values (INTENDED, list them); C18 out/probe
 IDENTICAL on both lanes; production lane unchanged except the runtime-probe field.
