@@ -231,6 +231,11 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     expect(up).toMatchObject({ type: 'color', label: 'Line above average', group: 'Line', default: '#6ba3be' })
     expect(down).toMatchObject({ type: 'color', label: 'Line below average', group: 'Line', default: '#6ba3be' })
     expect(inputKeys.has('lineColor')).toBe(false)
+    // ⭐ Review finding V3 (unit 7): two identical swatches for one line need to say
+    // why, and the second needs to say what it colours — the dialog renders a
+    // `tooltip` as visible row text under the control.
+    expect(up.tooltip).toBe('Classic uses one colour; keep both swatches the same for a single-colour line')
+    expect(down.tooltip).toBe('Colour where the RS line is below its average; the Phase preset sets red here')
   })
 
   it('⭐ Classic resolves to ONE hue for up and down — the ≤2 hues + 1 neutral budget holds', () => {

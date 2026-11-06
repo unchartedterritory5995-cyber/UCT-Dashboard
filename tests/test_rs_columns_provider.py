@@ -492,3 +492,94 @@ def test_columns_route_422s_an_unknown_benchmark(client, monkeypatch, v2_row):  
     c = TestClient(client)
     r = c.get('/api/signature/columns?defId=rsLine&sym=NVDA&tf=D&inputs={"benchmark":"TSLA"}')
     assert r.status_code == 422
+
+
+# ── the JS ranges and defaults ARE the Python row's (review fix unit 10) ──────
+
+def _js_rs_line_inputs() -> dict:
+    """`RS_LINE_RAW.inputs[]` as nativeRegistry.js declares them, parsed from the
+    source text — the same cwd-relative read the serverInputs rail makes.
+
+    Returns ``{key: {"type", "default", "min", "max", "options"}}`` with numbers
+    as floats, bools as bools, enum defaults as strings and ``options`` as the
+    list of option KEYS. Entries built by the ``colorInput`` helper carry no
+    ``key:`` of their own and are skipped: a colour is never a server input.
+    """
+    import pathlib
+    import re
+    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    body = src.split("const RS_LINE_RAW = {", 1)[1]
+    block = body.split("\n  inputs: [", 1)[1].split("\n  plots: [", 1)[0]
+    # Prose is not a field: drop comment lines and tooltip strings before any
+    # `default:` / `min:` / `max:` is read, so a sentence can never masquerade.
+    block = "\n".join(line for line in block.split("\n") if not line.lstrip().startswith("//"))
+    block = re.sub(r"tooltip:\s*'(?:[^'\\]|\\.)*'", "", block)
+    out: dict = {}
+    for entry in re.split(r"\n    \{", block)[1:]:
+        key = re.search(r"\bkey:\s*'([A-Za-z]+)'", entry)
+        if not key:
+            continue
+        spec: dict = {"type": re.search(r"\btype:\s*'([a-z]+)'", entry).group(1)}
+        dflt = re.search(r"\bdefault:\s*('[^']*'|true|false|-?\d+(?:\.\d+)?)", entry)
+        if dflt:
+            raw = dflt.group(1)
+            if raw.startswith("'"):
+                spec["default"] = raw.strip("'")
+            elif raw in ("true", "false"):
+                spec["default"] = raw == "true"
+            else:
+                spec["default"] = float(raw)
+        for bound in ("min", "max"):
+            m = re.search(rf"\b{bound}:\s*(-?\d+(?:\.\d+)?)", entry)
+            if m:
+                spec[bound] = float(m.group(1))
+        if spec["type"] == "enum":
+            spec["options"] = re.findall(r"\['([A-Za-z]+)',", entry)
+        out[key.group(1)] = spec
+    return out
+
+
+def test_the_js_ranges_and_defaults_are_the_python_rows():
+    """Review finding B9 / Q5: the dialog's steppers (`min`/`max`/`default` in
+    nativeRegistry.js) were railed by KEY only, so a range widened on the Python
+    side left the dialog on the old bound with no red test. Every server input
+    the Python row declares is diffed here field by field — numbers as numbers,
+    bools as true/false, enums by default value AND option vocabulary."""
+    js = _js_rs_line_inputs()
+    py = {i["key"]: i for i in rd._rs_line_row(True)["inputs"]}
+    assert len(js) >= 6, js  # the parser found the dialog's inputs, not a stub
+    # The ONE server input with no dialog control in Phase 1 (the golden test
+    # pins the same fact from the JS side). Anything else missing is drift.
+    assert set(py) - set(js) == {"redDayThreshold"}, (set(py) - set(js))
+    compared = 0
+    for key, p in py.items():
+        if key not in js:
+            continue
+        j = js[key]
+        assert j["type"] == p["type"], (key, j, p)
+        if p["type"] == "enum":
+            assert j["default"] == p["default"], (key, j, p)
+            assert j["options"] == list(p["options"]), (key, j["options"], p["options"])
+        elif p["type"] == "bool":
+            assert j["default"] is bool(p["default"]), (key, j, p)
+        else:
+            assert j["default"] == pytest.approx(float(p["default"])), (key, j, p)
+            assert j["min"] == pytest.approx(float(p["min"])), (key, j, p)
+            assert j["max"] == pytest.approx(float(p["max"])), (key, j, p)
+        compared += 1
+    assert compared == len(py) - 1, compared
+
+
+def test_the_js_input_parser_reads_the_fields_it_claims_to():
+    """The parser's own control: the shipped numbers, so a regex that silently
+    matched nothing (and let the diff above pass vacuously) is caught by name."""
+    js = _js_rs_line_inputs()
+    assert js["maLength"] == {"type": "int", "default": 21.0, "min": 2.0, "max": 200.0}
+    assert js["lookback"]["min"] == 20.0 and js["lookback"]["max"] == 500.0
+    assert js["priceTolerance"] == {"type": "float", "default": 2.0, "min": 0.0, "max": 10.0}
+    assert js["showNewHigh"] == {"type": "bool", "default": True}
+    assert js["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS)
+    assert js["maType"] == {"type": "enum", "default": "EMA", "options": ["EMA", "SMA"]}
+    # style inputs are parsed too (they are dialog controls) but never server ones
+    assert "lineWidth" in js and "lineWidth" not in {i["key"] for i in rd._rs_line_row(True)["inputs"]}
+    assert "color" not in js, "colorInput() entries carry no key: of their own and are skipped"

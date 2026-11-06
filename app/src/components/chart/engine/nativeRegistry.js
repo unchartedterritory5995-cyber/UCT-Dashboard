@@ -1712,7 +1712,10 @@ const RAW_DEFS = [
   nativeDef('percentFromMa', 'percentFromMa',
     // ⭐ `% From MA`, NOT "% From Moving Average": the library offers exactly ONE
     // row named Moving Average (owner §34), and this is a different study.
-    { name: '% From MA', shortName: '% From MA', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ A price-LEVEL study, not relative strength (review finding U7, 2026-11-06):
+    // it reads one series against its own average. The Relative Strength heading
+    // holds the one row that compares against a benchmark.
+    { name: '% From MA', shortName: '% From MA', category: CAT.LEVELS, quickMenu: false,
       legendParams: ['period'],
       description: 'How far the value is above or below its moving average, in percent.',
       tags: ['% from ma', 'percent from moving average', 'distance from ma', 'extension', 'extended'] },
@@ -1729,7 +1732,9 @@ const RAW_DEFS = [
     ]),
 
   nativeDef('fiftyTwoWeek', 'fiftyTwoWeek',
-    { name: '52-Week High/Low', shortName: '52W', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ Likewise a price-LEVEL study (review finding U7): distance from the
+    // close's own 52-week high and low, no benchmark anywhere.
+    { name: '52-Week High/Low', shortName: '52W', category: CAT.LEVELS, quickMenu: false,
       description: 'How far the close is below its 52-week high and above its 52-week low, in percent.',
       tags: ['52 week', '52-week', '52w', '52 week high', '52 week low', 'off high', 'yearly high'],
       // ⛔ A CALENDAR WINDOW. It needs a full 52 weeks of loaded bars before it
@@ -3876,8 +3881,12 @@ const RS_LINE_RAW = {
     // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
     // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
     // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
-    { ...colorInput('color', 'Line above average', '#6ba3be'), group: 'Line' },
-    { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line' },
+    // ⭐ The pair carries its own instructions (review finding V3): two identical
+    // swatches for one line say why, and the second says what it colours.
+    { ...colorInput('color', 'Line above average', '#6ba3be'), group: 'Line',
+      tooltip: 'Classic uses one colour; keep both swatches the same for a single-colour line' },
+    { ...colorInput('lineDownColor', 'Line below average', '#6ba3be'), group: 'Line',
+      tooltip: 'Colour where the RS line is below its average; the Phase preset sets red here' },
     { ...colorInput('maColor', 'Average colour', '#8a8574'), group: 'Line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'New-high lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
@@ -3900,12 +3909,26 @@ const RS_LINE_RAW = {
     // precedent, field for field.
     { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
     { key: 'rsMa', label: 'MA', style: 'line', color: '$maColor', width: 1, lineStyle: 'dashed', role: 'context', legend: { hide: true } },
-    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+    // ⭐⭐ TWO RENDERERS FOR THE DOTS, AND WHY (review finding V1, 2026-11-06).
+    // lightweight-charts 5.2.0 clamps a series-marker GLYPH to a 12..30 px floor
+    // twice (`calculateShapeHeight` on the bar spacing, `shapeSize` on the
+    // multiplied size), so the "small" 0.6 and "large" 1.2 circles both drew 9 px
+    // at every normal zoom — a size channel that did not render. So:
+    //   · the two SMALL dots are plain `markers` plots with NO `marker` block: the
+    //     binder draws them as the series' own POINT MARKERS (`pool`:
+    //     `pointMarkersVisible`, radius = `width`, no floor — SAR's shape), at the
+    //     plotted value by construction, honouring the member's Dot size;
+    //   · the GOLD before-price dot keeps the glyph at size 2.0, which the floor
+    //     can only make LARGER (15 px at the floor, 23 px from bar spacing 15) and
+    //     which paints ABOVE every series.
+    // `__tests__/markerPixels.test.js` mirrors LWC's arithmetic and pins small < large
+    // at every bar spacing. ⛔ `width` here is the dot RADIUS, never the RS line's.
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      legend: { hide: true } },
     { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 1.2 }, legend: { hide: true } },
-    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 0.6 }, legend: { hide: true } },
+      marker: { shape: 'circle', position: 'inBar', size: 2.0 }, legend: { hide: true } },
+    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 2, role: 'context',
+      legend: { hide: true } },
   ],
   // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
   // declared event by running the definition's compute at registration and

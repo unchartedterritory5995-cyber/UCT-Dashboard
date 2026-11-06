@@ -54,13 +54,16 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+/* Chrome matches `.btn` below (13px, --radius-md; review finding V2 residual,
+   2026-11-06); only the height differs — 30px on desktop so the row stays a row,
+   the 44px `--tap-min` floor on touch (the phone and touch blocks at the end). */
 .presetBtn {
   appearance: none;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text-bright);
