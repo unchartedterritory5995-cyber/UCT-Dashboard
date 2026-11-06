@@ -1,0 +1,80 @@
+# W34-I4 v1-v3 self-referencing state residue (`pine:state` on the run) - evidence (desktop)
+
+**NEXT STEP: WAITING FOR THE COORDINATOR'S GO for the heavy jobs, in this order: (1) mutation batch
+(`muts.json`, lock `heavy-mut-w34-i4.lock`), (2) measure-pair runtime 0 and 1 (shared base lock
+`heavy-mp2.lock`/`heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL, ready-check.**
+Light work is done (code, rail, red-on-master, Python parity pytest).
+
+Branch `feat/pine-w34-i4-state`. Tested-on-master `bde38b0d69` (engine 20). Engine bump needed: **yes**
+(served values change on the runtime lane, see "What changed").
+
+## The named shapes
+| script (cited by name and sha256 only) | shape | verdict |
+|---|---|---|
+| `coral-trend-indicator-lazybear__836` (v1, sole blocker; sha256 `d59d2d527b50…e468`) | runtime `pine:state` on `i2`/`i4`/`i6` (lines 19/21/23): a fixed-coefficient one-pole recurrence whose driving input is ANOTHER self-referencing recurrence, every self read `nz(x[1])`. The run handed v1/v2 self-reference to the host Resolver, which folds it to a re-seeded `accum`; its convergence gate (`pine.js::forgetsItsSeed`) counts the nested accumulator's `self` as the outer one's and answers NO | **SERVED** on the runtime lane. `nz` states bar 0 (the history operator's `na` replaced by 0), so it is the reference's arithmetic; no capture owed |
+| `thelark-lma-v2-laguerre__1029` (v1; sha256 `b9e87a0145a3…1220`) | runtime `pine:state` on `col` (line 43): a BARE `col[1]` read in a comparison (`col[1] == 1`) | **REFUSED BY NAME** (the host `pine:state` sentence, unchanged). Whether a v1/v2 self-reference starts at `na` or 0, and how `na == 1` reads below v4, is not stated: capture row **W34-I4-S1** (`docs/pine/capture-queue-2026-11-06-w34-i4.md`, probe `tools/visual_conformance/probes/vw-w34-i4-v2-selfref-seed.pine`, `AMEX:SPY 1D` from the listing). Its first runtime wall is still W7 `runtime:request-with-state` (line 41) |
+
+Local spike (licence-held sources read from `$UCT_RESUME/pine-sample`, never committed): on the tip, `probeRuntimeProgram`
+on coral is `ok`, 4 outputs, `naTests` 0; laguerre still declines `runtime:request-with-state`.
+
+A first approach (an opt-in `nestedRecurrenceIsInput` on `forgetsItsSeed`) was tried and ABANDONED before commit: it
+passed the gate but the re-seeded `accum` then refused coral `budget:lookback` (6 nested x 250 = 1500 > 960), drew a
+3 x 250-bar curtain, and its listing pass returned all-`na` for a nested chain. The run has slots, so the shape is
+lowered as one.
+
+## What changed (paths under app/src/components/chart/engine/)
+- `ast/pineRuntimeFrontend.js`: new exported `v2SelfReferenceStatements(stmts, version)`, called once right after
+  `blockStatements` and **not at the C18 object door** (`atObjectDoor`). A top-level single-line `x = E` in a v1 (no
+  pragma) or v2 script, where `x` is declared once and never reassigned and EVERY read of `x` in `E` is `nz(x[k])` or
+  `nz(x[k], fill)` (`k` a whole literal >= 1, fill free of `x`), is rewritten to `x = na` + `x := E`: the slot form
+  the lane already runs for v4. Values are exact from bar 0; off the listing the existing per-run warm-up curtain
+  (`runtimeColumns.js::computeOffListing`) decides what is drawn. Anything else returns the SAME array (no change).
+- No change to `ast/pine.js`, `ast/interpret.js` (no CARRIED row touched) or `api/services/ast_interpret.py`.
+- **Served-value change (engine bump yes):** on the runtime lane every v1/v2 nz-guarded self-reference is now a slot.
+  Single recurrences that the host `accum` already admitted were served there with a 250-bar re-seeded window
+  (NaN prefix); they now carry values from bar 0, and running totals by hand (`x = nz(x[1]) + volume`) build on the
+  pane (drawn from the listing, curtained/refused off it by the existing R-W rule). The host lane, the screen and the
+  C18 object door are byte-identical.
+
+## Rails
+New `runtime/__tests__/w34I4SelfReference.test.js` (14 tests). Tip: **14 passed** (`tip-rail.log`, 13 at the first
+commit; the 14th was added after).
+Red on master (`redbase.log`: `pineRuntimeFrontend.js` set to master `bde38b0d69` bytes, rail run, tip bytes restored
+byte-exact, `cmp` OK): **9 failed | 4 passed** (13-test version). Red: builds on the runtime lane; the 5,000-bar
+differential (off and on the listing); v2 pragma; running total; seed rail `nz(x[1], close)` (master: NaN on bar 0);
+the four scope rails (export absent). Green on both (controls): bare read in a comparison and in arithmetic refuse
+`pine:state` naming the variable; mixed guarded/bare refuses; the C18 object door refuses `pine:state` on `s2`.
+- Differential: a synthetic six-stage cascade (constants of its own, no licence-held text) vs the hand-unrolled
+  recurrence over 5,000 bars: max abs diff <= 1e-9 on two outputs, off and on the listing; bar 0 is a value.
+- Python parity: `pytest tests/test_ast_self_lag_parity.py tests/test_ast_interpret.py` -> **115 passed**
+  (`pytest-parity.log`). No Python file touched.
+- Neighbours: `w1BareConditionalHistory` + `w4ClassifierHonesty` -> 28 passed.
+
+## Mutations (NOT YET RUN - waiting for the go). `docs/pine/evidence/2026-11-05-w34-i4/muts.json`
+Command (from app/, under `lock_run LOCK_MUT`): `python $S/mutate.py ../docs/pine/evidence/2026-11-05-w34-i4/muts.json
+src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js`
+| mutation | expected killer |
+|---|---|
+| M0 no-op control (comment whitespace) | must SURVIVE |
+| M1 seed 0 instead of `na` at the history authority (`vm.js` READ_HIST_SLOT before bar 0) | seed rail |
+| M1b seed 0 in the rewrite's initialiser (`x = 0` for `x = na`) | expected EQUIVALENT: `x[1]` reads history, never the initialiser (to confirm) |
+| M2 bare read admitted (no `nz(` check) | bare-read refusal rails |
+| M3 version gate off | v3/v4 rail |
+| M4 rewrite at the object door | object-door rail |
+| M5 declared-twice admitted / M6 reassigned admitted | scope rail |
+| M7 offset 0 admitted / M9 second nz argument unchecked | offset-0 / self-fill rail |
+| M8 no self read required | identity rail |
+
+## measure-pair / final-tip: NOT YET RUN (heavy; waiting for the go)
+Expected classification: runtime-on census - `coral-trend-indicator-lazybear` moves off `pine:state` (INTENDED); other
+v1/v2 scripts with nz-guarded self-references may change runtime walls/values (INTENDED, list them); C18 out/probe
+IDENTICAL on both lanes; production lane unchanged except the runtime-probe field.
+
+## Capture queue
+`docs/pine/capture-queue-2026-11-06-w34-i4.md` row W34-I4-S1 parses (`evidence_engine.py queue --out` to the run
+dir: target `vw-w34-i4-v2-selfref-seed@AMEX:SPY@D`). The committed snapshot
+`docs/pine/vendor-harness/capture-queue.json` was ALREADY stale on master (`queue --check` FAIL before this lane), so it
+is not regenerated here, to avoid a conflict with other lanes: regenerate once at landing.
+
+Logs: `C:\Users\Patrick\uct-worktrees\_resume-2026-11-01\runs\w34-i4\` (`tip-rail.log`, `redbase.log`,
+`pytest-parity.log`, `queue.log`, `abandoned-convergence-opt.diff`).
