@@ -337,6 +337,7 @@ def main():
         "runtimeWaves": {w: {k: sorted(v) for k, v in x.items()} for w, x in sorted(rtw.items())},
         "waveGreedy": wave_greedy,
         "runtimeOnHostAttachedDirty": sorted(host_dirty),
+        "runtimeOnHostAttachedDirtyWalls": {k: ro["walls"].get("attachedDirtyWalls", {}).get(k) for k in sorted(host_dirty)},
         "verifiedByLane": {
             PRODUCTION: {"transfer": len(clean), "verified": verified[PRODUCTION]},
             RUNTIME_ON: {"transfer": len(rt_set), "verified": verified[RUNTIME_ON],

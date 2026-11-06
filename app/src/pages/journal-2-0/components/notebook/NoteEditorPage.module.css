@@ -756,8 +756,24 @@
 /* ── Phone: fullscreen FORM — 16px inputs (no iOS zoom), finger targets, and a
    non-sticky toolbar so it can't overlap a wrapped header. ── */
 @media (max-width: 640px) {
-  /* S10 (M4): a phone's header holds the four controls and the save indicator's shortest words. */
-  .savedIndicator { min-width: 5.5em; white-space: normal; font-size: 11px; }
+  /* Finish batch (2026-11-05, iPhone): the phone note header is ONE row at 360 px and up -- back and Folders
+     (NotebookTab, 44 px each, the header padded past both: 2 x 44 + 2 x 8 = 104), then Favorite, Writing help, Share
+     and More, four 44 px icons 4 px apart (188), and the 12 px right pad: 304 of the 312 px a 360 px phone gives the
+     Journal frame. The save indicator says its words on the line under the title (`.savedLine`, NoteEditorPage
+     `savedOnTitleLine`); Share shows its icon (`.phoneIconLabel` hides the word, the name stays "Share"). A problem line
+     (`.saveStatus`) still takes a line of its own, and the row still WRAPS below 360 px (a 320 px phone gets a second
+     row, never a page that pans sideways). Measured on production before (390 x 844): three rows, 144 px tall; the
+     title's top at y=336; with this, one 61 px row and the title at y=253.
+     ⛔ `.headerControls .aiGroup` (0,2,0) on purpose: the bare `.aiGroup` rule is declared AFTER this block, so a
+     bare selector here would lose. Rail: NoteEditorPage.phoneHeaderRow.test.jsx. */
+  .headerControls { gap: 4px; justify-content: flex-end; }
+  .headerControls .aiGroup { gap: 0; }
+  /* Finish review 3: a header message (a Share / Export notice, a failed write) takes a line of its own under the
+     controls, the way `.saveStatus` does, so the row stays one row while it shows. (0,2,0): it outranks the
+     message's own module class. */
+  .headerControls .headerMsg { flex-basis: 100%; order: 3; white-space: normal; }
+  /* An icon whose word is hidden sits centred (its inline 4 px gap was for the word). */
+  .chromeBtn:has(> .phoneIconLabel) > svg { margin-right: 0 !important; }
   /* .folderInline: its finger floor lives in the <=1024px block (tablet is touch too). */
   .column { padding: 0 16px; margin: 16px auto 72px; }
   /* Final polish (WebKit at 390 px): the floating "+" covered the last chart's corner. The column can scroll clear of
@@ -1135,6 +1151,17 @@
 }
 .savedIndicator + .headerControls {
   margin-left: 0;
+}
+/* Finish batch (iPhone): the same indicator on a phone, last on the line under the title (NoteDetailsLine `trail`). */
+.savedLine {
+  margin-left: auto;
+  /* Finish review 2: one box for "Saved" and "Saving…", so an autosave never wraps and unwraps the line (and the
+     body under it) while the member types; only the rare offline phrase can take a second line. */
+  min-width: 4.5em;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 /* S10 (M4): the AI control -- Ask and Writing help, one group in the header. */
 .aiGroup {
