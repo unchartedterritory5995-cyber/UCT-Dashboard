@@ -148,6 +148,16 @@ Status per action is in the coverage pass's `teach-status.md`, generated from re
 - A watchlist row's menu opens only on the ticker symbol, not the whole row.
 - Words like "show me how" read as the Show row of a family. A family's row reader drops how the member asked before it reads what they asked for.
 
+### What pass 3 found in the browser
+
+- **The card disabled the keys it named.** `utils/modalOpen.js` reads any `role="dialog"` as a modal, so the chart ignored every chord while a card said "press Alt+Shift+A". The card is now `role="region"`, and each key row was re-run with the card on screen.
+- **The Formula Builder is reachable on `/charts`:** Alt+Shift+A opens the indicator library, and New formula opens the builder. Create Indicator is the other door, and goes to the Agent.
+- **Multi Chart walkthroughs run.** Each chart in the grid is a cell the guide can scope to. The session buttons do not fit on a narrow cell, so that row says so.
+- **"Do it for me" while the Agent is busy** used to drop the click. The card now says so in fixed words.
+- A target below the fold of a long window is scrolled up, rather than passed over for its fallback.
+- **Two charts with the Agent open squeeze the drawing strip to nothing:** the fixed buttons beside it take the whole line, and "where are the drawing tools" got a sentence instead of a walkthrough. While a step needs the strip, the buttons beside it step aside, and they come back when the step ends. Nothing is stored.
+- **The Canvas walkthrough ended on a step that repeated the last one,** so the card stayed on Skip. The tab is now its last step and the card offers Done.
+
 ### What the browser found that tests could not
 
 These were only visible on the real workspace (`agent-harness.html`, headless Chrome, real mouse):

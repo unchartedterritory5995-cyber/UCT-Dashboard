@@ -18,7 +18,7 @@
 .headText { min-width: 0; }
 .hello {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-bright);
 }
