@@ -1,8 +1,8 @@
 {
-  "master_sha": "33a8a2ab438c9d438503a7f2cbbe02cf2707f155",
-  "gate_run_id": "42411394773",
-  "gate_conclusion": "success",
-  "promoted": "33a8a2ab438c9d438503a7f2cbbe02cf2707f155",
-  "production_head_after": "33a8a2ab438c9d438503a7f2cbbe02cf2707f155",
-  "ts": "2026-11-07T20:51:59.499670Z"
+  "master_sha": null,
+  "gate_run_id": "42413247268",
+  "gate_conclusion": "cancelled",
+  "promoted": "no",
+  "production_head_after": null,
+  "ts": "2026-11-07T20:58:18.158001Z"
 }
