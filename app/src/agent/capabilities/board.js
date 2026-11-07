@@ -111,7 +111,7 @@ function snapOf(host) {
   const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
   const doorOf = (id) => { try { return host?.widgets?.door?.(id) || null } catch { return null } }
-  return { ref: 'board', label: 'Board', doorOf, doors: doorsOf(s.raw, doorOf), raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
+  return { ref: 'board', label: 'Board', doorOf, doors: doorsOf(s.raw, doorOf), raw: s.raw, groupSyms: s.groupSyms, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
     charts: chartsOf(host), maxWidgets: s.max }
 }
 // widget id → what its door reports for its `door` controls: the widget's own state, not stored anywhere
@@ -218,6 +218,8 @@ function widgetControlSection(s, message, whole) {
 
 export const boardKind = {
   name: 'board',
+  // its commit settles every step on the board's own state (settle, below): the runtime need not wait again
+  waitsInCommit: true,
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
   stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [] }),
@@ -712,6 +714,8 @@ function findTab(w, tab) {
     || (all.filter(t => t.label.toLowerCase() === q).length === 1 ? all.find(t => t.label.toLowerCase() === q) : null)
 }
 const MAX_CHART_TABS = 8
+// what a chart tab shows (production 11-05: "the AAPL tab" could not be told from the others): a tab follows its link colour
+const tabSymbol = (s, w, t, i) => { const syms = s.groupSyms || {}; return (t.color === 'N' ? syms[`N:${i === 0 ? w.id : `${w.id}~${t.key}`}`] : syms[t.color]) || null }
 
 let registered = false
 export function registerBoardCapabilities() {
@@ -735,7 +739,7 @@ export function registerBoardCapabilities() {
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
           // a widget's own tabs (the WidgetHost tab strip, any widget type): main + extras
           ...(sanitizeWidgetTabs(w).tabs.length ? { widgetTabs: wtabsOf(w).map(t => ({ tab: t.key, label: t.label, type: label(t.type), ...(t.active ? { active: true } : {}) })) } : {}),
-          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map(t => ({ tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color })) } : {}),
+          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map((t, i) => { const symbol = tabSymbol(s, w, t, i); return { tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color, ...(symbol ? { symbol } : {}) } }) } : {}),
         })),
       }]
     },
@@ -935,14 +939,17 @@ export function registerBoardCapabilities() {
       if (!g || g.noop) return null
       const shape = g.tiled && g.shape && g.shape.rows > 1 && g.shape.cols > 1 && g.symbols.length === g.shape.rows * g.shape.cols ? ` in a ${g.shape.rows}×${g.shape.cols} grid`
         : g.tiled && g.shape?.rows === 1 && g.symbols.length > 1 ? ' side by side' : g.tiled && g.shape?.cols === 1 && g.symbols.length > 1 ? ' stacked' : ''
+      // a line of charts that wouldn't fit became the even grid (planChartGrid): said, never left for the member to discover
+      const tiledCount = g.symbols.length + (g.kept || 0)
+      const line = g.reflowed ? `, because ${NUM_WORD[tiledCount] || tiledCount} ${g.reflowed === 'rows' ? 'stacked would be too short' : 'side by side would be too narrow'}` : ''
       const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : g.railMoved ? ', with your Watchlist on the right' : ''
       // ⭐ PHASE 3 acceptance: a replaced board says exactly what went (and that Undo brings it back)
       const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /\bchart\b/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
-      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${rail}`
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${line}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
-      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}${gone}`
+      return `Set up ${gridPhrase(g)}${shape}${line}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}${gone}`
     },
     noop: () => 'Those charts already show those tickers',
   })

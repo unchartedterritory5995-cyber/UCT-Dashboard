@@ -25,7 +25,8 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord } from './deixis'
+import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
@@ -529,6 +530,7 @@ const UNSAVED_NOTE = {
   conflict: 'Shown on this screen but NOT saved: your workspace was changed in another window or device. Reload to see the current workspace (reloading discards this change).',
   'not-saved': 'Shown on this screen, but the save was not confirmed — it is not saved yet.',
   'not-synced': 'Drawn on this device, but syncing it to your account was not confirmed yet — keep this tab open a few seconds; closing it now may lose the change.',
+  slow: 'On your screen. The save is taking longer than usual; this updates when it answers. Until then, “undo” would take back your change before this one, not this one.',
 }
 // Drawings reach the account through the tracings sync, not the board save: wait for the server's
 // copy of each touched symbol to match (host.drawings.confirm). Same rule as a board change: until
@@ -555,13 +557,16 @@ const selfSaved = (items) => {
 // arrangement) does not wait on unrelated preference writes (the new charts' own chart_settings writes as they load):
 // its receipt follows the board's own save. Any other kind waits exactly as before.
 const BOARD_ONLY = new Set(['board', 'workspace'])
+// A ticker or timeframe change lives in the layout and the link-group tickers, which persist writes itself: the reload a chart
+// does for it (and any chart_settings write from that) is not this change's save. Its conflicts are still checked.
+const LAYOUT_ONLY = new Set(['chart.setTimeframe', 'chart.setSymbol'])
 async function persistBoard(host, ops) {
   if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
   try {
     // ops aimed at a widget this same change creates (a new chart born on its ticker) are part of the board write
     const made = new Set(ops.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
     const own = ops.filter(o => !made.has(String(o?.target)))
-    const boardOnly = kindsOf(own).length > 0 && kindsOf(own).every(k => BOARD_ONLY.has(k))
+    const boardOnly = kindsOf(own).length > 0 && (kindsOf(own).every(k => BOARD_ONLY.has(k)) || own.every(o => LAYOUT_ONLY.has(o?.action)))
     const r = await host.persist(boardOnly ? { settle: [] } : undefined)
     return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' }
   } catch {
@@ -569,12 +574,35 @@ async function persistBoard(host, ops) {
   }
 }
 
+// ⛔ The panel can't stay locked on a save that won't answer, and a slow save is not a failed one (a chart grid's has run 30 s+).
+// At the deadline the panel is freed and the receipt says the save is still going; the save's OWN answer settles it whenever it
+// comes: Undo if it landed, the real reason if not (a conflict stays a conflict). A save queued behind a slow one waits the
+// same way, so it is never reported as failed for the time it spent in the queue.
+export const SAVE_WAIT_MS = 90000
+// (`p` never rejects: its caller turns a throw into a not-saved answer, so there is no rejection to forward)
+const withinSaveWait = (p) => new Promise((resolve) => {
+  const t = setTimeout(() => resolve({ ok: false, reason: 'slow', late: p }), SAVE_WAIT_MS)
+  p.then((v) => { clearTimeout(t); resolve(v) })
+})
+
+// one ticker search for a word in a chart's place: bounded, because it holds the turn. No answer in time is an unread word (the gates ask)
+export const NAME_SEARCH_MS = 1500
+const nameSearch = (word) => new Promise((resolve) => {
+  const t = setTimeout(resolve, NAME_SEARCH_MS)
+  groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
+})
+
 // the server's stage timings (ms only) for the turn trace
 const stagesOf = (data) => { const s = data?.usage?.stages; return s && typeof s === 'object' ? JSON.stringify(s) : null }
 
 let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
 const UNDO_MAX = 20
+// a change's Undo entry goes where the change happened: a save that answers late never puts it on top of newer changes
+const atCommitOrder = (stack, entry) => {
+  const i = stack.findIndex(e => (e.at || 0) > (entry.at || 0))
+  return (i < 0 ? [...stack, entry] : [...stack.slice(0, i), entry, ...stack.slice(i)]).slice(-UNDO_MAX)
+}
 
 // A reason may already be a whole sentence of its own ("I didn't change it: …  Nothing was changed."): it is said once
 const PREFIX_SAID = /^I didn['’]t (?:change|add) (?:it|anything):\s*/
@@ -633,13 +661,22 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // entry point the panel calls takes it, and the internal calls send() makes
   // ("undo" / "do it" typed) run inside the lock it already holds.
   const lockRef = useRef(false)
+  // ⛔ A late save's Undo entry waits for the running request to end: that request tells its own changes from the entries that
+  // appear while it runs (groupFresh, a step's "undo that"), so an entry landing mid-request would be taken for one of its own
+  const lateUndoRef = useRef([])
+  // ⛔ The ONE way the lock opens (a click's request here, a typed one in send): whatever a request held back lands as it ends
+  const releaseLock = useCallback(() => {
+    lockRef.current = false
+    for (const e of lateUndoRef.current.splice(0)) undoRef.current = atCommitOrder(undoRef.current, e)
+    setBusy(false)
+  }, [])
   const exclusive = useCallback((fn) => async (...args) => {
     if (lockRef.current) return undefined
     lockRef.current = true
     const traced = turnStart('click')
     setBusy(true)
-    try { return await fn(...args) } finally { lockRef.current = false; setBusy(false); if (traced) turnEnd() }
-  }, [])
+    try { return await fn(...args) } finally { releaseLock(); if (traced) turnEnd() }
+  }, [releaseLock])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
   noteConversation(conversationRef.current)   // W1-C C-01: the chat restored from localStorage counts from the first render
@@ -837,7 +874,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, patchItem, push, record])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null, more = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
@@ -892,12 +929,22 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
       mixedDeferred = creates.size > 0 && deferred.some(d => !creates.has(String(d.target)))
       for (const d of deferred) {
-        const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-        const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
-        const dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
+        // this check runs on an unprepared plan: one that throws is that step refused, never the whole request lost
+        let dp
+        try {
+          const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+          dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
+        } catch { dp = { ok: false, refusals: [{ reason: 'I could not check that step.' }] } }
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
-        else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
-        else { okd.push(d); deferredLines.push(...dp.lines) }
+        else if (!dp.ok) {
+          // said AND recorded, before anything runs: a reload, or a failure later in this request, still shows what was dropped.
+          // Awaited, so this row lands first (and a new chat's id is known); the member's words ride on the first row only.
+          const text = `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}`
+          push({ role: 'agent', text })
+          try { await record({ member, outcome: text, outcomeData: { kind: 'partial', actions: [d?.action] }, telemetry: { path, refused: true, actions: [d?.action], voice } }) } catch { /* the words above still say it */ }
+          member = null
+        } else { okd.push(d); deferredLines.push(...dp.lines) }
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
       }
       deferred = okd
@@ -1219,7 +1266,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     mark('commit:start')
     let res, saved
+    let saying = null                      // the receipt already on screen, while its save is out (id)
     const commitStartedAt = Date.now()
+    const receiptNotes = (after = null) => [...(onTarget ? [onTarget] : []), ...(after ? [after] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)]
     try {
       res = await commitPlan(host, plan, { env, ctx: capCtx })
       mark('commit:end')
@@ -1227,12 +1276,32 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         res.lines = expansion.lines
         if (res.undo) res.undo.lines = expansion.lines
       }
-      // Persistence acknowledgment (board changes): the receipt and its Undo wait for the server.
-      saved = res.ok ? (selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)) : { ok: true }
-      if (res.ok && saved.ok) saved = await confirmDrawings(host, drawingRefsOfPlan(plan))
+      // ⭐ SPEED (fast chart.setTimeframe p50 2189 ms, production telemetry 11-05): the change is on screen and read back here
+      // (commitPlan: kind.landed), so the member is told now, not after the POSTs. The receipt says it is SAVING: no Undo, and
+      // never a claim that it is saved. Everything else still waits for the save: the lock, the in-flight mark, the working
+      // signal, Undo and the record. The save's answer patches this same receipt (below), a failure in words.
+      // Only a change that is the whole request: a step, a follow-up or a deferred step has its order to keep.
+      if (res.ok && path !== 'model' && !more && !lead && !afterCommit && !deferred.length && !res.followUps?.length && !tapRef.current && !v2TapRef.current
+        && ((!selfSaved(plan.plans) && host?.persist && boardEpoch(host, ops) != null) || drawingRefsOfPlan(plan).length)) {
+        const first = composed ? [...composed.lines, ...res.lines] : res.lines
+        const notes = receiptNotes()
+        if (![...first, ...notes].some(l => /\bsaved?\b/i.test(String(l)))) {
+          withdrawPending()
+          saying = nid()
+          push({ id: saying, role: 'receipt', lines: first, undoId: null, saving: true, charts: receiptCharts(host, plan, res), notes })
+          mark('receipt:saving')
+        }
+      }
+      // Persistence acknowledgment (board changes): Undo waits for the server, and the receipt too unless it was said above.
+      const persisted = async () => {
+        const s = selfSaved(plan.plans) ? { ok: true } : await persistBoard(host, ops)
+        return s.ok ? confirmDrawings(host, drawingRefsOfPlan(plan)) : s
+      }
+      saved = res.ok ? await withinSaveWait(persisted().catch(() => ({ ok: false, reason: 'not-saved' }))) : { ok: true }
     } finally {
-      // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
-      writeLocal(AGENT_INFLIGHT_KEY, null)
+      // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this; a save still out keeps the mark.
+      if (!saved?.late) writeLocal(AGENT_INFLIGHT_KEY, null)
+      if (saying && !saved?.late) patchItem(saying, { saving: false })       // here, so nothing after this can leave a receipt on "Saving…"
     }
     mark('persist', saved.ok ? 'ok' : saved.reason)
     if (res.undo && saved.ok) {
@@ -1245,8 +1314,29 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const lines = [...(composed ? [...composed.lines, ...res.lines] : res.lines), ...leadLines]
       if (lead) lead.used = true
       if (!saved.ok) {
-        push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
-        record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        const unsaved = (reason) => ({ undoId: null, notes: [UNSAVED_NOTE[reason] || UNSAVED_NOTE['not-saved']], unsaved: true, saving: false })
+        let settleLate = null
+        if (saved.late) {
+          const id = saying || nid()
+          const still = { undoId: null, notes: [UNSAVED_NOTE.slow], saving: true }
+          if (saying) patchItem(id, still)
+          else push({ id, role: 'receipt', lines, ...still })
+          const mark0 = readLocal(AGENT_INFLIGHT_KEY)
+          settleLate = (s, conversationId) => {
+            if (readLocal(AGENT_INFLIGHT_KEY) === mark0) writeLocal(AGENT_INFLIGHT_KEY, null)      // never a later change's mark
+            if (s.ok && res.undo) {
+              if (lockRef.current) lateUndoRef.current.push(res.undo)
+              else undoRef.current = atCommitOrder(undoRef.current, res.undo)
+            }
+            patchItem(id, s.ok ? { saving: false, undoId: res.undo?.id || null, notes: receiptNotes() } : unsaved(s.reason))
+            // this request's own conversation, and past record(): that feeds the tap of whatever step is running by now
+            agentRecord({ conversationId, member: null, outcome: s.ok ? `Saved after a wait: ${lines.join(' · ')}` : `${lines.join(' · ')} · NOT SAVED (${s.reason})`, outcomeData: { kind: 'save-late', ok: !!s.ok, actions, ...(s.ok ? {} : { reason: s.reason }) }, telemetry: { path, actions, voice, ...(s.ok ? {} : { refused: true }) } })
+          }
+        } else if (saying) patchItem(saying, unsaved(saved.reason))
+        else push({ role: 'receipt', lines, ...unsaved(saved.reason) })
+        const row = record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        // (the row above names a new chat: read after it, so the late row joins that conversation whatever is open by then)
+        if (settleLate) Promise.all([saved.late, row.catch(() => {}).then(() => conversationRef.current)]).then(([s, c]) => settleLate(s, c))
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
         rememberChange(memoryRef.current, host, ops, null, res.created || null)
         noteCreated(res.created)
@@ -1260,10 +1350,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const afterNote = afterCommit ? await afterCommit() : null
       // a target UCT chose for the member (the chart they clicked) is NAMED on the receipt, so a bare
       // "switch to weekly" on a board of several charts never leaves them guessing which one changed
-      const receiptId = nid()
+      const receiptId = saying || nid()
       const shown = receiptCharts(host, plan, res)
       watchChartFaults(plannedChartRefs(plan, res), { receiptId, undoId: res.undo?.id || null, startedAt: commitStartedAt, label: shown?.length === 1 ? shown[0].label : null, actions })
-      if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: [...(onTarget ? [onTarget] : []), ...(afterNote ? [afterNote] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
+      if (saying) patchItem(saying, { undoId: res.undo?.id || null })
+      else if (!holdForAdd) push({ id: receiptId, role: 'receipt', lines, undoId: res.undo?.id || null, charts: shown, ...(namePart ? { namePart: true } : {}), notes: receiptNotes(afterNote) })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
       // ⭐ GATE C session memory: what was ACTUALLY committed (targets as chart refs) — "do the same on the
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
@@ -1281,10 +1372,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
       record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
-  }, [host, push, record, capCtx, withdrawPending])
+  }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false }) => {
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1378,7 +1469,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const idsBefore = undoRef.current.map(e => e.id)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset, afterCommit: gridMode ? watchGridSync(opsIn, host) : null })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card, onTarget, binding, subset, more, afterCommit: gridMode ? watchGridSync(opsIn, host) : null })
     } finally { traceEnd('done') }
     // ⭐ MISSION 3: an add + change-existing request, run as its parts in the member's order — each part the SAME
     // executeInner (planning, protection, policy, board check, commit, persistence, receipt and its own Undo entry). A part
@@ -2106,7 +2197,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // one chart reused, then a NEW chart proposed — the second step only if the first one landed
         const [first, second] = multi.steps
         lastActionsRef.current = [...first.ops, ...second.ops].map(o => o.action)
-        await execute(first.ops, { path: 'fast', mode: first.mode, member: text, voice })
+        await execute(first.ops, { path: 'fast', mode: first.mode, member: text, voice, more: true })
         const now = (() => { try { return host?.charts?.read?.(second.needs.ref) } catch { return null } })()
         if (String(now?.symbol || '').toUpperCase() !== second.needs.symbol) return
         return await execute(second.ops, { path: 'fast', mode: second.mode, member: text, voice })
@@ -2129,7 +2220,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
       const subj = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
-      const refText = subj.text
+      // "make this one weekly" with a chart clicked is "this chart"; no model call is needed to say so
+      const refText = selectedChart(host) ? subj.text.replace(/\bthis one\b/gi, 'this chart') : subj.text
       const memNow = withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
       const subjHost = subj.changed ? { ...host, charts: { ...host.charts, selected: () => null } } : host
@@ -2275,10 +2367,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           return await execute(allOf.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))), { path: 'fast', mode: 'apply', member: text, voice })
         }
         if (fast.target?.all && charts.length > 1) {
+          // ⭐ Multi Chart: an EMPTY cell that says it cannot take this change (an indicator: no chart to add to) is not one of the
+          // charts "all three charts" counts. It is left out (with a receipt note), never refused afterwards as a failed step.
+          // (A chart with a ticker that refuses stays in: that refusal is the member's to see.)
+          const blank = charts.filter(c => c.canManage === false && !String(c.symbol || '').trim())
+          const reach = blank.length < charts.length ? charts.filter(c => !blank.includes(c)) : charts
+          const blankNote = reach !== charts ? `${blank.length === 1 ? 'The empty cell has' : `${blank.length} empty cells have`} no chart to add to, so ${blank.length === 1 ? 'it was' : 'they were'} left as ${blank.length === 1 ? 'it is' : 'they are'}.` : null
           // ⛔ P2-B: "all four charts" with three on the board (or "both" with four) — the member counted a
           // different set than UCT can reach: asked, never a silent partial (or wider) change
-          if (fast.target.count && fast.target.count !== charts.length) {
-            const t = `I can reach ${charts.length} charts here, not ${fast.target.count} — say “all charts” to change these ${charts.length}, or name the ones you mean. Nothing has changed yet.`
+          if (fast.target.count && fast.target.count !== reach.length) {
+            const t = `I can reach ${reach.length} charts here, not ${fast.target.count} — say “all charts” to change these ${reach.length}, or name the ones you mean. Nothing has changed yet.`
             push({ role: 'agent', text: t })
             record({ member: text, outcome: t, outcomeData: { kind: 'clarify-count', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
             return
@@ -2286,8 +2384,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           // charts on the board the Agent can't reach (inactive tabs, floating) are NAMED on the receipt
           const away = (() => { try { return host?.charts?.unreachableCount?.() || 0 } catch { return 0 } })()
           const awayNote = away ? `${away} other chart${away === 1 ? '' : 's'} on this board (an inactive chart tab, or a floating or popped-out chart) ${away === 1 ? 'was' : 'were'} not changed.` : null
-          return await execute(charts.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
-            { path: 'fast', mode: 'apply', member: text, voice, onTarget: awayNote })
+          return await execute(reach.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
+            { path: 'fast', mode: 'apply', member: text, voice, onTarget: [awayNote, blankNote].filter(Boolean).join(' ') || null })
         }
         let candidates = charts
         const noun = kind.noun || kind.name
@@ -2311,6 +2409,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (!fast.target?.position && !fast.target?.chart && !ordAsk && candidates.length > 1) {
           const d = resolveDeictic({ host, kind, candidates, text, chartOp: true })
           if (d?.ref) candidates = candidates.filter(c => c.ref === d.ref)
+          // a description fitting several charts: the question offers those, not the whole board
+          else if (d?.ask?.choices?.length) candidates = candidates.filter(c => d.ask.choices.some(x => x.ref === c.ref))
           if (d?.implicit && candidates.length === 1) implicitTarget = `On ${candidates[0].label || 'the chart you selected'} — the chart you last clicked.`
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
@@ -2715,6 +2815,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
+      // "the nvidia chart": the ticker search says which chart a company's name means, before the gates read the sentence
+      {
+        const nameWord = chartNameWord(text, host?.charts?.list?.() || [])
+        if (nameWord && !lexiconFor(host).words.has(nameWord.toLowerCase())) await nameSearch(nameWord)      // "price" is a word, not a name
+      }
       // Context & Awareness 1B: a deictic request ("this chart", "this stock", "make it weekly") runs
       // only on the chart the member selected — never on a chart the model picked by itself. Nothing
       // executes before the member answers; their pick resumes THIS plan (no second model call).
@@ -2742,6 +2847,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
         : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+      if (deictic?.aim) screened.ops = deictic.aim
+      if (deictic?.refuse) {
+        const said = `I didn't change anything: ${deictic.refuse}`
+        push({ role: 'refusal', text: said })
+        record({ member: null, outcome: said, outcomeData: { kind: 'refused', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+        return
+      }
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -2869,12 +2981,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       for (const t of notDoneRef.current || []) push({ role: 'refusal', text: t })
       if (notDoneRef.current?.length) record({ member: null, outcome: notDoneRef.current.join(' '), outcomeData: { kind: 'not-done' }, telemetry: { path: 'model', voice } })
       notDoneRef.current = null
-      lockRef.current = false
-      setBusy(false)
+      releaseLock()
       setActivity(null)
       turnEnd()
     }
-  }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
+  }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine, releaseLock])
 
   // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
   // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is

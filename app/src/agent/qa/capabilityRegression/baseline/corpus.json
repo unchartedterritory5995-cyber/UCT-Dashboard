@@ -10321,7 +10321,17 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {
+          "text": "how is that one set right now",
+          "gaps": {
+            "a": {
+              "id": "GAP-WIDGET-READ-ROUTE",
+              "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands",
+              "owner": "agent-lead",
+              "mode": "\"how is that one set right now\" → widget.readOptions"
+            }
+          }
+        }
       ]
     },
     {
@@ -10364,6 +10374,730 @@
       "phrasings": [
         "keep a copy of that one"
       ]
+    },
+    {
+      "id": "multichart.enter",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.enter"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.enter"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.enter",
+            "target": "$multiChart[0]",
+            "args": {
+              "layout": "3x3"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "mode": "grid",
+          "layout": "3x3"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "switch me over to multi chart in a 3x3",
+        "go into multichart mode, three by three",
+        "I want the multi-chart view with nine charts, 3x3",
+        "turn on the multi chart grid at 3 by 3"
+      ],
+      "seed": {
+        "mc": {
+          "mode": "workspace"
+        }
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "mode": "workspace",
+            "layout": "2x2"
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.exit",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.exit"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.exit"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.exit",
+            "target": "$multiChart[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "mode": "workspace"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "get me out of multi chart",
+        "exit the grid",
+        "turn off multichart",
+        "back to my workspace please",
+        "leave multi-chart mode"
+      ],
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "mode": "grid"
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.syncCrosshair",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.setOption"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.setOption"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.setOption",
+            "target": "$multiChart[0]",
+            "args": {
+              "option": "crosshair_sync",
+              "on": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "syncCrosshair": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "sync the crosshairs",
+        "link the crosshair across all my charts",
+        "keep the crosshairs synced",
+        "turn on crosshair sync",
+        "make the crosshair move together on every chart"
+      ],
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "syncCrosshair": false
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.syncTimeRange",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.setOption"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.setOption"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.setOption",
+            "target": "$multiChart[0]",
+            "args": {
+              "option": "time_range_sync",
+              "on": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "syncTimeRange": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "sync the time range",
+        "synchronize the time axis across the grid",
+        "when I scroll one chart, keep them all synced",
+        "turn on time-range sync"
+      ],
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "syncTimeRange": false
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.syncOff",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.setOption"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.setOption"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.setOption",
+            "target": "$multiChart[0]",
+            "args": {
+              "option": "crosshair_sync",
+              "on": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "syncCrosshair": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "unsync the crosshairs",
+        "stop syncing the crosshair",
+        "desync crosshairs"
+      ],
+      "seed": {
+        "mc": {
+          "syncCrosshair": true
+        }
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "syncCrosshair": true
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.groupsOff",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.setOption"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.setOption"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.setOption",
+            "target": "$multiChart[0]",
+            "args": {
+              "option": "groups_mode",
+              "on": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "groupsMode": false,
+          "group": null
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "exit groups",
+        "turn groups mode off",
+        "leave groups mode"
+      ],
+      "seed": {
+        "mc": {
+          "groupsMode": true,
+          "group": {
+            "id": "semis",
+            "name": "Semiconductors"
+          }
+        }
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "groupsMode": true
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.noSymbolSync",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.setOption"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.setOption"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.setOption",
+            "target": "$multiChart[0]",
+            "args": {
+              "option": "symbol_sync",
+              "on": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": false,
+        "refusal": true,
+        "says": [
+          "no symbol sync"
+        ]
+      },
+      "phrasings": [
+        "sync the symbols across the grid",
+        "sync the ticker on every multi chart cell"
+      ]
+    },
+    {
+      "id": "multichart.maximize",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.cell"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.cell"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.cell",
+            "target": "$charts[1]",
+            "args": {
+              "do": "maximize"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "maximized": "c2"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "maximize the AMD chart",
+        "make the AMD cell full screen",
+        "full-screen AMD"
+      ],
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "maximized": null
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.restoreGrid",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.setOption"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.setOption"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.setOption",
+            "target": "$multiChart[0]",
+            "args": {
+              "option": "maximized",
+              "on": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "maximized": null
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "restore the grid",
+        "unmaximize this",
+        "unmaximize the chart"
+      ],
+      "seed": {
+        "mc": {
+          "maximized": "c2"
+        }
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "maximized": "c2"
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.resetCell",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.cell"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.cell"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.cell",
+            "target": "$charts[1]",
+            "args": {
+              "do": "reset"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "reset the AMD cell",
+        "reset this cell of AMD",
+        "reset the AMD chart in the grid to my chart settings"
+      ],
+      "seed": {
+        "mc": {
+          "cells": [
+            {
+              "id": "c1",
+              "sym": "NVDA",
+              "tf": "D"
+            },
+            {
+              "id": "c2",
+              "sym": "AMD",
+              "tf": "D",
+              "settings": {
+                "a": 1
+              }
+            },
+            {
+              "id": "c3",
+              "sym": "TSLA",
+              "tf": "D"
+            },
+            {
+              "id": "c4",
+              "sym": "SPY",
+              "tf": "D"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "multichart.loadGroup",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.loadGroup"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.loadGroup"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.loadGroup",
+            "target": "$multiChart[0]",
+            "args": {
+              "group": "semiconductors",
+              "step": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "mode": "grid",
+          "groupsMode": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "load semiconductors into the multi chart",
+        "fill the multi chart grid with the semiconductors group",
+        "show me the semiconductors theme group in groups mode"
+      ],
+      "seed": {
+        "mc": {
+          "mode": "workspace"
+        }
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "mode": "workspace",
+            "groupsMode": false
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.stepGroup",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.loadGroup"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.loadGroup"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.loadGroup",
+            "target": "$multiChart[0]",
+            "args": {
+              "group": null,
+              "step": "next"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "groupsMode": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "next group",
+        "go to the next group",
+        "previous group"
+      ],
+      "seed": {
+        "mc": {
+          "groupsMode": true,
+          "group": {
+            "id": "semis",
+            "name": "Semiconductors"
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.refreshGroup",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.loadGroup"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.loadGroup"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.loadGroup",
+            "target": "$multiChart[0]",
+            "args": {
+              "group": null,
+              "step": "refresh"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "groupsMode": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "refresh this group",
+        "refresh the group"
+      ],
+      "seed": {
+        "mc": {
+          "groupsMode": true,
+          "group": {
+            "id": "semis",
+            "name": "Semiconductors"
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.openSaved",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.openSaved"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.openSaved"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.openSaved",
+            "target": "$multiChart[0]",
+            "args": {
+              "name": "leaders"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChart": {
+          "mode": "grid",
+          "layout": "1x2"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "open my leaders grid",
+        "load my saved grid leaders",
+        "pull up the leaders multi chart"
+      ],
+      "seed": {
+        "mc": {
+          "mode": "workspace"
+        }
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "multiChart": {
+            "mode": "workspace",
+            "layout": "2x2"
+          }
+        }
+      }
+    },
+    {
+      "id": "multichart.saveGrid",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.saveGrid"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.saveGrid"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.saveGrid",
+            "target": "$multiChart[1]",
+            "args": {
+              "name": "Tonight"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChartSaved": [
+          "Leaders",
+          "Tonight"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "save this grid as Tonight",
+        "save the grid, call it Tonight",
+        "save my multi chart as Tonight"
+      ]
+    },
+    {
+      "id": "multichart.deleteSaved",
+      "source": "Multi Chart as a capability family (11-06): phrasings written before the routing words, not used to design them",
+      "capabilities": [
+        "multiChart.deleteSaved"
+      ],
+      "board": "MULTI",
+      "needs": [
+        "multiChart.deleteSaved"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.deleteSaved",
+            "target": "$multiChart[1]",
+            "args": {
+              "name": "Leaders"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "multiChartSaved": [
+          "Leaders"
+        ],
+        "proposal": true
+      },
+      "phrasings": [
+        "delete my leaders grid",
+        "remove the saved grid leaders"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "multiChartSaved": [],
+        "receipt": true
+      }
     }
   ],
   "refusals": [

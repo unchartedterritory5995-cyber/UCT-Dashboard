@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 176,
-  "withProductionKinds": 167,
+  "all": 184,
+  "withProductionKinds": 175,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 176,
-  "withAnyRegressionCase": 124,
+  "capabilities": 184,
+  "withAnyRegressionCase": 132,
   "perProtection": {
    "nl": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 132,
+    "applicable": 184
    },
    "routing": {
-    "covered": 121,
-    "applicable": 176
+    "covered": 129,
+    "applicable": 184
    },
    "args": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 132,
+    "applicable": 184
    },
    "execution": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 132,
+    "applicable": 184
    },
    "receipt": {
-    "covered": 96,
-    "applicable": 176
+    "covered": 104,
+    "applicable": 184
    },
    "refusal": {
     "covered": 31,
-    "applicable": 176
+    "applicable": 184
    },
    "permission": {
-    "covered": 169,
-    "applicable": 176
+    "covered": 177,
+    "applicable": 184
    },
    "undo": {
-    "covered": 56,
-    "applicable": 111
+    "covered": 62,
+    "applicable": 118
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 176
+    "applicable": 184
    },
    "phrasings": {
-    "covered": 120,
-    "applicable": 176
+    "covered": 127,
+    "applicable": 184
    }
   }
  },
@@ -6170,6 +6170,485 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.cell": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "gridCell",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "multichart.maximize: \"maximize the AMD chart\"",
+     "multichart.maximize: \"make the AMD cell full screen\"",
+     "multichart.maximize: \"full-screen AMD\"",
+     "multichart.resetCell: \"reset the AMD cell\"",
+     "multichart.resetCell: \"reset this cell of AMD\"",
+     "multichart.resetCell: \"reset the AMD chart in the grid to my chart settings\""
+    ],
+    "routing": [
+     "multichart.maximize: \"maximize the AMD chart\"",
+     "multichart.maximize: \"make the AMD cell full screen\"",
+     "multichart.maximize: \"full-screen AMD\"",
+     "multichart.resetCell: \"reset the AMD cell\"",
+     "multichart.resetCell: \"reset this cell of AMD\"",
+     "multichart.resetCell: \"reset the AMD chart in the grid to my chart settings\""
+    ],
+    "args": [
+     "corpus multichart.maximize",
+     "corpus multichart.resetCell"
+    ],
+    "execution": [
+     "multichart.maximize (c)",
+     "multichart.resetCell (c)"
+    ],
+    "receipt": [
+     "multichart.maximize (c)",
+     "multichart.resetCell (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.maximize: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.deleteSaved": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChartSaved",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 2,
+   "evidence": {
+    "nl": [
+     "multichart.deleteSaved: \"delete my leaders grid\"",
+     "multichart.deleteSaved: \"remove the saved grid leaders\""
+    ],
+    "routing": [
+     "multichart.deleteSaved: \"delete my leaders grid\"",
+     "multichart.deleteSaved: \"remove the saved grid leaders\""
+    ],
+    "args": [
+     "corpus multichart.deleteSaved"
+    ],
+    "execution": [
+     "multichart.deleteSaved (c)"
+    ],
+    "receipt": [
+     "multichart.deleteSaved (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "multichart.deleteSaved: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.enter": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "multichart.enter: \"switch me over to multi chart in a 3x3\"",
+     "multichart.enter: \"go into multichart mode, three by three\"",
+     "multichart.enter: \"I want the multi-chart view with nine charts, 3x3\"",
+     "multichart.enter: \"turn on the multi chart grid at 3 by 3\""
+    ],
+    "routing": [
+     "multichart.enter: \"switch me over to multi chart in a 3x3\"",
+     "multichart.enter: \"go into multichart mode, three by three\"",
+     "multichart.enter: \"I want the multi-chart view with nine charts, 3x3\"",
+     "multichart.enter: \"turn on the multi chart grid at 3 by 3\""
+    ],
+    "args": [
+     "corpus multichart.enter"
+    ],
+    "execution": [
+     "multichart.enter (c)"
+    ],
+    "receipt": [
+     "multichart.enter (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.enter: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.exit": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "multichart.exit: \"get me out of multi chart\"",
+     "multichart.exit: \"exit the grid\"",
+     "multichart.exit: \"turn off multichart\"",
+     "multichart.exit: \"back to my workspace please\"",
+     "multichart.exit: \"leave multi-chart mode\""
+    ],
+    "routing": [
+     "multichart.exit: \"get me out of multi chart\"",
+     "multichart.exit: \"exit the grid\"",
+     "multichart.exit: \"turn off multichart\"",
+     "multichart.exit: \"back to my workspace please\"",
+     "multichart.exit: \"leave multi-chart mode\""
+    ],
+    "args": [
+     "corpus multichart.exit"
+    ],
+    "execution": [
+     "multichart.exit (c)"
+    ],
+    "receipt": [
+     "multichart.exit (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.exit: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.loadGroup": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 8,
+   "evidence": {
+    "nl": [
+     "multichart.loadGroup: \"load semiconductors into the multi chart\"",
+     "multichart.loadGroup: \"fill the multi chart grid with the semiconductors group\"",
+     "multichart.loadGroup: \"show me the semiconductors theme group in groups mode\"",
+     "multichart.stepGroup: \"next group\"",
+     "multichart.stepGroup: \"go to the next group\"",
+     "multichart.stepGroup: \"previous group\""
+    ],
+    "routing": [
+     "multichart.loadGroup: \"load semiconductors into the multi chart\"",
+     "multichart.loadGroup: \"fill the multi chart grid with the semiconductors group\"",
+     "multichart.loadGroup: \"show me the semiconductors theme group in groups mode\"",
+     "multichart.stepGroup: \"next group\"",
+     "multichart.stepGroup: \"go to the next group\"",
+     "multichart.stepGroup: \"previous group\""
+    ],
+    "args": [
+     "corpus multichart.loadGroup",
+     "corpus multichart.stepGroup",
+     "corpus multichart.refreshGroup"
+    ],
+    "execution": [
+     "multichart.loadGroup (c)",
+     "multichart.stepGroup (c)",
+     "multichart.refreshGroup (c)"
+    ],
+    "receipt": [
+     "multichart.loadGroup (c)",
+     "multichart.stepGroup (c)",
+     "multichart.refreshGroup (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.loadGroup: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.openSaved": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "multichart.openSaved: \"open my leaders grid\"",
+     "multichart.openSaved: \"load my saved grid leaders\"",
+     "multichart.openSaved: \"pull up the leaders multi chart\""
+    ],
+    "routing": [
+     "multichart.openSaved: \"open my leaders grid\"",
+     "multichart.openSaved: \"load my saved grid leaders\"",
+     "multichart.openSaved: \"pull up the leaders multi chart\""
+    ],
+    "args": [
+     "corpus multichart.openSaved"
+    ],
+    "execution": [
+     "multichart.openSaved (c)"
+    ],
+    "receipt": [
+     "multichart.openSaved (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.openSaved: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.saveGrid": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChartSaved",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "multichart.saveGrid: \"save this grid as Tonight\"",
+     "multichart.saveGrid: \"save the grid, call it Tonight\"",
+     "multichart.saveGrid: \"save my multi chart as Tonight\""
+    ],
+    "routing": [
+     "multichart.saveGrid: \"save this grid as Tonight\"",
+     "multichart.saveGrid: \"save the grid, call it Tonight\"",
+     "multichart.saveGrid: \"save my multi chart as Tonight\""
+    ],
+    "args": [
+     "corpus multichart.saveGrid"
+    ],
+    "execution": [
+     "multichart.saveGrid (c)"
+    ],
+    "receipt": [
+     "multichart.saveGrid (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.setOption": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 20,
+   "evidence": {
+    "nl": [
+     "multichart.syncCrosshair: \"sync the crosshairs\"",
+     "multichart.syncCrosshair: \"link the crosshair across all my charts\"",
+     "multichart.syncCrosshair: \"keep the crosshairs synced\"",
+     "multichart.syncCrosshair: \"turn on crosshair sync\"",
+     "multichart.syncCrosshair: \"make the crosshair move together on every chart\"",
+     "multichart.syncTimeRange: \"sync the time range\""
+    ],
+    "routing": [
+     "multichart.syncCrosshair: \"sync the crosshairs\"",
+     "multichart.syncCrosshair: \"link the crosshair across all my charts\"",
+     "multichart.syncCrosshair: \"keep the crosshairs synced\"",
+     "multichart.syncCrosshair: \"turn on crosshair sync\"",
+     "multichart.syncCrosshair: \"make the crosshair move together on every chart\"",
+     "multichart.syncTimeRange: \"sync the time range\""
+    ],
+    "args": [
+     "corpus multichart.syncCrosshair",
+     "corpus multichart.syncTimeRange",
+     "corpus multichart.syncOff",
+     "corpus multichart.groupsOff",
+     "corpus multichart.noSymbolSync",
+     "corpus multichart.restoreGrid"
+    ],
+    "execution": [
+     "multichart.syncCrosshair (c)",
+     "multichart.syncTimeRange (c)",
+     "multichart.syncOff (c)",
+     "multichart.groupsOff (c)",
+     "multichart.noSymbolSync (c)",
+     "multichart.restoreGrid (c)"
+    ],
+    "receipt": [
+     "multichart.syncCrosshair (c)",
+     "multichart.syncTimeRange (c)",
+     "multichart.syncOff (c)",
+     "multichart.groupsOff (c)",
+     "multichart.restoreGrid (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multichart.syncCrosshair: undo restores",
+     "multichart.syncTimeRange: undo restores",
+     "multichart.syncOff: undo restores",
+     "multichart.groupsOff: undo restores",
+     "multichart.restoreGrid: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

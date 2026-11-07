@@ -24,7 +24,7 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "news": "data", "settings": "settings", "app": "settings", "agent": "agent",
              "drawing": "drawings", "indicator": "indicators", "breadth": "breadth",
              "chartSetup": "chartSetup", "indicatorStyle": "indicatorSetup", "indicatorCopy": "indicatorSetup",
-             "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "board": "boardEdit",
+             "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "multiChart": "multiChart", "board": "boardEdit",
              "guide": "guide",
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
              "indicatorAlert": "indicatorAlerts",

@@ -96,8 +96,11 @@ const chartGrid = (symbols, timeframe, layout, newCharts, watchlist = false) => 
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
 const CHARTS_FOR = /\bcharts (?:for|of|showing|on)\b/i
 const COUNT_RE = /\b(two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?(?:separate\s+)?charts?\b/i
-const GRID_LAYOUT = [[/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?row)\b/i, 'columns'], [/\b(?:stacked|on top of each other|in (?:a )?column)\b/i, 'rows'],
-  [/\b(?:grid|2\s*x\s*2|2\s*by\s*2|3\s*x\s*3|quad)\b/i, 'grid']]
+// (the first hit decides: a shape stated outright comes first, so "side by side in a 2x2 grid" is the grid. A bare "grid" comes
+// last: "stacked on the grid" and "in my grid" name the board, not a shape)
+const GRID_LAYOUT = [[/\b(?:2\s*x\s*2|2\s*by\s*2|3\s*x\s*3|quad|(?:in|as)\s+an?\s+(?:[a-z0-9]+\s+)?grid)\b/i, 'grid'],
+  [/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?row)\b/i, 'columns'], [/\b(?:stacked|on top of each other|in (?:a )?column)\b/i, 'rows'],
+  [/\bgrid\b/i, 'grid']]
 // hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size."): equal sizing asked in words —
 // the charts are re-tiled evenly (chartGrid.set), never dropped into whatever empty space happens to be there
 export const EQUAL_SIZE_WORDS = /\b(?:same|equal|even|identical) (?:size|sizes|sized|width|height)\b|\bequal(?:ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b/i

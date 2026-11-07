@@ -69,6 +69,10 @@ export const BOARDS = {
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
+  // Multi Chart as a mode: four charts standing in for its cells, with the host's multiChartBoard over plain state (st.mc). The
+  // real hook and grid are agentMultiChartControl.test.jsx's; this board proves phrasings reach the capability and its plan.
+  MULTI: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
+    { 'N:c1': 'NVDA', 'N:c2': 'AMD', 'N:c3': 'TSLA', 'N:c4': 'SPY' }, { multiChart: true }],
   // Agent Phase 1: a Watchlist widget showing the saved list Momentum, beside a chart, published through the REAL registry and
   // read through the REAL host source (host.js buildListViewSource) and Flagged store. The widget itself is a stand-in with
   // Watchlists.jsx's published shape: qa/chartsOutcome/listControl.outcome.test.jsx covers the real widget.
@@ -200,6 +204,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     const body = init.body ? JSON.parse(init.body) : null
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
+    if (u === '/api/groups') return json({ groups: [{ id: 'semis', name: 'Semiconductors' }, { id: 'software', name: 'Software' }] })
     p.st.calls.push([method, u, body])
     if (u === '/api/agent/config') { const cfg = srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds); return json(nlm1 ? { ...cfg, routing_v2: true } : cfg) }
     // PACKAGE 3: one definition (GET read-back, DELETE = the server's soft delete, PUT = a re-save under the same id —
@@ -338,6 +343,34 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true },
       // setPrefMerged's contract: `undefined` from the merge abandons the write
       merge: async (k, fn) => { const next = fn(JSON.parse(st.prefs[k] ?? '[]')); if (next === undefined) return undefined; st.prefs = { ...st.prefs, [k]: JSON.stringify(next) }; return { ok: true } } }
+  }
+  if (extra.multiChart) {
+    const cells = mounted.h.charts.list().map(c => ({ id: c.ref, sym: c.symbol, tf: c.tf }))
+    st.mc = { mode: 'grid', layout: '2x2', cells, syncCrosshair: false, syncTimeRange: false, groupsMode: false, group: null, maximized: null, ...(seed.mc || {}) }
+    st.mcSaved = [{ id: 'g1', name: 'Leaders', layout: { kind: 'multichart', layout: '1x2', cells: [{ sym: 'MSFT', tf: 'D' }, { sym: 'AAPL', tf: 'D' }] } }]
+    const set = (o) => { st.mc = { ...st.mc, ...o } }
+    const fill = (syms, group) => { set({ mode: 'grid', groupsMode: true, group, cells: st.mc.cells.map((c, i) => ({ ...c, sym: syms[i] ?? null })) }); return { ok: true, syms: syms.slice(0, st.mc.cells.length) } }
+    mounted.h.multiChartBoard = {
+      read: () => ({ ...st.mc, hydrated: true }),
+      saved: () => ({ global: [], mine: st.mcSaved.map(t => ({ id: t.id, name: t.name, layout: t.layout.layout })) }),
+      mounted: () => st.mc.mode === 'grid',
+      enter: (layout) => {
+        const n = layout ? layout.split('x').reduce((a, b) => a * Number(b), 1) : st.mc.cells.length
+        set({ mode: 'grid', ...(layout ? { layout } : {}), cells: Array.from({ length: n }, (_, i) => st.mc.cells[i] || { id: `n${i}`, sym: null, tf: 'D' }) })
+      },
+      exit: () => set({ mode: 'workspace', maximized: null }),
+      setSyncCrosshair: (on) => set({ syncCrosshair: on }), setSyncTimeRange: (on) => set({ syncTimeRange: on }),
+      setGroupsMode: (on) => set({ groupsMode: on, ...(on ? {} : { group: null }) }),
+      setMaximized: (id) => set({ maximized: id ?? null }),
+      setCellSettings: (id, settings) => { set({ cells: st.mc.cells.map(c => (c.id === id ? { ...c, settings } : c)) }); return true },
+      restore: (fields) => set(fields),
+      persist: async () => ({ ok: true }),
+      loadGroup: async ({ id, name }) => fill(['SMH', 'AMD', 'NVDA', 'AVGO'], { id, name }),
+      refreshGroup: async () => fill(['SMH', 'AVGO', 'AMD', 'NVDA'], st.mc.group),
+      openSaved(id) { const t = st.mcSaved.find(x => x.id === id); if (t) set({ mode: 'grid', layout: t.layout.layout, cells: t.layout.cells.map((c, i) => ({ id: `s${i}`, ...c })) }); return t },
+      saveGrid: async (name) => { st.mcSaved = [...st.mcSaved, { id: `g${st.mcSaved.length + 1}`, name, layout: { kind: 'multichart', layout: st.mc.layout, cells: st.mc.cells } }] },
+      deleteSaved: async (id) => { st.mcSaved = st.mcSaved.filter(t => t.id !== id) },
+    }
   }
   if (extra.authoring) {
     try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }

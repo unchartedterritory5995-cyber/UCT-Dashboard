@@ -25,17 +25,29 @@ import { mountedWidgetDoor } from '../pages/charts/widgetDoors'
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
 import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
+import { parseLayoutId, gridTemplateLayout } from '../pages/charts/grid/gridLayouts'
+import { fetchGroupTop, fetchPeers, pinEtf } from '../pages/charts/grid/groupsApi'
+import { pushRecent } from '../pages/charts/grid/groupRecents'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
+// One axis of a position word. The midline is the middle of the area these items cover: three charts across beside a Watchlist
+// rail fill 18 of the 24 columns, and a fixed midline of 12 called the middle one "left". Three clean lines (no item straddling
+// two) have a middle one too, as a Multi Chart grid does.
+function axisWord(w, all, at, size, first, last) {
+  const centre = (o) => o[at] + o[size] / 2
+  const lines = [...new Set(all.map(centre))].sort((a, b) => a - b)
+  if (lines.length === 3) {
+    const of = (c) => all.filter(o => centre(o) === c)
+    const clean = lines.slice(1).every((c, i) => Math.max(...of(lines[i]).map(o => o[at] + o[size])) <= Math.min(...of(c).map(o => o[at])))
+    if (clean) return centre(w) === lines[0] ? first : centre(w) === lines[2] ? last : 'middle'
+  }
+  const mid = (Math.min(...all.map(o => o[at])) + Math.max(...all.map(o => o[at] + o[size]))) / 2
+  if (new Set(all.map(o => centre(o) < mid)).size < 2) return ''
+  return centre(w) < mid ? first : last
+}
 function centreWord(w, all) {
-  const cx = w.x + w.w / 2
-  const cy = w.y + w.h / 2
-  const spreadX = new Set(all.map(o => (o.x + o.w / 2) < 12)).size > 1
-  const spreadY = new Set(all.map(o => (o.y + o.h / 2) < 10)).size > 1
-  const v = spreadY ? (cy < 10 ? 'top' : 'bottom') : ''
-  const h = spreadX ? (cx < 12 ? 'left' : 'right') : ''
-  return [v, h].filter(Boolean).join('-')
+  return [axisWord(w, all, 'y', 'h', 'top', 'bottom'), axisWord(w, all, 'x', 'w', 'left', 'right')].filter(Boolean).join('-')
 }
 // S6 nit: a chart that fills the board's whole HEIGHT is neither top nor bottom (a full-height left
 // chart beside a top-right one is "Left", not "Bottom-left" — its centre sat exactly on the row
@@ -298,6 +310,7 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         // ── arrangement (Batch 5): the board's exact widgets (for exact Undo) and its own
         // pure geometry rules. Nothing here writes; applyBoard below is the one writer.
         raw: all.map(w => JSON.parse(JSON.stringify(w))),
+        groupSyms: widgetOps.groupSyms?.() || {},
         layoutTheme: layout.layoutTheme ?? null,
         grid: widgetOps.grid?.() || null,
         minOf: (w) => widgetOps.minOf?.(w) || { minW: 2, minH: 3 },
@@ -603,6 +616,8 @@ export function buildDrawingSource(charts, store = drawingsStore) {
       if (!sym) continue
       const e = by.get(sym) || { ref: sym, symbol: sym, charts: [], defaults: null, tf: null, history: null }
       e.charts.push(c.label)
+      // the chart this symbol's drawings are seen on: the clicked one when it shows the symbol (charts on one symbol share them)
+      if (c.selected || !e.chartRef) e.chartRef = c.ref
       // the chart's own "drawing defaults" (Chart Settings → Drawings), as the context menu and the
       // toolbar's tools use them (`byTool` = the per-tool half a member saved with "Save as default")
       if (!e.defaults) { const dd = c.cs?.drawingDefaults || {}; e.defaults = { color: dd.color || null, width: dd.width || null, fontSize: dd.fontSize || null, byTool: dd.byTool || null } }
@@ -700,6 +715,92 @@ export function buildCellSync({ readCells, localCell, settleMs = 700, tries = 2 
     }
   }
 }
+/**
+ * ⭐ MULTI CHART AS A MODE: the grid itself, on or off screen, through the hook the Layouts ▸ Multi Chart menu writes with.
+ * `getMc()` → { mc: useMultiChartState(), global, mine, saveLayout, deleteLayout } (ChartsWorkspace). `chartApiById` reaches
+ * the mounted grid, for what only it holds (which cell is maximized). Group fills run the menu's own steps, but look the
+ * group up FIRST, so a group that will not load leaves the grid as it was.
+ */
+export function buildMultiChartSource({ getMc, chartApiById }) {
+  const mc = () => getMc()?.mc || null
+  const mounted = () => gridOf(chartApiById)
+  const isGrid = (t) => t?.layout?.kind === 'multichart'
+  const row = (t) => ({ id: t.id, name: t.name, layout: t.layout?.layout ?? null })
+  const fill = (filled, group) => {
+    const m = mc()
+    if (m.state.mode !== 'grid') m.enterGrid(m.state.layout)
+    m.setGroupsMode(true)
+    m.fillCells(filled, group)
+    return { ok: true, syms: filled.slice(0, parseLayoutId(m.state.layout).cellCount) }
+  }
+  return {
+    read() {
+      const m = mc()
+      if (!m) return null
+      const s = m.state
+      return { mode: s.mode === 'grid' ? 'grid' : 'workspace', layout: s.layout, cells: s.cells, hydrated: m.hydrated !== false,
+        syncCrosshair: !!s.syncCrosshair, syncTimeRange: !!s.syncTimeRange, groupsMode: !!s.groupsMode, group: s.group || null,
+        maximized: mounted()?.maximized?.() ?? null }
+    },
+    saved() {
+      const g = getMc()
+      return { global: (g?.global || []).filter(isGrid).map(row), mine: (g?.mine || []).filter(isGrid).map(row) }
+    },
+    mounted: () => !!mounted(),
+    enter: (layoutId) => mc().enterGrid(layoutId),
+    exit: () => mc().exitGrid(),
+    setSyncCrosshair: (on) => mc().setSyncCrosshair(on),
+    setSyncTimeRange: (on) => mc().setSyncTimeRange(on),
+    setGroupsMode: (on) => mc().setGroupsMode(on),
+    setMaximized: (id) => mounted()?.setMaximized?.(id),
+    // a cell's own settings blob, as its Reset button writes it: ticker, timeframe, Style pick and session stay as they are
+    setCellSettings(id, settings) {
+      const m = mc()
+      const i = m.state.cells.findIndex(c => c.id === id)
+      if (i < 0) return false
+      m.updateCellAt(i, { ...m.state.cells[i], settings })
+      return true
+    },
+    restore: (fields) => mc().restoreFields(fields),
+    persist: () => mc().flushSave(),
+    /** A theme group into the grid (GroupPicker's pick; `step` and refresh use the same fill). */
+    async loadGroup({ id, name, by = 'today', recent = false }) {
+      const n = parseLayoutId(mc().state.layout).cellCount
+      const { syms, etf } = await fetchGroupTop(id, { n, by })
+      const filled = pinEtf(syms, etf, n)
+      if (!filled.length) return { ok: false, reason: `${name || 'That group'} has no chartable names right now` }
+      if (recent) pushRecent(id)
+      return fill(filled, { id, by, n, name })
+    },
+    /** MultiChartMenu's ↻ Refresh group: an industry cohort re-resolves from its seed, a theme group from its top list. */
+    async refreshGroup() {
+      const g = mc().state.group
+      const n = mc().state.cells.length
+      if (String(g?.id || '').startsWith('industry:')) {
+        if (!g.seed) return { ok: false, reason: 'that cohort has no ticker to refresh from' }
+        const res = await fetchPeers(g.seed, { n: Math.max(1, n - 1) })
+        const syms = [g.seed, ...((res && res.peers) || [])].slice(0, n)
+        if (syms.length <= 1) return { ok: false, reason: 'that cohort has no other names right now' }
+        return fill(syms, { ...g, n })
+      }
+      const { syms, etf } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
+      const filled = pinEtf(syms, etf, n)
+      if (!filled.length) return { ok: false, reason: 'that group has no chartable names right now' }
+      return fill(filled, { ...g, n })
+    },
+    openSaved(id) {
+      const g = getMc()
+      const tpl = [...(g?.global || []), ...(g?.mine || [])].find(t => t.id === id && isGrid(t))
+      if (!tpl) return null
+      g.mc.applyGridTemplate(tpl)
+      return tpl
+    },
+    // create-only: the name-keyed upsert behind this route would otherwise replace a saved layout of the same name
+    saveGrid: (name) => getMc().saveLayout({ name, layout: gridTemplateLayout(mc().state), groups: null, scope: 'user', createOnly: true }),
+    deleteSaved: (id) => getMc().deleteLayout(id),
+  }
+}
+
 const GRID_KEYS_URL = `${PREFS_URL}?keys=multichart_state`
 async function readServerCells() {
   const r = await fetch(GRID_KEYS_URL, { credentials: 'include', cache: 'no-store' })
@@ -730,7 +831,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, multiChart = null, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -739,7 +840,8 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
-    drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
+    ...(multiChart ? { multiChartBoard: buildMultiChartSource({ getMc: multiChart, chartApiById }) } : {}),
+    drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(layoutSource ? {

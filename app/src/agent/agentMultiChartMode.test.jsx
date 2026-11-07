@@ -399,6 +399,30 @@ describe('Multi Chart: chart commands, on the cell\'s own writer, with Undo', ()
     await waitFor(() => expect(H.nav.goToDate).toHaveBeenCalled())
     await waitFor(() => expect(receipts()).toHaveLength(1))
   }, 30000)
+  // selection run 11-06: a range on a cell was refused as "did not take effect" — the cell's adapter had no view controls
+  it.each([
+    ['chartSetup.setRange', { range: '3M' }, 'applyRange', 'show the top-left chart over three months please', (m, arg) => ({ ...m, activeRange: arg })],
+    ['chartSetup.resetView', {}, 'resetView', 'reset the view on the top-left chart please', (m) => ({ ...m, atDefaultView: true })],
+  ])('%s runs through the cell\'s own date navigator', async (action, args, op, words, after) => {
+    const { say } = mount()
+    let meta = { firstMs: Date.UTC(2020, 0, 1), lastMs: Date.UTC(2026, 0, 1), rightMs: Date.UTC(2026, 0, 1), activeRange: null, atDefaultView: false }
+    H.nav.getDateMeta = () => meta
+    H.nav[op] = vi.fn((arg) => { meta = after(meta, arg) })
+    envelopes.push(plan(action, args, 0))
+    await say(words)
+    await waitFor(() => expect(H.nav[op]).toHaveBeenCalled())
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    expect(transcript()).not.toMatch(/did not take effect/)
+  }, 30000)
+  it('NEGATIVE: a cell whose chart offers no such control is refused, never a false receipt', async () => {
+    const { say } = mount()
+    H.nav.getDateMeta = () => ({ firstMs: Date.UTC(2020, 0, 1), lastMs: Date.UTC(2026, 0, 1), rightMs: Date.UTC(2026, 0, 1), activeRange: null })
+    delete H.nav.applyRange
+    envelopes.push(plan('chartSetup.setRange', { range: '3M' }, 0))
+    await say('show the top-left chart over three months please')
+    await waitFor(() => expect(transcript()).toMatch(/did not take effect|didn.t take effect/))
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
   it('replay does not exist on the grid: refused, not a false receipt', async () => {
     const { say } = mount()
     envelopes.push(plan('chart.replay', { date: '2024-03-01' }, 0))
@@ -800,5 +824,66 @@ describe('Multi Chart: an approval', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(transcript()).toMatch(/changed|can.t run as you approved/i), { timeout: 8000 })
     expect(tfs()).toBe('DDDD')
+  }, 30000)
+})
+
+// Autotest multi-chart-04 and u-workspace-09 (BROWSER-MOCK-MODEL, pl-auto's tree without the described-chart gates): the plan named
+// the empty bottom-right cell and the Agent asked "Which chart do you mean?", offering that very cell. The words describe exactly
+// one chart, so it is THE target, on the no-model reader and on the model path alike; a setting on an empty cell is kept by the
+// cell and read back from the grid's own state.
+describe('the empty cell, described', () => {
+  const asked = () => /Which chart do you mean|Did you mean/.test(transcript())
+  it.each([['put SPY on the empty chart'], ['put SPY on the empty chart for me please']])('%s: the empty cell gets SPY, no question', async (t) => {
+    const { say } = mount()
+    envelopes.push(plan('chart.setSymbol', { symbol: 'SPY' }, 3))
+    await say(t)
+    await waitFor(() => expect(at('c3').sym).toBe('SPY'))
+    expect(cells().map(c => c.sym)).toEqual(['NVDA', 'AMD', 'TSLA', 'SPY'])
+    expect(asked()).toBe(false)
+  }, 30000)
+  it.each([['log scale in the empty cell'], ['log scale in the empty cell for me please']])('%s: the empty cell keeps a log scale, no question', async (t) => {
+    const { say, undo } = mount()
+    envelopes.push(plan('chart.setScale', { scale: 'log' }, 3))
+    await say(t)
+    await waitFor(() => expect(at('c3').settings?.logScale).toBe(true))
+    expect(at('c0').settings).toBeUndefined()
+    expect(asked()).toBe(false)
+    await undo()
+    await waitFor(() => expect(at('c3').settings ?? null).toBe(null))
+  }, 30000)
+  it('NEGATIVE: a plan on another cell is not run for "the empty cell"', async () => {
+    const { say } = mount()
+    envelopes.push(plan('chart.setScale', { scale: 'log' }, 0))
+    await say('log scale in the empty cell for me please')
+    await new Promise(r => setTimeout(r, 300))
+    expect(at('c0').settings?.logScale).not.toBe(true)
+  }, 30000)
+})
+
+// sel-MC-indicator-all (selection oracle, BROWSER-MOCK-MODEL): "slap rsi on all three charts" with the fourth cell empty was
+// asked about ("I can reach 4 charts here, not 3"): the empty cell, which cannot take an indicator, was counted. It is not one of
+// the charts an indicator reaches: left out, and the three get the RSI; Undo takes it off all three.
+describe('"all charts" and the empty cell', () => {
+  const rsiOn = (id) => instances(id).some(i => /rsi/i.test(i.defId))
+  it.each([['slap rsi on all three charts'], ['add rsi to all charts']])('%s: the three charts with a ticker get it; the empty cell is untouched; one Undo', async (t) => {
+    const { say, undo } = mount()
+    await say(t)
+    await waitFor(() => expect(['c0', 'c1', 'c2'].map(rsiOn)).toEqual([true, true, true]))
+    expect(at('c3').settings).toBeUndefined()
+    expect(receipts().length).toBeGreaterThan(0)
+    expect(transcript()).not.toMatch(/did not take effect|could not|couldn.t|I can reach/)
+    await undo()
+    await waitFor(() => expect(['c0', 'c1', 'c2'].map(rsiOn)).toEqual([false, false, false]))
+  }, 30000)
+  it('NEGATIVE: "all four charts" still asks (three can take it), nothing changes', async () => {
+    const { say } = mount()
+    await say('slap rsi on all four charts')
+    expect(transcript()).toMatch(/I can reach 3 charts here, not 4/)
+    expect(['c0', 'c1', 'c2'].map(rsiOn)).toEqual([false, false, false])
+  }, 30000)
+  it('a change an empty cell CAN take still counts it: "make all four charts weekly"', async () => {
+    const { say } = mount()
+    await say('make all four charts weekly')
+    await waitFor(() => expect(cells().map(c => c.tf).join('')).toBe('WWWW'))
   }, 30000)
 })

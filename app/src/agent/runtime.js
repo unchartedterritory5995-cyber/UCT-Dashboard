@@ -36,6 +36,19 @@ async function waitForTarget(kind, host, ref, budgetMs = 8000) {
   }
 }
 
+// ⛔ A write is read back until it shows, bounded: one frame was not always enough. Three Multi Chart cells written in a row
+// re-render one after another, and the third could be read before its own render, then reported as "did not take effect" and
+// compensated although it had landed. A write that never shows still fails, after LANDED_WAIT_MS.
+export const LANDED_WAIT_MS = 1500
+async function readBack(kind, host, ref, patch, refused = false) {
+  const t0 = Date.now()
+  for (;;) {
+    await nextFrame()
+    const snap = kind.read(host, ref)
+    if (refused || kind.landed(snap, patch) || Date.now() - t0 > LANDED_WAIT_MS) return snap
+  }
+}
+
 const fpOf = (kind, host, snap, item) => (kind.fingerprintFor ? kind.fingerprintFor(host, snap, item) : kind.fingerprint(snap))
 
 let _seq = 0
@@ -113,8 +126,8 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     }
     if (res && res.created) Object.assign(aliases, res.created)
     if (res && res.born) Object.assign(born, res.born)
-    await nextFrame()
-    const snap = kind.read(host, p.ref)
+    // (read once: a write its kind says it did not make, or a kind whose commit already waited for its own write)
+    const snap = await readBack(kind, host, p.ref, p.patch, res === false || res?.ok === false || kind.waitsInCommit === true)
     if (!kind.landed(snap, p.patch)) {
       // A creator may have made some of its resources before failing; its result
       // says which, so compensation closes exactly those.

@@ -9,15 +9,51 @@
 // Precedence: an explicit position ("the left one") or a named symbol ("this NVDA chart") beats
 // the selection; a single-chart board needs no selection at all.
 
+import { addableRows } from './capabilities/indicatorEdits'
+import { resolvedTicker } from './nl/tickers'
+import { sanitizeChartTabs } from '../pages/charts/chartTabs'
+
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
 const POINTS = /\b(?:(?:this|that|the|my|current|active|selected|focused)\s+(?:current\s+|active\s+|selected\s+)?(?:chart|stock|ticker|symbol|name)|this\s+one|(?:on|in)\s+here|right\s+here)\b/i
 const IT = /\bit\b/i
 // "this NVDA chart" — a ticker between the pointer word and "chart" (never a position or ordinal word)
-const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|middle|center|centre|other|first|second|third|last|main|new|old|big|small|current|active|selected|focused|same|whole|entire)\s)([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+chart\b/i
+const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|middle|center|centre|other|first|second|third|last|main|new|old|big|small|current|active|selected|focused|same|whole|entire)\s)([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+(?:chart|tab)\b/i
 
 // NL (2026-10-12): "the 5 minute chart", "the daily chart" — a chart named by its TIMEFRAME
 const TF_NAMED = /\b(?:this|that|the)\s+(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)\s+chart\b/i
+// a chart named by its STATE (a Multi Chart cell with no ticker yet) or by an INDICATOR it carries
+const STATE_NAMED = /\b(?:this|that|the|my)\s+(empty|blank|unused|vacant)\s+(?:chart|cell|slot|spot|pane|panel|one)\b/i
+const TAB_NAMED = /\b(?:this|that|the)\s+([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+tab\b/i
+const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showing)\s+(?:the\s+|an?\s+)?([a-z]{2,8})\b/i
+// ⭐ A chart named RELATIVE to the clicked one: "the one above this", "the chart to the left of this one", "the cell under it",
+// "the one next to this". The click is the ANCHOR here, never the target: the chart meant is the clicked chart's neighbour on that
+// side, read from where the charts sit (`cell`). No click, no neighbour on that side, or two that fit → no single chart: asked.
+export const RELATIVE = /\b(?:the\s+)?(?:chart|one|cell|pane)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\s+the\s+|on\s+the\s+)?(left|right)\s+of|(next\s+to|beside))\s+(?:this|that|it|the\s+(?:selected|clicked|current)\s+(?:chart|one))(?:\s+(?:chart|one|cell))?\b/i
+const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
+function sideOf(charts, s, side) {
+  const o = charts.filter(c => c.ref !== s.ref && c.cell)
+  const pick = (list, edge, best) => { if (!list.length) return []; const e = best(...list.map(edge)); return list.filter(c => edge(c) === e) }
+  const xo = (c) => overlaps(c.cell.x, c.cell.x + c.cell.w, s.cell.x, s.cell.x + s.cell.w)
+  const yo = (c) => overlaps(c.cell.y, c.cell.y + c.cell.h, s.cell.y, s.cell.y + s.cell.h)
+  if (side === 'above') return pick(o.filter(c => xo(c) && c.cell.y + c.cell.h <= s.cell.y), c => c.cell.y + c.cell.h, Math.max)
+  if (side === 'below') return pick(o.filter(c => xo(c) && c.cell.y >= s.cell.y + s.cell.h), c => c.cell.y, Math.min)
+  if (side === 'left') return pick(o.filter(c => yo(c) && c.cell.x + c.cell.w <= s.cell.x), c => c.cell.x + c.cell.w, Math.max)
+  return pick(o.filter(c => yo(c) && c.cell.x >= s.cell.x + s.cell.w), c => c.cell.x, Math.min)
+}
+/** → { hits: [chart snapshots], match } when the words name a chart relative to the clicked one (hits may be 0 or several), else null. */
+export function relativeChart(text, charts = [], sel = null) {
+  const m = RELATIVE.exec(String(text || ''))
+  if (!m) return null
+  const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
+  if (!s) return { hits: [], match: m }
+  const v = m[1] && m[1].toLowerCase()
+  const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
+  const hits = side ? sideOf(charts, s, side) : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  return { hits, match: m }
+}
+const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
+const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
 function tfOfWord(w) {
   const s = String(w || '').toLowerCase().trim()
   if (s === 'daily') return 'D'
@@ -30,12 +66,19 @@ function tfOfWord(w) {
 }
 
 /**
- * "the AMD chart" / "the 5 minute chart" — a chart named by the SYMBOL or TIMEFRAME it shows right now.
+ * "the AMD chart" / "the 5 minute chart" / "the empty chart" / "the chart with RSI" — a chart named by what it IS right
+ * now: the SYMBOL or TIMEFRAME it shows, its STATE, an INDICATOR on it (autotest multi-chart-04: every word the board can
+ * answer for names a chart; "which chart?" is for words it can't).
  * → { match, word, hits: [chart snapshots] } | null. Only live charts count: a word that names no
  * chart on this board is not a qualifier (the fast path then leaves the sentence as it was).
  */
 export function chartQualifier(text, charts = []) {
   const s = String(text || '')
+  const st = STATE_NAMED.exec(s)
+  if (st) {
+    const hits = charts.filter(c => !String(c.symbol || '').trim())
+    if (hits.length) return { match: withPrep(s, st), word: st[1], hits }
+  }
   const tf = TF_NAMED.exec(s)
   if (tf) {
     const code = tfOfWord(tf[1])
@@ -44,9 +87,19 @@ export function chartQualifier(text, charts = []) {
   }
   const nm = NAMED.exec(s)
   if (nm) {
-    const sym = nm[1].toUpperCase()
+    // (a company's name, once the ticker search has answered for it: chartNameWord)
+    const sym = resolvedTicker(nm[1])
     const hits = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
     if (hits.length) return { match: withPrep(s, nm), word: nm[1], hits }
+    const shown = charts.filter(c => carries(c, nm[1]))
+    if (shown.length) return { match: withPrep(s, nm), word: nm[1], hits: shown }
+  }
+  const wi = WITH_NAMED.exec(s)
+  if (wi) {
+    const sym = wi[1].toUpperCase()
+    const onIt = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
+    const hits = onIt.length ? onIt : charts.filter(c => carries(c, wi[1]))
+    if (hits.length) return { match: withPrep(s, wi), word: wi[1], hits }
   }
   return null
 }
@@ -57,10 +110,30 @@ function withPrep(s, m) {
   return p ? { index: p.index, 0: s.slice(p.index, m.index + m[0].length) } : { index: m.index, 0: m[0] }
 }
 
-/** Does the member's text point at one chart without naming it? */
-export function pointsAtChart(text, { chartOp = false } = {}) {
+/** "the nvidia chart": the word in a chart's place that no chart answers to yet. Worth one ticker search before a gate reads it. */
+export function chartNameWord(text, charts = []) {
   const s = String(text || '')
-  return POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s))
+  const nm = NAMED.exec(s)
+  return nm && !chartQualifier(s, charts) && !STATE_NAMED.test(s) ? nm[1] : null
+}
+
+/**
+ * The charts the member's words DESCRIBE, read from the board as it is: [chart snapshots], possibly none ("the empty chart" with
+ * no empty chart), or null when the words describe nothing. ⛔ A description decides the target: no other chart stands in for it.
+ */
+export function describedCharts(text, charts = []) {
+  const s = String(text || '')
+  const q = chartQualifier(s, charts)
+  if (q) return q.hits
+  if (STATE_NAMED.test(s)) return []
+  const wi = WITH_NAMED.exec(s)
+  return wi && knownIndicator(wi[1]) ? [] : null
+}
+
+/** Does the member's text point at one chart without naming it? (With the board's `charts`: also a chart it describes.) */
+export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
+  const s = String(text || '')
+  return RELATIVE.test(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -81,7 +154,8 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   if (!Array.isArray(candidates) || !candidates.length) return null
   const backed = candidates.map(c => ({ c, chart: chartRefOf(kind, c) }))
   if (backed.some(b => !b.chart)) return null                         // not a chart-backed kind
-  if (!pointsAtChart(text, { chartOp })) {
+  const live = host?.charts?.list?.() || []
+  if (!pointsAtChart(text, { chartOp, charts: live })) {
     // OWNER DECISION (2026-10-12): a BARE chart command ("switch to weekly", "add rsi") on a board of
     // several charts goes to the chart the member explicitly CLICKED — only while that selection is
     // valid (still on this board, same layout: host.charts.selected()). No selection, a stale one or a
@@ -92,13 +166,28 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     return hit.length === 1 ? { ref: hit[0].c.ref, implicit: true } : null
   }
   if (candidates.length === 1) return { ref: candidates[0].ref }
-  // "this NVDA chart" / "the 5 minute chart": the symbol or timeframe that exactly one chart shows
-  const q = chartQualifier(text, host?.charts?.list?.() || [])
-  if (q && q.hits.length === 1) {
-    const hits = backed.filter(b => b.chart === q.hits[0].ref)
-    if (hits.length === 1) return { ref: hits[0].c.ref }
+  // "the one above this": the clicked chart's neighbour on that side, and only it. ⛔ The click is the anchor, never the target.
+  const rel = relativeChart(text, live, selectedChart(host))
+  if (rel) {
+    const refs = new Set(rel.hits.map(c => c.ref))
+    const fits = backed.filter(b => refs.has(b.chart))
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+    return { ask: { text: rel.hits.length || selectedChart(host) ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
+      choices: (fits.length ? fits.map(b => b.c) : candidates).map(c => ({ ref: c.ref, label: c.label })) } }
   }
+  // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
+  // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
+  const said = describedCharts(text, live)
   const sel = selectedChart(host)
+  if (said) {
+    const refs = new Set(said.map(c => c.ref))
+    const fits = backed.filter(b => refs.has(b.chart))
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+    const clicked = fits.filter(b => b.chart === sel)
+    if (clicked.length === 1) return { ref: clicked[0].c.ref }
+    const choices = fits.length ? fits.map(b => b.c) : candidates
+    return { ask: { text: 'Which chart do you mean?', choices: choices.map(c => ({ ref: c.ref, label: c.label })) } }
+  }
   const hit = sel ? backed.filter(b => b.chart === sel) : []
   if (hit.length === 1) return { ref: hit[0].c.ref }
   return { ask: { text: sel ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: candidates.map(c => ({ ref: c.ref, label: c.label })) } }
@@ -155,13 +244,18 @@ export function ordinalChart(text, charts = []) {
 
 /** The charts on this board the member's words NAME: a position word that fits exactly one chart, or a
  *  symbol exactly one chart shows ("put RSI on NVDA"). Short tickers count only as typed in capitals. */
-export function chartsNamedBy(text, charts = []) {
+export function chartsNamedBy(text, charts = [], sel = null) {
   const s = String(text || '')
   const named = new Set()
+  const rel = relativeChart(s, charts, sel)
+  if (rel?.hits.length === 1) named.add(rel.hits[0].ref)
   // P1: "the second chart", "chart 3", "the middle chart" — only with the word CHART ("the first one" is as often a
   // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
   if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
+  // what the chart IS right now (chartQualifier), when that fits exactly one chart ("the empty one", "the one with RSI")
+  const q = chartQualifier(s, charts)
+  if (q?.hits.length === 1) named.add(q.hits[0].ref)
   for (const m of s.matchAll(POS_WORDS)) {
     const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
     const parts = w.split('-')
@@ -187,8 +281,37 @@ export function chartsNamedBy(text, charts = []) {
  *   several charts changed → { propose } the change is shown for approval, never applied at once
  * → null when every changed chart is identified (or the board has one chart).
  */
+// a position word only where it stands for a chart: "the top one", "the chart in the bottom right". "the top was 150", "on top",
+// "right now" and "the left shoulder" say nothing about a chart, so they never take the click's place
+const CHART_POSITION = new RegExp(`${POS_WORDS.source}[\\s-]+(?:chart|one|cell|corner|pane)\\b|\\b(?:chart|one)\\s+(?:in|at|on)\\s+the\\s+${POS_WORDS.source}`, 'gi')
+const chartPositions = (words) => [...String(words || '').matchAll(CHART_POSITION)].map(m => (m[1] || m[2]).toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom'))
+function clickFits(said, charts, sel) {
+  if (!said.length) return true
+  return said.some(w => { const parts = w.split('-'); return charts.some(c => c.ref === sel && c.position && parts.every(p => c.position.split('-').includes(p))) })
+}
+
+/**
+ * ⛔ A capability whose only argument is its chart (`chartIsItsArgument`: maximize a cell, reset a cell). Any chart the words
+ * name is then THE target, so neither the chart clicked nor the model's pick replaces it: asked, nothing runs. Chart
+ * capabilities that take other arguments stay with the rules around this one, where a ticker may be an argument ("compare AMD").
+ */
+function namedElsewhere({ host, ops, text, getTargetKind, getCapability }) {
+  for (const o of ops || []) {
+    const cap = getCapability(o?.action)
+    if (!cap?.chartIsItsArgument) continue
+    const kind = getTargetKind(cap.target)
+    const list = kind?.list(host) || []
+    const chart = chartRefOf(kind, list.find(s => s.ref === o.target))
+    const named = chartsNamedBy(text, host?.charts?.list?.() || [], selectedChart(host))
+    if (!named.size || named.has(chart)) continue
+    const meant = list.filter(s => named.has(chartRefOf(kind, s)))
+    return { ask: { text: meant.length === 1 ? `Did you mean ${meant[0].label}?` : 'Which chart do you mean?', choices: (meant.length > 1 ? meant : list).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+  }
+  return null
+}
+
 export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
-  if (pointsAtChart(text, { chartOp: true })) return null
+  if (pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   // an ANSWER to the model's question is read with the words that question was about (`context`)
   const words = context ? `${text} ${context}` : String(text || '')
   const charts = host?.charts?.list?.() || []
@@ -205,6 +328,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
     if (chart) targets.set(chart, { list, action: o.action })
   }
   if (!targets.size) return null
+  if (!pickedRefs?.length) { const elsewhere = namedElsewhere({ host, ops, text: words, getTargetKind, getCapability }); if (elsewhere) return elsewhere }
   // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
   // the charts this plan changes ("both" = two), else it is only proposed
   // ⭐ P2: "copy these to my other charts" — with the chart the request is about, the member named every chart
@@ -222,8 +346,13 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const named = chartsNamedBy(words, charts)
   // a picked choice may be the chart itself or a chart-backed entry of it (`ixe:<chart>`)
   for (const r of pickedRefs || []) if (r) { named.add(r); named.add(String(r).replace(/^[a-z]+:/i, '')) }
+  // ⛔ The click answers for a request that names no chart. Words that name one are not overruled by it: a plan on the clicked
+  // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
+  // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
-  if (sel) named.add(sel)
+  const said = chartPositions(words)
+  const answered = (pickedRefs || []).some(Boolean)
+  if (sel && (/\bthis\b/i.test(words) || (!answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
@@ -255,8 +384,41 @@ function otherChartMeant(text, charts, dest, ops) {
   return fromOther || hasDef
 }
 
+// the word "this" on a chart or stock, and no position, ordinal, name or description that could be saying something else
+const TRUE_POINTER = /\bthis\s+(?:chart|stock|ticker|symbol|one)\b/i
+const ELSE_NAMED = /\b(?:of|showing)\s+[a-z$]/i
+function onlyPointer(text, charts) {
+  const s = String(text || '')
+  return TRUE_POINTER.test(s) && !RELATIVE.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
+    && !chartNameWord(s, charts) && !chartsNamedBy(s, charts).size
+}
+
+/** "the TSLA tab" when TSLA shows only on a tab that isn't open. → the ticker, or null. The Agent reaches a chart's open tab only. */
+export function closedTabNamed(text, host) {
+  const m = TAB_NAMED.exec(String(text || ''))
+  if (!m) return null
+  const sym = resolvedTicker(m[1])
+  try {
+    if ((host?.charts?.list?.() || []).some(c => String(c.symbol || '').toUpperCase() === sym)) return null
+    const s = host?.widgets?.snapshot?.()
+    const syms = s?.groupSyms || {}
+    for (const w of s?.raw || []) {
+      if (w.type !== 'chart') continue
+      for (const t of sanitizeChartTabs(w.opts).tabs) if (String(syms[t.color] || '').toUpperCase() === sym) return sym
+    }
+  } catch { /* the board can't be read: the gates below decide */ }
+  return null
+}
+
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability }) {
-  if (!pointsAtChart(text, { chartOp: true })) return null
+  if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
+  {
+    // a chart-backed change aimed at a tab that isn't open would land on the open one: said, and nothing runs
+    const shut = closedTabNamed(text, host)
+    if (shut && (ops || []).some(o => { const cap = getCapability(o?.action); const kind = cap ? getTargetKind(cap.target) : null; return !!kind && !cap.query && !!chartRefOf(kind, (kind.list(host) || []).find(x => x.ref === o.target)) })) {
+      return { refuse: `The ${shut} tab isn't the open tab on that chart, so I can't change it from here. Open that tab, then ask again.` }
+    }
+  }
   {
     // PACKAGE 3: "put it on the other chart" — every chart-backed op aims at the other chart of two
     const charts = host?.charts?.list?.() || []
@@ -270,7 +432,10 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     }
     if (dests.size === 1 && otherChartMeant(text, charts, [...dests][0], ops)) return null
   }
+  const elsewhere = namedElsewhere({ host, ops, text, getTargetKind, getCapability })
+  if (elsewhere) return elsewhere
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
+  const aimed = new Map()
   for (const o of ops || []) {
     const cap = getCapability(o?.action)
     const kind = cap ? getTargetKind(cap.target) : null
@@ -280,10 +445,14 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (!snap || !chartRefOf(kind, snap) || list.length < 2) continue
     const r = resolveDeictic({ host, kind, candidates: list, text, chartOp: true })
     if (r?.ask) return { ask: { ...r.ask, action: o.action } }
+    // "this chart" with a chart clicked is settled: the plan goes there, no question (production 11-05: "Did you mean" the right chart).
+    // ⛔ Only then: anything else in the words may be naming another chart, so a plan that disagrees is still asked about.
+    const onClicked = !!r?.ref && r.ref !== o.target && chartRefOf(kind, list.find(s => s.ref === r.ref)) === selectedChart(host)
+    if (onClicked && onlyPointer(text, host?.charts?.list?.() || [])) { aimed.set(o, r.ref); continue }
     if (r?.ref && r.ref !== o.target) {
       const meant = list.find(s => s.ref === r.ref)
       return { ask: { text: `Did you mean ${meant?.label || 'the selected chart'}?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
   }
-  return null
+  return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
 }

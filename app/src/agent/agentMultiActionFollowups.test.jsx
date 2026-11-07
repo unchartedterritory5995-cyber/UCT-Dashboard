@@ -313,7 +313,7 @@ describe('AUDIT · live checks on #766', () => {
     await waitFor(() => expect(transcript()).toMatch(/My last change wasn't a layout change/))
     expect(h.charts.read('c1').tf).toBe('W')
   }, 30000)
-  it('A2: a board-only change (the grid, adding a chart) is acknowledged on the BOARD\'s own save — it never waits on other preference writes (the new charts\' chart_settings as they load); a chart-settings change still does', async () => {
+  it('A2: a board-only change (the grid, adding a chart) is acknowledged on the BOARD\'s own save — it never waits on other preference writes (the new charts\' chart_settings as they load)', async () => {
     const asked = []
     const { board, h, say } = mount(...HALF(), { epoch: () => 1, persist: async (opts) => { asked.push(opts ?? 'default'); return { ok: true } } })
     // (BROWSER-QA-1 #1: the add comes first — on the full 2×2 board there is no empty space for a fifth chart, and the
@@ -323,7 +323,8 @@ describe('AUDIT · live checks on #766', () => {
     expect(asked).toEqual([{ settle: [] }])
     await say('make the AMD chart weekly')
     await waitFor(() => expect(receipts()).toHaveLength(2), { timeout: 8000 })
-    expect(asked[1]).toBe('default')
+    // a timeframe lives in the layout, so it needs no other write either (agentEarlyReceipt.test: a settings change still waits)
+    expect(asked[1]).toEqual({ settle: [] })
     expect(h.charts.read(chartsOf(board).find(w => h.charts.read(w.id).symbol === 'AMD').id).tf).toBe('W')
     await say(GRID)
     await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })

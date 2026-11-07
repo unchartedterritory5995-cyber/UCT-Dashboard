@@ -58,6 +58,14 @@ export const TOPICS = [
     planned: { when: 'Stage 3', what: 'answering questions about UCT’s historical data (e.g. “when was breadth this low while QQQ was at a high?”) with explicit definitions and no look-ahead' },
   },
   {
+    id: 'multiChart', title: 'Multi Chart',
+    words: [/\bmulti[\s-]?(?:charts?|grids?)\b/, /\bgrid mode\b/, /\b(?:saved|my) grids?\b/],
+    caps: ['multiChart.enter', 'multiChart.exit', 'multiChart.setOption', 'multiChart.loadGroup', 'multiChart.openSaved', 'multiChart.cell', 'multiChart.saveGrid', 'multiChart.deleteSaved'], productHas: true,
+    canDo: 'switch Multi Chart on and off, set its shape up to 4×4, turn crosshair sync, time-range sync and Groups mode on or off, load a theme group and step through groups, maximize or restore a cell, reset a cell, and open, save or delete your saved grids',
+    known: () => ['publishing a prebuilt grid'],
+    planned: null,
+  },
+  {
     id: 'arrange', title: 'Moving, resizing and arranging widgets',
     words: [/\b(resiz|rearrang|arrang|repositi|reorgani)\w*/, /\bmove (my |the |a |this )?(\w+ )?(widget|chart|panel|watchlist|scanner)s?\b/, /\b(bigger|smaller|wider|taller|narrower|shorter)\b.*\b(widget|chart|panel)s?\b/, /\b(2x2|grid of|side by side|split (the )?screen)\b/, /\blink\w*\b/],
     caps: ['widget.remove', 'widget.move', 'board.swap', 'widget.resize', 'widget.arrange', 'widget.setLink', 'widget.addTab', 'widget.selectTab', 'widget.renameTab', 'widget.closeTab'], productHas: true,

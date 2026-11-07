@@ -4145,6 +4145,341 @@
      "modes": {}
     }
    }
+  },
+  "multichart.enter": {
+   "digest": "f15ef2377bbf1c54",
+   "phrasings": {
+    "switch me over to multi chart in a 3x3": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go into multichart mode, three by three": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "I want the multi-chart view with nine charts, 3x3": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the multi chart grid at 3 by 3": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.exit": {
+   "digest": "f33cac5af1460ff9",
+   "phrasings": {
+    "get me out of multi chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "exit the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off multichart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "back to my workspace please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "leave multi-chart mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.syncCrosshair": {
+   "digest": "849514af346d3006",
+   "phrasings": {
+    "sync the crosshairs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "link the crosshair across all my charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep the crosshairs synced": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on crosshair sync": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the crosshair move together on every chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.syncTimeRange": {
+   "digest": "482fdfc32688f5fd",
+   "phrasings": {
+    "sync the time range": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "synchronize the time axis across the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "when I scroll one chart, keep them all synced": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on time-range sync": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.syncOff": {
+   "digest": "7455d346cfbf728d",
+   "phrasings": {
+    "unsync the crosshairs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "stop syncing the crosshair": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "desync crosshairs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.groupsOff": {
+   "digest": "eb052763d94241dd",
+   "phrasings": {
+    "exit groups": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn groups mode off": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "leave groups mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.noSymbolSync": {
+   "digest": "33ab0df331a7c0eb",
+   "phrasings": {
+    "sync the symbols across the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sync the ticker on every multi chart cell": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.maximize": {
+   "digest": "a628bebd0a43dca8",
+   "phrasings": {
+    "maximize the AMD chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the AMD cell full screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "full-screen AMD": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.restoreGrid": {
+   "digest": "b312e60e1b4a8101",
+   "phrasings": {
+    "restore the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "unmaximize this": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "unmaximize the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.resetCell": {
+   "digest": "f42f6e85c2578247",
+   "phrasings": {
+    "reset the AMD cell": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "reset this cell of AMD": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "reset the AMD chart in the grid to my chart settings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.loadGroup": {
+   "digest": "4fd80368ad4e0b2d",
+   "phrasings": {
+    "load semiconductors into the multi chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "fill the multi chart grid with the semiconductors group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the semiconductors theme group in groups mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.stepGroup": {
+   "digest": "f097db9d73cadec1",
+   "phrasings": {
+    "next group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go to the next group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "previous group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.refreshGroup": {
+   "digest": "eb2b5a2647496b5e",
+   "phrasings": {
+    "refresh this group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "refresh the group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.openSaved": {
+   "digest": "b363aa822d358fec",
+   "phrasings": {
+    "open my leaders grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "load my saved grid leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pull up the leaders multi chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.saveGrid": {
+   "digest": "00fe03ecdc43edd4",
+   "phrasings": {
+    "save this grid as Tonight": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save the grid, call it Tonight": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save my multi chart as Tonight": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multichart.deleteSaved": {
+   "digest": "2b9bdf1420e3f442",
+   "phrasings": {
+    "delete my leaders grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the saved grid leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

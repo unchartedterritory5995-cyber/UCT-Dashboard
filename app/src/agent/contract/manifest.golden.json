@@ -4169,6 +4169,262 @@
    "shape": null
   },
   {
+   "name": "multiChart.enter",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Switch to Multi Chart or change its shape.",
+   "hints": "Multi Chart is the full-screen grid of independent chart cells; chartGrid.set lays out charts on the board instead. target = the Multi Chart entry. layout = rows x columns, 1 to 4 each: 1x2, 2x1, 2x2, 2x3, 3x2, 3x3, 4x4 or any other shape up to 4x4 (1x2 side by side, 2x1 stacked), or null for the grid it had. A chart count that fits two shapes is a question for the member.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.exit",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Leave Multi Chart for the Charts board.",
+   "hints": "target = the Multi Chart entry. The grid keeps its charts for next time.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.setOption",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Set crosshair sync, time-range sync or Groups mode, or restore a maximized grid.",
+   "hints": "target = the Multi Chart entry. option = crosshair_sync|time_range_sync|groups_mode|maximized|symbol_sync|timeframe_sync (symbol_sync and timeframe_sync do not exist in UCT: name them and UCT says so). Each can be set with Multi Chart on or off, but maximized only takes on = false, which restores the grid after a cell was maximized. on = true, false, or null to flip it. One op per option. Turning Groups mode off keeps the charts and clears the group.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "option": {
+      "type": "string",
+      "enum": [
+       "crosshair_sync",
+       "time_range_sync",
+       "groups_mode",
+       "maximized",
+       "symbol_sync",
+       "timeframe_sync"
+      ]
+     },
+     "on": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "option",
+     "on"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.loadGroup",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Load, step or refresh a theme group in Multi Chart.",
+   "hints": "Turns Multi Chart and Groups mode on. target = the Multi Chart entry. group = the group's name in the member's words, or null; step = next|previous|refresh, or null. Exactly one of them. UCT matches the name and says so when several fit.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "group": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "step": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "next",
+       "previous",
+       "refresh",
+       null
+      ]
+     }
+    },
+    "required": [
+     "group",
+     "step"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.openSaved",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Open a saved Multi Chart grid.",
+   "hints": "target = the Multi Chart entry. name = one of the Saved grids entry's names, in the member's words. UCT matches it and says so when several fit.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.cell",
+   "domain": "multiChart",
+   "target": "gridCell",
+   "summary": "Maximize one Multi Chart cell, or reset it to my chart settings.",
+   "hints": "target = the ref of the cell in `charts`. do = maximize|reset. Reset drops the settings only that cell has.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "do": {
+      "type": "string",
+      "enum": [
+       "maximize",
+       "reset"
+      ]
+     }
+    },
+    "required": [
+     "do"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.saveGrid",
+   "domain": "multiChart",
+   "target": "multiChartSaved",
+   "summary": "Save the Multi Chart grid under a new name.",
+   "hints": "target = the Saved grids entry. name = the new name, 60 characters at most. Keeps its tickers and timeframes; never replaces a saved grid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.deleteSaved",
+   "domain": "multiChart",
+   "target": "multiChartSaved",
+   "summary": "Delete a saved Multi Chart grid. Permanent.",
+   "hints": "target = the Saved grids entry. name = the grid's name. Only the member's own; prebuilt grids cannot be deleted here.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "drawing.addTrendline",
    "domain": "drawing",
    "target": "drawing",
@@ -6498,6 +6754,7 @@
        "vision",
        "breadth",
        "history",
+       "multiChart",
        "arrange",
        "widgets",
        "layouts",

@@ -239,6 +239,8 @@ export default function MultiChartGrid({ mc }) {
           selected: () => known(live().maxId) || known(clickedIdRef.current),
           lastChanged: (who = null) => known(changedRef.current[who || changedRef.current.latest]),
           maximized: () => known(live().maxId),
+          // the cell's own expand button (onToggleMaxFns) as a set, so an Undo can name the cell it puts back
+          setMaximized: (id) => setMaxId(id == null ? null : known(id)),
           syncTimeRange: () => !!live().state.syncTimeRange,
           groupsMode: () => !!live().state.groupsMode,
           persist: () => live().flushSave?.() ?? { ok: false, reason: 'not-saved' },

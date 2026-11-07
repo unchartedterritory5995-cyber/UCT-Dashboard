@@ -18,6 +18,7 @@ import { registerDigestCapabilities } from './capabilities/digest'
 import { registerSavedScreenCapabilities } from './capabilities/savedScreens'
 import { registerAboutCapabilities } from './capabilities/about'
 import { registerBoardCapabilities } from './capabilities/board'
+import { registerMultiChartCapabilities } from './capabilities/multiChartMode'
 import { registerDrawingCapabilities } from './capabilities/drawings'
 import { registerIndicatorCapabilities } from './capabilities/indicators'
 import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits'
@@ -64,6 +65,7 @@ export function registerBuiltins() {
   registerDigestCapabilities()
   registerSavedScreenCapabilities()
   registerBoardCapabilities()
+  registerMultiChartCapabilities()
   registerDrawingCapabilities()
   registerIndicatorCapabilities()
   registerIndicatorEditCapabilities()
