@@ -49,6 +49,14 @@ vi.mock('../../../utils/prefetchBars', () => ({
   prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {},
 }))
 vi.mock('../../../pages/charts/useListSubscribeEnabled', () => ({ default: () => false }))
+// the Scanner's results table is the Watchlists page component; its door, criteria and capture are ScannerResults' own, so the
+// table itself is a stand-in here
+vi.mock('../../../pages/Watchlists', () => ({ default: () => null }))
+// the Notebook widget's note list (its own hooks, fixture notes) and its editor (TipTap, not under test here)
+vi.mock('../../../pages/journal-2-0/hooks/useJ2Notes', () => ({ default: () => ({ notes: [{ id: 'n1', title: 'NVDA held the 21', folderId: null, createdAt: '2026-11-03T13:00:00Z' }, { id: 'n2', title: 'AMD breakout plan', folderId: null, createdAt: '2026-11-02T13:00:00Z' }], refresh: async () => {} }), useJ2Note: () => ({ note: null }) }))
+vi.mock('../../../pages/journal-2-0/hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+vi.mock('@tiptap/react', async (orig) => ({ ...(await orig()), useEditor: () => null, EditorContent: () => null }))
+vi.mock('../../../hooks/useLivePrices', () => ({ default: () => ({ prices: {}, isLoading: false }) }))
 const byKey = (key) => {
   const k = String(key || '')
   if (k.includes('/api/snapshot')) return data.snapshot
@@ -57,6 +65,7 @@ const byKey = (key) => {
   if (k.startsWith('/api/scatter/universes')) return data.universes
   if (k.startsWith('/api/theme-performance')) return { themes: data.themes }
   if (k.startsWith('/api/breadth-monitor')) return { rows: [{ date: '2026-11-03', breadth_score: 50, up_4pct_today: 100 }] }
+  if (k.includes('scanner') || k.includes('scan')) return { results: [{ sym: 'AAA' }, { sym: 'BBB' }], as_of: '2026-11-03T15:00:00Z' }
   return null
 }
 vi.mock('swr', async (orig) => ({ ...(await orig()), default: (key) => ({ data: byKey(key), isLoading: false, mutate: () => {} }) }))
@@ -69,6 +78,8 @@ const C = {
   indexes: (await import('../../../pages/charts/widgets/IndexesWidget')).default,
   calendar: (await import('../../../pages/charts/widgets/CalendarWidget')).default,
   themes: (await import('../../../pages/charts/widgets/ThemesWidget')).default,
+  scanner: (await import('../../../pages/charts/widgets/ScannerWidget')).default,
+  notebook: (await import('../../../pages/charts/widgets/NotebookWidget')).default,
 }
 await outcomeSuite()
 
@@ -169,5 +180,48 @@ describe('Send to Journal over the real widgets\' own capture doors (C3-184, C3-
     await m.say('send the indexes to my journal', send('indexes', 'note'))
     await m.dismiss()
     expect(data.sent).toEqual([])
+  }, 60000)
+})
+
+describe('the Scanner widget (C3-110 read its conditions, C3-120 send it to the Journal)', () => {
+  const SCAN = { scanKey: 'highest-volume-1y', scanName: 'Highest Volume In 1 Year' }
+  it('C3-110 "what are the conditions on my scanner": the widget’s own criteria, read through its door; nothing changes', async () => {
+    const m = board([wgt('sc', 'scanner', SCAN)])
+    await waitFor(() => expect(mountedWidgetDoor('sc')?.about?.()).toMatch(/criteria: Highest Daily Volume In The Last 1-Year/))
+    const before = JSON.stringify(m.board.state.widgets)
+    const out = await m.say('what are the conditions on my scanner', (c) => [{ action: 'widget.readOptions', target: must(c.board?.[0]?.ref, 'board'), args: { widget: idOf(c, 'scanner') } }])
+    expect(out).toMatch(/criteria: Highest Daily Volume In The Last 1-Year; US Common Stock/)
+    expect(JSON.stringify(m.board.state.widgets)).toBe(before)
+  }, 60000)
+  it('C3-120 "send this scan to my journal": shown first; on Apply the Journal receives the scan’s own capture', async () => {
+    const m = board([wgt('sc', 'scanner', SCAN)])
+    // (after mounting: the panel harness clears storage) the capture release flag, as a member with captures has it
+    try { localStorage.setItem('uct.nb.capture.enabled', '1') } catch { /* */ }
+    await waitFor(() => expect(mountedWidgetDoor('sc')?.capture?.()).toBeTruthy())
+    const want = mountedWidgetDoor('sc').capture()
+    await m.say('send this scan to my journal', send('scanner', 'note'))
+    expect(proposalsNow()).toHaveLength(1)
+    expect(data.sent).toEqual([])
+    await m.apply()
+    await waitFor(() => expect(data.sent).toHaveLength(1))
+    expect(data.sent[0]).toMatchObject({ kind: 'scanner' })
+    expect(data.sent[0].capture).toEqual(want.capture)
+  }, 60000)
+})
+
+describe('the Notebook widget (C3-201 open a note by its name)', () => {
+  it.each([['open my NVDA note in the notebook', 'NVDA', 'n1'], ['show the AMD breakout plan note', 'AMD breakout', 'n2']])('"%s": the widget opens that note (its own row’s openNote); Undo goes back to the list', async (text, name, id) => {
+    const m = board([wgt('nb', 'notebook')])
+    await waitFor(() => expect(mountedWidgetDoor('nb')?.options?.().note.length).toBe(2))
+    const out = await m.say(text, setOption('notebook', 'note', name))
+    await waitFor(() => expect(optsOf(m, 'nb').noteId, out).toBe(id))
+    await m.say('undo')
+    await waitFor(() => expect(optsOf(m, 'nb').noteId ?? null).toBe(null))
+  }, 60000)
+  it('NEGATIVE: a name that fits two notes, or none, is refused with the widget’s own list; nothing opens', async () => {
+    const m = board([wgt('nb', 'notebook')])
+    await waitFor(() => expect(mountedWidgetDoor('nb')?.options?.().note.length).toBe(2))
+    expect(await m.say('open my TSLA note', setOption('notebook', 'note', 'TSLA'))).toMatch(/can be NVDA held the 21, AMD breakout plan/)
+    expect(optsOf(m, 'nb').noteId ?? null).toBe(null)
   }, 60000)
 })

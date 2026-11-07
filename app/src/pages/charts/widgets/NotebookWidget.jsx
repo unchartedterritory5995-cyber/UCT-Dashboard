@@ -33,6 +33,7 @@ import {
   mergeNotebookWidgetSettings, notebookWidgetStyleVars, notebookDefaultsForTheme,
 } from './notebookWidgetSettings'
 import styles from './NotebookWidget.module.css'
+import { useWidgetDoor } from '../widgetDoors'
 
 const AUTOSAVE_MS = 800
 
@@ -251,6 +252,8 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
   // under its folder. Server-side search still narrows when a query is typed.
   const { notes, refresh } = useJ2Notes({ q: q.trim() || undefined, sort: 'updated' })
   const openNoteRow = useMemo(() => notes.find(n => n.id === openNoteId) || null, [notes, openNoteId])
+  // C3-201 (pl-exec round 5): the notes this widget lists, as its own rows open them (openNote → opts.noteId), for the Agent
+  useWidgetDoor(() => ({ options: () => ({ note: notes.map(n => ({ value: n.id, label: n.title?.trim() || 'Untitled note' })) }) }))
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
   const notesByFolder = useMemo(() => {

@@ -5,7 +5,29 @@
 // own labels (header, Widgets menu, tab), so there is no phrase list here. A label that is a chart-surface word ("Volume", the
 // Volume Surge tab) is not a widget's name: those words already mean the chart. Pure: the caller passes the board's types.
 import { WIDGET_REGISTRY } from '../widgets/registry'
-import { widgetControls } from '../widgets/widgetControls'
+import { widgetControls as registryControls } from '../widgets/widgetControls'
+import { COMPANY_TABS, normalizeDock } from '../pages/charts/widgets/chartDock'
+import { COMPANY_INFO, setFeatureOpen } from '../pages/charts/widgets/chartFeatures'
+
+// every control a widget offers: the registry's rows (widgets/widgetControls.js), then the Agent's own over the product's writers
+export const widgetControls = (type) => [...registryControls(type), ...(AGENT_CONTROLS[type] || [])]
+export const allControls = widgetControls
+// ── round 5 (pl-exec, C3-216 / C3-217): a chart widget's Company Info panel, as its own controls set it — the tab strip
+// (ChartDetailDock setTab) and the collapse chevron / edge rail (setFeatureOpen) — both in the chart's opts.dock. Offered only
+// while the chart HAS the panel (Add to Chart owns adding it); written by the product's own dock functions. ──
+const DOCK_WHY = 'This chart has no Company Info panel. Add it from the chart’s Add to Chart menu first.'
+export const AGENT_CONTROLS = {
+  // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
+  notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
+  chart: [
+    { key: 'companyTab', type: 'enum', options: COMPANY_TABS.map(t => t.key), default: 'overview', path: 'dock.tab',
+      when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
+      write: (opts, v) => ({ ...(opts || {}), dock: { ...normalizeDock(opts?.dock), tab: v } }) },
+    { key: 'companyOpen', type: 'boolean', default: false, path: 'dock.open',
+      when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
+      write: (opts, v) => ({ ...(opts || {}), dock: setFeatureOpen(normalizeDock(opts?.dock), COMPANY_INFO, v) }) },
+  ],
+}
 
 export const normName = (s) => ` ${String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
 // ── Names are compared as WORDS, never as strings: punctuation is a space, a connector (and, or, of, the, vs…) is no word, a plural
