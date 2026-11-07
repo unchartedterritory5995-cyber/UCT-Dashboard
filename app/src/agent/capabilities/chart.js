@@ -305,8 +305,10 @@ function withMemberState(host, snap) {
 // `host.charts` is the workspace binding (agent/host.js) over every mounted
 // ChartWidget's agent adapter.
 // the top-level settings keys a change wrote (`preset` is bookkeeping every manual write stamps)
+// AUDIT D1: against the EFFECTIVE settings before (mergeChartSettings of the stored blob): a chart still inheriting the seed
+// (a null or partial blob) gets its defaults filled in by the first write, and those filled-in keys were not changed by it
 function settingsKeysOf(item) {
-  const was = item?.before?.stored || {}, now = item?.patch?.settings || {}
+  const was = mergeChartSettings(item?.before?.stored ?? null) || {}, now = item?.patch?.settings || {}
   return [...new Set([...Object.keys(was), ...Object.keys(now)])].filter(k => k !== 'preset' && !sameJson(was[k], now[k]))
 }
 const settingsOutside = (blob, keys) => Object.fromEntries(Object.entries(blob || {}).filter(([k]) => k !== 'preset' && !keys.includes(k)))
