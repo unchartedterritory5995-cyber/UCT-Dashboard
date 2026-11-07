@@ -329,3 +329,25 @@ describe('through the real panel (scripted model)', () => {
     await waitFor(() => expect(srv.rows).toEqual([]))
   })
 })
+
+// Round 3 (pl-exec): a level the indicator can never reach is refused from the indicator's OWN declared range (its definition's
+// fixed pane scale), never a per-indicator list. An unbounded indicator (MACD) takes any level. Held-out levels from
+// agentExecHeldOut3 (RANGE_HELD_OUT) are among the cases; the rest are this file's own.
+import { RANGE_HELD_OUT } from './agentExecHeldOut3.test.js'
+describe('an alert level inside the indicator\'s own range', () => {
+  const rsi = { instanceId: 'r', defId: 'rsi', inputs: { period: 14 } }
+  it.each([...RANGE_HELD_OUT.map(c => [c.threshold, c.ok]), [100, true], [0, true], [100.5, false]])('RSI %s: %s', async (threshold, ok) => {
+    const { refused } = await create(chartWith([rsi]), createArgs('r', { threshold }))
+    if (ok) {
+      expect(refused).toBeUndefined()
+      expect(srv.rows).toMatchObject([{ indicator: 'rsi', threshold }])
+    } else {
+      expect(refused).toMatch(/RSI moves between 0 and 100, so .* can never be reached — nothing was created/)
+      expect(srv.posts).toEqual([])
+    }
+  })
+  it('the range comes from the definition, so an unbounded indicator (MACD) takes any level', async () => {
+    const { refused } = await create(chartWith([{ instanceId: 'm', defId: 'macd', inputs: { fast: 12, slow: 26, signal: 9 } }]), createArgs('m', { threshold: 150 }))
+    expect(refused).toBeUndefined()
+  })
+})
