@@ -1,6 +1,6 @@
 # I6a-N4: an opener with no line at a block indent: evidence (2026-11-07)
 
-Branch `fix/pine-i6a-n4-switch-indent`, cut from origin/master `2827af2633` (engine 32), with master `1e8fd2ef68` (docs and probes only) merged in before the push.
+Branch `fix/pine-i6a-n4-switch-indent`, cut from origin/master `2827af2633` (engine 32), with master `83d65f95cb` merged in before the push.
 Source: review note N4 in `W34-I6a.md` (the desktop reviews folder): master serves a nested `switch` whose inner arms sit at indent 9 or 6.
 Light phase only: no mutate.py, measure-pair or final-tip. `SCRIPT_ENGINE_VERSION` is untouched (the engine bump is at merge).
 
@@ -100,6 +100,7 @@ By the manual, every one of those is a wrap, and each still has a real block or 
 - Full `engine/ast` + `engine/runtime` (heavy lock `heavy-final6.lock`, label i6an4, free RAM 11.2 GB before): 5772 pass, 1 fail, 6 skipped, 203 files.
   - The one failing test was the census roster's alphabetical order (`pine:indent` placed before `pine:hidden-only`). It is fixed and re-run green (see the re-run line below).
   - One file failed to load: `serverBundle.rail.test.js`, "Cannot find package '@adobe/css-tools'". That is the shared `pine-base` node_modules (junctioned), which another session was reinstalling during the run (modified 17:44). It is not this change.
+- Re-run after the roster fix and the master merge (`83d65f95cb`; master's delta since the base is docs, probes and one Python tool), once the shared node_modules was whole again: guardCensus, serverBundle.rail, i6aN4BlockIndent, w34I6SwitchArmWrap and editorStatus* gave 7 files and 135/135 pass. Nothing was installed from this worktree.
 - Service suite, Node 24.13.1: `node --test --test-reporter=tap "services/pine_runtime/test/**/*.mjs"` 139/139.
 - `node tools/pine_runtime_host_parity.mjs --host node --check`: `HP-1 GREEN: 166/166 cases equal the committed digests`.
 - `pytest tests/test_saved_probe_integrity.py tests/test_pine_w34_d1_queue_targets.py`: 12 passed.
