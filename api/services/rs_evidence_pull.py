@@ -46,6 +46,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from api.services.rs_evidence import ARTIFACT_KEY, ARTIFACT_VERSION, DISPLAY_FLOOR_N, SURVIVORSHIP_NOTE
+from api.services.rs_evidence.measure import HORIZONS as _JOB_HORIZONS
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +55,9 @@ LOCAL_NAME = "rs_evidence.json"
 #: A payload under this many bytes is refused (module header).
 MIN_BYTES = 2048
 #: The horizon the cards print (plan section 9: the quarter-ahead read).
-DEFAULT_HORIZON = 63
+#: Read from the job's own table (21/63/126 sessions), never retyped: the
+#: single-authority rail allows one module to declare the RS lookback pair.
+DEFAULT_HORIZON = _JOB_HORIZONS[1]
 
 #: Readout card key (`RS_LINE_RAW.readout[].key` in nativeRegistry.js) ->
 #: the artifact signal it measures. `signature._rs_evidence` builds
@@ -82,7 +85,7 @@ SIGNAL_LABELS: dict = {
 
 #: The calendar span each measured horizon covers, in the sentence's own words.
 #: A horizon not listed prints its session count alone.
-HORIZON_WORDS: dict = {21: "about 1 month", 63: "about 3 months", 126: "about 6 months"}
+HORIZON_WORDS: dict = dict(zip(_JOB_HORIZONS, ("about 1 month", "about 3 months", "about 6 months")))
 
 #: The card's honesty sentence, printed whenever a signal has no displayable
 #: number. It is the per-signal form of `rs_discord_post.HONESTY_LINE` (that

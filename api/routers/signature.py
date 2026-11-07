@@ -1563,16 +1563,15 @@ def _rs_realised_vol_series(closes: list, window: int) -> list:
         rets.append(math.log(b / a) if a > 0 and b > 0 else 0.0)
     if len(rets) < window:
         return []
+    # Each window is computed whole (two passes, population variance). A rolling
+    # subtract-and-add sum is refused in this backend (single-authority rail) and
+    # drifts on a running sum of squares; n x window here is at most ~1,600 x 126.
     out: list[float] = []
-    s = sum(rets[:window])
-    s2 = sum(r * r for r in rets[:window])
     for i in range(window, len(rets) + 1):
-        mean = s / window
-        var = max(s2 / window - mean * mean, 0.0)
+        w = rets[i - window:i]
+        mean = sum(w) / window
+        var = sum((r - mean) * (r - mean) for r in w) / window
         out.append(math.sqrt(var) * math.sqrt(252.0))
-        if i < len(rets):
-            s += rets[i] - rets[i - window]
-            s2 += rets[i] * rets[i] - rets[i - window] * rets[i - window]
     return out
 
 
