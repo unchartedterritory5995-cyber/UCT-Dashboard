@@ -50,8 +50,39 @@ export function relationMatch(text) {
   const s = String(text || '')
   const m = RELATIVE.exec(s)
   if (!m) return null
+  if (placesNonChart(s.slice(0, m.index))) return null
   return REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)) ? m : null
 }
+// pl-auto indicator-add-02: "MACD under this chart", "volume beneath this one", "a line above this chart" place an indicator, a pane,
+// a line, a level — not a chart ("the pane left of it" IS a chart: a pane alone is a chart's cell, an indicator's pane is named by
+// the indicator). The thing placed is what the words right before the relation name (the last three, in its own
+// clause): an indicator (by its id or a word of its name, from the live catalog) or a chart-surface noun, with no chart word
+// after it. Then the relation is no chart relation and the click is read as a bare pointer would be.
+const PLACED = /^(?:lines?|levels?|indicators?|studies|study|volume|alerts?|labels?|markers?|notes?|drawings?|bands?|overlays?|oscillators?|averages?|histograms?|trendlines?|rays?|arrows?|boxes?|rectangles?|texts?|fibs?|fibonacci|channels?)$/
+const CHARTISH = /^(?:charts?|ones?|cells?|panels?|tickers?|stocks?|symbols?|graphs?|names?)$/
+let indicatorWords = null
+function isIndicatorWord(w) {
+  if (!indicatorWords) {
+    indicatorWords = new Set()
+    try {
+      for (const r of addableRows()) {
+        indicatorWords.add(String(r.defId).toLowerCase())
+        for (const x of String(r.name || '').toLowerCase().split(/[^a-z0-9%]+/)) if (x.length >= 3) indicatorWords.add(x)
+      }
+    } catch { indicatorWords = null; return false }
+  }
+  return indicatorWords.has(w)
+}
+function placesNonChart(before) {
+  const clause = String(before || '').split(CLAUSE_SPLIT_LOCAL).pop()
+  const words = clause.toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean).slice(-3)
+  for (let i = words.length - 1; i >= 0; i--) {
+    if (CHARTISH.test(words[i])) return false
+    if (PLACED.test(words[i]) || isIndicatorWord(words[i])) return true
+  }
+  return false
+}
+const CLAUSE_SPLIT_LOCAL = /[,;.!?]|\b(?:and|then|but|while|also|plus)\b/i
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
 function sideOf(charts, s, side) {
   const o = charts.filter(c => c.ref !== s.ref && c.cell)

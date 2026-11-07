@@ -234,3 +234,46 @@ describe('a negated pointer on a board of two', () => {
     expect(['a', 'b'].map(id => tfOf(b, id)).join('')).toBe('WD')
   }, 30000)
 })
+
+// pl-auto indicator-add-02 (BROWSER-MOCK-MODEL): "I want to see MACD under this chart" (TWO, left clicked) asked "Which chart do you
+// mean?": "under this chart" places a PANE, not a chart. A relation word is a chart relation only when what it places is a chart;
+// an indicator, a pane, a line, a level, volume placed above / below / under "this chart" binds to the click as a bare pointer does.
+// Own phrasings; paired: the plan on the click runs, a plan on the other chart is asked about.
+describe('a relation word that places an indicator, a pane or a line is not a chart relation', () => {
+  const TWO_W = [cell('a', 0, 0), cell('b', 12, 0)]
+  // indicator ops aim at the chart's indicatorEdits entry (the context lists one per chart, by its chart ref)
+  const addOn = (id, defId) => (body) => {
+    const e = (body.context.indicatorEdits || []).find(x => x.chart === `Chart (${id})`)
+    return p.env('apply', [{ action: 'indicator.add', target: e.ref, args: { defId } }])
+  }
+  const rsiOn = (b, id) => (b.state.widgets.find(w => w.id === id).opts?.settings?.indicatorInstances || []).some(i => !i.deleted)
+  it.each([
+    ['put an RSI under this chart', 'rsi'],
+    ['stick the stochastic below this one', 'stoch'],
+    ['I want a MACD pane beneath this chart', 'macd'],
+  ])('%s (clicked a): the plan on the click runs there', async (t, defId) => {
+    const { say, board: b } = p.mount(TWO_W, { 'N:a': 'SPY', 'N:b': 'QQQ' }, { decorate: label })
+    p.select('a')
+    p.st.envelopes.push(addOn('a', defId))
+    const out = await say(t)
+    expect(rsiOn(b, 'a'), out).toBe(true)
+    expect(rsiOn(b, 'b')).toBe(false)
+  }, 30000)
+  // a plan on the OTHER chart: "this chart" is a bare pointer here, so the audited rule applies (a true "this" moves the plan onto
+  // the click, c5e2706425) — never the other chart, and never a "which chart?" for a pane placement
+  it.each([['put an RSI under this chart', 'rsi'], ['stick the stochastic below this one', 'stoch']])('NEGATIVE %s (clicked a): a plan on the OTHER chart never lands there', async (t, defId) => {
+    const { say, board: b } = p.mount(TWO_W, { 'N:a': 'SPY', 'N:b': 'QQQ' }, { decorate: label })
+    p.select('a')
+    p.st.envelopes.push(addOn('b', defId))
+    const out = await say(t)
+    expect(rsiOn(b, 'b')).toBe(false)
+    expect(out).not.toMatch(/Which chart do you mean/)
+  }, 30000)
+  it('relativeChart: the placed thing decides', () => {
+    const at = (ref, x, y) => ({ ref, cell: { x, y, w: 12, h: 10 } })
+    const C = [at('c0', 0, 0), at('c1', 12, 0), at('c2', 0, 10), at('c3', 12, 10)]
+    for (const t of ['MACD under this chart', 'show volume beneath this one', 'draw a line above this chart', 'an alert level below this chart', 'the rsi pane under this one'])
+      expect(relativeChart(t, C, 'c0'), t).toBeNull()
+    expect(relativeChart('the chart under this one', C, 'c0')?.hits.map(c => c.ref)).toEqual(['c2'])
+  })
+})
