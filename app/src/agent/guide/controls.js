@@ -253,6 +253,8 @@ const toolNamed = (text) => SLOTS.tool.read(text)
  */
 export function readControl(text, { weak = false } = {}) {
   const q = conceptsOf(text)
+  // a weak read (only ever a question) only when every word is one the catalog understands: "position sizing" is not a layout
+  if (weak && [...q].some(c => c.startsWith("~"))) weak = false
   const hits = []
   for (const row of CONTROL_ROWS) {
     const f = fit(row, q, weak)

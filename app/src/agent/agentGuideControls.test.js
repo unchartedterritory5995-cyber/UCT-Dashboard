@@ -118,3 +118,10 @@ describe('never a guess', () => {
     expect(route('how do I rename it')?.feature).toBe('control')
   })
 })
+
+describe('a weak read never takes words about something else', () => {
+  it('a word the catalog does not know keeps the question away (the coach, the model)', () => {
+    expect(readControl('walk me through position sizing', { weak: true })).toBeNull()
+    expect(route('walk me through position sizing')?.feature).not.toBe('control')
+  })
+})
