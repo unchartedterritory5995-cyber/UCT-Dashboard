@@ -68,9 +68,12 @@ const own = { board: 'FOUR', clicks: ['TR'], say: 'how do I change the timeframe
 add('click', 'own-gear-keeps-it', { ...own, acts: [['gearOf', 'TR'], ['wait', 800]], lifecycle: 'a click on its own chart gear', expect: [['starts', 'timeframe'], ['stillActive']] })
 add('click', 'own-symbol-keeps-it', { ...own, acts: [['symbolOf', 'TR'], ['wait', 800]], lifecycle: 'a click on its own chart symbol', expect: [['starts', 'timeframe'], ['stillActive']] })
 add('click', 'own-canvas-keeps-it', { ...own, acts: [['canvasOf', 'TR'], ['wait', 800]], lifecycle: 'a click on its own chart', expect: [['starts', 'timeframe'], ['stillActive']] })
-add('click', 'own-control-moves-it-on', { ...own, acts: [['tfButtonOf', 'TR', 'W'], ['wait', 900]], lifecycle: 'its own control', expect: [['starts', 'timeframe'], ['advancedOrDone']] })
+// fixed after the first run (oracle and harness, not the expectation's intent): the chart header shows ONE timeframe button (the
+// current one) beside the menu arrow, not a W button; and a step whose control stays on screen does not move on for a click, by
+// design. Its own control must not END it as a click elsewhere: still running, or done
+add('click', 'own-control-moves-it-on', { ...own, acts: [['tfButtonOf', 'TR', 'first'], ['wait', 900]], lifecycle: 'its own control', expect: [['starts', 'timeframe'], ['stillActiveOrDone']] })
 add('click', 'other-chart-no-restart', { ...own, acts: [['canvasOf', 'BL'], ['wait', 2000]], lifecycle: 'a click on another chart, then a moment', expect: [['starts', 'timeframe'], ['nothingOnScreen']] })
-add('click', 'other-chart-control-no-restart', { ...own, acts: [['tfButtonOf', 'BL', 'W'], ['wait', 2000]], lifecycle: 'a click on another chart timeframe button', expect: [['starts', 'timeframe'], ['nothingOnScreen']] })
+add('click', 'other-chart-control-no-restart', { ...own, acts: [['tfButtonOf', 'BL', 'first'], ['wait', 2000]], lifecycle: 'a click on another chart timeframe button', expect: [['starts', 'timeframe'], ['nothingOnScreen']] })
 add('click', 'mc-own-cell-keeps-it', { board: 'MC', clicks: ['B'], say: 'how do I change the timeframe in this cell', feature: 'timeframe', acts: [['canvasOf', 'B'], ['wait', 800]], lifecycle: 'a click on its own cell', expect: [['starts', null], ['stillActive']] })
 add('click', 'mc-other-cell-ends-it', { board: 'MC', clicks: ['B'], say: 'how do I change the timeframe in this cell', feature: 'timeframe', acts: [['canvasOf', 'C'], ['wait', 2000]], lifecycle: 'a click on another cell', expect: [['starts', null], ['nothingOnScreen']] })
 

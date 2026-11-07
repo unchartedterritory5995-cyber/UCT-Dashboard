@@ -62,7 +62,7 @@ const acts = {
   // a real click on one of a chart's own timeframe buttons, by its label (the bar shows 1D / 1W / 1M: 'W' finds 1W)
   tfButtonOf: async (p, c, [, role, label]) => {
     const id = BOARDS[c.board].roles[role].id
-    const at = await p.b.evaluate(`(() => { const b = [...document.querySelectorAll('[data-widget-id=${q(id)}] [data-guide="chart.timeframe"] button')].find(x => x.textContent.trim().replace(/^1(?=[DWM]$)/, '') === ${q(label)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+    const at = await p.b.evaluate(`(() => { const all = [...document.querySelectorAll('[data-widget-id=${q(id)}] [data-guide="chart.timeframe"] button')].filter(x => x.getBoundingClientRect().width > 0); const b = ${q(label)} === 'first' ? all[0] : all.find(x => x.textContent.trim().replace(/^1(?=[DWM]$)/, '') === ${q(label)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
     if (!at) throw new Error(`no ${label} timeframe button on ${role}`)
     await p.b.click(at.x, at.y); await sleep(500)
   },

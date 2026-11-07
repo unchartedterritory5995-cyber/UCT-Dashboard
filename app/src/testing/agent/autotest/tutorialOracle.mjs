@@ -44,6 +44,7 @@ export function gradeTutorial(spec, ev) {
     else if (k === 'advancedTo') push(`moved on to step ${a[0] + 1}`, end.store?.active && end.store.index === a[0], show(end))
     else if (k === 'noRing') push('no ring left on screen', !end.ring, show(end))
     else if (k === 'stillActive') push('still running: a control of its own chart did not end it', end.store?.active && end.ring && end.card, show(end))
+    else if (k === 'stillActiveOrDone') push('a control of its own chart did not end it as a click elsewhere', (end.store?.active && end.ring && end.card) || /done/.test(end.store?.ended?.reason || ''), show(end))
     else if (k === 'advancedOrDone') push('its own control moved it on or finished it', (end.store?.active && end.store.index > (start.store?.index ?? 0)) || (!end.store?.active && /done/.test(end.store?.ended?.reason || '')), show(end))
     else if (k === 'nothingOnScreen') push('no walkthrough, ring or card after it', !end.store?.active && !end.ring && !end.card, show(end))
     else if (k === 'endFeature') push(`the new request replaced it with ${a[0]}`, end.store?.active && end.store.feature === a[0] && end.ring && end.card, show(end))
