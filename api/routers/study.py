@@ -48,7 +48,7 @@ from api.middleware.auth_middleware import (
     is_paid_user,
     require_admin,
 )
-from api.services import study_import, study_scoring, study_select, study_store
+from api.services import study_hard, study_import, study_scoring, study_select, study_store
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
@@ -59,6 +59,11 @@ _CHART_REVEAL_TYPES = {"spot", "levels", "next", "tap", "grade", "family", "call
 #: Forward bars served on the reveal; the rest come through /step.
 REVEAL_FORWARD_BARS = 20
 STEP_MAX = 60
+#: How far a chart's forward strip reaches (reveal + /step): the stored strip, topped up from the server's own
+#: bars. Owner, batch 21: the run-on "should do to the full culmination or maximization of the trade".
+FORWARD_WANT = 60
+#: The largest jump allowed where the server's own bars join the stored strip (a bigger one is another price basis).
+FORWARD_JOIN_MAX = 0.40
 
 
 def study_enabled() -> bool:
@@ -94,6 +99,9 @@ class SessionIn(BaseModel):
     kind: str = "free"                 # daily | skill | checkpoint | refresher | free
     skill_id: Optional[str] = None
     size: int = study_select.SET_SIZE
+    # HARD MODE (owner, batch 21, 2026-11-06): only charts whose last-bar sweep agrees with the key
+    # (study_hard: a Yes item nothing else fires on, a No item nothing fires on at all).
+    hard: bool = False
 
 
 class AttemptIn(BaseModel):
@@ -241,6 +249,8 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
         rows = study_store.list_bank()
         if body.skill_id:
             rows = [r for r in rows if r["skill_id"] == body.skill_id]
+        if body.hard:
+            rows = [r for r in rows if r.get("has_chart") and study_hard.item_eligible(r["id"])]
         return rows
 
     if body.kind == "unit":
@@ -295,9 +305,12 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
         time_ms=body.time_ms, session_id=body.session_id, unscored=verdict.unscored)
     reveal = study_store.reveal_for(item)
     reveal["detail"] = verdict.detail
+    if item["type"] == "spot" and item.get("skill_id") in study_hard.SETUP_RULES:
+        # the setup's rule in the bank's own words, for a lesson that is a near-miss template (study_hard.setup_rule)
+        reveal["setup_rule"] = study_hard.setup_rule(item["skill_id"])
     reveal["ref"] = study_store.short_ref(item["id"])      # named from Discord: /study ref:872a0a
     if item.get("bars_ref") or item["type"] in _CHART_REVEAL_TYPES:
-        fwd = study_store.get_forward_bars(item["id"])
+        fwd = _forward_bars(item)
         reveal["forward_bars"] = fwd[:REVEAL_FORWARD_BARS]
         reveal["forward_total"] = len(fwd)
     # A walk-through (§13.9 #1) is recorded as seen: `unscored` true, `score`
@@ -318,7 +331,8 @@ def post_step(attempt_id: int, body: StepIn, user: dict = Depends(require_paid))
     att = study_store.get_attempt(attempt_id)
     if not att or att.get("user_id") != user["id"]:
         raise HTTPException(status_code=404, detail="Attempt not found")
-    fwd = study_store.get_forward_bars(att["item_id"])
+    item = study_store.get_item_full(att["item_id"])
+    fwd = _forward_bars(item) if item else []
     off = max(0, int(body.offset))
     n = max(1, min(STEP_MAX, int(body.n)))
     chunk = fwd[off:off + n]
@@ -557,6 +571,44 @@ def _key_from_date(d: date) -> int:
 
 
 _FORWARD_HORIZON_DAYS = {"D": 2, "W": 10, "M": 45}   # calendar days per forward bar
+
+
+def _forward_bars(item: dict) -> list:
+    """A chart item's forward strip: what the import stored (the sealed record, always first), topped up to
+    FORWARD_WANT from the server's OWN bars through `bars_sqlite` (never a provider fetch, B3) when the item names its
+    symbol and the strip is daily / weekly / monthly. The top-up is only ever bars AFTER the stored strip; a missing
+    symbol in bars.db just leaves the strip as stored."""
+    stored = list(study_store.get_forward_bars(item["id"]) or [])
+    sym = str(item.get("sym") or "").upper()
+    if len(stored) >= FORWARD_WANT or not sym:
+        return stored
+    vis = study_store.get_visible_bars(item["id"], approved_only=False) or {}
+    tf = str(vis.get("tf") or "D")
+    seq = stored or (vis.get("bars") or [])
+    try:
+        last_t = int(seq[-1]["t"]) if seq else None
+    except (KeyError, TypeError, ValueError):
+        last_t = None
+    if last_t is None or tf not in _FORWARD_HORIZON_DAYS:
+        return stored
+    want = FORWARD_WANT - len(stored)
+    try:
+        from api.services import bars_sqlite
+        d = date(last_t // 10000, (last_t // 100) % 100, last_t % 100)
+        to_key = _key_from_date(d + timedelta(days=want * _FORWARD_HORIZON_DAYS[tf] + 7))
+        rows = bars_sqlite.get_bars_before(sym, tf, want + 60, to_key)
+    except Exception:  # noqa: BLE001  the server's own bars are a top-up, never a dependency
+        return stored
+    extra = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows if int(r[0]) > last_t]
+    # the server's bars must CONTINUE the chart: a split adjusted after the item was imported would put the top-up on
+    # another price basis (a cliff in the run-on), so a first open more than 40% off the last close drops the top-up
+    try:
+        last_c = float(seq[-1]["c"])
+        if extra and last_c > 0 and abs(float(extra[0]["o"]) / last_c - 1.0) > FORWARD_JOIN_MAX:
+            return stored
+    except (KeyError, TypeError, ValueError):
+        return stored
+    return stored + extra[:want]
 
 
 def resolve_bars(spec: dict) -> dict:
