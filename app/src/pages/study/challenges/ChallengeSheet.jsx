@@ -13,7 +13,8 @@ export const CHALLENGES = [
   { kind: 'blitz', title: 'Blitz', sub: 'Sixty seconds, no hearts, a quick read on every chart.', icon: 'bolt' },
   { kind: 'boss', title: 'Boss', sub: 'Ten charts, one heart. Miss once and it ends.', icon: 'star' },
   { kind: 'kicker', title: 'Spot the Kicker', sub: 'Three gold candles. One is the real thing.', icon: 'eye' },
-  { kind: 'hard', title: 'Hard mode', sub: 'Candles only: no ticker, no averages, no volume. Name what fired.', icon: 'eyeOff' },
+  // round 19 (owner, batch 19): only the ticker is hidden; the member's own averages and volume stay on the chart
+  { kind: 'hard', title: 'Hard mode', sub: 'No ticker, on your own chart. Name what fired on the last candle, or say nothing did.', icon: 'eyeOff' },
 ]
 export const CHALLENGE_KINDS = new Set(CHALLENGES.map((c) => c.kind))
 
