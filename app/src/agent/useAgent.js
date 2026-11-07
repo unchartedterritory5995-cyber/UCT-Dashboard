@@ -384,7 +384,7 @@ function rememberChange(memory, host, ops, undoId = null, created = null) {
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
     memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym, undoId })
-    noteTurnTarget(host, memory, epochOf(host), clean)
+    noteTurnTarget(host, memory, epochOf(host), clean, created)
     // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt —
     // ⭐ PHASE 2: every one this plan confirmed, in order (the last is the subject, as before)
     for (const t of takeIndicatorTouches()) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
