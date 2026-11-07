@@ -54,6 +54,16 @@ const journalWant = (c, b) => ({
 const tally = (rs, k) => rs.filter(r => r[k]).length
 
 export const REACH = {}
+const PINNED = {
+  // round 1 (before: widget held-out action v1 1/24, v2 6/24; list held-out 0/8, 0/8)
+  'widget held-out v1': { model: '23/24', action: '20/24', list: '20/24' }, 'widget held-out v2': { model: '23/24', action: '20/24', list: '20/24' },
+  'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '21/24', list: '21/24' },
+  'list held-out v1': { model: '8/8', action: '7/8' }, 'list held-out v2': { model: '8/8', action: '8/8' },
+  // round 2 (before the word-based names: name held-out2 list 4/6 both; journal held-out2 action 3/4 both)
+  'name held-out2 v1': { model: '6/6', action: '6/6', list: '6/6' }, 'name held-out2 v2': { model: '6/6', action: '6/6', list: '6/6' },
+  'door held-out2 v1': { model: '4/4', action: '4/4', list: '4/4' }, 'door held-out2 v2': { model: '4/4', action: '4/4', list: '4/4' },
+  'journal held-out2 v1': { model: '4/4', action: '4/4' }, 'journal held-out2 v2': { model: '4/4', action: '4/4' },
+}
 describe('reach of the first model call', () => {
   beforeEach(() => {})
   afterEach(async () => { cleanup(); localStorage.clear(); _resetAgentConfig() })
@@ -71,6 +81,10 @@ describe('reach of the first model call', () => {
         REACH[`${name} ${v2 ? 'v2' : 'v1'}`] = line
         console.log(`[reach] ${name} ${v2 ? 'v2' : 'v1'} ${JSON.stringify(line)} misses: ${JSON.stringify(rs.filter(r => keys.some(k => !r[k])).map(r => `${r.row} ${r.text} ${keys.filter(k => !r[k]).join('+')}`))}`)
         expect(rs.length).toBe(cases.length)
+        // pinned as measured (pl-exec, exec-gen-1). Before the change the held-out reach of the action was v1 1/24, v2 6/24
+        // (widget) and 0/8, 0/8 (list). A drop is a regression; a rise is re-pinned on purpose.
+        const pinned = PINNED[`${name} ${v2 ? 'v2' : 'v1'}`]
+        if (pinned) expect(line).toEqual(pinned)
       }, 240000)
     }
   }
