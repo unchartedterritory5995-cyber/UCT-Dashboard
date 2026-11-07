@@ -6593,6 +6593,21 @@ function carryArmRuns(from, to) {
   return to
 }
 
+/** ⭐⭐ G-c — `JSON.parse(JSON.stringify(tree))`, byte for byte (its `NaN` → `null`,
+ *  its dropped `undefined` keys: what the copy always was), with every `_armRuns`
+ *  stamp put back on the node it was copied from. Walked in parallel over the
+ *  original's own enumerable keys, which are exactly the keys the JSON copy has. */
+export function copyKeepingArmRuns(tree) {
+  const out = JSON.parse(JSON.stringify(tree))
+  const pair = (from, to, d) => {
+    if (!from || typeof from !== 'object' || !to || typeof to !== 'object' || d > 4096) return
+    carryArmRuns(from, to)
+    for (const k of Object.keys(from)) pair(from[k], to[k], d + 1)
+  }
+  pair(tree, out, 0)
+  return out
+}
+
 /** ⭐ C45 — is this canonical tree the same number on every bar of ONE BINDING?
  *  Literals, the chart's `timeframe.is*` flags (`BIND_TIME_CLOCK`, the manifest's
  *  own roster), a DECLARED input leaf (`inputDefault`, which `declareInputs` puts
@@ -6633,8 +6648,44 @@ export function bindTimeConstantTree(tree) {
  *  used as an EXPRESSION (`ifArm`, `foldIfChain`): that branch's value is written
  *  right there, and runs only when the branch is taken (H2). */
 export function armHistoryCallOf(node, historyFns, depth = 0) {
-  if (!node || typeof node !== 'object' || depth > 64) return null
-  const walk = (n) => armHistoryCallOf(n, historyFns, depth + 1)
+  return armHistoryWalk(node, historyFns, depth, armMemoFor(historyFns))
+}
+
+/** ⭐ L6 — ONE ANSWER PER CHAIN NODE PER TRANSLATION. `stampTernaryArms` asks this of
+ *  every `?:` it builds, and each asks of its arms, which hold the next `?:` down: an
+ *  N-deep `else if` / colour chain cost O(N²) node visits. The answer depends only on
+ *  the node and the history-function roster (`historyFns`, one `Set` per translation,
+ *  so the memo is keyed by it and goes with it). Only the nodes a chain repeats are
+ *  remembered (a `ternary`, an `if` branch's `bound`); a leaf is cheaper to walk than
+ *  to look up. ⛔ Only an answer reached WITHOUT the depth cap is
+ *  kept: a `null` the cap produced is a fact about where the walk began, not about
+ *  the node, and a shallower start could find a call there. */
+const ARM_MEMO = new WeakMap()
+const ARM_MEMO_NO_FNS = {}
+const ARM_MEMO_MISS = Symbol('miss')
+/** Test hook: the number of node visits `armHistoryCallOf` has made (L6's rail). */
+export const armHistoryWalkStats = { visits: 0, capHits: 0 }
+function armMemoFor(historyFns) {
+  const key = historyFns && typeof historyFns === 'object' ? historyFns : ARM_MEMO_NO_FNS
+  let m = ARM_MEMO.get(key)
+  if (!m) { m = new WeakMap(); ARM_MEMO.set(key, m) }
+  return m
+}
+function armHistoryWalk(node, historyFns, depth, memo) {
+  if (!node || typeof node !== 'object') return null
+  if (depth > 64) { armHistoryWalkStats.capHits += 1; return null }
+  const remembered = node.type === 'ternary' || node.type === 'bound'
+  if (remembered) {
+    const hit = memo.has(node) ? memo.get(node) : ARM_MEMO_MISS
+    if (hit !== ARM_MEMO_MISS) return hit
+  }
+  armHistoryWalkStats.visits += 1
+  const capsBefore = armHistoryWalkStats.capHits
+  const call = armHistoryCallAt(node, historyFns, (n) => armHistoryWalk(n, historyFns, depth + 1, memo))
+  if (remembered && armHistoryWalkStats.capHits === capsBefore) memo.set(node, call)
+  return call
+}
+function armHistoryCallAt(node, historyFns, walk) {
   const argsOf = (n) => (n.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
   switch (node.type) {
     case 'call': {
@@ -6710,28 +6761,82 @@ function readsFreeRecurrenceBind(tree, table) {
  *  drawn as it always was — never refused here, never guessed. */
 export function armRunGates(trees, table) {
   const out = []
-  const seen = new Set()
+  // ⭐ L3 — a node is visited once PER ENCLOSING-ARM CONTEXT (`ctx.key`): the same
+  // stamped subtree under two different arms runs on two different sets of bars.
+  const seen = new Map()
   const keys = new Set()
-  const visit = (n, accum, d) => {
-    if (!n || typeof n !== 'object' || seen.has(n) || d > 4096) return
-    seen.add(n)
+  const NO_CTX = { conds: [], key: '' }
+  // ⭐⭐ L4 — the guard a `?:` arm carries reads an `na` test as Pine's `?:` does.
+  // Pine v4+ takes the FALSE arm where the test is `na` (`interpret.js::PINE_TERNARY`,
+  // witnessed by `rt1-na-test-v4/v5/v6`, NYSE:RDDT 1D from the listing, 2026-10-02):
+  // the true arm SKIPPED that bar and the false arm RAN. ⚰️ The bare test read `na`
+  // as "neither a run nor a skip" (`blockRuns.firstRunAfterSkip`), so a test `na`
+  // on early bars and then true was a run after skips the gate did not see. Written
+  // as the `?:` itself (`t ? 1 : 0`, `t ? 0 : 1`), the guard is evaluated with the
+  // plot's own options, so it reads `na` as false exactly where the plot's `?:` does
+  // (`listingOptsFor`: from the listing, in a document declaring
+  // `meta.naConditionFalse`) and as `na` everywhere else, as before — on both lanes
+  // (`api/services/ast_interpret.py::_ternary` has no listing rule, and neither has
+  // its plot). A test that is never `na` (`neverNaTree`) keeps its tree byte for byte.
+  // ⛔ A `?:` stamp only: a v6 `and` / `or` right side keeps its left side as it stands.
+  const armGuardOf = (n, test, negate) => {
+    if (n.type === 'op' && n.name === '?:' && !neverNaTree(test)) {
+      return negate ? cOp('?:', [test, cNum(0), cNum(1)]) : cOp('?:', [test, cNum(1), cNum(0)])
+    }
+    return negate ? cOp('!', [test]) : test
+  }
+  // ⭐⭐ L3 — A NESTED ARM RUNS WHERE EVERY ARM ENCLOSING IT IS TAKEN. In
+  // `a ? (b ? ta.sma(…) : x) : y` the inner arm runs where `a and b`; its gate read
+  // `b` alone, and a `b` that varies only where `a` is false still refused. The
+  // enclosing STAMPED arms' run guards are carried down the walk (`ctx.conds`) and
+  // put round the nested guard as `?:` (`c ? g : 0`): a bar where an enclosing arm is
+  // not taken is a SKIP whatever the inner test reads there (a `&&` would be `na`).
+  // ⛔ Only a STAMPED encloser is known lazy (a `?:` from v5, a v6 `and` / `or`, an
+  // `if` expression); an unstamped one (`iff`, v4, a rewrite) adds nothing.
+  // ⛔ Not through an `offset` (the inner node is read on an earlier bar than the
+  // encloser's test) nor into a recurrence (its body runs on every bar of its own
+  // state): there the walk drops the context, which is the rule as it was — the
+  // nested guard alone, beside the encloser's own gate.
+  const within = (conds, g) => conds.reduceRight((acc, c) => cOp('?:', [c, acc, cNum(0)]), g)
+  const visit = (n, accum, d, ctx) => {
+    if (!n || typeof n !== 'object' || d > 4096) return
+    let at = seen.get(n)
+    if (!at) { at = new Set(); seen.set(n, at) }
+    if (at.has(ctx.key)) return
+    at.add(ctx.key)
     const stamp = n[ARM_RUNS]
+    let armCtx = null
     if (stamp && Array.isArray(n.args) && n.args.length) {
       let guard = n.args[0]
       if (containsFreeSelfSeries(guard, table)) guard = accum ? previousBarOf(guard, accum, table) : null
       if (guard && !readsFreeRecurrenceBind(guard, table)) {
-        const text = printFormula(guard)
+        const own = { yes: armGuardOf(n, guard, false), no: armGuardOf(n, guard, true) }
         for (const r of stamp.runs) {
-          const key = `${r.negate ? '!' : ''}(${text})|${r.why}`
+          const g = within(ctx.conds, r.negate ? own.no : own.yes)
+          const key = `${printFormula(g)}|${r.why}`
           if (keys.has(key)) continue
           keys.add(key)
-          out.push({ why: r.why, guard: r.negate ? cOp('!', [guard]) : guard, what: r.what })
+          out.push({ why: r.why, guard: g, what: r.what })
         }
+        armCtx = own
       }
     }
     if (!Array.isArray(n.args)) return
     const fn = n.type === 'call' ? table.functions[n.name] : null
     const spec = fn && fn.recurrence
+    // the context each argument is read under: a stamped `?:`'s arms add their own
+    // guard; a stamped `&&` / `||`'s right side adds the left side's
+    const ctxOf = (i) => {
+      if (n.type === 'offset' || spec || (fn && fn.multiState)) return NO_CTX
+      if (!armCtx || i === 0) return ctx
+      const isTernary = n.type === 'op' && n.name === '?:'
+      const isLogic = n.type === 'op' && (n.name === '&&' || n.name === '||')
+      if (!isTernary && !isLogic) return ctx
+      const c = isTernary ? (i === 1 ? armCtx.yes : (i === 2 ? armCtx.no : null))
+        : (i === 1 ? (n.name === '||' ? armCtx.no : armCtx.yes) : null)
+      if (!c) return ctx
+      return { conds: [...ctx.conds, c], key: `${ctx.key}&${printFormula(c)}` }
+    }
     // ⭐⭐ M1 — A RECURRENCE'S SEED IS READ ON ONE BAR. `var x = up ? ta.highest(…) : low`
     // runs its initialiser once, on bar 0 (`accum`'s seed slot; an `accumK`'s
     // `seeds`), where no call has a history to diverge: the arm's every-bar answer
@@ -6743,10 +6848,10 @@ export function armRunGates(trees, table) {
     const seeds = spec ? [spec.seed] : (fn && fn.multiState && Array.isArray(fn.multiState.seeds) ? fn.multiState.seeds : null)
     n.args.forEach((a, i) => {
       if (seeds && seeds.includes(i)) return
-      visit(a, spec && i === spec.body ? n : accum, d + 1)
+      visit(a, spec && i === spec.body ? n : accum, d + 1, ctxOf(i))
     })
   }
-  for (const t of trees) visit(t, null, 0)
+  for (const t of trees) visit(t, null, 0, NO_CTX)
   return out
 }
 
@@ -7241,6 +7346,7 @@ export class Resolver {
      *  guard recorded in `blockRuns` for the bind to check; one with no guard
      *  to carry is kept in `condRefusal` and refuses the row. */
     this.condGate = false
+    this.condGateNotesOnly = false
     this.blockRuns = []
     this.condRefusal = null
     /** ⭐⭐ C45 — the script's functions that read their own history
@@ -7667,7 +7773,10 @@ export class Resolver {
     //     (`condRefusal`), never served;
     //   · every other resolver — the screener lane's among them, where nothing
     //     binds a chart — reads as it always has.
-    if (!this.refuseCondCalls && this.condGate && this.mintOnly === 0 && bound && bound.oneExecution) {
+    // ⛔ G-h — a paint's / a fill's colour notes the gates (`condGateNotesOnly`) but reads
+    // a one-run binding the every-bar way, as it always did: its gate then says where
+    // the block runs, and the bind withholds the colour there.
+    if (!this.refuseCondCalls && this.condGate && !this.condGateNotesOnly && this.mintOnly === 0 && bound && bound.oneExecution) {
       this.mintOnlyRead(() => this.resolveBinding(bound, tok, name))
       const minted = this.paramMint
       this.paramMint = null
@@ -8641,7 +8750,11 @@ export class Resolver {
       // ⚠️ RESOLVED ONCE AND COPIED. Sharing one object across K positions puts
       // the same node in a tree twice, which any walker that annotates in place
       // would then read as one node visited twice.
-      const copy = () => JSON.parse(JSON.stringify(base))
+      // ⭐⭐ G-c — …AND THE COPY KEEPS ITS ARM STAMPS (`copyKeepingArmRuns`). The
+      // JSON round trip dropped every non-enumerable `_armRuns`, so
+      // `n := up and ta.rising(close, 2) ? n + 1 : 0` lost its v6 right-side stamp and
+      // the run-length tree was drawn off the every-bar `ta.rising` with no gate.
+      const copy = () => copyKeepingArmRuns(base)
       let tree = null
       for (let i = 0; i < run; i++) {
         let term = shape.invert ? cOp('!', [copy()]) : copy()
@@ -26465,28 +26578,7 @@ function translatePineResult(source, opts = {}) {
       const colourRules = colourAlone
         ? COLOUR_RULE_KEYS.map((k) => row.presentation[k]).filter(Boolean) : []
       const colourRuns = resolver.condGate && colourRules.length ? resolver.blockRuns.splice(valueBlockRuns) : []
-      const guardsOf = (runs) => {
-        const out = []
-        if (!runs.length) return out
-        const minted = resolver.paramMint
-        const observer = resolver.onCondition
-        resolver.paramMint = null
-        resolver.onCondition = null
-        resolver.mintOnly += 1
-        try {
-          for (const g of runs) {
-            const node = blockGuardNode(g.chain)
-            let guard
-            try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
-            out.push({ why: g.why, guard })
-          }
-        } finally {
-          resolver.mintOnly -= 1
-          resolver.paramMint = minted
-          resolver.onCondition = observer
-        }
-        return out
-      }
+      const guardsOf = (runs) => blockGateGuardsOf(resolver, runs)
       const colourGates = guardsOf(colourRuns)
       if (colourGates.length) {
         for (const rule of colourRules) {
@@ -26987,7 +27079,7 @@ function translatePineResult(source, opts = {}) {
   // ⭐⭐ B1 — THE PAINTS (`bgcolor` / `barcolor`), read once, with every name
   // settled and a resolver of their own (as the fills below get theirs). Host lane
   // only: `paints` is empty on the screener lane by construction.
-  const paintRecs = paints.length ? resolvePaints(paints, { resolver: makeResolver(), version }) : null
+  const paintRecs = paints.length ? resolvePaints(paints, { resolver: makeResolver(), version, hostLane: isHostLane(opts) }) : null
   // ⭐ B1 (step 61) — the deferred sentences, said once the outcome is known. A
   // fill not yet resolved (the no-output return below has no plots) keeps its
   // `band: false` sentence, which is then the true one.
@@ -27178,7 +27270,7 @@ function translatePineResult(source, opts = {}) {
 
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
-  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, version })
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, version, hostLane: isHostLane(opts) })
   sayChartOnly()
 
   const result = {
@@ -29226,9 +29318,97 @@ function resolvePaint(p, ctx) {
   return rec
 }
 
+/** ⭐ C48 — the guard tree of each block gate a resolver noted (`noteBlockRun`),
+ *  resolved for its tree alone: nothing minted, no condition observed. A guard this
+ *  engine cannot read throws the gate's own refusal. One reader for the output loop,
+ *  the paints and the fills (G-h). */
+function blockGateGuardsOf(resolver, runs) {
+  const out = []
+  if (!runs.length) return out
+  const minted = resolver.paramMint
+  const observer = resolver.onCondition
+  resolver.paramMint = null
+  resolver.onCondition = null
+  resolver.mintOnly += 1
+  try {
+    for (const g of runs) {
+      const node = blockGuardNode(g.chain)
+      let guard
+      try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
+      out.push({ why: g.why, guard })
+    }
+  } finally {
+    resolver.mintOnly -= 1
+    resolver.paramMint = minted
+    resolver.onCondition = observer
+  }
+  return out
+}
+
+/** ⭐⭐ G-h — A PAINT'S OR A FILL'S COLOUR HONOURS C48's BLOCK GATES, as a plot's
+ *  colour does (F2). Read with `condGate` on, the colour notes each block whose call
+ *  it reads off the every-bar number (`condCall`, a `var` filled in a block that
+ *  skips: `stateRuns`); those gates ride the colour's own rules
+ *  (`COLOUR_BLOCK_RUNS`, read by `colourBlockRunsOf`), so the bind withholds that
+ *  colour's condition column where the block runs after a bar it skipped — and a
+ *  withheld paint or fill colour draws NOTHING (`binder.pointColour` /
+ *  `fillColours`): the paint itself is withheld there, never painted off the
+ *  every-bar value. ⚰️ They resolved with `condGate` off, so
+ *  `bgcolor(close > s ? color.red : na)` with `s` filled from a `ta.*` call in a
+ *  block that skips painted from the every-bar `s`, with no note.
+ *  Returns `{value, gates}` to hang on the rules, or `{value, refusal}` where a block
+ *  mark has no guard to carry — the caller withholds the paint by name. */
+function holderColourGates(resolver, read) {
+  const before = resolver.blockRuns.length
+  const heldRefusal = resolver.condRefusal
+  resolver.condRefusal = null
+  const prev = resolver.condGate
+  const prevNotes = resolver.condGateNotesOnly
+  resolver.condGate = true
+  resolver.condGateNotesOnly = true
+  let value
+  let runs
+  let refusal = null
+  try {
+    value = read()
+  } finally {
+    resolver.condGate = prev
+    resolver.condGateNotesOnly = prevNotes
+    runs = resolver.blockRuns.splice(before)
+    refusal = resolver.condRefusal
+    resolver.condRefusal = heldRefusal
+  }
+  if (refusal) return { value, refusal }
+  let gates = []
+  try { gates = blockGateGuardsOf(resolver, runs) } catch (err) { return { value, refusal: err } }
+  return { value, gates }
+}
+
+function hangColourGates(holder, gates) {
+  const rules = COLOUR_RULE_KEYS.map((k) => holder && holder[k]).filter((r) => r && typeof r === 'object')
+  for (const rule of rules) {
+    const had = Array.isArray(rule[COLOUR_BLOCK_RUNS]) ? rule[COLOUR_BLOCK_RUNS] : []
+    Object.defineProperty(rule, COLOUR_BLOCK_RUNS, { value: [...had, ...gates], enumerable: false, configurable: true })
+  }
+}
+
 function resolvePaints(paints, ctx) {
   const out = paints.map((p) => {
-    try { return resolvePaint(p, ctx) } catch (err) {
+    try {
+      const r = ctx && ctx.resolver
+      if (!r || !ctx.hostLane || !Array.isArray(r.blockRuns)) return resolvePaint(p, ctx)
+      // ⭐⭐ G-h — the paint's colour, read with C48's block gates on (`holderColourGates`)
+      const { value: rec, gates, refusal } = holderColourGates(r, () => resolvePaint(p, ctx))
+      if (rec && rec.withheld) return rec
+      // a gate with no rule to hang on is a colour the translation already folded to
+      // ONE value on every bar (or `na`): no bar can read the block differently
+      if (refusal) {
+        return { kind: p.kind, line: rec ? rec.line : null,
+          withheld: { code: 'pine:block', reason: String((refusal && refusal.message) || refusal) } }
+      }
+      if (gates.length) hangColourGates(rec, gates)
+      return rec
+    } catch (err) {
       const at = locate(p.tok)
       return { kind: p.kind, line: at ? at.line : null,
         withheld: { code: 'paint:arguments', reason: String((err && err.message) || err) } }
@@ -29255,17 +29435,31 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     if (ai === undefined || bi === undefined || ai === bi) continue
     if (!resolved[ai] || resolved[ai].refusal || !resolved[bi] || resolved[bi].refusal) continue
     let pres = {}
+    let fillGates = null
     try {
       // ⛔ FAIL-SOFT, as the collector's own `catch` always was: a colour this
       // grammar cannot read must not cost the member the BAND. The edges are the
       // indicator; the colour is the annotation.
-      pres = outputPresentation(f.args || [], {
+      const readPres = () => outputPresentation(f.args || [], {
         env: f.env || (ctx && ctx.env),
         resolver: ctx && ctx.resolver,
         kind: 'fill',
         version: ctx && ctx.version,
       }) || {}
+      const r = ctx && ctx.resolver
+      if (r && ctx.hostLane && Array.isArray(r.blockRuns)) {
+        // ⭐⭐ G-h — the fill's colour, read with C48's block gates on
+        const got = holderColourGates(r, readPres)
+        pres = got.value || {}
+        fillGates = got
+      } else pres = readPres()
     } catch { pres = {} }
+    // ⭐⭐ G-h — a fill colour that read a block that skips carries that block's gate on
+    // its rules (a colour with no rule was folded to one value on every bar: nothing to
+    // gate). A block mark with no guard to carry (`condRefusal`) is not carried at all:
+    // a withheld fill colour draws nothing, so the band is withheld whole.
+    if (fillGates && fillGates.refusal) continue
+    if (fillGates && fillGates.gates.length) hangColourGates(pres, fillGates.gates)
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null

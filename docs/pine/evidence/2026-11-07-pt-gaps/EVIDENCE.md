@@ -1,0 +1,68 @@
+# PT-GAPS evidence, 2026-11-07
+
+Lane: PT-GAPS, branch `feat/pine-pt-gaps`, from `origin/master` `33a8a2ab43` (engine 32; `SCRIPT_ENGINE_VERSION` not touched).
+Scope: the "Known gaps" table of `docs/pine/capture-queue-2026-10-31-prod-ternary.md`: L3, L4, L5, L6, G-a, G-c, G-d, G-e, G-f, G-g, G-h, G-i. G-b is Q-PT3's; L2 has its probe.
+
+## Classification
+
+| gap | class | why |
+|---|---|---|
+| L3 | (a) built | Pine's `?:` is lazy (v6 captured, `vw-arm-history`; v5 stated by the to-v5 / to-v6 guides): an arm nested in another runs only where both are taken. Pure consequence of a rule already witnessed |
+| L4 | (a) built | an `na` test takes the false arm: witnessed by `rt1-na-test-v4/v5/v6` (NYSE:RDDT 1D, 2026-10-02) and already the plot's own rule (`interpret.js::PINE_TERNARY`) |
+| L5 | (c) closed | closed by H1 (arm gates); its block-gate half is G-h |
+| L6 | (a) built | translation cost only, no vendor fact |
+| G-a | (c) closed | closed by F2 |
+| G-c | (a) built | a copy dropping a stamp is a bug in this engine, not a vendor question |
+| G-d | (a) built | disclosure on our own surface, no vendor fact |
+| G-e | (c) by design | the bounded window's own convergence rule answers for the seed |
+| G-f | (b) capture | object door: no capture holds a drawing's text over a block's runs. Queued as Q-PT6 |
+| G-g | (c) by design | an exemption is a per-function proof; until one capture per window-1 function exists it stays withheld |
+| G-h | (a) built | C48's block rule (captured, `vw-call-site-history`) already applies to a plot's colour (F2); a paint's and a fill's colour are the same rule |
+| G-i | (b) capture | object door, and the last change here took 35 TradingView-exact objects down (rsi-swing-indicator, C17 / F6). Queued as Q-PT7 |
+
+## What was built (host plot lane, `app/src/components/chart/engine/ast/pine.js` unless named)
+
+- **L3** `armRunGates` carries the enclosing STAMPED arms' run guards down the walk and wraps a nested guard as `c ? g : 0` (a bar where an encloser is not taken is a skip). Dropped through `offset` and into a recurrence. A node under two enclosers is visited once per context and carries both gates.
+- **L4** `armRunGates` writes a `?:` stamp's guard as `t ? 1 : 0` / `t ? 0 : 1` when the test can be `na` (`neverNaTree`). The bind evaluates it with the plot's own options, so it reads `na` as Pine does exactly where the plot does (from the listing, `meta.naConditionFalse`) and as `na` = neither everywhere else, including every server lane (`ast_interpret._ternary` has no listing rule, for the plot or the guard). `blockRuns.js` / `block_runs.py` are unchanged; `blockRunsParity.test.js` reproduces its fixture and `tests/test_block_runs_parity.py` passes (28).
+- **L6** `armHistoryCallOf` memoises the nodes a chain repeats (`ternary`, `bound`) per history-function roster (`WeakMap`); a depth-capped answer is never kept.
+- **G-c** the counter fold copies with `copyKeepingArmRuns`: the same JSON copy byte for byte, then every `_armRuns` stamp carried by a parallel walk.
+- **G-h** paints (`resolvePaints`) and fill colours (`resolveFillHandles`) are read with `condGate` on in notes-only mode (`holderColourGates`, `condGateNotesOnly`: a one-run block is still read the every-bar way), host lane only. Their block gates hang on the colour rules (`COLOUR_BLOCK_RUNS`, read by `colourBlockRunsOf`). A block mark with no guard to carry withholds a paint by name (`pine:block`) and drops a fill. The output loop's guard reader is now the shared `blockGateGuardsOf`.
+- **G-d** `infoValueResolve.withheldColourOf`: a pinned info value whose plot's condition column (`colorMode: column:<key>`) is refused keeps its value and carries the gate's sentence as its `reason` (the row's `title`), `colourWithheld: true`.
+
+Runtime lane (`pineRuntimeFrontend.js`, `engine/runtime`): none of these gaps lives there. It evaluates `?:` per bar in its VM and serves conditional `ta.sma` / `ta.ema` / `ta.rma` per call site, refusing every other conditional shape by name (`runtime:conditional-history`), so it has no stamp to nest, copy or memoise. `postfixMember.test.js` (the runtime/host agreement rail named in the brief) passes, 28 tests.
+
+## Rails
+
+`app/src/components/chart/engine/ast/ptGaps.test.js`, 19 tests, each block with a control: L3 (6), L4 (4), L6 (2), G-c (2), G-h (3), G-d (2).
+
+Targeted, all green: `ptGaps` 19, `pine.armRuns` 16, `vendorHarness.c45ArmRuns` 74, `vendorHarness.c48CallSite` 33, `blockRunsParity` 2, `postfixMember` 28, `paramIds` 5 (+1 skipped). Python `tests/test_block_runs_parity.py` 28 passed.
+
+## Hand mutations (copy, mutate, run `ptGaps.test.js`, restore by copy, `cmp`), on the final code
+
+| id | mutation | result |
+|---|---|---|
+| M1 | L3: `ctxOf` always returns the parent context | 5 red, restored, cmp equal |
+| M2 | L4: never wrap the test as `?:` | 2 red, restored, cmp equal |
+| M3 | L6: never store in the memo | 1 red, restored, cmp equal |
+| M7 | L6: store a depth-capped answer too | 1 red, restored, cmp equal |
+| M4 | G-c: plain JSON copy | 1 red, restored, cmp equal |
+| M5 | G-h: leave `condGate` as it was while reading a paint / fill colour | 2 red, restored, cmp equal |
+| M6 | G-d: `withheldColourOf` always null | 2 red, restored, cmp equal |
+
+## Folder run
+
+`npx vitest run src/components/chart/engine/ast src/components/chart/engine/runtime --maxWorkers=1`, Node 20.20.2, under `heavy-final6.lock` (label `ptgaps`), free RAM 13.5 GB before:
+
+- Test Files 4 failed | 505 passed | 4 skipped (513); Tests 5 failed | 8406 passed | 11 skipped (8422).
+- All 5 failures are `Test timed out in 15000ms` in four corpus census files under `runtime/__tests__`: `guardProbe.measure`, `objectLaneCallSites.measure`, `objectLaneCensus.measure` (2), `objectLaneDrawerCensus.measure`.
+- Master control: the same four files on `origin/master`'s `pine.js` and `infoValueResolve.js` (swapped in, then restored and checked with `cmp`), default timeout, back to back on the same box: master **5 failed | 4 passed** (the same five), branch **3 failed | 6 passed**. With `--testTimeout=600000` all pass on the branch (each 18-21 s on a loaded box; master measured 14-21 s across runs). They are a 15 s budget on a shared box, not this change.
+
+A first folder run was stopped mid-way because a source file was edited while it ran; its result is not used. Between the runs the shared `node_modules` this worktree's junction pointed at (`pine-dsk-mpbase3` -> `pine-base`) lost its `.bin` and some packages (another session); the junction was repointed to `nbw-p2-impl/app/node_modules` (same vitest 4.0.18; `package.json` differs only by `three`).
+
+## Service suite
+
+`node --test --test-reporter=tap "services/pine_runtime/test/**/*.mjs"` on Node 24.13.1: tests 139, pass 139, fail 0.
+
+## Not done
+
+Light phase only: no `mutate.py`, measure-pair or final-tip. No new parity column (L4 needs none). No translation-cache bump: a saved document gains the new stamps when it is translated again.
