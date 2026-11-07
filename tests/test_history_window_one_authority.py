@@ -27,6 +27,8 @@ _CONSUMERS = {
     "api/routers/screener_backtest.py": ("MAX_BARS_PER_SYMBOL",),
     "api/services/indicator_alert_evaluator.py": ("BARS_MAX",),
     "api/services/alert_user_series.py": ("_SYMBOL_MAX_BARS", "RUNTIME_WINDOW_DATE"),
+    # W9-T14: the strategy backtest route reads the window inline (design 3.4, "the T14 route")
+    "api/routers/pine_strategy_backtest.py": (),
 }
 _DEEP = "api/services/screener/snapshot_builder.py"
 _LITERAL = 5000

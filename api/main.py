@@ -10188,6 +10188,12 @@ app.include_router(scan_run_router.router)
 from api.routers import screener_backtest as screener_backtest_router
 if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
     app.include_router(screener_backtest_router.router)
+# W9-T14 -- server-side strategy backtests (W9 design 3.4, ruling D5). MOUNTED so the E-3 census
+# (tests/test_scan_evaluator_off_request_path.py) walks it, and DARK INSIDE: `_require_open` answers
+# 404 to every caller `runtime_definitions.server_permitted` does not admit (PINE_RUNTIME_SERVER_STAGE
+# unset = off = nobody), before the plan gate and before any read. No flag of its own.
+from api.routers import pine_strategy_backtest as pine_strategy_backtest_router
+app.include_router(pine_strategy_backtest_router.router)
 # RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
 # 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
 # (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
