@@ -193,3 +193,58 @@ runs.** This replaces the r1 hand run's UNVERIFIED rows: G04, G05, G07, G08, G09
 by a named rail (G04/G05/G07/G13 by their own objectDoorGate site shape; G08 by the `userMethodShadows` site shape and
 the pane rail; G09 by `t9_chain` and the `receiverInitTy` site shape; N2, N4, MA by their w6ReceiverTypes rails).
 M1-M14, G01 and G02 are killed again.
+
+### measure-pair (tip `4d105d38af`, code `a7d15ed9f0`, base `81a4665a5a`)
+
+Coordinator run, Node 20.20.2, log `runs/w6-t9/mpr/mp-all.log`, per-runtime data `mpr/mp0/`, `mpr/mp1/`.
+
+| surface | runtime 0 | runtime 1 |
+|---|---|---|
+| out (395 rows) | 0 differ | 0 differ |
+| probe (69 rows) | 0 differ | 0 differ |
+| harness (336 captures) | identical (MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140 both sides) | identical (112 / 107 / 117 both sides) |
+| census (967 rows) | 6 differ | 15 differ |
+
+C18 is clean: no served value moved on either runtime.
+
+### census adjudication (21 movers: 12 PROGRESS, 9 NEUTRAL, 0 REGRESSION)
+
+Method: every mover's steps read tip-vs-base from `census.jsonl` (guard, line, attemptedOps, rtProbe guard, line and
+message), the walls looked up in the source, and the doubtful shapes re-run as single synthetic scripts through
+`runs/w6-t9/run.mjs` on the tip and on a base checkout (no corpus run). "Wall N" is census step N.
+
+Runtime 0 (runtime dark), 6 rows, all **NEUTRAL (timeout noise)**: ai-supertrend-x-pivot-percentile, multi-timeframe-
+trend-indicator, volatility-coil-edge, halftrend-longshort, luxy-momentum, mirage-liquidity-sweep. Every one of them
+has a `pine:timeout` step on one side, or `attemptedOps` 0 on the step that differs (the object analysis ran out of
+budget), or a `pine:timeout` dropHead. The same six rows are byte-identical tip-vs-base on runtime 1. This lane
+does not touch pine.js or the object program.
+
+Runtime 1, 15 rows:
+
+| script | verdict | why |
+|---|---|---|
+| builtin:gaps__Gaps (peel 6 vs 5) | PROGRESS | base wall 2 is `pine:member` at `allGaps.shift().delete()`. Its peel deletes the only call into `method delete(Gap)`, so the method body is never compiled. The tip types the chain and reaches the body: `runtime:loop` (a `for … in`) and then `runtime:block-value`. The extra peel step is a deeper wall, and the shared tail (statement, builtin, attach) is the same. |
+| fx-market-sessions | PROGRESS | base walls 2-4 are `runtime:udt-method` at the overloads `clear(array<string>)`/`clear(array<float>)` and `create(Dot)`/`create(Candle)`. The receivers are distinct, so the tip serves them. Its call `price_ranges.clear(length)` has 2 arguments, which built-in `array.clear` does not take. The tip's walls reach 848/851. |
+| ict-institutional-order-flow | PROGRESS | the tip types `IS.imbalance.size()` and `.unshift()` (base walls 5-7) and reaches a deeper `runtime:block-value` at 926 inside the reached body. |
+| ipda-standard-deviations | PROGRESS | base wall 1 is `delete` "declared more than once": `delete(DexterDev)` beside `delete(TimeWindow)`, which are distinct receivers. The tip serves it. Its other walls are base's list minus that wall, shifted up one step, so the guards only *look* like they become `call-undeclared-builtin-state`. One more wall (76) is reached inside the cap. |
+| support-resistance-mtf-flux-charts | PROGRESS | base walls 3-6 (field/member at 297-313) are served by the tip. The tip's wall 3 is base's wall 7 (`runtime:loop` 270), and it goes deeper. |
+| tehthomas-aligned-timeframe-fvg (peel 4 vs 7) | PROGRESS | base walls 2-4 (`oldFvg.isFilled`, the block-value and the `unshift` statement) are served by the tip. Both attach, and the tip needs 3 fewer peels. |
+| volume-delta-hapharmonic | PROGRESS | base walls 0-1 (`pine:builtin` 87/88) are served by the tip, and its list starts at base's wall 2. |
+| volumized-order-blocks | PROGRESS | `currentOB.breaker` (256, 297) is typed by the tip. The tip then refuses `top.y`/`btm.y` (264, 305), lines that base never reached because it peeled the whole `if` chain at 256/297. The guards are honest and the count is the same. |
+| auto-chart-patterns-trendoscope | PROGRESS | base wall 7 `o.OHLC.new` (271) is passed, and the tip's wall 7 is later (291). |
+| dynamic-swing-anchored-vwap | PROGRESS | base walls 2, 3 and 5 are `expression-statement` at `vwap.points.clear()`/`.push()`. The tip types the field array: `clear` is served, and the `push` walls move into the argument (`chart.point.from_index`, `call-undeclared-builtin-state`). That is a deeper wall, and the tip reaches 114 where base stopped at 102. |
+| support-and-resistance-zones-feels (stuck nothing-drawn) | PROGRESS | base walls 0-6 (`existing.isResistance`, and `copy.size`/`copy.get(0).strength` on `copy = zones.copy()`) are typed by the tip; `copy` is a local `array<Zone>`. The tip's wall 0 is base's wall 7 (`runtime:loop` 142). After 7 peels, which removed the loops that BUILD the zones, the peeled script runs and draws nothing, so the row reports `stuck=runtime:nothing-drawn`. That is a measurement-only artefact of a peeled script (census_peel.mjs: "MEASUREMENT ONLY"). The real script is still refused at the host (`pine:block`, unchanged), and out/probe show 0 differ, so no wrong answer is served. |
+| trend-speed-analyzer (peel 4 vs 7) | PROGRESS | base walls 0-3 (`bearish.change.unshift()` etc.) are served. The tip now reaches the attach, where base did not. |
+| enhanced-mcclellan-summation-index | NEUTRAL | base wall 0 is `pine:member` on statement 105-108 (`bar.new(...).mc().ha()`). Its peel removes the only users of `adv`/`dec`. The tip compiles further and refuses their definitions at 102/103, by name: `null` is the script's method and the receiver (a `request.security` result) is untyped (W6-U1). Single-script check: `request.security(…, bar.new(close)).null()` REFUSES on base (`pine:member`) and on the tip (`runtime:udt-method`), so nothing is newly refused. With a typed receiver (`mk(close).null()`), base refuses and the tip serves `[100,102,…,110]` (correct). |
+| smart-money-breakouts-chartprime | NEUTRAL | same line 92, same depth. The guard is renamed (`expression-statement` `Volume.SCR.push()` to `pine:builtin` `Volume.SCR`), and the peel count is the same. |
+| multi-timeframe-trend-indicator | NEUTRAL | refusal count only, on `pine:timeout` steps (noise). |
+
+No REGRESSION: no script hits an earlier first wall at the same depth, is newly refused, or is newly stuck on the real
+(unpeeled) script. No fix needed.
+
+### merge origin/master (engine 22, `4ca464f6e3`)
+
+Clean merge, no conflicts (T7 and T8 are not on master). Master brings `pineRuntimeFrontend.js` (+93, W34-I6a
+switch-arm wrap), objectDoorGate (+7) and engine 22; `SCRIPT_ENGINE_VERSION` is not edited by this lane. Targeted
+rails on the merged tree, Node 20.20.2, `--maxWorkers=1`: w6ReceiverTypes, objectDoorGate, udtRecords,
+methodDrawings, w34I6SwitchArmWrap, p3WsaReviewFixes, **6 files, 341/341**.
