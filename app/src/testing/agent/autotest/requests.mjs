@@ -7,6 +7,7 @@ import { drawingsAlerts } from './families/drawingsAlerts.mjs'
 import { workspace } from './families/workspace.mjs'
 import { unseen } from './families/unseen.mjs'
 import { unseen2 } from './families/unseen2.mjs'
+import { unseen3 } from './families/unseen3.mjs'
 
 export function publicRequests() {
   const L = []
@@ -30,6 +31,13 @@ export function unseen2Requests() {
   const L = []
   unseen2(L)
   return L.map(r => ({ ...r, set: 'unseen2' }))
+}
+
+/** Batch 3 (2026-11-07), written before any run of it: widget controls by name, chart header Info row and Bar info. */
+export function unseen3Requests() {
+  const L = []
+  unseen3(L)
+  return L.map(r => ({ ...r, set: 'unseen3' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */

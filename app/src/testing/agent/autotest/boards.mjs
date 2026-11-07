@@ -21,6 +21,11 @@ const four = () => [chart('c-tl', 'A', 0, 0, 9, 10), chart('c-tr', 'B', 9, 0, 9,
 const three = () => [chart('c-l', 'A', 0, 0, 6, 20), chart('c-m', 'B', 6, 0, 6, 20), chart('c-r', 'C', 12, 0, 6, 20), WATCH()]
 const linked = () => [chart('c-l', 'A', 0, 0, 6, 20), chart('c-m', 'A', 6, 0, 6, 20), chart('c-r', 'B', 12, 0, 6, 20), WATCH()]
 const tfmix = () => [chart('c-tl', 'A', 0, 0, 9, 10, 'D'), chart('c-tr', 'B', 9, 0, 9, 10, 'W'), chart('c-bl', 'C', 0, 10, 9, 10, '5'), chart('c-br', 'D', 9, 10, 9, 10, 'D'), WATCH()]
+// a chart beside the widgets whose own controls the Agent sets by name (unseen batch 3). Fixture board: the widgets mount with no
+// backend behind them, so a control whose choices come from the widget's data ("door" rows) may have none here
+const W = (id, type, x, y) => ({ id, type, color: 'A', x, y, w: 8, h: 4, opts: {} })
+const widgets = () => [chart('w-chart-a', 'A', 0, 0, 8, 20), W('w-flow', 'optionsflow', 8, 0), W('w-themes', 'themes', 16, 0), W('w-breadth', 'breadth', 8, 4), W('w-idx', 'indexes', 16, 4),
+  W('w-term', 'calendar', 8, 8), W('w-nhnl', 'nhnl', 16, 8), W('w-vol', 'volumescan', 8, 12), W('w-map', 'scatter', 16, 12), W('w-news', 'tradeExchangeNews', 8, 16)]
 const one = () => [chart('w-chart-a', 'A', 0, 0, 18, 20), WATCH()]
 const scan = () => [chart('w-chart-a', 'A', 0, 0, 12, 20), { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 0, w: 12, h: 20, opts: {} }]
 
@@ -63,6 +68,11 @@ export const BOARDS = {
   TWIN: {
     roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TR: { id: 'c-tr', position: 'top-right', sym: 'NVDA' }, BL: { id: 'c-bl', position: 'bottom-left', sym: 'NVDA' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'TSLA' } },
     browser: { prefs: prefsOf(four(), { A: 'SPY', B: 'NVDA', C: 'NVDA', D: 'TSLA' }) },
+    sim: null,
+  },
+  WIDGETS: {
+    roles: { A: { id: 'w-chart-a', position: null, sym: 'SPY' } },
+    browser: { prefs: prefsOf(widgets(), GROUPS) },
     sim: null,
   },
   ONE: {
