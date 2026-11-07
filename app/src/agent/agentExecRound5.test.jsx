@@ -41,3 +41,34 @@ describe('C1-011: one rung up or down the timeframe keys\' order', () => {
 })
 const ORDER = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
 function tfStep(tf, d) { return ORDER[ORDER.indexOf(tf) + d] }
+
+// C3-216 / C3-217 (round 5): a chart's Company Info panel, as its tab strip and its collapse chevron set it (opts.dock, the
+// product's own normalizeDock / setFeatureOpen), offered only while the chart HAS the panel. Model scripted from the request.
+import { normalizeDock } from '../pages/charts/widgets/chartDock'
+describe('the Company Info panel on a chart', () => {
+  const withDock = (dock) => [[{ id: 'c', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: { settings: bareSettings(), ...(dock ? { dock } : {}) } }], { 'N:c': 'NVDA' }]
+  const dockOf = (b) => normalizeDock(b.state.widgets.find(w => w.id === 'c').opts.dock)
+  const op = (key, value) => (body) => p.env('apply', [{ action: 'widget.setOption', target: body.context.board[0].ref, args: { widget: 'c', key, value } }])
+  it('C3-216 "show the ownership tab on the company panel": the panel shows that tab; Undo goes back', async () => {
+    const { say, board } = p.mount(...withDock({ company: true, open: true, tab: 'overview' }))
+    p.st.envelopes.push(op('companyTab', 'ownership'))
+    const out = await say('show the ownership tab on the company panel')
+    expect(dockOf(board).tab, out).toBe('ownership')
+    await say('undo')
+    expect(dockOf(board).tab).toBe('overview')
+  }, 30000)
+  it.each([['collapse the company panel', false, true], ['open the company info panel', true, false]])('C3-217 "%s": the panel is %s; it stays added; Undo restores it', async (text, to, from) => {
+    const { say, board } = p.mount(...withDock({ company: true, open: from }))
+    p.st.envelopes.push(op('companyOpen', to))
+    const out = await say(text)
+    expect([dockOf(board).open, dockOf(board).company], out).toEqual([to, true])
+    await say('undo')
+    expect(dockOf(board).open).toBe(from)
+  }, 30000)
+  it('NEGATIVE: a chart without the panel refuses (adding it is the Add to Chart menu’s), nothing changes', async () => {
+    const { say, board } = p.mount(...withDock(null))
+    p.st.envelopes.push(op('companyOpen', true))
+    expect(await say('open the company panel')).toMatch(/no Company Info panel/)
+    expect(dockOf(board).company).toBe(false)
+  }, 30000)
+})
