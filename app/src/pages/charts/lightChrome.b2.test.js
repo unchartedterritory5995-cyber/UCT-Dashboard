@@ -99,7 +99,10 @@ describe('B2: a /charts chart widget\'s chrome follows the light page', () => {
     expect(darkened.length).toBeGreaterThan(30)
     const missing = darkened.filter((t) => LIFT.get(t) !== `var(--pg-${t.slice(2)})`)
     expect(missing, 'darkened by the widget block but not lifted on the chrome rows').toEqual([])
-    const unbound = darkened.filter((t) => ALIASES.get(`--pg-${t.slice(2)}`) !== `var(${t})`)
+    // a twin may carry a TOKEN fallback (`var(--tick-up-bg, var(--gain-bg))`): the tick tints
+    // are set by some themes only, and the terminal theme rail requires every read to resolve
+    const bare = (v) => (v || '').replace(/^var\((--[\w-]+),\s*var\(--[\w-]+\)\)$/, 'var($1)')
+    const unbound = darkened.filter((t) => bare(ALIASES.get(`--pg-${t.slice(2)}`)) !== `var(${t})`)
     expect(unbound, 'a --pg- twin is not declared on the light <html> as the page token').toEqual([])
   })
 

@@ -383,10 +383,21 @@ const movingAverages = (n) => Array.from({ length: n }, (_, i) => (
   { instanceId: `ma-${i}`, defId: 'movingAverage', inputs: { period: 10 + i }, hidden: false }))
 const chipsOf = (container) => [...container.querySelectorAll(`.${chipStyles.chip}[data-instance-id]`)]
 
-describe('A5a + C4 · a chip drawn outside the price pane is text and never folded behind +N', () => {
+describe('A5a + C4 · on the phone shell a chip drawn outside the price pane is text and never folded behind +N', () => {
+  // C4's surface (review, 2026-11-07): the phone chart shell (it passes
+  // `onLegendStudyTap`) at phone width, the one place pane labels are hidden.
+  let realMatchMedia
+  beforeEach(() => {
+    realMatchMedia = window.matchMedia
+    window.matchMedia = (q) => ({ matches: q === '(max-width: 640px)', media: q, onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false } })
+  })
+  afterEach(() => { window.matchMedia = realMatchMedia })
+  const SHELL = { onLegendStudyTap: () => {} }
+
   it('with five price-pane averages the fold takes one average; the readout, RSI and MACD chips stay text', async () => {
     primeFixture()
-    const { container } = mount(settingsWith(movingAverages(5)))
+    const { container } = mount(settingsWith(movingAverages(5)), SHELL)
     await vi.waitFor(() => expect(container.querySelector(`.${chipStyles.chipMore}`)).not.toBeNull(), { timeout: 8000 })
     const chips = chipsOf(container)
     const byId = (id) => chips.filter((c) => c.getAttribute('data-instance-id') === id)
@@ -418,9 +429,12 @@ describe('A5a + C4 · a chip drawn outside the price pane is text and never fold
 
   it('⛔ the control: an RSI moved onto Price is a dot again — placement decides, not the definition', async () => {
     primeFixture()
-    const { container } = mount(settingsWith([{ instanceId: 'rsi-p', defId: 'rsi', inputs: { period: 9 }, hidden: false, placement: { target: 'price' } }]))
-    const onPrice = await vi.waitFor(() => { const c = chipEl(container, 'rsi-p'); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
-    const inPane = chipEl(container, 'rsi-1')
+    const { container } = mount(settingsWith([{ instanceId: 'rsi-p', defId: 'rsi', inputs: { period: 9 }, hidden: false, placement: { target: 'price' } }]), SHELL)
+    // the inline chip, not the phone-width vertical legend row that shares its id
+    const chipOf = (id) => [...container.querySelectorAll(`[data-instance-id="${id}"]`)]
+      .find((e) => e.className.includes(chipStyles.chip)) || null
+    const onPrice = await vi.waitFor(() => { const c = chipOf('rsi-p'); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
+    const inPane = chipOf('rsi-1')
     expect(inPane.className).toContain(chipStyles.chipText)
     expect(onPrice.className).not.toContain(chipStyles.chipText)
   })
@@ -487,9 +501,10 @@ describe('⛔ the control — RSI and MACD are untouched', () => {
       primeFixture()
       const { container } = mount()
       const chip = await vi.waitFor(() => { const c = chipEl(container, id); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
-      // C4: drawn in its own pane, so it IS a text chip now — but with its own
-      // label, no readout short name and no ` · ` grammar.
-      expect(chip.className).toContain(chipStyles.chipText)
+      // Off the phone shell a pane chip stays the shipped dot chip (C4's text
+      // chip is phone-shell only, review 2026-11-07), and never takes the
+      // readout's short name or its ` · ` grammar.
+      expect(chip.className).not.toContain(chipStyles.chipText)
       expect(chip.textContent).not.toContain(' · ')
       expect(chip.querySelector('[data-stale-value]')).toBeNull()
       const menu = await openMenu(container, id)

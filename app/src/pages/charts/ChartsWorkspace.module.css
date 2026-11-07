@@ -1139,8 +1139,8 @@
   --pg-info: var(--info);
   --pg-info-bg: var(--info-bg);
   --pg-info-border: var(--info-border);
-  --pg-tick-up-bg: var(--tick-up-bg);
-  --pg-tick-down-bg: var(--tick-down-bg);
+  --pg-tick-up-bg: var(--tick-up-bg, var(--gain-bg));
+  --pg-tick-down-bg: var(--tick-down-bg, var(--loss-bg));
   --pg-shadow-sm: var(--shadow-sm);
   --pg-shadow-md: var(--shadow-md);
   --pg-shadow-lg: var(--shadow-lg);
