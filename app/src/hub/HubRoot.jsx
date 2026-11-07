@@ -78,7 +78,7 @@ function HubShell({ setToastMsg }) {
   // artifact the spec names — focus in a text field — and covers the cases a resize never reports
   // (no visualViewport, a hardware keyboard, a contenteditable that raises nothing). Both, OR-ed.
   const textInputFocused = useTextInputFocus()
-  const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
+  const { scrimExcludeBottom, hidden: viewportHidden, touchTucked } = useHubViewport()
   const { settings, updateHubSettings } = useHubSettings()
   const {
     mode, activeModeConfig, symbol, timeframe, activeScan, selectedPosition,
@@ -460,6 +460,11 @@ function HubShell({ setToastMsg }) {
   }, [setToastMsg])
 
   const hidden = keyboardVisible || textInputFocused || viewportHidden
+  // ⭐ Decision B3 — while a finger is on the chart shell's chart the pad, the knob and the
+  // pill fade out of the way of the newest bars and come back a short idle after it lifts.
+  // Never while the hub itself is in use: an open fan, or a press or drag on the pad, is the
+  // member looking AT the hub.
+  const touchTuck = touchTucked && !state.open && !state.pressing && !state.dragging
   const selectedId = state.target?.action?.id ?? null
 
   // An action whose `requires` the current context cannot satisfy renders DISABLED, never hidden
@@ -508,7 +513,14 @@ function HubShell({ setToastMsg }) {
       ref={rootRef}
       data-testid="hub-root"
       hidden={hidden}
+      data-touch-tucked={touchTuck ? '' : undefined}
       style={{
+        // B3's tuck. `visibility` (inherited by every fixed child, and never hit-tested)
+        // switches only AFTER the fade on the way out and at once on the way back, so the
+        // pad is never an invisible target and never a late one.
+        opacity: touchTuck ? 0 : 1,
+        visibility: touchTuck ? 'hidden' : 'visible',
+        transition: touchTuck ? 'opacity 160ms ease, visibility 0s linear 160ms' : 'opacity 160ms ease',
         position: 'fixed',
         // ⛔ THE CONTAINER MIRRORS TOO — it was the one piece that did not.
         //

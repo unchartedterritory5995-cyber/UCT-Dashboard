@@ -17,7 +17,9 @@
 //       lists the presets with the current one checked; pressing one writes the
 //       preset through `applyPresetInputs` and closes the popover.
 //   A9  the chip, the menu header and the phone chip read `<short> · <benchmark>`.
-//   A5a the readout chip is never folded behind `+N`.
+//   A5a the readout chip is never folded behind `+N` — generalised by decision
+//       C4 (2026-11-07) to every chip drawn outside the price pane; B8 dropped
+//       its forced line break; C5 makes a readout chip's phone tap open the menu.
 //   CONTROL RSI and MACD render the same chip, the same 204 px menu, the same
 //       header and the same rows as before.
 //
@@ -374,23 +376,108 @@ describe('A6 · Preset ▸ in the chip menu', () => {
   })
 })
 
-describe('A5a · the readout chip is never folded behind +N', () => {
-  it('with six other indicators the fold takes the others, never the readout chip', async () => {
-    const extra = [5, 6, 7, 8, 9].map((p) => ({ instanceId: `rsi-${p}`, defId: 'rsi', inputs: { period: p }, hidden: false }))
+// ⭐ Decision C4 (2026-11-07) generalised A5a by PLACEMENT: every chip drawn
+// outside the price pane is a text chip and is never folded; the fold counts the
+// price-pane chips only. Decision B8 removed A5a's forced line break.
+const movingAverages = (n) => Array.from({ length: n }, (_, i) => (
+  { instanceId: `ma-${i}`, defId: 'movingAverage', inputs: { period: 10 + i }, hidden: false }))
+const chipsOf = (container) => [...container.querySelectorAll(`.${chipStyles.chip}[data-instance-id]`)]
+
+describe('A5a + C4 · a chip drawn outside the price pane is text and never folded behind +N', () => {
+  it('with five price-pane averages the fold takes one average; the readout, RSI and MACD chips stay text', async () => {
     primeFixture()
-    const { container } = mount(settingsWith(extra))
+    const { container } = mount(settingsWith(movingAverages(5)))
     await vi.waitFor(() => expect(container.querySelector(`.${chipStyles.chipMore}`)).not.toBeNull(), { timeout: 8000 })
-    const chips = [...container.querySelectorAll(`.${chipStyles.chip}[data-instance-id]`)]
-    const vfx = chips.find((c) => c.getAttribute('data-instance-id') === 'vfx-1')
+    const chips = chipsOf(container)
+    const byId = (id) => chips.filter((c) => c.getAttribute('data-instance-id') === id)
+    const vfx = byId('vfx-1')[0]
     expect(vfx, 'the readout chip renders').toBeTruthy()
-    expect(vfx.className).not.toContain(chipStyles.chipFolded)
-    expect(vfx.className).toContain(chipStyles.chipText)
     expect(vfx.textContent).toMatch(/^VFX · (SPY|XLK)/)
-    // seven chips, four foldable kept, the readout one kept, so two folded
+    // every pane chip — the readout one, RSI, and BOTH of MACD's plots — is text and shown
+    const paneChips = [...byId('vfx-1'), ...byId('rsi-1'), ...byId('macd-1')]
+    expect(paneChips.length, 'vfx + rsi + macd line + signal').toBe(4)
+    for (const c of paneChips) {
+      expect(c.className, c.textContent).toContain(chipStyles.chipText)
+      expect(c.className, c.textContent).not.toContain(chipStyles.chipFolded)
+    }
+    // the averages are on Price (ours plus the chart's default ones): dots, and
+    // the only chips the fold may take
+    const mas = chips.filter((c) => /^ma-/.test(c.getAttribute('data-instance-id')))
+    expect(mas).toHaveLength(5)
+    const priceChips = chips.filter((c) => !paneChips.includes(c))
+    for (const c of priceChips) expect(c.className, c.textContent).not.toContain(chipStyles.chipText)
     const folded = chips.filter((c) => c.className.includes(chipStyles.chipFolded))
-    expect(folded.length).toBe(chips.length - 1 - 4)
+    expect(folded.every((c) => priceChips.includes(c)), 'a pane chip was folded').toBe(true)
+    // the fold keeps the first four PRICE chips, whatever the pane chips number
+    expect(folded.length).toBe(priceChips.length - 4)
+    expect(priceChips.slice(0, 4).some((c) => folded.includes(c))).toBe(false)
     expect(container.querySelector(`.${chipStyles.chipMore}`).textContent).toBe(`+${folded.length}`)
-    expect(container.querySelector(`.${chipStyles.chipBreak}`), 'the phone line break').not.toBeNull()
+    // B8: one row — no forced line break before the text chips
+    expect(container.querySelector('[class*="chipBreak"]'), 'A5a line break is gone').toBeNull()
+  })
+
+  it('⛔ the control: an RSI moved onto Price is a dot again — placement decides, not the definition', async () => {
+    primeFixture()
+    const { container } = mount(settingsWith([{ instanceId: 'rsi-p', defId: 'rsi', inputs: { period: 9 }, hidden: false, placement: { target: 'price' } }]))
+    const onPrice = await vi.waitFor(() => { const c = chipEl(container, 'rsi-p'); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
+    const inPane = chipEl(container, 'rsi-1')
+    expect(inPane.className).toContain(chipStyles.chipText)
+    expect(onPrice.className).not.toContain(chipStyles.chipText)
+  })
+
+  it('with nothing in a pane of its own, no chip is text and the fold is what it was', async () => {
+    const settings = mergeChartSettings({ indicatorInstances: movingAverages(6) })
+    const { container } = mount(settings)
+    await vi.waitFor(() => expect(container.querySelector(`.${chipStyles.chipMore}`)).not.toBeNull(), { timeout: 8000 })
+    const chips = chipsOf(container)
+    expect(chips.length, 'six of ours, plus the chart default averages').toBeGreaterThanOrEqual(6)
+    expect(chips.filter((c) => c.className.includes(chipStyles.chipText))).toHaveLength(0)
+    const folded = chips.filter((c) => c.className.includes(chipStyles.chipFolded))
+    expect(folded).toHaveLength(chips.length - 4)
+    expect(chips.slice(4)).toEqual(folded)
+    expect(container.querySelector(`.${chipStyles.chipMore}`).textContent).toBe(`+${chips.length - 4}`)
+  })
+})
+
+describe('C5 · on the phone shell a readout chip tap opens the menu sheet; other chips keep tap -> editor', () => {
+  it('the readout chip: a tap opens the chip menu (the long-press sheet) and never the editor', async () => {
+    primeFixture()
+    const onLegendStudyTap = vi.fn()
+    const { container } = mount(SETTINGS, { onLegendStudyTap })
+    const chip = await vi.waitFor(() => { const c = chipEl(container, 'vfx-1'); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
+    // the menu-trigger semantics come with it
+    expect(chip.getAttribute('role')).toBe('button')
+    expect(chip.getAttribute('aria-haspopup')).toBe('menu')
+    await act(async () => { fireEvent.click(chip) })
+    await vi.waitFor(() => expect(menuEl(), 'the chip menu').not.toBeNull())
+    expect(onLegendStudyTap).not.toHaveBeenCalled()
+    // ⭐ Edit is one row away, and it lands on the SAME editor a tap used to open
+    await click(menuEl().querySelector('[data-menu-id="settings"]'))
+    expect(onLegendStudyTap).toHaveBeenCalledTimes(1)
+    expect(onLegendStudyTap.mock.calls[0][0]).toEqual({ kind: 'study', defId: DEF_ID, instanceId: 'vfx-1' })
+    await vi.waitFor(() => expect(menuEl()).toBeNull())
+  })
+
+  it('⛔ the control: an RSI chip tap still opens its study editor, and no menu', async () => {
+    primeFixture()
+    const onLegendStudyTap = vi.fn()
+    const { container } = mount(SETTINGS, { onLegendStudyTap })
+    const chip = await vi.waitFor(() => { const c = container.querySelector('[data-instance-id="rsi-1"]'); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
+    expect(chip.getAttribute('aria-haspopup')).toBeNull()
+    await act(async () => { fireEvent.click(chip) })
+    expect(onLegendStudyTap).toHaveBeenCalledTimes(1)
+    expect(onLegendStudyTap.mock.calls[0][0]).toEqual({ kind: 'study', defId: 'rsi', instanceId: 'rsi-1' })
+    expect(menuEl()).toBeNull()
+  })
+
+  it('without the phone shell (no onLegendStudyTap) every chip body opens the menu, as before', async () => {
+    primeFixture()
+    const { container } = mount()
+    const chip = await vi.waitFor(() => { const c = chipEl(container, 'rsi-1'); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
+    expect(chip.getAttribute('aria-haspopup')).toBe('menu')
+    await act(async () => { fireEvent.click(chip) })
+    await vi.waitFor(() => expect(menuEl()).not.toBeNull())
+    await closeMenu()
   })
 })
 
@@ -400,8 +487,11 @@ describe('⛔ the control — RSI and MACD are untouched', () => {
       primeFixture()
       const { container } = mount()
       const chip = await vi.waitFor(() => { const c = chipEl(container, id); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
-      expect(chip.className).not.toContain(chipStyles.chipText)
+      // C4: drawn in its own pane, so it IS a text chip now — but with its own
+      // label, no readout short name and no ` · ` grammar.
+      expect(chip.className).toContain(chipStyles.chipText)
       expect(chip.textContent).not.toContain(' · ')
+      expect(chip.querySelector('[data-stale-value]')).toBeNull()
       const menu = await openMenu(container, id)
       expect(menu.style.width).toBe('204px')
       expect(menu.querySelector('[data-legend-head="readout"]')).toBeNull()
@@ -410,7 +500,6 @@ describe('⛔ the control — RSI and MACD are untouched', () => {
       expect([...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.getAttribute('data-menu-id')))
         .toEqual(['hidden', 'move', 'settings', 'info-value', 'duplicate', 'custom-copy', 'alerts', 'about', 'remove'])
       expect(chip.getAttribute('aria-label')).toBe(`${menu.querySelector('[data-legend-name]').textContent} options`)
-      expect(container.querySelector(`.${chipStyles.chipBreak}`)).not.toBeNull() // the fixture's, not theirs
       await closeMenu()
     })
   }
