@@ -50,10 +50,23 @@ function guideChart(host) {
 // '@chart': a control looked for on the chart talked about itself (guide/targets.js)
 const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : t?.within === '@chart' || (!!t?.id && scoped(t.id)))
 
+/** ⭐ A step only the member's OWN layouts have (Rename, Version history): its target becomes one of theirs on the bar, by its
+ *  name (host.layouts: scope 'user'), never the first layout there (UCT Default has neither). None of their own → said. */
+export function mineOnly(steps, host) {
+  if (!steps.some(s => s.mine === 'layout')) return steps
+  let entries = null
+  try { entries = host?.layouts?.snapshot?.()?.entries || null } catch { entries = null }
+  if (!entries) return steps   // no list to read: the step stays as it was
+  const own = entries.filter(e => e.scope === 'user' && e.name)
+  if (!own.length) return 'Rename and Version history are on your own layouts only, and you have none yet: UCT Default and the prebuilt layouts have neither. Save this board as a layout first (Layouts ▾ → Save Layout), then ask me again.'
+  return steps.map(s => (s.mine === 'layout' ? { ...s, target: own.map(e => ({ within: 'workspace.layouts', attr: 'title', value: e.name })), text: `Right-click one of your own layouts on the bar, such as “${own[0].name}”.` } : s))
+}
+
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
-  const steps = stepsFor(f, words)
+  const steps = mineOnly(stepsFor(f, words), host)
+  if (typeof steps === 'string') return steps
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
   let sel = null
