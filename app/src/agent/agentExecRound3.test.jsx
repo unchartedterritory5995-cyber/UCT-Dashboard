@@ -51,7 +51,9 @@ describe('per-clause targets: each clause\'s change on its own clause\'s chart',
     const swapped = [[c.ops[1][0], c.ops[0][1], c.ops[0][2]], [c.ops[0][0], c.ops[1][1], c.ops[1][2]]]
     p.st.envelopes.push(planOf(swapped))
     await say(c.text)
-    expect(state(board)).toBe('D D D D')
+    // an instant reader that reads the sentence per clause itself (planCompound) never asks the model: then the state is the
+    // sentence's own; a model plan that swaps the changes is asked about and nothing changes
+    expect(state(board)).toBe(p.turns() ? 'D D D D' : expected(c.ops))
   }, 30000)
   it('NEGATIVE: a clause\'s change on a THIRD chart neither clause names never runs', async () => {
     const { say, board } = mount('c1')
