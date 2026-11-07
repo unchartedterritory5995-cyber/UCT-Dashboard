@@ -31,6 +31,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { translatePine } from '../../ast/pine.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 
@@ -236,6 +237,46 @@ describe('⛔ 5. what still refuses, by name', () => {
   it('a member off an expression whose type is not known keeps the shared resolver\'s refusal', () => {
     const r = refusal('type Z\n    float s = 0\ng(a) => a.get(0).s\nvar zs = array.new<Z>()\nzs.push(Z.new(close))\nplot(g(zs))\n')
     expect(r.guard).toBe('pine:member')
+  })
+})
+
+describe('⛔⛔ 5b. (r2) a collection member off a CALL\'s result keeps the shared refusal, as the host does', () => {
+  // `postfixMember.test.js` C rails one shape (`array.new_float(1, 5.0).size()`); these hold the
+  // agreement per receiver kind: a built-in call, a member call, a user function's result. The
+  // spec serves a collection member on a FIELD or a typed name only (W6-BREAKDOWN section 4 T9 item 3).
+  const SH = [
+    ['a built-in constructor\'s result', 'plot(close + array.new_float(1, 5.0).size())\n', 3],
+    ['a member call\'s result', 'var a = array.new_float(2, 1.0)\nplot(a.copy().size())\n', 4],
+    ['a slice\'s result', 'var a = array.new_float(3, 1.0)\nplot(a.slice(0, 2).size())\n', 4],
+    ['a user function\'s result', 'f() =>\n    array.new_float(2, 1.0)\nplot(f().size())\n', 5],
+    // the receiver is itself a postfix METHOD node (a served user method off an element), not a
+    // call: the guard's other arm. `array.new_float(1).copy().size()` cannot hold it, because its
+    // inner `.copy()` already refuses.
+    ['a user method\'s result off an element',
+      'type O\n    array<float> xs\nmethod mk(O this) =>\n    this.xs\nvar os = array.new<O>()\n'
+        + 'os.push(O.new(array.new_float(2, 1.0)))\nplot(os.get(0).mk().size())\n', 9],
+  ]
+  for (const [what, body, line] of SH) {
+    it(`${what} refuses \`pine:member\` at line ${line}, in both lanes`, () => {
+      const host = translatePine(`${H}${body}`, { strict: true })
+      expect(host.ok).toBe(false)
+      expect(host.refusal.guard).toBe('pine:member')
+      expect(host.refusal.line).toBe(line)
+      const r = refusal(body)
+      expect(r.guard).toBe('pine:member')
+      expect(r.line).toBe(line)
+    })
+  }
+  it('⛔ CONTROL — the same member on a FIELD is still served', () => {
+    const b = build('type O\n    array<float> xs\nvar o = O.new(array.new_float(2, 1.0))\nplot(o.xs.size())\n')
+    expect(b.ok).toBe(true)
+  })
+  it('⛔ CONTROL — a FIELD read off an element (a `member` receiver) is still served, with its value', () => {
+    // T9 item 3 progress kept: the receiver of `.size()` is the field `xs`, not the call `get(0)`.
+    const body = 'type O\n    array<float> xs\nvar os = array.new<O>()\n'
+      + 'os.push(O.new(array.new_float(2, 1.0)))\nplot(os.get(0).xs.size())\n'
+    expect(build(body).ok).toBe(true)
+    expect(run(body)[0]).toEqual(BARS.map(() => 2))
   })
 })
 

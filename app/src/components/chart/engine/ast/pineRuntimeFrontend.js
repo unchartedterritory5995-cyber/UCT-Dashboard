@@ -1718,8 +1718,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  - `recv.m(…)` / `expr.m(…)` where `m` is the script's own method for the receiver's
    *    type → `{kind:'user', call}` (`m#type(recv, …)` for an overload);
    *  - a built-in member on a COLLECTION the receiver's type says it is, where the receiver
-   *    is not a slot (a field `ob.levels.size()`, an element `a.get(i).size()`, a function's
-   *    result) → `{kind:'array', call}`;
+   *    is a FIELD PATH (`ob.levels.size()`) or a non-slot NAME bound to a typed expression
+   *    → `{kind:'array', call}`;
    *  - `m(x, …)` where `m` is an overloaded method called in the function form → the
    *    overload of argument 0's type.
    *  null when none applies (every other path keeps its own answer). Off at the door. */
@@ -1784,6 +1784,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     // ⛔ A SLOT RECEIVER KEEPS ITS OWN PATH (the method-form rewrite on a collection slot).
     if (recv.type === 'name' && lookupReadable(recv.name, scope) !== null) return null
+    // ⛔⛔ (r2) A COLLECTION MEMBER OFF A CALL'S RESULT KEEPS THE SHARED RESOLVER'S REFUSAL.
+    // `array.new_float(1, 5.0).size()`, `a.copy().size()`, `f().size()`: the spec (W6-BREAKDOWN
+    // §4 T9 item 3) serves a collection member held in a FIELD or a typed name, not one read
+    // off a call. The host lane refuses these `pine:member` through `pine.js`'s one Resolver,
+    // and `postfixMember.test.js` C rails that the runtime lane answers alike.
+    if (recv.type !== 'name' && recv.type !== 'member') return null
     const ns = methodNsOf(recvTy)
     if (!ns) return null
     const full = `${ns}.${method}`
