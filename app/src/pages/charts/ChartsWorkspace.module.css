@@ -1664,6 +1664,21 @@
   font-family: 'Instrument Sans', sans-serif;
 }
 .chartCtxTplName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* B9 · the pane indicator's rows. The Preset row names the current preset as a
+   muted trailing label before its caret (the chip menu's `Preset  Classic ›`). */
+.chartCtxTrail {
+  margin-left: auto; padding-left: 14px; max-width: 140px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; opacity: 0.6;
+}
+.chartCtxTrail + .chartCtxCaret { margin-left: 0; padding-left: 6px; }
+/* The preset tick: a fixed slot so labels align whether or not a row is ticked.
+   Neutral ink, never green or gold: a tick says "current", not "money up". */
+.chartCtxCheck { display: inline-flex; width: 14px; flex-shrink: 0; justify-content: center; }
+/* A refused row (and the Custom state row) reads as present but not pressable. */
+.chartCtxItem:disabled { cursor: default; opacity: 0.5; }
+.chartCtxItem:disabled:hover { background: transparent; }
+.chartCtxItem[aria-checked="true"]:disabled { opacity: 0.75; }
 .chartCtxFlyoutEmpty {
   padding: 9px 11px; max-width: 210px; font-size: 12px; line-height: 1.4;
   color: var(--menu-text, var(--text, #e5e7eb)); opacity: 0.6;

@@ -333,3 +333,39 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   )
   return rows
 }
+
+/** B9 (2026-11-07) — the chip rows a right-click inside an indicator PANE leads
+ *  with, in this order. */
+export const PANE_MENU_KEYS = Object.freeze(['settings', 'preset', 'hidden', 'alerts', 'about'])
+
+/**
+ * The rows a right-click inside an indicator's own pane leads with:
+ *
+ *   <name> settings… · Preset ▸ (when declared) · Hide · Add alert… · About <name>
+ *
+ * ⭐ THESE ARE `chipMenuItems`' OWN ROWS, PICKED, NOT A SECOND LIST. The handlers,
+ * the refusals, the Preset page and the About noun are the chip's, so the pane
+ * and the legend label cannot drift apart. The one relabel is the editor row:
+ * the chip menu's header names the indicator above "Edit in Indicators…", and a
+ * plain chart menu has no header, so the row carries the name itself.
+ *
+ * Placement verbs (Display in, Duplicate, Delete) stay on the chip: a pane
+ * menu's job is the reading in front of the pointer, and Delete one row away
+ * from "Reset view" is a misclick waiting to happen.
+ *
+ * @param {object} chip   `{instanceId, defId, label, hidden}` for the pane's owner
+ * @param {object} def    its definition, or null
+ * @param {object} h      `{onSettings, onPreset, onToggleHidden, onAlerts, onAbout}`
+ * @param {object} [caps] `chipMenuItems` caps, plus `paneName` (the editor row's noun)
+ * @returns {Array} rows in `PANE_MENU_KEYS` order (a row the chip menu does not
+ *          offer, such as Preset without presets, is simply absent)
+ */
+export function paneMenuItems(chip, def, h, caps = {}) {
+  const rows = chipMenuItems(chip, def, h, caps)
+  const byKey = new Map(rows.filter((r) => r && r.key).map((r) => [r.key, r]))
+  const noun = caps.paneName || chip.label || (def && def.meta && def.meta.name) || chip.defId
+  return PANE_MENU_KEYS
+    .map((k) => byKey.get(k))
+    .filter(Boolean)
+    .map((r) => (r.key === 'settings' ? { ...r, label: `${noun} settings…` } : r))
+}
