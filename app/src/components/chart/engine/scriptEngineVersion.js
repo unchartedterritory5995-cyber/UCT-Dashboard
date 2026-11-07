@@ -108,7 +108,8 @@
 /** 24 = W34-I4: a v1/v2 self-referencing definition whose every self read is `nz(x[k])` runs as a slot on the runtime lane instead of refusing `pine:state` */
 /** 25 = W34-I6c: v4 per-bar window lengths (highestbars/lowestbars and the series-int family) are served on the runtime lane; v1-v4 bare highestbars/lowestbars give Pine's <=0 offset */
 /** 26 = W6-T7: matrix.* members are served on the runtime lane (gated at the object door) */
-export const SCRIPT_ENGINE_VERSION = 26
+/** 27 = W6-T9: receiver types (overloads by receiver type, chains, members on typed receivers, a record's shallow copy) are served on the runtime lane; the object door keeps master's answer */
+export const SCRIPT_ENGINE_VERSION = 27
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
