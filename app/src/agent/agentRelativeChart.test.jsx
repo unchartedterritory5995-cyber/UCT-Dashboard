@@ -145,6 +145,8 @@ describe('the relation rule, paired: the anchor never runs, the meant neighbour 
     const at = (ref, x, y) => ({ ref, cell: { x, y, w: 12, h: 10 } })
     const C = [at('c0', 0, 0), at('c1', 12, 0), at('c2', 0, 10), at('c3', 12, 10)]
     expect(relativeChart('draw a line under this candle', C, 'c0')).toBeNull()
+    // a price or a drawing related to "it" is no chart relation (drawingFamily: "alert above it" is the line's alert)
+    for (const t of ['alert above it', 'put a line under it', 'ping me when it goes below that']) expect(relativeChart(t, C, 'c0'), t).toBeNull()
     expect(relativeChart('the ticker under this', C, 'c0')?.hits.map(c => c.ref)).toEqual(['c2'])
     expect(relativeChart('whatever is adjacent to it', C, 'c0')?.hits.map(c => c.ref).sort()).toEqual(['c1', 'c2'])
   })
