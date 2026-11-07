@@ -59,7 +59,7 @@ import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusa
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
-import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation } from './agentClient'
+import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation, unknownSymbols } from './agentClient'
 import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
@@ -874,6 +874,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, patchItem, push, record])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
+  // pl-auto symbol-01 (BROWSER-MOCK-MODEL) / AUDIT: a ticker word the member typed NOT in capitals ("pull up nvidia on this one")
+  // is claimed instantly only when UCT's ticker search knows it, as a ticker or as one company's exact name. Otherwise the MODEL
+  // reads the request (it knows "nvidia" is NVDA): never refused unread on an instant path, never charted as the literal word.
+  async function typedSymbolsKnown(ops, said) {
+    const words = (ops || []).filter(o => o?.action === 'chart.setSymbol' && !o.trusted).map(o => String(o.args?.symbol || ''))
+      .filter(sym => sym && !String(said || '').includes(sym))
+    if (!words.length) return true
+    try {
+      const unknown = await unknownSymbols(words)
+      if (!unknown.size) return true
+      const g = await groundSymbols([...unknown])
+      return !g.unknown.size && !g.ambiguous.size
+    } catch { return false }
+  }
   const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null, more = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
@@ -2176,7 +2190,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",
       // "show NVDA and AMD side by side", "make the left chart look like the right one" (agent/multiChart.js). The
       // same registry ops through the same execute; anything it can't read with certainty goes on as before.
-      const multi = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
+      const multi0 = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
+      const multi = multi0?.kind === 'ops' && !(await typedSymbolsKnown(multi0.ops, text)) ? null : multi0
       if (multi?.kind === 'say') {
         push({ role: 'agent', text: multi.text })
         record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
@@ -2250,7 +2265,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         lastActionsRef.current = follow.ops.map(o => o.action)
         return await execute(follow.ops, { path: 'fast', mode: 'apply', member: text, voice })
       }
-      const fast = fast0
+      let fast = fast0
+      if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
       if (fast?.kind === 'say') {
         push({ role: 'agent', text: fast.text })
         record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
