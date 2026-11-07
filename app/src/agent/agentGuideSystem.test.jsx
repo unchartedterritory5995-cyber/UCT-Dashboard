@@ -362,8 +362,8 @@ describe('a walkthrough stays on ITS chart and ends when it should', () => {
     render(<GuideOverlay />)
     act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.settings', text: 'Open the gear.', waitFor: 'chartSettings' }, { target: 'chart.timeframe', text: 'Step two.' }] }) })
     await waitFor(() => expect(text()).toBe('Open the gear.'))
-    // B's gear is pressed, and a settings window opens (portalled: nothing ties it to a chart)
-    fireEvent.pointerDown(root.querySelector('[data-widget-id="b"] [data-guide="chart.settings"]'), { button: 0 })
+    // a settings window opens that this step's own gear did not open (B's, from its keyboard shortcut: portalled, so nothing
+    // ties it to a chart). (Pressing B itself now ends the walkthrough: the owner's rule, tested below.)
     const win = document.createElement('div'); win.setAttribute('data-guide', 'chartSettings'); win.setAttribute('data-fixture', ''); document.body.appendChild(win)
     await new Promise(r => setTimeout(r, POLL_MS * 4))
     expect(text()).toBe('Open the gear.')
@@ -400,4 +400,51 @@ describe('a walkthrough stays on ITS chart and ends when it should', () => {
   })
   // PENDING a registry declaration: an Escape observer in the capture phase calling escapeOnBoard() (observers get no event)
   it.skip('P2 Escape with focus on the board ends the walkthrough (PENDING shortcutRegistry: Escape observer → escapeOnBoard)', () => {})
+})
+
+// OWNER DECISION 2026-11-07: pressing ANOTHER chart ends a walkthrough on a chart, cleanly, and never restarts it there.
+// Its own chart, the card, a portalled menu and a widget that is not a chart (a watchlist) do not end it.
+describe('pressing another chart ends the walkthrough', () => {
+  const board = () => dom(`
+    <div data-widget-id="a" data-widget-type="chart"><button data-guide="chart.timeframe">A tf</button><canvas></canvas></div>
+    <div data-widget-id="b" data-widget-type="chart"><button data-guide="chart.timeframe">B tf</button><canvas></canvas></div>
+    <div data-widget-id="g1" data-grid-cell-id="g1"><canvas></canvas></div>
+    <div data-widget-id="w" data-widget-type="watchlist"><span data-watch-sym="NVDA">NVDA</span></div>
+    <div data-guide="chart.contextMenu"><button>Reset view</button></div>`)
+  const start = async () => {
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }, { target: 'chart.timeframe', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+  }
+  it('another board chart: ended, ring and card gone, no notice, nothing restarted on the chart pressed', async () => {
+    const root = board(); await start()
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="b"] canvas'), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(screen.queryByTestId('guide-ring')).toBeNull()
+    expect(notice()).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('another Multi Chart cell ends it too', async () => {
+    const root = board(); await start()
+    fireEvent.pointerDown(root.querySelector('[data-grid-cell-id="g1"] canvas'), { button: 0 })
+    await waitFor(() => expect(guideState()).toBeNull())
+  })
+  it.each([
+    ['its own chart', '[data-widget-id="a"] canvas'],
+    ['a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on)', '[data-watch-sym="NVDA"]'],
+    ['a menu outside any board cell', '[data-guide="chart.contextMenu"] button'],
+  ])('a press on %s does not end it', async (_what, sel) => {
+    const root = board(); await start()
+    fireEvent.pointerDown(root.querySelector(sel), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 3))
+    expect(guideState()).not.toBeNull()
+  })
+  it('a board-level walkthrough (no chart) is not ended by pressing a chart', async () => {
+    const root = board()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'chart.timeframe', text: 'Board step.' }] }) })
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="b"] canvas'), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 3))
+    expect(guideState()).not.toBeNull()
+  })
 })

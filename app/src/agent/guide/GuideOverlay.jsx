@@ -170,6 +170,27 @@ export default function GuideOverlay() {
     return () => { window.removeEventListener('pointermove', onMove, { capture: true }); window.removeEventListener('pointerdown', onMove, { capture: true }) }
   }, [])
 
+  // ⭐ OWNER DECISION (2026-11-07): pressing ANOTHER chart (a board chart or a Multi Chart cell) switches the chart the member is
+  // working on, so a walkthrough on a chart ENDS there — cleanly (ring, card and notice go; nothing in the workspace changes) and it
+  // does not restart on the chart pressed. A press on the walkthrough's OWN chart (its menus, its controls the steps use), on the
+  // card, on a menu or window outside any board cell, or on a widget that is not a chart (a watchlist row only changes what a linked
+  // chart shows, not which chart the walkthrough is on) does not end it. Passive: the press is only noted.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const onPress = (e) => {
+      const st = guideSnapshot().state
+      if (!st?.chartRef) return
+      const cell = e.target?.closest?.('[data-widget-id]')
+      if (!cell) return
+      const isChart = cell.getAttribute('data-widget-type') === 'chart' || cell.hasAttribute('data-grid-cell-id')
+      if (!isChart) return
+      if (cell.getAttribute('data-widget-id') === String(st.chartRef).split('~')[0]) return
+      endGuide('switched')
+    }
+    document.addEventListener('pointerdown', onPress, { capture: true, passive: true })
+    return () => document.removeEventListener('pointerdown', onPress, { capture: true })
+  }, [])
+
   // ⭐ a NEW request sent from the Agent's Send button mid-walkthrough ends it (a guide request then starts its own). Passive.
   // Enter in the message box is the Agent's own key (no raw key listener here: keyListenerCensus) — useAgent calls
   // guideStore.endForNewRequest when a request starts
