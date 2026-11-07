@@ -29,7 +29,17 @@ const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showi
 // ⭐ A chart named RELATIVE to the clicked one: "the one above this", "the chart to the left of this one", "the cell under it",
 // "the one next to this". The click is the ANCHOR here, never the target: the chart meant is the clicked chart's neighbour on that
 // side, read from where the charts sit (`cell`). No click, no neighbour on that side, or two that fit → no single chart: asked.
-export const RELATIVE = /\b(?:the\s+)?(?:chart|one|cell|pane)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\s+the\s+|on\s+the\s+)?(left|right)\s+of|(next\s+to|beside))\s+(?:this|that|it|the\s+(?:selected|clicked|current)\s+(?:chart|one))(?:\s+(?:chart|one|cell))?\b/i
+// ⛔ AUDIT R1/R2 (2026-11-07): the rule is the RELATION, not the noun before it. A spatial relation word followed by an ANCHOR makes
+// the click the anchor, whatever names the chart meant ("the chart that is above this one", "the ticker below this one", "the stock
+// sitting above it", "the chart above the one I clicked"). An anchor is "this/that" (alone, or on a chart word), "it", "the
+// selected/clicked/current … one/chart", or "the one I clicked/selected". Only an adverb (right, just, directly…) may stand between
+// the relation and the anchor, so "under 30 on this chart" is no relation ("this chart" there is the click itself). "this/that" on
+// another noun ("under this candle") is no anchor. A bare "this" with no relation word still binds to the click.
+const REL_ANCHOR_NOUN = '(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph|name)'
+const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+[a-z]+\\b(?<!\\b(?:to|on|in|and|then|please|for|with|as|into|onto|now|weekly|daily|monthly|hourly|intraday|instead|too|also|here)))\\b)`
+  + `|it\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
+  + `|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?\\b)`
+export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
 function sideOf(charts, s, side) {
   const o = charts.filter(c => c.ref !== s.ref && c.cell)
@@ -49,7 +59,10 @@ export function relativeChart(text, charts = [], sel = null) {
   if (!s) return { hits: [], match: m }
   const v = m[1] && m[1].toLowerCase()
   const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
-  const hits = side ? sideOf(charts, s, side) : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  // "next to / beside": either side; "adjacent to / near": any side. More than one fits → asked (the caller), never a guess
+  const hits = side ? sideOf(charts, s, side)
+    : m[4] ? ['above', 'below', 'left', 'right'].flatMap(x => sideOf(charts, s, x))
+      : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
   return { hits, match: m }
 }
 const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
