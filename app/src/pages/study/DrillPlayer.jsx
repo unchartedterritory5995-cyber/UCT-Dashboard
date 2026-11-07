@@ -379,6 +379,7 @@ export default function DrillPlayer({
               onSettingsPersist={sessionChart.onSettingsPersist}
               annotations={annotations}
               annotationsVisible={!!annotations}
+              annotationsTextVisible={!!annotations}
               markers={openMarkers}
               onCrosshairMove={onCrosshairMove}
               onChartTap={onChartTapLib}
