@@ -138,7 +138,8 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
       ['dotNH', 'point'], ['dotNHred', 'glyph'], ['dotNHbeforePx', 'glyph'],
       ['dotNHpartial', 'point'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'],
     ])
-    expect(def.plots.find(p => p.key === 'dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0 })
+    // L1 (2026-11-07): both large glyphs are size 1.6 (13 px at the floor), was 2.0
+    expect(def.plots.find(p => p.key === 'dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 1.6 })
   })
 
   it('every LINE plot of the definition names an expected column', () => {

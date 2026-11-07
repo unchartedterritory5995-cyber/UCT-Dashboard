@@ -704,15 +704,17 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
                         <button
                           key={p.id}
                           type="button"
-                          className={`${styles.chipOpt} ${on ? styles.chipOptOn : ''}`}
+                          className={`${styles.chipOpt} ${on ? styles.chipPresetOn : ''}`}
                           aria-pressed={on}
                           data-preset-id={p.id}
                           onClick={() => applyPreset(p)}
                         >{p.label}</button>
                       )
                     })}
+                    {/* B7 (2026-11-07): the preset row keeps the gold selection
+                        (`chipPresetOn`); every other enum chip selects neutral. */}
                     <span
-                      className={`${styles.chipOpt} ${styles.presetCustom} ${currentPreset ? '' : styles.chipOptOn}`}
+                      className={`${styles.chipOpt} ${styles.presetCustom} ${currentPreset ? '' : styles.chipPresetOn}`}
                       aria-current={currentPreset ? undefined : 'true'}
                       data-preset-id={CUSTOM_PRESET}
                     >Custom</span>

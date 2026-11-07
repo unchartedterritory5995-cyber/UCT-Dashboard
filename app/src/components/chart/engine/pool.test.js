@@ -474,7 +474,7 @@ describe('seriesOptionsForPlot', () => {
   // ⭐ 2a-13 — a `markers` plot WITH a `marker` block is a GLYPH, drawn by the
   // series-marker lane riding this series. The series itself draws nothing: no
   // point marker under the glyph (there used to be a 2 px disc, invisible beneath
-  // the 15 px gold circle — the second renderer), no line between event bars.
+  // the 13 px gold circle — the second renderer), no line between event bars.
   it('a markers plot with a `marker` glyph draws NO point marker and no line — the glyph lane paints it', () => {
     for (const key of ['dotNHbeforePx', 'dotNHred']) {
       const p = plotOf('rsLine', key)

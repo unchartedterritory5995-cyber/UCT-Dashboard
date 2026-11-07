@@ -187,7 +187,11 @@
   padding-top: 2px;
   font-size: 13px;
   line-height: 1.2;
-  color: var(--gain);
+  /* ⭐ `--text-bright`, NEVER `--gain` (owner-delegated decision L3, 2026-11-07):
+     green means money going up, never "selected", and gold is rationed to the
+     header's one mark (`.tier`). The row's `.rowOn` fill and border already say
+     "on"; the tick only has to read clearly beside the name. */
+  color: var(--text-bright);
 }
 
 .main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

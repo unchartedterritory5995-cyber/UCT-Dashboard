@@ -212,7 +212,7 @@ export const MAIN_PRICE_SCALE_ID = 'right'
 // A definition may declare that its own pane carries NO price axis: no tick
 // labels, no last-value tag, no crosshair price label in the gutter beside it.
 // The value is read in the pane label instead. `rsLine` is the first to ask
-// (the ratio's level means nothing on its own; an 87 px pane fits three ticks).
+// (the ratio's level means nothing on its own; a ~97 px pane fits three ticks).
 //
 // ⛔⛔ THE OBVIOUS MECHANISM WEDGES THE CHART. `visible: false` on the pane's
 // `'right'` scale is what the option is called, and on lightweight-charts 5.2.0
