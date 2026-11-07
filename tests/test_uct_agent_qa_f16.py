@@ -119,9 +119,9 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # guard keeps its meaning: the F16 Agent work must not touch the Screener after it.
 # Re-pinned again 2026-11-07 (RS go-live): the owner-delegated decisions (PR #913) change
 # rs_history.py (split guard, backfill), snapshot_db.py (the bars_rs receipt column) and
-# methodology.py on purpose. The pin is the merge commit that brings the whole RS programme
-# (#889, #903, #913) together with master, so it holds both sides' reviewed Screener code.
-SCREENER_PIN = "1045f9dd37f3630d6b79fb2cd7796a56448cc3a1"
+# methodology.py on purpose. The pin is that work's last Screener commit; master changed no
+# Screener file since the RS branches split from it, so the go-live merge adds nothing here.
+SCREENER_PIN = "e4a6491b60a76c53b5353e16331e005ca3d2a384"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -170,7 +170,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/filters.py" in r.stdout.split()  # a file the pinned commit changed (RS VA6)
+    assert "api/services/screener/rs_history.py" in r.stdout.split()  # a file the pinned commit changed (the review fixes)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
