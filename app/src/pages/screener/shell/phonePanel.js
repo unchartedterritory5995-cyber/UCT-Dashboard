@@ -1,5 +1,7 @@
 // The phone placement for the screener's two anchored menus (spec A7, 2026-11-07):
 // the "Screener" starter menu (ScreensManager) and the Columns picker (ColumnPicker).
+// Since B10 (2026-11-07) also the toolbar seal's provenance panel (ShellToolbar): the
+// phone toolbar scrolls sideways, and a scroller would clip an absolute popover.
 //
 // Both are `position: absolute; right: 0` under a trigger that sits at the LEFT of
 // the toolbar, so on a phone they ran off the left edge of the screen. At <= 640 px
