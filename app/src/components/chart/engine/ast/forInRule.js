@@ -178,9 +178,9 @@ const placeArgs = (def, args) => args.map((a, k) => {
 /** ⭐ N1b — what a user function (and every user function it calls) may CHANGE: `params`, the
  *  positions of its parameters whose list it changes (directly, through a local alias, by
  *  handing it on to a function that changes it, or by storing it into an outer name with
- *  `:=`); `outer`, the other lists it changes by name (`'?'`: one it cannot name). A list it
- *  binds to a NEW array (and never re-binds) is its own. ⛔ An OVERLOADED name (T9: the body
- *  is picked by type, which this reader cannot see) changes every parameter. */
+ *  `:=`); `outer`, the other lists it changes BY NAME (a global the walk may have made an
+ *  alias). ⛔ An OVERLOADED name (T9: the body is picked by type, which this reader cannot
+ *  see) changes every parameter. */
 function fnEffects(fn, rule, memo) {
   if (memo.has(fn)) return memo.get(fn)
   const eff = { params: new Set(), outer: new Set() }
@@ -197,10 +197,6 @@ function fnEffects(fn, rule, memo) {
       paramRoots.forEach((r, k) => { if (mentions(b.rhs, r)) eff.params.add(k) })
     }
   }
-  const own = (t) => {
-    const bs = binds.filter((b) => b.names.includes(t))
-    return bs.length > 0 && bs.every((b) => isFreshRhs(b.rhs))
-  }
   const visit = (items) => {
     for (const s2 of items || []) {
       const ts = s2.header || []
@@ -209,7 +205,7 @@ function fnEffects(fn, rule, memo) {
         if (t !== null) {
           let hit = false
           paramRoots.forEach((r, k) => { if (rootedIn(t, r) !== null) { eff.params.add(k); hit = true } })
-          if (!hit && !own(t)) eff.outer.add(t)
+          if (!hit) eff.outer.add(t)
         }
         const call = userCallAt(ts, i, rule)
         if (!call) continue
@@ -220,9 +216,7 @@ function fnEffects(fn, rule, memo) {
           if (!places[k].some((j) => sub.params.has(j))) return
           let hit = false
           paramRoots.forEach((r, j) => { if (mentions(a.toks, r)) { eff.params.add(j); hit = true } })
-          if (hit || isFreshRhs(a.toks)) return
-          const name = a.toks.length === 1 && a.toks[0].kind === 'ident' ? String(a.toks[0].value) : '?'
-          if (!own(name)) eff.outer.add(name)
+          if (!hit && a.toks.length === 1 && a.toks[0].kind === 'ident') eff.outer.add(String(a.toks[0].value))
         })
       }
       visit(s2.sub)
@@ -232,46 +226,183 @@ function fnEffects(fn, rule, memo) {
   return eff
 }
 
+/** Members that hand back an ELEMENT of the list they are called on (a record the walk visits). */
+const ELEMENT_READS = new Set(['get', 'first', 'last', 'pop', 'shift', 'remove'])
+
+/** Does `toks` read an element of a list in `lists` (`array.get(L, i)`, `L.first()`, …)? */
+const readsElementOf = (toks, lists) => toks.some((tk, i) => {
+  if (!tk || tk.kind !== 'ident' || !toks[i + 1] || toks[i + 1].kind !== 'punct' || toks[i + 1].value !== '(') return false
+  const v = String(tk.value)
+  if (v.startsWith('array.') && ELEMENT_READS.has(v.slice(6))) {
+    const t = toks[i + 2]
+    return !!t && t.kind === 'ident' && lists.has(String(t.value))
+  }
+  const m = splitMethodName(v)
+  return !!m && ELEMENT_READS.has(m.method) && lists.has(m.recv)
+})
+
+/** The names a value STORES when it is written somewhere (an argument of a mutator, the
+ *  right-hand side of a field write, a constructor's arguments): a plain name stores itself;
+ *  `T.new(…)` stores the plain names among its arguments, at any depth; a call to a user
+ *  function stores every name it is handed (⛔ undecidable: its body may keep any of them).
+ *  An arithmetic expression stores none (it makes a number). */
+const storedNames = (toks, fnDefs) => {
+  if (toks.length === 1 && toks[0].kind === 'ident') return [String(toks[0].value)]
+  const h = toks[0]
+  if (!h || h.kind !== 'ident') return []
+  const v = String(h.value)
+  const m = splitMethodName(v)
+  const ctor = v.endsWith('.new') && !v.startsWith('array.') && !v.startsWith('matrix.') && !v.startsWith('map.')
+  if (!ctor && !fnDefs.has(v) && !(m && fnDefs.has(m.method))) return []
+  return toks.filter((x, k) => x && x.kind === 'ident' && k > 0
+    && !(toks[k + 1] && toks[k + 1].kind === 'punct' && toks[k + 1].value === '(')).map((x) => String(x.value))
+}
+
+/** ⭐⭐ W6-T6 N1b r1 — REACH, NOT TYPE. The names in the WHOLE script (`stmts`, any depth) that may
+ *  carry a record the walk over `src` visits, or a list such a record holds — so that a change
+ *  through one of them is a change through the element. A fixpoint over two sets:
+ *    · `lists` — names holding the walked list or a list of its records: `src`; `b = src`,
+ *      `array.slice(src, …)`, `array.copy(src)`, `src.copy()` (a copy holds the SAME records); a list the
+ *      script stores a carried value into (`array.push(other, q)` makes `other` carry it);
+ *    · `reach` — the walk variables over `src` (`for q in src`, every such loop); a name bound
+ *      to an element read of a `lists` name (`pre = array.get(src, 0).arr`); a name bound to an
+ *      expression naming a `reach` name (forward: `a = q.arr`, `b = a`); and BACKWARD, a name a
+ *      carried place stores (`array.push(src, Q.new(1.0, vals))`, `q0 = Q.new(…, vals)` where
+ *      `q0` is carried, `q.f := vals`): `vals` is now held by a record, whatever its type.
+ *  ⛔ Where reach cannot be decided it is assumed: a user function handed (or naming) a carried
+ *  value may return or keep it (`v = mk(q)`, `storedNames`); a list a carried value is pushed
+ *  into carries it. A list bound to a NEW array, or to anything that names no carried value,
+ *  is NOT reached, whatever its declared or inferred type (the accumulator over records that
+ *  hold a float list stays served). `src` itself is never in `reach`: changing the walked list
+ *  is the walked-list rule's, not this one's. */
+export function walkedElementReach(stmts, src, { isPunct, isDefined, fnDefs }) {
+  const lists = new Set([src])
+  const reach = new Set()
+  // a function definition's body is read per call (`fnEffects`, `fnNamesCarried`); its
+  // parameters are not the script's names
+  const top = (stmts || []).filter((s2) => !(s2.header || []).some((x) => isPunct(x, '=>')))
+  const binds = bindingsOf(top, isPunct)
+  const rule = { isPunct, isDefined, fnDefs }
+  // every `for q in src` / `for [i, q] in src` in the script seeds `reach` with its element
+  const seedWalks = (items) => {
+    for (const s2 of items || []) {
+      const ts = s2.header || []
+      if (ts[0] && ts[0].kind === 'ident' && ts[0].value === 'for') {
+        const inAt = ts.findIndex((x) => x && x.kind === 'ident' && x.value === 'in')
+        const last = ts[ts.length - 1]
+        if (inAt > 1 && inAt === ts.length - 2 && last.kind === 'ident' && String(last.value) === src) {
+          const el = isPunct(ts[1], '[') ? ts[inAt - 2] : ts[inAt - 1]
+          if (el && el.kind === 'ident') reach.add(String(el.value))
+        }
+      }
+      seedWalks(s2.sub)
+    }
+  }
+  seedWalks(top)
+  // the user functions whose body (or a callee's) names a carried value: a call may return it
+  const fnNamesCarried = (fn, seen = new Set()) => {
+    if (seen.has(fn) || !fnDefs.has(fn)) return false
+    seen.add(fn)
+    const all = new Set([...lists, ...reach])
+    const scan = (items) => (items || []).some((s2) => (s2.header || []).some((tk, i, ts) => {
+      if (!tk || tk.kind !== 'ident') return false
+      if (rootedIn(String(tk.value), all) !== null) return true
+      const call = userCallAt(ts, i, rule)
+      return !!call && fnNamesCarried(call.fn, seen)
+    }) || scan(s2.sub))
+    return scan(fnDefs.get(fn).body)
+  }
+  const callsCarryingFn = (toks) => toks.some((_, i) => {
+    const call = userCallAt(toks, i, rule)
+    return !!call && fnNamesCarried(call.fn)
+  })
+  const add = (set, names) => {
+    let grew = false
+    for (const n of names) if (n !== src && !set.has(n)) { set.add(n); grew = true }
+    return grew
+  }
+  const visitStores = (items) => {
+    let grew = false
+    for (const s2 of items || []) {
+      const ts = s2.header || []
+      for (let i = 0; i < ts.length; i += 1) {
+        const t = listMutationTarget(ts, i, rule)
+        if (t === null) continue
+        const close = closeOf(ts, i + 1)
+        const argToks = ts.slice(i + 2, close > 0 ? close : ts.length)
+        const segs = []
+        let cur = []
+        let depth = 0
+        for (const x of argToks) {
+          if (isPunct(x, '(') || isPunct(x, '[')) depth += 1
+          else if (isPunct(x, ')') || isPunct(x, ']')) depth -= 1
+          if (depth === 0 && isPunct(x, ',')) { segs.push(cur); cur = []; continue }
+          cur.push(x)
+        }
+        if (cur.length) segs.push(cur)
+        // the namespace form's first argument is the target itself
+        const values = String(ts[i].value).startsWith('array.') ? segs.slice(1) : segs
+        const carriedTarget = rootedIn(t, lists) !== null || rootedIn(t, reach) !== null
+        for (const seg of values) {
+          // a carried place stores this value: it is held by a walked record now
+          if (carriedTarget) grew = add(reach, storedNames(seg, fnDefs)) || grew
+          // a carried value stored into another list: that list carries it (through a collection)
+          if (!carriedTarget && storedNames(seg, fnDefs).some((n) => rootedIn(n, reach) !== null)) {
+            grew = add(lists, [t]) || grew
+          }
+        }
+      }
+      grew = visitStores(s2.sub) || grew
+    }
+    return grew
+  }
+  // a name bound to the walked list itself, or a slice or copy of one (the SAME records)
+  const listAlias = (rhs) => {
+    if (rhs.length === 1 && rhs[0].kind === 'ident') return lists.has(String(rhs[0].value))
+    const h = rhs[0]
+    if (!h || h.kind !== 'ident' || !isPunct(rhs[1], '(')) return false
+    const v = String(h.value)
+    if (v === 'array.slice' || v === 'array.copy') return !!rhs[2] && rhs[2].kind === 'ident' && lists.has(String(rhs[2].value))
+    const m = splitMethodName(v)
+    return !!m && (m.method === 'slice' || m.method === 'copy') && lists.has(m.recv)
+  }
+  for (let grew = true; grew;) {
+    grew = false
+    for (const b of binds) {
+      if (listAlias(b.rhs)) { grew = add(lists, b.names) || grew; continue }
+      if (isFreshRhs(b.rhs)) continue
+      if (readsElementOf(b.rhs, lists) || mentions(b.rhs, reach) || callsCarryingFn(b.rhs)) {
+        grew = add(reach, b.names) || grew
+      }
+      // BACKWARD: a carried name (or a field of one) stores what it is bound to
+      if (b.names.some((n) => rootedIn(n, reach) !== null)) grew = add(reach, storedNames(b.rhs, fnDefs)) || grew
+    }
+    grew = visitStores(top) || grew
+  }
+  return reach
+}
+
 /** ⭐⭐ W6-T6 N1b — THE ONE RULE for "may this walk's body change a list the ELEMENT holds?"
  *  (`for elem in …`). It answers null, or `{ via }` for `forInHeldListRefusal(elem, via)`:
  *    · DIRECT — a mutating member on a path rooted at `elem` (`array.push(q.arr, v)`): `via`
  *      null, N1's sentence;
- *    · AN ALIAS — a mutating member on a name bound, through any chain of re-assignments, to
- *      an expression that names `elem` (`a = q.arr`, `b = a`, `o.f := a`), except a NEW array;
+ *    · AN ALIAS — a mutating member on a name that can CARRY the held list: bound in the body,
+ *      through any chain of re-assignments, to an expression that names `elem` (`a = q.arr`,
+ *      `b = a`, `o.f := a`), except a NEW array; or one of `rule.outerReach`
+ *      (`walkedElementReach`: a name anywhere in the script that reaches a record of the walked
+ *      list, or a list one holds, e.g. `vals` after `array.push(qs, Q.new(1.0, vals))`);
  *    · A FUNCTION HANDED IT — a user function, method or helper of a helper (`fnEffects`) that
- *      changes the parameter an argument naming `elem` or an alias fills, or changes by name
- *      an outer list that is an alias;
- *    · ⛔ A LIST OF A TYPE THE ELEMENT HOLDS — `rule.mayBeHeld(name)`, the lane's own typing
- *      (the element's record type holds a list of that type, or the name cannot be typed). A
- *      list bound BEFORE the walk may be the same array, and no name ties it to `elem`, so
- *      only its type can rule it out. A body-local name is followed through its plain
- *      re-assignment chain to the name it copies; a NEW array is its own.
- *  Every mutating member counts, the witnessed three included (no capture shows any change of
- *  a list an element holds, W6-F1). `rule`: `{ isPunct, isDefined, fnDefs, mayBeHeld }`
- *  (`mayBeHeld` null: the element holds no list, and the type route is off). */
+ *      changes the parameter an argument naming such a value fills, or changes one by name.
+ *  ⛔ r1: REACH, NOT TYPE. A list no carried value can reach serves whatever its type (an
+ *  accumulator `array<float>` beside records that hold an `array<float>`, a body-local list
+ *  built from an unrelated source). Every mutating member counts, the witnessed three included
+ *  (no capture shows any change of a list an element holds, W6-F1).
+ *  `rule`: `{ isPunct, isDefined, fnDefs, outerReach }`. */
 export function heldListReach(list, elem, rule) {
-  const { isPunct, mayBeHeld = null } = rule
+  const { isPunct, outerReach = [] } = rule
   const binds = bindingsOf(list, isPunct)
-  const roots = aliasClosure(binds, [elem])
+  const roots = aliasClosure(binds, [elem, ...outerReach])
   const memo = new Map()
-  const seen = new Set()
-  // ⛔ conservative: a name is held unless EVERY binding of it in the body is a NEW array or a
-  // plain name that is not held; one never bound with `=` keeps its value from before the walk.
-  const typedHeld = (t) => {
-    if (!mayBeHeld) return false
-    if (t === '?') return true
-    if (seen.has(t)) return false
-    seen.add(t)
-    try {
-      const bs = binds.filter((b) => b.names.includes(t))
-      if (!bs.some((b) => b.op === '=') && mayBeHeld(t)) return true
-      return bs.some((b) => {
-        if (isFreshRhs(b.rhs)) return false
-        if (b.rhs.length === 1 && b.rhs[0].kind === 'ident') return typedHeld(String(b.rhs[0].value))
-        return true
-      })
-    } finally { seen.delete(t) }
-  }
   const visit = (items) => {
     for (const s2 of items || []) {
       const ts = s2.header || []
@@ -280,24 +411,17 @@ export function heldListReach(list, elem, rule) {
         if (t !== null) {
           if (rootedIn(t, [elem]) !== null) return { via: null }
           if (rootedIn(t, roots) !== null) return { via: `through \`${t}\`, an alias of it` }
-          if (typedHeld(t)) return { via: `through \`${t}\`, a list of a type it holds` }
         }
         const call = userCallAt(ts, i, rule)
         if (!call) continue
         const eff = fnEffects(call.fn, rule, memo)
         for (const n of eff.outer) {
           if (rootedIn(n, roots) !== null) return { via: `through \`${n}\`, an alias of it \`${call.fn}\` changes` }
-          if (typedHeld(n)) return { via: `through \`${n}\`, a list of a type it holds, which \`${call.fn}\` changes` }
         }
         const places = placeArgs(rule.fnDefs.get(call.fn), call.args)
         for (let k = 0; k < call.args.length; k += 1) {
           if (!places[k].some((j) => eff.params.has(j))) continue
-          const a = call.args[k].toks
-          if (mentions(a, roots)) return { via: `handed to \`${call.fn}\`, which changes it` }
-          if (isFreshRhs(a)) continue
-          if (typedHeld(a.length === 1 && a[0].kind === 'ident' ? String(a[0].value) : '?')) {
-            return { via: `handed to \`${call.fn}\` as a list of a type it holds` }
-          }
+          if (mentions(call.args[k].toks, roots)) return { via: `handed to \`${call.fn}\`, which changes it` }
         }
       }
       const deeper = visit(s2.sub)

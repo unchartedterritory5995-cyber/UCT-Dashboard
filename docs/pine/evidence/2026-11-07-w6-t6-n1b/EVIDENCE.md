@@ -71,6 +71,62 @@ Control after restore: the targeted 4 files 38/38 green.
 
 ## Limits (refused conservatively or out of scope)
 
-- A same-typed list that is provably NOT held still refuses when the element's type holds a list of that
-  type (no "provably distinct" rule; same position as Q-W6T6-A).
+- (superseded by r1) A same-typed list that is provably NOT held still refuses when the element's type holds
+  a list of that type.
 - The host object lane (`pineObjects.js`) is unchanged; it does not serve held-list writes via this rule.
+
+## r1 (review W6-T6-N1b NO-GO @64acd1ddc8: B1 type route, B2 body-local refusal, N sentence unpinned)
+
+Both N1b shapes (handed to a function, alias chain) are kept unchanged.
+
+- **Removed**: the type route (`typedHeld`, FE `mayBeHeld` / `forInHeldKeys`) and the untyped body-local refusal.
+  Whether a list is refused no longer depends on its declared or inferred type.
+- **Reach** (`forInRule.js::walkedElementReach(stmts, src, rule)`, passed to `heldListReach` as `outerReach`): a
+  script-wide fixpoint (function definitions are excluded; their bodies are read per call by `fnEffects`):
+  - `lists` holds `src`, plain aliases of it, `array.slice` / `array.copy` / `.slice()` / `.copy()` of it (a copy
+    holds the SAME records), and any list a carried value is pushed into (the "through a collection" case);
+  - `reach` holds every `for x in src` element; any name bound to an element read of a `lists` name (`get`,
+    `first`, `last`, `pop`, `shift`, `remove`); names forward-derived from a `reach` name; and, BACKWARD, the
+    names a carried place stores: a mutator argument on a carried list (`array.push(qs, Q.new(1.0, vals))`), the
+    right-hand side of a carried binding or field write (`q0 = Q.new(…, vals)` where `q0` is carried). Only plain
+    names and constructor / user-call arguments count as stored. Arithmetic stores nothing, so an accumulator
+    `array.set(acc, k, array.get(acc, k) + q.v)` never joins;
+  - ⛔ undecidable, so assumed reached (comment in code): a binding that calls a user function whose body
+    (or a callee's) names a carried value (returned from a user function); a list a carried value is pushed into.
+  - A NEW array (`array.new*`, `array.from`, `array.copy(<not a walked list>)`) is never reached.
+- H1 (inferred `var vals`) and H2 (declared `var array<float> vals`, also `float[]`) now answer the same: REFUSED
+  "through `vals`, an alias of it". VF1 / VF2 / D6 (accumulators over records that hold a float list) SERVE.
+
+Rails (`w6ForIn.test.js`, 20/20):
+- pinned sentence: three literal strings (handed-to, alias, N1 direct). The reviewer's R6 ("may hold" changed
+  to "holds") is now killed (X9);
+- new `it` "(review N1b r1) REACH, not type": H1/H2/`float[]` refuse alike; backward through a bound record;
+  H5 (`pre = array.get(qs, 0).arr`); alias of the walked list + method read + forward chain; returned from a user
+  function; passed through another collection. Controls that SERVE: VF1 (value checked, 6N), VF2 block-local,
+  D6 `array<int>`, body-local `t = mk()` (unrelated user function), body-local slice of an unrelated list, an
+  `array.copy` of a held list made outside the walk, a same-typed unreached list handed to a mutating function.
+
+Runs (node 20.20.2, `--maxWorkers=1`): targeted 20/20. Full `engine/ast` + `engine/runtime`: 509 files, 8116
+tests, **8100 passed, 11 skipped, 5 failed**, all `Test timed out in 15000ms` in `*.measure` files (guardProbe,
+objectLaneCallSites, objectLaneCensus x2, objectLaneDrawerCensus). No assertion failed.
+
+Hand mutations r1 (copy, mutate, run `w6ForIn.test.js`, restore by copy, `cmp` equal each time):
+
+| id | mutation | result |
+|---|---|---|
+| X0 | control (identity substitution) | 20/20 green |
+| X1 | a value stored into the walked list is not carried | killed |
+| X2 | backward through a carried binding off | killed |
+| X3 | element reads of the walked list off | killed |
+| X4 | "returned from a user function" off | killed |
+| X5 | "through a collection" off | killed |
+| X6 | FE passes no `outerReach` | killed |
+| X7 | aliases of the walked list off | killed |
+| X8 | forward chain outside the walk off | killed |
+| X9 | refusal sentence "may hold" changed to "holds" | killed (was the reviewer's surviving R6) |
+| X10 | element read over-broad (any method call reads) | killed |
+| X11 | NEW arrays outside the walk no longer exempt | killed (a rail was added after it first survived) |
+
+r1 limits: `q.arr.copy()` (the method form on an array receiver, reviewer note N1) still counts as an alias in the
+body (`aliasClosure` cannot tell the receiver's type); rare, refused by name. The handed-the-element sentence
+(`forInHandsOn`) and `fnEffects` still give two sentences for one question depending on the route (reviewer note).

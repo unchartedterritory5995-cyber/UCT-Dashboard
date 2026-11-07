@@ -164,11 +164,59 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
       .toBe(msg('through `g`, an alias of it'))
     // …or an alias the body hands to a function that changes it
     expect(refusal(walk('a = q.arr\n    bump(a)')).message).toBe(msg('handed to `bump`, which changes it'))
-    // ⛔ conservative: a list bound BEFORE the walk, of a type the element holds, may be the same array
-    expect(refusal(walk('array.push(pre, 1.0)', 'var array<float> pre = array.new_float()\n')).message)
-      .toBe(msg('through `pre`, a list of a type it holds'))
+    // ⭐ PINNED — the literal sentence the capture row Q-W6T6-H quotes (not rebuilt from the helper)
+    expect(refusal(walk('bump(q.arr)')).message).toBe('a loop in a form this lane does not iterate — `for … in`: '
+      + 'the body changes a list the element `q` may hold (handed to `bump`, which changes it), not yet captured (W6-F1)')
+    expect(refusal(walk('a = q.arr\n    array.push(a, 1.0)')).message).toBe('a loop in a form this lane does not iterate — `for … in`: '
+      + 'the body changes a list the element `q` may hold (through `a`, an alias of it), not yet captured (W6-F1)')
+    expect(refusal(walk('array.push(q.arr, 1.0)')).message).toBe('a loop in a form this lane does not iterate — `for … in`: '
+      + 'the body changes a list the element `q` holds (a write through the loop variable), not yet captured (W6-F1)')
+  })
+  it('⛔ (review N1b r1) REACH, not type: a list bound outside the walk refuses only when it can carry a held list', () => {
+    const msg = (via) => `a loop in a form this lane does not iterate — \`for … in\`: ${forInHeldListRefusal('q', via)}`
+    const TQ = 'type Q\n    float v\n    array<float> arr\nvar qs = array.new<Q>()\n'
+    // ⛔ the review's hazard: `vals` is stored into a walked record, then changed in the walk.
+    // INFERRED (H1) and DECLARED (H2) answer the same, by reach
+    for (const decl of ['var vals = array.new_float()', 'var array<float> vals = array.new_float()', 'var float[] vals = array.new_float()']) {
+      const src = `${TQ}${decl}\nif barstate.isfirst\n    array.push(qs, Q.new(1.0, vals))\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n`
+      expect(refusal(src).message, decl).toBe(msg('through `vals`, an alias of it'))
+    }
+    // …stored through a record bound first, then pushed (backward through the constructor)
+    expect(refusal(`${TQ}var vals = array.new_float()\nq0 = Q.new(1.0, vals)\nif barstate.isfirst\n    array.push(qs, q0)\n`
+      + 'for q in qs\n    vals.push(1.0)\nplot(close)\n').message).toBe(msg('through `vals`, an alias of it'))
+    // …a held list read off the walked list BEFORE the walk (H5)
+    expect(refusal(`${TQ}if barstate.isfirst\n    array.push(qs, Q.new(1.0, array.new_float()))\npre = array.get(qs, 0).arr\n`
+      + 'for q in qs\n    array.push(pre, 1.0)\nplot(close)\n').message).toBe(msg('through `pre`, an alias of it'))
+    // …through an alias of the walked list and a method read, then a forward chain outside the walk
+    expect(refusal(`${TQ}qq = qs\np0 = qq.first()\npa = p0.arr\nfor q in qs\n    array.push(pa, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `pa`, an alias of it'))
+    // ⛔ undecidable, refused by name: returned from a user function that names the walked list;
+    // passed through another collection
+    expect(refusal(`${TQ}firstArr() =>\n    array.get(qs, 0).arr\nfor q in qs\n    g = firstArr()\n    array.push(g, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `g`, an alias of it'))
+    expect(refusal(`${TQ}var keep = array.new<Q>()\nfor q in qs\n    array.push(keep, q)\n    k = array.get(keep, 0).arr\n    array.push(k, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `k`, an alias of it'))
+    // CONTROL — the review's over-refusal repro (VF1 / VF2 / D6): an accumulator of the SAME type as
+    // the held list, never stored into a record, is served (value checked)
+    const fill = 'if barstate.isfirst\n    array.push(qs, Q.new(2.0, array.new_float()))\n'
+    expect(lastValues(`${TQ}${fill}var array<float> rowSumB = array.new<float>(3, 0.0)\nfor q in qs\n    for k = 0 to 2\n`
+      + '        array.set(rowSumB, k, array.get(rowSumB, k) + q.v)\nplot(array.sum(rowSumB))\n')).toEqual([6 * N])
+    expect(build(`${TQ}${fill}if close > 0\n    array<float> ctlRowSum = array.new<float>(3, 0.0)\n    for q in qs\n        array.set(ctlRowSum, 0, q.v)\nplot(close)\n`).ok).toBe(true)
+    expect(build(`${TQ}${fill}var array<int> cnt = array.new_int()\nfor q in qs\n    array.push(cnt, 1)\nplot(close)\n`).ok).toBe(true)
+    // CONTROL — a body-local list from an unrelated source (a user function that names nothing
+    // walked; a slice of an unrelated list) is served
+    expect(build(`${TQ}${fill}mk() =>\n    array.from(1.0, 2.0)\nfor q in qs\n    t = mk()\n    array.push(t, 1.0)\nplot(close)\n`).ok).toBe(true)
+    expect(build(`${TQ}${fill}var other = array.from(1.0, 2.0)\nfor q in qs\n    t = array.slice(other, 0, 1)\n    array.push(t, q.v)\nplot(close)\n`).ok).toBe(true)
+    // CONTROL — a NEW array copied from a held list, outside the walk, is its own list: served
+    expect(build(`${TQ}${fill}cp = array.copy(array.get(qs, 0).arr)\nfor q in qs\n    array.push(cp, q.v)\nplot(close)\n`).ok).toBe(true)
+    // CONTROL — a list of the held type handed to a function that changes it: served when nothing walked reaches it
+    expect(build(`${TQ}${fill}var acc = array.new_float()\nbumpq(array<float> a) =>\n    array.push(a, 1.0)\nfor q in qs\n    bumpq(acc)\nplot(close)\n`).ok).toBe(true)
+  })
+  it('⛔ (review N1b) controls for the indirect shapes', () => {
+    const H2 = 'type Q\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(array.new_float()))\n'
+    const FNS = 'bump(array<float> a) =>\n    array.push(a, 1.0)\n'
+    const walk = (change, pre = '') => `${H2}${FNS}${pre}for q in qs\n    ${change}\nplot(close)\n`
     // CONTROL — a list the element does not hold, handed to a function that changes it, is served
-    // (int and float are ONE type, `num`, to this lane, so the unrelated list is text)
     const other = 'var array<string> other = array.new_string()\nbumps(array<string> a) =>\n    array.push(a, "x")\n'
     expect(lastValues(`${H2}${other}for q in qs\n    bumps(other)\nplot(array.size(other))\n`)).toEqual([N])
     // CONTROL — a NEW array of the held type, handed to a function that changes it, is served
