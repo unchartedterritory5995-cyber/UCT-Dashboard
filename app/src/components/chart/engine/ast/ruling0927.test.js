@@ -134,6 +134,16 @@ describe('input.time: the default, in milliseconds, on every bar (vw-time-tf T16
     const t = translatePine(`${V5}s = input.time(timestamp("01 Jan 2021 00:00 +0000"), "S")\nplot(time >= s ? close : open)\n`,
       { strict: true, basePeriod: 'D', inputValues: { s: Date.UTC(2022, 0, 1) } })
     expect(refusalText(t)).toMatch(/`s` is an `input.time`: this lane serves its default only/)
+    // r1 (review R2): the guard CODE, not only the sentence.
+    const r = t.outputs[0].refusal
+    expect(r && r.guard).toBe('pine:input-kind')
+  })
+
+  it('r1 (review R4): the fold is DISCLOSED — T16 lists its input.time in `inputsFolded`', () => {
+    const t = pane(load(CAP).source.text)
+    const o = t.outputs.find((x) => x.title === T16)
+    const folded = (o.inputsFolded || t.inputsFolded || []).filter((e) => e.call === 'input.time')
+    expect(folded.map((e) => [e.name, e.title, e.folded])).toEqual([['startTime', 'Start Date', '1652832000000']])
   })
 })
 
@@ -171,5 +181,53 @@ describe('ta.nvi / ta.pvi and time(<session>) on daily bars: already ruled, pinn
     const src = `${V5}plot(time(timeframe.period, "0930-1600:23456", "America/New_York"))\n`
     expect(pane(src).outputs[0].formula).toBeTruthy()
     expect(refusalText(screen(src))).toMatch(/SESSION CLOCK[\s\S]*A chart pane serves it; a screen does not/)
+  })
+})
+
+// ─── RULING-0927 r1 (2026-11-07): ONLY THE CAPTURED FORM IS SERVED, ON BOTH LANES ─────────
+//
+// T16 witnesses one form: `input.time(timestamp("18 May 2022 00:00 +0000"))`, no `confirm`. The
+// gate is in the one reader every lane calls (`runtimeInputs.js::timeInputDefaultOf`), so each
+// form below must refuse on the pane, the screen AND the runtime lane, with the same sentence.
+describe('RULING-0927 r1 — every uncaptured input.time default refuses by name on every lane', () => {
+  const ONE_BAR = [{ t: 1700000000, o: 1, h: 1, l: 1, c: 1, v: 1 }]
+  const src = (args) => `${V5}s = input.time(${args})
+plot(s / 86400000.0)
+`
+  const runtimeWhy = (text) => {
+    try { computeRuntimeColumns(runtimeDoc(text), ONE_BAR, CLOSED); return null } catch (e) { return String(e.message) }
+  }
+  const REFUSED = [
+    ['timestamp("18 May 2022 00:00")', /not written in the captured form/],
+    ['timestamp("2024-01-01")', /not written in the captured form/],
+    ['timestamp("2022-05-18T00:00:00")', /not written in the captured form/],
+    ['timestamp("18 May 2022 00:00 GMT+10")', /not written in the captured form/],
+    ['timestamp("18 May 2022 00:00:00 +0000")', /not written in the captured form/],
+    ['timestamp("UTC", 2022, 5, 18, 0, 0)', /timestamp\(timezone, year/],
+    ['1652832000000', /literal count of milliseconds/],
+    ['timestamp("18 May 2022 00:00 +0000"), "S", confirm = true', /confirm = true/],
+    ['defval = 0, title = "S", confirm = true', /confirm = true/],
+  ]
+  it.each(REFUSED)('input.time(%s) refuses on pane, screen and runtime', (args, why) => {
+    for (const t of [pane(src(args)), screen(src(args))]) {
+      const r = t.outputs[0].refusal
+      expect(r && r.guard, args).toBe('pine:input-kind')
+      expect(r.message).toMatch(why)
+      expect(r.message).toMatch(/RULING-0927 r1/)
+    }
+    const rt = runtimeWhy(src(args))
+    expect(rt, `runtime served ${args}`).toMatch(why)
+    expect(rt).toMatch(/RULING-0927 r1/)
+  })
+
+  it.each([
+    ['timestamp("18 May 2022 00:00 +0000")', 19130],
+    ['timestamp("18 May 2022 00:00 +0000"), "S", confirm = false', 19130],
+    ['defval = timestamp("01 Jan 2023 00:00 +0000"), title = "S"', Date.UTC(2023, 0, 1) / 86400000],
+  ])('the captured form, input.time(%s), serves on pane and runtime alike', (args, want) => {
+    const t = pane(src(args))
+    const got = interpret(parseFormula(t.outputs[0].formula).ast, ONE_BAR, {}, undefined, undefined, { tf: 'D' })
+    expect(got[0]).toBe(want)
+    expect(computeRuntimeColumns(runtimeDoc(src(args)), ONE_BAR, CLOSED).a[0]).toBe(want)
   })
 })

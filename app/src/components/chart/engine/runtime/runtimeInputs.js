@@ -247,7 +247,48 @@ export function timestampOfDateString(str) {
  *  (`syminfo.timezone`), which this pane is not handed — a guess would move every bar's
  *  window by hours. */
 export function timeInputDefaultOf(node, lookup) {
-  return constTimeOf(argOf(node, 'defval', 0), lookup, 0)
+  // ⭐⭐ RULING-0927 r1 (2026-11-07) — ONLY THE CAPTURED FORM IS SERVED, on every lane that reads
+  // a time default (this function is the one reader: the run, the settings dialog and the
+  // translator all call it). T16 of `vw-time-tf-spy-1d-2026-09-27.json` witnesses exactly
+  // `input.time(timestamp("18 May 2022 00:00 +0000"))` with no `confirm`. Every other form refuses
+  // by name and has a probe row in `docs/pine/capture-queue-2026-09-27.md` (RULING-0927 r1).
+  const confirm = argOf(node, 'confirm', node && node.name === 'input.time' ? 5 : null)
+  if (confirm !== undefined && literalNumber(confirm) !== 0) return { skip: TIME_CONFIRM_SKIP }
+  const def = argOf(node, 'defval', 0)
+  const r = constTimeOf(def, lookup, 0)
+  if (r.skip) return r
+  const why = unwitnessedTimeDefault(terminalTimeNode(def, lookup))
+  return why ? { skip: why } : r
+}
+
+/** The one default form a capture holds: an RFC 2822 date string, minutes, zone written `+0000`. */
+export const WITNESSED_TIME_DEFAULT = /^\d{1,2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2} \+0000$/
+const TIME_NEEDS_CAPTURE = ' — no capture holds this form yet (RULING-0927 r1, '
+  + '`docs/pine/capture-queue-2026-09-27.md`); the one captured form is `timestamp("D MMM YYYY hh:mm +0000")`'
+export const TIME_CONFIRM_SKIP = 'it asks the member to pick the time on the chart (`confirm = true`), so the '
+  + "author's default is not what TradingView runs" + TIME_NEEDS_CAPTURE
+
+/** The node a default finally names, through name bindings (the same walk `constTimeOf` makes). */
+function terminalTimeNode(v, lookup) {
+  for (let depth = 0; v && v.type === 'name' && typeof lookup === 'function' && depth <= 8; depth += 1) {
+    const bound = lookup(v.name)
+    if (!bound) break
+    v = bound
+  }
+  return v
+}
+
+/** Why a READABLE default is still not served (null when it is the captured form). */
+function unwitnessedTimeDefault(v) {
+  if (literalNumber(v) !== null) return 'its default is a literal count of milliseconds' + TIME_NEEDS_CAPTURE
+  const args = v && v.type === 'call' && v.name === 'timestamp' ? (v.args || []).filter((a) => a && !a.name) : []
+  if (args.length === 1 && args[0].value && args[0].value.type === 'string') {
+    const text = args[0].value.value
+    return WITNESSED_TIME_DEFAULT.test(text)
+      ? null
+      : `its default \`timestamp("${text}")\` is not written in the captured form` + TIME_NEEDS_CAPTURE
+  }
+  return 'its default is `timestamp(timezone, year, …)`' + TIME_NEEDS_CAPTURE
 }
 
 const OUT_OF_RANGE = 'its default is outside the dates a chart can hold (±8.64e15 ms, about 271,821 years either side of 1970)'

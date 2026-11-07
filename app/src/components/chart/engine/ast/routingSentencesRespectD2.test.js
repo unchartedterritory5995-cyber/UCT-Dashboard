@@ -7,8 +7,10 @@
 //
 //   • a `for` bound that depends on a series (R1, 56 uses) —
 //     *"a loop whose bound depends on a series is the IR lane's, item (c)"*
-//   • an `input.time` whose default is an expression (R16, 5 uses) —
-//     *"the 5 that are expressions are item (c)'s"*
+//   • ⚰️ an `input.time` whose default is an expression (R16, 5 uses) —
+//     *"the 5 that are expressions are item (c)'s"* — RETIRED by RULING-0927 (2026-11-07):
+//     `input.time` is served in its one captured form and every other form is refused by
+//     name with its own sentence, so no `input.time` sentence routes to item (c) any more.
 //
 // ⛔⛔ BOTH ARE TRUE AND BOTH ARE INCOMPLETE, AND THE MISSING HALF IS THE ONE A MEMBER
 // ACTS ON. Ruling **D2** is that a pane draws the **HOST lane's saved definition**
@@ -88,10 +90,12 @@ describe('R20 — a routing sentence carries D2\'s limit', () => {
 
   // ⚰️ AN `input.time` EXPRESSION-DEFAULT SENTENCE WAS RAILED HERE. RULING-0927 (2026-11-07)
   // serves `input.time` at its default (capture T16), so there is no item (c) routing for it.
-  it('⭐ RULING-0927 — the input.time specimen now translates, with no item (c) routing', () => {
+  it('⭐ RULING-0927 r1 — the input.time specimen (no zone) refuses by name, with no item (c) routing', () => {
     const t = translatePine(TIME_EXPR_DEFAULT, {})
     expect(routing(TIME_EXPR_DEFAULT, 'item (c)')).toEqual([])
-    expect(t.outputs[0].formula).toBe('1704067200000 > 0 ? close : 0')
+    const r = t.outputs[0].refusal
+    expect(r && r.guard).toBe('pine:input-kind')
+    expect(r.message).toMatch(/timestamp\("2024-01-01"\)` is not written in the captured form[\s\S]*RULING-0927 r1/)
   })
 
   it('⛔ CONTROL — R16\'s bare-`input` routing is NOT given the qualification', () => {
