@@ -14,7 +14,7 @@ The Agent's "show me how to…" walkthroughs now teach the Charts workspace's lo
 
 The teaching count is now measured by a committed browser runner, so it can be reproduced. The 2026-11-05 runner was never committed.
 
-**Browser-VERIFIED teaching: 203 of 499 inventory rows.** That is from one complete run of 255 cases on the final guide code (`app/src/testing/agent/guide/runs/2026-11-07.final.results.json`). The 2026-11-05 figure was 283 from an unreproducible runner. Measured with this runner: round 2 had 152 and round 3 had 195.
+**Browser-VERIFIED teaching (BROWSER-MOCK-MODEL): 203 of 499 inventory rows.** That is from one complete run of 255 cases on the final guide code (`app/src/testing/agent/guide/runs/2026-11-07.final.results.json`). The 2026-11-05 figure was 283 from an unreproducible runner. Measured with this runner: round 2 had 152 and round 3 had 195. Every one of these counts (152 → 195 → 203) is BROWSER-MOCK-MODEL: the local agent harness, a scripted model, synthetic bars and fixtures. None is production evidence or gate evidence.
 
 **Base branch.** The branch was created from `agent/pl/guide-followup-1` at `1059f6483b`, which is not on master. That base carries PR #864's follow-ups (named-chart resolution, bare tickers, Multi Chart rows): 9 commits, 12 files, including `guide/namedChart.js`, `guide/slots.js` and `widgets/TradeExchangeNewsParts.jsx`. Master was merged in, the latest being `7304620153` (merge `e8c124d5c0`), always by merge and never by rebase.
 
@@ -93,6 +93,14 @@ The teaching count is now measured by a committed browser runner, so it can be r
 - Full `src/agent` vitest suite, through the suite lock: green on the release candidate (totals in the round-5 report).
 - Guide test files: 791 tests.
 - Browser runner: 203/255 cases.
+
+## Raw run files
+
+`app/src/testing/agent/guide/runs/2026-11-07.final.results.json` (labelled `mode: BROWSER-MOCK-MODEL` in the file) and the generated `cases.inventory.json` are committed, so the count can be reproduced and checked. Whether raw run files belong in the repository at all, or should be kept outside it with only the generator and the status file committed, is **the owner's call**.
+
+## AUDIT blocker (open): relative and negated chart references (T1, T2)
+
+`guide/namedChart.js` returns null for "the chart below this one", "the one next to this", "every chart except this one", and the walkthrough lands on the CLICKED chart. That is the same class as the wrong-chart chain. The fix reuses deixis.js's relation/negation detector from `agent/pl/target-plus-multichart` (pl-exec), never a third copy. Paired guide tests are committed in `agentGuideRelational.test.jsx`: 10 skipped-pending, which fail today, and 2 passing. The one-authority agreement test (namedChart vs deixis on one probe set) is a todo until that head is merged. **This PR ships after the wrong-chart chain.**
 
 ## Owed / not done
 - **pytest (not run here, by rule) for the readers of the golden:** `tests/test_uct_agent_contract.py`, `test_agent_eval_proxy.py`, `test_agent_eval_run.py`, `test_uct_agent_acceptance_stabilization.py`, `test_uct_agent_args_live_shapes.py`, `test_uct_agent_autoapply.py`, `test_uct_agent_breadth*.py`, plus whatever reads `section_b_requests.json` (`api/services/uct_agent/scan/sat`).

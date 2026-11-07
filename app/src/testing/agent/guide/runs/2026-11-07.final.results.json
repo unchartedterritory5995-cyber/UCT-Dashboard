@@ -1,4 +1,6 @@
 {
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
  "at": "2026-11-07T09:37:26.067Z",
  "base": "http://127.0.0.1:5302",
  "results": [

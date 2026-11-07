@@ -38,7 +38,7 @@ if (!process.env.TEACH_CASE) {
     results.push(rec)
     console.log(`${rec.pass ? 'PASS' : 'FAIL'}  ${c.id}  ${c.say}${rec.pass ? '' : `  — ${rec.why || rec.error || ''}`}`)
   }
-  writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), base: process.env.BA_BASE || null, results }, null, 1))
+  writeFileSync(out, JSON.stringify({ mode: 'BROWSER-MOCK-MODEL', evidence: 'LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence', at: new Date().toISOString(), base: process.env.BA_BASE || null, results }, null, 1))
   console.log(`\n${results.filter(r => r.pass).length}/${results.length} pass → ${out}`)
   process.exit(0)
 }
