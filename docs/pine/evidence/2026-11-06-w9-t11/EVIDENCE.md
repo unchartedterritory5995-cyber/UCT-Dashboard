@@ -131,3 +131,29 @@ caller sets one yet.
    conservative choice, and the broker is dark.
 
 Logs: `$UCT_RESUME/runs/w9-t11/` (folder.log, measure-master.log, handmut.log, handmut.json).
+
+## Heavy steps (coordinator GO after review GO-WITH-NOTES @600b735e2b)
+### mutate.py (heavy-mut.lock, free when taken; 7.1 min)
+`mutate.py muts.json w9T11Record.test.js w9T11StrategyStamp.test.js` at tip 600b735e2b (`muts.json` in this dir is the
+same 22 rows as `handmut.py`). Result: control SURVIVED; all 21 others KILLED. Tree clean afterwards apart from muts.json.
+Log: runs/w9-t11/mut.log.
+
+### measure-pair (heavy-mp3.lock, ram_gate; 1.6 h)
+Tip 600b735e2b vs base pine-dsk-mpbase3 detached at merge-base 2e6ceff105 (asserted before and after each side;
+HEAD unmoved). Logs: runs/w9-t11/mpr/mp-all.log, mp0/, mp1/.
+- runtime 0: C18 out 395 rows, 0 differ; probe 69 rows, 0 differ; harness identical (93/103/140 on both sides).
+  Census 967 rows, 4 differ, all classified LOAD NOISE (the 10 s wall-clock `pine:timeout`, landing on a different
+  step or line):
+  - multi-timeframe-trend-indicator (peelSteps 3 vs 2; pine:timeout count 7 vs 5);
+  - volatility-coil-edge-bullbyte (`pine:state` vs `pine:timeout` on one drop head);
+  - halftrend-longshort-signal-engine (both refusals are `pine:timeout`, at line 83 vs 12);
+  - mirage-liquidity-sweep-pro (`pine:timeout` vs `pine:undefined` on one drop head).
+- runtime 1: C18 0 differ; probe 0 differ; harness identical (112/107/117 on both sides).
+  Census 1 differ, multi-timeframe-trend-indicator, LOAD NOISE: steps[2] holds 3 vs 2 refusals, all `pine:timeout`.
+- 0 unintended diffs. That is expected: with the gate off no broker program exists, so the census, C18 and harness
+  paths are unchanged.
+
+### Merge origin/master (engine 26, 82e87cb40b) -> b5f4e0041d, clean
+Rails after the merge (`--maxWorkers=1`): w9T11Record, w9T11StrategyStamp, w9T1Broker, s1StrategyBroker,
+serverBundle.rail, hostNeutralClosure.rail, runtimeWorkerWarmup, objectDoorGate: 8 files, 309/309 passed
+(runs/w9-t11/postmerge.log). Engine bump: still NO. final-tip is left to the coordinator.
