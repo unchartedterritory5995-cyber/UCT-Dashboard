@@ -3,7 +3,13 @@
 // server is this process's own (selectionServe.mjs): it starts here and dies with the process.
 import { pathToFileURL } from 'node:url'
 
-export async function startMock({ port = 5303, cache = '' } = {}) {
+export async function startMock({ port = 5303, cache = '', env = [] } = {}) {
+  // dark product flags for the dev server: VITE_* only, so nothing here can carry a key or a production target
+  for (const kv of env) {
+    const m = /^(VITE_[A-Z0-9_]+)=(.*)$/.exec(kv)
+    if (!m) throw new Error(`--env takes VITE_NAME=value only, not ${kv}`)
+    process.env[m[1]] = m[2]
+  }
   for (const k of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY', 'UCT_AGENT_EVAL_API_KEY']) delete process.env[k]
   let routing = process.env.BA_ROUTING
   let server = null

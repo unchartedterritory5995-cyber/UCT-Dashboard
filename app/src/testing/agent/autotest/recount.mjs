@@ -16,7 +16,7 @@ import { join } from 'node:path'
 
 const { values: A } = parseArgs({ options: {
   vitest: { type: 'string' }, acceptance: { type: 'string', multiple: true, default: [] }, autotest: { type: 'string', multiple: true, default: [] }, selection: { type: 'string', multiple: true, default: [] },
-  raises: { type: 'string', default: '' }, exclude: { type: 'string', default: '' }, out: { type: 'string', default: '' }, repo: { type: 'string', default: '..' },
+  raises: { type: 'string', default: '' }, retag: { type: 'boolean', default: false }, exclude: { type: 'string', default: '' }, out: { type: 'string', default: '' }, repo: { type: 'string', default: '..' },
 } })
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'))
 const doc = (f) => readFileSync(join(A.repo, 'docs', 'agent', f), 'utf8').split(/\r?\n/)
@@ -80,7 +80,20 @@ for (const [id, e] of Object.entries(raises)) {
 const seen = {}
 const note = (id, pass, by) => { (seen[id] = seen[id] || { pass: [], fail: [] })[pass ? 'pass' : 'fail'].push(by) }
 for (const p of A.acceptance) for (const s of json(p)) for (const id of s.rows || []) note(id, s.pass, `acceptance:${s.id}`)
-for (const p of A.autotest) for (const r of json(p).rows) if (r.pass !== null && r.inventory) for (const id of r.inventory) note(id, r.pass === true, `${r.set}:${r.id}`)
+// a refusal, a how-to or an unsupported request executes nothing: it is not execution coverage of its row (teaching stays separate).
+// --retag reads each request's rows from the current definitions, so a run made before a tag fix counts under the fixed tags.
+const NOT_EXECUTION = new Set(['unsupported', 'invalid', 'howto'])
+const tagOf = A.retag ? await (async () => {
+  const m = await import('./requests.mjs')
+  const all = [...m.publicRequests(), ...m.unseenRequests(), ...(m.unseen2Requests ? m.unseen2Requests() : [])]
+  return new Map(all.map(r => [r.id, r.inventory]))
+})() : null
+const skippedRows = { notExecution: 0 }
+for (const p of A.autotest) for (const r of json(p).rows) {
+  if (r.pass === null || !r.inventory) continue
+  if (NOT_EXECUTION.has(r.kind) || r.family === 'explain') { skippedRows.notExecution++; continue }
+  for (const id of (tagOf?.get(r.id) ?? r.inventory)) note(id, r.pass === true, `${r.set}:${r.id}`)
+}
 // a selection case with a deliberately wrong plan tests the guard, not the row: its failure is a defect report, not a row that does not execute.
 // The same goes for a generated row-level case whose only failure is a request on a board or capability pairing outside the row (see `--exclude`).
 const excluded = (id) => /-bad(Deictic|Named|Bare)$/.test(id) || (A.exclude && new RegExp(A.exclude).test(id))
@@ -99,6 +112,7 @@ for (const id of scope) { const s = rows[id].state.replace(' †', ''); docState
 const out = {
   note: 'Local harness, scripted model. Nothing here is REAL-MODEL.',
   execution: { inScope: scope.length, documentVerified: docState.VERIFIED, reconfirmedOrRaised: executed.length, stillProvenFromDocument: [...panel].filter(id => rows[id]?.state.startsWith('VERIFIED')).length, raisedByTest: Object.keys(raised), raisedByBrowser: browser.filter(id => !rows[id].state.startsWith('VERIFIED')), documentRowsNotReproved: unproved, raisesRefused: refused, states: docState },
+  browserMethod: { autotestRowsNotCountedAsExecution: skippedRows.notExecution, retagged: !!A.retag, tagInflation: 'a request names every row of its family, so one passing request credits each of them: browser counts are an upper bound' },
   browser: { rows: browser.length, p0: inP0(browser), p0Total: P0.length, failedRows: Object.fromEntries(browserFailed.map(id => [id, seen[id].fail])) },
   panelP0: { verified: P0.filter(id => panel.has(id)).length, total: P0.length },
   teaching: { total: Object.keys(teach).length, states: tc },

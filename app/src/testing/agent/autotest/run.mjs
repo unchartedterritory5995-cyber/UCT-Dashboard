@@ -1,6 +1,6 @@
 // UCT Agent AUTOTEST: the runner. Local harness by default, free by default.
 //
-//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|all] [--out dir] [--cache dir] [--port 5303]
+//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|unseen2|all] [--env VITE_FLAG=1]... [--out dir] [--cache dir] [--port 5303]
 //     BROWSER-MOCK-MODEL owns its dev server (selectionServe.mjs) unless BA_BASE is set: it starts here and dies with the process
 //   node src/testing/agent/autotest/run.mjs --mode real-model --target local|production --stage <name>
 //   node src/testing/agent/autotest/run.mjs --lint          the set's own checks, sizes and hash (free)
@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { publicRequests, unseenRequests, sample, setHash } from './requests.mjs'
+import { publicRequests, unseenRequests, unseen2Requests, sample, setHash } from './requests.mjs'
 import { lint, summarize, loadManifest } from './lint.mjs'
 import { blobInfo, loadHeldout } from './heldout.mjs'
 import { say, rowOf, writeFailure, finish } from './report.mjs'
@@ -21,7 +21,7 @@ import { stageList } from './stages.mjs'
 
 const { values: A } = parseArgs({ options: {
   mode: { type: 'string', default: '' }, target: { type: 'string', default: 'local' }, set: { type: 'string', default: 'public' }, sample: { type: 'string', default: '' },
-  ids: { type: 'string', default: '' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5303' }, out: { type: 'string', default: 'autotest-out' }, stage: { type: 'string', default: '' }, lint: { type: 'boolean', default: false }, 'guard-check': { type: 'boolean', default: false },
+  ids: { type: 'string', default: '' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5303' }, env: { type: 'string', multiple: true, default: [] }, out: { type: 'string', default: 'autotest-out' }, stage: { type: 'string', default: '' }, lint: { type: 'boolean', default: false }, 'guard-check': { type: 'boolean', default: false },
 } })
 
 const pub = publicRequests()
@@ -48,7 +48,7 @@ if (A['guard-check'] || A.mode === 'real-model') {
 
 const list = (() => {
   if (MODE === 'REAL-MODEL') return stageList(A.stage, pub, A.stage === 'heldout' ? loadHeldout() : [])
-  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
+  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
   if (A.ids) { const re = new RegExp(A.ids); L = L.filter(r => re.test(r.id)) }
   if (A.sample) L = sample(L, Number(A.sample))
   return L
@@ -68,7 +68,7 @@ if (MODE === 'REAL-MODEL') {
   ctx = { R: await startRealRelay(authorize.last, { publicSha: setHash(pub), heldoutSha: blobInfo()?.sha256, spendLog: join(dir, 'spend.jsonl') }), mock: false, turnTimeoutMs: 60000 }
 } else {
   const { startMock } = await import('./mockServer.mjs')
-  ;({ ctx, server } = await startMock({ port: Number(A.port), cache: A.cache }))
+  ;({ ctx, server } = await startMock({ port: Number(A.port), cache: A.cache, env: A.env }))
 }
 const { runRequest } = await import('./driver.mjs')
 const { runProfile } = await import('../../../econHarness/cdp.mjs')

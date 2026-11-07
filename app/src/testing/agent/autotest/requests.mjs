@@ -6,6 +6,7 @@ import { indicators } from './families/indicators.mjs'
 import { drawingsAlerts } from './families/drawingsAlerts.mjs'
 import { workspace } from './families/workspace.mjs'
 import { unseen } from './families/unseen.mjs'
+import { unseen2 } from './families/unseen2.mjs'
 
 export function publicRequests() {
   const L = []
@@ -22,6 +23,13 @@ export function unseenRequests() {
   const L = []
   unseen(L)
   return L.map(r => ({ ...r, set: 'unseen' }))
+}
+
+/** Batch 2 (2026-11-07), written before any run of it: families neither the public set nor batch 1 probed. */
+export function unseen2Requests() {
+  const L = []
+  unseen2(L)
+  return L.map(r => ({ ...r, set: 'unseen2' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
