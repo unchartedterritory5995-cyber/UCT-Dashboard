@@ -44,3 +44,19 @@ re-runnable without asking any vendor again.
 Chart IQ's own Kicker and Oops reversal are not in `chart.events`: the owner ruled his own definitions of both, and the
 setup bank teaches those. Drawing questions (which line is the support, mark the base) wait on product work: the Study
 chart cannot yet draw labelled lines inside a question, and the `levels` item type is not served to members.
+
+## Pass totals (2026-11-06)
+
+| setup | deep_pass1 | deep_pass2 | fired, then failed (`spot.setups_failed`) | deep-history total |
+|---|---:|---:|---:|---:|
+| Oops Reversal | 25 | 600 | | 625 |
+| Launchpad | 25 | 600 | | 625 |
+| Slingshot | 25 | 155 | 420 | 600 |
+| Gap Support | 25 | 43 | 532 | 600 |
+| Kicker | 12 | 1 | 45 | 58 |
+| High Volume Edge | 25 | 0 | | 25 |
+
+Kicker and High Volume Edge have no more qualifying charts in the 2,789 stocks of the bars database. The failed set is
+its own segment so the owner can import, approve or reject it apart from the textbook examples; the Oops Reversal is
+never in it (his ruling: the Oops-day low must never break). Every window in every pass is checked against Yahoo, which
+also drops an old ticker whose company trades under another symbol now (SQ 2024 next to XYZ).
