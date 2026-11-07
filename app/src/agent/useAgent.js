@@ -44,6 +44,7 @@ import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind
 import { UNDO_ACTION } from './capabilities/about'
 import { FLOW_FIELDS } from './capabilities/scanHidden'
 import { namedBoardWidgets } from './routing'
+import { beginTurnTarget, noteTurnTarget } from './convTarget'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
@@ -383,6 +384,7 @@ function rememberChange(memory, host, ops, undoId = null, created = null) {
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
     memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym, undoId })
+    noteTurnTarget(host, memory, epochOf(host), clean)
     // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt —
     // ⭐ PHASE 2: every one this plan confirmed, in order (the last is the subject, as before)
     for (const t of takeIndicatorTouches()) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
@@ -2062,9 +2064,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
     memoryRef.current.beginTurn()
+    let restoreTarget = () => {}
     try {
       // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model
       memoryRef.current.seeBoard(visitOf(host))
+      // CONVERSATIONAL TARGETING (owner 2026-11-07, convTarget.js): with no click since the last change on ONE chart, that chart
+      // reads as the click for this whole turn; "this" against an older click elsewhere reads as no click (the panel asks)
+      restoreTarget = beginTurnTarget(host, memoryRef.current, epochOf(host), text)
       // ⭐ NLM-1 D2/D3 (dark, two keys — nlm1/flag.js): an elliptical request ("same for QQQ", "now the right one too",
       // "add a chart for AMD with RSI") is READ as its explicit form, made from the last committing message (the referent
       // tracker); only when no reader reads it as typed, and only when a reader reads the explicit form. Everything after
@@ -3008,6 +3014,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         }
       }
     } finally {
+      restoreTarget()
       // a planned "…, then undo it" whose change never ran (a question, a card, a refusal): nothing was undone — said
       if (undoAfterRef.current) {
         const held = undoAfterRef.current.held

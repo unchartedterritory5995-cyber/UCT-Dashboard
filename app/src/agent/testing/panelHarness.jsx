@@ -71,7 +71,7 @@ function tickerSearch(raw, st) {
 
 export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
   // `tickers`: extra tickers the server knows in this test (a screen's own result rows, a fixture list's symbols)
-  const st = { envelopes: [], calls: [], selected: null, tickerEcho, known: new Set(tickers.map(t => String(t).toUpperCase())) }
+  const st = { envelopes: [], calls: [], selected: null, clicks: 0, tickerEcho, known: new Set(tickers.map(t => String(t).toUpperCase())) }
   const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
   _simulateReload()
   try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* */ }
@@ -108,7 +108,7 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
     const d = decorate || ((s) => s)
     const h = {
       ...board.host,
-      charts: { ...base, list: () => base.list().map(d), read: (ref) => d(base.read(ref)), canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => st.selected },
+      charts: { ...base, list: () => base.list().map(d), read: (ref) => d(base.read(ref)), canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => st.selected, clickToken: () => (st.selected ? `${st.selected}#${st.clicks}` : null) },
       persist: async (...a) => (st.persist ? st.persist(...a) : { ok: true }),   // st.persist: a test's own save
     }
     render(<AuthContext.Provider value={{ user: { id: 1, role: admin ? 'admin' : 'member' } }}><AgentPanel host={h} onClose={() => {}} /></AuthContext.Provider>)
@@ -156,5 +156,5 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
     const i = instancesOn(board, id).find(pred)
     return i?.presentation || null
   }
-  return { st, env, mount, idle, turns, lastTurnBody, transcript, proposals, summaries, instancesOn, brief, presentationOf, select: (ref) => { st.selected = ref } }
+  return { st, env, mount, idle, turns, lastTurnBody, transcript, proposals, summaries, instancesOn, brief, presentationOf, select: (ref) => { st.selected = ref; st.clicks += 1 } }
 }

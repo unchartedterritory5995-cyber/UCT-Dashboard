@@ -3134,6 +3134,11 @@ function ChartsWorkspaceBoard() {
       const s = selectedChartRef.current
       return s && s.layoutId === dockActiveIdRef.current ? s.widgetId : null
     },
+    // the click itself (a new object per pointer-down): UCT Agent reads whether the member clicked since its last change
+    selectedClick: () => {
+      const s = selectedChartRef.current
+      return s && s.layoutId === dockActiveIdRef.current ? s : null
+    },
     boardVisit: () => boardVisitRef.current.n,
     widgetLabel: (t) => WIDGET_LABELS[t] || t,
     widgetOps: {
