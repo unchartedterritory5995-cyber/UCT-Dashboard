@@ -157,3 +157,31 @@ HEAD unmoved). Logs: runs/w9-t11/mpr/mp-all.log, mp0/, mp1/.
 Rails after the merge (`--maxWorkers=1`): w9T11Record, w9T11StrategyStamp, w9T1Broker, s1StrategyBroker,
 serverBundle.rail, hostNeutralClosure.rail, runtimeWorkerWarmup, objectDoorGate: 8 files, 309/309 passed
 (runs/w9-t11/postmerge.log). Engine bump: still NO. final-tip is left to the coordinator.
+
+## r1 (landing HELD: HP-7 red at f82c6c669f), path (a)
+Cause: `runtimeAsync.js::messageOf` forwards `ctx.historyWindowBars`, and the service adapter (`job.mjs::runArgs`) did
+not. `services/pine_runtime/test/adapter.test.mjs` (`node --test`, never run by vitest) flagged the key drift.
+Fix (a): the service reads the window from the same source the browser does, its ctx, and never from a literal.
+- `protocol.mjs`: the wire `ctx` takes an optional `historyWindowBars`, refused unless it is a positive safe integer.
+  A job without it parses exactly as before.
+- `job.mjs::runArgs` forwards `job.ctx.historyWindowBars` with the same conditional shape as `messageOf`. With it,
+  HP-7's key lists agree, and HP-7 now asserts that both hosts read the window from their ctx.
+- `cache.mjs::canonicalCtx` appends `window=<n>` only when the job states one. Every existing result key is unchanged,
+  and two windows can never share a cached answer.
+- The Python client (`pine_runtime_client.py`) is NOT changed. It sends no window yet, so a service broker run refuses
+  `runtime:strategy-start` by name, as a browser run with no window does. Sending
+  `bars_window.HISTORY_WINDOW_BARS` is T14's (design T14: "the window is bars_window.HISTORY_WINDOW_BARS, imported").
+- Rails: protocol (optional; positive integer; absent when unsent), job (forwards only when stated), cache (key
+  unchanged without a window; two windows give two keys), and the HP-7 assertions.
+- Hand mutations (`svcmut.py`; copy, mutate, `node --test`, restore by copy, filecmp; tree unchanged): control
+  SURVIVED. All 7 KILLED: job-drops-window, job-literal-window, protocol-closes-window, protocol-accepts-zero,
+  protocol-always-carries, cache-ignores-window, cache-always-window. Log: runs/w9-t11/svcmut.log.
+- Merged origin/master 7304620153 (engine 29), clean, giving 021ad96038. After the merge:
+  - `node --test services/pine_runtime/test/*.test.mjs` (Node 24.13.1): 128/128 pass (runs/w9-t11/svc-r1.log).
+    Pre-merge it was also 128/128.
+  - `node tools/pine_runtime_host_parity.mjs --host node --check` (Node 24.13.1): HP-1 GREEN, 166/166 equal the
+    committed digests, no digest change.
+  - vitest engine/runtime + builder/memberPane (Node 20, `--maxWorkers=1`): 205 files pass, 5 tests fail, 2 skipped,
+    3559 tests passed. The 5 failures are the same `*.measure` corpus timeouts as the baseline above. The T11 rails
+    are green inside that run (runs/w9-t11/folder-r1.log).
+- Engine bump: still NO. Translator output and HP-1 digests are unchanged, and the wire change is optional.
